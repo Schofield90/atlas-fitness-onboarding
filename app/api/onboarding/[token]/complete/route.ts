@@ -3,6 +3,7 @@ import { onboardingSubmissionSchema } from '@/lib/validations';
 import { supabaseAdmin } from '@/lib/supabase';
 import { generatePDFBlob } from '@/lib/documents/pdf-generator';
 import { uploadToGoogleDrive, createEmployeeFolder } from '@/lib/google-drive';
+import { sendCompletedDocumentsEmail } from '@/lib/email';
 import {
   getStatementOfTermsContent,
   getRestrictiveCovenantContent,
@@ -84,10 +85,8 @@ export async function POST(
       },
     ];
 
-    // Create employee folder in Google Drive
-    await createEmployeeFolder(employee.name);
-    
-    const uploadResults = [];
+    // Generate PDFs and prepare for email
+    const pdfAttachments = [];
     
     for (const doc of documents) {
       try {
@@ -102,26 +101,21 @@ export async function POST(
         // Convert blob to buffer
         const buffer = Buffer.from(await pdfBlob.arrayBuffer());
 
-        // Upload to Google Drive
-        const uploadResult = await uploadToGoogleDrive(
-          doc.fileName,
-          buffer,
-          'application/pdf'
-        );
-
-        uploadResults.push({
-          title: doc.title,
-          ...uploadResult,
+        pdfAttachments.push({
+          filename: doc.fileName,
+          content: buffer,
         });
       } catch (error) {
-        console.error(`Failed to generate/upload ${doc.title}:`, error);
-        uploadResults.push({
-          title: doc.title,
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
+        console.error(`Failed to generate PDF for ${doc.title}:`, error);
       }
     }
+
+    // Send PDFs via email to admin
+    const emailResult = await sendCompletedDocumentsEmail(
+      employee.name,
+      employee.email,
+      pdfAttachments
+    );
 
     // Update onboarding session
     const { error: updateError } = await supabaseAdmin
@@ -131,7 +125,7 @@ export async function POST(
         completed_at: new Date().toISOString(),
         signature_name: validatedData.signatureName,
         signature_date: validatedData.signatureDate,
-        documents_saved: uploadResults.every(r => r.success),
+        documents_saved: emailResult.success,
       })
       .eq('id', session.id);
 
@@ -142,7 +136,8 @@ export async function POST(
     return NextResponse.json({
       success: true,
       message: 'Onboarding completed successfully',
-      uploadResults,
+      emailSent: emailResult.success,
+      documentsGenerated: pdfAttachments.length,
     });
   } catch (error) {
     console.error('Error completing onboarding:', error);

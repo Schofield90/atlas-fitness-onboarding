@@ -1,0 +1,33 @@
+Add these environment variables in Vercel Dashboard:
+
+Name: NEXT_PUBLIC_SUPABASE_URL
+Value: https://dummy.supabase.co
+
+Name: NEXT_PUBLIC_SUPABASE_ANON_KEY  
+Value: dummy_anon_key
+
+Name: SUPABASE_SERVICE_ROLE_KEY
+Value: dummy_service_role_key
+
+Name: RESEND_API_KEY
+Value: re_dummy_api_key
+
+Name: TELEGRAM_BOT_TOKEN
+Value: dummy_telegram_bot_token
+
+Name: TELEGRAM_CHAT_ID
+Value: 7840453544
+
+Name: GOOGLE_CLIENT_EMAIL
+Value: dummy@dummy.iam.gserviceaccount.com
+
+Name: GOOGLE_PRIVATE_KEY
+Value: -----BEGIN PRIVATE KEY-----
+DUMMY_KEY
+-----END PRIVATE KEY-----
+
+Name: GOOGLE_DRIVE_FOLDER_ID
+Value: dummy_folder_id
+
+Name: NEXT_PUBLIC_APP_URL
+Value: https://atlas-fitness-onboarding-hn8huzqtv-schofield90s-projects.vercel.app
