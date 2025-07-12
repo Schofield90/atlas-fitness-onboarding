@@ -5,10 +5,9 @@ import {
   Text,
   View,
   StyleSheet,
-  PDFDownloadLink,
   pdf,
 } from '@react-pdf/renderer';
-import { EmployeeDetails } from './templates';
+// Remove unused import
 
 // Create styles
 const styles = StyleSheet.create({
@@ -67,7 +66,6 @@ const styles = StyleSheet.create({
 interface DocumentProps {
   content: string;
   title: string;
-  employee: EmployeeDetails;
   signatureName: string;
   signatureDate: string;
 }
@@ -76,7 +74,6 @@ interface DocumentProps {
 export const PDFDocument: React.FC<DocumentProps> = ({
   content,
   title,
-  employee,
   signatureName,
   signatureDate,
 }) => {

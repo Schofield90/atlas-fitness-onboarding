@@ -12,10 +12,10 @@ import {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }> }
 ) {
   try {
-    const { token } = params;
+    const { token } = await params;
     const body = await request.json();
 
     // Validate submission data
@@ -85,7 +85,7 @@ export async function POST(
     ];
 
     // Create employee folder in Google Drive
-    const employeeFolderId = await createEmployeeFolder(employee.name);
+    await createEmployeeFolder(employee.name);
     
     const uploadResults = [];
     
@@ -95,7 +95,6 @@ export async function POST(
         const pdfBlob = await generatePDFBlob({
           content: doc.content,
           title: doc.title,
-          employee,
           signatureName: validatedData.signatureName,
           signatureDate: validatedData.signatureDate,
         });

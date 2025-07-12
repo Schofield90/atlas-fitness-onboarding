@@ -25,11 +25,11 @@ export default function OnboardingSuccessPage() {
           
           <p className="text-gray-600 mb-6">
             Thank you for completing your onboarding. Your signed documents have been
-            securely saved and you'll receive confirmation shortly.
+            securely saved and you&apos;ll receive confirmation shortly.
           </p>
           
           <p className="text-sm text-gray-500">
-            Welcome to the Atlas Fitness team! We're excited to have you on board.
+            Welcome to the Atlas Fitness team! We&apos;re excited to have you on board.
           </p>
           
           <div className="mt-8 pt-6 border-t border-gray-200">

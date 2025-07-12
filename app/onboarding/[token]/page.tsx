@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -34,11 +34,7 @@ export default function OnboardingPage() {
     },
   });
 
-  useEffect(() => {
-    fetchOnboardingData();
-  }, [token]);
-
-  const fetchOnboardingData = async () => {
+  const fetchOnboardingData = useCallback(async () => {
     try {
       const response = await fetch(`/api/onboarding/${token}`);
       const data = await response.json();
@@ -53,7 +49,11 @@ export default function OnboardingPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    fetchOnboardingData();
+  }, [fetchOnboardingData]);
 
   const onSubmit = async (data: OnboardingSubmissionData) => {
     setSubmitting(true);

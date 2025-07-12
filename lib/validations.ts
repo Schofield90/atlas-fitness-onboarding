@@ -7,7 +7,7 @@ export const employeeFormSchema = z.object({
   annualSalary: z.number().positive('Salary must be a positive number'),
   hoursPerWeek: z.number().min(1).max(48, 'Hours must be between 1 and 48'),
   location: z.enum(['York', 'Harrogate'], {
-    errorMap: () => ({ message: 'Please select a location' }),
+    message: 'Please select a location',
   }),
   startDate: z.string().refine((date) => {
     const d = new Date(date);
