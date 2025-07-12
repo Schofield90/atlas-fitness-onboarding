@@ -1,0 +1,163 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { onboardingSubmissionSchema } from '@/lib/validations';
+import { supabaseAdmin } from '@/lib/supabase';
+import { generatePDFBlob } from '@/lib/documents/pdf-generator';
+import { uploadToGoogleDrive, createEmployeeFolder } from '@/lib/google-drive';
+import {
+  getStatementOfTermsContent,
+  getRestrictiveCovenantContent,
+  getDeductionsAgreementContent,
+  EmployeeDetails,
+} from '@/lib/documents/templates';
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { token: string } }
+) {
+  try {
+    const { token } = params;
+    const body = await request.json();
+
+    // Validate submission data
+    const validatedData = onboardingSubmissionSchema.parse(body);
+
+    // Fetch session and employee data
+    const { data: session, error: sessionError } = await supabaseAdmin
+      .from('onboarding_sessions')
+      .select(`
+        *,
+        employees (*)
+      `)
+      .eq('token', token)
+      .single();
+
+    if (sessionError || !session) {
+      return NextResponse.json(
+        { error: 'Invalid onboarding session' },
+        { status: 404 }
+      );
+    }
+
+    // Check if already completed
+    if (session.completed) {
+      return NextResponse.json(
+        { error: 'Onboarding already completed' },
+        { status: 400 }
+      );
+    }
+
+    // Check expiration
+    const expiresAt = new Date(session.expires_at);
+    if (expiresAt < new Date()) {
+      return NextResponse.json(
+        { error: 'Onboarding link has expired' },
+        { status: 410 }
+      );
+    }
+
+    const employee: EmployeeDetails = {
+      name: session.employees.name,
+      email: session.employees.email,
+      jobTitle: session.employees.job_title,
+      annualSalary: session.employees.annual_salary,
+      hoursPerWeek: session.employees.hours_per_week,
+      location: session.employees.location,
+      startDate: session.employees.start_date,
+    };
+
+    // Generate PDFs
+    const documents = [
+      {
+        title: 'Statement of Main Terms of Employment',
+        content: getStatementOfTermsContent(employee),
+        fileName: `${employee.name} - Statement of Terms - ${new Date().toISOString().split('T')[0]}.pdf`,
+      },
+      {
+        title: 'Restrictive Covenant Agreement',
+        content: getRestrictiveCovenantContent(employee),
+        fileName: `${employee.name} - Restrictive Covenant - ${new Date().toISOString().split('T')[0]}.pdf`,
+      },
+      {
+        title: 'Deductions from Pay Agreement',
+        content: getDeductionsAgreementContent(employee),
+        fileName: `${employee.name} - Deductions Agreement - ${new Date().toISOString().split('T')[0]}.pdf`,
+      },
+    ];
+
+    // Create employee folder in Google Drive
+    const employeeFolderId = await createEmployeeFolder(employee.name);
+    
+    const uploadResults = [];
+    
+    for (const doc of documents) {
+      try {
+        // Generate PDF blob
+        const pdfBlob = await generatePDFBlob({
+          content: doc.content,
+          title: doc.title,
+          employee,
+          signatureName: validatedData.signatureName,
+          signatureDate: validatedData.signatureDate,
+        });
+
+        // Convert blob to buffer
+        const buffer = Buffer.from(await pdfBlob.arrayBuffer());
+
+        // Upload to Google Drive
+        const uploadResult = await uploadToGoogleDrive(
+          doc.fileName,
+          buffer,
+          'application/pdf'
+        );
+
+        uploadResults.push({
+          title: doc.title,
+          ...uploadResult,
+        });
+      } catch (error) {
+        console.error(`Failed to generate/upload ${doc.title}:`, error);
+        uploadResults.push({
+          title: doc.title,
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
+    // Update onboarding session
+    const { error: updateError } = await supabaseAdmin
+      .from('onboarding_sessions')
+      .update({
+        completed: true,
+        completed_at: new Date().toISOString(),
+        signature_name: validatedData.signatureName,
+        signature_date: validatedData.signatureDate,
+        documents_saved: uploadResults.every(r => r.success),
+      })
+      .eq('id', session.id);
+
+    if (updateError) {
+      console.error('Failed to update session:', updateError);
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Onboarding completed successfully',
+      uploadResults,
+    });
+  } catch (error) {
+    console.error('Error completing onboarding:', error);
+    
+    if (error instanceof Error) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 400 }
+      );
+    }
+    
+    return NextResponse.json(
+      { error: 'An unexpected error occurred' },
+      { status: 500 }
+    );
+  }
+}

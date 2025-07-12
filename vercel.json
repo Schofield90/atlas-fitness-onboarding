@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "app/api/onboarding/[token]/complete/route.ts": {
+      "maxDuration": 30
+    }
+  }
+}
