@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { onboardingSubmissionSchema } from '@/lib/validations';
 import { supabaseAdmin } from '@/lib/supabase';
 import { generatePDFBlob } from '@/lib/documents/pdf-generator';
-import { uploadToGoogleDrive, createEmployeeFolder } from '@/lib/google-drive';
+// Google Drive functionality temporarily disabled
 import { sendCompletedDocumentsEmail } from '@/lib/email';
 import {
   getStatementOfTermsContent,
