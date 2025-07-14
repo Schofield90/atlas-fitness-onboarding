@@ -58,10 +58,24 @@ export default function OnboardingPage() {
   const onSubmit = async (data: OnboardingSubmissionData) => {
     setSubmitting(true);
     try {
+      // Create FormData for file upload
+      const formData = new FormData();
+      
+      // Add all form fields except the file
+      Object.keys(data).forEach(key => {
+        if (key !== 'employeeSignature' && data[key as keyof OnboardingSubmissionData] !== undefined) {
+          formData.append(key, String(data[key as keyof OnboardingSubmissionData]));
+        }
+      });
+      
+      // Add signature file if present
+      if (data.employeeSignature && data.employeeSignature[0]) {
+        formData.append('employeeSignature', data.employeeSignature[0]);
+      }
+
       const response = await fetch(`/api/onboarding/${token}/complete`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: formData,
       });
 
       const result = await response.json();
@@ -401,39 +415,65 @@ export default function OnboardingPage() {
                     )}
                   </div>
 
-                  <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label
-                        htmlFor="signatureName"
-                        className="block text-sm font-medium text-gray-700 mb-1"
-                      >
-                        Type your full name as signature
-                      </label>
-                      <input
-                        {...register('signatureName')}
-                        type="text"
-                        placeholder="Your full name"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                      />
-                      {errors.signatureName && (
-                        <p className="mt-1 text-sm text-red-600">
-                          {errors.signatureName.message}
-                        </p>
-                      )}
+                  <div className="mt-6 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label
+                          htmlFor="signatureName"
+                          className="block text-sm font-medium text-gray-700 mb-1"
+                        >
+                          Type your full name as signature
+                        </label>
+                        <input
+                          {...register('signatureName')}
+                          type="text"
+                          placeholder="Your full name"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        {errors.signatureName && (
+                          <p className="mt-1 text-sm text-red-600">
+                            {errors.signatureName.message}
+                          </p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="signatureDate"
+                          className="block text-sm font-medium text-gray-700 mb-1"
+                        >
+                          Date
+                        </label>
+                        <input
+                          {...register('signatureDate')}
+                          type="date"
+                          defaultValue={new Date().toISOString().split('T')[0]}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
                     </div>
 
                     <div>
                       <label
-                        htmlFor="signatureDate"
+                        htmlFor="employeeSignature"
                         className="block text-sm font-medium text-gray-700 mb-1"
                       >
-                        Date
+                        Employee Signature Upload (Optional)
                       </label>
                       <input
-                        {...register('signatureDate')}
-                        type="date"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        {...register('employeeSignature')}
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                       />
+                      <p className="mt-1 text-sm text-gray-500">
+                        Upload a signature image (PNG, JPG, JPEG). If not provided, your typed name will be used.
+                      </p>
+                      {errors.employeeSignature && (
+                        <p className="mt-1 text-sm text-red-600">
+                          {String(errors.employeeSignature?.message || 'Invalid file')}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>

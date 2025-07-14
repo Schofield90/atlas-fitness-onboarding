@@ -85,6 +85,7 @@ interface DocumentProps {
   employerName?: string;
   employerSignatureUrl?: string;
   employerSignatureDate?: string;
+  employeeSignatureUrl?: string;
 }
 
 // PDF Document Component
@@ -96,6 +97,7 @@ export const PDFDocument: React.FC<DocumentProps> = ({
   employerName,
   employerSignatureUrl,
   employerSignatureDate,
+  employeeSignatureUrl,
 }) => {
   // Split content into sections for better PDF formatting
   const sections = content.split('\\n\\n').filter(section => section.trim());
@@ -129,7 +131,11 @@ export const PDFDocument: React.FC<DocumentProps> = ({
           <View style={styles.signatureRow}>
             <View style={styles.signatureColumn}>
               <Text style={styles.signatureText}>Employee Signature</Text>
-              <Text style={styles.signatureName}>{signatureName}</Text>
+              {employeeSignatureUrl ? (
+                <Image style={styles.signatureImage} src={employeeSignatureUrl} />
+              ) : (
+                <Text style={styles.signatureName}>{signatureName}</Text>
+              )}
               <Text style={styles.signatureText}>
                 Date: {new Date(signatureDate).toLocaleDateString('en-GB')}
               </Text>

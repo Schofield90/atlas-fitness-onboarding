@@ -33,6 +33,7 @@ export const onboardingSubmissionSchema = z.object({
   // Signature
   signatureName: z.string().min(2, 'Please enter your full name'),
   signatureDate: z.string(),
+  employeeSignature: z.any().optional(),
   // Personal details for Xero integration
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
