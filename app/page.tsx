@@ -218,7 +218,7 @@ export default function AdminPage() {
               />
               <p className="mt-1 text-sm text-gray-500">Upload your signature image to be used in employment documents</p>
               {errors.employerSignature && (
-                <p className="mt-1 text-sm text-red-600">{errors.employerSignature.message}</p>
+                <p className="mt-1 text-sm text-red-600">{String(errors.employerSignature?.message || 'Invalid file')}</p>
               )}
             </div>
 
