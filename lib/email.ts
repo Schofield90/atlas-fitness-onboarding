@@ -3,19 +3,19 @@ import { Resend } from 'resend';
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function sendOnboardingEmail(
-  to: string,
+  employeeEmail: string,
   employeeName: string,
   onboardingUrl: string
 ) {
   try {
-    console.log('Attempting to send onboarding email to:', to);
+    console.log('Sending onboarding link to admin for:', employeeName);
     console.log('RESEND_API_KEY exists:', !!process.env.RESEND_API_KEY);
     console.log('RESEND_API_KEY value:', process.env.RESEND_API_KEY?.substring(0, 10) + '...');
     
     const { data, error } = await resend.emails.send({
       from: 'onboarding@resend.dev',
-      to: [to],
-      subject: 'Welcome to Atlas Fitness - Complete Your Onboarding',
+      to: ['samschofield90@hotmail.co.uk'],
+      subject: `Onboarding Link Ready for ${employeeName}`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -35,21 +35,27 @@ export async function sendOnboardingEmail(
                 <h1>Welcome to Atlas Fitness!</h1>
               </div>
               <div class="content">
-                <p>Dear ${employeeName},</p>
+                <p>Hi Sam,</p>
                 
-                <p>We're excited to have you join the Atlas Fitness team!</p>
+                <p>A new onboarding link has been created for <strong>${employeeName}</strong> (${employeeEmail}).</p>
                 
-                <p>To complete your onboarding process, please click the link below to review and sign your employment documents:</p>
+                <p><strong>Please forward this onboarding link to the employee:</strong></p>
                 
-                <p style="text-align: center;">
-                  <a href="${onboardingUrl}" class="button">Complete Onboarding</a>
-                </p>
+                <div style="background-color: #f9f9f9; padding: 20px; border-radius: 5px; margin: 20px 0;">
+                  <p><strong>Onboarding Link:</strong></p>
+                  <p style="text-align: center;">
+                    <a href="${onboardingUrl}" class="button">Complete Onboarding</a>
+                  </p>
+                  <p style="font-size: 12px; color: #666;">
+                    Direct URL: ${onboardingUrl}
+                  </p>
+                </div>
                 
-                <p><strong>Important:</strong> This link will expire in 48 hours. Please complete your onboarding as soon as possible.</p>
+                <p><strong>Important:</strong> This link will expire in 48 hours.</p>
                 
-                <p>If you have any questions, please don't hesitate to contact us.</p>
+                <p>Once the employee completes their onboarding, you'll receive another email with their signed documents.</p>
                 
-                <p>Best regards,<br>The Atlas Fitness Team</p>
+                <p>Best regards,<br>Atlas Fitness Onboarding System</p>
               </div>
               <div class="footer">
                 <p>Schofield Fitness Ltd trading as Atlas Fitness</p>
@@ -88,7 +94,7 @@ export async function sendCompletedDocumentsEmail(
     
     const { data, error } = await resend.emails.send({
       from: 'onboarding@resend.dev',
-      to: ['sam@atlas-gyms.co.uk'], // Updated to your actual email
+      to: ['samschofield90@hotmail.co.uk'], // Updated to your actual email
       subject: `Completed Onboarding Documents - ${employeeName}`,
       html: `
         <!DOCTYPE html>
