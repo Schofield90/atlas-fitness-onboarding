@@ -8,10 +8,48 @@ import { addDays } from 'date-fns';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const formData = await request.formData();
     
-    // Validate input
-    const validatedData = employeeFormSchema.parse(body);
+    // Extract form fields
+    const body = {
+      name: formData.get('name') as string,
+      email: formData.get('email') as string,
+      jobTitle: formData.get('jobTitle') as string,
+      annualSalary: Number(formData.get('annualSalary')),
+      hoursPerWeek: Number(formData.get('hoursPerWeek')),
+      location: formData.get('location') as string,
+      startDate: formData.get('startDate') as string,
+      employerName: formData.get('employerName') as string || 'Sam Schofield',
+    };
+    
+    const signatureFile = formData.get('employerSignature') as File;
+    
+    // Validate input (excluding file for now)
+    const validatedData = employeeFormSchema.omit({ employerSignature: true }).parse(body);
+    
+    let signatureUrl = null;
+    
+    // Upload signature if provided
+    if (signatureFile && signatureFile.size > 0) {
+      const fileExt = signatureFile.name.split('.').pop();
+      const fileName = `employer-signature-${nanoid(10)}.${fileExt}`;
+      
+      const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+        .from('signatures')
+        .upload(fileName, signatureFile, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+        
+      if (uploadError) {
+        console.error('Failed to upload signature:', uploadError);
+      } else {
+        const { data: { publicUrl } } = supabaseAdmin.storage
+          .from('signatures')
+          .getPublicUrl(fileName);
+        signatureUrl = publicUrl;
+      }
+    }
     
     // Create employee record (personal details and bank info will be filled during onboarding)
     const { data: employee, error: employeeError } = await supabaseAdmin
@@ -24,6 +62,8 @@ export async function POST(request: NextRequest) {
         hours_per_week: validatedData.hoursPerWeek,
         location: validatedData.location,
         start_date: validatedData.startDate,
+        employer_name: validatedData.employerName,
+        employer_signature_url: signatureUrl,
       })
       .select()
       .single();

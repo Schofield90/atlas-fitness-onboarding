@@ -8,6 +8,10 @@ export async function sendOnboardingEmail(
   onboardingUrl: string
 ) {
   try {
+    console.log('Attempting to send onboarding email to:', to);
+    console.log('RESEND_API_KEY exists:', !!process.env.RESEND_API_KEY);
+    console.log('RESEND_API_KEY value:', process.env.RESEND_API_KEY?.substring(0, 10) + '...');
+    
     const { data, error } = await resend.emails.send({
       from: 'Atlas Fitness <onboarding@atlasfitness.co.uk>',
       to: [to],
@@ -58,9 +62,11 @@ export async function sendOnboardingEmail(
     });
 
     if (error) {
+      console.error('Resend API error:', error);
       throw error;
     }
 
+    console.log('Email sent successfully:', data);
     return { success: true, data };
   } catch (error) {
     console.error('Failed to send email:', error);
@@ -77,9 +83,12 @@ export async function sendCompletedDocumentsEmail(
   }>
 ) {
   try {
+    console.log('Attempting to send completed documents email for:', employeeName);
+    console.log('PDF attachments count:', pdfAttachments.length);
+    
     const { data, error } = await resend.emails.send({
       from: 'Atlas Fitness <onboarding@atlasfitness.co.uk>',
-      to: ['sam@atlasfitness.co.uk'], // Update this to your actual email
+      to: ['sam@atlas-gyms.co.uk'], // Updated to your actual email
       subject: `Completed Onboarding Documents - ${employeeName}`,
       html: `
         <!DOCTYPE html>
@@ -135,9 +144,11 @@ export async function sendCompletedDocumentsEmail(
     });
 
     if (error) {
+      console.error('Resend API error for completed documents:', error);
       throw error;
     }
 
+    console.log('Completed documents email sent successfully:', data);
     return { success: true, data };
   } catch (error) {
     console.error('Failed to send completed documents email:', error);

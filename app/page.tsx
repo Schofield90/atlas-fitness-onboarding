@@ -26,10 +26,23 @@ export default function AdminPage() {
     setSubmitResult(null);
 
     try {
+      const formData = new FormData();
+      
+      // Add text fields
+      Object.entries(data).forEach(([key, value]) => {
+        if (key !== 'employerSignature' && value !== undefined) {
+          formData.append(key, value.toString());
+        }
+      });
+      
+      // Add signature file if present
+      if (data.employerSignature) {
+        formData.append('employerSignature', data.employerSignature);
+      }
+
       const response = await fetch('/api/employees', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: formData,
       });
 
       const result = await response.json();
@@ -175,6 +188,37 @@ export default function AdminPage() {
               />
               {errors.startDate && (
                 <p className="mt-1 text-sm text-red-600">{errors.startDate.message}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="employerName" className="block text-sm font-medium text-gray-700">
+                Employer Name (for document signatures)
+              </label>
+              <input
+                {...register('employerName')}
+                type="text"
+                defaultValue="Sam Schofield"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+              {errors.employerName && (
+                <p className="mt-1 text-sm text-red-600">{errors.employerName.message}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="employerSignature" className="block text-sm font-medium text-gray-700">
+                Employer Signature Image (PNG/JPG)
+              </label>
+              <input
+                {...register('employerSignature')}
+                type="file"
+                accept="image/png,image/jpeg,image/jpg"
+                className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
+              <p className="mt-1 text-sm text-gray-500">Upload your signature image to be used in employment documents</p>
+              {errors.employerSignature && (
+                <p className="mt-1 text-sm text-red-600">{errors.employerSignature.message}</p>
               )}
             </div>
 

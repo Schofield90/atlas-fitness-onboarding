@@ -6,6 +6,7 @@ import {
   View,
   StyleSheet,
   pdf,
+  Image,
 } from '@react-pdf/renderer';
 // Remove unused import
 
@@ -51,6 +52,14 @@ const styles = StyleSheet.create({
     borderTop: '1px solid #e5e7eb',
     paddingTop: 20,
   },
+  signatureRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+  },
+  signatureColumn: {
+    width: '45%',
+  },
   signatureText: {
     fontSize: 10,
     color: '#6b7280',
@@ -61,6 +70,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#1f2937',
   },
+  signatureImage: {
+    width: 100,
+    height: 50,
+    marginBottom: 5,
+  },
 });
 
 interface DocumentProps {
@@ -68,6 +82,9 @@ interface DocumentProps {
   title: string;
   signatureName: string;
   signatureDate: string;
+  employerName?: string;
+  employerSignatureUrl?: string;
+  employerSignatureDate?: string;
 }
 
 // PDF Document Component
@@ -76,6 +93,9 @@ export const PDFDocument: React.FC<DocumentProps> = ({
   title,
   signatureName,
   signatureDate,
+  employerName,
+  employerSignatureUrl,
+  employerSignatureDate,
 }) => {
   // Split content into sections for better PDF formatting
   const sections = content.split('\\n\\n').filter(section => section.trim());
@@ -106,11 +126,27 @@ export const PDFDocument: React.FC<DocumentProps> = ({
         })}
 
         <View style={styles.signature}>
-          <Text style={styles.signatureText}>Employee Signature</Text>
-          <Text style={styles.signatureName}>{signatureName}</Text>
-          <Text style={styles.signatureText}>
-            Date: {new Date(signatureDate).toLocaleDateString('en-GB')}
-          </Text>
+          <View style={styles.signatureRow}>
+            <View style={styles.signatureColumn}>
+              <Text style={styles.signatureText}>Employee Signature</Text>
+              <Text style={styles.signatureName}>{signatureName}</Text>
+              <Text style={styles.signatureText}>
+                Date: {new Date(signatureDate).toLocaleDateString('en-GB')}
+              </Text>
+            </View>
+            
+            <View style={styles.signatureColumn}>
+              <Text style={styles.signatureText}>Employer Signature</Text>
+              {employerSignatureUrl ? (
+                <Image style={styles.signatureImage} src={employerSignatureUrl} />
+              ) : (
+                <Text style={styles.signatureName}>{employerName || 'Sam Schofield'}</Text>
+              )}
+              <Text style={styles.signatureText}>
+                Date: {employerSignatureDate ? new Date(employerSignatureDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')}
+              </Text>
+            </View>
+          </View>
         </View>
       </Page>
     </Document>

@@ -21,6 +21,9 @@ export interface EmployeeDetails {
   hoursPerWeek: number;
   location: 'York' | 'Harrogate';
   startDate: string;
+  onboardingCreatedDate?: string; // Date when onboarding link was created
+  employerName?: string;
+  employerSignatureUrl?: string;
 }
 
 // Statement of Main Terms of Employment Template
@@ -124,7 +127,7 @@ We reserve the contractual right to give pay in lieu of all or any part of the a
 PENSION AND PENSION SCHEME
 We operate a contributory pension scheme which you will be auto-enrolled into (subject to the conditions of the scheme). Further details are available from the Managing Director.
 
-SIGNATURE: For and on behalf of the Employer                    DATE:
+SIGNATURE: For and on behalf of the Employer                    DATE: ${employee.onboardingCreatedDate ? new Date(employee.onboardingCreatedDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')}
 
 I acknowledge receipt of this statement and agree that, for the purpose of the Working Time Regulations, any applicable entitlements and provisions constitute a relevant agreement.
 
@@ -220,9 +223,9 @@ Each of the restrictions contained in this Restrictive Covenant Agreement is int
 
 SIGNATURE: Employee                                          DATE:
 
-SIGNATURE: On behalf of Schofield Fitness Ltd              DATE:
+SIGNATURE: On behalf of Schofield Fitness Ltd              DATE: ${employee.onboardingCreatedDate ? new Date(employee.onboardingCreatedDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')}
 
-NAME: ${employee.name}                                      NAME:
+NAME: ${employee.name}                                      NAME: ${employee.employerName || 'Sam Schofield'}
 
 Print                                                       Print`;
 };
@@ -266,5 +269,7 @@ I have read and I understand the above terms. I agree that they form part of my 
 
 SIGNATURE: Employee                                          DATE:
 
-NAME: ${employee.name}`;
+SIGNATURE: On behalf of Schofield Fitness Ltd              DATE: ${employee.onboardingCreatedDate ? new Date(employee.onboardingCreatedDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')}
+
+NAME: ${employee.name}                                      NAME: ${employee.employerName || 'Sam Schofield'}`;
 };

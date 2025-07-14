@@ -64,6 +64,9 @@ export async function POST(
       hoursPerWeek: session.employees.hours_per_week,
       location: session.employees.location,
       startDate: session.employees.start_date,
+      onboardingCreatedDate: session.created_at, // Use the session creation date
+      employerName: session.employees.employer_name,
+      employerSignatureUrl: session.employees.employer_signature_url,
     };
 
     // Update employee record with personal details and bank information
@@ -122,6 +125,9 @@ export async function POST(
           title: doc.title,
           signatureName: validatedData.signatureName,
           signatureDate: validatedData.signatureDate,
+          employerName: employee.employerName,
+          employerSignatureUrl: employee.employerSignatureUrl,
+          employerSignatureDate: employee.onboardingCreatedDate,
         });
 
         // Convert blob to buffer
