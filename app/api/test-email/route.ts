@@ -11,8 +11,8 @@ export async function POST(request: NextRequest) {
     
     // Simple test email
     const { data, error } = await resend.emails.send({
-      from: 'onboarding@resend.dev',
-      to: ['samschofield90@hotmail.co.uk'],
+      from: 'sam@atlas-gyms.co.uk',
+      to: ['sam@atlas-gyms.co.uk'],
       subject: '🧪 Test Email from Atlas Fitness Onboarding',
       html: `
         <h2>Test Email Success! ✅</h2>
