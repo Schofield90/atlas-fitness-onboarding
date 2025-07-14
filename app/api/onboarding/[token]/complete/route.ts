@@ -66,6 +66,32 @@ export async function POST(
       startDate: session.employees.start_date,
     };
 
+    // Update employee record with personal details and bank information
+    const { error: updateError } = await supabaseAdmin
+      .from('employees')
+      .update({
+        first_name: validatedData.firstName,
+        last_name: validatedData.lastName,
+        phone: validatedData.phone,
+        address: validatedData.address,
+        postcode: validatedData.postcode,
+        national_insurance_number: validatedData.nationalInsuranceNumber,
+        date_of_birth: validatedData.dateOfBirth,
+        bank_name: validatedData.bankName,
+        account_holder_name: validatedData.accountHolderName,
+        account_number: validatedData.accountNumber,
+        sort_code: validatedData.sortCode,
+      })
+      .eq('id', session.employees.id);
+
+    if (updateError) {
+      console.error('Failed to update employee details:', updateError);
+      return NextResponse.json(
+        { error: 'Failed to save employee details' },
+        { status: 500 }
+      );
+    }
+
     // Generate PDFs
     const documents = [
       {

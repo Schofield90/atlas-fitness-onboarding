@@ -13,7 +13,25 @@ export const employeeFormSchema = z.object({
     const d = new Date(date);
     return d instanceof Date && !isNaN(d.getTime());
   }, 'Invalid date'),
-  // Additional fields for Xero integration
+});
+
+export type EmployeeFormData = z.infer<typeof employeeFormSchema>;
+
+export const onboardingSubmissionSchema = z.object({
+  // Document acceptance
+  acceptTerms: z.boolean().refine((val) => val === true, {
+    message: 'You must accept the terms of employment',
+  }),
+  acceptRestrictive: z.boolean().refine((val) => val === true, {
+    message: 'You must accept the restrictive covenant agreement',
+  }),
+  acceptDeductions: z.boolean().refine((val) => val === true, {
+    message: 'You must accept the deductions from pay agreement',
+  }),
+  // Signature
+  signatureName: z.string().min(2, 'Please enter your full name'),
+  signatureDate: z.string(),
+  // Personal details for Xero integration
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
   phone: z.string().min(10, 'Phone number must be at least 10 characters'),
@@ -29,22 +47,6 @@ export const employeeFormSchema = z.object({
   accountHolderName: z.string().min(2, 'Account holder name is required'),
   accountNumber: z.string().min(8, 'Account number must be at least 8 digits'),
   sortCode: z.string().min(6, 'Sort code must be 6 digits'),
-});
-
-export type EmployeeFormData = z.infer<typeof employeeFormSchema>;
-
-export const onboardingSubmissionSchema = z.object({
-  acceptTerms: z.boolean().refine((val) => val === true, {
-    message: 'You must accept the terms of employment',
-  }),
-  acceptRestrictive: z.boolean().refine((val) => val === true, {
-    message: 'You must accept the restrictive covenant agreement',
-  }),
-  acceptDeductions: z.boolean().refine((val) => val === true, {
-    message: 'You must accept the deductions from pay agreement',
-  }),
-  signatureName: z.string().min(2, 'Please enter your full name'),
-  signatureDate: z.string(),
 });
 
 export type OnboardingSubmissionData = z.infer<typeof onboardingSubmissionSchema>;
