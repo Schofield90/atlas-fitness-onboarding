@@ -175,7 +175,7 @@ export async function POST(
           employerName: employee.employerName,
           employerSignatureUrl: employee.employerSignatureUrl,
           employerSignatureDate: employee.employerSignatureDate,
-          employeeSignatureUrl: employeeSignatureUrl,
+          employeeSignatureUrl: employeeSignatureUrl || undefined,
         });
 
         // Convert blob to buffer
