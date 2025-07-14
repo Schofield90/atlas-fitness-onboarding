@@ -28,17 +28,12 @@ export default function AdminPage() {
     try {
       const formData = new FormData();
       
-      // Add text fields
+      // Add all form fields
       Object.entries(data).forEach(([key, value]) => {
-        if (key !== 'employerSignature' && value !== undefined) {
+        if (value !== undefined) {
           formData.append(key, value.toString());
         }
       });
-      
-      // Add signature file if present
-      if (data.employerSignature) {
-        formData.append('employerSignature', data.employerSignature);
-      }
 
       const response = await fetch('/api/employees', {
         method: 'POST',
@@ -207,19 +202,10 @@ export default function AdminPage() {
             </div>
 
             <div>
-              <label htmlFor="employerSignature" className="block text-sm font-medium text-gray-700">
-                Employer Signature Image (PNG/JPG)
+              <label className="block text-sm font-medium text-gray-700">
+                Employer Signature
               </label>
-              <input
-                {...register('employerSignature')}
-                type="file"
-                accept="image/png,image/jpeg,image/jpg"
-                className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-              />
-              <p className="mt-1 text-sm text-gray-500">Upload your signature image to be used in employment documents</p>
-              {errors.employerSignature && (
-                <p className="mt-1 text-sm text-red-600">{String(errors.employerSignature?.message || 'Invalid file')}</p>
-              )}
+              <p className="mt-1 text-sm text-gray-500">✅ Your signature is automatically included in all employment documents</p>
             </div>
 
             <div>
