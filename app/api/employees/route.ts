@@ -24,6 +24,19 @@ export async function POST(request: NextRequest) {
         hours_per_week: validatedData.hoursPerWeek,
         location: validatedData.location,
         start_date: validatedData.startDate,
+        // Additional fields for Xero integration
+        first_name: validatedData.firstName,
+        last_name: validatedData.lastName,
+        phone: validatedData.phone,
+        address: validatedData.address,
+        postcode: validatedData.postcode,
+        national_insurance_number: validatedData.nationalInsuranceNumber,
+        date_of_birth: validatedData.dateOfBirth,
+        // Bank details for payment
+        bank_name: validatedData.bankName,
+        account_holder_name: validatedData.accountHolderName,
+        account_number: validatedData.accountNumber,
+        sort_code: validatedData.sortCode,
       })
       .select()
       .single();

@@ -13,6 +13,22 @@ export const employeeFormSchema = z.object({
     const d = new Date(date);
     return d instanceof Date && !isNaN(d.getTime());
   }, 'Invalid date'),
+  // Additional fields for Xero integration
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().min(1, 'Last name is required'),
+  phone: z.string().min(10, 'Phone number must be at least 10 characters'),
+  address: z.string().min(10, 'Address must be at least 10 characters'),
+  postcode: z.string().min(5, 'Postcode must be at least 5 characters'),
+  nationalInsuranceNumber: z.string().min(9, 'National Insurance number is required'),
+  dateOfBirth: z.string().refine((date) => {
+    const d = new Date(date);
+    return d instanceof Date && !isNaN(d.getTime());
+  }, 'Invalid date format'),
+  // Bank details for payment
+  bankName: z.string().min(2, 'Bank name is required'),
+  accountHolderName: z.string().min(2, 'Account holder name is required'),
+  accountNumber: z.string().min(8, 'Account number must be at least 8 digits'),
+  sortCode: z.string().min(6, 'Sort code must be 6 digits'),
 });
 
 export type EmployeeFormData = z.infer<typeof employeeFormSchema>;

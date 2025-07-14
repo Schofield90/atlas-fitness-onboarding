@@ -8,6 +8,19 @@ CREATE TABLE employees (
   hours_per_week INTEGER NOT NULL,
   location TEXT NOT NULL,
   start_date DATE NOT NULL,
+  -- Additional fields for Xero integration
+  first_name TEXT NOT NULL,
+  last_name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  address TEXT NOT NULL,
+  postcode TEXT NOT NULL,
+  national_insurance_number TEXT NOT NULL,
+  date_of_birth DATE NOT NULL,
+  -- Bank details for payment
+  bank_name TEXT NOT NULL,
+  account_holder_name TEXT NOT NULL,
+  account_number TEXT NOT NULL,
+  sort_code TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
 );
 

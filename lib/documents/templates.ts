@@ -3,7 +3,7 @@ export const COMPANY_INFO = {
   tradingAs: 'Atlas Fitness',
   locations: {
     York: {
-      address: '2 George Cayley Drive, York YO30 4XE',
+      address: 'Unit 4 Auster Road, York, YO30 4XD',
       phone: 'TBC', // Add phone number
     },
     Harrogate: {
@@ -33,7 +33,7 @@ export const getStatementOfTermsContent = (employee: EmployeeDetails) => {
 
   return `STATEMENT OF MAIN TERMS OF EMPLOYMENT
 
-This statement, together with the employee handbook, forms part of your contract of employment (except where the contrary is expressly stated) and sets out particulars of the main terms on which Atlas Fitness York Ltd, 2 George Cayley Drive, York YO30 4XE
+This statement, together with the employee handbook, forms part of your contract of employment (except where the contrary is expressly stated) and sets out particulars of the main terms on which ${COMPANY_INFO.legalName}, ${locationInfo.address}
 
 Employs: ${employee.name}
 
