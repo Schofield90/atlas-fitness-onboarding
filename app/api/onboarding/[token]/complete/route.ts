@@ -144,7 +144,7 @@ export async function POST(
     );
 
     // Update onboarding session
-    const { error: updateError } = await supabaseAdmin
+    const { error: sessionUpdateError } = await supabaseAdmin
       .from('onboarding_sessions')
       .update({
         completed: true,
@@ -155,8 +155,8 @@ export async function POST(
       })
       .eq('id', session.id);
 
-    if (updateError) {
-      console.error('Failed to update session:', updateError);
+    if (sessionUpdateError) {
+      console.error('Failed to update session:', sessionUpdateError);
     }
 
     return NextResponse.json({
