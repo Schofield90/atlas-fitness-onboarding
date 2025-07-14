@@ -222,6 +222,22 @@ export default function AdminPage() {
               )}
             </div>
 
+            <div>
+              <label htmlFor="employerSignatureDate" className="block text-sm font-medium text-gray-700">
+                Employer Signature Date
+              </label>
+              <input
+                {...register('employerSignatureDate')}
+                type="date"
+                defaultValue={new Date().toISOString().split('T')[0]}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+              <p className="mt-1 text-sm text-gray-500">Date when you signed the employment documents</p>
+              {errors.employerSignatureDate && (
+                <p className="mt-1 text-sm text-red-600">{errors.employerSignatureDate.message}</p>
+              )}
+            </div>
+
 
             <button
               type="submit"

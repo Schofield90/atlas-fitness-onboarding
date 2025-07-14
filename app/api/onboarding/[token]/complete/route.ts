@@ -113,6 +113,7 @@ export async function POST(
       onboardingCreatedDate: session.created_at, // Use the session creation date
       employerName: session.employees.employer_name,
       employerSignatureUrl: session.employees.employer_signature_url,
+      employerSignatureDate: session.employees.employer_signature_date,
     };
 
     // Update employee record with personal details and bank information
@@ -173,7 +174,7 @@ export async function POST(
           signatureDate: validatedData.signatureDate,
           employerName: employee.employerName,
           employerSignatureUrl: employee.employerSignatureUrl,
-          employerSignatureDate: employee.onboardingCreatedDate,
+          employerSignatureDate: employee.employerSignatureDate,
           employeeSignatureUrl: employeeSignatureUrl,
         });
 

@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
       location: formData.get('location') as string,
       startDate: formData.get('startDate') as string,
       employerName: formData.get('employerName') as string || 'Sam Schofield',
+      employerSignatureDate: formData.get('employerSignatureDate') as string,
     };
     
     const signatureFile = formData.get('employerSignature') as File;
@@ -64,6 +65,7 @@ export async function POST(request: NextRequest) {
         start_date: validatedData.startDate,
         employer_name: validatedData.employerName,
         employer_signature_url: signatureUrl,
+        employer_signature_date: validatedData.employerSignatureDate,
       })
       .select()
       .single();

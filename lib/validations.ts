@@ -15,6 +15,10 @@ export const employeeFormSchema = z.object({
   }, 'Invalid date'),
   employerName: z.string().min(2, 'Employer name is required'),
   employerSignature: z.any().optional(),
+  employerSignatureDate: z.string().refine((date) => {
+    const d = new Date(date);
+    return d instanceof Date && !isNaN(d.getTime());
+  }, 'Invalid date'),
 });
 
 export type EmployeeFormData = z.infer<typeof employeeFormSchema>;
