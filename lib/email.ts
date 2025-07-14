@@ -14,7 +14,7 @@ export async function sendOnboardingEmail(
     
     const { data, error } = await resend.emails.send({
       from: 'onboarding@resend.dev',
-      to: ['samschofield90@hotmail.co.uk'],
+      to: ['sam@atlas-gyms.co.uk'],
       subject: `Onboarding Link Ready for ${employeeName}`,
       html: `
         <!DOCTYPE html>
@@ -94,7 +94,7 @@ export async function sendCompletedDocumentsEmail(
     
     const { data, error } = await resend.emails.send({
       from: 'onboarding@resend.dev',
-      to: ['samschofield90@hotmail.co.uk'], // Updated to your actual email
+      to: ['sam@atlas-gyms.co.uk'], // Updated to your actual email
       subject: `Completed Onboarding Documents - ${employeeName}`,
       html: `
         <!DOCTYPE html>
