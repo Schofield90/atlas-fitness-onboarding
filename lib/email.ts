@@ -13,7 +13,7 @@ export async function sendOnboardingEmail(
     console.log('RESEND_API_KEY value:', process.env.RESEND_API_KEY?.substring(0, 10) + '...');
     
     const { data, error } = await resend.emails.send({
-      from: 'Atlas Fitness <onboarding@resend.dev>',
+      from: 'onboarding@resend.dev',
       to: [to],
       subject: 'Welcome to Atlas Fitness - Complete Your Onboarding',
       html: `
@@ -87,7 +87,7 @@ export async function sendCompletedDocumentsEmail(
     console.log('PDF attachments count:', pdfAttachments.length);
     
     const { data, error } = await resend.emails.send({
-      from: 'Atlas Fitness <onboarding@resend.dev>',
+      from: 'onboarding@resend.dev',
       to: ['sam@atlas-gyms.co.uk'], // Updated to your actual email
       subject: `Completed Onboarding Documents - ${employeeName}`,
       html: `
