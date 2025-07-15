@@ -80,7 +80,13 @@ export async function sendCompletedDocumentsEmail(
   pdfAttachments: Array<{
     filename: string;
     content: Buffer;
-  }>
+  }>,
+  bankDetails?: {
+    bankName: string;
+    accountHolderName: string;
+    accountNumber: string;
+    sortCode: string;
+  }
 ) {
   try {
     console.log('Attempting to send completed documents email for:', employeeName);
@@ -117,6 +123,16 @@ export async function sendCompletedDocumentsEmail(
                   <p><strong>Email:</strong> ${employeeEmail}</p>
                   <p><strong>Completed:</strong> ${new Date().toLocaleDateString('en-GB')} at ${new Date().toLocaleTimeString('en-GB')}</p>
                 </div>
+                
+                ${bankDetails ? `
+                <div class="info-box">
+                  <h3>Bank Details:</h3>
+                  <p><strong>Bank Name:</strong> ${bankDetails.bankName}</p>
+                  <p><strong>Account Holder:</strong> ${bankDetails.accountHolderName}</p>
+                  <p><strong>Account Number:</strong> ${bankDetails.accountNumber}</p>
+                  <p><strong>Sort Code:</strong> ${bankDetails.sortCode}</p>
+                </div>
+                ` : ''}
                 
                 <p>The employee has successfully completed their onboarding and signed all employment documents.</p>
                 

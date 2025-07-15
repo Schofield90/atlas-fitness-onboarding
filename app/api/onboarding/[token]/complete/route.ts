@@ -146,7 +146,13 @@ export async function POST(
     const emailResult = await sendCompletedDocumentsEmail(
       employee.name,
       employee.email,
-      pdfAttachments
+      pdfAttachments,
+      {
+        bankName: validatedData.bankName,
+        accountHolderName: validatedData.accountHolderName,
+        accountNumber: validatedData.accountNumber,
+        sortCode: validatedData.sortCode,
+      }
     );
 
     // Update onboarding session

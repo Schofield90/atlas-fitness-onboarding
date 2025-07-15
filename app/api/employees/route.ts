@@ -24,8 +24,8 @@ export async function POST(request: NextRequest) {
     
     const signatureFile = formData.get('employerSignature') as File;
     
-    // Validate input (excluding file for now)
-    const validatedData = employeeFormSchema.omit({ employerSignature: true }).parse(body);
+    // Validate input
+    const validatedData = employeeFormSchema.parse(body);
     
     let signatureUrl = null;
     
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       const fileExt = signatureFile.name.split('.').pop();
       const fileName = `employer-signature-${nanoid(10)}.${fileExt}`;
       
-      const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+      const { error: uploadError } = await supabaseAdmin.storage
         .from('signatures')
         .upload(fileName, signatureFile, {
           cacheControl: '3600',

@@ -1,11 +1,143 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { employeeFormSchema, EmployeeFormData } from '@/lib/validations';
+import { createSupabaseClient } from '@/lib/supabase';
+import Link from 'next/link';
+import { BarChart3, Users, UserPlus, Settings, Calendar, Mail } from 'lucide-react';
 
 export default function AdminPage() {
+  const [user, setUser] = useState<unknown>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const supabase = createSupabaseClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    } catch (error) {
+      console.error('Auth check error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If user is authenticated, show CRM navigation
+  if (user) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-white shadow">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center py-6">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Atlas Fitness CRM</h1>
+                <p className="text-gray-600">Choose an option to get started</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <Link href="/dashboard" className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <BarChart3 className="h-8 w-8 text-blue-600" />
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-medium text-gray-900">Dashboard</h3>
+                  <p className="text-gray-500">View analytics and insights</p>
+                </div>
+              </div>
+            </Link>
+            
+            <Link href="/leads" className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <UserPlus className="h-8 w-8 text-green-600" />
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-medium text-gray-900">Lead Management</h3>
+                  <p className="text-gray-500">Manage and qualify leads</p>
+                </div>
+              </div>
+            </Link>
+            
+            <Link href="/clients" className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <Users className="h-8 w-8 text-purple-600" />
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-medium text-gray-900">Client Management</h3>
+                  <p className="text-gray-500">Manage memberships and visits</p>
+                </div>
+              </div>
+            </Link>
+            
+            <div className="bg-white rounded-lg shadow p-6 opacity-75">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <Mail className="h-8 w-8 text-yellow-600" />
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-medium text-gray-900">Campaigns</h3>
+                  <p className="text-gray-500">Coming soon</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-lg shadow p-6 opacity-75">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <Calendar className="h-8 w-8 text-orange-600" />
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-medium text-gray-900">Automation</h3>
+                  <p className="text-gray-500">Coming soon</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-lg shadow p-6 opacity-75">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <Settings className="h-8 w-8 text-gray-600" />
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-medium text-gray-900">Settings</h3>
+                  <p className="text-gray-500">Coming soon</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Original employee onboarding form for non-authenticated users
+  return <EmployeeOnboardingForm />;
+}
+
+function EmployeeOnboardingForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState<{
     success: boolean;
@@ -218,7 +350,7 @@ export default function AdminPage() {
               />
               <p className="mt-1 text-sm text-gray-500">Upload your signature image to be used in employment documents</p>
               {errors.employerSignature && (
-                <p className="mt-1 text-sm text-red-600">{errors.employerSignature.message}</p>
+                <p className="mt-1 text-sm text-red-600">{String(errors.employerSignature.message || 'Invalid signature file')}</p>
               )}
             </div>
 
