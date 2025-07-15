@@ -36,10 +36,10 @@ export default function OnboardingSuccessPage() {
             <p className="text-sm text-gray-500">
               If you have any questions, please contact HR at{' '}
               <a
-                href="mailto:hr@atlasfitness.co.uk"
+                href="mailto:sam@atlas-gyms.co.uk"
                 className="text-blue-600 hover:text-blue-500"
               >
-                hr@atlasfitness.co.uk
+                sam@atlas-gyms.co.uk
               </a>
             </p>
           </div>

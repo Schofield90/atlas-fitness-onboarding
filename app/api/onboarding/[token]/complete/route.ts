@@ -17,7 +17,29 @@ export async function POST(
 ) {
   try {
     const { token } = await params;
-    const body = await request.json();
+    const formData = await request.formData();
+    
+    // Extract form fields
+    const body = {
+      acceptTerms: formData.get('acceptTerms') === 'true',
+      acceptRestrictive: formData.get('acceptRestrictive') === 'true',
+      acceptDeductions: formData.get('acceptDeductions') === 'true',
+      signatureName: formData.get('signatureName') as string,
+      signatureDate: formData.get('signatureDate') as string,
+      firstName: formData.get('firstName') as string,
+      lastName: formData.get('lastName') as string,
+      phone: formData.get('phone') as string,
+      address: formData.get('address') as string,
+      postcode: formData.get('postcode') as string,
+      nationalInsuranceNumber: formData.get('nationalInsuranceNumber') as string,
+      dateOfBirth: formData.get('dateOfBirth') as string,
+      bankName: formData.get('bankName') as string,
+      accountHolderName: formData.get('accountHolderName') as string,
+      accountNumber: formData.get('accountNumber') as string,
+      sortCode: formData.get('sortCode') as string,
+    };
+    
+    const signatureFile = formData.get('employeeSignature') as File;
 
     // Validate submission data
     const validatedData = onboardingSubmissionSchema.parse(body);
@@ -56,6 +78,30 @@ export async function POST(
       );
     }
 
+    // Handle employee signature upload
+    let employeeSignatureUrl = null;
+    if (signatureFile && signatureFile.size > 0) {
+      const { nanoid } = await import('nanoid');
+      const fileExt = signatureFile.name.split('.').pop();
+      const fileName = `employee-signature-${nanoid(10)}.${fileExt}`;
+      
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from('signatures')
+        .upload(fileName, signatureFile, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+        
+      if (uploadError) {
+        console.error('Failed to upload employee signature:', uploadError);
+      } else {
+        const { data: { publicUrl } } = supabaseAdmin.storage
+          .from('signatures')
+          .getPublicUrl(fileName);
+        employeeSignatureUrl = publicUrl;
+      }
+    }
+
     const employee: EmployeeDetails = {
       name: session.employees.name,
       email: session.employees.email,
@@ -67,6 +113,7 @@ export async function POST(
       onboardingCreatedDate: session.created_at, // Use the session creation date
       employerName: session.employees.employer_name,
       employerSignatureUrl: session.employees.employer_signature_url,
+      employerSignatureDate: session.employees.employer_signature_date,
     };
 
     // Update employee record with personal details and bank information
@@ -127,7 +174,8 @@ export async function POST(
           signatureDate: validatedData.signatureDate,
           employerName: employee.employerName,
           employerSignatureUrl: employee.employerSignatureUrl,
-          employerSignatureDate: employee.onboardingCreatedDate,
+          employerSignatureDate: employee.employerSignatureDate,
+          employeeSignatureUrl: employeeSignatureUrl || undefined,
         });
 
         // Convert blob to buffer

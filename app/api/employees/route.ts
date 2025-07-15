@@ -20,36 +20,14 @@ export async function POST(request: NextRequest) {
       location: formData.get('location') as string,
       startDate: formData.get('startDate') as string,
       employerName: formData.get('employerName') as string || 'Sam Schofield',
+      employerSignatureDate: formData.get('employerSignatureDate') as string,
     };
-    
-    const signatureFile = formData.get('employerSignature') as File;
     
     // Validate input
     const validatedData = employeeFormSchema.parse(body);
     
-    let signatureUrl = null;
-    
-    // Upload signature if provided
-    if (signatureFile && signatureFile.size > 0) {
-      const fileExt = signatureFile.name.split('.').pop();
-      const fileName = `employer-signature-${nanoid(10)}.${fileExt}`;
-      
-      const { error: uploadError } = await supabaseAdmin.storage
-        .from('signatures')
-        .upload(fileName, signatureFile, {
-          cacheControl: '3600',
-          upsert: false,
-        });
-        
-      if (uploadError) {
-        console.error('Failed to upload signature:', uploadError);
-      } else {
-        const { data: { publicUrl } } = supabaseAdmin.storage
-          .from('signatures')
-          .getPublicUrl(fileName);
-        signatureUrl = publicUrl;
-      }
-    }
+    // Use Sam's fixed signature URL
+    const signatureUrl = 'https://lzlrojoaxrqvmhempnkn.supabase.co/storage/v1/object/public/signatures/signature.png';
     
     // Create employee record (personal details and bank info will be filled during onboarding)
     const { data: employee, error: employeeError } = await supabaseAdmin
@@ -64,6 +42,7 @@ export async function POST(request: NextRequest) {
         start_date: validatedData.startDate,
         employer_name: validatedData.employerName,
         employer_signature_url: signatureUrl,
+        employer_signature_date: validatedData.employerSignatureDate,
       })
       .select()
       .single();

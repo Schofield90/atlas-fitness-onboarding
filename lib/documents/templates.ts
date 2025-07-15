@@ -24,6 +24,7 @@ export interface EmployeeDetails {
   onboardingCreatedDate?: string; // Date when onboarding link was created
   employerName?: string;
   employerSignatureUrl?: string;
+  employerSignatureDate?: string; // Date when employer signed
 }
 
 // Statement of Main Terms of Employment Template

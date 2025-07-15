@@ -14,7 +14,10 @@ export const employeeFormSchema = z.object({
     return d instanceof Date && !isNaN(d.getTime());
   }, 'Invalid date'),
   employerName: z.string().min(2, 'Employer name is required'),
-  employerSignature: z.any().optional(),
+  employerSignatureDate: z.string().refine((date) => {
+    const d = new Date(date);
+    return d instanceof Date && !isNaN(d.getTime());
+  }, 'Invalid date'),
 });
 
 export type EmployeeFormData = z.infer<typeof employeeFormSchema>;
@@ -33,6 +36,7 @@ export const onboardingSubmissionSchema = z.object({
   // Signature
   signatureName: z.string().min(2, 'Please enter your full name'),
   signatureDate: z.string(),
+  employeeSignature: z.any().optional(),
   // Personal details for Xero integration
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),

@@ -160,17 +160,12 @@ function EmployeeOnboardingForm() {
     try {
       const formData = new FormData();
       
-      // Add text fields
+      // Add all form fields
       Object.entries(data).forEach(([key, value]) => {
-        if (key !== 'employerSignature' && value !== undefined) {
+        if (value !== undefined) {
           formData.append(key, value.toString());
         }
       });
-      
-      // Add signature file if present
-      if (data.employerSignature) {
-        formData.append('employerSignature', data.employerSignature);
-      }
 
       const response = await fetch('/api/employees', {
         method: 'POST',
@@ -185,7 +180,7 @@ function EmployeeOnboardingForm() {
 
       setSubmitResult({
         success: true,
-        message: `Onboarding email sent to ${data.email}`,
+        message: `Onboarding link sent to your email - forward to ${data.name} (${data.email})`,
       });
       reset();
     } catch (error) {
@@ -339,18 +334,25 @@ function EmployeeOnboardingForm() {
             </div>
 
             <div>
-              <label htmlFor="employerSignature" className="block text-sm font-medium text-gray-700">
-                Employer Signature Image (PNG/JPG)
+              <label className="block text-sm font-medium text-gray-700">
+                Employer Signature
+              </label>
+              <p className="mt-1 text-sm text-gray-500">✅ Your signature is automatically included in all employment documents</p>
+            </div>
+
+            <div>
+              <label htmlFor="employerSignatureDate" className="block text-sm font-medium text-gray-700">
+                Employer Signature Date
               </label>
               <input
-                {...register('employerSignature')}
-                type="file"
-                accept="image/png,image/jpeg,image/jpg"
-                className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                {...register('employerSignatureDate')}
+                type="date"
+                defaultValue={new Date().toISOString().split('T')[0]}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />
-              <p className="mt-1 text-sm text-gray-500">Upload your signature image to be used in employment documents</p>
-              {errors.employerSignature && (
-                <p className="mt-1 text-sm text-red-600">{String(errors.employerSignature.message || 'Invalid signature file')}</p>
+              <p className="mt-1 text-sm text-gray-500">Date when you signed the employment documents</p>
+              {errors.employerSignatureDate && (
+                <p className="mt-1 text-sm text-red-600">{errors.employerSignatureDate.message}</p>
               )}
             </div>
 
@@ -358,10 +360,11 @@ function EmployeeOnboardingForm() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Creating Onboarding...' : 'Create Onboarding Link'}
             </button>
+
           </form>
         </div>
       </div>
