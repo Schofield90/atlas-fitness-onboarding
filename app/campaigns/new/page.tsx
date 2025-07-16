@@ -216,6 +216,7 @@ export default function NewCampaignPage() {
     switch (step) {
       case 1: return <Target className="h-5 w-5" />;
       case 2: return <Users className="h-5 w-5" />;
+      {/* eslint-disable-next-line jsx-a11y/alt-text */}
       case 3: return <Image className="h-5 w-5" />;
       case 4: return <Settings className="h-5 w-5" />;
       default: return <Target className="h-5 w-5" />;

@@ -360,42 +360,4 @@ export interface ValidationWarning {
   suggestion?: string;
 }
 
-// Export all types
-export type {
-  // Main entities
-  AutomationWorkflow,
-  WorkflowStep,
-  AutomationTrigger,
-  AutomationAction,
-  WorkflowNode,
-  WorkflowEdge,
-  AutomationExecution,
-  AutomationExecutionLog,
-  AutomationSchedule,
-  CommunicationChannel,
-  MessageQueue,
-  AutomationVariable,
-  
-  // React Flow types
-  FlowNode,
-  FlowEdge,
-  WorkflowBuilderState,
-  NodeTemplate,
-  
-  // Execution types
-  ExecutionContext,
-  ExecutionResult,
-  
-  // API types
-  WorkflowResponse,
-  ExecutionResponse,
-  
-  // Filter types
-  WorkflowFilters,
-  ExecutionFilters,
-  
-  // Validation types
-  ValidationResult,
-  ValidationError,
-  ValidationWarning,
-};
+// Types are already exported as interfaces above

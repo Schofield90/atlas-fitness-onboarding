@@ -33,6 +33,31 @@ export default function LeadsPage() {
     loadLeads();
   }, []);
 
+  const filterLeads = React.useCallback(() => {
+    let filtered = [...leads];
+
+    // Search filter
+    if (searchTerm) {
+      filtered = filtered.filter(lead => 
+        lead.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lead.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (lead.email && lead.email.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+
+    // Status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(lead => lead.status === statusFilter);
+    }
+
+    // Source filter
+    if (sourceFilter !== 'all') {
+      filtered = filtered.filter(lead => lead.source === sourceFilter);
+    }
+
+    setFilteredLeads(filtered);
+  }, [leads, searchTerm, statusFilter, sourceFilter]);
+
   useEffect(() => {
     filterLeads();
   }, [leads, searchTerm, statusFilter, sourceFilter, filterLeads]);
@@ -78,31 +103,6 @@ export default function LeadsPage() {
       setLoading(false);
     }
   };
-
-  const filterLeads = React.useCallback(() => {
-    let filtered = [...leads];
-
-    // Search filter
-    if (searchTerm) {
-      filtered = filtered.filter(lead => 
-        `${lead.first_name} ${lead.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (lead.email && lead.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (lead.phone && lead.phone.includes(searchTerm))
-      );
-    }
-
-    // Status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(lead => lead.status === statusFilter);
-    }
-
-    // Source filter
-    if (sourceFilter !== 'all') {
-      filtered = filtered.filter(lead => lead.source === sourceFilter);
-    }
-
-    setFilteredLeads(filtered);
-  }, [leads, searchTerm, statusFilter, sourceFilter]);
 
   const getStatusColor = (status: string) => {
     switch (status) {

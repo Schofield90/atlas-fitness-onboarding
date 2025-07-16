@@ -223,7 +223,7 @@ export class MetaAdsClient {
     if (method === 'GET' && data) {
       Object.keys(data).forEach(key => {
         if (data[key] !== undefined) {
-          params.append(key, data[key].toString());
+          params.append(key, String(data[key]));
         }
       });
     } else if (method !== 'GET' && data) {
@@ -281,7 +281,7 @@ export class MetaAdsClient {
     const response = await this.makeRequest<{ id: string }>(
       `/act_${this.config.accountId}/campaigns`,
       'POST',
-      data
+      data as unknown as Record<string, unknown>
     );
     
     // Get the created campaign details
@@ -346,7 +346,7 @@ export class MetaAdsClient {
     const response = await this.makeRequest<{ id: string }>(
       `/act_${this.config.accountId}/adsets`,
       'POST',
-      data
+      data as unknown as Record<string, unknown>
     );
     
     // Get the created ad set details
@@ -381,7 +381,7 @@ export class MetaAdsClient {
     const response = await this.makeRequest<{ id: string }>(
       `/act_${this.config.accountId}/ads`,
       'POST',
-      data
+      data as unknown as Record<string, unknown>
     );
     
     // Get the created ad details

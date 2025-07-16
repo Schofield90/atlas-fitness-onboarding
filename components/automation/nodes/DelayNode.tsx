@@ -1,5 +1,6 @@
 'use client';
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { Clock, Settings } from 'lucide-react';
@@ -11,10 +12,10 @@ interface DelayNodeProps {
 }
 
 export default memo(function DelayNode({ data, selected }: DelayNodeProps) {
-  const isConfigured = data.config?.seconds || data.config?.minutes || data.config?.hours;
+  const isConfigured = (data.config as any)?.seconds || (data.config as any)?.minutes || (data.config as any)?.hours;
   
   const formatDuration = () => {
-    const { seconds = 0, minutes = 0, hours = 0 } = data.config || {};
+    const { seconds = 0, minutes = 0, hours = 0 } = (data.config as any) || {};
     const totalSeconds = hours * 3600 + minutes * 60 + seconds;
     
     if (totalSeconds < 60) return `${totalSeconds}s`;

@@ -1,5 +1,6 @@
 'use client';
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { Zap, Settings } from 'lucide-react';
@@ -11,7 +12,7 @@ interface TriggerNodeProps {
 }
 
 export default memo(function TriggerNode({ data, selected }: TriggerNodeProps) {
-  const isConfigured = data.config?.trigger_type;
+  const isConfigured = (data.config as any)?.trigger_type;
 
   return (
     <div className={`px-4 py-2 shadow-md rounded-md bg-white border-2 min-w-[200px] ${
@@ -30,7 +31,7 @@ export default memo(function TriggerNode({ data, selected }: TriggerNodeProps) {
           )}
           {isConfigured && (
             <div className="text-xs text-green-600 mt-1">
-              Trigger: {data.config.trigger_type?.replace('_', ' ')}
+              Trigger: {String((data.config as any).trigger_type).replace('_', ' ')}
             </div>
           )}
         </div>

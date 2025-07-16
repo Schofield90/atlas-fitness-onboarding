@@ -284,29 +284,4 @@ export type AutomationCategory =
   | 'engagement'
   | 'recovery';
 
-// Export all types
-export type {
-  AutomationTemplate,
-  GymAutomation,
-  AutomationExecution,
-  SMSDelivery,
-  LeadResponseTracking,
-  AutomationJob,
-  LeadFollowUpConfig,
-  DormantMemberConfig,
-  BirthdayEngagementConfig,
-  TrialConversionConfig,
-  PaymentRecoveryConfig,
-  AutomationMetrics,
-  LeadResponseMetrics,
-  TemplatePerformance,
-  AutomationContext,
-  AutomationAction,
-  AutomationResult,
-  CreateAutomationRequest,
-  UpdateAutomationRequest,
-  AutomationDashboardData,
-  TemplateValidation,
-  AutomationTemplateKey,
-  AutomationCategory,
-};
+// Types are already exported as interfaces above

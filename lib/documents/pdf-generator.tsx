@@ -132,7 +132,7 @@ export const PDFDocument: React.FC<DocumentProps> = ({
             <View style={styles.signatureColumn}>
               <Text style={styles.signatureText}>Employee Signature</Text>
               {employeeSignatureUrl ? (
-                <Image style={styles.signatureImage} src={employeeSignatureUrl} alt="Employee signature" />
+                <Image style={styles.signatureImage} src={employeeSignatureUrl} />
               ) : (
                 <Text style={styles.signatureName}>{signatureName}</Text>
               )}
@@ -144,7 +144,7 @@ export const PDFDocument: React.FC<DocumentProps> = ({
             <View style={styles.signatureColumn}>
               <Text style={styles.signatureText}>Employer Signature</Text>
               {employerSignatureUrl ? (
-                <Image style={styles.signatureImage} src={employerSignatureUrl} alt="Employer signature" />
+                <Image style={styles.signatureImage} src={employerSignatureUrl} />
               ) : (
                 <Text style={styles.signatureName}>{employerName || 'Sam Schofield'}</Text>
               )}

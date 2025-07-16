@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { useState } from 'react';
@@ -65,7 +66,7 @@ export default function NodePropertiesPanel({
             Trigger Type
           </label>
           <select
-            value={localData.config.trigger_type || ''}
+            value={String((localData.config as any).trigger_type || '')}
             onChange={(e) => handleFieldChange('trigger_type', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
@@ -80,14 +81,14 @@ export default function NodePropertiesPanel({
           </select>
         </div>
 
-        {localData.config.trigger_type === 'lead_status_changed' && (
+        {(localData.config as any).trigger_type === 'lead_status_changed' && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Status Change
             </label>
             <div className="space-y-2">
               <select
-                value={localData.config.from_status || ''}
+                value={(localData.config as any).from_status || ''}
                 onChange={(e) => handleFieldChange('from_status', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
@@ -99,7 +100,7 @@ export default function NodePropertiesPanel({
                 <option value="not_interested">Not Interested</option>
               </select>
               <select
-                value={localData.config.to_status || ''}
+                value={(localData.config as any).to_status || ''}
                 onChange={(e) => handleFieldChange('to_status', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
@@ -115,14 +116,14 @@ export default function NodePropertiesPanel({
           </div>
         )}
 
-        {localData.config.trigger_type === 'date_based' && (
+        {(localData.config as any).trigger_type === 'date_based' && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Schedule
             </label>
             <div className="space-y-2">
               <select
-                value={localData.config.schedule_type || ''}
+                value={(localData.config as any).schedule_type || ''}
                 onChange={(e) => handleFieldChange('schedule_type', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
@@ -131,20 +132,20 @@ export default function NodePropertiesPanel({
                 <option value="recurring">Recurring</option>
               </select>
               
-              {localData.config.schedule_type === 'once' && (
+              {(localData.config as any).schedule_type === 'once' && (
                 <input
                   type="datetime-local"
-                  value={localData.config.scheduled_at || ''}
+                  value={(localData.config as any).scheduled_at || ''}
                   onChange={(e) => handleFieldChange('scheduled_at', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               )}
               
-              {localData.config.schedule_type === 'recurring' && (
+              {(localData.config as any).schedule_type === 'recurring' && (
                 <input
                   type="text"
                   placeholder="0 9 * * 1 (every Monday at 9 AM)"
-                  value={localData.config.cron_expression || ''}
+                  value={(localData.config as any).cron_expression || ''}
                   onChange={(e) => handleFieldChange('cron_expression', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
@@ -190,7 +191,7 @@ export default function NodePropertiesPanel({
                   <input
                     type="text"
                     placeholder="{{ lead.email }} or specific email"
-                    value={localData.config.recipient || ''}
+                    value={(localData.config as any).recipient || ''}
                     onChange={(e) => handleFieldChange('recipient', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
@@ -202,7 +203,7 @@ export default function NodePropertiesPanel({
                   <input
                     type="text"
                     placeholder="Welcome {{ lead.first_name }}!"
-                    value={localData.config.subject || ''}
+                    value={(localData.config as any).subject || ''}
                     onChange={(e) => handleFieldChange('subject', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
@@ -214,7 +215,7 @@ export default function NodePropertiesPanel({
                   <textarea
                     rows={4}
                     placeholder="Hi {{ lead.first_name }}, welcome to Atlas Fitness!"
-                    value={localData.config.message || ''}
+                    value={(localData.config as any).message || ''}
                     onChange={(e) => handleFieldChange('message', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
@@ -231,7 +232,7 @@ export default function NodePropertiesPanel({
                   <input
                     type="text"
                     placeholder="{{ lead.phone }} or +1234567890"
-                    value={localData.config.phone || ''}
+                    value={(localData.config as any).phone || ''}
                     onChange={(e) => handleFieldChange('phone', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
@@ -243,13 +244,13 @@ export default function NodePropertiesPanel({
                   <textarea
                     rows={3}
                     placeholder="Hi {{ lead.first_name }}, thanks for your interest!"
-                    value={localData.config.message || ''}
+                    value={(localData.config as any).message || ''}
                     onChange={(e) => handleFieldChange('message', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     maxLength={160}
                   />
                   <div className="text-xs text-gray-500 mt-1">
-                    {(localData.config.message?.length || 0)}/160 characters
+                    {((localData.config as any).message?.length || 0)}/160 characters
                   </div>
                 </div>
               </div>
@@ -262,7 +263,7 @@ export default function NodePropertiesPanel({
                     Operation
                   </label>
                   <select
-                    value={localData.config.operation || ''}
+                    value={(localData.config as any).operation || ''}
                     onChange={(e) => handleFieldChange('operation', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
@@ -287,7 +288,7 @@ export default function NodePropertiesPanel({
                       type="number"
                       min="0"
                       max="24"
-                      value={localData.config.hours || 0}
+                      value={(localData.config as any).hours || 0}
                       onChange={(e) => handleFieldChange('hours', parseInt(e.target.value) || 0)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
@@ -300,7 +301,7 @@ export default function NodePropertiesPanel({
                       type="number"
                       min="0"
                       max="59"
-                      value={localData.config.minutes || 0}
+                      value={(localData.config as any).minutes || 0}
                       onChange={(e) => handleFieldChange('minutes', parseInt(e.target.value) || 0)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
@@ -313,7 +314,7 @@ export default function NodePropertiesPanel({
                       type="number"
                       min="0"
                       max="59"
-                      value={localData.config.seconds || 0}
+                      value={(localData.config as any).seconds || 0}
                       onChange={(e) => handleFieldChange('seconds', parseInt(e.target.value) || 0)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
@@ -335,7 +336,7 @@ export default function NodePropertiesPanel({
             Condition Type
           </label>
           <select
-            value={localData.config.condition_type || ''}
+            value={(localData.config as any).condition_type || ''}
             onChange={(e) => handleFieldChange('condition_type', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
@@ -347,10 +348,10 @@ export default function NodePropertiesPanel({
           </select>
         </div>
 
-        {localData.config.condition_type === 'lead_score' && (
+        {(localData.config as any).condition_type === 'lead_score' && (
           <div className="space-y-2">
             <select
-              value={localData.config.score_operator || ''}
+              value={(localData.config as any).score_operator || ''}
               onChange={(e) => handleFieldChange('score_operator', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
@@ -362,7 +363,7 @@ export default function NodePropertiesPanel({
             <input
               type="number"
               placeholder="Score value (0-100)"
-              value={localData.config.score_value || ''}
+              value={(localData.config as any).score_value || ''}
               onChange={(e) => handleFieldChange('score_value', parseInt(e.target.value) || 0)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
@@ -434,7 +435,7 @@ export default function NodePropertiesPanel({
                     type="number"
                     min="0"
                     max="24"
-                    value={localData.config.hours || 0}
+                    value={(localData.config as any).hours || 0}
                     onChange={(e) => handleFieldChange('hours', parseInt(e.target.value) || 0)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
@@ -447,7 +448,7 @@ export default function NodePropertiesPanel({
                     type="number"
                     min="0"
                     max="59"
-                    value={localData.config.minutes || 0}
+                    value={(localData.config as any).minutes || 0}
                     onChange={(e) => handleFieldChange('minutes', parseInt(e.target.value) || 0)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
@@ -460,7 +461,7 @@ export default function NodePropertiesPanel({
                     type="number"
                     min="0"
                     max="59"
-                    value={localData.config.seconds || 0}
+                    value={(localData.config as any).seconds || 0}
                     onChange={(e) => handleFieldChange('seconds', parseInt(e.target.value) || 0)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />

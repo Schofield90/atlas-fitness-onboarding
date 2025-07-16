@@ -19,9 +19,9 @@ interface SMSOptions {
 }
 
 class TwilioService {
-  private client: twilio.Twilio;
-  private fromNumber: string;
-  private isEnabled: boolean;
+  private client: twilio.Twilio | null = null;
+  private fromNumber: string = '';
+  private isEnabled: boolean = false;
 
   constructor() {
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -63,6 +63,10 @@ class TwilioService {
     }
 
     try {
+      if (!this.client) {
+        throw new Error('Twilio client not initialized');
+      }
+      
       // Send SMS via Twilio
       const result = await this.client.messages.create({
         body: message,
@@ -157,6 +161,10 @@ class TwilioService {
     }
 
     try {
+      if (!this.client) {
+        throw new Error('Twilio client not initialized');
+      }
+      
       const message = await this.client.messages(messageSid).fetch();
       return {
         status: message.status,
@@ -219,8 +227,12 @@ class TwilioService {
     }
 
     try {
+      if (!this.client) {
+        throw new Error('Twilio client not initialized');
+      }
+      
       // Test by fetching account details
-      const account = await this.client.api.accounts(process.env.TWILIO_ACCOUNT_SID).fetch();
+      const account = await this.client.api.accounts(process.env.TWILIO_ACCOUNT_SID!).fetch();
       
       return {
         configured: true,
