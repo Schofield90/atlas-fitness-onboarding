@@ -24,8 +24,8 @@ import {
 const campaignSchema = z.object({
   name: z.string().min(1, 'Campaign name is required'),
   objective: z.enum(['LEAD_GENERATION', 'REACH', 'TRAFFIC', 'ENGAGEMENT', 'CONVERSIONS', 'BRAND_AWARENESS']),
-  platform: z.enum(['facebook', 'instagram', 'google', 'other']).default('facebook'),
-  budget_type: z.enum(['daily', 'lifetime']).default('daily'),
+  platform: z.enum(['facebook', 'instagram', 'google', 'other']),
+  budget_type: z.enum(['daily', 'lifetime']),
   budget_amount: z.coerce.number().positive('Budget must be positive'),
   start_date: z.string().min(1, 'Start date is required'),
   end_date: z.string().optional(),
@@ -48,7 +48,7 @@ const campaignSchema = z.object({
   lead_form_fields: z.array(z.object({
     field_name: z.string(),
     field_type: z.enum(['text', 'email', 'phone', 'select', 'checkbox']),
-    required: z.boolean().default(false),
+    required: z.boolean(),
     options: z.array(z.string()).optional(),
   })).optional(),
   notes: z.string().optional(),
@@ -106,10 +106,6 @@ export default function NewCampaignPage() {
     name: 'lead_form_fields',
   });
 
-  useEffect(() => {
-    loadUserData();
-  }, [loadUserData]);
-
   const loadUserData = useCallback(async () => {
     try {
       const supabase = createSupabaseClient();
@@ -138,6 +134,10 @@ export default function NewCampaignPage() {
       setLoading(false);
     }
   }, [router]);
+
+  useEffect(() => {
+    loadUserData();
+  }, [loadUserData]);
 
   const searchInterests = async (query: string) => {
     if (!query || query.length < 2) {

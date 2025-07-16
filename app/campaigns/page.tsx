@@ -26,7 +26,8 @@ import {
   Clock,
 } from 'lucide-react';
 
-interface CampaignWithMetrics extends Campaign {
+interface CampaignWithMetrics extends Omit<Campaign, 'created_by'> {
+  created_by: { full_name: string; avatar_url: string | null; } | null;
   metrics: {
     impressions: number;
     clicks: number;
@@ -39,10 +40,6 @@ interface CampaignWithMetrics extends Campaign {
     cost_per_lead: number;
     cost_per_conversion: number;
     roas: number;
-  } | null;
-  created_by: {
-    full_name: string;
-    avatar_url: string | null;
   } | null;
 }
 
@@ -66,9 +63,38 @@ export default function CampaignsPage() {
     checkMetaIntegration();
   }, []);
 
+  const filterCampaigns = React.useCallback(() => {
+    let filtered = [...campaigns];
+
+    // Search filter
+    if (searchTerm) {
+      filtered = filtered.filter(campaign => 
+        campaign.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        campaign.type.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(campaign => campaign.status === statusFilter);
+    }
+
+    // Platform filter
+    if (platformFilter !== 'all') {
+      filtered = filtered.filter(campaign => campaign.type === platformFilter);
+    }
+
+    // Type filter
+    if (objectiveFilter !== 'all') {
+      filtered = filtered.filter(campaign => campaign.type === objectiveFilter);
+    }
+
+    setFilteredCampaigns(filtered);
+  }, [campaigns, searchTerm, statusFilter, platformFilter, objectiveFilter]);
+
   useEffect(() => {
     filterCampaigns();
-  }, [campaigns, searchTerm, statusFilter, platformFilter, objectiveFilter]);
+  }, [campaigns, searchTerm, statusFilter, platformFilter, objectiveFilter, filterCampaigns]);
 
   const loadCampaigns = async () => {
     try {
@@ -129,35 +155,6 @@ export default function CampaignsPage() {
       console.error('Error checking Meta integration:', error);
     }
   };
-
-  const filterCampaigns = React.useCallback(() => {
-    let filtered = [...campaigns];
-
-    // Search filter
-    if (searchTerm) {
-      filtered = filtered.filter(campaign => 
-        campaign.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        campaign.objective.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(campaign => campaign.status === statusFilter);
-    }
-
-    // Platform filter
-    if (platformFilter !== 'all') {
-      filtered = filtered.filter(campaign => campaign.platform === platformFilter);
-    }
-
-    // Objective filter
-    if (objectiveFilter !== 'all') {
-      filtered = filtered.filter(campaign => campaign.objective === objectiveFilter);
-    }
-
-    setFilteredCampaigns(filtered);
-  }, [campaigns, searchTerm, statusFilter, platformFilter, objectiveFilter]);
 
   const syncMetaData = async () => {
     if (!currentUser) return;
@@ -515,7 +512,7 @@ export default function CampaignsPage() {
                             {campaign.name}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {campaign.objective}
+                            {campaign.type}
                           </div>
                         </div>
                       </div>
@@ -528,19 +525,19 @@ export default function CampaignsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        {getPlatformIcon(campaign.platform)}
+                        {getPlatformIcon(campaign.type)}
                         <span className="ml-2 text-sm text-gray-900 capitalize">
-                          {campaign.platform}
+                          {campaign.type}
                         </span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       <div>
                         <div className="font-medium">
-                          {formatCurrency(campaign.budget_amount)}
+                          {formatCurrency(campaign.budget || 0)}
                         </div>
                         <div className="text-gray-500 capitalize">
-                          {campaign.budget_type}
+                          daily
                         </div>
                       </div>
                     </td>

@@ -120,7 +120,7 @@ export default function DemoPage() {
   const [currentStage, setCurrentStage] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  // const [progress] = useState(0);
+  const [progress, setProgress] = useState(0);
 
   const stage = DEMO_STAGES[currentStage];
 

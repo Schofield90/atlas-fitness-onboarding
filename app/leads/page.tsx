@@ -35,7 +35,7 @@ export default function LeadsPage() {
 
   useEffect(() => {
     filterLeads();
-  }, [leads, searchTerm, statusFilter, sourceFilter]);
+  }, [leads, searchTerm, statusFilter, sourceFilter, filterLeads]);
 
   const loadLeads = async () => {
     try {
