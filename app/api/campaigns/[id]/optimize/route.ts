@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { createCampaignOptimizer, CampaignData } from '@/lib/ai/campaign-optimizer';
+import { createCampaignOptimizer, CampaignData, isOpenAIAvailable } from '@/lib/ai/campaign-optimizer';
 import { z } from 'zod';
 
 const optimizeRequestSchema = z.object({
@@ -74,6 +74,29 @@ export async function POST(
         .limit(10);
 
       historicalData = historicalCampaigns || [];
+    }
+
+    // Check if OpenAI is available
+    if (!isOpenAIAvailable()) {
+      return NextResponse.json({
+        error: 'Campaign optimization is not available - OpenAI API key is not configured',
+        fallback: {
+          overall_score: 50,
+          performance_analysis: {
+            strengths: ['Campaign is active and generating impressions'],
+            weaknesses: ['Unable to provide detailed analysis without AI'],
+            opportunities: ['Configure OpenAI API key for detailed optimization'],
+            threats: ['Limited optimization capabilities']
+          },
+          action_items: [{
+            priority: 'medium' as const,
+            action: 'Configure OpenAI API key to enable AI-powered optimization',
+            expected_impact: 'Enable detailed campaign analysis and recommendations',
+            effort_required: 'low' as const,
+            timeline: 'Immediate'
+          }]
+        }
+      }, { status: 503 });
     }
 
     // Initialize campaign optimizer

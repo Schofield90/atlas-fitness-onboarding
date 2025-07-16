@@ -1,10 +1,27 @@
 import OpenAI from 'openai';
 import { Lead } from './supabase';
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Initialize OpenAI client only when needed and key is available
+let openai: OpenAI | null = null;
+
+function getOpenAIClient(): OpenAI {
+  if (!openai && process.env.OPENAI_API_KEY) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  
+  if (!openai) {
+    throw new Error('OpenAI API key is not configured');
+  }
+  
+  return openai;
+}
+
+// Helper function to check if OpenAI is available
+export function isOpenAIAvailable(): boolean {
+  return !!process.env.OPENAI_API_KEY;
+}
 
 export interface AIQualificationResult {
   score: number; // 0-100 qualification score
@@ -31,7 +48,8 @@ export class AIQualificationService {
     const prompt = this.buildQualificationPrompt(lead, additionalContext);
     
     try {
-      const response = await openai.chat.completions.create({
+      const client = getOpenAIClient();
+      const response = await client.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
           {
@@ -192,7 +210,8 @@ Create a friendly, professional message that:
 Tone: Enthusiastic but professional, focused on helping them achieve their goals.`;
 
     try {
-      const response = await openai.chat.completions.create({
+      const client = getOpenAIClient();
+      const response = await client.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
           {

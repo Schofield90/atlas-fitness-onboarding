@@ -1,9 +1,22 @@
 import OpenAI from 'openai';
 import { z } from 'zod';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Initialize OpenAI client only when needed and key is available
+let openai: OpenAI | null = null;
+
+function getOpenAIClient(): OpenAI {
+  if (!openai && process.env.OPENAI_API_KEY) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  
+  if (!openai) {
+    throw new Error('OpenAI API key is not configured');
+  }
+  
+  return openai;
+}
 
 // Schema for campaign optimization analysis
 const campaignOptimizationSchema = z.object({
@@ -151,7 +164,8 @@ export class CampaignOptimizer {
     try {
       const prompt = this.buildOptimizationPrompt(campaign, historicalData);
       
-      const response = await openai.chat.completions.create({
+      const client = getOpenAIClient();
+      const response = await client.chat.completions.create({
         model: 'gpt-4',
         messages: [
           {
@@ -302,7 +316,8 @@ Generate 5 A/B test suggestions for this fitness campaign. Focus on elements tha
 Return as JSON array with objects containing: element, variation_a, variation_b, hypothesis, expected_impact
 `;
 
-      const response = await openai.chat.completions.create({
+      const client = getOpenAIClient();
+      const response = await client.chat.completions.create({
         model: 'gpt-4',
         messages: [
           {
@@ -367,7 +382,8 @@ Analyze the trends across these campaigns and provide insights on:
 Return as JSON with trends (performance_trend, cost_trend, quality_trend) and arrays of insights and recommendations.
 `;
 
-      const response = await openai.chat.completions.create({
+      const client = getOpenAIClient();
+      const response = await client.chat.completions.create({
         model: 'gpt-4',
         messages: [
           {
@@ -435,7 +451,8 @@ Consider fitness industry seasonality patterns (New Year, summer prep, post-holi
 Return as JSON with arrays for each recommendation category.
 `;
 
-      const response = await openai.chat.completions.create({
+      const client = getOpenAIClient();
+      const response = await client.chat.completions.create({
         model: 'gpt-4',
         messages: [
           {
@@ -512,7 +529,8 @@ Consider:
 Return as JSON array of strings.
 `;
 
-      const response = await openai.chat.completions.create({
+      const client = getOpenAIClient();
+      const response = await client.chat.completions.create({
         model: 'gpt-4',
         messages: [
           {
@@ -549,4 +567,9 @@ export function createCampaignOptimizer(): CampaignOptimizer {
 // Helper function to validate OpenAI API key
 export function validateOpenAIKey(): boolean {
   return !!process.env.OPENAI_API_KEY;
+}
+
+// Helper function to check if OpenAI is available
+export function isOpenAIAvailable(): boolean {
+  return validateOpenAIKey();
 }
