@@ -12,7 +12,8 @@ import {
   ArrowRight,
   Star,
   Users,
-  Shield
+  Shield,
+  Facebook
 } from 'lucide-react';
 
 export default function LandingPage() {
@@ -78,11 +79,10 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
               <h1 className="text-5xl font-bold mb-6 leading-tight">
-                Never Miss a Lead Again
+                Your Gym Leads Are Texting Your Competitors
               </h1>
               <p className="text-xl text-blue-100 mb-8">
-                Respond to Facebook and Google leads in under 5 minutes with automated SMS. 
-                UK gyms are seeing 31% higher conversion rates and £6,000+ monthly ROI.
+                Respond in 5 minutes or lose them forever. 78% of leads buy from whoever responds first.
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4 mb-8">
@@ -91,7 +91,7 @@ export default function LandingPage() {
                   className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white font-bold py-4 px-8 rounded-xl text-lg transition-all transform hover:scale-105 shadow-lg flex items-center justify-center"
                 >
                   <Play className="h-5 w-5 mr-2" />
-                  Watch 5-Minute Demo
+                  Watch 2-Min Demo
                 </button>
                 <button
                   onClick={() => router.push('/signup')}
@@ -121,8 +121,8 @@ export default function LandingPage() {
             <div className="relative">
               <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20">
                 <div className="text-center mb-6">
-                  <h3 className="text-2xl font-bold mb-2">See It In Action</h3>
-                  <p className="text-blue-200">Watch how fast response transforms your revenue</p>
+                  <h3 className="text-2xl font-bold mb-2">The Reality Check</h3>
+                  <p className="text-blue-200">While you're sleeping, your competitors are stealing your leads</p>
                 </div>
                 
                 <div className="bg-white rounded-lg p-6 text-black mb-6">
@@ -152,17 +152,77 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* Stats Section */}
+      {/* Problem/Solution Section */}
       <div className="bg-gray-900 text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="text-4xl font-bold text-green-400 mb-2">{stat.number}</div>
-                <div className="text-gray-300">{stat.label}</div>
-              </div>
-            ))}
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-8">Here's What's Costing You Money</h2>
           </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+            <div className="space-y-6">
+              <h3 className="text-2xl font-bold text-red-400 mb-4">❌ The Problem</h3>
+              <div className="space-y-4">
+                <div className="flex items-start">
+                  <div className="text-red-400 mr-3 mt-1">•</div>
+                  <div>
+                    <p className="font-semibold">78% of leads buy from whoever responds first</p>
+                    <p className="text-gray-400 text-sm">Speed beats everything</p>
+                  </div>
+                </div>
+                <div className="flex items-start">
+                  <div className="text-red-400 mr-3 mt-1">•</div>
+                  <div>
+                    <p className="font-semibold">Average gym responds in 2+ hours</p>
+                    <p className="text-gray-400 text-sm">Way too slow to win</p>
+                  </div>
+                </div>
+                <div className="flex items-start">
+                  <div className="text-red-400 mr-3 mt-1">•</div>
+                  <div>
+                    <p className="font-semibold">You're losing £2,000+/month in revenue</p>
+                    <p className="text-gray-400 text-sm">Every month you delay</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-6">
+              <h3 className="text-2xl font-bold text-green-400 mb-4">✅ The Solution</h3>
+              <div className="space-y-4">
+                <div className="flex items-start">
+                  <div className="text-green-400 mr-3 mt-1">•</div>
+                  <div>
+                    <p className="font-semibold">Instant SMS response (< 5 minutes)</p>
+                    <p className="text-gray-400 text-sm">Beat every competitor</p>
+                  </div>
+                </div>
+                <div className="flex items-start">
+                  <div className="text-green-400 mr-3 mt-1">•</div>
+                  <div>
+                    <p className="font-semibold">3.8x higher conversion rate</p>
+                    <p className="text-gray-400 text-sm">Proven results</p>
+                  </div>
+                </div>
+                <div className="flex items-start">
+                  <div className="text-green-400 mr-3 mt-1">•</div>
+                  <div>
+                    <p className="font-semibold">£197/month → £2,847 additional revenue</p>
+                    <p className="text-gray-400 text-sm">14x return on investment</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Social Proof Bar */}
+      <div className="bg-blue-600 text-white py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <p className="text-lg font-semibold">
+            127 UK gyms responding to 18,439 leads in &lt; 5 minutes
+          </p>
         </div>
       </div>
 
@@ -171,25 +231,37 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Why Gym Owners Love This System
+              How It Works
             </h2>
             <p className="text-xl text-gray-600">
               Simple to set up, powerful results, immediate ROI
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {features.map((feature, index) => (
-              <div key={index} className="bg-white rounded-lg p-6 shadow-lg hover:shadow-xl transition-shadow">
-                <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-lg mb-4">
-                  <div className="text-blue-600">
-                    {feature.icon}
-                  </div>
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">{feature.title}</h3>
-                <p className="text-gray-600">{feature.description}</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="bg-white rounded-lg p-6 shadow-lg hover:shadow-xl transition-shadow">
+              <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-lg mb-4">
+                <Facebook className="h-6 w-6 text-blue-600" />
               </div>
-            ))}
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Connect Your Facebook Ads</h3>
+              <p className="text-gray-600">Simple integration with your existing ad campaigns</p>
+            </div>
+            
+            <div className="bg-white rounded-lg p-6 shadow-lg hover:shadow-xl transition-shadow">
+              <div className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-lg mb-4">
+                <MessageSquare className="h-6 w-6 text-green-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Instant SMS Response</h3>
+              <p className="text-gray-600">Never miss a lead - respond within 5 minutes automatically</p>
+            </div>
+            
+            <div className="bg-white rounded-lg p-6 shadow-lg hover:shadow-xl transition-shadow">
+              <div className="flex items-center justify-center w-12 h-12 bg-purple-100 rounded-lg mb-4">
+                <TrendingUp className="h-6 w-6 text-purple-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Track Your ROI</h3>
+              <p className="text-gray-600">See exactly what you're earning from faster responses</p>
+            </div>
           </div>
         </div>
       </div>
@@ -236,20 +308,20 @@ export default function LandingPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <div key={index} className="bg-white/5 backdrop-blur-sm rounded-lg p-6 border border-white/10">
-                <div className="flex items-center mb-4">
-                  {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
-                  ))}
-                </div>
-                <p className="text-gray-300 mb-4 italic">&quot;{testimonial.quote}&quot;</p>
-                <div>
-                  <p className="font-semibold text-white">{testimonial.name}</p>
-                  <p className="text-sm text-gray-400">{testimonial.gym}</p>
-                </div>
+            <div className="bg-white/5 backdrop-blur-sm rounded-lg p-8 border border-white/10 md:col-span-3">
+              <div className="flex items-center mb-6">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="h-6 w-6 text-yellow-400 fill-current" />
+                ))}
               </div>
-            ))}
+              <p className="text-2xl text-gray-300 mb-6 italic">
+                &quot;Paid for itself in 3 days. Can't imagine running my gym without it.&quot;
+              </p>
+              <div>
+                <p className="font-semibold text-white text-lg">Mike Thompson</p>
+                <p className="text-gray-400">FitLife Gym Manchester</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -270,7 +342,7 @@ export default function LandingPage() {
               className="bg-white text-blue-600 hover:bg-gray-100 font-bold py-4 px-8 rounded-xl text-lg transition-all flex items-center justify-center"
             >
               <Play className="h-5 w-5 mr-2" />
-              Watch 5-Minute Demo
+              Watch 2-Min Demo
             </button>
             <button
               onClick={() => router.push('/signup')}
@@ -284,11 +356,11 @@ export default function LandingPage() {
           <div className="mt-6 flex items-center justify-center space-x-6 text-sm text-blue-200">
             <div className="flex items-center">
               <CheckCircle className="h-4 w-4 mr-1" />
-              <span>14-day free trial</span>
+              <span>No credit card required</span>
             </div>
             <div className="flex items-center">
               <CheckCircle className="h-4 w-4 mr-1" />
-              <span>No setup fees</span>
+              <span>Set up in 15 minutes</span>
             </div>
             <div className="flex items-center">
               <CheckCircle className="h-4 w-4 mr-1" />

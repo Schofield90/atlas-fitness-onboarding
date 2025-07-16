@@ -11,6 +11,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",
     "@react-pdf/renderer": "^4.3.0",
+    "@stripe/stripe-js": "^7.4.0",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.50.5",
     "@types/node-cron": "^3.0.11",
@@ -30,6 +31,7 @@
     "react-hook-form": "^7.60.0",
     "recharts": "^3.1.0",
     "resend": "^4.6.0",
+    "stripe": "^18.3.0",
     "twilio": "^5.7.3",
     "uuid": "^11.1.0",
     "zod": "^3.23.8"
