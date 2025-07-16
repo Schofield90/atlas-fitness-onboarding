@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { createSupabaseClient } from '@/lib/supabase';
 import { Lead, UserProfile } from '@/lib/supabase';
 import { 
@@ -13,7 +14,8 @@ import {
   CheckCircle,
   AlertCircle,
   Clock,
-  Star
+  Star,
+  DollarSign
 } from 'lucide-react';
 
 interface DashboardStats {
@@ -25,6 +27,7 @@ interface DashboardStats {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [stats, setStats] = useState<DashboardStats>({
     totalLeads: 0,
     qualifiedLeads: 0,
@@ -212,6 +215,28 @@ export default function DashboardPage() {
                 <p className="text-sm font-medium text-gray-500">Avg Score</p>
                 <p className="text-2xl font-bold text-gray-900">{stats.avgQualificationScore}</p>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ROI Spotlight */}
+        <div className="bg-gradient-to-r from-green-500 to-blue-600 rounded-lg shadow-lg p-6 mb-8 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-xl font-semibold mb-2">Automation ROI Impact</h3>
+              <p className="text-green-100">See how fast lead response affects your revenue</p>
+            </div>
+            <div className="text-right">
+              <div className="flex items-center justify-end mb-2">
+                <DollarSign className="h-8 w-8 text-green-200 mr-2" />
+                <span className="text-3xl font-bold">ROI</span>
+              </div>
+              <button
+                onClick={() => router.push('/dashboard/roi')}
+                className="bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+              >
+                View ROI Dashboard
+              </button>
             </div>
           </div>
         </div>

@@ -181,7 +181,7 @@ export class CampaignOptimizer {
       let parsedResponse;
       try {
         parsedResponse = JSON.parse(aiResponse);
-      } catch (_error) {
+      } catch {
         throw new Error('Invalid JSON response from AI');
       }
 

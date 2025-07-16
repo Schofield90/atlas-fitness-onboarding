@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function processLeadgenEvent(leadData: Record<string, any>) {
+async function processLeadgenEvent(leadData: Record<string, unknown>) {
   try {
     // Find the integration based on the ad_id
     const { data: campaign } = await supabaseAdmin
@@ -107,11 +107,11 @@ async function processLeadgenEvent(leadData: Record<string, any>) {
 
     // Get lead details from Meta API
     const metaClient = getMetaAdsClient(integration.account_id);
-    const leads = await metaClient.getLeads(leadData.form_id);
-    const lead = leads.find(l => l.id === leadData.leadgen_id);
+    const leads = await metaClient.getLeads(leadData.form_id as string);
+    const lead = leads.find(l => l.id === leadData.leadgen_id as string);
 
     if (!lead) {
-      console.error('Lead not found in Meta API:', leadData.leadgen_id);
+      console.error('Lead not found in Meta API:', leadData.leadgen_id as string);
       return;
     }
 
@@ -242,9 +242,9 @@ async function processLeadgenEvent(leadData: Record<string, any>) {
   }
 }
 
-function parseLeadFields(fieldData: Array<{ name: string; values: string[] }>): Record<string, any> {
-  const fields: Record<string, any> = {};
-  const customFields: Record<string, any> = {};
+function parseLeadFields(fieldData: Array<{ name: string; values: string[] }>): Record<string, unknown> {
+  const fields: Record<string, unknown> = {};
+  const customFields: Record<string, unknown> = {};
 
   // Standard field mappings
   const fieldMappings: Record<string, string> = {
@@ -279,7 +279,7 @@ function parseLeadFields(fieldData: Array<{ name: string; values: string[] }>): 
 
   // Handle full_name split
   if (fields.full_name && !fields.first_name && !fields.last_name) {
-    const nameParts = fields.full_name.split(' ');
+    const nameParts = (fields.full_name as string).split(' ');
     fields.first_name = nameParts[0] || '';
     fields.last_name = nameParts.slice(1).join(' ') || '';
   }
@@ -292,11 +292,11 @@ function parseLeadFields(fieldData: Array<{ name: string; values: string[] }>): 
   return fields;
 }
 
-async function autoAssignLead(leadId: string, assignmentRules: Record<string, any>) {
+async function autoAssignLead(leadId: string, assignmentRules: Record<string, unknown>) {
   try {
     // Simple round-robin assignment for now
     if (assignmentRules.type === 'round_robin' && assignmentRules.users) {
-      const users = assignmentRules.users;
+      const users = assignmentRules.users as string[];
       const userIndex = Math.floor(Math.random() * users.length);
       const assignedUserId = users[userIndex];
 

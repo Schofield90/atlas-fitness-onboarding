@@ -202,6 +202,7 @@ export default function NewCampaignPage() {
   };
 
   // Platform icon helper (reserved for future use)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _getPlatformIcon = (platform: string) => {
     switch (platform) {
       case 'facebook': return <Facebook className="h-5 w-5" />;

@@ -206,7 +206,7 @@ export class MetaAdsClient {
   private async makeRequest<T>(
     endpoint: string,
     method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
-    data?: Record<string, any>
+    data?: Record<string, unknown>
   ): Promise<T> {
     const url = `${META_API_BASE_URL}${endpoint}`;
     const params = new URLSearchParams({
@@ -422,8 +422,8 @@ export class MetaAdsClient {
     return response.data;
   }
 
-  async getTargetingSpecs(): Promise<any> {
-    const response = await this.makeRequest<any>(
+  async getTargetingSpecs(): Promise<unknown> {
+    const response = await this.makeRequest<unknown>(
       `/act_${this.config.accountId}/targeting_specs`,
       'GET'
     );
@@ -448,9 +448,9 @@ export class MetaAdsClient {
   async batchRequest(requests: Array<{
     method: 'GET' | 'POST' | 'PUT' | 'DELETE';
     relative_url: string;
-    body?: Record<string, any>;
-  }>): Promise<Array<Record<string, any>>> {
-    const response = await this.makeRequest<{ data: Array<Record<string, any>> }>(
+    body?: Record<string, unknown>;
+  }>): Promise<Array<Record<string, unknown>>> {
+    const response = await this.makeRequest<{ data: Array<Record<string, unknown>> }>(
       `/`,
       'POST',
       {

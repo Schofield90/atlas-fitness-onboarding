@@ -67,7 +67,7 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch campaign' }, { status: 500 });
     }
 
-    const result: { campaign: any; metrics?: any; activities?: any } = { campaign };
+    const result: { campaign: unknown; metrics?: unknown; activities?: unknown } = { campaign };
 
     // Include metrics if requested
     if (includeMetrics) {

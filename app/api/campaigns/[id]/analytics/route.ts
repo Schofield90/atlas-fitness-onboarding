@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { z } from 'zod';
 
 // Schema for analytics request validation (reserved for future use)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _analyticsRequestSchema = z.object({
   date_range: z.object({
     start_date: z.string().min(1, 'Start date is required'),
@@ -30,6 +31,7 @@ export async function GET(
     const endDate = searchParams.get('end_date') || new Date().toISOString().split('T')[0];
     const granularity = searchParams.get('granularity') || 'day';
     const compareTo = searchParams.get('compare_to') || 'none';
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const _metrics = searchParams.get('metrics')?.split(',') || ['impressions', 'clicks', 'spend', 'leads', 'ctr', 'cpc', 'cost_per_lead'];
 
     // Check if campaign exists
@@ -138,15 +140,15 @@ export async function GET(
   }
 }
 
-function processMetricsByGranularity(metrics: Array<Record<string, any>>, granularity: string) {
+function processMetricsByGranularity(metrics: Array<Record<string, unknown>>, granularity: string) {
   if (granularity === 'day') {
     return metrics;
   }
 
-  const grouped: { [key: string]: Array<Record<string, any>> } = {};
+  const grouped: { [key: string]: Array<Record<string, unknown>> } = {};
   
   metrics.forEach(metric => {
-    const date = new Date(metric.date);
+    const date = new Date(metric.date as string);
     let key: string;
     
     if (granularity === 'week') {
@@ -156,7 +158,7 @@ function processMetricsByGranularity(metrics: Array<Record<string, any>>, granul
     } else if (granularity === 'month') {
       key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
     } else {
-      key = metric.date;
+      key = metric.date as string;
     }
     
     if (!grouped[key]) {
@@ -167,11 +169,11 @@ function processMetricsByGranularity(metrics: Array<Record<string, any>>, granul
 
   return Object.entries(grouped).map(([date, metrics]) => {
     const aggregated = metrics.reduce((acc, metric) => {
-      acc.impressions += metric.impressions;
-      acc.clicks += metric.clicks;
-      acc.spend += metric.spend;
-      acc.leads += metric.leads;
-      acc.conversions += metric.conversions;
+      (acc as { impressions: number }).impressions += (metric.impressions as number) || 0;
+      (acc as { clicks: number }).clicks += (metric.clicks as number) || 0;
+      (acc as { spend: number }).spend += (metric.spend as number) || 0;
+      (acc as { leads: number }).leads += (metric.leads as number) || 0;
+      (acc as { conversions: number }).conversions += (metric.conversions as number) || 0;
       return acc;
     }, {
       date,
@@ -183,13 +185,14 @@ function processMetricsByGranularity(metrics: Array<Record<string, any>>, granul
     });
 
     // Calculate derived metrics
-    aggregated.ctr = aggregated.impressions > 0 ? aggregated.clicks / aggregated.impressions : 0;
-    aggregated.cpc = aggregated.clicks > 0 ? aggregated.spend / aggregated.clicks : 0;
-    aggregated.cpm = aggregated.impressions > 0 ? (aggregated.spend / aggregated.impressions) * 1000 : 0;
-    aggregated.cost_per_lead = aggregated.leads > 0 ? aggregated.spend / aggregated.leads : 0;
-    aggregated.cost_per_conversion = aggregated.conversions > 0 ? aggregated.spend / aggregated.conversions : 0;
+    const aggTyped = aggregated as { date: string; impressions: number; clicks: number; spend: number; leads: number; conversions: number; ctr?: number; cpc?: number; cpm?: number; cost_per_lead?: number; cost_per_conversion?: number };
+    aggTyped.ctr = aggTyped.impressions > 0 ? aggTyped.clicks / aggTyped.impressions : 0;
+    aggTyped.cpc = aggTyped.clicks > 0 ? aggTyped.spend / aggTyped.clicks : 0;
+    aggTyped.cpm = aggTyped.impressions > 0 ? (aggTyped.spend / aggTyped.impressions) * 1000 : 0;
+    aggTyped.cost_per_lead = aggTyped.leads > 0 ? aggTyped.spend / aggTyped.leads : 0;
+    aggTyped.cost_per_conversion = aggTyped.conversions > 0 ? aggTyped.spend / aggTyped.conversions : 0;
 
-    return aggregated;
+    return aggTyped;
   }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 }
 
@@ -213,7 +216,7 @@ function calculateComparisonPeriod(startDate: string, endDate: string, compareTo
   return { start: startDate, end: endDate };
 }
 
-function calculateSummaryStats(metrics: Array<Record<string, any>>) {
+function calculateSummaryStats(metrics: Array<Record<string, unknown>>) {
   if (!metrics || metrics.length === 0) {
     return {
       total_impressions: 0,
@@ -230,11 +233,11 @@ function calculateSummaryStats(metrics: Array<Record<string, any>>) {
   }
 
   const totals = metrics.reduce((acc, metric) => {
-    acc.impressions += metric.impressions;
-    acc.clicks += metric.clicks;
-    acc.spend += metric.spend;
-    acc.leads += metric.leads;
-    acc.conversions += metric.conversions;
+    (acc as { impressions: number }).impressions += (metric.impressions as number) || 0;
+    (acc as { clicks: number }).clicks += (metric.clicks as number) || 0;
+    (acc as { spend: number }).spend += (metric.spend as number) || 0;
+    (acc as { leads: number }).leads += (metric.leads as number) || 0;
+    (acc as { conversions: number }).conversions += (metric.conversions as number) || 0;
     return acc;
   }, {
     impressions: 0,
@@ -242,7 +245,7 @@ function calculateSummaryStats(metrics: Array<Record<string, any>>) {
     spend: 0,
     leads: 0,
     conversions: 0,
-  });
+  }) as { impressions: number; clicks: number; spend: number; leads: number; conversions: number };
 
   return {
     total_impressions: totals.impressions,
