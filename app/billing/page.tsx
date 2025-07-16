@@ -6,14 +6,12 @@ import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { 
   CreditCard, 
-  Calendar, 
   CheckCircle, 
   XCircle, 
   AlertTriangle,
   ExternalLink,
   Crown,
-  Shield,
-  Zap
+  Shield
 } from 'lucide-react';
 
 interface Organization {

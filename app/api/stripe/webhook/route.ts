@@ -2,13 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { supabaseAdmin } from '@/lib/supabase';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2024-11-20.acacia',
-});
+// Initialize Stripe only if key is available
+let stripe: Stripe | null = null;
+if (process.env.STRIPE_SECRET_KEY) {
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: '2024-11-20.acacia',
+  });
+}
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
 
 export async function POST(request: NextRequest) {
+  if (!stripe) {
+    return NextResponse.json({ error: 'Stripe not configured' }, { status: 503 });
+  }
+
   const body = await request.text();
   const sig = request.headers.get('stripe-signature');
 
@@ -109,7 +117,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   }
 
   // Update organization subscription status
-  const { user_id, organization_id } = subscription.metadata;
+  const { organization_id } = subscription.metadata;
   if (organization_id) {
     await supabaseAdmin
       .from('organizations')
@@ -135,7 +143,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   }
 
   // Update organization subscription status
-  const { user_id, organization_id } = subscription.metadata;
+  const { organization_id } = subscription.metadata;
   if (organization_id) {
     await supabaseAdmin
       .from('organizations')

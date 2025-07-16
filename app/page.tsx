@@ -122,7 +122,7 @@ export default function LandingPage() {
               <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20">
                 <div className="text-center mb-6">
                   <h3 className="text-2xl font-bold mb-2">The Reality Check</h3>
-                  <p className="text-blue-200">While you're sleeping, your competitors are stealing your leads</p>
+                  <p className="text-blue-200">While you&apos;re sleeping, your competitors are stealing your leads</p>
                 </div>
                 
                 <div className="bg-white rounded-lg p-6 text-black mb-6">
@@ -156,7 +156,7 @@ export default function LandingPage() {
       <div className="bg-gray-900 text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-8">Here's What's Costing You Money</h2>
+            <h2 className="text-3xl font-bold mb-8">Here&apos;s What&apos;s Costing You Money</h2>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
@@ -180,7 +180,7 @@ export default function LandingPage() {
                 <div className="flex items-start">
                   <div className="text-red-400 mr-3 mt-1">•</div>
                   <div>
-                    <p className="font-semibold">You're losing £2,000+/month in revenue</p>
+                    <p className="font-semibold">You&apos;re losing £2,000+/month in revenue</p>
                     <p className="text-gray-400 text-sm">Every month you delay</p>
                   </div>
                 </div>
@@ -193,7 +193,7 @@ export default function LandingPage() {
                 <div className="flex items-start">
                   <div className="text-green-400 mr-3 mt-1">•</div>
                   <div>
-                    <p className="font-semibold">Instant SMS response (< 5 minutes)</p>
+                    <p className="font-semibold">Instant SMS response (&lt; 5 minutes)</p>
                     <p className="text-gray-400 text-sm">Beat every competitor</p>
                   </div>
                 </div>
@@ -260,7 +260,7 @@ export default function LandingPage() {
                 <TrendingUp className="h-6 w-6 text-purple-600" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">Track Your ROI</h3>
-              <p className="text-gray-600">See exactly what you're earning from faster responses</p>
+              <p className="text-gray-600">See exactly what you&apos;re earning from faster responses</p>
             </div>
           </div>
         </div>
@@ -307,15 +307,15 @@ export default function LandingPage() {
             <p className="text-xl text-gray-300">Real results from real gyms across the UK</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-white/5 backdrop-blur-sm rounded-lg p-8 border border-white/10 md:col-span-3">
+          <div className="grid grid-cols-1 gap-8">
+            <div className="bg-white/5 backdrop-blur-sm rounded-lg p-8 border border-white/10">
               <div className="flex items-center mb-6">
                 {[...Array(5)].map((_, i) => (
                   <Star key={i} className="h-6 w-6 text-yellow-400 fill-current" />
                 ))}
               </div>
               <p className="text-2xl text-gray-300 mb-6 italic">
-                &quot;Paid for itself in 3 days. Can't imagine running my gym without it.&quot;
+                &quot;Paid for itself in 3 days. Can&apos;t imagine running my gym without it.&quot;
               </p>
               <div>
                 <p className="font-semibold text-white text-lg">Mike Thompson</p>

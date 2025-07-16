@@ -11,7 +11,6 @@ import {
   Facebook,
   Smartphone,
   TrendingUp,
-  CreditCard,
   Settings
 } from 'lucide-react';
 
@@ -65,7 +64,7 @@ export default function HelpPage() {
     {
       id: '7',
       question: 'Do you work with Google Ads leads too?',
-      answer: 'Currently we focus on Facebook leads, but Google Ads integration is coming soon. Sign up for our newsletter to be notified when it\'s available.',
+      answer: 'Currently we focus on Facebook leads, but Google Ads integration is coming soon. Sign up for our newsletter to be notified when it&apos;s available.',
       category: 'Features'
     },
     {
