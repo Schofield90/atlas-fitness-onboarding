@@ -497,6 +497,84 @@ export default function FacebookIntegrationPage() {
                                       (Check permissions)
                                     </span>
                                   )}
+                                  {form.can_access_leads && (
+                                    <button
+                                      onClick={async (e) => {
+                                        e.stopPropagation()
+                                        const button = e.currentTarget
+                                        button.disabled = true
+                                        button.textContent = '...'
+                                        
+                                        try {
+                                          const res = await fetch('/api/integrations/facebook/get-lead-count', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ 
+                                              formId: form.id,
+                                              pageId: form.pageId
+                                            })
+                                          })
+                                          
+                                          const data = await res.json()
+                                          
+                                          if (data.success) {
+                                            // Update the display with actual count
+                                            const countElement = button.previousElementSibling as HTMLElement
+                                            if (countElement) {
+                                              countElement.textContent = data.leadCount.toString()
+                                              if (data.leadCount > 0) {
+                                                countElement.classList.remove('text-white')
+                                                countElement.classList.add('text-green-400')
+                                              }
+                                            }
+                                            button.style.display = 'none'
+                                            
+                                            // Show sync button if leads > 0
+                                            if (data.leadCount > 0) {
+                                              const syncButton = document.createElement('button')
+                                              syncButton.className = 'text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded transition-colors'
+                                              syncButton.textContent = 'Sync'
+                                              syncButton.onclick = async () => {
+                                                try {
+                                                  const syncRes = await fetch('/api/integrations/facebook/sync-form-leads', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ 
+                                                      formId: form.id,
+                                                      formName: form.name,
+                                                      pageId: form.pageId
+                                                    })
+                                                  })
+                                                  const syncData = await syncRes.json()
+                                                  if (syncData.success) {
+                                                    alert(`Synced ${syncData.syncedCount} leads from ${form.name}`)
+                                                  } else {
+                                                    alert(`Failed to sync: ${syncData.error}`)
+                                                  }
+                                                } catch (error) {
+                                                  alert('Failed to sync leads')
+                                                }
+                                              }
+                                              button.parentElement?.appendChild(syncButton)
+                                            }
+                                          } else {
+                                            alert(`Error: ${data.error}`)
+                                            button.textContent = '↻'
+                                            button.disabled = false
+                                          }
+                                        } catch (error) {
+                                          console.error('Count error:', error)
+                                          alert('Failed to get lead count')
+                                          button.textContent = '↻'
+                                          button.disabled = false
+                                        }
+                                      }}
+                                      className="text-xs text-gray-400 hover:text-white px-1"
+                                      title="Refresh lead count"
+                                    >
+                                      ↻
+                                    </button>
+                                  )}
                                   {form.leads_count > 0 && (
                                     <button
                                       onClick={async (e) => {

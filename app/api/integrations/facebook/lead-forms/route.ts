@@ -121,9 +121,9 @@ export async function GET(request: NextRequest) {
               let leadAccessError = null
               
               try {
-                // First try to get lead count with summary
+                // Method 1: Try to get lead count with summary (doesn't always work)
                 const leadsCountResponse = await fetch(
-                  `https://graph.facebook.com/v18.0/${form.id}/leads?limit=1&summary=true&access_token=${pageAccessToken}`
+                  `https://graph.facebook.com/v18.0/${form.id}/leads?limit=25&summary=true&access_token=${pageAccessToken}`
                 )
                 
                 const leadsCountData = await leadsCountResponse.json()
@@ -132,13 +132,44 @@ export async function GET(request: NextRequest) {
                   leadAccessError = leadsCountData.error.message
                   console.error(`Lead access error for form ${form.id}:`, leadsCountData.error)
                 } else {
-                  // Get the total count from summary
-                  leadCount = leadsCountData.summary?.total_count || 0
-                  
                   // Check if we can actually access the leads
                   if (leadsCountData.data && leadsCountData.data.length > 0) {
                     canAccessLeads = true
                     sampleLeadId = leadsCountData.data[0].id
+                    
+                    // Method 1: Try summary.total_count first
+                    if (leadsCountData.summary?.total_count !== undefined) {
+                      leadCount = leadsCountData.summary.total_count
+                    } 
+                    // Method 2: If no summary, count pages
+                    else if (leadsCountData.data) {
+                      // Count current page
+                      leadCount = leadsCountData.data.length
+                      
+                      // If there's pagination, we need to count all pages
+                      if (leadsCountData.paging?.next) {
+                        // For now, indicate there are more than current page
+                        leadCount = leadsCountData.data.length + '+'
+                        
+                        // Alternative: fetch all pages to get exact count (expensive)
+                        // Uncomment if exact count is needed:
+                        /*
+                        let nextUrl = leadsCountData.paging.next
+                        while (nextUrl && leadCount < 1000) { // Limit to prevent infinite loops
+                          const nextResponse = await fetch(nextUrl)
+                          const nextData = await nextResponse.json()
+                          if (nextData.data) {
+                            leadCount += nextData.data.length
+                          }
+                          nextUrl = nextData.paging?.next
+                        }
+                        */
+                      }
+                    }
+                  } else if (leadsCountData.data && leadsCountData.data.length === 0) {
+                    // No leads but we can access the endpoint
+                    canAccessLeads = true
+                    leadCount = 0
                   }
                 }
               } catch (error) {
