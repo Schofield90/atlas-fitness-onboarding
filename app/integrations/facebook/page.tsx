@@ -25,6 +25,7 @@ export default function FacebookIntegrationPage() {
   })
   const [saving, setSaving] = useState(false)
   const [userData, setUserData] = useState<any>(null)
+  const [timeFilter, setTimeFilter] = useState('last_30_days')
   
   useEffect(() => {
     const storedData = localStorage.getItem('atlas_fitness_trial_data')
@@ -35,7 +36,7 @@ export default function FacebookIntegrationPage() {
   
   const facebookConnection = useFacebookConnection()
   const { pages, loading: pagesLoading, error: pagesError, refetch: refetchPages } = useFacebookPages(facebookConnection.connected)
-  const { adAccounts, loading: adAccountsLoading, error: adAccountsError, refetch: refetchAdAccounts } = useFacebookAdAccounts(facebookConnection.connected)
+  const { adAccounts, loading: adAccountsLoading, error: adAccountsError, refetch: refetchAdAccounts } = useFacebookAdAccounts(facebookConnection.connected, timeFilter)
   const { leadForms, loading: leadFormsLoading, error: leadFormsError, refetch: refetchLeadForms } = useFacebookLeadForms(
     selectedItems.pages.length > 0 ? selectedItems.pages.join(',') : null, 
     facebookConnection.connected && selectedItems.pages.length > 0
@@ -248,13 +249,30 @@ export default function FacebookIntegrationPage() {
                   <h3 className="text-lg font-bold">Ad Accounts</h3>
                   <p className="text-gray-400 text-sm">Your connected advertising accounts</p>
                 </div>
-                <button 
-                  onClick={refetchAdAccounts}
-                  disabled={adAccountsLoading}
-                  className="bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white py-2 px-3 rounded text-sm transition-colors"
-                >
-                  {adAccountsLoading ? 'Loading...' : 'Refresh'}
-                </button>
+                <div className="flex items-center gap-3">
+                  {/* Time Filter */}
+                  <select
+                    value={timeFilter}
+                    onChange={(e) => setTimeFilter(e.target.value)}
+                    className="bg-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  >
+                    <option value="today">Today</option>
+                    <option value="yesterday">Yesterday</option>
+                    <option value="last_7_days">Last 7 days</option>
+                    <option value="last_30_days">Last 30 days</option>
+                    <option value="last_90_days">Last 90 days</option>
+                    <option value="this_month">This month</option>
+                    <option value="last_month">Last month</option>
+                    <option value="lifetime">Lifetime</option>
+                  </select>
+                  <button 
+                    onClick={refetchAdAccounts}
+                    disabled={adAccountsLoading}
+                    className="bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white py-2 px-3 rounded text-sm transition-colors"
+                  >
+                    {adAccountsLoading ? 'Loading...' : 'Refresh'}
+                  </button>
+                </div>
               </div>
 
               {adAccountsError && (
@@ -314,11 +332,11 @@ export default function FacebookIntegrationPage() {
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-sm">
                             <div>
                               <p className="text-gray-400">Spent</p>
-                              <p className="text-white">${account.amount_spent.toFixed(2)}</p>
+                              <p className="text-white">£{account.amount_spent.toFixed(2)}</p>
                             </div>
                             <div>
                               <p className="text-gray-400">Balance</p>
-                              <p className="text-white">${account.balance.toFixed(2)}</p>
+                              <p className="text-white">£{account.balance.toFixed(2)}</p>
                             </div>
                             <div>
                               <p className="text-gray-400">Currency</p>
@@ -413,6 +431,16 @@ export default function FacebookIntegrationPage() {
                       <div className="text-xs text-gray-500 bg-gray-900 rounded p-3">
                         <p>Found {leadForms.length} lead forms • {leadForms.filter(f => f.is_active).length} active</p>
                         <p>Total leads collected: {leadForms.reduce((sum, f) => sum + (f.leads_count || 0), 0)}</p>
+                        <p className="text-gray-600 mt-1">
+                          Time period: {timeFilter === 'today' ? 'Today' :
+                                       timeFilter === 'yesterday' ? 'Yesterday' :
+                                       timeFilter === 'last_7_days' ? 'Last 7 days' :
+                                       timeFilter === 'last_30_days' ? 'Last 30 days' :
+                                       timeFilter === 'last_90_days' ? 'Last 90 days' :
+                                       timeFilter === 'this_month' ? 'This month' :
+                                       timeFilter === 'last_month' ? 'Last month' :
+                                       'Lifetime'}
+                        </p>
                       </div>
                     )}
                     

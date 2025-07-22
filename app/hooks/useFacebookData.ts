@@ -134,7 +134,7 @@ export function useFacebookPages(enabled: boolean = true) {
 }
 
 // Hook for Facebook Ad Accounts
-export function useFacebookAdAccounts(enabled: boolean = true) {
+export function useFacebookAdAccounts(enabled: boolean = true, timeFilter: string = 'last_30_days') {
   const [data, setData] = useState<FacebookAdAccount[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -146,12 +146,12 @@ export function useFacebookAdAccounts(enabled: boolean = true) {
     setError(null)
 
     try {
-      console.log('🔄 Fetching Facebook Ad Accounts...')
+      console.log('🔄 Fetching Facebook Ad Accounts with time filter:', timeFilter)
       
       // Get the Facebook user ID from localStorage
       const facebookUserId = localStorage.getItem('facebook_user_id')
       
-      const response = await fetch('/api/integrations/facebook/ad-accounts', {
+      const response = await fetch(`/api/integrations/facebook/ad-accounts?time_filter=${timeFilter}`, {
         headers: {
           'x-facebook-connected': 'true',
           'x-facebook-user-id': facebookUserId || ''
@@ -181,7 +181,7 @@ export function useFacebookAdAccounts(enabled: boolean = true) {
 
   useEffect(() => {
     fetchAdAccounts()
-  }, [enabled])
+  }, [enabled, timeFilter])
 
   return {
     adAccounts: data,

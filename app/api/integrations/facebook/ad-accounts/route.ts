@@ -29,6 +29,10 @@ function getStatusColor(status: number): string {
 
 export async function GET(request: NextRequest) {
   try {
+    // Get time filter from query params
+    const { searchParams } = new URL(request.url)
+    const timeFilter = searchParams.get('time_filter') || 'last_30_days'
+    
     // Retrieve the stored access token from secure cookie
     const cookieStore = await cookies()
     const tokenCookie = cookieStore.get('fb_token_data')
@@ -47,15 +51,57 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    console.log('💰 Fetching Facebook Ad Accounts...')
+    console.log('💰 Fetching Facebook Ad Accounts with time filter:', timeFilter)
     
     // If we have a real token, use Facebook API
     if (storedAccessToken) {
       console.log('📊 Making real Facebook API call for ad accounts')
       console.log('🔑 Using token:', storedAccessToken.substring(0, 20) + '...')
       
+      // Build time_range parameter based on filter
+      let timeRange = ''
+      const today = new Date()
+      const yesterday = new Date(today)
+      yesterday.setDate(yesterday.getDate() - 1)
+      
+      switch (timeFilter) {
+        case 'today':
+          timeRange = `&time_range={'since':'${today.toISOString().split('T')[0]}','until':'${today.toISOString().split('T')[0]}'}`
+          break
+        case 'yesterday':
+          timeRange = `&time_range={'since':'${yesterday.toISOString().split('T')[0]}','until':'${yesterday.toISOString().split('T')[0]}'}`
+          break
+        case 'last_7_days':
+          const weekAgo = new Date(today)
+          weekAgo.setDate(weekAgo.getDate() - 7)
+          timeRange = `&time_range={'since':'${weekAgo.toISOString().split('T')[0]}','until':'${today.toISOString().split('T')[0]}'}`
+          break
+        case 'last_30_days':
+          const monthAgo = new Date(today)
+          monthAgo.setDate(monthAgo.getDate() - 30)
+          timeRange = `&time_range={'since':'${monthAgo.toISOString().split('T')[0]}','until':'${today.toISOString().split('T')[0]}'}`
+          break
+        case 'last_90_days':
+          const threeMonthsAgo = new Date(today)
+          threeMonthsAgo.setDate(threeMonthsAgo.getDate() - 90)
+          timeRange = `&time_range={'since':'${threeMonthsAgo.toISOString().split('T')[0]}','until':'${today.toISOString().split('T')[0]}'}`
+          break
+        case 'this_month':
+          const firstDayMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+          timeRange = `&time_range={'since':'${firstDayMonth.toISOString().split('T')[0]}','until':'${today.toISOString().split('T')[0]}'}`
+          break
+        case 'last_month':
+          const firstDayLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+          const lastDayLastMonth = new Date(today.getFullYear(), today.getMonth(), 0)
+          timeRange = `&time_range={'since':'${firstDayLastMonth.toISOString().split('T')[0]}','until':'${lastDayLastMonth.toISOString().split('T')[0]}'}`
+          break
+        case 'lifetime':
+          timeRange = '' // No time filter for lifetime
+          break
+      }
+      
       // Updated fields to include business and proper field names
-      const apiUrl = `https://graph.facebook.com/v18.0/me/adaccounts?fields=id,name,account_status,currency,timezone_name,amount_spent,balance,spend_cap,created_time,funding_source,business&access_token=${storedAccessToken}`
+      const apiUrl = `https://graph.facebook.com/v18.0/me/adaccounts?fields=id,name,account_status,currency,timezone_name,amount_spent,balance,spend_cap,created_time,funding_source,business${timeRange}&access_token=${storedAccessToken}`
       console.log('🌐 API URL:', apiUrl.replace(storedAccessToken, 'TOKEN_HIDDEN'))
       
       const response = await fetch(apiUrl)
@@ -119,6 +165,7 @@ export async function GET(request: NextRequest) {
           api_call: 'GET /me/adaccounts',
           permissions_required: ['ads_management', 'ads_read'],
           data_source: 'facebook_api',
+          time_filter: timeFilter,
           timestamp: new Date().toISOString(),
           raw_response_sample: data.data?.[0] // Include first account for debugging
         }
@@ -133,8 +180,8 @@ export async function GET(request: NextRequest) {
         id: 'act_123456789',
         name: 'Atlas Fitness Marketing',
         account_status: 1, // 1 = ACTIVE
-        currency: 'USD',
-        timezone_name: 'America/New_York',
+        currency: 'GBP',
+        timezone_name: 'Europe/London',
         amount_spent: '2847.32',
         balance: '500.00',
         spend_cap: '5000.00',
@@ -148,8 +195,8 @@ export async function GET(request: NextRequest) {
         id: 'act_987654321',
         name: 'Atlas Fitness - Downtown Campaign',
         account_status: 1,
-        currency: 'USD', 
-        timezone_name: 'America/New_York',
+        currency: 'GBP', 
+        timezone_name: 'Europe/London',
         amount_spent: '1523.45',
         balance: '750.00',
         spend_cap: '3000.00',
@@ -163,8 +210,8 @@ export async function GET(request: NextRequest) {
         id: 'act_456789123',
         name: 'Atlas Nutrition Ads',
         account_status: 2, // 2 = DISABLED
-        currency: 'USD',
-        timezone_name: 'America/New_York', 
+        currency: 'GBP',
+        timezone_name: 'Europe/London', 
         amount_spent: '345.67',
         balance: '0.00',
         spend_cap: '1000.00',
