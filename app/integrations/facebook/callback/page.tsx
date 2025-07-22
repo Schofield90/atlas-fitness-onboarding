@@ -36,11 +36,25 @@ function CallbackContent() {
     // Simulate successful connection (in a real app, you'd exchange the code for a token)
     setTimeout(() => {
       // Store connection status in localStorage for demo purposes
+      const connectionTime = new Date().toISOString()
       localStorage.setItem('facebook_connected', 'true')
-      localStorage.setItem('facebook_connected_at', new Date().toISOString())
+      localStorage.setItem('facebook_connected_at', connectionTime)
+      
+      console.log('✅ Facebook connection successful:', {
+        connected: true,
+        connectedAt: connectionTime,
+        code: code?.substring(0, 10) + '...'
+      })
       
       setStatus('success')
       setMessage('Successfully connected to Facebook!')
+      
+      // Trigger a storage event to notify other tabs/components
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'facebook_connected',
+        newValue: 'true',
+        oldValue: null
+      }))
       
       // Redirect to dashboard after 3 seconds
       setTimeout(() => {

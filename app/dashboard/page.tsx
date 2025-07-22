@@ -3,21 +3,18 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useFacebookConnection } from '@/app/hooks/useFacebookConnection'
 
 export default function DashboardPage() {
   const router = useRouter()
   const [userData, setUserData] = useState<any>(null)
-  const [facebookConnected, setFacebookConnected] = useState(false)
+  const facebookConnection = useFacebookConnection()
 
   useEffect(() => {
     const storedData = localStorage.getItem('atlas_fitness_trial_data')
     if (storedData) {
       setUserData(JSON.parse(storedData))
     }
-    
-    // Check Facebook connection status
-    const fbConnected = localStorage.getItem('facebook_connected')
-    setFacebookConnected(fbConnected === 'true')
   }, [])
 
   if (!userData) {
@@ -104,26 +101,49 @@ export default function DashboardPage() {
             <p className="text-gray-300 mb-4">
               Connect your Facebook ad account to start capturing leads automatically.
             </p>
-            {facebookConnected ? (
+            {facebookConnection.loading ? (
+              <div className="flex items-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+                <span className="text-gray-400 text-sm">Checking connection...</span>
+              </div>
+            ) : facebookConnection.connected ? (
               <div>
                 <div className="flex items-center mb-3">
                   <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                  <span className="text-green-400 text-sm">Connected</span>
+                  <span className="text-green-400 text-sm">
+                    Connected {facebookConnection.connectedAt && 
+                      `(${new Date(facebookConnection.connectedAt).toLocaleDateString()})`}
+                  </span>
                 </div>
-                <button 
-                  onClick={() => router.push('/integrations/facebook')}
-                  className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition-colors"
-                >
-                  Manage Connection
-                </button>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => router.push('/integrations/facebook')}
+                    className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition-colors"
+                  >
+                    Manage Connection
+                  </button>
+                  <button 
+                    onClick={facebookConnection.disconnect}
+                    className="bg-red-600 hover:bg-red-700 text-white text-sm py-2 px-3 rounded transition-colors"
+                  >
+                    Disconnect
+                  </button>
+                </div>
               </div>
             ) : (
-              <button 
-                onClick={() => router.push('/integrations/facebook')}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors"
-              >
-                Connect Facebook
-              </button>
+              <div>
+                {facebookConnection.error && (
+                  <div className="text-red-400 text-xs mb-2">
+                    Error: {facebookConnection.error}
+                  </div>
+                )}
+                <button 
+                  onClick={() => router.push('/integrations/facebook')}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors"
+                >
+                  Connect Facebook
+                </button>
+              </div>
             )}
           </div>
 

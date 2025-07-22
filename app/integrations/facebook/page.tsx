@@ -2,10 +2,12 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useFacebookConnection } from '@/app/hooks/useFacebookConnection'
 
 export default function FacebookIntegrationPage() {
   const [connecting, setConnecting] = useState(false)
   const [error, setError] = useState('')
+  const facebookConnection = useFacebookConnection()
 
   const handleConnect = () => {
     setConnecting(true)
@@ -74,13 +76,55 @@ export default function FacebookIntegrationPage() {
         {/* Connection Status */}
         <div className="bg-gray-800 rounded-lg p-6 mb-8">
           <h3 className="text-lg font-bold mb-4">Connection Status</h3>
-          <div className="flex items-center justify-between">
+          {facebookConnection.loading ? (
             <div className="flex items-center">
-              <div className="w-3 h-3 bg-red-500 rounded-full mr-3"></div>
-              <span className="text-gray-300">Not Connected</span>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-3"></div>
+              <span className="text-gray-300">Checking connection status...</span>
             </div>
-            <span className="text-gray-400 text-sm">No Facebook account connected</span>
-          </div>
+          ) : facebookConnection.connected ? (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center">
+                  <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
+                  <span className="text-green-400">Connected</span>
+                </div>
+                <span className="text-gray-400 text-sm">
+                  {facebookConnection.connectedAt && 
+                    `Connected on ${new Date(facebookConnection.connectedAt).toLocaleDateString()}`}
+                </span>
+              </div>
+              <div className="flex gap-3">
+                <button 
+                  onClick={facebookConnection.disconnect}
+                  className="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded transition-colors"
+                >
+                  Disconnect
+                </button>
+                <button 
+                  onClick={facebookConnection.refresh}
+                  className="bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded transition-colors"
+                >
+                  Refresh Status
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="w-3 h-3 bg-red-500 rounded-full mr-3"></div>
+                <span className="text-gray-300">Not Connected</span>
+              </div>
+              <span className="text-gray-400 text-sm">No Facebook account connected</span>
+            </div>
+          )}
+          
+          {/* Debug Info */}
+          {facebookConnection.debug && (
+            <div className="mt-4 p-3 bg-gray-900 rounded text-xs text-gray-400">
+              <strong>Debug Info:</strong> Last checked: {facebookConnection.debug.lastChecked} | 
+              Raw value: {facebookConnection.debug.rawValue || 'null'}
+            </div>
+          )}
         </div>
 
         {error && (
