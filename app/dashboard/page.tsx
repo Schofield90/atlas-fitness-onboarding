@@ -2,15 +2,22 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 export default function DashboardPage() {
+  const router = useRouter()
   const [userData, setUserData] = useState<any>(null)
+  const [facebookConnected, setFacebookConnected] = useState(false)
 
   useEffect(() => {
     const storedData = localStorage.getItem('atlas_fitness_trial_data')
     if (storedData) {
       setUserData(JSON.parse(storedData))
     }
+    
+    // Check Facebook connection status
+    const fbConnected = localStorage.getItem('facebook_connected')
+    setFacebookConnected(fbConnected === 'true')
   }, [])
 
   if (!userData) {
@@ -97,9 +104,27 @@ export default function DashboardPage() {
             <p className="text-gray-300 mb-4">
               Connect your Facebook ad account to start capturing leads automatically.
             </p>
-            <button className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors">
-              Connect Facebook
-            </button>
+            {facebookConnected ? (
+              <div>
+                <div className="flex items-center mb-3">
+                  <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                  <span className="text-green-400 text-sm">Connected</span>
+                </div>
+                <button 
+                  onClick={() => router.push('/integrations/facebook')}
+                  className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition-colors"
+                >
+                  Manage Connection
+                </button>
+              </div>
+            ) : (
+              <button 
+                onClick={() => router.push('/integrations/facebook')}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors"
+              >
+                Connect Facebook
+              </button>
+            )}
           </div>
 
           <div className="bg-gray-800 rounded-lg p-6">
@@ -107,7 +132,10 @@ export default function DashboardPage() {
             <p className="text-gray-300 mb-4">
               Enable WhatsApp integration for instant lead communication.
             </p>
-            <button className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition-colors">
+            <button 
+              onClick={() => alert('WhatsApp integration coming soon! This feature will be available in the next update.')}
+              className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition-colors"
+            >
               Setup WhatsApp
             </button>
           </div>
@@ -117,7 +145,10 @@ export default function DashboardPage() {
             <p className="text-gray-300 mb-4">
               Customize your AI assistant's responses and qualification criteria.
             </p>
-            <button className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded transition-colors">
+            <button 
+              onClick={() => alert('AI Configuration coming soon! You\'ll be able to customize your AI assistant\'s responses and qualification criteria.')}
+              className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded transition-colors"
+            >
               Configure AI
             </button>
           </div>
@@ -127,7 +158,10 @@ export default function DashboardPage() {
             <p className="text-gray-300 mb-4">
               Get detailed insights into your lead generation performance.
             </p>
-            <button className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition-colors">
+            <button 
+              onClick={() => alert('Analytics dashboard coming soon! You\'ll get detailed insights into your lead generation performance.')}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition-colors"
+            >
               View Analytics
             </button>
           </div>
@@ -137,7 +171,10 @@ export default function DashboardPage() {
             <p className="text-gray-300 mb-4">
               Manage your account settings and preferences.
             </p>
-            <button className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition-colors">
+            <button 
+              onClick={() => alert('Settings page coming soon! You\'ll be able to manage your account settings and preferences.')}
+              className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition-colors"
+            >
               Open Settings
             </button>
           </div>
@@ -147,7 +184,10 @@ export default function DashboardPage() {
             <p className="text-gray-300 mb-4">
               Need help? Our support team is here to assist you.
             </p>
-            <button className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded transition-colors">
+            <button 
+              onClick={() => alert('📧 Support Contact:\n\nEmail: support@atlasfitness.com\nPhone: 1-800-ATLAS-FIT\n\nOur support team is available Monday-Friday, 9AM-6PM EST.')}
+              className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded transition-colors"
+            >
               Contact Support
             </button>
           </div>
