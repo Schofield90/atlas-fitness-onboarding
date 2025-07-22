@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
               }
               
               // Get the actual lead count with better error handling
-              let leadCount = 0
+              let leadCount: number | string = 0
               let canAccessLeads = false
               let sampleLeadId = null
               let leadAccessError = null

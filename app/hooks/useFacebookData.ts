@@ -36,7 +36,7 @@ export interface FacebookLeadForm {
   status: string
   created_time: string
   created_time_formatted?: string
-  leads_count: number
+  leads_count: number | string
   form_type: string
   context_card: {
     title: string
@@ -62,7 +62,7 @@ export interface FacebookLeadForm {
   has_lead_data?: boolean
   lead_access_error?: string | null
   debug?: {
-    lead_count: number
+    lead_count: number | string
     can_access: boolean
     sample_lead_id: string | null
     error: string | null
