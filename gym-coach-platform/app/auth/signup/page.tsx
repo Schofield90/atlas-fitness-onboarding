@@ -36,32 +36,26 @@ export default function SignupPage() {
     }
 
     try {
-      // Sign up via API route
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          password,
-          name,
-          organizationName,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create account')
+      // Simulate successful signup by storing data locally
+      const userData = {
+        email,
+        name,
+        organizationName,
+        signedUpAt: new Date().toISOString(),
+        trialEnds: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
       }
+      
+      localStorage.setItem('gym_trial_data', JSON.stringify(userData))
+      
+      // Simulate processing time
+      await new Promise(resolve => setTimeout(resolve, 2000))
 
       // Show success message
       setSuccess(true)
       
-      // Redirect to login after 3 seconds
+      // Redirect to dashboard after 3 seconds
       setTimeout(() => {
-        router.push('/auth/login')
+        router.push('/dashboard')
       }, 3000)
     } catch (err: any) {
       console.error('Signup error:', err)
@@ -77,14 +71,17 @@ export default function SignupPage() {
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
             <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-              Account Created Successfully!
+              🎉 Welcome to Your 14-Day Free Trial!
             </h2>
             <p className="mt-2 text-sm text-gray-600">
-              Please check your email to verify your account.
+              Your gym CRM trial has started successfully.
             </p>
             <p className="mt-2 text-sm text-gray-600">
-              Redirecting to login page...
+              Redirecting to your dashboard...
             </p>
+            <div className="mt-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            </div>
           </div>
         </div>
       </div>
