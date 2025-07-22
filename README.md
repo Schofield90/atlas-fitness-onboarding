@@ -1,32 +1,28 @@
-# n8n with Vercel and Supabase
+# Atlas Fitness Onboarding - Gym CRM Platform
 
-This project sets up n8n (workflow automation) with Vercel deployment and Supabase as the database backend.
+A comprehensive CRM platform for gym management with Facebook lead integration and AI-powered lead qualification.
 
-## Setup
+## Features
 
-1. **Environment Variables**
-   - Copy `.env.example` to `.env.local` for Vercel
-   - Fill in your Supabase credentials and n8n configuration
+- Facebook OAuth integration for lead capture
+- AI-powered lead scoring and qualification
+- Client management dashboard
+- Lead tracking and analytics
+- Automated onboarding workflows
 
-2. **Local Development with Docker**
-   ```bash
-   npm run docker:up
-   ```
+## Tech Stack
 
-3. **Vercel Deployment**
-   ```bash
-   npm run build
-   ```
+- Next.js 15
+- TypeScript
+- Supabase (Database & Auth)
+- TailwindCSS
+- React Query
+- OpenAI API for lead qualification
 
-## Configuration
+## Getting Started
 
-- **Docker**: `docker-compose.yml` and `Dockerfile`
-- **Vercel**: `vercel.json` and `api/index.js`
-- **Supabase**: `lib/supabase.js` for database integration
+See the `gym-coach-platform` directory for the complete application code.
 
-## Environment Variables
+## Deployment
 
-See `.env.example` for required variables including:
-- n8n basic auth credentials
-- Supabase database connection
-- Webhook URLs and domain configuration
+This project is configured for deployment on Vercel.
