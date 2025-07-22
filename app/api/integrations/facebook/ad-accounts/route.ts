@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    console.log('💰 Fetching Facebook Ad Accounts')
+    console.log('💰 Fetching Facebook Ad Accounts...')
     
     // If we have a real token, use Facebook API
     if (storedAccessToken) {
