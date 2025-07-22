@@ -14,10 +14,18 @@ export default function HomePage() {
           <div className="text-2xl font-bold text-orange-500">
             Atlas Fitness
           </div>
-          <nav className="hidden md:flex space-x-8">
-            <a href="#features" className="hover:text-orange-400 transition-colors">Features</a>
-            <a href="#pricing" className="hover:text-orange-400 transition-colors">Pricing</a>
-            <a href="#contact" className="hover:text-orange-400 transition-colors">Contact</a>
+          <nav className="flex items-center space-x-6">
+            <div className="hidden md:flex space-x-8">
+              <a href="#features" className="hover:text-orange-400 transition-colors">Features</a>
+              <a href="#pricing" className="hover:text-orange-400 transition-colors">Pricing</a>
+              <a href="#contact" className="hover:text-orange-400 transition-colors">Contact</a>
+            </div>
+            <Link 
+              href="/login"
+              className="bg-gray-800 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg text-sm transition-colors border border-gray-600"
+            >
+              Sign In
+            </Link>
           </nav>
         </div>
       </header>
@@ -35,7 +43,7 @@ export default function HomePage() {
             captures, qualifies, and nurtures leads 24/7 so you never miss another opportunity.
           </p>
 
-          <div className="flex flex-col md:flex-row gap-6 justify-center items-center mb-16">
+          <div className="flex flex-col md:flex-row gap-6 justify-center items-center mb-8">
             <Link 
               href="/signup"
               className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 px-8 rounded-lg text-lg transition-all transform hover:scale-105 shadow-lg"
@@ -45,6 +53,15 @@ export default function HomePage() {
             <button className="border-2 border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white font-bold py-4 px-8 rounded-lg text-lg transition-all">
               Watch Demo
             </button>
+          </div>
+          
+          <div className="text-center mb-16">
+            <p className="text-gray-400 text-sm">
+              Already have an account?{' '}
+              <Link href="/login" className="text-orange-500 hover:text-orange-400 font-medium">
+                Sign in here
+              </Link>
+            </p>
           </div>
 
           {/* Email Capture */}
