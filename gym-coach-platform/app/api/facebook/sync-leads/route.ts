@@ -19,23 +19,12 @@ interface FacebookLeadsResponse {
 
 export async function POST(request: NextRequest) {
   return handleApiRoute(request, async (req) => {
-    const { user, supabase } = req
+    const { user } = req
     const body = await request.json()
     const { pageId } = body
 
-    // Get user's organization
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('organization_id')
-      .eq('id', user.id)
-      .single()
-
-    if (userError || !userData) {
-      throw new Error('Failed to get user organization')
-    }
-
     // Get the Facebook page with integration details
-    const { data: page, error: pageError } = await supabase
+    const { data: page, error: pageError } = await supabaseAdmin
       .from('facebook_pages')
       .select(`
         *,
@@ -45,7 +34,7 @@ export async function POST(request: NextRequest) {
         )
       `)
       .eq('id', pageId)
-      .eq('organization_id', userData.organization_id)
+      .eq('organization_id', user.organization_id)
       .eq('is_active', true)
       .single()
 
@@ -71,7 +60,7 @@ export async function POST(request: NextRequest) {
       formsProcessed: 0,
       leadsProcessed: 0,
       newLeads: 0,
-      errors: []
+      errors: [] as string[]
     }
 
     // Process each lead form
@@ -83,7 +72,7 @@ export async function POST(request: NextRequest) {
         .from('facebook_lead_forms')
         .upsert({
           page_id: pageId,
-          organization_id: userData.organization_id,
+          organization_id: user.organization_id,
           facebook_form_id: form.id,
           form_name: form.name,
           form_status: form.status || 'active',
@@ -127,7 +116,7 @@ export async function POST(request: NextRequest) {
           const { data: existingLead } = await supabaseAdmin
             .from('facebook_leads')
             .select('id')
-            .eq('organization_id', userData.organization_id)
+            .eq('organization_id', user.organization_id)
             .eq('facebook_lead_id', lead.id)
             .single()
 
@@ -136,7 +125,7 @@ export async function POST(request: NextRequest) {
             const { data: newFbLead, error: leadError } = await supabaseAdmin
               .from('facebook_leads')
               .insert({
-                organization_id: userData.organization_id,
+                organization_id: user.organization_id,
                 form_id: leadForm.id,
                 page_id: pageId,
                 facebook_lead_id: lead.id,
