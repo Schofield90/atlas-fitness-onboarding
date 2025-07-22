@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { leadsDB } from '@/app/lib/leads-store'
 
 export const runtime = 'nodejs'
 
@@ -121,17 +122,34 @@ export async function POST(request: NextRequest) {
         nextUrl = data.paging?.next || null
       }
       
-      // In production, save all leads to database
-      // For now, we'll just return them
-      console.log(`✅ Synced ${allLeads.length} leads from form ${formName}`)
+      // Save all leads using the store
+      const leadsToSave = allLeads.map(lead => ({
+        name: lead.name,
+        email: lead.email,
+        phone: lead.phone,
+        source: 'facebook' as const,
+        status: 'new' as const,
+        form_name: lead.form_name,
+        campaign_name: lead.campaign_name,
+        facebook_lead_id: lead.facebook_lead_id,
+        page_id: pageId || null,
+        form_id: lead.form_id,
+        custom_fields: lead.fields
+      }))
+      
+      const { created, skipped } = leadsDB.bulkCreate(leadsToSave)
+      
+      console.log(`✅ Synced ${created} new leads from form ${formName} (${skipped} already existed)`)
       
       return NextResponse.json({ 
         success: true, 
         syncedCount: allLeads.length,
+        savedCount: created,
+        skippedCount: skipped,
         formId,
         formName,
         leads: allLeads.slice(0, 10), // Return first 10 for preview
-        message: `Successfully synced ${allLeads.length} leads`
+        message: `Successfully synced ${created} new leads from ${allLeads.length} total (${skipped} duplicates skipped)`
       })
       
     } catch (error) {

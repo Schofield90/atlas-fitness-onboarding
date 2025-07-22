@@ -12,7 +12,7 @@ export default function IntegrationsPage() {
   const facebookConnection = useFacebookConnection()
 
   useEffect(() => {
-    const storedData = localStorage.getItem('atlas_fitness_trial_data')
+    const storedData = localStorage.getItem('gymleadhub_trial_data')
     if (storedData) {
       setUserData(JSON.parse(storedData))
     }

@@ -55,7 +55,7 @@ export default function FacebookDebugPage() {
         <div className="container mx-auto px-6 py-4">
           <div className="flex justify-between items-center">
             <Link href="/" className="text-2xl font-bold text-orange-500">
-              Atlas Fitness
+              Gymleadhub
             </Link>
             <Link 
               href="/dashboard"

@@ -12,7 +12,7 @@ export default function HomePage() {
       <header className="container mx-auto px-6 py-4">
         <div className="flex justify-between items-center">
           <div className="text-2xl font-bold text-orange-500">
-            Atlas Fitness
+            Gymleadhub
           </div>
           <nav className="flex items-center space-x-6">
             <div className="hidden md:flex space-x-8">
@@ -84,7 +84,7 @@ export default function HomePage() {
         {/* Features Section */}
         <section id="features" className="py-20">
           <h2 className="text-4xl font-bold text-center mb-16">
-            Why Gym Owners Choose Atlas Fitness
+            Why Gym Owners Choose Gymleadhub
           </h2>
           
           <div className="grid md:grid-cols-3 gap-8">
@@ -139,7 +139,7 @@ export default function HomePage() {
           </h2>
           <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
             Join hundreds of gym owners who've transformed their lead management 
-            with Atlas Fitness. Start your free trial today.
+            with Gymleadhub. Start your free trial today.
           </p>
           <Link 
             href="/signup"
@@ -153,7 +153,7 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="container mx-auto px-6 py-12 border-t border-gray-800">
         <div className="text-center text-gray-400">
-          <p>&copy; 2024 Atlas Fitness. All rights reserved.</p>
+          <p>&copy; 2024 Gymleadhub. All rights reserved.</p>
         </div>
       </footer>
     </div>

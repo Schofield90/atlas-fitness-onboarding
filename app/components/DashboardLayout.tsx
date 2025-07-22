@@ -82,9 +82,9 @@ export default function DashboardLayout({ children, userData }: DashboardLayoutP
         <div className="p-4 border-b border-gray-700">
           <Link href="/" className={`flex items-center ${sidebarOpen ? 'justify-start' : 'justify-center'}`}>
             {sidebarOpen ? (
-              <span className="text-2xl font-bold text-orange-500">Atlas Fitness</span>
+              <span className="text-2xl font-bold text-orange-500">Gymleadhub</span>
             ) : (
-              <span className="text-2xl font-bold text-orange-500">AF</span>
+              <span className="text-2xl font-bold text-orange-500">GLH</span>
             )}
           </Link>
         </div>

@@ -44,7 +44,7 @@ export default function SignupPage() {
         trialEnds: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
       }
       
-      localStorage.setItem('atlas_fitness_trial_data', JSON.stringify(userData))
+      localStorage.setItem('gymleadhub_trial_data', JSON.stringify(userData))
       
       // Simulate processing time
       await new Promise(resolve => setTimeout(resolve, 2000))
@@ -73,7 +73,7 @@ export default function SignupPage() {
               🎉 Welcome to Your 14-Day Free Trial!
             </h2>
             <p className="mt-2 text-sm text-gray-300">
-              Your Atlas Fitness trial has started successfully.
+              Your Gymleadhub trial has started successfully.
             </p>
             <p className="mt-2 text-sm text-gray-300">
               Redirecting to your dashboard...
@@ -95,7 +95,7 @@ export default function SignupPage() {
             href="/"
             className="flex justify-center text-2xl font-bold text-orange-500 mb-8"
           >
-            Atlas Fitness
+            Gymleadhub
           </Link>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
             Start Your Free Trial

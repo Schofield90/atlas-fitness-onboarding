@@ -12,7 +12,7 @@ export default function DashboardPage() {
   const facebookConnection = useFacebookConnection()
 
   useEffect(() => {
-    const storedData = localStorage.getItem('atlas_fitness_trial_data')
+    const storedData = localStorage.getItem('gymleadhub_trial_data')
     if (storedData) {
       setUserData(JSON.parse(storedData))
     }
@@ -22,7 +22,7 @@ export default function DashboardPage() {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Welcome to Atlas Fitness!</h1>
+          <h1 className="text-2xl font-bold text-white mb-4">Welcome to Gymleadhub!</h1>
           <p className="text-gray-300 mb-8">Please sign up to access your dashboard.</p>
           <Link 
             href="/signup"

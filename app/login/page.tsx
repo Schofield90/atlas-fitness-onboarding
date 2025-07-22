@@ -18,7 +18,7 @@ export default function LoginPage() {
 
     try {
       // Check if user exists in localStorage (simple demo auth)
-      const storedData = localStorage.getItem('atlas_fitness_trial_data')
+      const storedData = localStorage.getItem('gymleadhub_trial_data')
       
       if (!storedData) {
         setError('No account found. Please sign up first.')
@@ -57,13 +57,13 @@ export default function LoginPage() {
             href="/"
             className="flex justify-center text-2xl font-bold text-orange-500 mb-8"
           >
-            Atlas Fitness
+            Gymleadhub
           </Link>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
             Welcome Back
           </h2>
           <p className="mt-2 text-center text-sm text-gray-300">
-            Sign in to your Atlas Fitness account
+            Sign in to your Gymleadhub account
           </p>
         </div>
         

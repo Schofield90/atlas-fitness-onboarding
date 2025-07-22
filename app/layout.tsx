@@ -5,7 +5,7 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Atlas Fitness - AI-Powered Gym Lead Management',
+  title: 'Gymleadhub - AI-Powered Gym Lead Management',
   description: 'Stop losing gym leads to competitors. Our AI system captures, qualifies, and nurtures leads 24/7.',
 }
 

@@ -28,7 +28,7 @@ export default function FacebookIntegrationPage() {
   const [timeFilter, setTimeFilter] = useState('last_30_days')
   
   useEffect(() => {
-    const storedData = localStorage.getItem('atlas_fitness_trial_data')
+    const storedData = localStorage.getItem('gymleadhub_trial_data')
     if (storedData) {
       setUserData(JSON.parse(storedData))
     }

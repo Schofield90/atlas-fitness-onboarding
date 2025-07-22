@@ -10,7 +10,7 @@ export default function LeadsPage() {
   const [userData, setUserData] = useState<any>(null)
 
   useEffect(() => {
-    const storedData = localStorage.getItem('atlas_fitness_trial_data')
+    const storedData = localStorage.getItem('gymleadhub_trial_data')
     if (storedData) {
       setUserData(JSON.parse(storedData))
     }
