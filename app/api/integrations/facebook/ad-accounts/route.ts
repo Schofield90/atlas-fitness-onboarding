@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 
+export const runtime = 'nodejs'
+
 // Helper functions for account status
 function getAccountStatus(status: number): string {
   switch (status) {
@@ -50,48 +52,77 @@ export async function GET(request: NextRequest) {
     // If we have a real token, use Facebook API
     if (storedAccessToken) {
       console.log('📊 Making real Facebook API call for ad accounts')
-      const response = await fetch(`https://graph.facebook.com/v18.0/me/adaccounts?fields=id,name,account_status,currency,timezone_name,amount_spent,balance,spend_cap,created_time,funding_source&access_token=${storedAccessToken}`)
+      console.log('🔑 Using token:', storedAccessToken.substring(0, 20) + '...')
+      
+      // Updated fields to include business and proper field names
+      const apiUrl = `https://graph.facebook.com/v18.0/me/adaccounts?fields=id,name,account_status,currency,timezone_name,amount_spent,balance,spend_cap,created_time,funding_source,business&access_token=${storedAccessToken}`
+      console.log('🌐 API URL:', apiUrl.replace(storedAccessToken, 'TOKEN_HIDDEN'))
+      
+      const response = await fetch(apiUrl)
       const data = await response.json()
+      
+      console.log('📥 Facebook Ad Accounts Response:', {
+        status: response.status,
+        hasError: !!data.error,
+        hasData: !!data.data,
+        dataLength: data.data?.length || 0,
+        rawData: data // Log full response for debugging
+      })
       
       if (data.error) {
         console.error('❌ Facebook API error:', data.error)
-        // Fall back to demo data on error
-      } else if (data.data && data.data.length > 0) {
-        console.log(`✅ Retrieved ${data.data.length} real ad accounts`)
-        
-        // Map Facebook's response to our format
-        const adAccounts = data.data.map((account: any) => ({
-          id: account.id,
-          name: account.name,
-          account_status: account.account_status,
-          currency: account.currency,
-          timezone_name: account.timezone_name,
-          amount_spent: parseFloat(account.amount_spent || '0') / 100, // Facebook returns in cents
-          balance: parseFloat(account.balance || '0') / 100,
-          spend_cap: parseFloat(account.spend_cap || '0') / 100,
-          created_time: account.created_time,
-          funding_source: account.funding_source || 'Credit Card',
-          status: getAccountStatus(account.account_status),
-          status_code: account.account_status,
-          status_color: getStatusColor(account.account_status),
-          is_active: account.account_status === 1
-        }))
-        
+        // Don't fall through to demo data - return the error
         return NextResponse.json({
-          success: true,
-          ad_accounts: adAccounts,
-          pagination: {
-            total: adAccounts.length,
-            has_next: !!data.paging?.next
-          },
+          success: false,
+          error: data.error.message,
+          error_code: data.error.code,
+          error_type: data.error.type,
           debug: {
             api_call: 'GET /me/adaccounts',
             permissions_required: ['ads_management', 'ads_read'],
-            data_source: 'facebook_api',
+            data_source: 'facebook_api_error',
             timestamp: new Date().toISOString()
           }
-        })
+        }, { status: 400 })
       }
+      
+      // Handle successful response - even if empty
+      const adAccounts = (data.data || []).map((account: any) => ({
+        id: account.id,
+        name: account.name,
+        account_status: account.account_status,
+        currency: account.currency,
+        timezone: account.timezone_name,
+        amount_spent: parseFloat(account.amount_spent || '0') / 100, // Facebook returns in cents
+        balance: parseFloat(account.balance || '0') / 100,
+        spend_cap: parseFloat(account.spend_cap || '0') / 100,
+        created_time: account.created_time,
+        funding_source: account.funding_source || 'Unknown',
+        business: account.business,
+        status: getAccountStatus(account.account_status),
+        status_code: account.account_status,
+        status_color: getStatusColor(account.account_status),
+        is_active: account.account_status === 1
+      }))
+      
+      console.log(`✅ Returning ${adAccounts.length} real ad accounts`)
+      
+      return NextResponse.json({
+        success: true,
+        ad_accounts: adAccounts,
+        pagination: {
+          total: adAccounts.length,
+          has_next: !!data.paging?.next,
+          next: data.paging?.next
+        },
+        debug: {
+          api_call: 'GET /me/adaccounts',
+          permissions_required: ['ads_management', 'ads_read'],
+          data_source: 'facebook_api',
+          timestamp: new Date().toISOString(),
+          raw_response_sample: data.data?.[0] // Include first account for debugging
+        }
+      })
     }
     
     // Fall back to demo data
