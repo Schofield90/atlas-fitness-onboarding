@@ -679,48 +679,124 @@ export default function FacebookIntegrationPage() {
                     <p>{selectedItems.adAccounts.length} ad accounts selected</p>
                     <p>{selectedItems.leadForms.length} lead forms selected</p>
                   </div>
-                  <button
-                    onClick={async () => {
-                      setSaving(true)
-                      setError('')
-                      
-                      try {
-                        const res = await fetch('/api/integrations/facebook/save-config', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            selectedPages: selectedItems.pages,
-                            selectedAdAccounts: selectedItems.adAccounts,
-                            selectedForms: selectedItems.leadForms
-                          })
-                        })
+                  <div className="flex justify-center gap-4">
+                    <button
+                      onClick={async () => {
+                        setSaving(true)
+                        setError('')
                         
-                        if (res.ok) {
-                          // Show success message
-                          alert('Configuration saved! Lead syncing will begin shortly.')
-                          router.push('/dashboard')
-                        } else {
-                          const data = await res.json()
-                          setError(data.error || 'Failed to save configuration')
+                        try {
+                          const res = await fetch('/api/integrations/facebook/save-config', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              selectedPages: selectedItems.pages,
+                              selectedAdAccounts: selectedItems.adAccounts,
+                              selectedForms: selectedItems.leadForms
+                            })
+                          })
+                          
+                          if (res.ok) {
+                            // Show success message
+                            alert('Configuration saved! Lead syncing will begin shortly.')
+                            router.push('/dashboard')
+                          } else {
+                            const data = await res.json()
+                            setError(data.error || 'Failed to save configuration')
+                          }
+                        } catch (err) {
+                          setError('Failed to save configuration')
+                        } finally {
+                          setSaving(false)
                         }
-                      } catch (err) {
-                        setError('Failed to save configuration')
-                      } finally {
-                        setSaving(false)
-                      }
-                    }}
-                    disabled={saving || selectedItems.leadForms.length === 0}
-                    className="bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-8 rounded-lg transition-all"
-                  >
-                    {saving ? (
-                      <div className="flex items-center">
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-                        Saving Configuration...
-                      </div>
-                    ) : (
-                      'Save Configuration & Start Syncing Leads'
-                    )}
-                  </button>
+                      }}
+                      disabled={saving || selectedItems.leadForms.length === 0}
+                      className="bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-8 rounded-lg transition-all"
+                    >
+                      {saving ? (
+                        <div className="flex items-center">
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                          Saving Configuration...
+                        </div>
+                      ) : (
+                        'Save Configuration & Start Syncing Leads'
+                      )}
+                    </button>
+                    
+                    {/* Sync Leads Button */}
+                    <button
+                      onClick={async () => {
+                        const syncButton = event.target as HTMLButtonElement
+                        syncButton.disabled = true
+                        const originalText = syncButton.textContent
+                        syncButton.textContent = 'Syncing...'
+                        
+                        try {
+                          const syncData: any = {}
+                          
+                          // If specific forms selected, sync those
+                          if (selectedItems.leadForms.length > 0) {
+                            // Sync each form individually for better control
+                            for (const formId of selectedItems.leadForms) {
+                              // Find which page this form belongs to
+                              const pageId = selectedItems.pages[0] // For now, use first selected page
+                              syncData.formId = formId
+                              syncData.pageId = pageId
+                              
+                              const res = await fetch('/api/integrations/facebook/sync-leads', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(syncData)
+                              })
+                              
+                              if (!res.ok) {
+                                throw new Error('Failed to sync leads')
+                              }
+                            }
+                          } else if (selectedItems.pages.length > 0) {
+                            // Sync all forms from selected pages
+                            for (const pageId of selectedItems.pages) {
+                              syncData.pageId = pageId
+                              
+                              const res = await fetch('/api/integrations/facebook/sync-leads', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(syncData)
+                              })
+                              
+                              if (!res.ok) {
+                                throw new Error('Failed to sync leads')
+                              }
+                            }
+                          } else {
+                            // Sync all leads from all pages
+                            const res = await fetch('/api/integrations/facebook/sync-leads', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({})
+                            })
+                            
+                            if (!res.ok) {
+                              throw new Error('Failed to sync leads')
+                            }
+                          }
+                          
+                          alert('Leads synced successfully! Check the Leads page to view them.')
+                          
+                        } catch (err) {
+                          console.error('Sync error:', err)
+                          alert('Failed to sync leads. Please try again.')
+                        } finally {
+                          syncButton.disabled = false
+                          syncButton.textContent = originalText || 'Sync Leads Now'
+                        }
+                      }}
+                      disabled={!facebookConnection.connected}
+                      className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-8 rounded-lg transition-all"
+                    >
+                      Sync Leads Now
+                    </button>
+                  </div>
                   {selectedItems.leadForms.length === 0 && selectedItems.pages.length > 0 && (
                     <p className="text-yellow-400 text-sm mt-4">
                       Please select at least one lead form to start syncing
