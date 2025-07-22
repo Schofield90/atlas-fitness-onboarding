@@ -3,11 +3,14 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { LeadsTable } from '@/app/components/leads/LeadsTable'
+import { AddLeadModal } from '@/app/components/leads/AddLeadModal'
 import DashboardLayout from '@/app/components/DashboardLayout'
 
 export default function LeadsPage() {
   const [activeTab, setActiveTab] = useState('all')
   const [userData, setUserData] = useState<any>(null)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
     const storedData = localStorage.getItem('gymleadhub_trial_data')
@@ -28,7 +31,10 @@ export default function LeadsPage() {
               </svg>
               Export
             </button>
-            <button className="bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded-lg flex items-center gap-2 transition-colors">
+            <button 
+              onClick={() => setShowAddModal(true)}
+              className="bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded-lg flex items-center gap-2 transition-colors"
+            >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
@@ -78,9 +84,19 @@ export default function LeadsPage() {
 
           {/* Tab Content */}
           <div className="p-6">
-            <LeadsTable statusFilter={activeTab} />
+            <LeadsTable statusFilter={activeTab} key={refreshKey} />
           </div>
         </div>
+
+        {/* Add Lead Modal */}
+        <AddLeadModal
+          isOpen={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          onLeadAdded={() => {
+            setRefreshKey(prev => prev + 1)
+            setShowAddModal(false)
+          }}
+        />
       </div>
     </DashboardLayout>
   )
