@@ -63,12 +63,29 @@ export async function POST(request: NextRequest) {
                 createdTime: new Date(leadData.created_time * 1000).toISOString()
               })
               
-              // TODO: Fetch full lead details using the Graph API
-              // For now, we'll just log the lead notification
-              // In production, you would:
-              // 1. Use the leadgen_id to fetch full lead details
-              // 2. Save the lead to your database
-              // 3. Trigger any notifications or workflows
+              // Fetch full lead details using the Graph API
+              try {
+                // Get the page access token (you might need to store this)
+                // For now, we'll try to fetch the lead with a user token
+                const response = await fetch(`/api/integrations/facebook/sync-single-lead`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    leadId: leadData.leadgen_id,
+                    formId: leadData.form_id,
+                    pageId: leadData.page_id
+                  })
+                })
+                
+                const result = await response.json()
+                if (result.success) {
+                  console.log('✅ Lead synced successfully:', result.lead)
+                } else {
+                  console.error('❌ Failed to sync lead:', result.error)
+                }
+              } catch (error) {
+                console.error('Error processing lead webhook:', error)
+              }
             }
           }
         }

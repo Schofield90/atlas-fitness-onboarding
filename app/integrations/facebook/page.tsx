@@ -242,6 +242,66 @@ export default function FacebookIntegrationPage() {
               )}
             </div>
 
+            {/* Webhook Activation Section */}
+            {selectedItems.pages.length > 0 && (
+              <div className="bg-gray-800 rounded-lg p-6 mb-6">
+                <div className="mb-4">
+                  <h3 className="text-lg font-bold">Activate Instant Leads</h3>
+                  <p className="text-gray-400 text-sm">Enable real-time webhook notifications for each page</p>
+                </div>
+
+                <div className="space-y-3">
+                  {pages
+                    .filter(page => selectedItems.pages.includes(page.id))
+                    .map((page) => (
+                      <div key={page.id} className="flex items-center justify-between p-4 border border-gray-600 rounded-lg">
+                        <div className="flex-1">
+                          <h4 className="font-medium">{page.name}</h4>
+                          <p className="text-sm text-gray-400 mt-1">
+                            Enable to receive instant lead notifications
+                          </p>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            try {
+                              const res = await fetch('/api/integrations/facebook/activate-page-webhook', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  pageId: page.id,
+                                  pageAccessToken: page.access_token
+                                })
+                              })
+                              
+                              const data = await res.json()
+                              
+                              if (data.success) {
+                                alert(`✅ Instant leads activated for ${page.name}!`)
+                              } else {
+                                alert(`Failed: ${data.error || 'Unknown error'}`)
+                              }
+                            } catch (error) {
+                              console.error('Error activating webhook:', error)
+                              alert('Failed to activate webhook')
+                            }
+                          }}
+                          className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
+                        >
+                          Activate Instant Leads
+                        </button>
+                      </div>
+                    ))}
+                </div>
+
+                <div className="mt-4 p-4 bg-gray-900 rounded-lg">
+                  <p className="text-sm text-gray-400">
+                    <strong>Note:</strong> After activating, Facebook will send new lead data to your webhook in real-time. 
+                    Make sure your webhook endpoint is properly configured.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Ad Accounts Section */}
             <div className="bg-gray-800 rounded-lg p-6 mb-6">
               <div className="flex justify-between items-center mb-4">
