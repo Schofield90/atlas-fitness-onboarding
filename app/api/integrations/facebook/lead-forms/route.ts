@@ -207,7 +207,7 @@ export async function GET(request: NextRequest) {
                 follow_up_action_url: formDetails.follow_up_action_url,
                 is_active: formDetails.status === 'ACTIVE',
                 can_access_leads: canAccessLeads,
-                has_lead_data: leadCount > 0,
+                has_lead_data: typeof leadCount === 'number' ? leadCount > 0 : leadCount !== '0' && leadCount !== '',
                 lead_access_error: leadAccessError,
                 debug: {
                   lead_count: leadCount,
@@ -260,7 +260,14 @@ export async function GET(request: NextRequest) {
       summary: {
         total_forms: allForms.length,
         active_forms: allForms.filter(form => form.is_active).length,
-        total_leads: allForms.reduce((sum, form) => sum + (form.leads_count || 0), 0),
+        total_leads: allForms.reduce((sum, form) => {
+          const count = form.leads_count
+          if (typeof count === 'number') return sum + count
+          if (typeof count === 'string' && count.endsWith('+')) {
+            return sum + parseInt(count.replace('+', ''))
+          }
+          return sum + (parseInt(count as string) || 0)
+        }, 0),
         pages_checked: pagesToFetch.length,
         pages_with_errors: errors.length
       },

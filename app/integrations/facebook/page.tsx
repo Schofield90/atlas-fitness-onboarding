@@ -430,7 +430,14 @@ export default function FacebookIntegrationPage() {
                     {leadForms.length > 0 && (
                       <div className="text-xs text-gray-500 bg-gray-900 rounded p-3">
                         <p>Found {leadForms.length} lead forms • {leadForms.filter(f => f.is_active).length} active</p>
-                        <p>Total leads collected: {leadForms.reduce((sum, f) => sum + (f.leads_count || 0), 0)}</p>
+                        <p>Total leads collected: {leadForms.reduce((sum, f) => {
+                          const count = f.leads_count
+                          if (typeof count === 'number') return sum + count
+                          if (typeof count === 'string' && count.endsWith('+')) {
+                            return sum + parseInt(count.replace('+', ''))
+                          }
+                          return sum + (parseInt(count as string) || 0)
+                        }, 0)}</p>
                         <p className="text-gray-600 mt-1">
                           Time period: {timeFilter === 'today' ? 'Today' :
                                        timeFilter === 'yesterday' ? 'Yesterday' :
@@ -488,11 +495,11 @@ export default function FacebookIntegrationPage() {
                                 <p className="text-gray-400">Leads Collected</p>
                                 <div className="flex items-center gap-2">
                                   <p className={`font-semibold ${
-                                    form.leads_count > 0 ? 'text-green-400' : 'text-white'
+                                    (typeof form.leads_count === 'number' ? form.leads_count > 0 : form.leads_count !== '0' && form.leads_count !== '') ? 'text-green-400' : 'text-white'
                                   }`}>
                                     {form.leads_count || 0}
                                   </p>
-                                  {form.leads_count === 0 && form.lead_access_error && (
+                                  {(form.leads_count === 0 || form.leads_count === '0') && form.lead_access_error && (
                                     <span className="text-xs text-orange-400" title={form.lead_access_error}>
                                       (Check permissions)
                                     </span>
@@ -575,7 +582,7 @@ export default function FacebookIntegrationPage() {
                                       ↻
                                     </button>
                                   )}
-                                  {form.leads_count > 0 && (
+                                  {(typeof form.leads_count === 'number' ? form.leads_count > 0 : form.leads_count !== '0' && form.leads_count !== '') && (
                                     <button
                                       onClick={async (e) => {
                                         e.stopPropagation()
