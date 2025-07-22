@@ -2,18 +2,35 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useFacebookConnection } from '@/app/hooks/useFacebookConnection'
 import { useFacebookPages, useFacebookAdAccounts, useFacebookLeadForms, useFacebookLeads } from '@/app/hooks/useFacebookData'
 
+interface SelectedItems {
+  pages: string[]
+  adAccounts: string[]
+  leadForms: string[]
+}
+
 export default function FacebookIntegrationPage() {
+  const router = useRouter()
   const [connecting, setConnecting] = useState(false)
   const [error, setError] = useState('')
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null)
+  const [selectedItems, setSelectedItems] = useState<SelectedItems>({
+    pages: [],
+    adAccounts: [],
+    leadForms: []
+  })
+  const [saving, setSaving] = useState(false)
   
   const facebookConnection = useFacebookConnection()
   const { pages, loading: pagesLoading, error: pagesError, refetch: refetchPages } = useFacebookPages(facebookConnection.connected)
   const { adAccounts, loading: adAccountsLoading, error: adAccountsError, refetch: refetchAdAccounts } = useFacebookAdAccounts(facebookConnection.connected)
-  const { leadForms, loading: leadFormsLoading, error: leadFormsError, refetch: refetchLeadForms } = useFacebookLeadForms(selectedPageId, facebookConnection.connected)
+  const { leadForms, loading: leadFormsLoading, error: leadFormsError, refetch: refetchLeadForms } = useFacebookLeadForms(
+    selectedItems.pages.length > 0 ? selectedItems.pages.join(',') : null, 
+    facebookConnection.connected && selectedItems.pages.length > 0
+  )
   const { leads, loading: leadsLoading, error: leadsError, refetch: refetchLeads } = useFacebookLeads(undefined, selectedPageId, facebookConnection.connected && !!selectedPageId)
 
   const handleConnect = () => {
@@ -176,31 +193,51 @@ export default function FacebookIntegrationPage() {
                   {pages.map((page) => (
                     <div 
                       key={page.id}
-                      className={`border rounded-lg p-4 cursor-pointer transition-all ${
-                        selectedPageId === page.id 
+                      className={`border rounded-lg p-4 transition-all ${
+                        selectedItems.pages.includes(page.id)
                           ? 'border-blue-500 bg-blue-900/20' 
                           : 'border-gray-600 hover:border-gray-500'
                       }`}
-                      onClick={() => setSelectedPageId(page.id)}
                     >
                       <div className="flex items-center space-x-4">
-                        {page.cover && (
-                          <img 
-                            src={page.cover} 
-                            alt={page.name}
-                            className="w-16 h-16 rounded-lg object-cover"
-                          />
-                        )}
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-white">{page.name}</h4>
-                          <p className="text-gray-400 text-sm">{page.category}</p>
-                          <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
-                            <span>{page.followers_count.toLocaleString()} followers</span>
-                            <span className={`px-2 py-1 rounded ${page.hasLeadAccess ? 'bg-green-800 text-green-200' : 'bg-gray-700 text-gray-400'}`}>
-                              {page.hasLeadAccess ? 'Lead Access ✓' : 'No Lead Access'}
-                            </span>
+                        <input
+                          type="checkbox"
+                          id={`page-${page.id}`}
+                          checked={selectedItems.pages.includes(page.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedItems(prev => ({
+                                ...prev,
+                                pages: [...prev.pages, page.id]
+                              }))
+                            } else {
+                              setSelectedItems(prev => ({
+                                ...prev,
+                                pages: prev.pages.filter(id => id !== page.id)
+                              }))
+                            }
+                          }}
+                          className="w-5 h-5 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-blue-500"
+                        />
+                        <label htmlFor={`page-${page.id}`} className="flex items-center space-x-4 flex-1 cursor-pointer">
+                          {page.cover && (
+                            <img 
+                              src={page.cover} 
+                              alt={page.name}
+                              className="w-16 h-16 rounded-lg object-cover"
+                            />
+                          )}
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-white">{page.name}</h4>
+                            <p className="text-gray-400 text-sm">{page.category}</p>
+                            <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                              <span>{page.followers_count.toLocaleString()} followers</span>
+                              <span className={`px-2 py-1 rounded ${page.hasLeadAccess ? 'bg-green-800 text-green-200' : 'bg-gray-700 text-gray-400'}`}>
+                                {page.hasLeadAccess ? 'Lead Access ✓' : 'No Lead Access'}
+                              </span>
+                            </div>
                           </div>
-                        </div>
+                        </label>
                       </div>
                     </div>
                   ))}
@@ -242,38 +279,65 @@ export default function FacebookIntegrationPage() {
               ) : adAccounts.length > 0 ? (
                 <div className="grid gap-4">
                   {adAccounts.map((account) => (
-                    <div key={account.id} className="border border-gray-600 rounded-lg p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-semibold text-white">{account.name}</h4>
-                          <p className="text-gray-400 text-sm">{account.id}</p>
-                        </div>
-                        <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          account.status_color === 'green' ? 'bg-green-800 text-green-200' :
-                          account.status_color === 'red' ? 'bg-red-800 text-red-200' :
-                          account.status_color === 'yellow' ? 'bg-yellow-800 text-yellow-200' :
-                          'bg-gray-700 text-gray-300'
-                        }`}>
-                          {account.status}
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-sm">
-                        <div>
-                          <p className="text-gray-400">Spent</p>
-                          <p className="text-white">${account.amount_spent.toFixed(2)}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-400">Balance</p>
-                          <p className="text-white">${account.balance.toFixed(2)}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-400">Currency</p>
-                          <p className="text-white">{account.currency}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-400">Funding</p>
-                          <p className="text-white">{account.funding_source}</p>
-                        </div>
+                    <div key={account.id} className={`border rounded-lg p-4 transition-all ${
+                      selectedItems.adAccounts.includes(account.id)
+                        ? 'border-blue-500 bg-blue-900/20' 
+                        : 'border-gray-600 hover:border-gray-500'
+                    }`}>
+                      <div className="flex items-start space-x-4">
+                        <input
+                          type="checkbox"
+                          id={`ad-account-${account.id}`}
+                          checked={selectedItems.adAccounts.includes(account.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedItems(prev => ({
+                                ...prev,
+                                adAccounts: [...prev.adAccounts, account.id]
+                              }))
+                            } else {
+                              setSelectedItems(prev => ({
+                                ...prev,
+                                adAccounts: prev.adAccounts.filter(id => id !== account.id)
+                              }))
+                            }
+                          }}
+                          className="w-5 h-5 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-blue-500 mt-1"
+                        />
+                        <label htmlFor={`ad-account-${account.id}`} className="flex-1 cursor-pointer">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h4 className="font-semibold text-white">{account.name}</h4>
+                              <p className="text-gray-400 text-sm">{account.id}</p>
+                            </div>
+                            <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              account.status_color === 'green' ? 'bg-green-800 text-green-200' :
+                              account.status_color === 'red' ? 'bg-red-800 text-red-200' :
+                              account.status_color === 'yellow' ? 'bg-yellow-800 text-yellow-200' :
+                              'bg-gray-700 text-gray-300'
+                            }`}>
+                              {account.status}
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-sm">
+                            <div>
+                              <p className="text-gray-400">Spent</p>
+                              <p className="text-white">${account.amount_spent.toFixed(2)}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-400">Balance</p>
+                              <p className="text-white">${account.balance.toFixed(2)}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-400">Currency</p>
+                              <p className="text-white">{account.currency}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-400">Funding</p>
+                              <p className="text-white">{account.funding_source}</p>
+                            </div>
+                          </div>
+                        </label>
                       </div>
                     </div>
                   ))}
@@ -286,7 +350,7 @@ export default function FacebookIntegrationPage() {
             </div>
 
             {/* Lead Forms Section */}
-            {selectedPageId && (
+            {selectedItems.pages.length > 0 && (
               <div className="bg-gray-800 rounded-lg p-6 mb-6">
                 <div className="flex justify-between items-center mb-4">
                   <div>
@@ -316,41 +380,59 @@ export default function FacebookIntegrationPage() {
                 ) : leadForms.length > 0 ? (
                   <div className="grid gap-4">
                     {leadForms.map((form) => (
-                      <div key={form.id} className="border border-gray-600 rounded-lg p-4">
-                        <div className="flex justify-between items-start mb-3">
-                          <div>
-                            <h4 className="font-semibold text-white">{form.name}</h4>
-                            <p className="text-gray-400 text-sm">{form.context_card.description}</p>
-                          </div>
-                          <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            form.is_active ? 'bg-green-800 text-green-200' : 'bg-gray-700 text-gray-300'
-                          }`}>
-                            {form.status}
-                          </div>
-                        </div>
+                      <div key={form.id} className={`border rounded-lg p-4 transition-all ${
+                        selectedItems.leadForms.includes(form.id)
+                          ? 'border-blue-500 bg-blue-900/20' 
+                          : 'border-gray-600 hover:border-gray-500'
+                      }`}>
+                        <div className="flex items-start space-x-4">
+                          <input
+                            type="checkbox"
+                            id={`lead-form-${form.id}`}
+                            checked={selectedItems.leadForms.includes(form.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedItems(prev => ({
+                                  ...prev,
+                                  leadForms: [...prev.leadForms, form.id]
+                                }))
+                              } else {
+                                setSelectedItems(prev => ({
+                                  ...prev,
+                                  leadForms: prev.leadForms.filter(id => id !== form.id)
+                                }))
+                              }
+                            }}
+                            className="w-5 h-5 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-blue-500 mt-1"
+                          />
+                          <label htmlFor={`lead-form-${form.id}`} className="flex-1 cursor-pointer">
+                            <div className="flex justify-between items-start mb-3">
+                              <div>
+                                <h4 className="font-semibold text-white">{form.name}</h4>
+                                <p className="text-gray-400 text-sm">{form.context_card.description}</p>
+                              </div>
+                              <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                form.is_active ? 'bg-green-800 text-green-200' : 'bg-gray-700 text-gray-300'
+                              }`}>
+                                {form.status}
+                              </div>
+                            </div>
                         
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                          <div>
-                            <p className="text-gray-400">Leads Collected</p>
-                            <p className="text-white font-semibold">{form.leads_count}</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-400">Questions</p>
-                            <p className="text-white">{form.questions_count} fields</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-400">Created</p>
-                            <p className="text-white">{new Date(form.created_time).toLocaleDateString()}</p>
-                          </div>
-                        </div>
-
-                        <div className="mt-4 flex justify-between items-center">
-                          <button className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded text-sm transition-colors">
-                            Enable Sync
-                          </button>
-                          <button className="text-gray-400 hover:text-white text-sm transition-colors">
-                            View Details
-                          </button>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                              <div>
+                                <p className="text-gray-400">Leads Collected</p>
+                                <p className="text-white font-semibold">{form.leads_count}</p>
+                              </div>
+                              <div>
+                                <p className="text-gray-400">Questions</p>
+                                <p className="text-white">{form.questions_count} fields</p>
+                              </div>
+                              <div>
+                                <p className="text-gray-400">Created</p>
+                                <p className="text-white">{new Date(form.created_time).toLocaleDateString()}</p>
+                              </div>
+                            </div>
+                          </label>
                         </div>
                       </div>
                     ))}
@@ -488,6 +570,66 @@ export default function FacebookIntegrationPage() {
                     </p>
                   </div>
                 )}
+              </div>
+            )}
+            {/* Save Configuration Button */}
+            {(selectedItems.pages.length > 0 || selectedItems.adAccounts.length > 0) && (
+              <div className="bg-gray-800 rounded-lg p-6 mb-6">
+                <div className="text-center">
+                  <h3 className="text-lg font-bold mb-4">Configuration Summary</h3>
+                  <div className="text-gray-300 mb-6 space-y-2">
+                    <p>{selectedItems.pages.length} pages selected</p>
+                    <p>{selectedItems.adAccounts.length} ad accounts selected</p>
+                    <p>{selectedItems.leadForms.length} lead forms selected</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setSaving(true)
+                      setError('')
+                      
+                      try {
+                        const res = await fetch('/api/integrations/facebook/save-config', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            selectedPages: selectedItems.pages,
+                            selectedAdAccounts: selectedItems.adAccounts,
+                            selectedForms: selectedItems.leadForms
+                          })
+                        })
+                        
+                        if (res.ok) {
+                          // Show success message
+                          alert('Configuration saved! Lead syncing will begin shortly.')
+                          router.push('/dashboard')
+                        } else {
+                          const data = await res.json()
+                          setError(data.error || 'Failed to save configuration')
+                        }
+                      } catch (err) {
+                        setError('Failed to save configuration')
+                      } finally {
+                        setSaving(false)
+                      }
+                    }}
+                    disabled={saving || selectedItems.leadForms.length === 0}
+                    className="bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-8 rounded-lg transition-all"
+                  >
+                    {saving ? (
+                      <div className="flex items-center">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                        Saving Configuration...
+                      </div>
+                    ) : (
+                      'Save Configuration & Start Syncing Leads'
+                    )}
+                  </button>
+                  {selectedItems.leadForms.length === 0 && selectedItems.pages.length > 0 && (
+                    <p className="text-yellow-400 text-sm mt-4">
+                      Please select at least one lead form to start syncing
+                    </p>
+                  )}
+                </div>
               </div>
             )}
           </>

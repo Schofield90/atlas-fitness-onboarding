@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
+
+export const runtime = 'nodejs'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const pageId = searchParams.get('pageId')
+    const pageIds = searchParams.get('pageIds')
     
-    if (!pageId) {
+    // Support both single pageId and multiple pageIds
+    const pagesToFetch = pageIds ? pageIds.split(',') : (pageId ? [pageId] : [])
+    
+    if (pagesToFetch.length === 0) {
       return NextResponse.json(
-        { error: 'Page ID is required' }, 
+        { error: 'Page ID(s) required' }, 
         { status: 400 }
       )
     }

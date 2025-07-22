@@ -212,7 +212,12 @@ export function useFacebookLeadForms(pageId: string | null, enabled: boolean = t
       // Get the Facebook user ID from localStorage
       const facebookUserId = localStorage.getItem('facebook_user_id')
       
-      const response = await fetch(`/api/integrations/facebook/lead-forms?pageId=${pageId}`, {
+      // Support both single pageId and comma-separated pageIds
+      const url = pageId.includes(',') 
+        ? `/api/integrations/facebook/lead-forms?pageIds=${pageId}`
+        : `/api/integrations/facebook/lead-forms?pageId=${pageId}`
+      
+      const response = await fetch(url, {
         headers: {
           'x-facebook-connected': 'true',
           'x-facebook-user-id': facebookUserId || ''
