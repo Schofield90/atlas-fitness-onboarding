@@ -71,6 +71,8 @@ ENV/
 # Build outputs
 dist/
 build/
+.next/
+.vercel/
 *.log
 
 # Temporary files

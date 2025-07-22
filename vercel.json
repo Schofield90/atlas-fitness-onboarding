@@ -1,7 +1,3 @@
 {
-  "framework": "nextjs",
-  "buildCommand": "cd gym-coach-platform && npm install && npm run build",
-  "outputDirectory": "gym-coach-platform/.next",
-  "installCommand": "cd gym-coach-platform && npm install",
-  "devCommand": "cd gym-coach-platform && npm run dev"
+  "framework": "nextjs"
 }
