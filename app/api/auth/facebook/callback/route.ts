@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 
+export const runtime = 'nodejs' // Force Node.js runtime for better env var support
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   

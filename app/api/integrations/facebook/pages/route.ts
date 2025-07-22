@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 
+export const runtime = 'nodejs'
+
 export async function GET(request: NextRequest) {
   try {
     // Retrieve the stored access token from secure cookie
