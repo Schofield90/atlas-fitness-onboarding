@@ -62,11 +62,19 @@ export function useFacebookConnection(): FacebookConnectionStatus & {
     }
   }
 
-  const disconnect = () => {
+  const disconnect = async () => {
     try {
       console.log('🔌 Disconnecting Facebook integration')
+      
+      // Call API to clear server-side token
+      await fetch('/api/integrations/facebook/disconnect', {
+        method: 'POST'
+      })
+      
       localStorage.removeItem('facebook_connected')
       localStorage.removeItem('facebook_connected_at')
+      localStorage.removeItem('facebook_user_id')
+      localStorage.removeItem('facebook_user_name')
       checkConnection() // Refresh status
     } catch (error) {
       console.error('❌ Error disconnecting Facebook:', error)

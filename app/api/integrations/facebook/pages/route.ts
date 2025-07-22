@@ -29,10 +29,21 @@ export async function GET(request: NextRequest) {
     }
 
     console.log('📄 Fetching real Facebook Pages from Graph API')
+    console.log('🔑 Using access token:', storedAccessToken.substring(0, 20) + '...')
     
     // Real Facebook Graph API call
-    const response = await fetch(`https://graph.facebook.com/v18.0/me/accounts?fields=id,name,access_token,cover,category,fan_count,website,emails,phone&access_token=${storedAccessToken}`)
+    const apiUrl = `https://graph.facebook.com/v18.0/me/accounts?fields=id,name,access_token,cover,category,fan_count,website,emails,phone&access_token=${storedAccessToken}`
+    console.log('🌐 API URL:', apiUrl.replace(storedAccessToken, 'TOKEN_HIDDEN'))
+    
+    const response = await fetch(apiUrl)
     const data = await response.json()
+    
+    console.log('📥 Facebook API Response:', {
+      status: response.status,
+      hasError: !!data.error,
+      hasData: !!data.data,
+      dataLength: data.data?.length || 0
+    })
     
     if (data.error) {
       console.error('❌ Facebook API error:', data.error)

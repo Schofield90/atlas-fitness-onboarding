@@ -23,7 +23,7 @@ export default function FacebookIntegrationPage() {
     // Simple redirect to Facebook OAuth (you can customize this URL)
     const fbAppId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || '715100284200848'
     const redirectUri = `${window.location.origin}/api/auth/facebook/callback`
-    const scopes = 'pages_show_list,pages_read_engagement,leads_retrieval,ads_management'
+    const scopes = 'pages_show_list,pages_read_engagement,leads_retrieval,ads_management,ads_read'
     
     const oauthUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${fbAppId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&response_type=code&state=atlas_fitness_oauth`
     

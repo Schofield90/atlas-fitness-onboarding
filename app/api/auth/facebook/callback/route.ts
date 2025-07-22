@@ -81,17 +81,15 @@ export async function GET(request: NextRequest) {
     console.log('✅ Facebook access token obtained')
 
     // Step 2: Exchange short-lived token for long-lived token (60 days)
-    const longLivedTokenResponse = await fetch('https://graph.facebook.com/v18.0/oauth/access_token', {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-
     const longLivedUrl = `https://graph.facebook.com/v18.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${fbAppId}&client_secret=${fbAppSecret}&fb_exchange_token=${tokenData.access_token}`
     
+    console.log('🔄 Exchanging for long-lived token...')
     const longLivedResponse = await fetch(longLivedUrl)
     const longLivedData = await longLivedResponse.json()
+    
+    if (longLivedData.error) {
+      console.error('❌ Long-lived token exchange error:', longLivedData.error)
+    }
 
     const finalAccessToken = longLivedData.access_token || tokenData.access_token
     const expiresIn = longLivedData.expires_in || tokenData.expires_in || 3600
