@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     // 3. Store the webhook configuration in your database
     
     // For now, we'll simulate the registration
-    const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://atlas-fitness-onboarding.vercel.app'}/api/webhooks/facebook/leads`
+    const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://gymleadhub-onboarding.vercel.app'}/api/webhooks/facebook-leads`
     
     // Facebook webhook registration would look like:
     // POST https://graph.facebook.com/v18.0/{app-id}/subscriptions
