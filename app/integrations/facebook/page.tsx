@@ -3,11 +3,17 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useFacebookConnection } from '@/app/hooks/useFacebookConnection'
+import { useFacebookPages, useFacebookAdAccounts, useFacebookLeadForms } from '@/app/hooks/useFacebookData'
 
 export default function FacebookIntegrationPage() {
   const [connecting, setConnecting] = useState(false)
   const [error, setError] = useState('')
+  const [selectedPageId, setSelectedPageId] = useState<string | null>(null)
+  
   const facebookConnection = useFacebookConnection()
+  const { pages, loading: pagesLoading, error: pagesError, refetch: refetchPages } = useFacebookPages(facebookConnection.connected)
+  const { adAccounts, loading: adAccountsLoading, error: adAccountsError, refetch: refetchAdAccounts } = useFacebookAdAccounts(facebookConnection.connected)
+  const { leadForms, loading: leadFormsLoading, error: leadFormsError, refetch: refetchLeadForms } = useFacebookLeadForms(selectedPageId, facebookConnection.connected)
 
   const handleConnect = () => {
     setConnecting(true)
@@ -134,7 +140,232 @@ export default function FacebookIntegrationPage() {
           </div>
         )}
 
-        {/* Connect Button */}
+        {/* Facebook Data Sections - Only show when connected */}
+        {facebookConnection.connected && (
+          <>
+            {/* Facebook Pages Section */}
+            <div className="bg-gray-800 rounded-lg p-6 mb-6">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h3 className="text-lg font-bold">Your Facebook Pages</h3>
+                  <p className="text-gray-400 text-sm">Select the page that contains your lead forms</p>
+                </div>
+                <button 
+                  onClick={refetchPages}
+                  disabled={pagesLoading}
+                  className="bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white py-2 px-3 rounded text-sm transition-colors"
+                >
+                  {pagesLoading ? 'Loading...' : 'Refresh'}
+                </button>
+              </div>
+
+              {pagesError && (
+                <div className="bg-red-900 border border-red-600 rounded p-3 mb-4">
+                  <p className="text-red-300 text-sm">Error: {pagesError}</p>
+                </div>
+              )}
+
+              {pagesLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mr-3"></div>
+                  <span className="text-gray-300">Loading your Facebook pages...</span>
+                </div>
+              ) : pages.length > 0 ? (
+                <div className="grid gap-4">
+                  {pages.map((page) => (
+                    <div 
+                      key={page.id}
+                      className={`border rounded-lg p-4 cursor-pointer transition-all ${
+                        selectedPageId === page.id 
+                          ? 'border-blue-500 bg-blue-900/20' 
+                          : 'border-gray-600 hover:border-gray-500'
+                      }`}
+                      onClick={() => setSelectedPageId(page.id)}
+                    >
+                      <div className="flex items-center space-x-4">
+                        {page.cover && (
+                          <img 
+                            src={page.cover} 
+                            alt={page.name}
+                            className="w-16 h-16 rounded-lg object-cover"
+                          />
+                        )}
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-white">{page.name}</h4>
+                          <p className="text-gray-400 text-sm">{page.category}</p>
+                          <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                            <span>{page.followers_count.toLocaleString()} followers</span>
+                            <span className={`px-2 py-1 rounded ${page.hasLeadAccess ? 'bg-green-800 text-green-200' : 'bg-gray-700 text-gray-400'}`}>
+                              {page.hasLeadAccess ? 'Lead Access ✓' : 'No Lead Access'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-400">
+                  <p>No Facebook pages found. Make sure you have admin access to at least one page.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Ad Accounts Section */}
+            <div className="bg-gray-800 rounded-lg p-6 mb-6">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h3 className="text-lg font-bold">Ad Accounts</h3>
+                  <p className="text-gray-400 text-sm">Your connected advertising accounts</p>
+                </div>
+                <button 
+                  onClick={refetchAdAccounts}
+                  disabled={adAccountsLoading}
+                  className="bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white py-2 px-3 rounded text-sm transition-colors"
+                >
+                  {adAccountsLoading ? 'Loading...' : 'Refresh'}
+                </button>
+              </div>
+
+              {adAccountsError && (
+                <div className="bg-red-900 border border-red-600 rounded p-3 mb-4">
+                  <p className="text-red-300 text-sm">Error: {adAccountsError}</p>
+                </div>
+              )}
+
+              {adAccountsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mr-3"></div>
+                  <span className="text-gray-300">Loading your ad accounts...</span>
+                </div>
+              ) : adAccounts.length > 0 ? (
+                <div className="grid gap-4">
+                  {adAccounts.map((account) => (
+                    <div key={account.id} className="border border-gray-600 rounded-lg p-4">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-semibold text-white">{account.name}</h4>
+                          <p className="text-gray-400 text-sm">{account.id}</p>
+                        </div>
+                        <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          account.status_color === 'green' ? 'bg-green-800 text-green-200' :
+                          account.status_color === 'red' ? 'bg-red-800 text-red-200' :
+                          account.status_color === 'yellow' ? 'bg-yellow-800 text-yellow-200' :
+                          'bg-gray-700 text-gray-300'
+                        }`}>
+                          {account.status}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-sm">
+                        <div>
+                          <p className="text-gray-400">Spent</p>
+                          <p className="text-white">${account.amount_spent.toFixed(2)}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400">Balance</p>
+                          <p className="text-white">${account.balance.toFixed(2)}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400">Currency</p>
+                          <p className="text-white">{account.currency}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400">Funding</p>
+                          <p className="text-white">{account.funding_source}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-400">
+                  <p>No ad accounts found. Make sure you have access to advertising accounts.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Lead Forms Section */}
+            {selectedPageId && (
+              <div className="bg-gray-800 rounded-lg p-6 mb-6">
+                <div className="flex justify-between items-center mb-4">
+                  <div>
+                    <h3 className="text-lg font-bold">Lead Forms</h3>
+                    <p className="text-gray-400 text-sm">Select forms to sync with your CRM</p>
+                  </div>
+                  <button 
+                    onClick={refetchLeadForms}
+                    disabled={leadFormsLoading}
+                    className="bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white py-2 px-3 rounded text-sm transition-colors"
+                  >
+                    {leadFormsLoading ? 'Loading...' : 'Refresh'}
+                  </button>
+                </div>
+
+                {leadFormsError && (
+                  <div className="bg-red-900 border border-red-600 rounded p-3 mb-4">
+                    <p className="text-red-300 text-sm">Error: {leadFormsError}</p>
+                  </div>
+                )}
+
+                {leadFormsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mr-3"></div>
+                    <span className="text-gray-300">Loading lead forms...</span>
+                  </div>
+                ) : leadForms.length > 0 ? (
+                  <div className="grid gap-4">
+                    {leadForms.map((form) => (
+                      <div key={form.id} className="border border-gray-600 rounded-lg p-4">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <h4 className="font-semibold text-white">{form.name}</h4>
+                            <p className="text-gray-400 text-sm">{form.context_card.description}</p>
+                          </div>
+                          <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            form.is_active ? 'bg-green-800 text-green-200' : 'bg-gray-700 text-gray-300'
+                          }`}>
+                            {form.status}
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <p className="text-gray-400">Leads Collected</p>
+                            <p className="text-white font-semibold">{form.leads_count}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-400">Questions</p>
+                            <p className="text-white">{form.questions_count} fields</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-400">Created</p>
+                            <p className="text-white">{new Date(form.created_time).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 flex justify-between items-center">
+                          <button className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded text-sm transition-colors">
+                            Enable Sync
+                          </button>
+                          <button className="text-gray-400 hover:text-white text-sm transition-colors">
+                            View Details
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-400">
+                    <p>No lead forms found for this page. Create lead forms in Facebook Ads Manager first.</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Connect Button - Only show when NOT connected */}
+        {!facebookConnection.connected && (
         <div className="text-center">
           <button
             onClick={handleConnect}
@@ -156,6 +387,7 @@ export default function FacebookIntegrationPage() {
             This is secure and you can revoke access anytime.
           </p>
         </div>
+        )}
 
         {/* Setup Requirements */}
         <div className="bg-gray-800 rounded-lg p-6 mt-8">
