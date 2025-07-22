@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useFacebookConnection } from '@/app/hooks/useFacebookConnection'
+import DashboardLayout from '@/app/components/DashboardLayout'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -38,24 +39,8 @@ export default function DashboardPage() {
   const daysLeft = Math.ceil((trialEnds.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      <header className="bg-gray-800 border-b border-gray-700">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex justify-between items-center">
-            <Link href="/" className="text-2xl font-bold text-orange-500">
-              Atlas Fitness
-            </Link>
-            <div className="flex items-center space-x-4">
-              <span className="text-gray-300">Welcome, {userData.name}</span>
-              <div className="bg-orange-500 text-white px-3 py-1 rounded-full text-sm">
-                {daysLeft} days left in trial
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-6 py-8">
+    <DashboardLayout userData={userData}>
+      <div className="container mx-auto px-6 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
           <p className="text-gray-300">Welcome to your Atlas Fitness trial dashboard for {userData.organizationName}</p>
@@ -248,7 +233,7 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </DashboardLayout>
   )
 }

@@ -1,37 +1,24 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { LeadsTable } from '@/app/components/leads/LeadsTable'
+import DashboardLayout from '@/app/components/DashboardLayout'
 
 export default function LeadsPage() {
   const [activeTab, setActiveTab] = useState('all')
+  const [userData, setUserData] = useState<any>(null)
+
+  useEffect(() => {
+    const storedData = localStorage.getItem('atlas_fitness_trial_data')
+    if (storedData) {
+      setUserData(JSON.parse(storedData))
+    }
+  }, [])
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex justify-between items-center">
-            <Link href="/" className="text-2xl font-bold text-orange-500">
-              Atlas Fitness
-            </Link>
-            <nav className="flex items-center space-x-6">
-              <Link href="/dashboard" className="text-gray-300 hover:text-white transition-colors">
-                Dashboard
-              </Link>
-              <Link href="/leads" className="text-white font-medium">
-                Leads
-              </Link>
-              <Link href="/integrations" className="text-gray-300 hover:text-white transition-colors">
-                Integrations
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-6 py-8">
+    <DashboardLayout userData={userData}>
+      <div className="container mx-auto px-6 py-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Leads & Contacts</h1>
           <div className="flex gap-3">
@@ -94,7 +81,7 @@ export default function LeadsPage() {
             <LeadsTable statusFilter={activeTab} />
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </DashboardLayout>
   )
 }

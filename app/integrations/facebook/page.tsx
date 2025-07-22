@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useFacebookConnection } from '@/app/hooks/useFacebookConnection'
 import { useFacebookPages, useFacebookAdAccounts, useFacebookLeadForms, useFacebookLeads } from '@/app/hooks/useFacebookData'
+import DashboardLayout from '@/app/components/DashboardLayout'
 
 interface SelectedItems {
   pages: string[]
@@ -23,6 +24,14 @@ export default function FacebookIntegrationPage() {
     leadForms: []
   })
   const [saving, setSaving] = useState(false)
+  const [userData, setUserData] = useState<any>(null)
+  
+  useEffect(() => {
+    const storedData = localStorage.getItem('atlas_fitness_trial_data')
+    if (storedData) {
+      setUserData(JSON.parse(storedData))
+    }
+  }, [])
   
   const facebookConnection = useFacebookConnection()
   const { pages, loading: pagesLoading, error: pagesError, refetch: refetchPages } = useFacebookPages(facebookConnection.connected)
@@ -48,25 +57,8 @@ export default function FacebookIntegrationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex justify-between items-center">
-            <Link href="/" className="text-2xl font-bold text-orange-500">
-              Atlas Fitness
-            </Link>
-            <Link 
-              href="/dashboard"
-              className="text-gray-300 hover:text-white transition-colors"
-            >
-              ← Back to Dashboard
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-6 py-8 max-w-2xl">
+    <DashboardLayout userData={userData}>
+      <div className="container mx-auto px-6 py-8 max-w-4xl">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold mb-4">🔗 Connect Facebook Ads</h1>
           <p className="text-gray-300 text-lg">
@@ -851,7 +843,7 @@ export default function FacebookIntegrationPage() {
             </p>
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </DashboardLayout>
   )
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
+import DashboardLayout from '@/app/components/DashboardLayout'
 
 interface Lead {
   id: string
@@ -27,9 +28,14 @@ export default function LeadDetailPage() {
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
   const [notes, setNotes] = useState('')
+  const [userData, setUserData] = useState<any>(null)
 
   useEffect(() => {
     fetchLead()
+    const storedData = localStorage.getItem('atlas_fitness_trial_data')
+    if (storedData) {
+      setUserData(JSON.parse(storedData))
+    }
   }, [params.id])
 
   const fetchLead = async () => {
@@ -93,7 +99,7 @@ export default function LeadDetailPage() {
 
   if (!lead) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white">
+      <DashboardLayout userData={userData}>
         <div className="container mx-auto px-6 py-8">
           <div className="bg-gray-800 rounded-lg p-8 text-center">
             <h1 className="text-2xl font-bold mb-4">Lead Not Found</h1>
@@ -103,35 +109,13 @@ export default function LeadDetailPage() {
             </Link>
           </div>
         </div>
-      </div>
+      </DashboardLayout>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex justify-between items-center">
-            <Link href="/" className="text-2xl font-bold text-orange-500">
-              Atlas Fitness
-            </Link>
-            <nav className="flex items-center space-x-6">
-              <Link href="/dashboard" className="text-gray-300 hover:text-white transition-colors">
-                Dashboard
-              </Link>
-              <Link href="/leads" className="text-white font-medium">
-                Leads
-              </Link>
-              <Link href="/integrations" className="text-gray-300 hover:text-white transition-colors">
-                Integrations
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-6 py-8">
+    <DashboardLayout userData={userData}>
+      <div className="container mx-auto px-6 py-8">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-gray-400 mb-6">
           <Link href="/leads" className="hover:text-white">Leads</Link>
@@ -293,7 +277,7 @@ export default function LeadDetailPage() {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </DashboardLayout>
   )
 }
