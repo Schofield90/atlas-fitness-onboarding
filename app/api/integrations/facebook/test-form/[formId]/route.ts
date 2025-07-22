@@ -5,10 +5,10 @@ export const runtime = 'nodejs'
 
 export async function GET(
   request: NextRequest, 
-  { params }: { params: { formId: string } }
+  { params }: { params: Promise<{ formId: string }> }
 ) {
   try {
-    const { formId } = params
+    const { formId } = await params
     
     // Retrieve the stored access token from secure cookie
     const cookieStore = await cookies()
