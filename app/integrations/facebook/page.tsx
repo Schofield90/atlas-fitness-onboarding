@@ -546,25 +546,53 @@ export default function FacebookIntegrationPage() {
                               </div>
                             )}
                           </label>
-                          <button
-                            onClick={async () => {
-                              try {
-                                const res = await fetch(`/api/integrations/facebook/test-form/${form.id}`)
-                                const data = await res.json()
-                                console.log('Form test:', data)
-                                alert(JSON.stringify(data, null, 2))
-                              } catch (error) {
-                                console.error('Test error:', error)
-                                alert(`Error: ${error.message}`)
-                              }
-                            }}
-                            className="ml-2 p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
-                            title="Test form access"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                          </button>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const res = await fetch(`/api/integrations/facebook/test-form/${form.id}`)
+                                  const data = await res.json()
+                                  console.log('Form test:', data)
+                                  alert(JSON.stringify(data, null, 2))
+                                } catch (error) {
+                                  console.error('Test error:', error)
+                                  alert(`Error: ${error.message}`)
+                                }
+                              }}
+                              className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
+                              title="Test form access"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const res = await fetch('/api/integrations/facebook/test-lead-count', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ 
+                                      formId: form.id,
+                                      pageId: form.pageId
+                                    })
+                                  })
+                                  const data = await res.json()
+                                  console.log('Lead count test:', data)
+                                  alert(JSON.stringify(data, null, 2))
+                                } catch (error) {
+                                  console.error('Test error:', error)
+                                  alert(`Error: ${error.message}`)
+                                }
+                              }}
+                              className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
+                              title="Test lead count"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
