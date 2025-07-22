@@ -486,7 +486,50 @@ export default function FacebookIntegrationPage() {
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                               <div>
                                 <p className="text-gray-400">Leads Collected</p>
-                                <p className="text-white font-semibold">{form.leads_count || 0}</p>
+                                <div className="flex items-center gap-2">
+                                  <p className={`font-semibold ${
+                                    form.leads_count > 0 ? 'text-green-400' : 'text-white'
+                                  }`}>
+                                    {form.leads_count || 0}
+                                  </p>
+                                  {form.leads_count === 0 && form.lead_access_error && (
+                                    <span className="text-xs text-orange-400" title={form.lead_access_error}>
+                                      (Check permissions)
+                                    </span>
+                                  )}
+                                  {form.leads_count > 0 && (
+                                    <button
+                                      onClick={async (e) => {
+                                        e.stopPropagation()
+                                        try {
+                                          const res = await fetch('/api/integrations/facebook/sync-form-leads', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ 
+                                              formId: form.id,
+                                              formName: form.name,
+                                              pageId: form.pageId
+                                            })
+                                          })
+                                          
+                                          const data = await res.json()
+                                          
+                                          if (data.success) {
+                                            alert(`Synced ${data.syncedCount} leads from ${form.name}`)
+                                          } else {
+                                            alert(`Failed to sync: ${data.error}`)
+                                          }
+                                        } catch (error) {
+                                          console.error('Sync error:', error)
+                                          alert('Failed to sync leads')
+                                        }
+                                      }}
+                                      className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded transition-colors"
+                                    >
+                                      Sync
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                               <div>
                                 <p className="text-gray-400">Questions</p>

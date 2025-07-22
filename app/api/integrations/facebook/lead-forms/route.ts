@@ -114,13 +114,37 @@ export async function GET(request: NextRequest) {
                 continue
               }
               
-              // Get the actual lead count
-              const leadsResponse = await fetch(
-                `https://graph.facebook.com/v18.0/${form.id}/leads?limit=0&summary=true&access_token=${pageAccessToken}`
-              )
+              // Get the actual lead count with better error handling
+              let leadCount = 0
+              let canAccessLeads = false
+              let sampleLeadId = null
+              let leadAccessError = null
               
-              const leadsData = await leadsResponse.json()
-              const leadCount = leadsData.summary?.total_count || 0
+              try {
+                // First try to get lead count with summary
+                const leadsCountResponse = await fetch(
+                  `https://graph.facebook.com/v18.0/${form.id}/leads?limit=1&summary=true&access_token=${pageAccessToken}`
+                )
+                
+                const leadsCountData = await leadsCountResponse.json()
+                
+                if (leadsCountData.error) {
+                  leadAccessError = leadsCountData.error.message
+                  console.error(`Lead access error for form ${form.id}:`, leadsCountData.error)
+                } else {
+                  // Get the total count from summary
+                  leadCount = leadsCountData.summary?.total_count || 0
+                  
+                  // Check if we can actually access the leads
+                  if (leadsCountData.data && leadsCountData.data.length > 0) {
+                    canAccessLeads = true
+                    sampleLeadId = leadsCountData.data[0].id
+                  }
+                }
+              } catch (error) {
+                console.error(`Error getting lead count for form ${form.id}:`, error)
+                leadAccessError = error.message
+              }
               
               // Process the form data
               const processedForm = {
@@ -150,7 +174,16 @@ export async function GET(request: NextRequest) {
                 },
                 privacy_policy_url: formDetails.privacy_policy_url,
                 follow_up_action_url: formDetails.follow_up_action_url,
-                is_active: formDetails.status === 'ACTIVE'
+                is_active: formDetails.status === 'ACTIVE',
+                can_access_leads: canAccessLeads,
+                has_lead_data: leadCount > 0,
+                lead_access_error: leadAccessError,
+                debug: {
+                  lead_count: leadCount,
+                  can_access: canAccessLeads,
+                  sample_lead_id: sampleLeadId,
+                  error: leadAccessError
+                }
               }
               
               allForms.push(processedForm)

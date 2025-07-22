@@ -58,6 +58,15 @@ export interface FacebookLeadForm {
   error?: string
   pageId?: string
   pageName?: string
+  can_access_leads?: boolean
+  has_lead_data?: boolean
+  lead_access_error?: string | null
+  debug?: {
+    lead_count: number
+    can_access: boolean
+    sample_lead_id: string | null
+    error: string | null
+  }
 }
 
 export interface FacebookLead {
