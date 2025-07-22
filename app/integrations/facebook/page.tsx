@@ -12,7 +12,7 @@ export default function FacebookIntegrationPage() {
     setError('')
     
     // Simple redirect to Facebook OAuth (you can customize this URL)
-    const fbAppId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || 'your_facebook_app_id'
+    const fbAppId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || '715100284200848'
     const redirectUri = `${window.location.origin}/api/auth/facebook/callback`
     const scopes = 'pages_show_list,pages_read_engagement,leads_retrieval,ads_management'
     
