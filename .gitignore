@@ -1,0 +1,84 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+.Trash/
+
+# User configuration
+.CFUserTextEncoding
+.gitconfig
+.npmrc
+.zshrc
+.zsh_history
+.zsh_sessions/
+
+# Application data
+.cache/
+.config/
+.cursor/
+.expo/
+.npm/
+.npm-global/
+Applications/
+Library/
+Desktop/
+Documents/
+Downloads/
+Movies/
+Music/
+Pictures/
+Public/
+Google Drive
+
+# Claude specific
+.claude.json
+.claude.json.backup
+.claude.json.corrupted.*
+.claude/
+
+# Ads and tracking
+.BidstackAds-*/
+.bidstack-device-id
+.adtemplate/
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.development
+*.env
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+
+# Build outputs
+dist/
+build/
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*~
+
+# API recordings (potentially sensitive)
+ghl_call_recordings/
+audio_files/

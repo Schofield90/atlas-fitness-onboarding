@@ -1,0 +1,193 @@
+{
+  "name": "ai-meta-ads-automation",
+  "version": "1.0.0",
+  "description": "AI-powered Meta Ads monitoring and optimization system for gym marketing campaigns",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "setup": "node scripts/setup.js",
+    "validate-config": "node scripts/validate-config.js",
+    "test-email": "node scripts/test-email.js",
+    "test-telegram": "node scripts/test-telegram.js",
+    "test-ai": "node scripts/test-ai.js",
+    "backup": "node scripts/backup.js",
+    "restore": "node scripts/restore.js"
+  },
+  "keywords": [
+    "meta-ads",
+    "facebook-ads",
+    "instagram-ads",
+    "automation",
+    "ai",
+    "gym-marketing",
+    "lead-generation",
+    "n8n",
+    "workflow-automation"
+  ],
+  "author": {
+    "name": "Sam Schofield",
+    "email": "sam@atlas-gyms.co.uk",
+    "company": "Atlas Gyms"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "openai": "^4.28.0",
+    "nodemailer": "^6.9.8",
+    "node-telegram-bot-api": "^0.64.0",
+    "axios": "^1.6.5",
+    "dotenv": "^16.3.1",
+    "winston": "^3.11.0",
+    "cron": "^3.1.6",
+    "express": "^4.18.2",
+    "helmet": "^7.1.0",
+    "cors": "^2.8.5",
+    "compression": "^1.7.4",
+    "rate-limiter-flexible": "^4.0.1",
+    "joi": "^17.11.0",
+    "uuid": "^9.0.1",
+    "date-fns": "^3.0.6",
+    "lodash": "^4.17.21",
+    "moment": "^2.30.1",
+    "node-cache": "^5.1.2",
+    "retry": "^0.13.1",
+    "cheerio": "^1.0.0-rc.12",
+    "chalk": "^4.1.2",
+    "ora": "^5.4.1",
+    "inquirer": "^8.2.6",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "multer": "^1.4.5-lts.1",
+    "sharp": "^0.33.1",
+    "csv-parser": "^3.0.0",
+    "csv-writer": "^1.6.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.2",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.1.2",
+    "prettier": "^3.1.1",
+    "supertest": "^6.3.4",
+    "nock": "^13.4.0",
+    "@types/jest": "^29.5.8",
+    "@types/node": "^20.10.5",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.2.0",
+    "cross-env": "^7.0.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-username/ai-meta-ads-automation.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/ai-meta-ads-automation/issues"
+  },
+  "homepage": "https://github.com/your-username/ai-meta-ads-automation#readme",
+  "jest": {
+    "testEnvironment": "node",
+    "coverageDirectory": "coverage",
+    "collectCoverageFrom": [
+      "lib/**/*.js",
+      "!lib/**/*.test.js",
+      "!node_modules/**"
+    ],
+    "testMatch": [
+      "**/__tests__/**/*.js",
+      "**/?(*.)+(spec|test).js"
+    ]
+  },
+  "eslintConfig": {
+    "env": {
+      "node": true,
+      "es2021": true,
+      "jest": true
+    },
+    "extends": [
+      "eslint:recommended",
+      "prettier"
+    ],
+    "parserOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "rules": {
+      "no-console": "warn",
+      "no-unused-vars": "error",
+      "prefer-const": "error",
+      "no-var": "error"
+    }
+  },
+  "prettier": {
+    "semi": true,
+    "singleQuote": true,
+    "tabWidth": 2,
+    "trailingComma": "es5",
+    "printWidth": 100
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*.js": [
+      "eslint --fix",
+      "prettier --write",
+      "git add"
+    ]
+  },
+  "nodemonConfig": {
+    "watch": [
+      "lib/",
+      "config/",
+      "scripts/",
+      "index.js"
+    ],
+    "ext": "js,json",
+    "ignore": [
+      "node_modules/",
+      "storage/",
+      "logs/",
+      "coverage/"
+    ],
+    "env": {
+      "NODE_ENV": "development"
+    }
+  },
+  "directories": {
+    "lib": "lib",
+    "config": "config",
+    "workflows": "workflows",
+    "scripts": "scripts",
+    "storage": "storage",
+    "logs": "logs"
+  },
+  "files": [
+    "lib/",
+    "config/",
+    "workflows/",
+    "scripts/",
+    "README.md",
+    "package.json"
+  ],
+  "config": {
+    "nodeVersion": "18.x",
+    "commitizen": {
+      "path": "cz-conventional-changelog"
+    }
+  },
+  "funding": {
+    "type": "individual",
+    "url": "https://github.com/sponsors/your-username"
+  }
+}

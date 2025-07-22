@@ -1,0 +1,1 @@
+{"Name":"desktop-linux","Metadata":{"Description":"Docker Desktop","otel":{"OTEL_EXPORTER_OTLP_ENDPOINT":"unix:///Users/samschofield/.docker/run/user-analytics.otlp.grpc.sock"}},"Endpoints":{"docker":{"Host":"unix:///Users/samschofield/.docker/run/docker.sock","SkipTLSVerify":false}}}

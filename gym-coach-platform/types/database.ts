@@ -107,6 +107,98 @@ export type AIAnalysis = {
   confidence: number
 }
 
+// Facebook Integration Types
+export type FacebookIntegration = {
+  id: string
+  organization_id: string
+  user_id: string
+  facebook_user_id: string
+  facebook_user_name: string
+  facebook_user_email?: string
+  access_token: string
+  token_expires_at?: string
+  refresh_token?: string
+  granted_scopes: string[]
+  is_active: boolean
+  last_sync_at?: string
+  settings: Record<string, any>
+  created_at: string
+  updated_at: string
+}
+
+export type FacebookPage = {
+  id: string
+  integration_id: string
+  organization_id: string
+  facebook_page_id: string
+  page_name: string
+  page_username?: string
+  page_category?: string
+  access_token: string
+  token_expires_at?: string
+  is_active: boolean
+  is_primary: boolean
+  page_info: Record<string, any>
+  permissions: string[]
+  created_at: string
+  updated_at: string
+}
+
+export type FacebookLeadForm = {
+  id: string
+  page_id: string
+  organization_id: string
+  facebook_form_id: string
+  form_name: string
+  status: 'active' | 'paused' | 'archived'
+  questions: any[]
+  is_active: boolean
+  last_sync_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export type FacebookLead = {
+  id: string
+  form_id: string
+  organization_id: string
+  facebook_lead_id: string
+  lead_data: Record<string, any>
+  processed_at?: string
+  crm_lead_id?: string
+  processing_status: 'pending' | 'processed' | 'failed'
+  error_message?: string
+  created_at: string
+}
+
+export type FacebookWebhook = {
+  id: string
+  organization_id: string
+  webhook_id?: string
+  object_type: string
+  event_type: string
+  event_data: Record<string, any>
+  processed_at?: string
+  processing_status: 'pending' | 'processed' | 'failed'
+  error_message?: string
+  created_at: string
+}
+
+export type FacebookAdAccount = {
+  id: string
+  integration_id: string
+  organization_id: string
+  facebook_ad_account_id: string
+  account_name: string
+  account_status?: string
+  currency?: string
+  timezone_name?: string
+  is_active: boolean
+  permissions: string[]
+  created_at: string
+  updated_at: string
+}
+
 // Workflow action types
 export type WorkflowAction = {
   type: 'email' | 'sms' | 'task' | 'webhook' | 'update_field'

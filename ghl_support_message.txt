@@ -1,0 +1,58 @@
+Subject: API Access for Call Recordings - Private Integration Setup
+
+Dear GoHighLevel Support Team,
+
+I hope this message finds you well. I'm reaching out for assistance with accessing call recordings through the GoHighLevel API for my business automation needs.
+
+**Current Situation:**
+I'm trying to programmatically access and download call recordings from my GoHighLevel account to integrate with my business intelligence system. I need to process approximately 800 call recordings for sales training and analysis purposes.
+
+**What I've Tried:**
+- Set up a Private Integration in my GHL account
+- Generated API token: pit-7ac049a7-6478-411c-9bda-fb5c28f1e2f3
+- Location ID: KcbX6Rp7obaoXXEzVc7w
+- Tested multiple API endpoints including:
+  - https://services.leadconnectorhq.com/locations/{locationId}/calls
+  - https://rest.gohighlevel.com/v1/locations/{locationId}/calls
+  - Various other endpoint combinations
+
+**Issues Encountered:**
+- Consistently receiving 404 "Not Found" errors on call-related endpoints
+- Some endpoints return 401 "Unauthorized" despite using valid API tokens
+- Unable to locate current API documentation for call recording access
+
+**What I Need:**
+1. Correct API base URL and endpoint structure for accessing call recordings
+2. Proper authentication method for private integrations
+3. Required permissions or additional setup steps for call recording API access
+4. Current API documentation specific to call recordings functionality
+
+**My Setup:**
+- Private Integration configured in GHL
+- API token with appropriate permissions (I believe)
+- Looking to filter calls with hasRecording=true parameter
+- Need to download recording files programmatically
+
+**Use Case:**
+This is for legitimate business purposes - analyzing sales call patterns, training team members, and improving our sales processes. All data will be handled securely and in compliance with privacy requirements.
+
+Could you please provide:
+- The correct API endpoint structure for call recordings
+- Any additional setup required for private integrations to access call data
+- Updated API documentation or developer resources
+
+I'd greatly appreciate any guidance you can provide. If there's a specific department or developer support channel better suited for API-related questions, please let me know.
+
+Thank you for your time and assistance.
+
+Best regards,
+[Your Name]
+[Your Business Name]
+[Your Contact Information]
+
+---
+Technical Details for Reference:
+- Account Location ID: KcbX6Rp7obaoXXEzVc7w
+- Private Integration Token: pit-7ac049a7-6478-411c-9bda-fb5c28f1e2f3
+- Programming Language: Python
+- Goal: Bulk download of call recordings for business analysis

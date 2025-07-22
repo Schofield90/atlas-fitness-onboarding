@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/api/index.js"
+    }
+  ],
+  "env": {
+    "N8N_BASIC_AUTH_USER": "@n8n_basic_auth_user",
+    "N8N_BASIC_AUTH_PASSWORD": "@n8n_basic_auth_password",
+    "N8N_HOST": "@n8n_host",
+    "WEBHOOK_URL": "@webhook_url",
+    "TIMEZONE": "@timezone",
+    "DB_POSTGRESDB_HOST": "@db_postgresdb_host",
+    "DB_POSTGRESDB_PORT": "@db_postgresdb_port",
+    "DB_POSTGRESDB_DATABASE": "@db_postgresdb_database",
+    "DB_POSTGRESDB_USER": "@db_postgresdb_user",
+    "DB_POSTGRESDB_PASSWORD": "@db_postgresdb_password",
+    "DB_POSTGRESDB_SSL_CA": "@db_postgresdb_ssl_ca",
+    "DB_POSTGRESDB_SSL_CERT": "@db_postgresdb_ssl_cert",
+    "DB_POSTGRESDB_SSL_KEY": "@db_postgresdb_ssl_key",
+    "DB_POSTGRESDB_SSL_REJECT_UNAUTHORIZED": "@db_postgresdb_ssl_reject_unauthorized"
+  }
+}

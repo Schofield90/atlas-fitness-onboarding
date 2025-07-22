@@ -1,0 +1,24 @@
+{
+  "name": "n8n-vercel-supabase",
+  "version": "1.0.0",
+  "description": "n8n integration with Vercel and Supabase",
+  "main": "api/index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "vercel build",
+    "start": "node api/index.js",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f n8n"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "n8n": "^1.0.0"
+  },
+  "devDependencies": {
+    "vercel": "^33.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
