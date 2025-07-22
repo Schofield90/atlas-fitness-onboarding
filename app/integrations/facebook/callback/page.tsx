@@ -11,43 +11,36 @@ function CallbackContent() {
   const [message, setMessage] = useState('')
 
   useEffect(() => {
-    const code = searchParams.get('code')
     const error = searchParams.get('error')
+    const errorDescription = searchParams.get('error_description')
+    const success = searchParams.get('success')
+    const userId = searchParams.get('user_id')
+    const userName = searchParams.get('user_name')
     const state = searchParams.get('state')
 
     if (error) {
       setStatus('error')
-      setMessage(`Facebook OAuth error: ${error}`)
+      setMessage(`Facebook OAuth error: ${errorDescription || error}`)
       return
     }
 
-    if (!code) {
-      setStatus('error')
-      setMessage('No authorization code received from Facebook')
-      return
-    }
-
-    if (state !== 'atlas_fitness_oauth') {
-      setStatus('error')
-      setMessage('Invalid OAuth state parameter')
-      return
-    }
-
-    // Simulate successful connection (in a real app, you'd exchange the code for a token)
-    setTimeout(() => {
-      // Store connection status in localStorage for demo purposes
+    if (success === 'true') {
+      // Store connection status and user info in localStorage
       const connectionTime = new Date().toISOString()
       localStorage.setItem('facebook_connected', 'true')
       localStorage.setItem('facebook_connected_at', connectionTime)
+      localStorage.setItem('facebook_user_id', userId || '')
+      localStorage.setItem('facebook_user_name', userName || '')
       
       console.log('✅ Facebook connection successful:', {
         connected: true,
         connectedAt: connectionTime,
-        code: code?.substring(0, 10) + '...'
+        userId: userId,
+        userName: userName
       })
       
       setStatus('success')
-      setMessage('Successfully connected to Facebook!')
+      setMessage(`Successfully connected to Facebook as ${userName}!`)
       
       // Trigger a storage event to notify other tabs/components
       window.dispatchEvent(new StorageEvent('storage', {
@@ -56,11 +49,14 @@ function CallbackContent() {
         oldValue: null
       }))
       
-      // Redirect to dashboard after 3 seconds
+      // Redirect to Facebook integrations page after 3 seconds
       setTimeout(() => {
-        router.push('/dashboard')
+        router.push('/integrations/facebook')
       }, 3000)
-    }, 2000)
+    } else {
+      setStatus('error')
+      setMessage('OAuth callback completed but no success confirmation received')
+    }
   }, [searchParams, router])
 
   return (

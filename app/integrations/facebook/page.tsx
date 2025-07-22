@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useFacebookConnection } from '@/app/hooks/useFacebookConnection'
-import { useFacebookPages, useFacebookAdAccounts, useFacebookLeadForms } from '@/app/hooks/useFacebookData'
+import { useFacebookPages, useFacebookAdAccounts, useFacebookLeadForms, useFacebookLeads } from '@/app/hooks/useFacebookData'
 
 export default function FacebookIntegrationPage() {
   const [connecting, setConnecting] = useState(false)
@@ -14,6 +14,7 @@ export default function FacebookIntegrationPage() {
   const { pages, loading: pagesLoading, error: pagesError, refetch: refetchPages } = useFacebookPages(facebookConnection.connected)
   const { adAccounts, loading: adAccountsLoading, error: adAccountsError, refetch: refetchAdAccounts } = useFacebookAdAccounts(facebookConnection.connected)
   const { leadForms, loading: leadFormsLoading, error: leadFormsError, refetch: refetchLeadForms } = useFacebookLeadForms(selectedPageId, facebookConnection.connected)
+  const { leads, loading: leadsLoading, error: leadsError, refetch: refetchLeads } = useFacebookLeads(undefined, selectedPageId, facebookConnection.connected && !!selectedPageId)
 
   const handleConnect = () => {
     setConnecting(true)
@@ -357,6 +358,134 @@ export default function FacebookIntegrationPage() {
                 ) : (
                   <div className="text-center py-8 text-gray-400">
                     <p>No lead forms found for this page. Create lead forms in Facebook Ads Manager first.</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Recent Leads Section */}
+            {selectedPageId && (
+              <div className="bg-gray-800 rounded-lg p-6 mb-6">
+                <div className="flex justify-between items-center mb-4">
+                  <div>
+                    <h3 className="text-lg font-bold">Recent Leads</h3>
+                    <p className="text-gray-400 text-sm">Latest leads from your Facebook ads</p>
+                  </div>
+                  <button 
+                    onClick={refetchLeads}
+                    disabled={leadsLoading}
+                    className="bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white py-2 px-3 rounded text-sm transition-colors"
+                  >
+                    {leadsLoading ? 'Loading...' : 'Refresh'}
+                  </button>
+                </div>
+
+                {leadsError && (
+                  <div className="bg-red-900 border border-red-600 rounded p-3 mb-4">
+                    <p className="text-red-300 text-sm">Error: {leadsError}</p>
+                  </div>
+                )}
+
+                {leadsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mr-3"></div>
+                    <span className="text-gray-300">Loading leads...</span>
+                  </div>
+                ) : leads.length > 0 ? (
+                  <div className="space-y-4">
+                    {leads.slice(0, 10).map((lead) => (
+                      <div key={lead.id} className="border border-gray-600 rounded-lg p-4 hover:border-gray-500 transition-colors">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h4 className="font-semibold text-white">
+                                {lead.processed_data.full_name || lead.processed_data.email || 'Unknown Lead'}
+                              </h4>
+                              <span className="text-xs text-gray-400">
+                                {new Date(lead.created_time).toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="text-sm space-y-1">
+                              {lead.processed_data.email && (
+                                <p className="text-gray-300">
+                                  📧 {lead.processed_data.email}
+                                </p>
+                              )}
+                              {lead.processed_data.phone_number && (
+                                <p className="text-gray-300">
+                                  📞 {lead.processed_data.phone_number}
+                                </p>
+                              )}
+                              {Object.entries(lead.processed_data).map(([key, value]) => {
+                                if (!value || key === 'full_name' || key === 'email' || key === 'phone_number') return null
+                                return (
+                                  <p key={key} className="text-gray-400 text-xs">
+                                    {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}: {value}
+                                  </p>
+                                )
+                              })}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className={`px-2 py-1 rounded-full text-xs ${
+                              lead.is_organic ? 'bg-green-800 text-green-200' : 'bg-blue-800 text-blue-200'
+                            }`}>
+                              {lead.is_organic ? 'Organic' : 'Paid Ad'}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="border-t border-gray-700 pt-3 mt-3">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-400">
+                            <div>
+                              <span className="font-medium">Campaign:</span> {lead.campaign_name}
+                            </div>
+                            <div>
+                              <span className="font-medium">Ad:</span> {lead.ad_name}
+                            </div>
+                            <div>
+                              <span className="font-medium">Form:</span> {lead.form_id}
+                            </div>
+                            <div>
+                              <span className="font-medium">Platform:</span> {lead.platform}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 flex gap-2">
+                          <button className="bg-green-600 hover:bg-green-700 text-white py-1 px-3 rounded text-xs transition-colors">
+                            Contact
+                          </button>
+                          <button className="bg-gray-600 hover:bg-gray-700 text-white py-1 px-3 rounded text-xs transition-colors">
+                            Add to CRM
+                          </button>
+                          <button className="text-gray-400 hover:text-white text-xs transition-colors">
+                            View Full Details
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {leads.length > 10 && (
+                      <div className="text-center py-4">
+                        <p className="text-gray-400 text-sm">
+                          Showing 10 of {leads.length} leads.
+                        </p>
+                        <button className="text-blue-400 hover:text-blue-300 text-sm mt-2 transition-colors">
+                          View All Leads →
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-400">
+                    <p>No leads found for this page. Make sure your ads are running and generating leads.</p>
+                    <p className="text-sm mt-2">
+                      {facebookConnection.connected ? 
+                        "Connected to Facebook, but no leads available yet." : 
+                        "Connect to Facebook to see your leads."
+                      }
+                    </p>
                   </div>
                 )}
               </div>
