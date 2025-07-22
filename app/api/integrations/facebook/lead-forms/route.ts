@@ -10,166 +10,138 @@ export async function GET(request: NextRequest) {
     const pageIds = searchParams.get('pageIds')
     
     // Support both single pageId and multiple pageIds
-    const pagesToFetch = pageIds ? pageIds.split(',') : (pageId ? [pageId] : [])
+    const pagesToFetch = pageIds ? pageIds.split(',').filter(Boolean) : (pageId ? [pageId] : [])
     
     if (pagesToFetch.length === 0) {
       return NextResponse.json(
-        { error: 'Page ID(s) required' }, 
+        { error: 'No pages selected' }, 
         { status: 400 }
       )
     }
 
-    // For demo purposes, we'll simulate the integration check
-    const facebookConnected = request.headers.get('x-facebook-connected') || 'demo'
+    // Retrieve the stored access token from secure cookie
+    const cookieStore = await cookies()
+    const tokenCookie = cookieStore.get('fb_token_data')
     
-    if (!facebookConnected) {
+    let storedAccessToken = null
+    let facebookUserId = null
+    
+    if (tokenCookie?.value) {
+      try {
+        const tokenData = JSON.parse(tokenCookie.value)
+        storedAccessToken = tokenData.access_token
+        facebookUserId = tokenData.user_id
+        console.log('🔑 Retrieved Facebook token for lead forms')
+      } catch (e) {
+        console.error('Failed to parse token cookie:', e)
+      }
+    }
+    
+    if (!storedAccessToken) {
       return NextResponse.json(
-        { error: 'Facebook integration not connected' }, 
+        { error: 'Facebook not connected' }, 
         { status: 401 }
       )
     }
 
-    console.log(`📋 Fetching Lead Forms for Facebook Page: ${pageId}`)
+    console.log(`📋 Fetching REAL Lead Forms for Facebook Pages: ${pagesToFetch.join(', ')}`)
     
-    // Demo data - in production, you'd use:
-    // const response = await fetch(`https://graph.facebook.com/v18.0/${pageId}/leadgen_forms?fields=id,name,status,created_time,leads_count,page,privacy_policy_url&access_token=${pageAccessToken}`)
+    const allForms = []
+    const errors = []
     
-    // Generate different demo data based on pageId
-    const getDemoLeadForms = (pageId: string) => {
-      const baseForms = [
-        {
-          id: `${pageId}_form_1`,
-          name: 'Free Trial Membership Sign-up',
-          status: 'ACTIVE',
-          created_time: '2024-01-15T10:30:00Z',
-          leads_count: 147,
-          form_type: 'LEAD_GENERATION',
-          context_card: {
-            title: 'Get Your Free Trial',
-            description: 'Join Atlas Fitness today and get a 7-day free trial membership.',
-            button_text: 'Sign Up Now'
-          },
-          questions: [
-            { key: 'full_name', label: 'Full Name', type: 'FULL_NAME' },
-            { key: 'email', label: 'Email Address', type: 'EMAIL' },
-            { key: 'phone_number', label: 'Phone Number', type: 'PHONE_NUMBER' },
-            { key: 'fitness_goals', label: 'What are your fitness goals?', type: 'CUSTOM', options: ['Weight Loss', 'Muscle Building', 'General Fitness', 'Athletic Training'] }
-          ],
-          thank_you_page: {
-            title: 'Thank You!',
-            body: 'We\'ll contact you within 24 hours to schedule your free trial.'
-          }
-        },
-        {
-          id: `${pageId}_form_2`,
-          name: 'Personal Training Consultation',
-          status: 'ACTIVE',
-          created_time: '2024-02-20T14:15:00Z',
-          leads_count: 89,
-          form_type: 'LEAD_GENERATION',
-          context_card: {
-            title: 'Free Personal Training Consultation',
-            description: 'Get a one-on-one consultation with our certified trainers.',
-            button_text: 'Book Consultation'
-          },
-          questions: [
-            { key: 'full_name', label: 'Full Name', type: 'FULL_NAME' },
-            { key: 'email', label: 'Email Address', type: 'EMAIL' },
-            { key: 'phone_number', label: 'Phone Number', type: 'PHONE_NUMBER' },
-            { key: 'experience_level', label: 'Fitness Experience Level', type: 'CUSTOM', options: ['Beginner', 'Intermediate', 'Advanced'] },
-            { key: 'preferred_time', label: 'Preferred consultation time', type: 'CUSTOM', options: ['Morning (6AM-12PM)', 'Afternoon (12PM-6PM)', 'Evening (6PM-10PM)'] }
-          ],
-          thank_you_page: {
-            title: 'Consultation Booked!',
-            body: 'A trainer will call you to schedule your free consultation.'
-          }
+    // Fetch REAL lead forms for each selected page
+    for (const pageId of pagesToFetch) {
+      try {
+        console.log(`🔍 Fetching lead forms for page: ${pageId}`)
+        
+        // REAL Facebook API call
+        const apiUrl = `https://graph.facebook.com/v18.0/${pageId}/leadgen_forms?fields=id,name,status,created_time,leads_count,questions,privacy_policy_url,follow_up_action_url,context_card,thank_you_page&limit=100&access_token=${storedAccessToken}`
+        
+        console.log('🌐 API URL:', apiUrl.replace(storedAccessToken, 'TOKEN_HIDDEN'))
+        
+        const response = await fetch(apiUrl)
+        
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error(`❌ Error response for page ${pageId}:`, errorText)
+          errors.push({ pageId, error: errorText })
+          continue
         }
-      ]
-
-      // Add page-specific forms
-      if (pageId === '123456789') { // Atlas Fitness Gym
-        baseForms.push({
-          id: `${pageId}_form_3`,
-          name: 'Group Fitness Class Interest',
-          status: 'ACTIVE',
-          created_time: '2024-03-10T09:45:00Z',
-          leads_count: 234,
-          form_type: 'LEAD_GENERATION',
-          context_card: {
-            title: 'Join Our Group Classes',
-            description: 'Discover our yoga, HIIT, and strength training classes.',
-            button_text: 'Learn More'
-          },
-          questions: [
-            { key: 'full_name', label: 'Full Name', type: 'FULL_NAME' },
-            { key: 'email', label: 'Email Address', type: 'EMAIL' },
-            { key: 'class_interest', label: 'Which classes interest you?', type: 'CUSTOM', options: ['Yoga', 'HIIT', 'Strength Training', 'Cardio', 'Pilates'] }
-          ],
-          thank_you_page: {
-            title: 'Thanks for Your Interest!',
-            body: 'We\'ll send you our class schedule and pricing information.'
-          }
+        
+        const data = await response.json()
+        console.log(`📥 Forms response for page ${pageId}:`, {
+          hasData: !!data.data,
+          formCount: data.data?.length || 0,
+          hasError: !!data.error
         })
-      } else if (pageId === '987654321') { // Atlas Fitness Downtown
-        baseForms.push({
-          id: `${pageId}_form_3`,
-          name: 'Corporate Wellness Program',
-          status: 'ACTIVE',
-          created_time: '2024-02-28T16:20:00Z',
-          leads_count: 67,
-          form_type: 'LEAD_GENERATION',
-          context_card: {
-            title: 'Corporate Wellness Solutions',
-            description: 'Boost employee health and productivity with our corporate programs.',
-            button_text: 'Get Quote'
-          },
-          questions: [
-            { key: 'full_name', label: 'Full Name', type: 'FULL_NAME' },
-            { key: 'email', label: 'Work Email', type: 'EMAIL' },
-            { key: 'company_name', label: 'Company Name', type: 'CUSTOM' },
-            { key: 'employee_count', label: 'Number of Employees', type: 'CUSTOM', options: ['1-50', '51-200', '201-500', '500+'] }
-          ],
-          thank_you_page: {
-            title: 'Proposal Coming Soon!',
-            body: 'Our corporate wellness team will contact you with a custom proposal.'
-          }
+        
+        if (data.error) {
+          errors.push({ pageId, error: data.error.message })
+          continue
+        }
+        
+        // Add page info to each form
+        if (data.data && Array.isArray(data.data)) {
+          const formsWithPageInfo = data.data.map(form => ({
+            id: form.id,
+            name: form.name,
+            status: form.status,
+            created_time: form.created_time,
+            leads_count: form.leads_count || 0,
+            pageId,
+            // Process questions
+            questions: form.questions || [],
+            questions_count: form.questions?.length || 0,
+            // Context card info
+            context_card: form.context_card || {
+              title: 'Lead Form',
+              description: form.name,
+              button_text: 'Submit'
+            },
+            // Thank you page
+            thank_you_page: form.thank_you_page || {
+              title: 'Thank You!',
+              body: 'We will contact you soon.'
+            },
+            // Additional fields
+            privacy_policy_url: form.privacy_policy_url,
+            follow_up_action_url: form.follow_up_action_url,
+            is_active: form.status === 'ACTIVE'
+          }))
+          
+          allForms.push(...formsWithPageInfo)
+          console.log(`✅ Added ${formsWithPageInfo.length} forms from page ${pageId}`)
+        }
+      } catch (error) {
+        console.error(`❌ Error fetching forms for page ${pageId}:`, error)
+        errors.push({ 
+          pageId, 
+          error: error instanceof Error ? error.message : 'Unknown error' 
         })
       }
-
-      return baseForms
     }
-
-    const demoForms = getDemoLeadForms(pageId)
-
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 600))
-
-    return NextResponse.json({
+    
+    console.log(`📊 Total forms found: ${allForms.length} across ${pagesToFetch.length} pages`)
+    
+    return NextResponse.json({ 
       success: true,
-      page_id: pageId,
-      forms: demoForms.map(form => ({
-        id: form.id,
-        name: form.name,
-        status: form.status,
-        created_time: form.created_time,
-        leads_count: form.leads_count,
-        form_type: form.form_type,
-        context_card: form.context_card,
-        questions_count: form.questions.length,
-        questions: form.questions,
-        thank_you_page: form.thank_you_page,
-        is_active: form.status === 'ACTIVE'
-      })),
+      forms: allForms,
+      errors: errors.length > 0 ? errors : undefined,
       summary: {
-        total_forms: demoForms.length,
-        active_forms: demoForms.filter(form => form.status === 'ACTIVE').length,
-        total_leads: demoForms.reduce((sum, form) => sum + form.leads_count, 0),
-        avg_leads_per_form: Math.round(demoForms.reduce((sum, form) => sum + form.leads_count, 0) / demoForms.length)
+        total_forms: allForms.length,
+        active_forms: allForms.filter(form => form.is_active).length,
+        total_leads: allForms.reduce((sum, form) => sum + (form.leads_count || 0), 0),
+        pages_checked: pagesToFetch.length,
+        pages_with_errors: errors.length
       },
       debug: {
-        api_call: `GET /${pageId}/leadgen_forms`,
+        totalForms: allForms.length,
+        pagesChecked: pagesToFetch.length,
+        hasErrors: errors.length > 0,
+        api_call: 'GET /{page-id}/leadgen_forms',
         permissions_required: ['leads_retrieval', 'pages_show_list'],
-        note: 'Demo data - replace with real Facebook Graph API call'
+        data_source: 'facebook_api',
+        timestamp: new Date().toISOString()
       }
     })
 

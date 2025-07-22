@@ -378,7 +378,15 @@ export default function FacebookIntegrationPage() {
                     <span className="text-gray-300">Loading lead forms...</span>
                   </div>
                 ) : leadForms.length > 0 ? (
-                  <div className="grid gap-4">
+                  <div className="space-y-4">
+                    {/* Debug info if available */}
+                    {leadForms.length > 0 && (
+                      <div className="text-xs text-gray-500 bg-gray-900 rounded p-3">
+                        <p>Found {leadForms.length} lead forms • {leadForms.filter(f => f.is_active).length} active</p>
+                        <p>Total leads collected: {leadForms.reduce((sum, f) => sum + (f.leads_count || 0), 0)}</p>
+                      </div>
+                    )}
+                    
                     {leadForms.map((form) => (
                       <div key={form.id} className={`border rounded-lg p-4 transition-all ${
                         selectedItems.leadForms.includes(form.id)
@@ -438,8 +446,36 @@ export default function FacebookIntegrationPage() {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-gray-400">
-                    <p>No lead forms found for this page. Create lead forms in Facebook Ads Manager first.</p>
+                  <div className="py-8">
+                    <div className="bg-yellow-900/50 border border-yellow-600 rounded-lg p-6">
+                      <div className="flex items-start space-x-3">
+                        <div className="text-yellow-400 mt-0.5">
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          </svg>
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="text-yellow-200 font-semibold mb-2">No Lead Forms Found</h4>
+                          <p className="text-gray-300 mb-4">
+                            You need to create lead forms in Facebook Ads Manager first:
+                          </p>
+                          <ol className="list-decimal list-inside space-y-2 text-gray-300 text-sm">
+                            <li>Go to <a href="https://business.facebook.com/adsmanager" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">Facebook Ads Manager</a></li>
+                            <li>Navigate to All Tools → Instant Forms</li>
+                            <li>Click "Create Form" for your selected pages</li>
+                            <li>Set up your form questions and privacy policy</li>
+                            <li>After publishing, click "Refresh" here to see your forms</li>
+                          </ol>
+                          {leadFormsError && (
+                            <div className="mt-4 p-3 bg-red-900/50 border border-red-600 rounded">
+                              <p className="text-red-300 text-sm">
+                                <strong>Error details:</strong> {leadFormsError}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
