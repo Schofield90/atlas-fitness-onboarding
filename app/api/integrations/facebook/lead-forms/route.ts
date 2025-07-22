@@ -45,6 +45,8 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(`📋 Fetching REAL Lead Forms for Facebook Pages: ${pagesToFetch.join(', ')}`)
+    console.log('🔑 Token exists:', !!storedAccessToken)
+    console.log('🔑 Token first 10 chars:', storedAccessToken?.substring(0, 10) + '...')
     
     const allForms = []
     const errors = []
@@ -52,65 +54,109 @@ export async function GET(request: NextRequest) {
     // Fetch REAL lead forms for each selected page
     for (const pageId of pagesToFetch) {
       try {
-        console.log(`🔍 Fetching lead forms for page: ${pageId}`)
+        console.log(`\n--- Fetching forms for page: ${pageId} ---`)
         
-        // REAL Facebook API call
-        const apiUrl = `https://graph.facebook.com/v18.0/${pageId}/leadgen_forms?fields=id,name,status,created_time,leads_count,questions,privacy_policy_url,follow_up_action_url,context_card,thank_you_page&limit=100&access_token=${storedAccessToken}`
+        // First, try to get page details to ensure access and get page token
+        const pageUrl = `https://graph.facebook.com/v18.0/${pageId}?fields=id,name,access_token&access_token=${storedAccessToken}`
+        console.log('📄 Getting page info first...')
         
-        console.log('🌐 API URL:', apiUrl.replace(storedAccessToken, 'TOKEN_HIDDEN'))
-        
-        const response = await fetch(apiUrl)
-        
-        if (!response.ok) {
-          const errorText = await response.text()
-          console.error(`❌ Error response for page ${pageId}:`, errorText)
-          errors.push({ pageId, error: errorText })
-          continue
-        }
-        
-        const data = await response.json()
-        console.log(`📥 Forms response for page ${pageId}:`, {
-          hasData: !!data.data,
-          formCount: data.data?.length || 0,
-          hasError: !!data.error
+        const pageResponse = await fetch(pageUrl)
+        const pageData = await pageResponse.json()
+        console.log('Page data:', {
+          id: pageData.id,
+          name: pageData.name,
+          hasPageToken: !!pageData.access_token,
+          error: pageData.error
         })
         
-        if (data.error) {
-          errors.push({ pageId, error: data.error.message })
+        if (pageData.error) {
+          console.error('❌ Page access error:', pageData.error)
+          errors.push({ pageId, error: `Page access error: ${pageData.error.message}` })
           continue
         }
         
-        // Add page info to each form
-        if (data.data && Array.isArray(data.data)) {
-          const formsWithPageInfo = data.data.map(form => ({
-            id: form.id,
-            name: form.name,
-            status: form.status,
-            created_time: form.created_time,
-            leads_count: form.leads_count || 0,
-            pageId,
-            // Process questions
-            questions: form.questions || [],
-            questions_count: form.questions?.length || 0,
-            // Context card info
-            context_card: form.context_card || {
-              title: 'Lead Form',
-              description: form.name,
-              button_text: 'Submit'
-            },
-            // Thank you page
-            thank_you_page: form.thank_you_page || {
-              title: 'Thank You!',
-              body: 'We will contact you soon.'
-            },
-            // Additional fields
-            privacy_policy_url: form.privacy_policy_url,
-            follow_up_action_url: form.follow_up_action_url,
-            is_active: form.status === 'ACTIVE'
-          }))
+        // Use page access token if available, otherwise use user token
+        const pageAccessToken = pageData.access_token || storedAccessToken
+        console.log('🔐 Using token type:', pageData.access_token ? 'Page Access Token' : 'User Access Token')
+        
+        // Try different API endpoint variations
+        const endpoints = [
+          {
+            name: 'Standard endpoint',
+            url: `https://graph.facebook.com/v18.0/${pageId}/leadgen_forms?access_token=${pageAccessToken}`
+          },
+          {
+            name: 'With all fields',
+            url: `https://graph.facebook.com/v18.0/${pageId}/leadgen_forms?fields=id,name,status,created_time,leads_count,questions&access_token=${pageAccessToken}`
+          },
+          {
+            name: 'With limit',
+            url: `https://graph.facebook.com/v18.0/${pageId}/leadgen_forms?limit=100&access_token=${pageAccessToken}`
+          }
+        ]
+        
+        let foundForms = false
+        
+        for (const endpoint of endpoints) {
+          console.log(`\n🔄 Trying ${endpoint.name}...`)
+          console.log('URL:', endpoint.url.replace(pageAccessToken, 'TOKEN...'))
           
-          allForms.push(...formsWithPageInfo)
-          console.log(`✅ Added ${formsWithPageInfo.length} forms from page ${pageId}`)
+          const response = await fetch(endpoint.url)
+          const data = await response.json()
+          
+          console.log('Response status:', response.status)
+          console.log('Response data:', JSON.stringify(data, null, 2))
+          
+          if (data.error) {
+            console.error(`❌ API Error:`, data.error)
+            continue
+          }
+          
+          if (data.data && data.data.length > 0) {
+            console.log(`✅ Found ${data.data.length} forms with ${endpoint.name}!`)
+            foundForms = true
+            
+            // Add page info to each form
+            const formsWithPageInfo = data.data.map(form => ({
+              id: form.id,
+              name: form.name,
+              status: form.status,
+              created_time: form.created_time,
+              leads_count: form.leads_count || 0,
+              pageId,
+              pageName: pageData.name,
+              // Process questions
+              questions: form.questions || [],
+              questions_count: form.questions?.length || 0,
+              // Context card info
+              context_card: form.context_card || {
+                title: 'Lead Form',
+                description: form.name,
+                button_text: 'Submit'
+              },
+              // Thank you page
+              thank_you_page: form.thank_you_page || {
+                title: 'Thank You!',
+                body: 'We will contact you soon.'
+              },
+              // Additional fields
+              privacy_policy_url: form.privacy_policy_url,
+              follow_up_action_url: form.follow_up_action_url,
+              is_active: form.status === 'ACTIVE'
+            }))
+            
+            allForms.push(...formsWithPageInfo)
+            break // Found forms, no need to try other endpoints
+          }
+        }
+        
+        if (!foundForms) {
+          console.log('⚠️ No forms found with any endpoint variation')
+          errors.push({ 
+            pageId, 
+            pageName: pageData.name,
+            error: 'No lead forms found. Forms may not exist or may require different permissions.' 
+          })
         }
       } catch (error) {
         console.error(`❌ Error fetching forms for page ${pageId}:`, error)

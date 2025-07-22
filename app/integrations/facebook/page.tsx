@@ -357,13 +357,50 @@ export default function FacebookIntegrationPage() {
                     <h3 className="text-lg font-bold">Lead Forms</h3>
                     <p className="text-gray-400 text-sm">Select forms to sync with your CRM</p>
                   </div>
-                  <button 
-                    onClick={refetchLeadForms}
-                    disabled={leadFormsLoading}
-                    className="bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white py-2 px-3 rounded text-sm transition-colors"
-                  >
-                    {leadFormsLoading ? 'Loading...' : 'Refresh'}
-                  </button>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={refetchLeadForms}
+                      disabled={leadFormsLoading}
+                      className="bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white py-2 px-3 rounded text-sm transition-colors"
+                    >
+                      {leadFormsLoading ? 'Loading...' : 'Refresh'}
+                    </button>
+                    <button 
+                      onClick={async () => {
+                        try {
+                          console.log('🔍 Debug: Testing lead forms API...')
+                          const pageIds = selectedItems.pages.join(',')
+                          console.log('Selected page IDs:', pageIds)
+                          
+                          const res = await fetch(`/api/integrations/facebook/lead-forms?pageIds=${pageIds}`)
+                          const data = await res.json()
+                          
+                          console.log('Lead Forms API Response:', data)
+                          
+                          // Show detailed debug info
+                          const debugInfo = {
+                            status: res.status,
+                            formsFound: data.forms?.length || 0,
+                            errors: data.errors,
+                            debug: data.debug,
+                            summary: data.summary,
+                            firstForm: data.forms?.[0],
+                            rawResponse: data
+                          }
+                          
+                          console.log('Debug Info:', debugInfo)
+                          alert(JSON.stringify(debugInfo, null, 2))
+                          
+                        } catch (error) {
+                          console.error('Debug error:', error)
+                          alert(`Error: ${error.message}`)
+                        }
+                      }}
+                      className="bg-purple-600 hover:bg-purple-700 text-white py-2 px-3 rounded text-sm transition-colors"
+                    >
+                      Debug API
+                    </button>
+                  </div>
                 </div>
 
                 {leadFormsError && (
@@ -473,6 +510,30 @@ export default function FacebookIntegrationPage() {
                               </p>
                             </div>
                           )}
+                          
+                          {/* Graph API Explorer Help */}
+                          <div className="mt-6 p-4 bg-blue-900/30 border border-blue-600 rounded">
+                            <h5 className="text-blue-200 font-semibold mb-2">🔍 Debug with Graph API Explorer</h5>
+                            <p className="text-gray-300 text-sm mb-3">
+                              To verify your forms exist and check permissions:
+                            </p>
+                            <ol className="list-decimal list-inside space-y-1 text-gray-300 text-xs">
+                              <li>Go to <a href="https://developers.facebook.com/tools/explorer" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">Graph API Explorer</a></li>
+                              <li>Select your app: <span className="text-white">Atlas Fitness (715100284200848)</span></li>
+                              <li>Get a Page Access Token for your selected pages</li>
+                              <li>Run query: <code className="bg-gray-800 px-2 py-1 rounded">/{selectedItems.pages[0]}/leadgen_forms</code></li>
+                              <li>Check if forms appear there but not here</li>
+                            </ol>
+                            <div className="mt-3 p-3 bg-gray-800 rounded">
+                              <p className="text-xs text-gray-400 mb-1">Common issues:</p>
+                              <ul className="list-disc list-inside text-xs text-gray-300 space-y-1">
+                                <li>Using User Token instead of Page Token</li>
+                                <li>Missing leads_retrieval permission</li>
+                                <li>Forms are archived or draft status</li>
+                                <li>Page doesn't have admin permissions</li>
+                              </ul>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
