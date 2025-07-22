@@ -35,6 +35,7 @@ export interface FacebookLeadForm {
   name: string
   status: string
   created_time: string
+  created_time_formatted?: string
   leads_count: number
   form_type: string
   context_card: {
@@ -54,6 +55,9 @@ export interface FacebookLeadForm {
     body: string
   }
   is_active: boolean
+  error?: string
+  pageId?: string
+  pageName?: string
 }
 
 export interface FacebookLead {
