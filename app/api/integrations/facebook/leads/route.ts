@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,12 +14,23 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get the Facebook user ID from headers (sent by frontend)
-    const facebookUserId = request.headers.get('x-facebook-user-id')
+    // Retrieve the stored access token from secure cookie
+    const cookieStore = cookies()
+    const tokenCookie = cookieStore.get('fb_token_data')
     
-    // Retrieve the stored access token from our in-memory store
-    const tokenData = global.facebookTokens?.[facebookUserId || '']
-    const storedAccessToken = tokenData?.access_token
+    let storedAccessToken = null
+    let facebookUserId = null
+    
+    if (tokenCookie?.value) {
+      try {
+        const tokenData = JSON.parse(tokenCookie.value)
+        storedAccessToken = tokenData.access_token
+        facebookUserId = tokenData.user_id
+        console.log('🔑 Retrieved Facebook token from cookie for user:', facebookUserId)
+      } catch (e) {
+        console.error('Failed to parse token cookie:', e)
+      }
+    }
     
     if (!storedAccessToken || !facebookUserId) {
       console.log('⚠️ No real Facebook access token available, using demo data')

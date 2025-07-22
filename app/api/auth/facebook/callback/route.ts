@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -50,6 +51,7 @@ export async function GET(request: NextRequest) {
       console.error('❌ Facebook App Secret not configured')
       const callbackUrl = new URL('/integrations/facebook/callback', request.url)
       callbackUrl.searchParams.set('error', 'configuration_error')
+      callbackUrl.searchParams.set('error_description', 'Please add FACEBOOK_APP_SECRET to your environment variables')
       return NextResponse.redirect(callbackUrl)
     }
 
@@ -109,11 +111,10 @@ export async function GET(request: NextRequest) {
 
     console.log('✅ Facebook user verified:', userData.name, userData.email)
 
-    // Step 4: Store the integration data
-    // For demo purposes, we'll store in a simple in-memory store
-    // In production, you'd store this in a secure database
-    global.facebookTokens = global.facebookTokens || {}
-    global.facebookTokens[userData.id] = {
+    // Step 4: Store the integration data in a secure HTTP-only cookie
+    // This persists across deployments but should be replaced with a database in production
+    const cookieStore = cookies()
+    const tokenData = {
       access_token: finalAccessToken,
       expires_in: expiresIn,
       user_id: userData.id,
@@ -122,7 +123,16 @@ export async function GET(request: NextRequest) {
       created_at: new Date().toISOString()
     }
 
-    console.log('💾 Stored Facebook token for user:', userData.id, userData.name)
+    // Store token in HTTP-only cookie (expires in 60 days to match Facebook token)
+    cookieStore.set('fb_token_data', JSON.stringify(tokenData), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 24 * 60 * 60, // 60 days
+      path: '/'
+    })
+
+    console.log('💾 Stored Facebook token in secure cookie for user:', userData.id, userData.name)
 
     const callbackUrl = new URL('/integrations/facebook/callback', request.url)
     callbackUrl.searchParams.set('success', 'true')

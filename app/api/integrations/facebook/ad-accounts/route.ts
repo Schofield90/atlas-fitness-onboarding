@@ -1,21 +1,101 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
+
+// Helper functions for account status
+function getAccountStatus(status: number): string {
+  switch (status) {
+    case 1: return 'Active'
+    case 2: return 'Disabled'
+    case 3: return 'Unsettled'
+    case 7: return 'Pending Review'
+    case 9: return 'In Grace Period'
+    case 101: return 'Pending Closure'
+    case 201: return 'Closed'
+    default: return 'Unknown'
+  }
+}
+
+function getStatusColor(status: number): string {
+  switch (status) {
+    case 1: return 'green'
+    case 2: return 'red'
+    case 3: return 'yellow'
+    case 7: return 'orange'
+    default: return 'gray'
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
-    // For demo purposes, we'll simulate the integration check
-    const facebookConnected = request.headers.get('x-facebook-connected') || 'demo'
+    // Retrieve the stored access token from secure cookie
+    const cookieStore = cookies()
+    const tokenCookie = cookieStore.get('fb_token_data')
     
-    if (!facebookConnected) {
-      return NextResponse.json(
-        { error: 'Facebook integration not connected' }, 
-        { status: 401 }
-      )
+    let storedAccessToken = null
+    let facebookUserId = null
+    
+    if (tokenCookie?.value) {
+      try {
+        const tokenData = JSON.parse(tokenCookie.value)
+        storedAccessToken = tokenData.access_token
+        facebookUserId = tokenData.user_id
+        console.log('🔑 Retrieved Facebook token from cookie for user:', facebookUserId)
+      } catch (e) {
+        console.error('Failed to parse token cookie:', e)
+      }
     }
 
-    console.log('💰 Fetching Facebook Ad Accounts for connected account')
+    console.log('💰 Fetching Facebook Ad Accounts')
     
-    // Demo data - in production, you'd use:
-    // const response = await fetch(`https://graph.facebook.com/v18.0/me/adaccounts?fields=id,name,account_status,currency,timezone_name,amount_spent,balance&access_token=${storedAccessToken}`)
+    // If we have a real token, use Facebook API
+    if (storedAccessToken) {
+      console.log('📊 Making real Facebook API call for ad accounts')
+      const response = await fetch(`https://graph.facebook.com/v18.0/me/adaccounts?fields=id,name,account_status,currency,timezone_name,amount_spent,balance,spend_cap,created_time,funding_source&access_token=${storedAccessToken}`)
+      const data = await response.json()
+      
+      if (data.error) {
+        console.error('❌ Facebook API error:', data.error)
+        // Fall back to demo data on error
+      } else if (data.data && data.data.length > 0) {
+        console.log(`✅ Retrieved ${data.data.length} real ad accounts`)
+        
+        // Map Facebook's response to our format
+        const adAccounts = data.data.map((account: any) => ({
+          id: account.id,
+          name: account.name,
+          account_status: account.account_status,
+          currency: account.currency,
+          timezone_name: account.timezone_name,
+          amount_spent: parseFloat(account.amount_spent || '0') / 100, // Facebook returns in cents
+          balance: parseFloat(account.balance || '0') / 100,
+          spend_cap: parseFloat(account.spend_cap || '0') / 100,
+          created_time: account.created_time,
+          funding_source: account.funding_source || 'Credit Card',
+          status: getAccountStatus(account.account_status),
+          status_code: account.account_status,
+          status_color: getStatusColor(account.account_status),
+          is_active: account.account_status === 1
+        }))
+        
+        return NextResponse.json({
+          success: true,
+          ad_accounts: adAccounts,
+          pagination: {
+            total: adAccounts.length,
+            has_next: !!data.paging?.next
+          },
+          debug: {
+            api_call: 'GET /me/adaccounts',
+            permissions_required: ['ads_management', 'ads_read'],
+            data_source: 'facebook_api',
+            timestamp: new Date().toISOString()
+          }
+        })
+      }
+    }
+    
+    // Fall back to demo data
+    console.log('⚠️ Using demo ad accounts data')
     
     const demoAdAccounts = [
       {
