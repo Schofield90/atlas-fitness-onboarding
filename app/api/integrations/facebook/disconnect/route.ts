@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
     console.log('🔌 Disconnecting Facebook integration')
     
     // Clear the Facebook token cookie
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     cookieStore.delete('fb_token_data')
     
     console.log('✅ Facebook token cookie cleared')

@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Retrieve the stored access token from secure cookie
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     const tokenCookie = cookieStore.get('fb_token_data')
     
     let storedAccessToken = null

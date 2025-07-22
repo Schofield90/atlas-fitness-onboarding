@@ -113,7 +113,6 @@ export async function GET(request: NextRequest) {
 
     // Step 4: Store the integration data in a secure HTTP-only cookie
     // This persists across deployments but should be replaced with a database in production
-    const cookieStore = cookies()
     const fbTokenData = {
       access_token: finalAccessToken,
       expires_in: expiresIn,
@@ -124,6 +123,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Store token in HTTP-only cookie (expires in 60 days to match Facebook token)
+    const cookieStore = await cookies()
     cookieStore.set('fb_token_data', JSON.stringify(fbTokenData), {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
