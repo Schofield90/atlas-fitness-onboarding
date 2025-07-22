@@ -45,8 +45,6 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(`📋 Fetching REAL Lead Forms for Facebook Pages: ${pagesToFetch.join(', ')}`)
-    console.log('🔑 Token exists:', !!storedAccessToken)
-    console.log('🔑 Token first 10 chars:', storedAccessToken?.substring(0, 10) + '...')
     
     const allForms = []
     const errors = []
@@ -58,16 +56,8 @@ export async function GET(request: NextRequest) {
         
         // First, try to get page details to ensure access and get page token
         const pageUrl = `https://graph.facebook.com/v18.0/${pageId}?fields=id,name,access_token&access_token=${storedAccessToken}`
-        console.log('📄 Getting page info first...')
-        
         const pageResponse = await fetch(pageUrl)
         const pageData = await pageResponse.json()
-        console.log('Page data:', {
-          id: pageData.id,
-          name: pageData.name,
-          hasPageToken: !!pageData.access_token,
-          error: pageData.error
-        })
         
         if (pageData.error) {
           console.error('❌ Page access error:', pageData.error)
@@ -79,83 +69,113 @@ export async function GET(request: NextRequest) {
         const pageAccessToken = pageData.access_token || storedAccessToken
         console.log('🔐 Using token type:', pageData.access_token ? 'Page Access Token' : 'User Access Token')
         
-        // Try different API endpoint variations
-        const endpoints = [
-          {
-            name: 'Standard endpoint',
-            url: `https://graph.facebook.com/v18.0/${pageId}/leadgen_forms?access_token=${pageAccessToken}`
-          },
-          {
-            name: 'With all fields',
-            url: `https://graph.facebook.com/v18.0/${pageId}/leadgen_forms?fields=id,name,status,created_time,leads_count,questions&access_token=${pageAccessToken}`
-          },
-          {
-            name: 'With limit',
-            url: `https://graph.facebook.com/v18.0/${pageId}/leadgen_forms?limit=100&access_token=${pageAccessToken}`
-          }
-        ]
+        // First get the forms list
+        const formsResponse = await fetch(
+          `https://graph.facebook.com/v18.0/${pageId}/leadgen_forms?access_token=${pageAccessToken}`
+        )
         
-        let foundForms = false
+        const formsData = await formsResponse.json()
         
-        for (const endpoint of endpoints) {
-          console.log(`\n🔄 Trying ${endpoint.name}...`)
-          console.log('URL:', endpoint.url.replace(pageAccessToken, 'TOKEN...'))
-          
-          const response = await fetch(endpoint.url)
-          const data = await response.json()
-          
-          console.log('Response status:', response.status)
-          console.log('Response data:', JSON.stringify(data, null, 2))
-          
-          if (data.error) {
-            console.error(`❌ API Error:`, data.error)
-            continue
-          }
-          
-          if (data.data && data.data.length > 0) {
-            console.log(`✅ Found ${data.data.length} forms with ${endpoint.name}!`)
-            foundForms = true
-            
-            // Add page info to each form
-            const formsWithPageInfo = data.data.map(form => ({
-              id: form.id,
-              name: form.name,
-              status: form.status,
-              created_time: form.created_time,
-              leads_count: form.leads_count || 0,
-              pageId,
-              pageName: pageData.name,
-              // Process questions
-              questions: form.questions || [],
-              questions_count: form.questions?.length || 0,
-              // Context card info
-              context_card: form.context_card || {
-                title: 'Lead Form',
-                description: form.name,
-                button_text: 'Submit'
-              },
-              // Thank you page
-              thank_you_page: form.thank_you_page || {
-                title: 'Thank You!',
-                body: 'We will contact you soon.'
-              },
-              // Additional fields
-              privacy_policy_url: form.privacy_policy_url,
-              follow_up_action_url: form.follow_up_action_url,
-              is_active: form.status === 'ACTIVE'
-            }))
-            
-            allForms.push(...formsWithPageInfo)
-            break // Found forms, no need to try other endpoints
-          }
-        }
-        
-        if (!foundForms) {
-          console.log('⚠️ No forms found with any endpoint variation')
+        if (formsData.error) {
+          console.error(`❌ Forms API Error:`, formsData.error)
           errors.push({ 
             pageId, 
             pageName: pageData.name,
-            error: 'No lead forms found. Forms may not exist or may require different permissions.' 
+            error: formsData.error.message 
+          })
+          continue
+        }
+        
+        if (formsData.data && formsData.data.length > 0) {
+          console.log(`✅ Found ${formsData.data.length} forms for page ${pageData.name}`)
+          
+          // For each form, fetch detailed information
+          for (const form of formsData.data) {
+            try {
+              // Get form details including questions
+              const formDetailResponse = await fetch(
+                `https://graph.facebook.com/v18.0/${form.id}?fields=id,name,status,created_time,questions,privacy_policy_url,context_card,thank_you_page,follow_up_action_url&access_token=${pageAccessToken}`
+              )
+              
+              const formDetails = await formDetailResponse.json()
+              
+              if (formDetails.error) {
+                console.error(`Error fetching details for form ${form.id}:`, formDetails.error)
+                allForms.push({
+                  ...form,
+                  pageId,
+                  pageName: pageData.name,
+                  error: 'Could not fetch full details',
+                  questions_count: 0,
+                  leads_count: 0,
+                  created_time_formatted: 'Unknown',
+                  is_active: form.status === 'ACTIVE'
+                })
+                continue
+              }
+              
+              // Get the actual lead count
+              const leadsResponse = await fetch(
+                `https://graph.facebook.com/v18.0/${form.id}/leads?limit=0&summary=true&access_token=${pageAccessToken}`
+              )
+              
+              const leadsData = await leadsResponse.json()
+              const leadCount = leadsData.summary?.total_count || 0
+              
+              // Process the form data
+              const processedForm = {
+                id: formDetails.id,
+                name: formDetails.name || 'Untitled Form',
+                status: formDetails.status || 'UNKNOWN',
+                created_time: formDetails.created_time,
+                created_time_formatted: formDetails.created_time ? 
+                  new Date(formDetails.created_time).toLocaleDateString('en-GB', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                  }) : 'Unknown',
+                leads_count: leadCount,
+                questions: formDetails.questions || [],
+                questions_count: formDetails.questions?.length || 0,
+                pageId,
+                pageName: pageData.name,
+                context_card: formDetails.context_card || {
+                  title: formDetails.name || 'Lead Form',
+                  description: 'Fill out this form to get started',
+                  button_text: 'Submit'
+                },
+                thank_you_page: formDetails.thank_you_page || {
+                  title: 'Thank You!',
+                  body: 'We will contact you soon.'
+                },
+                privacy_policy_url: formDetails.privacy_policy_url,
+                follow_up_action_url: formDetails.follow_up_action_url,
+                is_active: formDetails.status === 'ACTIVE'
+              }
+              
+              allForms.push(processedForm)
+              
+            } catch (detailError) {
+              console.error(`Error fetching details for form ${form.id}:`, detailError)
+              // Still include the form with basic info
+              allForms.push({
+                ...form,
+                pageId,
+                pageName: pageData.name,
+                error: 'Could not fetch full details',
+                questions_count: 0,
+                leads_count: 0,
+                created_time_formatted: 'Unknown',
+                is_active: form.status === 'ACTIVE'
+              })
+            }
+          }
+        } else {
+          console.log('⚠️ No forms found for page', pageData.name)
+          errors.push({ 
+            pageId, 
+            pageName: pageData.name,
+            error: 'No lead forms found. Create forms in Facebook Ads Manager first.' 
           })
         }
       } catch (error) {

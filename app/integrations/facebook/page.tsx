@@ -486,18 +486,42 @@ export default function FacebookIntegrationPage() {
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                               <div>
                                 <p className="text-gray-400">Leads Collected</p>
-                                <p className="text-white font-semibold">{form.leads_count}</p>
+                                <p className="text-white font-semibold">{form.leads_count || 0}</p>
                               </div>
                               <div>
                                 <p className="text-gray-400">Questions</p>
-                                <p className="text-white">{form.questions_count} fields</p>
+                                <p className="text-white">{form.questions_count || 0} fields</p>
                               </div>
                               <div>
                                 <p className="text-gray-400">Created</p>
-                                <p className="text-white">{new Date(form.created_time).toLocaleDateString()}</p>
+                                <p className="text-white">{form.created_time_formatted || (form.created_time ? new Date(form.created_time).toLocaleDateString('en-GB') : 'Unknown')}</p>
                               </div>
                             </div>
+                            {form.error && (
+                              <div className="mt-2 text-xs text-red-400">
+                                ⚠️ {form.error}
+                              </div>
+                            )}
                           </label>
+                          <button
+                            onClick={async () => {
+                              try {
+                                const res = await fetch(`/api/integrations/facebook/test-form/${form.id}`)
+                                const data = await res.json()
+                                console.log('Form test:', data)
+                                alert(JSON.stringify(data, null, 2))
+                              } catch (error) {
+                                console.error('Test error:', error)
+                                alert(`Error: ${error.message}`)
+                              }
+                            }}
+                            className="ml-2 p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
+                            title="Test form access"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -559,6 +583,60 @@ export default function FacebookIntegrationPage() {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Real-time Sync Alert */}
+            {selectedItems.leadForms.length > 0 && (
+              <div className="bg-blue-900/20 border border-blue-600 rounded-lg p-6 mb-6">
+                <div className="flex items-start space-x-3">
+                  <div className="text-blue-400 mt-0.5">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-blue-200 font-semibold mb-2">Real-time Lead Sync</h4>
+                    <p className="text-gray-300 text-sm mb-4">
+                      To receive leads instantly like GoHighLevel:
+                    </p>
+                    <ol className="list-decimal list-inside space-y-2 text-gray-300 text-sm mb-4">
+                      <li>Select the forms you want to sync</li>
+                      <li>We'll set up webhooks for real-time delivery</li>
+                      <li>New leads will appear instantly in your CRM</li>
+                    </ol>
+                    <button
+                      onClick={async () => {
+                        if (selectedItems.leadForms.length === 0) {
+                          alert('Please select at least one lead form first')
+                          return
+                        }
+                        
+                        try {
+                          for (const formId of selectedItems.leadForms) {
+                            const res = await fetch('/api/integrations/facebook/register-webhook', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ formId })
+                            })
+                            
+                            if (!res.ok) {
+                              throw new Error(`Failed to register webhook for form ${formId}`)
+                            }
+                          }
+                          
+                          alert(`Successfully enabled real-time sync for ${selectedItems.leadForms.length} forms!`)
+                        } catch (error) {
+                          console.error('Webhook registration error:', error)
+                          alert('Failed to enable real-time sync. Please try again.')
+                        }
+                      }}
+                      className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors"
+                    >
+                      Enable Real-time Sync
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
