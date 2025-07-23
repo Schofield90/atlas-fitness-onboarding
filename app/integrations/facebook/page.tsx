@@ -26,6 +26,7 @@ export default function FacebookIntegrationPage() {
   const [saving, setSaving] = useState(false)
   const [userData, setUserData] = useState<any>(null)
   const [timeFilter, setTimeFilter] = useState('last_30_days')
+  const [webhookStatus, setWebhookStatus] = useState<Record<string, boolean>>({})
   
   useEffect(() => {
     const storedData = localStorage.getItem('gymleadhub_trial_data')
@@ -56,6 +57,33 @@ export default function FacebookIntegrationPage() {
     
     window.location.href = oauthUrl
   }
+
+  // Check webhook status for selected pages
+  useEffect(() => {
+    const checkWebhookStatus = async () => {
+      if (selectedItems.pages.length === 0) return
+      
+      const statuses: Record<string, boolean> = {}
+      
+      for (const pageId of selectedItems.pages) {
+        const page = pages.find(p => p.id === pageId)
+        if (page?.access_token) {
+          try {
+            const res = await fetch(`/api/integrations/facebook/activate-page-webhook?pageId=${pageId}&pageAccessToken=${page.access_token}`)
+            const data = await res.json()
+            statuses[pageId] = data.isSubscribed || false
+          } catch (error) {
+            console.error(`Error checking webhook status for page ${pageId}:`, error)
+            statuses[pageId] = false
+          }
+        }
+      }
+      
+      setWebhookStatus(statuses)
+    }
+    
+    checkWebhookStatus()
+  }, [selectedItems.pages, pages])
 
   return (
     <DashboardLayout userData={userData}>
@@ -253,44 +281,56 @@ export default function FacebookIntegrationPage() {
                 <div className="space-y-3">
                   {pages
                     .filter(page => selectedItems.pages.includes(page.id))
-                    .map((page) => (
-                      <div key={page.id} className="flex items-center justify-between p-4 border border-gray-600 rounded-lg">
-                        <div className="flex-1">
-                          <h4 className="font-medium">{page.name}</h4>
-                          <p className="text-sm text-gray-400 mt-1">
-                            Enable to receive instant lead notifications
-                          </p>
-                        </div>
-                        <button
-                          onClick={async () => {
-                            try {
-                              const res = await fetch('/api/integrations/facebook/activate-page-webhook', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                  pageId: page.id,
-                                  pageAccessToken: page.access_token
+                    .map((page) => {
+                      const isActive = webhookStatus[page.id] || false
+                      return (
+                        <div key={page.id} className="flex items-center justify-between p-4 border border-gray-600 rounded-lg">
+                          <div className="flex-1">
+                            <h4 className="font-medium">{page.name}</h4>
+                            <p className={`text-sm mt-1 ${isActive ? 'text-green-400' : 'text-gray-400'}`}>
+                              {isActive 
+                                ? '✅ Receiving instant leads' 
+                                : '⚠️ Click to activate instant leads'}
+                            </p>
+                          </div>
+                          <button
+                            onClick={async () => {
+                              try {
+                                const res = await fetch('/api/integrations/facebook/activate-page-webhook', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    pageId: page.id,
+                                    pageAccessToken: page.access_token
+                                  })
                                 })
-                              })
-                              
-                              const data = await res.json()
-                              
-                              if (data.success) {
-                                alert(`✅ Instant leads activated for ${page.name}!`)
-                              } else {
-                                alert(`Failed: ${data.error || 'Unknown error'}`)
+                                
+                                const data = await res.json()
+                                
+                                if (data.success) {
+                                  setWebhookStatus(prev => ({ ...prev, [page.id]: true }))
+                                  alert(`✅ Instant leads activated for ${page.name}!`)
+                                  // Refresh pages to get updated status
+                                  refetchPages()
+                                } else {
+                                  alert(`Failed: ${data.error || 'Unknown error'}`)
+                                }
+                              } catch (error) {
+                                console.error('Error activating webhook:', error)
+                                alert('Failed to activate webhook')
                               }
-                            } catch (error) {
-                              console.error('Error activating webhook:', error)
-                              alert('Failed to activate webhook')
-                            }
-                          }}
-                          className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
-                        >
-                          Activate Instant Leads
-                        </button>
-                      </div>
-                    ))}
+                            }}
+                            className={`${
+                              isActive 
+                                ? 'bg-gray-600 hover:bg-gray-700' 
+                                : 'bg-blue-600 hover:bg-blue-700'
+                            } text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors`}
+                          >
+                            {isActive ? 'Webhook Active' : 'Activate Instant Leads'}
+                          </button>
+                        </div>
+                      )
+                    })}
                 </div>
 
                 <div className="mt-4 p-4 bg-gray-900 rounded-lg">
@@ -298,6 +338,10 @@ export default function FacebookIntegrationPage() {
                     <strong>Note:</strong> After activating, Facebook will send new lead data to your webhook in real-time. 
                     Make sure your webhook endpoint is properly configured.
                   </p>
+                  <div className="mt-2 text-xs text-gray-500">
+                    <p>Webhook URL: <code className="bg-gray-800 px-1 rounded">{window.location.origin}/api/webhooks/facebook-leads</code></p>
+                    <p>Verify Token: <code className="bg-gray-800 px-1 rounded">gym_webhook_verify_2024</code></p>
+                  </div>
                 </div>
               </div>
             )}
