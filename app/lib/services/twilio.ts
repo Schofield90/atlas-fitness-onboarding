@@ -28,9 +28,23 @@ export async function sendWhatsAppMessage(options: SendMessageOptions) {
   }
 
   try {
+    // Ensure both from and to have whatsapp: prefix
+    const fromNumber = twilioWhatsAppFrom.startsWith('whatsapp:') 
+      ? twilioWhatsAppFrom 
+      : `whatsapp:${twilioWhatsAppFrom}`
+    const toNumber = options.to.startsWith('whatsapp:') 
+      ? options.to 
+      : `whatsapp:${options.to}`
+    
+    console.log('Sending WhatsApp message:', {
+      from: fromNumber,
+      to: toNumber,
+      bodyLength: options.body.length
+    })
+    
     const message = await client.messages.create({
-      from: twilioWhatsAppFrom,
-      to: options.to.startsWith('whatsapp:') ? options.to : `whatsapp:${options.to}`,
+      from: fromNumber,
+      to: toNumber,
       body: options.body,
       ...(options.mediaUrl && { mediaUrl: options.mediaUrl })
     })

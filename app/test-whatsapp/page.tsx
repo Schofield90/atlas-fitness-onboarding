@@ -223,6 +223,22 @@ To keep your membership active, please ensure payment is made by the due date.`
           </div>
         )}
 
+        {/* WhatsApp Sandbox Notice */}
+        <div className="mt-8 bg-yellow-900/20 border border-yellow-600 rounded-lg p-6">
+          <h2 className="text-xl font-semibold text-yellow-400 mb-4">⚠️ Important: WhatsApp Sandbox Setup</h2>
+          <div className="space-y-3 text-gray-300">
+            <p className="font-semibold">Before sending WhatsApp messages, you must:</p>
+            <ol className="list-decimal list-inside space-y-2 ml-4">
+              <li>Send <code className="bg-gray-700 px-2 py-1 rounded text-sm">join [sandbox-keyword]</code> to <code className="bg-gray-700 px-2 py-1 rounded text-sm">+14155238886</code></li>
+              <li>You'll receive a confirmation message</li>
+              <li>Then you can send test messages to your number</li>
+            </ol>
+            <p className="text-sm text-gray-400 mt-3">
+              Note: The sandbox keyword is unique to your Twilio account. Check your Twilio Console → Messaging → Try it out → Send a WhatsApp message.
+            </p>
+          </div>
+        </div>
+
         {/* Setup Instructions */}
         <div className="mt-8 bg-gray-800 rounded-lg p-6">
           <h2 className="text-xl font-semibold text-white mb-4">Setup Instructions</h2>
