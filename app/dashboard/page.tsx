@@ -138,7 +138,7 @@ export default function DashboardPage() {
               Enable WhatsApp integration for instant lead communication.
             </p>
             <button 
-              onClick={() => alert('WhatsApp integration coming soon! This feature will be available in the next update.')}
+              onClick={() => router.push('/test-whatsapp')}
               className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition-colors"
             >
               Setup WhatsApp
