@@ -1,4 +1,4 @@
-# Atlas Fitness Onboarding - Gym CRM Platform
+# Gymleadhub - Gym CRM Platform
 
 A comprehensive CRM platform for gym management with Facebook lead integration and AI-powered lead qualification.
 
