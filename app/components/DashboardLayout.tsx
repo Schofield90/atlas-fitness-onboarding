@@ -51,6 +51,15 @@ export default function DashboardLayout({ children, userData }: DashboardLayoutP
       )
     },
     {
+      name: 'Automations',
+      href: '/automations',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      )
+    },
+    {
       name: 'Calendar',
       href: '/calendar',
       icon: (
@@ -103,7 +112,8 @@ export default function DashboardLayout({ children, userData }: DashboardLayoutP
           <ul className="space-y-1">
             {navigation.map((item) => {
               const isActive = pathname === item.href || 
-                (item.href === '/integrations' && pathname.startsWith('/integrations'))
+                (item.href === '/integrations' && pathname.startsWith('/integrations')) ||
+                (item.href === '/automations' && pathname.startsWith('/automations'))
               
               return (
                 <li key={item.name}>
@@ -171,6 +181,7 @@ export default function DashboardLayout({ children, userData }: DashboardLayoutP
                   {pathname === '/leads' && 'Leads & Contacts'}
                   {pathname.startsWith('/integrations') && 'Integrations'}
                   {pathname === '/analytics' && 'Analytics'}
+                  {pathname.startsWith('/automations') && 'Automations'}
                   {pathname === '/calendar' && 'Calendar'}
                   {pathname === '/ai-config' && 'AI Configuration'}
                   {pathname === '/settings' && 'Settings'}
