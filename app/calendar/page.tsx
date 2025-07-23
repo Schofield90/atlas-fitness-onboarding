@@ -1,0 +1,251 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { Calendar } from '@/app/components/calendar/Calendar'
+import { CalendarSettings } from '@/app/components/calendar/CalendarSettings'
+import { BookingModal } from '@/app/components/calendar/BookingModal'
+import { Calendar as CalendarIcon, Settings, Link, Plus } from 'lucide-react'
+import type { CalendarEvent, TimeSlot } from '@/app/lib/types/calendar'
+
+export default function CalendarPage() {
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
+  const [showBookingModal, setShowBookingModal] = useState(false)
+  const [events, setEvents] = useState<CalendarEvent[]>([])
+  const [loadingEvents, setLoadingEvents] = useState(false)
+  const [activeTab, setActiveTab] = useState<'calendar' | 'settings' | 'booking-links'>('calendar')
+
+  useEffect(() => {
+    // Check for success/error messages from Google Calendar connect
+    const urlParams = new URLSearchParams(window.location.search)
+    const success = urlParams.get('success')
+    const error = urlParams.get('error')
+    
+    if (success === 'google_connected') {
+      alert('Google Calendar connected successfully!')
+      // Clear the URL params
+      window.history.replaceState({}, document.title, window.location.pathname)
+    } else if (error) {
+      alert(getErrorMessage(error))
+      window.history.replaceState({}, document.title, window.location.pathname)
+    }
+  }, [])
+
+  const getErrorMessage = (error: string) => {
+    switch (error) {
+      case 'invalid_state':
+        return 'Invalid authentication state. Please try again.'
+      case 'no_code':
+        return 'No authorization code received. Please try again.'
+      case 'token_exchange_failed':
+        return 'Failed to connect Google Calendar. Please try again.'
+      case 'user_info_failed':
+        return 'Failed to get user information. Please try again.'
+      case 'not_authenticated':
+        return 'You must be logged in to connect Google Calendar.'
+      case 'update_failed':
+      case 'save_failed':
+        return 'Failed to save calendar integration. Please try again.'
+      case 'callback_error':
+        return 'An error occurred during calendar connection. Please try again.'
+      default:
+        return 'Failed to connect Google Calendar. Please try again.'
+    }
+  }
+
+  const fetchEvents = async () => {
+    setLoadingEvents(true)
+    try {
+      const startOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1)
+      const endOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0)
+      
+      const params = new URLSearchParams({
+        start: startOfMonth.toISOString(),
+        end: endOfMonth.toISOString()
+      })
+      
+      const response = await fetch(`/api/calendar/events?${params}`)
+      if (response.ok) {
+        const data = await response.json()
+        setEvents(data.events || [])
+      }
+    } catch (error) {
+      console.error('Error fetching events:', error)
+      alert('Failed to load calendar events')
+    } finally {
+      setLoadingEvents(false)
+    }
+  }
+
+  const handleSlotSelect = (slot: TimeSlot) => {
+    setSelectedSlot(slot)
+    setShowBookingModal(true)
+  }
+
+  const handleBookingComplete = () => {
+    setShowBookingModal(false)
+    setSelectedSlot(null)
+    fetchEvents() // Refresh events
+  }
+
+  const getDayEvents = () => {
+    return events.filter(event => {
+      const eventDate = new Date(event.startTime)
+      return eventDate.toDateString() === selectedDate.toDateString()
+    }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+  }
+
+  const formatEventTime = (event: CalendarEvent) => {
+    const start = new Date(event.startTime)
+    const end = new Date(event.endTime)
+    
+    return `${start.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    })} - ${end.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    })}`
+  }
+
+  return (
+    <div className="container py-8">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold flex items-center gap-2">
+          <CalendarIcon className="h-8 w-8" />
+          Calendar
+        </h1>
+        <p className="text-gray-400 mt-2">
+          Manage your appointments and availability
+        </p>
+      </div>
+
+      {/* Tabs */}
+      <div className="border-b border-gray-700 mb-6">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveTab('calendar')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'calendar'
+                ? 'border-orange-500 text-orange-500'
+                : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+            }`}
+          >
+            Calendar View
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'settings'
+                ? 'border-orange-500 text-orange-500'
+                : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+            }`}
+          >
+            Settings
+          </button>
+          <button
+            onClick={() => setActiveTab('booking-links')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'booking-links'
+                ? 'border-orange-500 text-orange-500'
+                : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+            }`}
+          >
+            Booking Links
+          </button>
+        </nav>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'calendar' && (
+        <div className="space-y-4">
+          <div className="grid lg:grid-cols-[1fr,350px] gap-6">
+            <div>
+              <Calendar
+                selectedDate={selectedDate}
+                onDateSelect={setSelectedDate}
+                onSlotSelect={handleSlotSelect}
+              />
+            </div>
+
+            {/* Day Events */}
+            <div className="bg-gray-800 rounded-lg p-6">
+              <h3 className="text-lg font-bold mb-2">
+                {selectedDate.toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  month: 'long',
+                  day: 'numeric'
+                })}
+              </h3>
+              <p className="text-gray-400 text-sm mb-4">
+                {getDayEvents().length} events scheduled
+              </p>
+              
+              {getDayEvents().length === 0 ? (
+                <p className="text-sm text-gray-400">No events scheduled</p>
+              ) : (
+                <div className="space-y-3">
+                  {getDayEvents().map((event) => (
+                    <div
+                      key={event.id}
+                      className="p-3 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors cursor-pointer"
+                    >
+                      <h4 className="font-medium text-sm">{event.title}</h4>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {formatEventTime(event)}
+                      </p>
+                      {event.attendees.length > 0 && (
+                        <p className="text-xs text-gray-400 mt-1">
+                          With: {event.attendees.map(a => a.email).join(', ')}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'settings' && (
+        <CalendarSettings />
+      )}
+
+      {activeTab === 'booking-links' && (
+        <div className="space-y-4">
+          <div className="bg-gray-800 rounded-lg p-6">
+            <h3 className="text-lg font-bold mb-2">Booking Links</h3>
+            <p className="text-gray-400 text-sm mb-4">
+              Create shareable links for people to book time with you
+            </p>
+            
+            <div className="flex justify-between items-center mb-4">
+              <p className="text-sm text-gray-400">
+                No booking links created yet
+              </p>
+              <button className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                Create Booking Link
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Booking Modal */}
+      {selectedSlot && (
+        <BookingModal
+          open={showBookingModal}
+          onOpenChange={setShowBookingModal}
+          slot={selectedSlot}
+          duration={30}
+          title="Consultation"
+          onBookingComplete={handleBookingComplete}
+        />
+      )}
+    </div>
+  )
+}
