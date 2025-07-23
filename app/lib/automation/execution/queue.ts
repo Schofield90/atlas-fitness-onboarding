@@ -1,0 +1,431 @@
+// Workflow Execution Queue
+
+import { Queue, Worker, Job, QueueEvents } from 'bullmq'
+import Redis from 'ioredis'
+import { createClient } from '@/app/lib/supabase/server'
+import { WorkflowExecutor } from './executor'
+import type { 
+  Workflow, 
+  WorkflowExecution, 
+  ExecutionStatus,
+  WorkflowEvent 
+} from '@/app/lib/types/automation'
+
+// Redis connection
+const redisConnection = new Redis({
+  host: process.env.REDIS_HOST || 'localhost',
+  port: parseInt(process.env.REDIS_PORT || '6379'),
+  password: process.env.REDIS_PASSWORD,
+  maxRetriesPerRequest: null,
+  enableReadyCheck: false,
+})
+
+// Create queues
+export const workflowQueue = new Queue('workflow-executions', {
+  connection: redisConnection,
+  defaultJobOptions: {
+    removeOnComplete: {
+      count: 100,
+      age: 24 * 3600, // 24 hours
+    },
+    removeOnFail: {
+      count: 50,
+      age: 7 * 24 * 3600, // 7 days
+    },
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 2000,
+    },
+  },
+})
+
+export const priorityQueue = new Queue('priority-executions', {
+  connection: redisConnection,
+  defaultJobOptions: {
+    removeOnComplete: {
+      count: 50,
+    },
+    removeOnFail: {
+      count: 25,
+    },
+    attempts: 5,
+    backoff: {
+      type: 'exponential',
+      delay: 1000,
+    },
+  },
+})
+
+// Queue for delayed actions (wait nodes)
+export const delayedQueue = new Queue('delayed-actions', {
+  connection: redisConnection,
+})
+
+// Queue events for monitoring
+const queueEvents = new QueueEvents('workflow-executions', {
+  connection: redisConnection,
+})
+
+// Enqueue workflow execution
+export async function enqueueWorkflowExecution(
+  workflowId: string,
+  triggerData: Record<string, any>,
+  options?: {
+    priority?: number
+    delay?: number
+    jobId?: string
+  }
+): Promise<string> {
+  const supabase = await createClient()
+  
+  // Get workflow
+  const { data: workflow, error } = await supabase
+    .from('workflows')
+    .select('*')
+    .eq('id', workflowId)
+    .eq('status', 'active')
+    .single()
+  
+  if (error || !workflow) {
+    throw new Error(`Workflow not found or inactive: ${workflowId}`)
+  }
+  
+  // Create execution record
+  const { data: execution, error: execError } = await supabase
+    .from('workflow_executions')
+    .insert({
+      workflow_id: workflowId,
+      organization_id: workflow.organization_id,
+      status: 'pending',
+      trigger_data: triggerData,
+      context: {
+        variables: {
+          trigger: triggerData,
+          workflow: {
+            id: workflow.id,
+            name: workflow.name,
+          },
+          execution: {
+            startedAt: new Date().toISOString(),
+          },
+        },
+        currentNodeId: null,
+        executionPath: [],
+      },
+    })
+    .select()
+    .single()
+  
+  if (execError || !execution) {
+    throw new Error(`Failed to create execution record: ${execError?.message}`)
+  }
+  
+  // Determine which queue to use
+  const queue = options?.priority && options.priority > 5 ? priorityQueue : workflowQueue
+  
+  // Add job to queue
+  const job = await queue.add(
+    'execute-workflow',
+    {
+      executionId: execution.id,
+      workflowId: workflow.id,
+      workflow: workflow,
+      triggerData: triggerData,
+    },
+    {
+      priority: options?.priority,
+      delay: options?.delay,
+      jobId: options?.jobId || execution.id,
+    }
+  )
+  
+  // Emit event
+  await emitWorkflowEvent({
+    type: 'execution_started',
+    workflowId: workflow.id,
+    executionId: execution.id,
+    data: { triggerData },
+    timestamp: new Date().toISOString(),
+  })
+  
+  return execution.id
+}
+
+// Create workflow execution worker
+export function createWorkflowWorker() {
+  const worker = new Worker(
+    'workflow-executions',
+    async (job: Job) => {
+      const { executionId, workflowId, workflow, triggerData } = job.data
+      
+      try {
+        // Update execution status
+        await updateExecutionStatus(executionId, 'running')
+        
+        // Create executor
+        const executor = new WorkflowExecutor(workflow, executionId)
+        
+        // Execute workflow
+        const result = await executor.execute(triggerData)
+        
+        // Update execution status
+        await updateExecutionStatus(executionId, 'completed', {
+          completedAt: new Date().toISOString(),
+          executionTimeMs: Date.now() - new Date(result.startedAt).getTime(),
+        })
+        
+        // Emit completion event
+        await emitWorkflowEvent({
+          type: 'execution_completed',
+          workflowId,
+          executionId,
+          data: result,
+          timestamp: new Date().toISOString(),
+        })
+        
+        return result
+      } catch (error) {
+        // Update execution status
+        await updateExecutionStatus(executionId, 'failed', {
+          error: error.message,
+          completedAt: new Date().toISOString(),
+        })
+        
+        // Emit failure event
+        await emitWorkflowEvent({
+          type: 'execution_failed',
+          workflowId,
+          executionId,
+          data: { error: error.message },
+          timestamp: new Date().toISOString(),
+        })
+        
+        throw error
+      }
+    },
+    {
+      connection: redisConnection,
+      concurrency: parseInt(process.env.WORKFLOW_WORKER_CONCURRENCY || '10'),
+      limiter: {
+        max: 100,
+        duration: 60000, // 100 jobs per minute
+      },
+    }
+  )
+  
+  // Worker event handlers
+  worker.on('completed', (job) => {
+    console.log(`Workflow execution completed: ${job.id}`)
+  })
+  
+  worker.on('failed', (job, err) => {
+    console.error(`Workflow execution failed: ${job?.id}`, err)
+  })
+  
+  worker.on('active', (job) => {
+    console.log(`Workflow execution started: ${job.id}`)
+  })
+  
+  worker.on('stalled', (jobId) => {
+    console.warn(`Workflow execution stalled: ${jobId}`)
+  })
+  
+  return worker
+}
+
+// Create priority workflow worker
+export function createPriorityWorker() {
+  const worker = new Worker(
+    'priority-executions',
+    async (job: Job) => {
+      // Same execution logic as regular worker
+      return createWorkflowWorker().process(job)
+    },
+    {
+      connection: redisConnection,
+      concurrency: parseInt(process.env.PRIORITY_WORKER_CONCURRENCY || '5'),
+    }
+  )
+  
+  return worker
+}
+
+// Create delayed action worker
+export function createDelayedActionWorker() {
+  const worker = new Worker(
+    'delayed-actions',
+    async (job: Job) => {
+      const { executionId, nodeId, resumeData } = job.data
+      
+      // Resume workflow execution at specific node
+      const executor = await WorkflowExecutor.resume(executionId, nodeId, resumeData)
+      return await executor.continue()
+    },
+    {
+      connection: redisConnection,
+      concurrency: parseInt(process.env.DELAYED_WORKER_CONCURRENCY || '20'),
+    }
+  )
+  
+  return worker
+}
+
+// Update execution status
+async function updateExecutionStatus(
+  executionId: string,
+  status: ExecutionStatus,
+  updates?: Record<string, any>
+): Promise<void> {
+  const supabase = await createClient()
+  
+  await supabase
+    .from('workflow_executions')
+    .update({
+      status,
+      ...updates,
+    })
+    .eq('id', executionId)
+}
+
+// Emit workflow event
+async function emitWorkflowEvent(event: WorkflowEvent): Promise<void> {
+  const supabase = await createClient()
+  
+  // Store event for history
+  await supabase.from('workflow_events').insert({
+    workflow_id: event.workflowId,
+    execution_id: event.executionId,
+    event_type: event.type,
+    data: event.data,
+  })
+  
+  // Broadcast real-time event
+  await supabase
+    .channel(`workflow-events-${event.workflowId}`)
+    .send({
+      type: 'broadcast',
+      event: 'workflow-event',
+      payload: event,
+    })
+}
+
+// Queue monitoring functions
+export async function getQueueStats() {
+  const [workflowStats, priorityStats, delayedStats] = await Promise.all([
+    getQueueMetrics(workflowQueue),
+    getQueueMetrics(priorityQueue),
+    getQueueMetrics(delayedQueue),
+  ])
+  
+  return {
+    workflow: workflowStats,
+    priority: priorityStats,
+    delayed: delayedStats,
+  }
+}
+
+async function getQueueMetrics(queue: Queue) {
+  const [waiting, active, completed, failed, delayed] = await Promise.all([
+    queue.getWaitingCount(),
+    queue.getActiveCount(),
+    queue.getCompletedCount(),
+    queue.getFailedCount(),
+    queue.getDelayedCount(),
+  ])
+  
+  return {
+    waiting,
+    active,
+    completed,
+    failed,
+    delayed,
+    total: waiting + active + delayed,
+  }
+}
+
+// Pause/resume queue processing
+export async function pauseQueue(queueName: 'workflow' | 'priority' | 'delayed') {
+  const queue = queueName === 'workflow' ? workflowQueue : 
+                queueName === 'priority' ? priorityQueue : delayedQueue
+  await queue.pause()
+}
+
+export async function resumeQueue(queueName: 'workflow' | 'priority' | 'delayed') {
+  const queue = queueName === 'workflow' ? workflowQueue : 
+                queueName === 'priority' ? priorityQueue : delayedQueue
+  await queue.resume()
+}
+
+// Clean up old jobs
+export async function cleanupOldJobs(olderThan: number = 7 * 24 * 60 * 60 * 1000) {
+  const timestamp = Date.now() - olderThan
+  
+  await Promise.all([
+    workflowQueue.clean(olderThan, 100, 'completed'),
+    workflowQueue.clean(olderThan, 100, 'failed'),
+    priorityQueue.clean(olderThan, 100, 'completed'),
+    priorityQueue.clean(olderThan, 100, 'failed'),
+    delayedQueue.clean(olderThan, 100, 'completed'),
+  ])
+}
+
+// Schedule a delayed action
+export async function scheduleDelayedAction(
+  executionId: string,
+  nodeId: string,
+  delay: number,
+  resumeData: Record<string, any>
+): Promise<void> {
+  await delayedQueue.add(
+    'resume-execution',
+    {
+      executionId,
+      nodeId,
+      resumeData,
+    },
+    {
+      delay,
+      jobId: `${executionId}-${nodeId}-${Date.now()}`,
+    }
+  )
+}
+
+// Cancel workflow execution
+export async function cancelWorkflowExecution(executionId: string): Promise<void> {
+  // Try to remove from all queues
+  await Promise.all([
+    workflowQueue.remove(executionId),
+    priorityQueue.remove(executionId),
+    delayedQueue.remove(executionId),
+  ]).catch(() => {}) // Ignore errors if job not found
+  
+  // Update execution status
+  await updateExecutionStatus(executionId, 'cancelled', {
+    completedAt: new Date().toISOString(),
+  })
+}
+
+// Initialize queue monitoring
+export function initializeQueueMonitoring() {
+  queueEvents.on('waiting', ({ jobId }) => {
+    console.log(`Job ${jobId} is waiting`)
+  })
+  
+  queueEvents.on('active', ({ jobId, prev }) => {
+    console.log(`Job ${jobId} is active, previous status was ${prev}`)
+  })
+  
+  queueEvents.on('completed', ({ jobId, returnvalue }) => {
+    console.log(`Job ${jobId} completed`)
+  })
+  
+  queueEvents.on('failed', ({ jobId, failedReason }) => {
+    console.error(`Job ${jobId} failed: ${failedReason}`)
+  })
+  
+  // Periodic cleanup
+  setInterval(() => {
+    cleanupOldJobs()
+  }, 24 * 60 * 60 * 1000) // Daily cleanup
+}
