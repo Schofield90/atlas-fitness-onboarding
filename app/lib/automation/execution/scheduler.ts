@@ -2,7 +2,7 @@
 
 import { Queue, Worker, Job } from 'bullmq'
 import Redis from 'ioredis'
-import * as cron from 'cron-parser'
+const parser = require('cron-parser')
 import { createClient } from '@/app/lib/supabase/server'
 import { enqueueWorkflowExecution } from './queue'
 
@@ -101,7 +101,7 @@ function calculateNextRunTime(config: any): Date | null {
     case 'cron':
       if (!config.cronExpression) return null
       try {
-        const interval = cron.parseExpression(config.cronExpression, {
+        const interval = parser.parseExpression(config.cronExpression, {
           tz: timezone,
           currentDate: now,
         })
@@ -289,7 +289,7 @@ async function checkMissedSchedules() {
 // Validate cron expression
 export function validateCronExpression(expression: string): { valid: boolean; error?: string } {
   try {
-    cron.parseExpression(expression)
+    parser.parseExpression(expression)
     return { valid: true }
   } catch (error) {
     return { 
@@ -308,10 +308,7 @@ export function getNextRunTimes(
   let currentTime = new Date()
   
   for (let i = 0; i < count; i++) {
-    const nextTime = calculateNextRunTime({
-      ...config,
-      currentDate: currentTime,
-    })
+    const nextTime = calculateNextRunTime(config)
     
     if (!nextTime) break
     

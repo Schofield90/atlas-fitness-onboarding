@@ -10,6 +10,7 @@ import ReactFlow, {
   Controls,
   MiniMap,
   Background,
+  BackgroundVariant,
   Panel,
   NodeToolbar,
   MarkerType,
@@ -227,7 +228,7 @@ function PaletteItem({ item }: { item: NodePaletteItem }) {
 
   return (
     <div
-      ref={drag}
+      ref={drag as any}
       className={`p-3 bg-gray-700 rounded-lg cursor-move transition-all hover:bg-gray-600 ${
         isDragging ? 'opacity-50' : ''
       }`}
@@ -577,7 +578,7 @@ function WorkflowBuilderInner({ workflow, onSave, onTest }: WorkflowBuilderProps
               }}
               className="bg-gray-800"
             />
-            <Background variant="dots" gap={12} size={1} />
+            <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
             
             {/* Node Toolbar */}
             {selectedNode && (

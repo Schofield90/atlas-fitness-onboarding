@@ -1,7 +1,7 @@
 // Automation Trigger System
 
 import { createClient } from '@/app/lib/supabase/server'
-import type { TriggerDefinition, WorkflowTrigger, Workflow } from '@/app/lib/types/automation'
+import type { TriggerDefinition, Workflow } from '@/app/lib/types/automation'
 
 // Base Trigger Class
 export abstract class BaseTrigger {
@@ -64,7 +64,9 @@ export class NewLeadTrigger extends BaseTrigger {
       .eq('trigger_type', 'new_lead')
     
     // Remove real-time subscription
-    await supabase.removeChannel(`workflow-${workflowId}-new-lead`)
+    const channelName = `workflow-${workflowId}-new-lead`
+    const channel = supabase.channel(channelName)
+    await supabase.removeChannel(channel)
   }
   
   async test(data?: any): Promise<any> {
@@ -139,7 +141,9 @@ export class LeadUpdatedTrigger extends BaseTrigger {
       .eq('workflow_id', workflowId)
       .eq('trigger_type', 'lead_updated')
     
-    await supabase.removeChannel(`workflow-${workflowId}-lead-updated`)
+    const channelName = `workflow-${workflowId}-lead-updated`
+    const channel = supabase.channel(channelName)
+    await supabase.removeChannel(channel)
   }
   
   async test(data?: any): Promise<any> {
@@ -232,7 +236,9 @@ export class EmailOpenedTrigger extends BaseTrigger {
       .eq('workflow_id', workflowId)
       .eq('trigger_type', 'email_opened')
     
-    await supabase.removeChannel(`workflow-${workflowId}-email-opened`)
+    const channelName = `workflow-${workflowId}-email-opened`
+    const channel = supabase.channel(channelName)
+    await supabase.removeChannel(channel)
   }
   
   async test(data?: any): Promise<any> {
@@ -295,7 +301,9 @@ export class FormSubmittedTrigger extends BaseTrigger {
       .eq('workflow_id', workflowId)
       .eq('trigger_type', 'form_submitted')
     
-    await supabase.removeChannel(`workflow-${workflowId}-form-submitted`)
+    const channelName = `workflow-${workflowId}-form-submitted`
+    const channel = supabase.channel(channelName)
+    await supabase.removeChannel(channel)
   }
   
   async test(data?: any): Promise<any> {
@@ -384,7 +392,7 @@ export class ScheduleTrigger extends BaseTrigger {
   private async registerSchedule(triggerId: string, workflowId: string) {
     // TODO: Register with BullMQ scheduler
     const { scheduleWorkflow } = await import('../execution/scheduler')
-    await scheduleWorkflow(triggerId, workflowId, this.config)
+    await scheduleWorkflow(triggerId, workflowId, this.config as any)
   }
   
   private async unregisterSchedule(triggerId: string) {
@@ -507,7 +515,9 @@ export class ChurnRiskTrigger extends BaseTrigger {
       .eq('workflow_id', workflowId)
       .eq('trigger_type', 'ai_churn_risk')
     
-    await supabase.removeChannel(`workflow-${workflowId}-churn-risk`)
+    const channelName = `workflow-${workflowId}-churn-risk`
+    const channel = supabase.channel(channelName)
+    await supabase.removeChannel(channel)
   }
   
   async test(data?: any): Promise<any> {
@@ -534,15 +544,18 @@ export class ChurnRiskTrigger extends BaseTrigger {
 
 // Trigger Factory
 export class TriggerFactory {
-  private static triggers: Map<string, typeof BaseTrigger> = new Map([
-    ['new_lead', NewLeadTrigger],
-    ['lead_updated', LeadUpdatedTrigger],
-    ['email_opened', EmailOpenedTrigger],
-    ['form_submitted', FormSubmittedTrigger],
-    ['scheduled', ScheduleTrigger],
-    ['webhook', WebhookTrigger],
-    ['ai_churn_risk', ChurnRiskTrigger],
-  ])
+  private static triggers: Map<string, any> = new Map()
+  
+  static {
+    // Initialize triggers
+    this.triggers.set('new_lead', NewLeadTrigger)    
+    this.triggers.set('lead_updated', LeadUpdatedTrigger)
+    this.triggers.set('email_opened', EmailOpenedTrigger)
+    this.triggers.set('form_submitted', FormSubmittedTrigger)
+    this.triggers.set('scheduled', ScheduleTrigger)
+    this.triggers.set('webhook', WebhookTrigger)
+    this.triggers.set('ai_churn_risk', ChurnRiskTrigger)
+  }
   
   static create(type: string, config: Record<string, any>): BaseTrigger {
     const TriggerClass = this.triggers.get(type)
@@ -552,7 +565,7 @@ export class TriggerFactory {
     return new TriggerClass(type, config)
   }
   
-  static register(type: string, triggerClass: typeof BaseTrigger) {
+  static register(type: string, triggerClass: any) {
     this.triggers.set(type, triggerClass)
   }
 }

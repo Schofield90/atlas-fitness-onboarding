@@ -239,8 +239,52 @@ export function createPriorityWorker() {
   const worker = new Worker(
     'priority-executions',
     async (job: Job) => {
-      // Same execution logic as regular worker
-      return createWorkflowWorker().process(job)
+      const { executionId, workflowId, workflow, triggerData } = job.data
+      
+      try {
+        // Update execution status
+        await updateExecutionStatus(executionId, 'running')
+        
+        // Create executor
+        const executor = new WorkflowExecutor(workflow, executionId)
+        
+        // Execute workflow
+        const result = await executor.execute(triggerData)
+        
+        // Update execution status
+        await updateExecutionStatus(executionId, 'completed', {
+          completedAt: new Date().toISOString(),
+          executionTimeMs: Date.now() - new Date(result.startedAt).getTime(),
+        })
+        
+        // Emit completion event
+        await emitWorkflowEvent({
+          type: 'execution_completed',
+          workflowId,
+          executionId,
+          data: result,
+          timestamp: new Date().toISOString(),
+        })
+        
+        return result
+      } catch (error) {
+        // Update execution status
+        await updateExecutionStatus(executionId, 'failed', {
+          error: error.message,
+          completedAt: new Date().toISOString(),
+        })
+        
+        // Emit failure event
+        await emitWorkflowEvent({
+          type: 'execution_failed',
+          workflowId,
+          executionId,
+          data: { error: error.message },
+          timestamp: new Date().toISOString(),
+        })
+        
+        throw error
+      }
     },
     {
       connection: redisConnection,

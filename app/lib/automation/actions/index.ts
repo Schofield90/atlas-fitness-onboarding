@@ -687,39 +687,41 @@ export class WaitAction extends BaseAction {
 
 // Action Factory
 export class ActionFactory {
-  private static actions: Map<string, typeof BaseAction> = new Map([
+  private static actions: Map<string, any> = new Map()
+  
+  static {
     // Communication
-    ['send_email', SendEmailAction],
-    ['send_sms', SendSMSAction],
-    ['send_whatsapp', SendWhatsAppAction],
-    ['send_slack', SendSlackAction],
+    this.actions.set('send_email', SendEmailAction)
+    this.actions.set('send_sms', SendSMSAction)
+    this.actions.set('send_whatsapp', SendWhatsAppAction)
+    this.actions.set('send_slack', SendSlackAction)
     
     // CRM
-    ['update_lead', UpdateLeadAction],
-    ['add_tag', AddTagAction],
-    ['change_stage', ChangeStageAction],
-    ['assign_to_user', AssignToUserAction],
+    this.actions.set('update_lead', UpdateLeadAction)
+    this.actions.set('add_tag', AddTagAction)
+    this.actions.set('change_stage', ChangeStageAction)
+    this.actions.set('assign_to_user', AssignToUserAction)
     
     // Tasks
-    ['create_task', CreateTaskAction],
+    this.actions.set('create_task', CreateTaskAction)
     
     // Calendar
-    ['book_appointment', BookAppointmentAction],
+    this.actions.set('book_appointment', BookAppointmentAction)
     
     // AI
-    ['ai_analyze', AIAnalyzeAction],
-    ['ai_generate_content', AIGenerateContentAction],
+    this.actions.set('ai_analyze', AIAnalyzeAction)
+    this.actions.set('ai_generate_content', AIGenerateContentAction)
     
     // Data
-    ['http_request', HTTPRequestAction],
-    ['transform_data', TransformDataAction],
+    this.actions.set('http_request', HTTPRequestAction)
+    this.actions.set('transform_data', TransformDataAction)
     
     // Integrations
-    ['google_sheets', GoogleSheetsAction],
+    this.actions.set('google_sheets', GoogleSheetsAction)
     
     // Control Flow
-    ['wait_delay', WaitAction],
-  ])
+    this.actions.set('wait_delay', WaitAction)
+  }
   
   static create(type: string, config: Record<string, any>, context: ExecutionContext): BaseAction {
     const ActionClass = this.actions.get(type)
@@ -729,7 +731,7 @@ export class ActionFactory {
     return new ActionClass(type, config, context)
   }
   
-  static register(type: string, actionClass: typeof BaseAction) {
+  static register(type: string, actionClass: any) {
     this.actions.set(type, actionClass)
   }
   
