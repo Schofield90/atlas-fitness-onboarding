@@ -2,6 +2,7 @@
 
 import { createClient } from '@/app/lib/supabase/server'
 import type { ActionDefinition, ExecutionContext } from '@/app/lib/types/automation'
+import { sendWhatsAppMessage, sendSMS } from '@/app/lib/services/twilio'
 
 // Base Action Class
 export abstract class BaseAction {
@@ -115,24 +116,46 @@ export class SendSMSAction extends BaseAction {
       throw new Error('Phone number and message are required')
     }
     
-    // TODO: Integrate with SMS service (Twilio, etc.)
-    const messageId = `sms_${Date.now()}`
-    
-    // Log SMS activity
-    const supabase = await createClient()
-    await supabase.from('sms_logs').insert({
-      message_id: messageId,
-      to: to,
-      message: message,
-      status: 'sent',
-      workflow_execution_id: this.context.executionPath[0],
-    })
-    
-    return {
-      messageId,
-      status: 'sent',
-      to,
-      charactersCount: message.length,
+    try {
+      // Send SMS via Twilio
+      const result = await sendSMS({
+        to,
+        body: message
+      })
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to send SMS')
+      }
+      
+      // Log SMS activity
+      const supabase = await createClient()
+      await supabase.from('sms_logs').insert({
+        message_id: result.messageId,
+        to: to,
+        message: message,
+        status: result.status,
+        workflow_execution_id: this.context.executionPath[0],
+      })
+      
+      return {
+        messageId: result.messageId,
+        status: result.status,
+        to: result.to,
+        charactersCount: message.length,
+      }
+    } catch (error: any) {
+      // Log failed SMS
+      const supabase = await createClient()
+      await supabase.from('sms_logs').insert({
+        message_id: `sms_failed_${Date.now()}`,
+        to: to,
+        message: message,
+        status: 'failed',
+        error: error.message,
+        workflow_execution_id: this.context.executionPath[0],
+      })
+      
+      throw error
     }
   }
   
@@ -151,14 +174,49 @@ export class SendWhatsAppAction extends BaseAction {
       throw new Error('Phone number and message are required')
     }
     
-    // TODO: Integrate with WhatsApp Business API
-    const messageId = `wa_${Date.now()}`
-    
-    return {
-      messageId,
-      status: 'sent',
-      to,
-      hasMedia: !!mediaUrl,
+    try {
+      // Send WhatsApp message via Twilio
+      const result = await sendWhatsAppMessage({
+        to,
+        body: message,
+        ...(mediaUrl && { mediaUrl: Array.isArray(mediaUrl) ? mediaUrl : [mediaUrl] })
+      })
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to send WhatsApp message')
+      }
+      
+      // Log WhatsApp activity
+      const supabase = await createClient()
+      await supabase.from('whatsapp_logs').insert({
+        message_id: result.messageId,
+        to: to,
+        message: message,
+        status: result.status,
+        has_media: !!mediaUrl,
+        workflow_execution_id: this.context.executionPath[0],
+      })
+      
+      return {
+        messageId: result.messageId,
+        status: result.status,
+        to: result.to,
+        hasMedia: !!mediaUrl,
+      }
+    } catch (error: any) {
+      // Log failed WhatsApp message
+      const supabase = await createClient()
+      await supabase.from('whatsapp_logs').insert({
+        message_id: `wa_failed_${Date.now()}`,
+        to: to,
+        message: message,
+        status: 'failed',
+        error: error.message,
+        has_media: !!mediaUrl,
+        workflow_execution_id: this.context.executionPath[0],
+      })
+      
+      throw error
     }
   }
   
