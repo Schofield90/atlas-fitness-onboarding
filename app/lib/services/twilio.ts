@@ -85,7 +85,7 @@ export async function sendSMS(options: SendMessageOptions) {
 }
 
 // Verify a phone number can receive WhatsApp messages
-export async function verifyWhatsAppNumber(phoneNumber: string) {
+export function verifyWhatsAppNumber(phoneNumber: string) {
   // Format the phone number for WhatsApp
   const formattedNumber = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`
   

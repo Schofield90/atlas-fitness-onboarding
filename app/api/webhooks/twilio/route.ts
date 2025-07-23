@@ -4,8 +4,9 @@ import twilio from 'twilio'
 import { createClient } from '@/app/lib/supabase/server'
 
 // Twilio webhook signature validation
-const validateTwilioSignature = (request: NextRequest, body: string) => {
-  const twilioSignature = headers().get('x-twilio-signature')
+const validateTwilioSignature = async (request: NextRequest, bodyParams: Record<string, any>) => {
+  const headersList = await headers()
+  const twilioSignature = headersList.get('x-twilio-signature')
   const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/twilio`
   const authToken = process.env.TWILIO_AUTH_TOKEN
 
@@ -17,7 +18,7 @@ const validateTwilioSignature = (request: NextRequest, body: string) => {
     authToken,
     twilioSignature,
     webhookUrl,
-    body
+    bodyParams
   )
 }
 
@@ -25,13 +26,17 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.text()
     
-    // Validate Twilio signature in production
-    if (process.env.NODE_ENV === 'production' && !validateTwilioSignature(request, body)) {
-      return new NextResponse('Unauthorized', { status: 401 })
-    }
-
     // Parse the webhook data
     const params = new URLSearchParams(body)
+    const bodyParams: Record<string, string> = {}
+    params.forEach((value, key) => {
+      bodyParams[key] = value
+    })
+    
+    // Validate Twilio signature in production
+    if (process.env.NODE_ENV === 'production' && !(await validateTwilioSignature(request, bodyParams))) {
+      return new NextResponse('Unauthorized', { status: 401 })
+    }
     const messageData = {
       from: params.get('From') || '',
       to: params.get('To') || '',

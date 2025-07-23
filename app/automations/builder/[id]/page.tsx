@@ -30,12 +30,32 @@ export default function EditWorkflowPage() {
       // For now, use mock data
       const mockWorkflow: Workflow = {
         id,
+        organizationId: userData?.id || 'mock-org-id',
         name: `Workflow ${id}`,
         description: 'Edit this workflow',
-        triggers: [],
-        actions: [],
-        conditions: [],
-        isActive: true,
+        status: 'active',
+        version: 1,
+        workflowData: {
+          nodes: [],
+          edges: [],
+          variables: []
+        },
+        triggerType: 'manual',
+        settings: {
+          errorHandling: 'stop',
+          maxExecutionTime: 300,
+          timezone: 'UTC',
+          notifications: {
+            onError: true,
+            onComplete: false
+          }
+        },
+        stats: {
+          totalExecutions: 0,
+          successfulExecutions: 0,
+          failedExecutions: 0,
+          avgExecutionTime: 0
+        },
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       }
