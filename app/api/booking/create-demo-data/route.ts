@@ -27,21 +27,18 @@ export async function POST(request: NextRequest) {
         .insert({
           id: organizationId,
           name: 'Atlas Fitness Demo',
-          slug: 'atlas-fitness-demo',
-          description: 'Demo gym for testing the booking system',
-          website: 'https://atlas-fitness-demo.com',
-          phone: '+1-555-ATLAS-FIT',
           email: 'demo@atlasfitness.com',
-          address: '123 Fitness Street, Demo City, DC 12345',
-          timezone: 'America/New_York',
-          currency: 'USD',
+          subscription_plan: 'free',
+          subscription_status: 'active',
           settings: {
             booking_window_days: 30,
             cancellation_hours: 24,
-            max_bookings_per_customer: 10
-          },
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+            max_bookings_per_customer: 10,
+            website: 'https://atlas-fitness-demo.com',
+            phone: '+1-555-ATLAS-FIT',
+            address: '123 Fitness Street, Demo City, DC 12345',
+            timezone: 'America/New_York'
+          }
         });
 
       if (orgError) {
