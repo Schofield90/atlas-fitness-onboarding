@@ -91,15 +91,22 @@ export async function POST(request: NextRequest) {
       error: tableError?.message
     };
 
-    // Test 4: Try raw SQL query
-    const { data: sqlTest, error: sqlError } = await supabase
-      .rpc('exec_sql', { 
-        query: `INSERT INTO programs (organization_id, name, price_pennies, is_active) 
-                VALUES ($1, $2, $3, $4) 
-                RETURNING *`,
-        params: [organizationId, 'SQL Test Program', 3000, true]
-      })
-      .catch(() => ({ data: null, error: { message: 'RPC function not available' } }));
+    // Test 4: Try raw SQL query (wrapped in try-catch)
+    let sqlTest = null;
+    let sqlError = null;
+    try {
+      const { data, error } = await supabase
+        .rpc('exec_sql', { 
+          query: `INSERT INTO programs (organization_id, name, price_pennies, is_active) 
+                  VALUES ($1, $2, $3, $4) 
+                  RETURNING *`,
+          params: [organizationId, 'SQL Test Program', 3000, true]
+        });
+      sqlTest = data;
+      sqlError = error;
+    } catch (e) {
+      sqlError = { message: 'RPC function not available or query failed' };
+    }
 
     results.tests.push({
       test: 'Raw SQL insert',
