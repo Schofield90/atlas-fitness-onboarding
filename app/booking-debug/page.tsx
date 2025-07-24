@@ -97,10 +97,26 @@ export default function BookingDebug() {
       });
       const result = await response.json();
       
-      if (result.success) {
-        alert(`Created ${result.created.programs} programs and ${result.created.sessions} sessions!\nVerified: ${result.verified.programs} programs, ${result.verified.sessions} sessions`);
+      console.log('Create sessions result:', result);
+      
+      if (result.created) {
+        let message = `Created ${result.created.programs} programs and ${result.created.sessions} sessions!\n`;
+        message += `Verified: ${result.verified.programs} programs, ${result.verified.sessions} sessions\n`;
+        
+        if (result.created.programErrors && result.created.programErrors.length > 0) {
+          message += `\nProgram Errors:\n`;
+          result.created.programErrors.forEach((e: any) => {
+            message += `- ${e.program}: ${e.error}\n`;
+          });
+        }
+        
+        if (result.created.sessionError) {
+          message += `\nSession Error: ${result.created.sessionError}`;
+        }
+        
+        alert(message);
       } else {
-        alert(`Error: ${result.error}\n${result.details || ''}`);
+        alert(`Error: ${result.error || 'Unknown error'}\n${result.details || ''}`);
       }
       
       fetchAllData(); // Reload data

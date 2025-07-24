@@ -82,17 +82,19 @@ export async function POST(request: NextRequest) {
 
     // Insert programs one by one to debug issues
     const createdPrograms = [];
+    const programErrors = [];
+    
     for (const program of programsToCreate) {
       const { data, error } = await supabase
         .from('programs')
         .insert(program)
-        .select()
-        .single();
+        .select();
       
       if (error) {
         console.error(`Failed to create program ${program.name}:`, error);
-      } else {
-        createdPrograms.push(data);
+        programErrors.push({ program: program.name, error: error.message });
+      } else if (data && data.length > 0) {
+        createdPrograms.push(data[0]);
       }
     }
 
@@ -170,18 +172,19 @@ export async function POST(request: NextRequest) {
       .eq('organization_id', organizationId);
 
     return NextResponse.json({
-      success: true,
+      success: createdPrograms.length > 0 || (createdSessions?.length || 0) > 0,
       message: 'Data force created',
       created: {
         programs: createdPrograms.length,
         sessions: createdSessions?.length || 0,
-        programErrors: programsToCreate.length - createdPrograms.length,
+        programErrors: programErrors,
         sessionError: sessionError?.message
       },
       verified: {
         programs: verifyPrograms?.length || 0,
         sessions: verifySessions?.length || 0
       },
+      sampleProgram: createdPrograms[0],
       sampleSession: verifySessions?.[0],
       serviceKeyUsed: true,
       timestamp: new Date().toISOString()
