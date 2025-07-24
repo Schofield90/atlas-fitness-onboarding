@@ -128,6 +128,21 @@ export default function BookingDebug() {
               Create Fresh Sessions (Next 2 Weeks)
             </button>
             <button
+              onClick={async () => {
+                const response = await fetch('/api/debug/test-insert', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ organizationId: orgId })
+                });
+                const result = await response.json();
+                console.log('Insert test results:', result);
+                alert(`Insert Test Results:\n${JSON.stringify(result.summary, null, 2)}\n\nCheck console for details`);
+              }}
+              className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
+            >
+              Test Insert (Debug)
+            </button>
+            <button
               onClick={fetchAllData}
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
             >
