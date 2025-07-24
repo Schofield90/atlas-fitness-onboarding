@@ -90,13 +90,19 @@ export default function BookingDebug() {
 
   const createNewSessions = async () => {
     try {
-      const response = await fetch('/api/debug/seed', {
+      const response = await fetch('/api/debug/force-create-data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ organizationId: orgId })
       });
       const result = await response.json();
-      alert(`Created ${result.sessions} new sessions`);
+      
+      if (result.success) {
+        alert(`Created ${result.created.programs} programs and ${result.created.sessions} sessions!\nVerified: ${result.verified.programs} programs, ${result.verified.sessions} sessions`);
+      } else {
+        alert(`Error: ${result.error}\n${result.details || ''}`);
+      }
+      
       fetchAllData(); // Reload data
     } catch (error) {
       alert('Failed to create sessions');
