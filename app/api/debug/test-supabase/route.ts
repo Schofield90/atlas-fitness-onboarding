@@ -48,12 +48,10 @@ export async function GET(request: NextRequest) {
         code: serviceError?.code
       };
 
-      // Test 4: Try to insert a test program
-      const testId = `test-${Date.now()}`;
+      // Test 4: Try to insert a test program (without explicit ID)
       const { data: insertTest, error: insertError } = await serviceSupabase
         .from('programs')
         .insert({
-          id: testId,
           organization_id: '63589490-8f55-4157-bd3a-e141594b740e',
           name: 'Test Program',
           price_pennies: 0,
@@ -71,11 +69,11 @@ export async function GET(request: NextRequest) {
       };
 
       // Clean up test data if successful
-      if (insertTest) {
+      if (insertTest && insertTest.id) {
         await serviceSupabase
           .from('programs')
           .delete()
-          .eq('id', testId);
+          .eq('id', insertTest.id);
       }
     } else {
       results.serviceKeyTest = {

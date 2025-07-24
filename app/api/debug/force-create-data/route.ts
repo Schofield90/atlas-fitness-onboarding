@@ -42,10 +42,9 @@ export async function POST(request: NextRequest) {
     await supabase.from('class_sessions').delete().eq('organization_id', organizationId);
     await supabase.from('programs').delete().eq('organization_id', organizationId);
 
-    // Create programs with explicit IDs
+    // Create programs WITHOUT explicit IDs (let database generate UUIDs)
     const programsToCreate = [
       {
-        id: `${organizationId}-prog-1`,
         organization_id: organizationId,
         name: '6-Week Transformation Challenge',
         description: 'Our flagship program for beginners wanting to lose 12-25lbs',
@@ -58,7 +57,6 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString()
       },
       {
-        id: `${organizationId}-prog-2`,
         organization_id: organizationId,
         name: 'HIIT Blast',
         description: 'High-intensity interval training',
@@ -70,7 +68,6 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString()
       },
       {
-        id: `${organizationId}-prog-3`,
         organization_id: organizationId,
         name: 'Free Trial Session',
         description: 'Try our gym for free',
@@ -121,10 +118,9 @@ export async function POST(request: NextRequest) {
       const eveningEnd = new Date(eveningStart);
       eveningEnd.setHours(19, 0, 0, 0);
 
-      // Create sessions for each program
+      // Create sessions for each program (without explicit IDs)
       createdPrograms.forEach((program, index) => {
         sessionsToCreate.push({
-          id: `${organizationId}-session-${i}-${index}-am`,
           organization_id: organizationId,
           program_id: program.id,
           name: `${program.name} - Morning`,
@@ -140,7 +136,6 @@ export async function POST(request: NextRequest) {
         });
 
         sessionsToCreate.push({
-          id: `${organizationId}-session-${i}-${index}-pm`,
           organization_id: organizationId,
           program_id: program.id,
           name: `${program.name} - Evening`,
