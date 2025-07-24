@@ -22,16 +22,30 @@ export async function GET(request: NextRequest, context: Context) {
       }
     );
 
-    // Get organization
-    const { data: organization, error: orgError } = await supabase
+    console.log('Fetching organization with ID:', organizationId);
+    console.log('Using service role key:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+    // Get organization (without .single() to avoid errors)
+    const { data: orgData, error: orgError } = await supabase
       .from('organizations')
       .select('*')
-      .eq('id', organizationId)
-      .single();
+      .eq('id', organizationId);
 
-    if (orgError || !organization) {
+    console.log('Organization query result:', { data: orgData, error: orgError });
+
+    const organization = orgData?.[0];
+
+    if (!organization) {
+      // Try without any filters to see what's in the table
+      const { data: allOrgs } = await supabase
+        .from('organizations')
+        .select('id, name')
+        .limit(5);
+      
       return NextResponse.json({ 
         error: 'Organization not found',
+        requestedId: organizationId,
+        availableOrgs: allOrgs || [],
         details: orgError?.message 
       }, { status: 404 });
     }
