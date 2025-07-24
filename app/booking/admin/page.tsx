@@ -163,6 +163,8 @@ export default function BookingAdminPage() {
 
   const handleDeleteProgram = async (id: string) => {
     if (confirm('Are you sure you want to delete this program?')) {
+      const organizationId = userData?.organizationId || '63589490-8f55-4157-bd3a-e141594b740e';
+      
       const { error } = await supabase
         .from('programs')
         .delete()
@@ -176,6 +178,8 @@ export default function BookingAdminPage() {
 
   const handleDeleteClass = async (id: string) => {
     if (confirm('Are you sure you want to delete this class?')) {
+      const organizationId = userData?.organizationId || '63589490-8f55-4157-bd3a-e141594b740e';
+      
       const { error } = await supabase
         .from('class_sessions')
         .delete()
