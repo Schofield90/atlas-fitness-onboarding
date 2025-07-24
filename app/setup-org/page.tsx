@@ -11,10 +11,13 @@ export default function SetupOrganization() {
   const [result, setResult] = useState<any>(null);
   const router = useRouter();
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = typeof window !== 'undefined' && 
+    process.env.NEXT_PUBLIC_SUPABASE_URL && 
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 
+    createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    ) : null;
 
   const createOrganizationAndUser = async (e: React.FormEvent) => {
     e.preventDefault();
