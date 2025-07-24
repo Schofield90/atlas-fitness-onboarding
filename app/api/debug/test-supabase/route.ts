@@ -91,9 +91,15 @@ export async function GET(request: NextRequest) {
       );
 
       // Get column info for programs table
-      const { data: columns } = await serviceSupabase
-        .rpc('get_table_columns', { table_name: 'programs' })
-        .catch(() => ({ data: null }));
+      let columns = null;
+      try {
+        const { data } = await serviceSupabase
+          .rpc('get_table_columns', { table_name: 'programs' });
+        columns = data;
+      } catch (e) {
+        // RPC function might not exist
+        columns = null;
+      }
 
       results.tableStructure = {
         hasRpcFunction: !!columns,
