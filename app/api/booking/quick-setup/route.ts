@@ -33,8 +33,7 @@ export async function GET(request: NextRequest) {
       const { data: newOrg, error: createError } = await supabase
         .from('organizations')
         .insert({
-          name: 'Atlas Fitness Demo',
-          settings: {}
+          name: 'Atlas Fitness Demo'
         })
         .select()
         .single();
