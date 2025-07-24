@@ -19,7 +19,7 @@ export default function BookNowPage() {
 
   const fetchBookingData = async () => {
     try {
-      const response = await fetch(`/api/public/booking-data/${organizationId}`);
+      const response = await fetch(`/api/public-api/booking-data/${organizationId}`);
       const result = await response.json();
 
       if (!response.ok) {
@@ -45,7 +45,7 @@ export default function BookNowPage() {
 
     try {
       // First create a lead
-      const leadResponse = await fetch('/api/public/create-lead', {
+      const leadResponse = await fetch('/api/public-api/create-lead', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
