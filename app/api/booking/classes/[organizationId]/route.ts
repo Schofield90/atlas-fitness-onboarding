@@ -8,24 +8,6 @@ export async function GET(
 ) {
   const params = await context.params;
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        global: {
-          headers: {
-            Authorization: request.headers.get('Authorization') || '',
-          },
-        },
-      }
-    );
-
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     // Get query parameters
     const { searchParams } = new URL(request.url);
     const programId = searchParams.get('programId') || undefined;

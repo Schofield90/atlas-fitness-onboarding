@@ -14,8 +14,7 @@ export default function BookingAdminPage() {
   const [showClassForm, setShowClassForm] = useState(false);
   const [editingProgram, setEditingProgram] = useState<any>(null);
   const [editingClass, setEditingClass] = useState<any>(null);
-  const [user, setUser] = useState<any>(null);
-  const [organization, setOrganization] = useState<any>(null);
+  const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -30,30 +29,22 @@ export default function BookingAdminPage() {
 
   const fetchUserData = async () => {
     try {
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      // Use the same auth system as dashboard - localStorage trial data
+      const storedData = localStorage.getItem('gymleadhub_trial_data');
+      if (!storedData) {
+        router.push('/signup');
+        return;
+      }
+
+      const trialData = JSON.parse(storedData);
+      setUserData(trialData);
       
-      if (authError || !authUser) {
-        router.push('/login');
-        return;
-      }
-
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('*, organizations(*)')
-        .eq('id', authUser.id)
-        .single();
-
-      if (userError || !userData) {
-        console.error('Error fetching user data:', userError);
-        return;
-      }
-
-      setUser(userData);
-      setOrganization(userData.organizations);
+      // For demo purposes, use a demo organization ID
+      const organizationId = trialData.organizationId || '63589490-8f55-4157-bd3a-e141594b740e'; // Atlas Fitness demo ID
       
       // Fetch programs and classes
-      await fetchPrograms(userData.organizations.id);
-      await fetchClasses(userData.organizations.id);
+      await fetchPrograms(organizationId);
+      await fetchClasses(organizationId);
     } catch (error) {
       console.error('Error:', error);
     } finally {
@@ -91,8 +82,10 @@ export default function BookingAdminPage() {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
     
+    const organizationId = userData?.organizationId || '63589490-8f55-4157-bd3a-e141594b740e';
+    
     const programData = {
-      organization_id: organization.id,
+      organization_id: organizationId,
       name: formData.get('name'),
       description: formData.get('description'),
       duration_weeks: formData.get('duration_weeks') ? parseInt(formData.get('duration_weeks') as string) : null,
@@ -111,7 +104,7 @@ export default function BookingAdminPage() {
       if (!error) {
         setEditingProgram(null);
         setShowProgramForm(false);
-        fetchPrograms(organization.id);
+        fetchPrograms(organizationId);
       }
     } else {
       const { error } = await supabase
@@ -120,7 +113,7 @@ export default function BookingAdminPage() {
 
       if (!error) {
         setShowProgramForm(false);
-        fetchPrograms(organization.id);
+        fetchPrograms(organizationId);
       }
     }
   };
@@ -129,10 +122,12 @@ export default function BookingAdminPage() {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
     
+    const organizationId = userData?.organizationId || '63589490-8f55-4157-bd3a-e141594b740e';
+    
     const classData = {
-      organization_id: organization.id,
+      organization_id: organizationId,
       program_id: formData.get('program_id'),
-      trainer_id: user.id,
+      trainer_id: userData?.id || 'demo-trainer-id',
       name: formData.get('name'),
       description: formData.get('description'),
       start_time: new Date(`${formData.get('date')}T${formData.get('start_time')}`).toISOString(),
@@ -152,7 +147,7 @@ export default function BookingAdminPage() {
       if (!error) {
         setEditingClass(null);
         setShowClassForm(false);
-        fetchClasses(organization.id);
+        fetchClasses(organizationId);
       }
     } else {
       const { error } = await supabase
@@ -161,7 +156,7 @@ export default function BookingAdminPage() {
 
       if (!error) {
         setShowClassForm(false);
-        fetchClasses(organization.id);
+        fetchClasses(organizationId);
       }
     }
   };
@@ -174,7 +169,7 @@ export default function BookingAdminPage() {
         .eq('id', id);
 
       if (!error) {
-        fetchPrograms(organization.id);
+        fetchPrograms(organizationId);
       }
     }
   };
@@ -187,30 +182,33 @@ export default function BookingAdminPage() {
         .eq('id', id);
 
       if (!error) {
-        fetchClasses(organization.id);
+        fetchClasses(organizationId);
       }
     }
   };
 
   if (loading) {
     return (
-      <DashboardLayout>
+      <DashboardLayout userData={userData}>
         <div className="flex justify-center items-center h-screen">
-          <div className="text-lg text-gray-600">Loading...</div>
+          <div className="text-lg text-gray-400">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-4"></div>
+            Loading booking admin...
+          </div>
         </div>
       </DashboardLayout>
     );
   }
 
   return (
-    <DashboardLayout>
+    <DashboardLayout userData={userData}>
       <div className="p-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Booking System Admin</h1>
+        <h1 className="text-3xl font-bold text-white mb-8">Booking System Admin</h1>
 
         {/* Programs Section */}
         <div className="mb-12">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-semibold text-gray-800">Programs</h2>
+            <h2 className="text-2xl font-semibold text-white">Programs</h2>
             <button
               onClick={() => {
                 setEditingProgram(null);
@@ -225,9 +223,9 @@ export default function BookingAdminPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {programs.map((program) => (
-              <div key={program.id} className="bg-white p-6 rounded-lg shadow-md">
+              <div key={program.id} className="bg-gray-800 p-6 rounded-lg shadow-md">
                 <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-lg font-semibold">{program.name}</h3>
+                  <h3 className="text-lg font-semibold text-white">{program.name}</h3>
                   <div className="flex gap-2">
                     <button
                       onClick={() => {
@@ -246,8 +244,8 @@ export default function BookingAdminPage() {
                     </button>
                   </div>
                 </div>
-                <p className="text-gray-600 text-sm mb-3">{program.description}</p>
-                <div className="space-y-1 text-sm">
+                <p className="text-gray-400 text-sm mb-3">{program.description}</p>
+                <div className="space-y-1 text-sm text-gray-300">
                   <p><span className="font-medium">Type:</span> {program.program_type}</p>
                   <p><span className="font-medium">Price:</span> £{(program.price_pennies / 100).toFixed(2)}</p>
                   <p><span className="font-medium">Max Participants:</span> {program.max_participants}</p>
@@ -268,7 +266,7 @@ export default function BookingAdminPage() {
         {/* Classes Section */}
         <div>
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-semibold text-gray-800">Upcoming Classes</h2>
+            <h2 className="text-2xl font-semibold text-white">Upcoming Classes</h2>
             <button
               onClick={() => {
                 setEditingClass(null);
@@ -281,38 +279,38 @@ export default function BookingAdminPage() {
             </button>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          <div className="bg-gray-800 rounded-lg shadow-md overflow-hidden">
             <table className="min-w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-700">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Capacity</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Class</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Date & Time</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Location</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Capacity</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-gray-800 divide-y divide-gray-700">
                 {classSessions.map((session) => (
                   <tr key={session.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <div className="text-sm font-medium text-gray-900">{session.name || session.programs?.name}</div>
+                        <div className="text-sm font-medium text-white">{session.name || session.programs?.name}</div>
                         <div className="text-sm text-gray-500">{session.programs?.name}</div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{moment(session.start_time).format('MMM DD, YYYY')}</div>
+                      <div className="text-sm text-white">{moment(session.start_time).format('MMM DD, YYYY')}</div>
                       <div className="text-sm text-gray-500">
                         {moment(session.start_time).format('h:mm A')} - {moment(session.end_time).format('h:mm A')}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                       {session.room_location || 'Main Studio'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{session.current_bookings}/{session.max_capacity}</div>
-                      <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                      <div className="text-sm text-white">{session.current_bookings}/{session.max_capacity}</div>
+                      <div className="w-full bg-gray-600 rounded-full h-2 mt-1">
                         <div 
                           className={`h-2 rounded-full ${
                             session.current_bookings >= session.max_capacity ? 'bg-red-600' :

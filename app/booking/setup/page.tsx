@@ -7,7 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 
 export default function BookingSetupPage() {
   const [loading, setLoading] = useState(false);
-  const [organization, setOrganization] = useState<any>(null);
+  const [userData, setUserData] = useState<any>(null);
   const [setupComplete, setSetupComplete] = useState(false);
   const [publicUrl, setPublicUrl] = useState('');
   const router = useRouter();
@@ -22,23 +22,19 @@ export default function BookingSetupPage() {
   }, []);
 
   const fetchUserData = async () => {
-    const { data: { user }, error } = await supabase.auth.getUser();
-    
-    if (error || !user) {
-      router.push('/login');
+    // Use the same auth system as dashboard - localStorage trial data
+    const storedData = localStorage.getItem('gymleadhub_trial_data');
+    if (!storedData) {
+      router.push('/signup');
       return;
     }
 
-    const { data: userData } = await supabase
-      .from('users')
-      .select('*, organizations(*)')
-      .eq('id', user.id)
-      .single();
-
-    if (userData?.organizations) {
-      setOrganization(userData.organizations);
-      setPublicUrl(`${window.location.origin}/book/public/${userData.organizations.id}`);
-    }
+    const trialData = JSON.parse(storedData);
+    setUserData(trialData);
+    
+    // For demo purposes, use a demo organization ID
+    const organizationId = trialData.organizationId || '63589490-8f55-4157-bd3a-e141594b740e'; // Atlas Fitness demo ID
+    setPublicUrl(`${window.location.origin}/book/public/${organizationId}`);
   };
 
   const handleSetup = async () => {
@@ -67,20 +63,20 @@ export default function BookingSetupPage() {
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout userData={userData}>
       <div className="max-w-4xl mx-auto p-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Booking System Setup</h1>
+        <h1 className="text-3xl font-bold text-white mb-8">Booking System Setup</h1>
 
         {!setupComplete ? (
-          <div className="bg-white rounded-lg shadow-md p-8">
-            <h2 className="text-xl font-semibold mb-4">Quick Setup</h2>
-            <p className="text-gray-600 mb-6">
+          <div className="bg-gray-800 rounded-lg shadow-md p-8">
+            <h2 className="text-xl font-semibold text-white mb-4">Quick Setup</h2>
+            <p className="text-gray-400 mb-6">
               Click the button below to automatically create sample programs and classes for testing the booking system.
             </p>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <h3 className="font-medium text-blue-900 mb-2">This will create:</h3>
-              <ul className="list-disc list-inside text-blue-700 space-y-1">
+            <div className="bg-blue-900/20 border border-blue-600 rounded-lg p-4 mb-6">
+              <h3 className="font-medium text-blue-300 mb-2">This will create:</h3>
+              <ul className="list-disc list-inside text-blue-400 space-y-1">
                 <li>4 fitness programs (HIIT, Strength Training, Yoga, Free Trial)</li>
                 <li>Multiple class sessions for the next 7 days</li>
                 <li>Various time slots throughout each day</li>
@@ -116,12 +112,12 @@ export default function BookingSetupPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold mb-4">Next Steps</h3>
+            <div className="bg-gray-800 rounded-lg shadow-md p-6">
+              <h3 className="text-lg font-semibold text-white mb-4">Next Steps</h3>
               <div className="space-y-4">
                 <div>
-                  <h4 className="font-medium text-gray-900">1. Test Internal Booking</h4>
-                  <p className="text-gray-600 text-sm mt-1">For logged-in users (staff/members)</p>
+                  <h4 className="font-medium text-white">1. Test Internal Booking</h4>
+                  <p className="text-gray-400 text-sm mt-1">For logged-in users (staff/members)</p>
                   <a
                     href="/booking"
                     className="inline-flex items-center mt-2 text-blue-600 hover:text-blue-800"
@@ -131,8 +127,8 @@ export default function BookingSetupPage() {
                 </div>
 
                 <div>
-                  <h4 className="font-medium text-gray-900">2. Manage Classes</h4>
-                  <p className="text-gray-600 text-sm mt-1">Add, edit, or remove programs and classes</p>
+                  <h4 className="font-medium text-white">2. Manage Classes</h4>
+                  <p className="text-gray-400 text-sm mt-1">Add, edit, or remove programs and classes</p>
                   <a
                     href="/booking/admin"
                     className="inline-flex items-center mt-2 text-blue-600 hover:text-blue-800"
@@ -142,9 +138,9 @@ export default function BookingSetupPage() {
                 </div>
 
                 <div>
-                  <h4 className="font-medium text-gray-900">3. Public Booking Page</h4>
-                  <p className="text-gray-600 text-sm mt-1">Share this link with customers for public bookings</p>
-                  <div className="mt-2 p-3 bg-gray-50 rounded border border-gray-200">
+                  <h4 className="font-medium text-white">3. Public Booking Page</h4>
+                  <p className="text-gray-400 text-sm mt-1">Share this link with customers for public bookings</p>
+                  <div className="mt-2 p-3 bg-gray-700 rounded border border-gray-600">
                     <code className="text-sm break-all">{publicUrl}</code>
                   </div>
                   <button
@@ -160,9 +156,9 @@ export default function BookingSetupPage() {
               </div>
             </div>
 
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <h4 className="font-medium text-yellow-900 mb-1">Testing Tips</h4>
-              <ul className="list-disc list-inside text-yellow-700 text-sm space-y-1">
+            <div className="bg-yellow-900/20 border border-yellow-600 rounded-lg p-4">
+              <h4 className="font-medium text-yellow-300 mb-1">Testing Tips</h4>
+              <ul className="list-disc list-inside text-yellow-400 text-sm space-y-1">
                 <li>Some classes are pre-filled to test waitlist functionality</li>
                 <li>Try booking a full class to see the waitlist in action</li>
                 <li>Cancel a booking from a full class to trigger auto-booking from waitlist</li>
