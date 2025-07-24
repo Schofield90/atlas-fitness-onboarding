@@ -41,7 +41,7 @@ export default function BookingSetupPage() {
     setLoading(true);
     
     try {
-      const response = await fetch('/api/booking/seed', {
+      const response = await fetch('/api/booking/create-demo-data', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

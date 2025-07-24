@@ -117,14 +117,36 @@ export default function BookingPage() {
                   <div>
                     <h4 className="font-medium text-yellow-300 mb-1">Demo Mode</h4>
                     <p className="text-sm text-yellow-200">
-                      The booking system is in demo mode. To see live classes, run the setup script or use the admin panel to create classes.
+                      The booking system is in demo mode. Click "Create Demo Classes" to populate the calendar with sample fitness classes.
                     </p>
                     <div className="flex gap-2 mt-2">
+                      <button 
+                        onClick={async () => {
+                          try {
+                            const response = await fetch('/api/booking/create-demo-data', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' }
+                            });
+                            const result = await response.json();
+                            if (result.success) {
+                              alert('Demo classes created successfully! The page will refresh.');
+                              window.location.reload();
+                            } else {
+                              alert(result.message || 'Failed to create demo data');
+                            }
+                          } catch (error) {
+                            alert('Error creating demo data');
+                          }
+                        }}
+                        className="text-xs bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded transition-colors"
+                      >
+                        Create Demo Classes
+                      </button>
                       <button 
                         onClick={() => router.push('/booking/setup')}
                         className="text-xs bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded transition-colors"
                       >
-                        Run Setup
+                        Setup Page
                       </button>
                       <button 
                         onClick={() => router.push('/booking-debug')}
