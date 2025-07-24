@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
       .from('organizations')
       .insert({
         name: orgName,
+        email: ownerEmail, // Add the required email field
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
