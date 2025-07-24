@@ -16,7 +16,7 @@ export default function BookingPage() {
     <DashboardLayout userData={null}>
       <div className="h-full flex flex-col">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-white mb-2">Class Booking</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">Class Booking - NEW VERSION DEPLOYED</h1>
           <p className="text-gray-300">Interactive demo - See how our booking system works</p>
         </div>
 
