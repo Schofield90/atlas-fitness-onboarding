@@ -1,10 +1,22 @@
 # Atlas Fitness Onboarding - Development Notes
 
-## Project Status (July 23, 2025)
+## Project Status (July 24, 2025)
 
 ### 🚀 Recent Achievements
 
-#### 1. **WhatsApp & SMS Integration (Completed Today)**
+#### 1. **GoTeamUp-Style Booking System (Completed Today - July 24)**
+- ✅ Complete class booking system with calendar view
+- ✅ Automated waitlist management (like GoTeamUp)
+- ✅ Real-time capacity tracking
+- ✅ 24-hour cancellation policy enforcement
+- ✅ Customer booking history and management
+- ✅ Database schema with 6 new tables (programs, class_sessions, bookings, waitlist, memberships, class_credits)
+- ✅ Full RLS (Row Level Security) policies
+- ✅ API endpoints for all booking operations
+- ✅ React components with react-big-calendar integration
+- ✅ SMS notifications for bookings and waitlist updates
+
+#### 2. **WhatsApp & SMS Integration (Completed July 23)**
 - ✅ Full Twilio integration for WhatsApp and SMS messaging
 - ✅ Test page at `/test-whatsapp` for sending messages
 - ✅ API endpoints: `/api/whatsapp/send` and `/api/sms/send`
@@ -13,12 +25,12 @@
 - ✅ Database tables: `sms_logs`, `whatsapp_logs`, `contacts`
 - ✅ Integration with automation system (SendWhatsAppAction, SendSMSAction)
 
-#### 2. **Automation System Fixes**
+#### 3. **Automation System Fixes**
 - ✅ Fixed dynamic routing for automation builder (`/automations/builder/[id]`)
 - ✅ Updated Workflow types to match the comprehensive automation interface
 - ✅ TypeScript errors resolved for Next.js 15 compatibility
 
-#### 3. **Dashboard Updates**
+#### 4. **Dashboard Updates**
 - ✅ WhatsApp button now navigates to test page (was showing "coming soon")
 - ✅ All integrations accessible from dashboard
 
@@ -62,6 +74,12 @@ RESEND_API_KEY=your-resend-key
 ```
 /app
 ├── /api
+│   ├── /booking              # Booking system endpoints
+│   │   ├── /classes/[organizationId]  # Get available classes
+│   │   ├── /book             # Create new booking
+│   │   ├── /[bookingId]      # Cancel booking
+│   │   ├── /customer/[customerId]/bookings  # Get customer bookings
+│   │   └── /attendance/[bookingId]  # Mark attendance
 │   ├── /sms/send              # SMS sending endpoint
 │   ├── /whatsapp/send         # WhatsApp sending endpoint
 │   └── /webhooks/twilio       # Incoming message handler
@@ -71,9 +89,18 @@ RESEND_API_KEY=your-resend-key
 │   │   ├── page.tsx          # New workflow creation
 │   │   └── /[id]/page.tsx    # Edit existing workflow
 │   └── /templates            # Pre-built automation templates
+├── /booking                  # Booking system UI
+│   └── page.tsx             # Main booking page
+├── /components/booking       # Booking components
+│   ├── BookingCalendar.tsx  # Calendar view for classes
+│   ├── BookingCalendar.css  # Calendar styling
+│   ├── ClassBookingModal.tsx # Class details and booking modal
+│   └── CustomerBookings.tsx # Customer booking history
 ├── /test-whatsapp            # WhatsApp/SMS testing interface
 └── /lib
-    ├── /services/twilio.ts   # Twilio service implementation
+    ├── /services
+    │   ├── booking.ts        # Booking service implementation
+    │   └── twilio.ts         # Twilio service implementation
     └── /automation/actions   # Automation actions (SMS, WhatsApp, etc.)
 ```
 
@@ -89,33 +116,61 @@ RESEND_API_KEY=your-resend-key
    - Ensure GitHub integration is active
    - Production branch should be set to `main`
 
+### 📱 Booking System Setup Instructions
+
+1. **Run Database Migration**:
+   ```bash
+   # Apply the booking system migration to your Supabase database
+   supabase migration up
+   ```
+
+2. **Seed Sample Data** (optional):
+   - Create some test programs and class sessions in Supabase dashboard
+   - Or create an admin interface to manage programs and sessions
+
+3. **Test the Booking Flow**:
+   - Navigate to `/booking` in the app
+   - View available classes on the calendar
+   - Click a class to book it
+   - Check "My Bookings" tab to see your bookings
+   - Test cancellation (24+ hours before class)
+
 ### 📋 Next Steps When Resuming
 
-1. **Complete Automation System**:
+1. **Enhance Booking System**:
+   - [ ] Add admin interface for managing programs and class sessions
+   - [ ] Implement recurring class sessions
+   - [ ] Add payment processing with Stripe
+   - [ ] Create public booking pages for non-authenticated users
+   - [ ] Add check-in functionality for attendance
+   - [ ] Implement membership and credit system
+   - [ ] Add reporting for class attendance and revenue
+
+2. **Complete Automation System**:
    - [ ] Implement actual workflow execution engine
    - [ ] Add more trigger types (webhook, schedule, event)
    - [ ] Create visual workflow builder UI
    - [ ] Add workflow templates for common gym scenarios
 
-2. **Enhance WhatsApp Features**:
+3. **Enhance WhatsApp Features**:
    - [ ] Add WhatsApp template messages (requires Facebook Business verification)
    - [ ] Implement broadcast messaging
    - [ ] Add media message support (images, PDFs)
    - [ ] Create conversation threading
 
-3. **Lead Management**:
+4. **Lead Management**:
    - [ ] Complete lead scoring system
    - [ ] Add lead assignment to staff
    - [ ] Implement lead nurturing workflows
    - [ ] Add conversion tracking
 
-4. **Integrations to Add**:
+5. **Integrations to Add**:
    - [ ] Stripe for payment processing
    - [ ] Calendar booking system completion
    - [ ] Email marketing integration
    - [ ] Gym management software APIs
 
-5. **Database Migrations**:
+6. **Database Migrations**:
    - [ ] Run pending migrations for messaging tables
    - [ ] Add indexes for performance
    - [ ] Set up proper RLS policies
@@ -151,6 +206,12 @@ vercel --prod
 - [ ] Dashboard buttons navigate correctly
 - [ ] Webhook receives incoming messages
 - [ ] Database tables created successfully
+- [ ] Booking calendar displays available classes
+- [ ] Class booking creates successful booking
+- [ ] Waitlist functionality works when class is full
+- [ ] Cancellation respects 24-hour policy
+- [ ] Customer bookings display correctly
+- [ ] SMS notifications sent for bookings
 
 ### 🔐 Security Notes
 
@@ -161,5 +222,5 @@ vercel --prod
 
 ---
 
-**Last Updated**: July 23, 2025
-**Last Commit**: 0eaec16 - fix: Resolve WhatsApp channel error and add sandbox instructions
+**Last Updated**: July 24, 2025
+**Last Commit**: Implemented GoTeamUp-style booking system with automated waitlist management

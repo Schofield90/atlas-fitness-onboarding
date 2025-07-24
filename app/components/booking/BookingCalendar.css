@@ -1,0 +1,150 @@
+/* Booking Calendar Custom Styles */
+.booking-calendar {
+  padding: 20px;
+}
+
+/* Override react-big-calendar styles */
+.booking-calendar .rbc-calendar {
+  font-family: inherit;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.booking-calendar .rbc-header {
+  padding: 10px;
+  font-weight: 600;
+  background-color: #f8f9fa;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.booking-calendar .rbc-today {
+  background-color: #e3f2fd;
+}
+
+.booking-calendar .rbc-event {
+  padding: 4px 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.booking-calendar .rbc-event:hover {
+  transform: scale(1.02);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.booking-calendar .rbc-toolbar {
+  margin-bottom: 20px;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.booking-calendar .rbc-toolbar button {
+  color: #495057;
+  border: 1px solid #dee2e6;
+  background-color: white;
+  padding: 6px 12px;
+  margin: 0 2px;
+  border-radius: 4px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.booking-calendar .rbc-toolbar button:hover {
+  background-color: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.booking-calendar .rbc-toolbar button.rbc-active {
+  background-color: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.booking-calendar .rbc-toolbar button.rbc-active:hover {
+  background-color: #0056b3;
+  border-color: #004085;
+}
+
+/* Time slot styles */
+.booking-calendar .rbc-time-slot {
+  min-height: 40px;
+}
+
+.booking-calendar .rbc-timeslot-group {
+  min-height: 80px;
+}
+
+/* Month view styles */
+.booking-calendar .rbc-month-view {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.booking-calendar .rbc-month-row {
+  min-height: 100px;
+}
+
+/* Week/Day view styles */
+.booking-calendar .rbc-time-view {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.booking-calendar .rbc-time-header {
+  background-color: #f8f9fa;
+}
+
+.booking-calendar .rbc-time-content {
+  border-top: 2px solid #dee2e6;
+}
+
+/* Event colors based on availability */
+.booking-calendar .rbc-event.available {
+  background-color: #28a745;
+}
+
+.booking-calendar .rbc-event.nearly-full {
+  background-color: #ffc107;
+}
+
+.booking-calendar .rbc-event.full {
+  background-color: #dc3545;
+}
+
+/* Loading state */
+.booking-calendar-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 600px;
+  color: #6c757d;
+}
+
+/* Modal styles are in the component using Tailwind */
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .booking-calendar {
+    padding: 10px;
+  }
+  
+  .booking-calendar .rbc-toolbar {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .booking-calendar .rbc-toolbar-label {
+    margin: 10px 0;
+  }
+  
+  .booking-calendar .rbc-event {
+    font-size: 0.75rem;
+    padding: 2px 4px;
+  }
+}
