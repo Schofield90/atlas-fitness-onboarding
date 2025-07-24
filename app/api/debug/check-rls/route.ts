@@ -28,11 +28,17 @@ export async function GET(request: NextRequest) {
       .select('*')
       .eq('id', orgId);
 
-    // Test 3: Check if RLS is enabled
-    const { data: rlsCheck } = await serviceSupabase
-      .rpc('check_rls_enabled', { table_name: 'organizations' })
-      .single()
-      .catch(() => ({ data: null }));
+    // Test 3: Check if RLS is enabled (wrapped in try-catch)
+    let rlsCheck = null;
+    try {
+      const { data } = await serviceSupabase
+        .rpc('check_rls_enabled', { table_name: 'organizations' })
+        .single();
+      rlsCheck = data;
+    } catch (error) {
+      // RPC function might not exist
+      rlsCheck = null;
+    }
 
     return NextResponse.json({
       orgId,
