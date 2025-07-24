@@ -53,4 +53,4 @@ This project is configured for deployment on Vercel. The main branch auto-deploy
 
 ## Development Notes
 
-See `CLAUDE.md` for detailed development notes and project status.
+See `CLAUDE.md` for detailed development notes and project status.# Force deployment
