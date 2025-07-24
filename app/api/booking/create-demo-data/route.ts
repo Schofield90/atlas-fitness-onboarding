@@ -13,6 +13,46 @@ export async function POST(request: NextRequest) {
     // Use the Atlas Fitness demo organization ID
     const organizationId = '63589490-8f55-4157-bd3a-e141594b740e';
 
+    // First, ensure the organization exists
+    const { data: existingOrg } = await supabase
+      .from('organizations')
+      .select('id')
+      .eq('id', organizationId)
+      .single();
+
+    if (!existingOrg) {
+      // Create the demo organization
+      const { error: orgError } = await supabase
+        .from('organizations')
+        .insert({
+          id: organizationId,
+          name: 'Atlas Fitness Demo',
+          slug: 'atlas-fitness-demo',
+          description: 'Demo gym for testing the booking system',
+          website: 'https://atlas-fitness-demo.com',
+          phone: '+1-555-ATLAS-FIT',
+          email: 'demo@atlasfitness.com',
+          address: '123 Fitness Street, Demo City, DC 12345',
+          timezone: 'America/New_York',
+          currency: 'USD',
+          settings: {
+            booking_window_days: 30,
+            cancellation_hours: 24,
+            max_bookings_per_customer: 10
+          },
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+
+      if (orgError) {
+        console.error('Organization creation error:', orgError);
+        return NextResponse.json(
+          { error: 'Failed to create demo organization', details: orgError },
+          { status: 500 }
+        );
+      }
+    }
+
     // Check if programs already exist
     const { data: existingPrograms } = await supabase
       .from('programs')
