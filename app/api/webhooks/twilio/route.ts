@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import twilio from 'twilio'
 import { createClient } from '@/app/lib/supabase/server'
+import { generateAIResponse, formatKnowledgeContext } from '@/app/lib/ai/anthropic'
+import { fetchRelevantKnowledge } from '@/app/lib/knowledge'
 
 // Twilio webhook signature validation
 const validateTwilioSignature = async (request: NextRequest, bodyParams: Record<string, any>) => {
@@ -157,6 +159,34 @@ For assistance, please contact our support team.`
         // Handle membership renewal request
         responseMessage = "Thanks for your interest in renewing! Our team will contact you shortly with renewal options."
         // TODO: Create a task or notification for staff
+        break
+        
+      default:
+        // Use AI to generate response
+        try {
+          // Fetch relevant knowledge for context
+          const knowledge = await fetchRelevantKnowledge(messageData.body)
+          const knowledgeContext = formatKnowledgeContext(knowledge)
+          
+          // Generate AI response
+          const aiResponse = await generateAIResponse(messageData.body, cleanedFrom, knowledgeContext)
+          responseMessage = aiResponse.message
+          
+          // Log if booking intent detected
+          if (aiResponse.shouldBookAppointment) {
+            console.log('Booking intent detected for:', cleanedFrom)
+            // TODO: Implement booking flow
+          }
+          
+          // Save extracted info if any
+          if (aiResponse.extractedInfo?.email) {
+            // TODO: Update contact with extracted information
+            console.log('Extracted info:', aiResponse.extractedInfo)
+          }
+        } catch (error) {
+          console.error('AI response error:', error)
+          responseMessage = 'Thanks for your message! Our team will get back to you shortly. For immediate assistance, please call us at 01234 567890.'
+        }
         break
     }
 

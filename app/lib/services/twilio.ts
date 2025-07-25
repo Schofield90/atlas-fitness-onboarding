@@ -28,13 +28,9 @@ export async function sendWhatsAppMessage(options: SendMessageOptions) {
   }
 
   try {
-    // Ensure both from and to have whatsapp: prefix
-    const fromNumber = twilioWhatsAppFrom.startsWith('whatsapp:') 
-      ? twilioWhatsAppFrom 
-      : `whatsapp:${twilioWhatsAppFrom}`
-    const toNumber = options.to.startsWith('whatsapp:') 
-      ? options.to 
-      : `whatsapp:${options.to}`
+    // WhatsApp Business numbers don't need the prefix in env vars
+    const fromNumber = `whatsapp:${twilioWhatsAppFrom.replace('whatsapp:', '')}`
+    const toNumber = `whatsapp:${options.to.replace('whatsapp:', '')}`
     
     console.log('Sending WhatsApp message:', {
       from: fromNumber,

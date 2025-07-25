@@ -273,3 +273,86 @@ const { data, error } = await supabase
 ```
 
 **Last Working Commit**: caeda19
+
+---
+
+## 🤖 WhatsApp AI Integration (July 25, 2025)
+
+### Overview
+Integrated Anthropic's Claude AI (claude-3-5-sonnet-20241022) to handle WhatsApp conversations automatically. The AI uses a knowledge base stored in Supabase to provide consistent, sales-focused responses.
+
+### What Was Done
+
+1. **Installed Anthropic SDK**
+   ```bash
+   npm install @anthropic-ai/sdk
+   ```
+
+2. **Created AI System Components**
+   - `/app/lib/ai/anthropic.ts` - Claude AI integration
+   - `/app/lib/knowledge.ts` - Knowledge base management
+   - `/supabase/knowledge-table.sql` - Database schema and initial data
+
+3. **Updated WhatsApp Webhook**
+   - Modified `/app/api/webhooks/twilio/route.ts` to use AI for responses
+   - AI handles all messages except keywords (STOP, START, HELP, RENEW)
+
+4. **Knowledge Base Structure**
+   - **SOPs**: Lead management, booking process, objection handling
+   - **FAQs**: Hours, pricing, personal training, membership freezing
+   - **Pricing**: Membership tiers and class packages
+   - **Policies**: Cancellation and guest policies
+   - **Quiz Content**: Interactive fitness questionnaires
+   - **Style Guide**: Communication tone and sales approach
+   - **Schedule**: Peak hours and class highlights
+
+### Setup Instructions
+
+1. **Add Environment Variable**
+   ```env
+   ANTHROPIC_API_KEY=your-api-key-from-console.anthropic.com
+   ```
+
+2. **Create Knowledge Table**
+   - Run `/supabase/knowledge-table.sql` in Supabase SQL Editor
+
+3. **Deploy to Vercel**
+   - Add ANTHROPIC_API_KEY to Vercel environment variables
+   - Redeploy for changes to take effect
+
+### How It Works
+
+1. Customer sends WhatsApp message
+2. Webhook receives message
+3. System fetches relevant knowledge from database
+4. Claude AI generates contextual response
+5. Response sent back via WhatsApp
+
+### Key Features
+
+- **Contextual Responses**: AI uses gym-specific knowledge
+- **Sales Focus**: Guides conversations toward bookings
+- **Booking Detection**: Flags when customers show interest
+- **Info Extraction**: Captures emails and contact details
+- **Fallback Handling**: Graceful errors with human handoff
+
+### Customization
+
+To update the AI's knowledge:
+1. Modify entries in the `knowledge` table
+2. Add new SOPs, FAQs, or policies as needed
+3. The AI automatically uses updated information
+
+### Testing
+
+1. Send a WhatsApp message to your business number
+2. Ask about gym hours, pricing, or membership
+3. The AI should respond with relevant information
+4. Responses are kept concise for WhatsApp (under 300 chars)
+
+### Debug Endpoints
+
+- `/api/whatsapp/debug-send` - Detailed error information
+- `/api/whatsapp/test-template` - Template message testing
+
+**Note**: WhatsApp Business API requires customer-initiated conversations or approved templates for business-initiated messages.
