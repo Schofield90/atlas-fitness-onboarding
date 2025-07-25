@@ -168,14 +168,26 @@ For assistance, please contact our support team.`
           const knowledge = await fetchRelevantKnowledge(messageData.body)
           const knowledgeContext = formatKnowledgeContext(knowledge)
           
-          console.log('Knowledge passed to AI:', {
+          console.log('Knowledge fetching debug:', {
             messageQuery: messageData.body,
             knowledgeItemsCount: knowledge.length,
-            knowledgePreview: knowledge.slice(0, 3).map(k => ({
+            knowledgeTypes: knowledge.map(k => k.type),
+            knowledgePreview: knowledge.slice(0, 5).map(k => ({
               type: k.type,
-              content: k.content.substring(0, 100) + '...'
-            }))
+              content: k.content
+            })),
+            contextLength: knowledgeContext.length
           })
+          
+          // If asking about location/where, log location-specific knowledge
+          if (messageData.body.toLowerCase().includes('where') || messageData.body.toLowerCase().includes('location')) {
+            const locationKnowledge = knowledge.filter(k => 
+              k.content.toLowerCase().includes('location') || 
+              k.content.toLowerCase().includes('address') ||
+              k.content.toLowerCase().includes('street')
+            )
+            console.log('Location-specific knowledge found:', locationKnowledge)
+          }
           
           // Generate AI response
           const aiResponse = await generateAIResponse(messageData.body, cleanedFrom, knowledgeContext)

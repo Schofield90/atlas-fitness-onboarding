@@ -1,9 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+import { createClient } from '@/app/lib/supabase/server'
 
 export const KNOWLEDGE_TYPES = {
   SOP: 'sop',
@@ -31,6 +26,7 @@ export interface Knowledge {
 
 // Fetch all SOPs and quiz content for AI context
 export async function fetchCoreKnowledge(): Promise<Knowledge[]> {
+  const supabase = await createClient()
   const { data, error } = await supabase
     .from('knowledge')
     .select('*')
@@ -48,6 +44,7 @@ export async function fetchCoreKnowledge(): Promise<Knowledge[]> {
 // Fetch context-specific knowledge based on keywords
 export async function fetchRelevantKnowledge(message: string): Promise<Knowledge[]> {
   const messageLower = message.toLowerCase()
+  const supabase = await createClient()
   
   // First, get ALL knowledge to ensure nothing is missed
   const { data: allKnowledge, error } = await supabase
@@ -116,6 +113,7 @@ export async function saveKnowledge(
   content: string,
   metadata?: any
 ): Promise<Knowledge | null> {
+  const supabase = await createClient()
   const { data, error } = await supabase
     .from('knowledge')
     .insert([{ type, content, metadata }])
@@ -132,6 +130,7 @@ export async function saveKnowledge(
 
 // Get interactive quiz questions
 export async function getQuizQuestions(): Promise<any[]> {
+  const supabase = await createClient()
   const { data, error } = await supabase
     .from('knowledge')
     .select('*')
