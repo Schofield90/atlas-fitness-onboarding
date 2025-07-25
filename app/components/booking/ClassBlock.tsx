@@ -65,7 +65,7 @@ const ClassBlock: React.FC<ClassBlockProps> = ({
       <div className="flex items-start justify-between mb-2">
         <div className="flex-1 min-w-0">
           <h4 className="font-semibold text-white text-sm truncate">{title}</h4>
-          <p className="text-xs text-slate-300 truncate">{instructor}</p>
+          <p className="text-xs text-white opacity-80 truncate">{instructor}</p>
         </div>
         <Badge variant="success" className="ml-2 text-xs">
           {earnings}
@@ -74,16 +74,16 @@ const ClassBlock: React.FC<ClassBlockProps> = ({
       
       {/* Time and Duration */}
       <div className="flex items-center gap-2 mb-3">
-        <Clock className="w-3 h-3 text-slate-400" />
-        <span className="text-xs text-slate-300">{time}</span>
-        <span className="text-xs text-slate-400">({duration}min)</span>
+        <Clock className="w-3 h-3 text-gray-400" />
+        <span className="text-xs text-white">{time}</span>
+        <span className="text-xs text-gray-400">({duration}min)</span>
       </div>
       
       {/* Room */}
       {room && (
         <div className="flex items-center gap-2 mb-3">
-          <MapPin className="w-3 h-3 text-slate-400" />
-          <span className="text-xs text-slate-300">{room}</span>
+          <MapPin className="w-3 h-3 text-gray-400" />
+          <span className="text-xs text-white">{room}</span>
         </div>
       )}
       
@@ -91,12 +91,12 @@ const ClassBlock: React.FC<ClassBlockProps> = ({
       <div className="mb-3">
         <div className="flex items-center justify-between text-xs mb-1">
           <div className="flex items-center gap-1">
-            <Users className="w-3 h-3 text-slate-400" />
-            <span className="text-slate-400">Capacity</span>
+            <Users className="w-3 h-3 text-gray-400" />
+            <span className="text-white opacity-70">Capacity</span>
           </div>
           <span className="text-white font-medium">{bookings}/{capacity}</span>
         </div>
-        <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+        <div className="h-1.5 bg-gray-900 rounded-full overflow-hidden">
           <div 
             className={`h-full transition-all duration-300 ${getUtilizationColor()}`}
             style={{ width: `${Math.min(utilization, 100)}%` }}
@@ -112,19 +112,21 @@ const ClassBlock: React.FC<ClassBlockProps> = ({
       {/* Quick Actions */}
       <div className="flex gap-2 mt-auto">
         <button 
-          className="text-xs text-slate-400 hover:text-white transition-colors"
+          className="text-xs text-white opacity-70 hover:opacity-100 transition-opacity"
           onClick={(e) => {
             e.stopPropagation();
-            // Handle view details
+            console.log(`View details for ${title}`);
+            alert(`Class details modal would open for ${title}`);
           }}
         >
           Details
         </button>
         <button 
-          className="text-xs text-slate-400 hover:text-white transition-colors"
+          className="text-xs text-white opacity-70 hover:opacity-100 transition-opacity"
           onClick={(e) => {
             e.stopPropagation();
-            // Handle message class
+            console.log(`Message attendees of ${title}`);
+            alert(`Message modal would open to contact ${bookings} attendees of ${title}`);
           }}
         >
           Message

@@ -27,14 +27,14 @@ const QuickStat: React.FC<QuickStatProps> = ({ label, value, change, trend }) =>
       case 'down':
         return 'text-red-400';
       default:
-        return 'text-slate-400';
+        return 'text-gray-400';
     }
   };
   
   return (
-    <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-4 backdrop-blur">
+    <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 backdrop-blur">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-sm font-medium text-slate-400">{label}</p>
+        <p className="text-sm font-medium text-white opacity-70">{label}</p>
         {getTrendIcon()}
       </div>
       <div className="flex items-baseline gap-2">

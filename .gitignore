@@ -84,3 +84,4 @@ build/
 # API recordings (potentially sensitive)
 ghl_call_recordings/
 audio_files/
+.env*.local

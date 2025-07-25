@@ -133,16 +133,30 @@ export default function DashboardPage() {
           </div>
 
           <div className="bg-gray-800 rounded-lg p-6">
-            <h3 className="text-lg font-bold mb-4">📱 Setup WhatsApp</h3>
+            <h3 className="text-lg font-bold mb-4">📱 WhatsApp Integration</h3>
             <p className="text-gray-300 mb-4">
-              Enable WhatsApp integration for instant lead communication.
+              Automated booking confirmations and class reminders via WhatsApp.
             </p>
-            <button 
-              onClick={() => router.push('/test-whatsapp')}
-              className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition-colors"
-            >
-              Setup WhatsApp
-            </button>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center">
+                <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                <span className="text-green-400 text-sm">Connected</span>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => router.push('/integrations/whatsapp')}
+                className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition-colors"
+              >
+                Manage
+              </button>
+              <button 
+                onClick={() => router.push('/test-whatsapp')}
+                className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition-colors"
+              >
+                Send Test
+              </button>
+            </div>
           </div>
 
           <div className="bg-gray-800 rounded-lg p-6">

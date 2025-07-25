@@ -97,29 +97,47 @@ const mockClasses = [
   }
 ];
 
-const PremiumCalendarGrid: React.FC = () => {
+interface PremiumCalendarGridProps {
+  classes?: any[];
+  loading?: boolean;
+}
+
+const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({ classes = mockClasses, loading = false }) => {
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   
   const getClassesForDayAndTime = (dayIndex: number, timeIndex: number) => {
-    return mockClasses.filter(cls => cls.day === dayIndex && cls.timeSlot === timeIndex);
+    return classes.filter(cls => cls.day === dayIndex && cls.timeSlot === timeIndex);
   };
   
+  if (loading) {
+    return (
+      <div className="bg-gray-800 rounded-xl border border-gray-700 p-8">
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+            <p className="text-gray-400">Loading classes...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
   return (
-    <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden shadow-2xl">
+    <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-2xl">
       <div className="grid grid-cols-8 h-full">
         {/* Time column */}
-        <div className="border-r border-slate-800 bg-slate-900/50">
-          <div className="h-16 border-b border-slate-800 flex items-center justify-center">
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+        <div className="border-r border-gray-700 bg-gray-800/50">
+          <div className="h-16 border-b border-gray-700 flex items-center justify-center">
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
               Time
             </span>
           </div>
           {timeSlots.map((time, index) => (
             <div
               key={index}
-              className="h-20 border-b border-slate-800 px-3 py-2 flex items-start justify-end"
+              className="h-20 border-b border-gray-700 px-3 py-2 flex items-start justify-end"
             >
-              <span className="text-xs text-slate-500 font-medium">
+              <span className="text-xs text-gray-500 font-medium">
                 {time}
               </span>
             </div>
@@ -128,12 +146,12 @@ const PremiumCalendarGrid: React.FC = () => {
         
         {/* Day columns */}
         {days.map((day, dayIndex) => (
-          <div key={dayIndex} className="border-r border-slate-800 last:border-r-0">
+          <div key={dayIndex} className="border-r border-gray-700 last:border-r-0">
             {/* Day header */}
-            <div className="h-16 border-b border-slate-800 p-3 bg-slate-900/30">
+            <div className="h-16 border-b border-gray-700 p-3 bg-gray-800/30">
               <div className="text-center">
                 <div className="font-semibold text-white text-sm">{day}</div>
-                <div className="text-xs text-slate-400 mt-1">
+                <div className="text-xs text-gray-400 mt-1">
                   {new Date(Date.now() + dayIndex * 24 * 60 * 60 * 1000).getDate()}
                 </div>
               </div>
@@ -144,7 +162,7 @@ const PremiumCalendarGrid: React.FC = () => {
               {timeSlots.map((_, timeIndex) => (
                 <div
                   key={timeIndex}
-                  className="h-20 border-b border-slate-800 relative"
+                  className="h-20 border-b border-gray-700 relative"
                 >
                   {/* Classes in this time slot */}
                   {getClassesForDayAndTime(dayIndex, timeIndex).map((cls, classIndex) => (
@@ -168,7 +186,14 @@ const PremiumCalendarGrid: React.FC = () => {
               {/* Add class button overlay */}
               <div className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-200">
                 <div className="h-full w-full flex items-center justify-center">
-                  <button className="bg-slate-800/90 hover:bg-slate-700/90 border border-slate-600 rounded-lg px-3 py-2 text-xs text-slate-300 hover:text-white transition-colors backdrop-blur-sm">
+                  <button 
+                    className="bg-slate-800/90 hover:bg-slate-700/90 border border-slate-600 rounded-lg px-3 py-2 text-xs text-slate-300 hover:text-white transition-colors backdrop-blur-sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      console.log(`Add class at ${day} ${timeSlots[timeIndex]}`);
+                      alert(`Add class modal would open for ${day} at ${timeSlots[timeIndex]}`);
+                    }}
+                  >
                     + Add Class
                   </button>
                 </div>
@@ -178,18 +203,20 @@ const PremiumCalendarGrid: React.FC = () => {
         ))}
       </div>
       
-      {/* Current time indicator */}
-      <div className="absolute left-16 right-0 pointer-events-none">
-        <div 
-          className="h-0.5 bg-orange-500 shadow-lg"
-          style={{
-            top: `${16 + (new Date().getHours() - 6) * 80 + (new Date().getMinutes() / 60) * 80}px`,
-            display: new Date().getHours() >= 6 && new Date().getHours() <= 21 ? 'block' : 'none'
-          }}
-        >
-          <div className="w-3 h-3 bg-orange-500 rounded-full -translate-y-1.5 -translate-x-1.5 shadow-lg" />
+      {/* Current time indicator - only render on client */}
+      {typeof window !== 'undefined' && (
+        <div className="absolute left-16 right-0 pointer-events-none">
+          <div 
+            className="h-0.5 bg-orange-500 shadow-lg"
+            style={{
+              top: `${16 + (new Date().getHours() - 6) * 80 + (new Date().getMinutes() / 60) * 80}px`,
+              display: new Date().getHours() >= 6 && new Date().getHours() <= 21 ? 'block' : 'none'
+            }}
+          >
+            <div className="w-3 h-3 bg-orange-500 rounded-full -translate-y-1.5 -translate-x-1.5 shadow-lg" />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

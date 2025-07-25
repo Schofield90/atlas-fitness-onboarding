@@ -29,8 +29,8 @@ const TimeRangeFilter: React.FC = () => {
   return (
     <div className="mb-6">
       <div className="flex items-center gap-2 mb-3">
-        <Clock className="w-4 h-4 text-slate-400" />
-        <h3 className="text-sm font-medium text-slate-300">Time Range</h3>
+        <Clock className="w-4 h-4 text-gray-400" />
+        <h3 className="text-sm font-medium text-gray-300">Time Range</h3>
       </div>
       
       {/* Date Range Selector */}
@@ -38,13 +38,17 @@ const TimeRangeFilter: React.FC = () => {
         {timeRanges.map((range) => (
           <button
             key={range.id}
-            onClick={() => setSelectedRange(range.id)}
+            onClick={() => {
+              setSelectedRange(range.id);
+              console.log(`Filter by time range: ${range.name}`);
+              // In a real app, this would filter the calendar
+            }}
             className={`
               w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium
               border transition-all duration-200
               ${selectedRange === range.id
-                ? 'bg-slate-700 text-white border-slate-600'
-                : 'text-slate-400 hover:text-slate-300 hover:bg-slate-800 border-transparent'
+                ? 'bg-gray-700 text-white border-gray-600'
+                : 'text-gray-300 hover:text-white hover:bg-gray-700 border-transparent'
               }
             `}
           >
@@ -57,20 +61,24 @@ const TimeRangeFilter: React.FC = () => {
       </div>
       
       {/* Time of Day Filters */}
-      <div className="border-t border-slate-800 pt-4">
-        <h4 className="text-xs font-medium text-slate-400 mb-2 uppercase tracking-wide">
+      <div className="border-t border-gray-700 pt-4">
+        <h4 className="text-xs font-medium text-gray-400 mb-2 uppercase tracking-wide">
           Time of Day
         </h4>
         <div className="space-y-2">
           {quickTimes.map((time) => (
             <button
               key={time.id}
-              onClick={() => toggleTimeFilter(time.id)}
+              onClick={() => {
+                toggleTimeFilter(time.id);
+                console.log(`Toggle time filter: ${time.name} (${time.time})`);
+                // In a real app, this would filter the calendar
+              }}
               className={`
                 w-full px-3 py-2 rounded-lg text-sm border transition-all duration-200
                 ${selectedTimes.includes(time.id)
                   ? 'bg-orange-600/20 text-orange-300 border-orange-600/50'
-                  : 'text-slate-400 hover:text-slate-300 hover:bg-slate-800 border-transparent'
+                  : 'text-gray-300 hover:text-white hover:bg-gray-700 border-transparent'
                 }
               `}
             >

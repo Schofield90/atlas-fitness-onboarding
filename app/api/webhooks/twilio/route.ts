@@ -7,7 +7,14 @@ import { createClient } from '@/app/lib/supabase/server'
 const validateTwilioSignature = async (request: NextRequest, bodyParams: Record<string, any>) => {
   const headersList = await headers()
   const twilioSignature = headersList.get('x-twilio-signature')
-  const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/twilio`
+  
+  // In development with ngrok, use the forwarded host
+  const host = headersList.get('x-forwarded-host') || headersList.get('host')
+  const protocol = headersList.get('x-forwarded-proto') || 'https'
+  const webhookUrl = process.env.NODE_ENV === 'development' && host?.includes('ngrok')
+    ? `${protocol}://${host}/api/webhooks/twilio`
+    : `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/twilio`
+    
   const authToken = process.env.TWILIO_AUTH_TOKEN
 
   if (!twilioSignature || !authToken) {
@@ -22,6 +29,30 @@ const validateTwilioSignature = async (request: NextRequest, bodyParams: Record<
   )
 }
 
+// Forward webhook to local development if configured
+const forwardToLocalDev = async (bodyParams: Record<string, any>) => {
+  const localWebhookUrl = process.env.LOCAL_DEV_WEBHOOK_URL
+  if (!localWebhookUrl) return null
+
+  try {
+    const response = await fetch(localWebhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams(bodyParams).toString()
+    })
+    
+    if (response.ok) {
+      return await response.text()
+    }
+  } catch (error) {
+    console.error('Failed to forward to local dev:', error)
+  }
+  
+  return null
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.text()
@@ -32,6 +63,24 @@ export async function POST(request: NextRequest) {
     params.forEach((value, key) => {
       bodyParams[key] = value
     })
+    
+    // Log webhook receipt in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Webhook received:', {
+        headers: Object.fromEntries((await headers()).entries()),
+        body: bodyParams
+      })
+    }
+    
+    // Check if we should forward to local development
+    if (process.env.NODE_ENV === 'production' && process.env.LOCAL_DEV_WEBHOOK_URL) {
+      const localResponse = await forwardToLocalDev(bodyParams)
+      if (localResponse) {
+        return new NextResponse(localResponse, {
+          headers: { 'Content-Type': 'text/xml' }
+        })
+      }
+    }
     
     // Validate Twilio signature in production
     if (process.env.NODE_ENV === 'production' && !(await validateTwilioSignature(request, bodyParams))) {

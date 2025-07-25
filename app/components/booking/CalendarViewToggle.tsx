@@ -87,14 +87,14 @@ const CalendarViewToggle: React.FC = () => {
       
       {/* View Toggle */}
       <div className="flex items-center gap-2">
-        <div className="flex bg-slate-800 border border-slate-700 rounded-lg p-1">
+        <div className="flex bg-gray-800 border border-gray-700 rounded-lg p-1">
           <button
             onClick={() => setView('day')}
             className={`
               px-3 py-1.5 text-sm font-medium rounded-md transition-colors
               ${view === 'day' 
                 ? 'bg-orange-600 text-white' 
-                : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                : 'text-gray-300 hover:text-white hover:bg-gray-700'
               }
             `}
           >
@@ -106,7 +106,7 @@ const CalendarViewToggle: React.FC = () => {
               px-3 py-1.5 text-sm font-medium rounded-md transition-colors
               ${view === 'week' 
                 ? 'bg-orange-600 text-white' 
-                : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                : 'text-gray-300 hover:text-white hover:bg-gray-700'
               }
             `}
           >
@@ -118,7 +118,7 @@ const CalendarViewToggle: React.FC = () => {
               px-3 py-1.5 text-sm font-medium rounded-md transition-colors
               ${view === 'month' 
                 ? 'bg-orange-600 text-white' 
-                : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                : 'text-gray-300 hover:text-white hover:bg-gray-700'
               }
             `}
           >
@@ -126,12 +126,28 @@ const CalendarViewToggle: React.FC = () => {
           </button>
         </div>
         
-        <div className="h-6 w-px bg-slate-700" />
+        <div className="h-6 w-px bg-gray-700" />
         
-        <Button variant="ghost" size="sm">
+        <Button 
+          variant="ghost" 
+          size="sm"
+          onClick={() => {
+            console.log('Grid view clicked');
+            alert('Grid view would be shown here');
+          }}
+          title="Grid View"
+        >
           <Grid className="w-4 h-4" />
         </Button>
-        <Button variant="ghost" size="sm">
+        <Button 
+          variant="ghost" 
+          size="sm"
+          onClick={() => {
+            console.log('List view clicked');
+            alert('List view would be shown here');
+          }}
+          title="List View"
+        >
           <List className="w-4 h-4" />
         </Button>
       </div>

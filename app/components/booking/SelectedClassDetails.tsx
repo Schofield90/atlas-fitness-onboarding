@@ -54,31 +54,49 @@ const SelectedClassDetails: React.FC = () => {
           <div className="flex items-start justify-between mb-4">
             <div>
               <h2 className="text-xl font-bold text-white">{selectedClass.title}</h2>
-              <p className="text-sm text-slate-400">{selectedClass.date}</p>
+              <p className="text-sm text-gray-300">{selectedClass.date}</p>
             </div>
             <div className="flex gap-2">
-              <Button variant="ghost" size="sm">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => {
+                  console.log('Edit class clicked');
+                  alert('Edit class modal would open here');
+                }}
+                title="Edit Class"
+              >
                 <Edit className="w-4 h-4" />
               </Button>
-              <Button variant="ghost" size="sm">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => {
+                  if (confirm('Are you sure you want to delete this class?')) {
+                    console.log('Delete class confirmed');
+                    alert('Class would be deleted');
+                  }
+                }}
+                title="Delete Class"
+              >
                 <Trash2 className="w-4 h-4" />
               </Button>
             </div>
           </div>
           
-          <p className="text-sm text-slate-300 mb-4">{selectedClass.description}</p>
+          <p className="text-sm text-white opacity-80 mb-4">{selectedClass.description}</p>
           
           {/* Quick Stats */}
           <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className="bg-slate-800/50 rounded-lg p-3">
+            <div className="bg-gray-700/50 rounded-lg p-3">
               <div className="flex items-center gap-2 mb-1">
-                <Clock className="w-4 h-4 text-slate-400" />
-                <span className="text-xs text-slate-400">Duration</span>
+                <Clock className="w-4 h-4 text-gray-400" />
+                <span className="text-xs text-gray-400">Duration</span>
               </div>
               <p className="text-sm font-medium text-white">{selectedClass.duration} mins</p>
             </div>
             
-            <div className="bg-slate-800/50 rounded-lg p-3">
+            <div className="bg-gray-700/50 rounded-lg p-3">
               <div className="flex items-center gap-2 mb-1">
                 <DollarSign className="w-4 h-4 text-green-400" />
                 <span className="text-xs text-slate-400">Earnings</span>
@@ -86,18 +104,18 @@ const SelectedClassDetails: React.FC = () => {
               <p className="text-sm font-medium text-green-400">{selectedClass.earnings}</p>
             </div>
             
-            <div className="bg-slate-800/50 rounded-lg p-3">
+            <div className="bg-gray-700/50 rounded-lg p-3">
               <div className="flex items-center gap-2 mb-1">
-                <MapPin className="w-4 h-4 text-slate-400" />
-                <span className="text-xs text-slate-400">Location</span>
+                <MapPin className="w-4 h-4 text-gray-400" />
+                <span className="text-xs text-gray-400">Location</span>
               </div>
               <p className="text-sm font-medium text-white">{selectedClass.room}</p>
             </div>
             
-            <div className="bg-slate-800/50 rounded-lg p-3">
+            <div className="bg-gray-700/50 rounded-lg p-3">
               <div className="flex items-center gap-2 mb-1">
-                <Users className="w-4 h-4 text-slate-400" />
-                <span className="text-xs text-slate-400">Capacity</span>
+                <Users className="w-4 h-4 text-gray-400" />
+                <span className="text-xs text-gray-400">Capacity</span>
               </div>
               <p className="text-sm font-medium text-white">
                 {selectedClass.bookings}/{selectedClass.capacity}
@@ -119,13 +137,21 @@ const SelectedClassDetails: React.FC = () => {
                 <div className="flex items-center gap-2 mt-1">
                   <div className="flex items-center gap-1">
                     <Star className="w-3 h-3 text-yellow-400 fill-current" />
-                    <span className="text-xs text-slate-400">{selectedClass.instructor.rating}</span>
+                    <span className="text-xs text-white opacity-70">{selectedClass.instructor.rating}</span>
                   </div>
-                  <span className="text-xs text-slate-400">•</span>
-                  <span className="text-xs text-slate-400">{selectedClass.instructor.experience}</span>
+                  <span className="text-xs text-gray-400">•</span>
+                  <span className="text-xs text-white opacity-70">{selectedClass.instructor.experience}</span>
                 </div>
               </div>
-              <Button variant="ghost" size="sm">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => {
+                  console.log('Message instructor clicked');
+                  alert('Message to instructor would be sent');
+                }}
+                title="Message Instructor"
+              >
                 <MessageSquare className="w-4 h-4" />
               </Button>
             </div>
@@ -141,10 +167,10 @@ const SelectedClassDetails: React.FC = () => {
             <div className="space-y-4">
               <div>
                 <div className="flex justify-between text-sm mb-2">
-                  <span className="text-slate-400">Utilization</span>
+                  <span className="text-white opacity-70">Utilization</span>
                   <span className="text-white font-medium">{utilizationRate.toFixed(0)}%</span>
                 </div>
-                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-2 bg-gray-900 rounded-full overflow-hidden">
                   <div 
                     className={`h-full transition-all ${
                       utilizationRate >= 90 ? 'bg-red-500' :
@@ -158,7 +184,7 @@ const SelectedClassDetails: React.FC = () => {
               
               {selectedClass.waitlist > 0 && (
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-400">Waitlist</span>
+                  <span className="text-sm text-white opacity-70">Waitlist</span>
                   <Badge variant="warning">{selectedClass.waitlist} waiting</Badge>
                 </div>
               )}
@@ -187,7 +213,15 @@ const SelectedClassDetails: React.FC = () => {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Attendees ({selectedClass.attendees.length})</CardTitle>
-              <Button variant="ghost" size="sm">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => {
+                  console.log('Add attendee clicked');
+                  alert('Add attendee modal would open');
+                }}
+                title="Add Attendee"
+              >
                 <UserPlus className="w-4 h-4" />
               </Button>
             </div>
@@ -198,7 +232,7 @@ const SelectedClassDetails: React.FC = () => {
                 <div key={index} className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-white">{attendee.name}</p>
-                    <p className="text-xs text-slate-400">{attendee.memberType} Member</p>
+                    <p className="text-xs text-white opacity-60">{attendee.memberType} Member</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge 
@@ -219,17 +253,38 @@ const SelectedClassDetails: React.FC = () => {
         
         {/* Quick Actions */}
         <div className="space-y-3">
-          <Button className="w-full" size="lg">
+          <Button 
+            className="w-full" 
+            size="lg"
+            onClick={() => {
+              console.log('Reschedule class clicked');
+              alert('Reschedule modal would open with calendar picker');
+            }}
+          >
             <Calendar className="w-4 h-4 mr-2" />
             Reschedule Class
           </Button>
           
-          <Button variant="outline" className="w-full">
+          <Button 
+            variant="outline" 
+            className="w-full"
+            onClick={() => {
+              console.log('Message all attendees clicked');
+              alert('Compose message modal would open to send to all 4 attendees');
+            }}
+          >
             <MessageSquare className="w-4 h-4 mr-2" />
             Message All Attendees
           </Button>
           
-          <Button variant="outline" className="w-full">
+          <Button 
+            variant="outline" 
+            className="w-full"
+            onClick={() => {
+              console.log('Manage waitlist clicked');
+              alert('Waitlist management modal would open (3 people waiting)');
+            }}
+          >
             <Users className="w-4 h-4 mr-2" />
             Manage Waitlist
           </Button>

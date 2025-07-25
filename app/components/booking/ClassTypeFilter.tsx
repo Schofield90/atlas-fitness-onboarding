@@ -15,7 +15,7 @@ const ClassTypeFilter: React.FC = () => {
   
   const getColorClasses = (color: string, isSelected: boolean) => {
     const colors = {
-      slate: isSelected ? 'bg-slate-700 text-white border-slate-600' : 'text-slate-400 hover:text-slate-300 hover:bg-slate-800',
+      slate: isSelected ? 'bg-gray-700 text-white border-gray-600' : 'text-gray-300 hover:text-white hover:bg-gray-700',
       orange: isSelected ? 'bg-orange-600 text-white border-orange-500' : 'text-orange-400 hover:text-orange-300 hover:bg-orange-950',
       purple: isSelected ? 'bg-purple-600 text-white border-purple-500' : 'text-purple-400 hover:text-purple-300 hover:bg-purple-950',
       blue: isSelected ? 'bg-blue-600 text-white border-blue-500' : 'text-blue-400 hover:text-blue-300 hover:bg-blue-950',
@@ -28,15 +28,19 @@ const ClassTypeFilter: React.FC = () => {
   return (
     <div className="mb-6">
       <div className="flex items-center gap-2 mb-3">
-        <Filter className="w-4 h-4 text-slate-400" />
-        <h3 className="text-sm font-medium text-slate-300">Class Types</h3>
+        <Filter className="w-4 h-4 text-gray-400" />
+        <h3 className="text-sm font-medium text-gray-300">Class Types</h3>
       </div>
       
       <div className="space-y-2">
         {classTypes.map((type) => (
           <button
             key={type.id}
-            onClick={() => setSelectedType(type.id)}
+            onClick={() => {
+              setSelectedType(type.id);
+              console.log(`Filter by class type: ${type.name}`);
+              // In a real app, this would filter the calendar
+            }}
             className={`
               w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium
               border transition-all duration-200
