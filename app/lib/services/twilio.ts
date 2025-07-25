@@ -49,12 +49,21 @@ export async function sendWhatsAppMessage(options: SendMessageOptions) {
       ...(options.mediaUrl && { mediaUrl: options.mediaUrl })
     })
 
+    console.log('WhatsApp message sent successfully:', {
+      sid: message.sid,
+      status: message.status,
+      errorCode: message.errorCode,
+      errorMessage: message.errorMessage
+    })
+
     return {
       success: true,
       messageId: message.sid,
       status: message.status,
       to: message.to,
-      from: message.from
+      from: message.from,
+      errorCode: message.errorCode,
+      errorMessage: message.errorMessage
     }
   } catch (error: any) {
     console.error('Failed to send WhatsApp message:', error)
