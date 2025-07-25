@@ -72,7 +72,7 @@ export async function fetchRelevantKnowledge(message: string): Promise<Knowledge
     'equipment': [KNOWLEDGE_TYPES.SERVICES]
   }
 
-  const relevantTypes = new Set(coreTypes)
+  const relevantTypes = new Set<KnowledgeType>(coreTypes)
   
   // Add types based on keywords found
   keywords.forEach(keyword => {
