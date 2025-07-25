@@ -50,6 +50,7 @@ const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose, onAdd })
     setFormData({
       title: '',
       instructor: '',
+      instructorPhone: '',
       date: '',
       startTime: '',
       duration: 60,
@@ -57,7 +58,8 @@ const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose, onAdd })
       room: 'Studio A',
       price: 20,
       description: '',
-      type: 'hiit'
+      type: 'hiit',
+      enableReminders: true
     });
     
     onClose();
