@@ -190,8 +190,8 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({ classes = moc
                     className="bg-slate-800/90 hover:bg-slate-700/90 border border-slate-600 rounded-lg px-3 py-2 text-xs text-slate-300 hover:text-white transition-colors backdrop-blur-sm"
                     onClick={(e) => {
                       e.stopPropagation();
-                      console.log(`Add class at ${day} ${timeSlots[timeIndex]}`);
-                      alert(`Add class modal would open for ${day} at ${timeSlots[timeIndex]}`);
+                      console.log(`Add class on ${day}`);
+                      alert(`Add class modal would open for ${day}`);
                     }}
                   >
                     + Add Class
