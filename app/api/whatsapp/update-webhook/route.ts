@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     });
 
     // If this is a WhatsApp-capable number, also update WhatsApp webhook
-    if (targetNumber.capabilities?.whatsapp) {
+    if ((targetNumber.capabilities as any)?.whatsapp || phoneNumber.includes('whatsapp')) {
       try {
         // Update WhatsApp webhook configuration
         await client.incomingPhoneNumbers(targetNumber.sid).update({
