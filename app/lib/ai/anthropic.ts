@@ -119,7 +119,8 @@ export function formatKnowledgeContext(knowledgeRecords: any[]): string {
   Object.entries(grouped).forEach(([type, contents]) => {
     const typeLabel = type.toUpperCase().replace('_', ' ')
     context += `\n${typeLabel}:\n`
-    contents.forEach((content, index) => {
+    const contentArray = contents as string[]
+    contentArray.forEach((content: string, index: number) => {
       context += `${index + 1}. ${content}\n`
     })
   })
