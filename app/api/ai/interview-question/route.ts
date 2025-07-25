@@ -22,6 +22,17 @@ const questionCategories = [
 export async function POST(request: NextRequest) {
   try {
     const { previousAnswers = [] } = await request.json()
+    
+    // Get existing knowledge from database
+    const { createClient } = await import('@/app/lib/supabase/server')
+    const supabase = await createClient()
+    
+    const { data: existingKnowledge } = await supabase
+      .from('knowledge')
+      .select('type, content, metadata')
+    
+    // Extract what we already know
+    const knownInfo = existingKnowledge?.map(k => k.content.toLowerCase()) || []
 
     // Determine which categories have been covered
     const answeredCategories = previousAnswers.map((a: any) => a.category)
@@ -33,20 +44,40 @@ export async function POST(request: NextRequest) {
     const nextCategory = unansweredCategories.sort((a, b) => a.priority - b.priority)[0]
       || questionCategories[Math.floor(Math.random() * questionCategories.length)]
 
+    // Check if we already have basic hours info
+    const hasHours = knownInfo.some(info => 
+      info.includes('hours') || 
+      info.includes('open') || 
+      info.includes('monday') || 
+      info.includes('weekday')
+    )
+    
+    const hasPricing = knownInfo.some(info => 
+      info.includes('membership') && 
+      (info.includes('£') || info.includes('$') || info.includes('price'))
+    )
+    
     // Generate a smart question based on what we already know
     const prompt = `You are helping gather information about a gym business to train an AI sales assistant.
 
-Previous answers provided:
+Existing knowledge in database:
+${existingKnowledge?.slice(0, 10).map(k => `- ${k.type}: ${k.content.substring(0, 100)}...`).join('\n')}
+
+Previous answers in this session:
 ${previousAnswers.map((a: any) => `Q: ${a.question}\nA: ${a.answer}`).join('\n\n')}
 
-Generate ONE specific, practical question about the gym's "${nextCategory.category}".
+${hasHours ? 'NOTE: We already have operating hours information, do NOT ask about basic hours.' : ''}
+${hasPricing ? 'NOTE: We already have membership pricing, do NOT ask about basic membership costs.' : ''}
+
+Generate ONE specific, practical question about the gym's "${nextCategory.category}" that we DON'T already know.
 
 Rules:
 1. Ask for concrete, specific information (prices, times, names, etc.)
 2. Keep questions short and clear
-3. Don't ask for information already provided
+3. NEVER ask for information already in the existing knowledge
 4. Focus on what customers would actually ask about
 5. Make it conversational, not formal
+6. If category basics are covered, ask for more specific details (e.g., if we have general hours, ask about holiday hours)
 
 Return JSON in this format:
 {

@@ -394,6 +394,18 @@ export default function AIConfigPage() {
     const [currentQuestion, setCurrentQuestion] = useState<any>(null)
     const [currentAnswer, setCurrentAnswer] = useState('')
     const [isGettingQuestion, setIsGettingQuestion] = useState(false)
+    const [knowledgeCount, setKnowledgeCount] = useState(0)
+    
+    // Load knowledge count
+    useEffect(() => {
+      const loadKnowledgeCount = async () => {
+        const { data } = await supabase
+          .from('knowledge')
+          .select('id', { count: 'exact' })
+        setKnowledgeCount(data?.length || 0)
+      }
+      loadKnowledgeCount()
+    }, [interviewAnswers])
 
     const getNextQuestion = async () => {
       setIsGettingQuestion(true)
@@ -460,16 +472,22 @@ export default function AIConfigPage() {
           <CardContent>
             <div className="space-y-6">
               {/* Progress */}
-              <div>
-                <div className="flex justify-between text-sm text-gray-600 mb-2">
-                  <span>Questions Answered</span>
-                  <span>{interviewAnswers.length}</span>
+              <div className="space-y-3">
+                <div>
+                  <div className="flex justify-between text-sm text-gray-600 mb-2">
+                    <span>Questions Answered This Session</span>
+                    <span>{interviewAnswers.length}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-purple-600 h-2 rounded-full transition-all"
+                      style={{width: `${Math.min(interviewAnswers.length * 10, 100)}%`}}
+                    />
+                  </div>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-purple-600 h-2 rounded-full transition-all"
-                    style={{width: `${Math.min(interviewAnswers.length * 10, 100)}%`}}
-                  />
+                
+                <div className="text-sm text-gray-600">
+                  Total knowledge entries: <span className="font-medium">{knowledgeCount}</span>
                 </div>
               </div>
 
