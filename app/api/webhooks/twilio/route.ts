@@ -168,6 +168,15 @@ For assistance, please contact our support team.`
           const knowledge = await fetchRelevantKnowledge(messageData.body)
           const knowledgeContext = formatKnowledgeContext(knowledge)
           
+          console.log('Knowledge passed to AI:', {
+            messageQuery: messageData.body,
+            knowledgeItemsCount: knowledge.length,
+            knowledgePreview: knowledge.slice(0, 3).map(k => ({
+              type: k.type,
+              content: k.content.substring(0, 100) + '...'
+            }))
+          })
+          
           // Generate AI response
           const aiResponse = await generateAIResponse(messageData.body, cleanedFrom, knowledgeContext)
           responseMessage = aiResponse.message

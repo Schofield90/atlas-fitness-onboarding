@@ -47,54 +47,67 @@ export async function fetchCoreKnowledge(): Promise<Knowledge[]> {
 
 // Fetch context-specific knowledge based on keywords
 export async function fetchRelevantKnowledge(message: string): Promise<Knowledge[]> {
-  // Keywords to search for
-  const keywords = message.toLowerCase().split(' ').filter(word => word.length > 3)
+  const messageLower = message.toLowerCase()
   
-  // Always include core types
-  const coreTypes = [KNOWLEDGE_TYPES.SOP, KNOWLEDGE_TYPES.FAQ, KNOWLEDGE_TYPES.STYLE]
-  
-  // Add specific types based on keywords
-  const typeMapping: Record<string, KnowledgeType[]> = {
-    'price': [KNOWLEDGE_TYPES.PRICING],
-    'cost': [KNOWLEDGE_TYPES.PRICING],
-    'membership': [KNOWLEDGE_TYPES.PRICING, KNOWLEDGE_TYPES.POLICIES],
-    'class': [KNOWLEDGE_TYPES.SERVICES, KNOWLEDGE_TYPES.SCHEDULE],
-    'schedule': [KNOWLEDGE_TYPES.SCHEDULE],
-    'time': [KNOWLEDGE_TYPES.SCHEDULE],
-    'open': [KNOWLEDGE_TYPES.SCHEDULE],
-    'hour': [KNOWLEDGE_TYPES.SCHEDULE],
-    'cancel': [KNOWLEDGE_TYPES.POLICIES],
-    'freeze': [KNOWLEDGE_TYPES.POLICIES],
-    'guest': [KNOWLEDGE_TYPES.POLICIES],
-    'trainer': [KNOWLEDGE_TYPES.SERVICES],
-    'pt': [KNOWLEDGE_TYPES.SERVICES],
-    'facility': [KNOWLEDGE_TYPES.SERVICES],
-    'equipment': [KNOWLEDGE_TYPES.SERVICES]
-  }
-
-  const relevantTypes = new Set<KnowledgeType>(coreTypes)
-  
-  // Add types based on keywords found
-  keywords.forEach(keyword => {
-    Object.entries(typeMapping).forEach(([key, types]) => {
-      if (keyword.includes(key)) {
-        types.forEach(type => relevantTypes.add(type))
-      }
-    })
-  })
-
-  const { data, error } = await supabase
+  // First, get ALL knowledge to ensure nothing is missed
+  const { data: allKnowledge, error } = await supabase
     .from('knowledge')
     .select('*')
-    .in('type', Array.from(relevantTypes))
-    .order('type', { ascending: true })
+    .order('created_at', { ascending: false })
 
-  if (error) {
-    console.error('Error fetching relevant knowledge:', error)
+  if (error || !allKnowledge) {
+    console.error('Error fetching knowledge:', error)
     return []
   }
 
-  return data || []
+  // Score each knowledge item by relevance
+  const scoredKnowledge = allKnowledge.map(item => {
+    let score = 0
+    const contentLower = item.content.toLowerCase()
+    
+    // Always include SOPs and FAQs
+    if (item.type === 'sop' || item.type === 'faq') score += 10
+    
+    // Check for keyword matches
+    const keywords = messageLower.split(' ').filter(word => word.length > 2)
+    keywords.forEach(keyword => {
+      if (contentLower.includes(keyword)) score += 5
+    })
+    
+    // Specific topic matching
+    if (messageLower.includes('location') || messageLower.includes('where')) {
+      if (contentLower.includes('location') || contentLower.includes('address') || contentLower.includes('situated')) {
+        score += 20
+      }
+    }
+    
+    if (messageLower.includes('price') || messageLower.includes('cost') || messageLower.includes('much')) {
+      if (item.type === 'pricing' || contentLower.includes('£') || contentLower.includes('price')) {
+        score += 20
+      }
+    }
+    
+    if (messageLower.includes('hour') || messageLower.includes('open') || messageLower.includes('time')) {
+      if (contentLower.includes('hour') || contentLower.includes('open') || contentLower.includes('time')) {
+        score += 20
+      }
+    }
+    
+    return { ...item, score }
+  })
+  
+  // Sort by score and return top results + all high-priority items
+  const sorted = scoredKnowledge
+    .filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+  
+  // Always include all SOPs and FAQs even if score is 0
+  const essentials = allKnowledge.filter(item => 
+    (item.type === 'sop' || item.type === 'faq') && 
+    !sorted.find(s => s.id === item.id)
+  )
+  
+  return [...sorted, ...essentials]
 }
 
 // Save new knowledge from training
