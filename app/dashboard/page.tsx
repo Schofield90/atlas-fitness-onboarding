@@ -165,7 +165,7 @@ export default function DashboardPage() {
               Customize your AI assistant's responses and qualification criteria.
             </p>
             <button 
-              onClick={() => alert('AI Configuration coming soon! You\'ll be able to customize your AI assistant\'s responses and qualification criteria.')}
+              onClick={() => router.push('/ai-config')}
               className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded transition-colors"
             >
               Configure AI
