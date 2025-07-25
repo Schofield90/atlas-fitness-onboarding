@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/app/lib/supabase/client'
-import Button from '@/app/components/ui/button'
+import Button from '@/app/components/ui/Button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Tabs, TabsContent, TabsList, TabsTrigger } from './components'
 import { MessageSquare, Brain, TestTube, BarChart3, Save, Plus, Trash2 } from 'lucide-react'
 
