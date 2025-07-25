@@ -15,6 +15,22 @@ export default function AIConfigPage() {
   const [knowledge, setKnowledge] = useState<any[]>([])
   const [testMessages, setTestMessages] = useState<{role: string, content: string}[]>([])
   const [testInput, setTestInput] = useState('')
+  const [flows, setFlows] = useState({
+    leadQualification: [
+      { id: 1, text: 'Ask about fitness goals' },
+      { id: 2, text: 'Understand current fitness level' },
+      { id: 3, text: 'Identify obstacles/concerns' },
+      { id: 4, text: 'Offer trial booking' }
+    ],
+    objectionHandling: [
+      { id: 1, text: 'Acknowledge concern' },
+      { id: 2, text: 'Provide value proposition' },
+      { id: 3, text: 'Share social proof' },
+      { id: 4, text: 'Create urgency with offer' }
+    ]
+  })
+  const [editingFlow, setEditingFlow] = useState<string | null>(null)
+  const [interviewAnswers, setInterviewAnswers] = useState<any[]>([])
 
   // Load existing knowledge
   useEffect(() => {
@@ -148,6 +164,43 @@ export default function AIConfigPage() {
 
   // Conversation Flow Builder
   const FlowBuilderTab = () => {
+    const updateFlowStep = (flowType: string, stepId: number, newText: string) => {
+      setFlows(prev => ({
+        ...prev,
+        [flowType]: prev[flowType as keyof typeof prev].map(step => 
+          step.id === stepId ? { ...step, text: newText } : step
+        )
+      }))
+    }
+
+    const addFlowStep = (flowType: string) => {
+      const flow = flows[flowType as keyof typeof flows]
+      const newStep = { 
+        id: Math.max(...flow.map(s => s.id)) + 1, 
+        text: 'New step' 
+      }
+      setFlows(prev => ({
+        ...prev,
+        [flowType]: [...prev[flowType as keyof typeof prev], newStep]
+      }))
+    }
+
+    const removeFlowStep = (flowType: string, stepId: number) => {
+      setFlows(prev => ({
+        ...prev,
+        [flowType]: prev[flowType as keyof typeof prev].filter(step => step.id !== stepId)
+      }))
+    }
+
+    const saveFlows = async () => {
+      setIsLoading(true)
+      // TODO: Save to database
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      alert('Flows saved successfully!')
+      setIsLoading(false)
+      setEditingFlow(null)
+    }
+
     return (
       <div className="space-y-6">
         <Card>
@@ -158,50 +211,121 @@ export default function AIConfigPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-6">
+              {/* Lead Qualification Flow */}
               <div className="p-4 border-2 border-dashed rounded-lg">
-                <h4 className="font-medium mb-2">Lead Qualification Flow</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center">1</div>
-                    <p>Ask about fitness goals</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center">2</div>
-                    <p>Understand current fitness level</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center">3</div>
-                    <p>Identify obstacles/concerns</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center">4</div>
-                    <p>Offer trial booking</p>
-                  </div>
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="font-medium">Lead Qualification Flow</h4>
+                  <Button
+                    size="sm"
+                    variant={editingFlow === 'leadQualification' ? 'default' : 'outline'}
+                    onClick={() => setEditingFlow(editingFlow === 'leadQualification' ? null : 'leadQualification')}
+                  >
+                    {editingFlow === 'leadQualification' ? 'Done' : 'Edit'}
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {flows.leadQualification.map((step, index) => (
+                    <div key={step.id} className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center flex-shrink-0">
+                        {index + 1}
+                      </div>
+                      {editingFlow === 'leadQualification' ? (
+                        <>
+                          <input
+                            type="text"
+                            value={step.text}
+                            onChange={(e) => updateFlowStep('leadQualification', step.id, e.target.value)}
+                            className="flex-1 p-2 border rounded text-sm"
+                          />
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => removeFlowStep('leadQualification', step.id)}
+                          >
+                            <Trash2 className="w-4 h-4 text-red-500" />
+                          </Button>
+                        </>
+                      ) : (
+                        <p className="text-sm">{step.text}</p>
+                      )}
+                    </div>
+                  ))}
+                  {editingFlow === 'leadQualification' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => addFlowStep('leadQualification')}
+                      className="mt-2"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Step
+                    </Button>
+                  )}
                 </div>
               </div>
 
+              {/* Objection Handling Flow */}
               <div className="p-4 border-2 border-dashed rounded-lg">
-                <h4 className="font-medium mb-2">Objection Handling Flow</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center">1</div>
-                    <p>Acknowledge concern</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center">2</div>
-                    <p>Provide value proposition</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center">3</div>
-                    <p>Share social proof</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center">4</div>
-                    <p>Create urgency with offer</p>
-                  </div>
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="font-medium">Objection Handling Flow</h4>
+                  <Button
+                    size="sm"
+                    variant={editingFlow === 'objectionHandling' ? 'default' : 'outline'}
+                    onClick={() => setEditingFlow(editingFlow === 'objectionHandling' ? null : 'objectionHandling')}
+                  >
+                    {editingFlow === 'objectionHandling' ? 'Done' : 'Edit'}
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {flows.objectionHandling.map((step, index) => (
+                    <div key={step.id} className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center flex-shrink-0">
+                        {index + 1}
+                      </div>
+                      {editingFlow === 'objectionHandling' ? (
+                        <>
+                          <input
+                            type="text"
+                            value={step.text}
+                            onChange={(e) => updateFlowStep('objectionHandling', step.id, e.target.value)}
+                            className="flex-1 p-2 border rounded text-sm"
+                          />
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => removeFlowStep('objectionHandling', step.id)}
+                          >
+                            <Trash2 className="w-4 h-4 text-red-500" />
+                          </Button>
+                        </>
+                      ) : (
+                        <p className="text-sm">{step.text}</p>
+                      )}
+                    </div>
+                  ))}
+                  {editingFlow === 'objectionHandling' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => addFlowStep('objectionHandling')}
+                      className="mt-2"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Step
+                    </Button>
+                  )}
                 </div>
               </div>
+
+              {editingFlow && (
+                <div className="flex justify-end">
+                  <Button onClick={saveFlows} disabled={isLoading}>
+                    <Save className="w-4 h-4 mr-2" />
+                    Save All Flows
+                  </Button>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -293,6 +417,153 @@ export default function AIConfigPage() {
     )
   }
 
+  // AI Interview Tab
+  const AIInterviewTab = () => {
+    const [currentQuestion, setCurrentQuestion] = useState<any>(null)
+    const [currentAnswer, setCurrentAnswer] = useState('')
+    const [isGettingQuestion, setIsGettingQuestion] = useState(false)
+
+    const getNextQuestion = async () => {
+      setIsGettingQuestion(true)
+      try {
+        const response = await fetch('/api/ai/interview-question', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            previousAnswers: interviewAnswers 
+          })
+        })
+
+        const data = await response.json()
+        if (data.question) {
+          setCurrentQuestion(data)
+          setCurrentAnswer('')
+        }
+      } catch (error) {
+        console.error('Error getting question:', error)
+      }
+      setIsGettingQuestion(false)
+    }
+
+    const submitAnswer = async () => {
+      if (!currentAnswer.trim() || !currentQuestion) return
+
+      const newAnswer = {
+        question: currentQuestion.question,
+        answer: currentAnswer,
+        category: currentQuestion.category,
+        timestamp: new Date().toISOString()
+      }
+
+      setInterviewAnswers([...interviewAnswers, newAnswer])
+      
+      // Save to knowledge base
+      await supabase
+        .from('knowledge')
+        .insert({
+          type: currentQuestion.knowledgeType || 'faq',
+          content: `${currentQuestion.question} ${currentAnswer}`,
+          metadata: { category: currentQuestion.category, fromInterview: true }
+        })
+
+      // Get next question
+      getNextQuestion()
+    }
+
+    useEffect(() => {
+      if (!currentQuestion) {
+        getNextQuestion()
+      }
+    }, [])
+
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>AI Interview</CardTitle>
+            <CardDescription>
+              Let the AI ask you questions to learn about your gym
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              {/* Progress */}
+              <div>
+                <div className="flex justify-between text-sm text-gray-600 mb-2">
+                  <span>Questions Answered</span>
+                  <span>{interviewAnswers.length}</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-purple-600 h-2 rounded-full transition-all"
+                    style={{width: `${Math.min(interviewAnswers.length * 10, 100)}%`}}
+                  />
+                </div>
+              </div>
+
+              {/* Current Question */}
+              {currentQuestion && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-purple-50 rounded-lg">
+                    <p className="text-sm text-purple-600 mb-1">
+                      {currentQuestion.category}
+                    </p>
+                    <h3 className="text-lg font-medium">
+                      {currentQuestion.question}
+                    </h3>
+                    {currentQuestion.context && (
+                      <p className="text-sm text-gray-600 mt-2">
+                        {currentQuestion.context}
+                      </p>
+                    )}
+                  </div>
+
+                  <textarea
+                    value={currentAnswer}
+                    onChange={(e) => setCurrentAnswer(e.target.value)}
+                    placeholder="Type your answer here..."
+                    className="w-full p-3 border rounded-lg h-32"
+                  />
+
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={submitAnswer}
+                      disabled={!currentAnswer.trim() || isLoading}
+                    >
+                      Submit Answer
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={getNextQuestion}
+                      disabled={isGettingQuestion}
+                    >
+                      Skip Question
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Previous Answers */}
+              {interviewAnswers.length > 0 && (
+                <div>
+                  <h4 className="font-medium mb-3">Your Previous Answers</h4>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {interviewAnswers.slice().reverse().map((item, idx) => (
+                      <div key={idx} className="p-3 bg-gray-50 rounded-lg">
+                        <p className="text-sm font-medium">{item.question}</p>
+                        <p className="text-sm text-gray-700 mt-1">{item.answer}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   // Analytics Tab
   const AnalyticsTab = () => {
     return (
@@ -376,7 +647,7 @@ export default function AIConfigPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="training" className="flex items-center gap-2">
             <Brain className="w-4 h-4" />
             Training
@@ -384,6 +655,10 @@ export default function AIConfigPage() {
           <TabsTrigger value="flows" className="flex items-center gap-2">
             <MessageSquare className="w-4 h-4" />
             Flows
+          </TabsTrigger>
+          <TabsTrigger value="interview" className="flex items-center gap-2">
+            <MessageSquare className="w-4 h-4" />
+            Interview
           </TabsTrigger>
           <TabsTrigger value="test" className="flex items-center gap-2">
             <TestTube className="w-4 h-4" />
@@ -401,6 +676,10 @@ export default function AIConfigPage() {
 
         <TabsContent value="flows">
           <FlowBuilderTab />
+        </TabsContent>
+
+        <TabsContent value="interview">
+          <AIInterviewTab />
         </TabsContent>
 
         <TabsContent value="test">
