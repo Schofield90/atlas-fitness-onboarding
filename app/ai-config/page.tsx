@@ -6,6 +6,8 @@ import { createClient } from '@/app/lib/supabase/client'
 import Button from '@/app/components/ui/Button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Tabs, TabsContent, TabsList, TabsTrigger } from './components'
 import { MessageSquare, Brain, TestTube, BarChart3, Save, Plus, Trash2 } from 'lucide-react'
+import FlowStep from './FlowStep'
+import InterviewAnswer from './InterviewAnswer'
 
 export default function AIConfigPage() {
   const router = useRouter()
@@ -226,30 +228,15 @@ export default function AIConfigPage() {
                 </div>
                 <div className="space-y-2">
                   {flows.leadQualification.map((step, index) => (
-                    <div key={step.id} className="flex items-center gap-2">
-                      <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center flex-shrink-0">
-                        {index + 1}
-                      </div>
-                      {editingFlow === 'leadQualification' ? (
-                        <>
-                          <input
-                            type="text"
-                            value={step.text}
-                            onChange={(e) => updateFlowStep('leadQualification', step.id, e.target.value)}
-                            className="flex-1 p-2 border rounded text-sm"
-                          />
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => removeFlowStep('leadQualification', step.id)}
-                          >
-                            <Trash2 className="w-4 h-4 text-red-500" />
-                          </Button>
-                        </>
-                      ) : (
-                        <p className="text-sm">{step.text}</p>
-                      )}
-                    </div>
+                    <FlowStep
+                      key={`lead-${step.id}`}
+                      step={step}
+                      index={index}
+                      isEditing={editingFlow === 'leadQualification'}
+                      onUpdate={(text) => updateFlowStep('leadQualification', step.id, text)}
+                      onRemove={() => removeFlowStep('leadQualification', step.id)}
+                      color="bg-blue-500"
+                    />
                   ))}
                   {editingFlow === 'leadQualification' && (
                     <Button
@@ -279,30 +266,15 @@ export default function AIConfigPage() {
                 </div>
                 <div className="space-y-2">
                   {flows.objectionHandling.map((step, index) => (
-                    <div key={step.id} className="flex items-center gap-2">
-                      <div className="w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center flex-shrink-0">
-                        {index + 1}
-                      </div>
-                      {editingFlow === 'objectionHandling' ? (
-                        <>
-                          <input
-                            type="text"
-                            value={step.text}
-                            onChange={(e) => updateFlowStep('objectionHandling', step.id, e.target.value)}
-                            className="flex-1 p-2 border rounded text-sm"
-                          />
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => removeFlowStep('objectionHandling', step.id)}
-                          >
-                            <Trash2 className="w-4 h-4 text-red-500" />
-                          </Button>
-                        </>
-                      ) : (
-                        <p className="text-sm">{step.text}</p>
-                      )}
-                    </div>
+                    <FlowStep
+                      key={`objection-${step.id}`}
+                      step={step}
+                      index={index}
+                      isEditing={editingFlow === 'objectionHandling'}
+                      onUpdate={(text) => updateFlowStep('objectionHandling', step.id, text)}
+                      onRemove={() => removeFlowStep('objectionHandling', step.id)}
+                      color="bg-orange-500"
+                    />
                   ))}
                   {editingFlow === 'objectionHandling' && (
                     <Button
@@ -518,28 +490,13 @@ export default function AIConfigPage() {
                     )}
                   </div>
 
-                  <textarea
+                  <InterviewAnswer
                     value={currentAnswer}
-                    onChange={(e) => setCurrentAnswer(e.target.value)}
-                    placeholder="Type your answer here..."
-                    className="w-full p-3 border rounded-lg h-32"
+                    onChange={setCurrentAnswer}
+                    onSubmit={submitAnswer}
+                    onSkip={getNextQuestion}
+                    disabled={isLoading || isGettingQuestion}
                   />
-
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={submitAnswer}
-                      disabled={!currentAnswer.trim() || isLoading}
-                    >
-                      Submit Answer
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={getNextQuestion}
-                      disabled={isGettingQuestion}
-                    >
-                      Skip Question
-                    </Button>
-                  </div>
                 </div>
               )}
 
