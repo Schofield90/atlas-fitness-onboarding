@@ -83,11 +83,27 @@ export default function AITrainingPage() {
   }
 
   const saveFeedback = async () => {
-    const { error } = await supabase
-      .from('ai_feedback')
-      .insert([newFeedback])
-    
-    if (!error) {
+    try {
+      console.log('Saving feedback:', newFeedback)
+      
+      const { data, error } = await supabase
+        .from('ai_feedback')
+        .insert([{
+          user_message: newFeedback.user_message,
+          ai_response: newFeedback.ai_response,
+          preferred_response: newFeedback.preferred_response,
+          feedback_category: newFeedback.feedback_category,
+          context_notes: newFeedback.context_notes || null
+        }])
+        .select()
+      
+      if (error) {
+        console.error('Error saving feedback:', error)
+        alert(`Error saving feedback: ${error.message}`)
+        return
+      }
+      
+      console.log('Feedback saved successfully:', data)
       await loadFeedbacks()
       setShowAddForm(false)
       setNewFeedback({
@@ -99,6 +115,9 @@ export default function AITrainingPage() {
       })
       setTestMessage('')
       setTestResponse('')
+    } catch (err) {
+      console.error('Unexpected error:', err)
+      alert('An unexpected error occurred. Please check the console.')
     }
   }
 
