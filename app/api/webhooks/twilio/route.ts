@@ -94,6 +94,13 @@ export async function POST(request: NextRequest) {
       return new NextResponse('Unauthorized', { status: 401 })
     }
     */
+    // Check if this is a status callback (not an actual message)
+    const messageStatus = params.get('MessageStatus') || params.get('SmsStatus')
+    if (messageStatus && !params.get('Body')) {
+      console.log('Ignoring status callback:', messageStatus)
+      return new NextResponse('', { status: 200 })
+    }
+
     const messageData = {
       from: params.get('From') || '',
       to: params.get('To') || '',
@@ -102,6 +109,12 @@ export async function POST(request: NextRequest) {
       accountSid: params.get('AccountSid') || '',
       mediaUrl: params.get('MediaUrl0'), // First media URL if any
       numMedia: params.get('NumMedia') || '0'
+    }
+
+    // Skip processing if there's no actual message content
+    if (!messageData.body || !messageData.from) {
+      console.log('Skipping webhook - no message body or from number')
+      return new NextResponse('', { status: 200 })
     }
 
     // Determine if it's WhatsApp or SMS
