@@ -2,9 +2,22 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import { analytics } from '@/app/lib/analytics/client'
 
 export default function HomePage() {
   const [email, setEmail] = useState('')
+
+  const handleEmailSubmit = () => {
+    if (email) {
+      analytics.trackFormSubmit('hero-email-capture', { email: email })
+      analytics.trackCustomEvent('lead_capture', { source: 'hero_section' })
+    }
+  }
+
+  const handleWatchDemo = () => {
+    analytics.trackClick('watch-demo-button', { location: 'hero' })
+    analytics.trackCustomEvent('demo_interest', { source: 'hero_section' })
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
@@ -23,6 +36,7 @@ export default function HomePage() {
             <Link 
               href="/login"
               className="bg-gray-800 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg text-sm transition-colors border border-gray-600"
+              data-track="header-sign-in"
             >
               Sign In
             </Link>
@@ -47,10 +61,15 @@ export default function HomePage() {
             <Link 
               href="/signup"
               className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 px-8 rounded-lg text-lg transition-all transform hover:scale-105 shadow-lg"
+              data-track="hero-start-trial"
             >
               Start Free Trial
             </Link>
-            <button className="border-2 border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white font-bold py-4 px-8 rounded-lg text-lg transition-all">
+            <button 
+              className="border-2 border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white font-bold py-4 px-8 rounded-lg text-lg transition-all"
+              onClick={handleWatchDemo}
+              data-track="hero-watch-demo"
+            >
               Watch Demo
             </button>
           </div>
@@ -74,7 +93,11 @@ export default function HomePage() {
                 onChange={(e) => setEmail(e.target.value)}
                 className="flex-1 px-4 py-3 rounded-lg bg-gray-800 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:border-orange-500"
               />
-              <button className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg transition-colors">
+              <button 
+                className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+                onClick={handleEmailSubmit}
+                data-track="hero-email-submit"
+              >
                 Get Started
               </button>
             </div>
@@ -144,6 +167,7 @@ export default function HomePage() {
           <Link 
             href="/signup"
             className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 px-8 rounded-lg text-lg transition-all transform hover:scale-105 shadow-lg inline-block"
+            data-track="cta-start-trial"
           >
             Start Free Trial - No Credit Card Required
           </Link>
