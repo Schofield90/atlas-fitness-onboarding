@@ -29,42 +29,38 @@ export async function generateAIResponse(
   knowledgeContext: string
 ): Promise<AIResponse> {
   try {
-    const systemPrompt = `You are a professional gym business WhatsApp sales assistant. Your role is to engage with potential and existing gym members, answer their questions, and guide them towards booking a trial or membership.
+    const systemPrompt = `You are a professional gym business WhatsApp sales assistant for Atlas Fitness. Your role is to engage with potential and existing gym members, answer their questions, and guide them towards booking a trial or membership.
 
-CONTEXT AND KNOWLEDGE:
+IMPORTANT: The following is REAL GYM DATA that you MUST use in your responses:
+
 ${knowledgeContext}
 
-CRITICAL INSTRUCTIONS:
-1. ALWAYS use the specific information provided in CONTEXT AND KNOWLEDGE above
-2. NEVER make up addresses, prices, hours, or any factual information
-3. If location is asked and you see it in the knowledge, use THAT EXACT address
-4. If prices are asked and you see them in the knowledge, use THOSE EXACT prices
-5. If you don't have specific information in the knowledge provided, say "Let me get that exact information for you" and offer to have someone call them
+CRITICAL RULES - YOU MUST FOLLOW THESE:
+1. ALWAYS use the EXACT information provided above - this is the REAL gym data
+2. When asked about location, use the EXACT addresses from the knowledge above
+3. When asked about prices, use the EXACT prices from the knowledge above
+4. When asked about hours, use the EXACT hours from the knowledge above
+5. NEVER use placeholder data like "123 Fitness Street" - use the REAL data above
+6. If specific info isn't in the knowledge above, say "Let me get that exact information for you" and offer to have someone call them
+
+FOR LOCATION QUESTIONS:
+- Check the knowledge for addresses containing "Harrogate", "York", "Claro Court", "Auster Road"
+- Use the FULL address including postcodes
+- Mention both locations if relevant
 
 KEY BEHAVIORS:
 1. Be friendly, enthusiastic, and encouraging about fitness
 2. Keep responses concise (under 300 characters ideal for WhatsApp)
 3. Always aim to book trials, tours, or collect contact details
-4. Use the knowledge provided to answer accurately
-5. If unsure, offer to have someone call them back
-6. Create urgency with limited-time offers when appropriate
-7. Use emojis sparingly for friendliness 💪
+4. Create urgency with limited-time offers when appropriate
+5. Use emojis sparingly for friendliness 💪
 
-RESPONSE RULES:
+RESPONSE FORMAT:
 - Maximum 2-3 sentences per response
 - End with a question or clear call-to-action
-- If they show interest, immediately offer booking times
-- Extract and note any contact information shared
+- Be conversational and mobile-friendly
 
-BOOKING TRIGGERS:
-If the user expresses any of these, try to book them:
-- Interest in joining
-- Asking about trials
-- Requesting a tour
-- Wanting to start fitness journey
-- Asking about specific classes
-
-Remember: You're chatting via WhatsApp, so keep it conversational and mobile-friendly.`
+DOUBLE-CHECK: Before responding, verify you're using REAL data from the knowledge section above, not generic placeholders.`
 
     console.log('AI Request details:', {
       modelUsed: 'claude-3-5-sonnet-20241022',
@@ -134,9 +130,16 @@ Remember: You're chatting via WhatsApp, so keep it conversational and mobile-fri
 // Generate knowledge context from database records
 export function formatKnowledgeContext(knowledgeRecords: any[]): string {
   if (!knowledgeRecords || knowledgeRecords.length === 0) {
+    console.warn('WARNING: No knowledge records provided to AI')
     return 'No specific knowledge available. Use general gym industry knowledge.'
   }
 
+  console.log('Formatting knowledge context from', knowledgeRecords.length, 'records')
+
+  // Priority order for knowledge types
+  const priorityOrder = ['sop', 'faq', 'pricing', 'services', 'schedule', 'policies', 'style']
+  
+  // Group and sort by priority
   const grouped = knowledgeRecords.reduce((acc, record) => {
     if (!acc[record.type]) {
       acc[record.type] = []
@@ -145,16 +148,41 @@ export function formatKnowledgeContext(knowledgeRecords: any[]): string {
     return acc
   }, {} as Record<string, string[]>)
 
-  let context = ''
+  let context = 'IMPORTANT GYM INFORMATION (USE THIS DATA IN YOUR RESPONSES):\n\n'
   
-  // Format each type of knowledge
+  // Add knowledge in priority order
+  priorityOrder.forEach(type => {
+    if (grouped[type] && grouped[type].length > 0) {
+      const typeLabel = type.toUpperCase().replace('_', ' ')
+      context += `=== ${typeLabel} ===\n`
+      const contentArray = grouped[type] as string[]
+      contentArray.forEach((content: string, index: number) => {
+        context += `${index + 1}. ${content}\n`
+      })
+      context += '\n'
+    }
+  })
+
+  // Add any remaining types not in priority order
   Object.entries(grouped).forEach(([type, contents]) => {
-    const typeLabel = type.toUpperCase().replace('_', ' ')
-    context += `\n${typeLabel}:\n`
-    const contentArray = contents as string[]
-    contentArray.forEach((content: string, index: number) => {
-      context += `${index + 1}. ${content}\n`
-    })
+    if (!priorityOrder.includes(type)) {
+      const typeLabel = type.toUpperCase().replace('_', ' ')
+      context += `=== ${typeLabel} ===\n`
+      const contentArray = contents as string[]
+      contentArray.forEach((content: string, index: number) => {
+        context += `${index + 1}. ${content}\n`
+      })
+      context += '\n'
+    }
+  })
+
+  // Log what information we're providing to the AI
+  console.log('Knowledge context summary:', {
+    totalLength: context.length,
+    typesIncluded: Object.keys(grouped),
+    hasLocationInfo: context.includes('Harrogate') || context.includes('York') || context.includes('Claro Court'),
+    hasPricingInfo: context.includes('£') || context.includes('price'),
+    preview: context.substring(0, 200) + '...'
   })
 
   return context

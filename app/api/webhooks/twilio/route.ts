@@ -177,34 +177,75 @@ For assistance, please contact our support team.`
       default:
         // Use AI to generate response
         try {
+          // First, fetch ALL knowledge to ensure we have data
+          const { fetchCoreKnowledge } = await import('@/app/lib/knowledge')
+          const coreKnowledge = await fetchCoreKnowledge()
+          console.log('Core knowledge check:', {
+            coreItemsCount: coreKnowledge.length,
+            hasCoreData: coreKnowledge.length > 0
+          })
+          
           // Fetch relevant knowledge for context
           const knowledge = await fetchRelevantKnowledge(messageData.body)
           const knowledgeContext = formatKnowledgeContext(knowledge)
           
+          // Comprehensive knowledge debugging
           console.log('Knowledge fetching debug:', {
             messageQuery: messageData.body,
             knowledgeItemsCount: knowledge.length,
             knowledgeTypes: knowledge.map(k => k.type),
+            contextLength: knowledgeContext.length,
+            hasRealData: knowledgeContext.includes('Harrogate') || knowledgeContext.includes('York') || knowledgeContext.includes('Claro Court'),
             knowledgePreview: knowledge.slice(0, 5).map(k => ({
               type: k.type,
-              content: k.content
-            })),
-            contextLength: knowledgeContext.length
+              content: k.content.substring(0, 100) + '...'
+            }))
           })
           
-          // If asking about location/where, log location-specific knowledge
+          // Log full context if it's a location question
           if (messageData.body.toLowerCase().includes('where') || messageData.body.toLowerCase().includes('location')) {
             const locationKnowledge = knowledge.filter(k => 
               k.content.toLowerCase().includes('location') || 
               k.content.toLowerCase().includes('address') ||
-              k.content.toLowerCase().includes('street')
+              k.content.toLowerCase().includes('street') ||
+              k.content.toLowerCase().includes('harrogate') ||
+              k.content.toLowerCase().includes('york')
             )
-            console.log('Location-specific knowledge found:', locationKnowledge)
+            console.log('Location-specific knowledge found:', {
+              count: locationKnowledge.length,
+              items: locationKnowledge.map(k => ({
+                type: k.type,
+                content: k.content
+              }))
+            })
+            
+            // Log the exact context being sent to AI
+            console.log('Context snippet for location:', knowledgeContext.substring(0, 500))
           }
           
-          // Generate AI response
-          const aiResponse = await generateAIResponse(messageData.body, cleanedFrom, knowledgeContext)
-          responseMessage = aiResponse.message
+          // If no knowledge found, log a warning
+          if (knowledge.length === 0) {
+            console.warn('WARNING: No knowledge found for query:', messageData.body)
+            console.warn('Using fallback - checking if core knowledge exists...')
+            if (coreKnowledge.length > 0) {
+              console.log('Using core knowledge as fallback')
+              const fallbackContext = formatKnowledgeContext(coreKnowledge)
+              const aiResponse = await generateAIResponse(messageData.body, cleanedFrom, fallbackContext)
+              responseMessage = aiResponse.message
+            } else {
+              throw new Error('No knowledge data available in database')
+            }
+          } else {
+            // Generate AI response with found knowledge
+            const aiResponse = await generateAIResponse(messageData.body, cleanedFrom, knowledgeContext)
+            responseMessage = aiResponse.message
+            
+            console.log('AI Response generated:', {
+              userMessage: messageData.body,
+              aiResponse: responseMessage,
+              usedRealData: responseMessage.includes('Harrogate') || responseMessage.includes('York') || responseMessage.includes('Claro Court')
+            })
+          }
           
           // Log if booking intent detected
           if (aiResponse.shouldBookAppointment) {

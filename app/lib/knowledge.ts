@@ -46,6 +46,8 @@ export async function fetchRelevantKnowledge(message: string): Promise<Knowledge
   const messageLower = message.toLowerCase()
   const supabase = await createClient()
   
+  console.log('Fetching knowledge for message:', message)
+  
   // First, get ALL knowledge to ensure nothing is missed
   const { data: allKnowledge, error } = await supabase
     .from('knowledge')
@@ -57,13 +59,16 @@ export async function fetchRelevantKnowledge(message: string): Promise<Knowledge
     return []
   }
 
+  console.log(`Found ${allKnowledge.length} total knowledge items`)
+
   // Score each knowledge item by relevance
   const scoredKnowledge = allKnowledge.map(item => {
     let score = 0
     const contentLower = item.content.toLowerCase()
     
-    // Always include SOPs and FAQs
-    if (item.type === 'sop' || item.type === 'faq') score += 10
+    // Always include SOPs, FAQs, and basic info with high priority
+    if (item.type === 'sop' || item.type === 'faq') score += 20
+    if (item.type === 'services' || item.type === 'pricing' || item.type === 'schedule') score += 15
     
     // Check for keyword matches
     const keywords = messageLower.split(' ').filter(word => word.length > 2)
@@ -71,40 +76,63 @@ export async function fetchRelevantKnowledge(message: string): Promise<Knowledge
       if (contentLower.includes(keyword)) score += 5
     })
     
-    // Specific topic matching
-    if (messageLower.includes('location') || messageLower.includes('where')) {
-      if (contentLower.includes('location') || contentLower.includes('address') || contentLower.includes('situated')) {
-        score += 20
+    // Specific topic matching with higher scores
+    if (messageLower.includes('location') || messageLower.includes('where') || messageLower.includes('address')) {
+      if (contentLower.includes('location') || contentLower.includes('address') || 
+          contentLower.includes('situated') || contentLower.includes('harrogate') || 
+          contentLower.includes('york') || contentLower.includes('find us')) {
+        score += 50 // High score for location queries
       }
     }
     
-    if (messageLower.includes('price') || messageLower.includes('cost') || messageLower.includes('much')) {
-      if (item.type === 'pricing' || contentLower.includes('£') || contentLower.includes('price')) {
-        score += 20
+    if (messageLower.includes('price') || messageLower.includes('cost') || messageLower.includes('much') || messageLower.includes('£')) {
+      if (item.type === 'pricing' || contentLower.includes('£') || contentLower.includes('price') || contentLower.includes('membership')) {
+        score += 40
       }
     }
     
-    if (messageLower.includes('hour') || messageLower.includes('open') || messageLower.includes('time')) {
-      if (contentLower.includes('hour') || contentLower.includes('open') || contentLower.includes('time')) {
-        score += 20
+    if (messageLower.includes('hour') || messageLower.includes('open') || messageLower.includes('time') || messageLower.includes('when')) {
+      if (contentLower.includes('hour') || contentLower.includes('open') || contentLower.includes('time') || item.type === 'schedule') {
+        score += 30
       }
     }
+    
+    // Boost score for exact location names
+    if (messageLower.includes('harrogate') && contentLower.includes('harrogate')) score += 30
+    if (messageLower.includes('york') && contentLower.includes('york')) score += 30
     
     return { ...item, score }
   })
   
-  // Sort by score and return top results + all high-priority items
-  const sorted = scoredKnowledge
-    .filter(item => item.score > 0)
-    .sort((a, b) => b.score - a.score)
+  // Sort by score
+  const sorted = scoredKnowledge.sort((a, b) => b.score - a.score)
   
-  // Always include all SOPs and FAQs even if score is 0
-  const essentials = allKnowledge.filter(item => 
-    (item.type === 'sop' || item.type === 'faq') && 
-    !sorted.find(s => s.id === item.id)
-  )
+  // Log top scoring items
+  console.log('Top scoring knowledge items:', sorted.slice(0, 5).map(item => ({
+    type: item.type,
+    score: item.score,
+    preview: item.content.substring(0, 50) + '...'
+  })))
   
-  return [...sorted, ...essentials]
+  // Return all items with score > 0, but limit to top 20 to avoid context overflow
+  const relevant = sorted.filter(item => item.score > 0).slice(0, 20)
+  
+  // Always include at least some core knowledge even if no matches
+  if (relevant.length < 5) {
+    const essentials = allKnowledge
+      .filter(item => item.type === 'faq' || item.type === 'sop')
+      .slice(0, 5)
+    
+    // Merge without duplicates
+    essentials.forEach(essential => {
+      if (!relevant.find(r => r.id === essential.id)) {
+        relevant.push(essential)
+      }
+    })
+  }
+  
+  console.log(`Returning ${relevant.length} relevant knowledge items`)
+  return relevant
 }
 
 // Save new knowledge from training
