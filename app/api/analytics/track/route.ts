@@ -15,7 +15,7 @@ const eventSchema = z.object({
   os: z.string(),
   screenResolution: z.string(),
   viewport: z.string(),
-  metadata: z.record(z.any()).optional()
+  metadata: z.record(z.string(), z.any()).optional()
 });
 
 const batchSchema = z.object({
