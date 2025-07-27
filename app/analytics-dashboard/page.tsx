@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/Card';
-import { Button } from '@/app/components/ui/Button';
+import Button from '@/app/components/ui/Button';
 import { 
   Calendar, Users, MousePointer, Globe, TrendingUp, Eye, 
   Activity, Clock, Target, Filter, Download, RefreshCw, LogOut

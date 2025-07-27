@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { analytics } from '@/app/lib/analytics/client';
-import { Button } from '@/app/components/ui/Button';
+import Button from '@/app/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/app/components/ui/Card';
 
 export default function TestAnalyticsPage() {
