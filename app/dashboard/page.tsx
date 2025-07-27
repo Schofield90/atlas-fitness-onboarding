@@ -164,12 +164,20 @@ export default function DashboardPage() {
             <p className="text-gray-300 mb-4">
               Customize your AI assistant's responses and qualification criteria.
             </p>
-            <button 
-              onClick={() => router.push('/ai-config')}
-              className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded transition-colors"
-            >
-              Configure AI
-            </button>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => router.push('/ai-config')}
+                className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded transition-colors"
+              >
+                Configure AI
+              </button>
+              <button 
+                onClick={() => router.push('/ai-training')}
+                className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded transition-colors"
+              >
+                Train Responses
+              </button>
+            </div>
           </div>
 
           <div className="bg-gray-800 rounded-lg p-6">

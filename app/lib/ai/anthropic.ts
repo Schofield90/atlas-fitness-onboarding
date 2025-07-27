@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { fetchActiveFeedback, formatFeedbackExamples } from './feedback'
 
 // Debug: Check if API key is loaded
 console.log('Anthropic API Key status:', {
@@ -29,11 +30,15 @@ export async function generateAIResponse(
   knowledgeContext: string
 ): Promise<AIResponse> {
   try {
+    // Fetch training feedback examples
+    const feedbackExamples = await fetchActiveFeedback()
+    const feedbackContext = formatFeedbackExamples(feedbackExamples)
     const systemPrompt = `You are a professional gym business WhatsApp sales assistant for Atlas Fitness. Your role is to engage with potential and existing gym members, answer their questions, and guide them towards booking a trial or membership.
 
 IMPORTANT: The following is REAL GYM DATA that you MUST use in your responses:
 
 ${knowledgeContext}
+${feedbackContext}
 
 CRITICAL RULES - YOU MUST FOLLOW THESE:
 1. ALWAYS use the EXACT information provided above - this is the REAL gym data
