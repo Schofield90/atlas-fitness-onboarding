@@ -368,13 +368,13 @@ async function handleTrainingMessage(message: string, fromNumber: string): Promi
     const trainingContent = message.substring(6).trim()
     
     // Format 1: train: Q: <question> A: <preferred answer>
-    const format1Match = trainingContent.match(/Q:\s*(.+?)\s*A:\s*(.+)/is)
+    const format1Match = trainingContent.match(/Q:\s*(.+?)\s*A:\s*(.+)/i)
     
     // Format 2: train: <current response> -> <preferred response>
-    const format2Match = trainingContent.match(/(.+?)\s*->\s*(.+)/s)
+    const format2Match = trainingContent.match(/(.+?)\s*->\s*(.+)/)
     
     // Format 3: train: bad: <bad response> good: <good response> for: <user message>
-    const format3Match = trainingContent.match(/bad:\s*(.+?)\s*good:\s*(.+?)\s*for:\s*(.+)/is)
+    const format3Match = trainingContent.match(/bad:\s*(.+?)\s*good:\s*(.+?)\s*for:\s*(.+)/i)
     
     let userMessage = ''
     let aiResponse = ''
