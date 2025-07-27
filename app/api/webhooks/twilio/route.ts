@@ -223,6 +223,8 @@ For assistance, please contact our support team.`
             console.log('Context snippet for location:', knowledgeContext.substring(0, 500))
           }
           
+          let aiResponse = null
+          
           // If no knowledge found, log a warning
           if (knowledge.length === 0) {
             console.warn('WARNING: No knowledge found for query:', messageData.body)
@@ -230,14 +232,14 @@ For assistance, please contact our support team.`
             if (coreKnowledge.length > 0) {
               console.log('Using core knowledge as fallback')
               const fallbackContext = formatKnowledgeContext(coreKnowledge)
-              const aiResponse = await generateAIResponse(messageData.body, cleanedFrom, fallbackContext)
+              aiResponse = await generateAIResponse(messageData.body, cleanedFrom, fallbackContext)
               responseMessage = aiResponse.message
             } else {
               throw new Error('No knowledge data available in database')
             }
           } else {
             // Generate AI response with found knowledge
-            const aiResponse = await generateAIResponse(messageData.body, cleanedFrom, knowledgeContext)
+            aiResponse = await generateAIResponse(messageData.body, cleanedFrom, knowledgeContext)
             responseMessage = aiResponse.message
             
             console.log('AI Response generated:', {
@@ -248,13 +250,13 @@ For assistance, please contact our support team.`
           }
           
           // Log if booking intent detected
-          if (aiResponse.shouldBookAppointment) {
+          if (aiResponse && aiResponse.shouldBookAppointment) {
             console.log('Booking intent detected for:', cleanedFrom)
             // TODO: Implement booking flow
           }
           
           // Save extracted info if any
-          if (aiResponse.extractedInfo?.email) {
+          if (aiResponse && aiResponse.extractedInfo?.email) {
             // TODO: Update contact with extracted information
             console.log('Extracted info:', aiResponse.extractedInfo)
           }
