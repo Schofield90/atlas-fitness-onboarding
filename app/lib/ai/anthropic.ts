@@ -1,8 +1,15 @@
 import Anthropic from '@anthropic-ai/sdk'
 
+// Debug: Check if API key is loaded
+console.log('Anthropic API Key status:', {
+  exists: !!process.env.ANTHROPIC_API_KEY,
+  length: process.env.ANTHROPIC_API_KEY?.length || 0,
+  prefix: process.env.ANTHROPIC_API_KEY?.substring(0, 10) || 'NOT_SET'
+})
+
 // Initialize Anthropic client
 const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
+  apiKey: process.env.ANTHROPIC_API_KEY || '',
 })
 
 export interface AIResponse {
@@ -59,6 +66,13 @@ If the user expresses any of these, try to book them:
 
 Remember: You're chatting via WhatsApp, so keep it conversational and mobile-friendly.`
 
+    console.log('AI Request details:', {
+      modelUsed: 'claude-3-5-sonnet-20241022',
+      systemPromptLength: systemPrompt.length,
+      userMessageLength: userMessage.length,
+      knowledgeContextLength: knowledgeContext.length
+    })
+
     const response = await anthropic.messages.create({
       model: 'claude-3-5-sonnet-20241022',
       max_tokens: 300,
@@ -97,6 +111,17 @@ Remember: You're chatting via WhatsApp, so keep it conversational and mobile-fri
     }
   } catch (error) {
     console.error('Error generating AI response:', error)
+    
+    // Log more details about the error
+    if (error instanceof Error) {
+      console.error('Error details:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+        // If it's an Anthropic API error, it might have more details
+        details: (error as any).response?.data || (error as any).details || 'No additional details'
+      })
+    }
     
     // Fallback response
     return {
