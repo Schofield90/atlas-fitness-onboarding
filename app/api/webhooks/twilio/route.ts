@@ -175,6 +175,12 @@ For assistance, please contact our support team.`
         break
         
       default:
+        // Check if this is a training message from your personal number
+        if (cleanedFrom === '+447490253471' && messageData.body.toLowerCase().startsWith('train:')) {
+          responseMessage = await handleTrainingMessage(messageData.body, cleanedFrom)
+          break
+        }
+        
         // Use AI to generate response
         try {
           // First, fetch ALL knowledge to ensure we have data
@@ -350,5 +356,103 @@ async function handleResubscribe(phoneNumber: string) {
         sms_opt_in: true,
         whatsapp_opt_in: true
       })
+  }
+}
+
+// Handle training messages from your personal WhatsApp
+async function handleTrainingMessage(message: string, fromNumber: string): Promise<string> {
+  const supabase = await createClient()
+  
+  try {
+    // Remove 'train:' prefix and parse the message
+    const trainingContent = message.substring(6).trim()
+    
+    // Format 1: train: Q: <question> A: <preferred answer>
+    const format1Match = trainingContent.match(/Q:\s*(.+?)\s*A:\s*(.+)/is)
+    
+    // Format 2: train: <current response> -> <preferred response>
+    const format2Match = trainingContent.match(/(.+?)\s*->\s*(.+)/s)
+    
+    // Format 3: train: bad: <bad response> good: <good response> for: <user message>
+    const format3Match = trainingContent.match(/bad:\s*(.+?)\s*good:\s*(.+?)\s*for:\s*(.+)/is)
+    
+    let userMessage = ''
+    let aiResponse = ''
+    let preferredResponse = ''
+    let category = 'tone' // default category
+    
+    if (format1Match) {
+      // Q&A format
+      userMessage = format1Match[1].trim()
+      preferredResponse = format1Match[2].trim()
+      aiResponse = 'Current AI response not provided'
+      category = 'accuracy'
+    } else if (format3Match) {
+      // Bad/Good format
+      aiResponse = format3Match[1].trim()
+      preferredResponse = format3Match[2].trim()
+      userMessage = format3Match[3].trim()
+      category = 'tone'
+    } else if (format2Match) {
+      // Simple arrow format (need to fetch last user message)
+      aiResponse = format2Match[1].trim()
+      preferredResponse = format2Match[2].trim()
+      
+      // Try to get the last message from this conversation
+      const { data: lastLog } = await supabase
+        .from('whatsapp_logs')
+        .select('message')
+        .eq('from_number', fromNumber.replace('+', ''))
+        .neq('message', message)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+      
+      userMessage = lastLog?.message || 'Previous user message'
+    } else {
+      return `❌ Invalid training format. Use one of:
+1) train: Q: <question> A: <answer>
+2) train: <current> -> <preferred>
+3) train: bad: <bad> good: <good> for: <question>`
+    }
+    
+    // Detect category based on content
+    if (preferredResponse.length > aiResponse.length * 1.5) {
+      category = 'length'
+    } else if (preferredResponse.includes('£') || preferredResponse.includes('price')) {
+      category = 'accuracy'
+    } else if (preferredResponse.includes('book') || preferredResponse.includes('trial')) {
+      category = 'sales_approach'
+    }
+    
+    // Save to ai_feedback table
+    const { data, error } = await supabase
+      .from('ai_feedback')
+      .insert({
+        user_message: userMessage,
+        ai_response: aiResponse,
+        preferred_response: preferredResponse,
+        feedback_category: category,
+        context_notes: `Trained via WhatsApp by ${fromNumber}`,
+        is_active: true
+      })
+      .select()
+    
+    if (error) {
+      console.error('Error saving training:', error)
+      return '❌ Failed to save training. Please try again.'
+    }
+    
+    return `✅ Training saved!
+📝 User: "${userMessage}"
+❌ Old: "${aiResponse.substring(0, 50)}..."
+✅ New: "${preferredResponse.substring(0, 50)}..."
+🏷️ Category: ${category}
+
+Your AI will now use this example.`
+    
+  } catch (error) {
+    console.error('Training error:', error)
+    return '❌ Error processing training. Please check format and try again.'
   }
 }
