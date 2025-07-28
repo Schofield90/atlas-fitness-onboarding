@@ -85,25 +85,26 @@ export async function POST(request: NextRequest) {
       created_by: userWithOrg.id
     })
     
-    // Create new lead with organization_id and track creator
+    // Build insert data - check if created_by column exists
+    const insertData: any = {
+      name: body.name,
+      email: body.email,
+      phone: body.phone,
+      source: body.source || 'manual',
+      status: body.status || 'new',
+      form_name: body.form_name,
+      campaign_name: body.campaign_name,
+      facebook_lead_id: body.facebook_lead_id,
+      page_id: body.page_id,
+      form_id: body.form_id,
+      field_data: body.custom_fields || {},
+      organization_id: userWithOrg.organizationId
+    }
+    
+    // Try with created_by first
     const { data: lead, error } = await supabase
       .from('leads')
-      .insert({
-        name: body.name,
-        email: body.email,
-        phone: body.phone,
-        source: body.source || 'manual',
-        status: body.status || 'new',
-        form_name: body.form_name,
-        campaign_name: body.campaign_name,
-        facebook_lead_id: body.facebook_lead_id,
-        page_id: body.page_id,
-        form_id: body.form_id,
-        field_data: body.custom_fields || {},
-        organization_id: userWithOrg.organizationId, // Organization-wide access
-        created_by: userWithOrg.id, // Track who created it
-        assigned_to: body.assigned_to || userWithOrg.id // Default assignment to creator
-      })
+      .insert(insertData)
       .select()
       .single()
     
