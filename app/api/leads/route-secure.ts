@@ -16,7 +16,7 @@ const createLeadSchema = z.object({
   facebook_lead_id: z.string().optional(),
   page_id: z.string().optional(),
   form_id: z.string().optional(),
-  custom_fields: z.record(z.any()).optional()
+  custom_fields: z.record(z.string(), z.any()).optional()
 })
 
 const updateLeadSchema = z.object({
