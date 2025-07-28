@@ -181,6 +181,19 @@ export default function DashboardPage() {
           </div>
 
           <div className="bg-gray-800 rounded-lg p-6">
+            <h3 className="text-lg font-bold mb-4">📝 Lead Forms</h3>
+            <p className="text-gray-300 mb-4">
+              Create embeddable forms to capture leads from any website.
+            </p>
+            <button 
+              onClick={() => router.push('/lead-forms')}
+              className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition-colors"
+            >
+              Manage Forms
+            </button>
+          </div>
+
+          <div className="bg-gray-800 rounded-lg p-6">
             <h3 className="text-lg font-bold mb-4">📊 View Analytics</h3>
             <p className="text-gray-300 mb-4">
               Get detailed insights into your lead generation performance.
