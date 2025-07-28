@@ -220,7 +220,10 @@ export default function CalendarPage() {
               <p className="text-sm text-white opacity-60">
                 No booking links created yet
               </p>
-              <button className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors flex items-center gap-2">
+              <button 
+                onClick={() => alert('Booking links feature coming soon! This will allow you to create shareable links for clients to book appointments.')}
+                className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors flex items-center gap-2"
+              >
                 <Plus className="h-4 w-4" />
                 Create Booking Link
               </button>

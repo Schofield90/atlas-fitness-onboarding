@@ -5,6 +5,11 @@ import { useState } from 'react'
 
 export default function MembershipsPage() {
   const [activeTab, setActiveTab] = useState('plans')
+  const [showNewPlanModal, setShowNewPlanModal] = useState(false)
+
+  const handleNewPlan = () => {
+    setShowNewPlanModal(true)
+  }
 
   return (
     <DashboardLayout>
@@ -16,7 +21,10 @@ export default function MembershipsPage() {
               <h2 className="text-2xl font-bold">Membership Management</h2>
               <p className="text-gray-400 mt-1">Create and manage membership plans for your gym</p>
             </div>
-            <button className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg transition-colors">
+            <button 
+              onClick={handleNewPlan}
+              className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg transition-colors"
+            >
               + New Membership Plan
             </button>
           </div>

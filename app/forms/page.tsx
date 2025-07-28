@@ -1,8 +1,12 @@
 'use client'
 
 import DashboardLayout from '../components/DashboardLayout'
+import { useState } from 'react'
 
 export default function FormsDocumentsPage() {
+  const [showUploadModal, setShowUploadModal] = useState(false)
+  const [showFormBuilder, setShowFormBuilder] = useState(false)
+
   return (
     <DashboardLayout>
       <div className="p-6">
@@ -13,9 +17,23 @@ export default function FormsDocumentsPage() {
               <h2 className="text-2xl font-bold">Forms & Documents</h2>
               <p className="text-gray-400 mt-1">Manage waivers, contracts, and member documents</p>
             </div>
-            <button className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg transition-colors">
-              + Upload Document
-            </button>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setShowFormBuilder(true)}
+                className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+                AI Form Builder
+              </button>
+              <button 
+                onClick={() => setShowUploadModal(true)}
+                className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg transition-colors"
+              >
+                + Upload Document
+              </button>
+            </div>
           </div>
 
           {/* Document Categories */}
@@ -58,6 +76,104 @@ export default function FormsDocumentsPage() {
               <p className="text-sm text-gray-500 mt-2">Upload waivers, contracts, and policies to share with members</p>
             </div>
           </div>
+
+          {/* Upload Modal */}
+          {showUploadModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md">
+                <h3 className="text-xl font-bold mb-4">Upload Document</h3>
+                <div className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center">
+                  <svg className="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  <p className="text-gray-400 mb-2">Drag and drop your file here, or click to browse</p>
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    id="file-upload"
+                    onChange={(e) => {
+                      alert('File upload functionality will be implemented soon!')
+                      setShowUploadModal(false)
+                    }}
+                  />
+                  <label 
+                    htmlFor="file-upload"
+                    className="inline-block bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg cursor-pointer transition-colors"
+                  >
+                    Select File
+                  </label>
+                </div>
+                <div className="flex justify-end gap-3 mt-6">
+                  <button 
+                    onClick={() => setShowUploadModal(false)}
+                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* AI Form Builder Modal */}
+          {showFormBuilder && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+                <h3 className="text-xl font-bold mb-4">AI Form Builder</h3>
+                <p className="text-gray-400 mb-6">
+                  Describe the form you want to create, and our AI will help you build it!
+                </p>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">What type of form do you need?</label>
+                    <textarea 
+                      className="w-full px-4 py-3 bg-gray-700 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none resize-none"
+                      rows={4}
+                      placeholder="E.g., A gym membership waiver form with emergency contact info, health conditions, and liability release..."
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <button className="p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left">
+                      <h4 className="font-medium mb-1">Liability Waiver</h4>
+                      <p className="text-sm text-gray-400">Standard gym liability and injury waiver</p>
+                    </button>
+                    <button className="p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left">
+                      <h4 className="font-medium mb-1">Health Assessment</h4>
+                      <p className="text-sm text-gray-400">Medical history and fitness goals</p>
+                    </button>
+                    <button className="p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left">
+                      <h4 className="font-medium mb-1">Membership Agreement</h4>
+                      <p className="text-sm text-gray-400">Terms, payment, and cancellation policy</p>
+                    </button>
+                    <button className="p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left">
+                      <h4 className="font-medium mb-1">Personal Training</h4>
+                      <p className="text-sm text-gray-400">PT agreement and health screening</p>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 mt-6">
+                  <button 
+                    onClick={() => setShowFormBuilder(false)}
+                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={() => {
+                      alert('AI Form Builder coming soon! This will use AI to generate custom forms based on your requirements.')
+                      setShowFormBuilder(false)
+                    }}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
+                  >
+                    Generate Form
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </DashboardLayout>

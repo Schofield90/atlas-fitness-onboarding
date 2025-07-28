@@ -5,6 +5,7 @@ import { useState } from 'react'
 
 export default function StaffPage() {
   const [activeTab, setActiveTab] = useState('team')
+  const [showAddModal, setShowAddModal] = useState(false)
 
   return (
     <DashboardLayout>
@@ -16,7 +17,10 @@ export default function StaffPage() {
               <h2 className="text-2xl font-bold">Staff Management</h2>
               <p className="text-gray-400 mt-1">Manage your team members and their permissions</p>
             </div>
-            <button className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg transition-colors">
+            <button 
+              onClick={() => setShowAddModal(true)}
+              className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg transition-colors"
+            >
               + Add Staff Member
             </button>
           </div>
