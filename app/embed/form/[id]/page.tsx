@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, use } from 'react'
 
 interface FormParams {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 export default function EmbedForm({ params }: FormParams) {
+  const { id } = use(params)
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -47,7 +48,7 @@ export default function EmbedForm({ params }: FormParams) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Form-ID': params.id
+          'X-Form-ID': id
         },
         body: JSON.stringify(formData)
       })
@@ -62,7 +63,7 @@ export default function EmbedForm({ params }: FormParams) {
       // Track conversion if analytics is available
       if (typeof window !== 'undefined' && (window as any).gtag) {
         (window as any).gtag('event', 'form_submit', {
-          form_id: params.id,
+          form_id: id,
           lead_id: data.leadId
         })
       }
