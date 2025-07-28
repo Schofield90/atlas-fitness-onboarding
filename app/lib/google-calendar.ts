@@ -81,11 +81,11 @@ export async function createGoogleCalendarEvent(
     description: event.description,
     start: {
       dateTime: event.startTime,
-      timeZone: 'America/New_York', // TODO: Get from user settings
+      timeZone: 'Europe/London', // British timezone
     },
     end: {
       dateTime: event.endTime,
-      timeZone: 'America/New_York', // TODO: Get from user settings
+      timeZone: 'Europe/London', // British timezone
     },
     attendees: event.attendees?.map(a => ({
       email: a.email,
@@ -173,11 +173,11 @@ export async function updateGoogleCalendarEvent(
     description: updates.description !== undefined ? updates.description : existingEvent.description,
     start: updates.startTime ? {
       dateTime: updates.startTime,
-      timeZone: 'America/New_York',
+      timeZone: 'Europe/London',
     } : existingEvent.start,
     end: updates.endTime ? {
       dateTime: updates.endTime,
-      timeZone: 'America/New_York',
+      timeZone: 'Europe/London',
     } : existingEvent.end,
     attendees: updates.attendees ? updates.attendees.map(a => ({
       email: a.email,

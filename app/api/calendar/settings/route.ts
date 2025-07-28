@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       },
       slotDuration: settings?.slot_duration || 30,
       bufferTime: settings?.buffer_time || 15,
-      timezone: settings?.timezone || 'America/New_York',
+      timezone: settings?.timezone || 'Europe/London',
       googleCalendarConnected: settings?.google_calendar_connected || false,
       bookingConfirmationEnabled: settings?.booking_confirmation_enabled ?? true,
       reminderEnabled: settings?.reminder_enabled ?? true,

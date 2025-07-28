@@ -17,23 +17,23 @@ export default function BillingRevenuePage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div className="bg-gray-800 rounded-lg p-6">
               <p className="text-gray-400 text-sm mb-2">Monthly Revenue</p>
-              <p className="text-3xl font-bold text-gray-500">$0</p>
+              <p className="text-3xl font-bold text-gray-500">£0</p>
               <p className="text-sm text-gray-400 mt-2">No data yet</p>
             </div>
             <div className="bg-gray-800 rounded-lg p-6">
               <p className="text-gray-400 text-sm mb-2">Outstanding</p>
-              <p className="text-3xl font-bold text-gray-500">$0</p>
+              <p className="text-3xl font-bold text-gray-500">£0</p>
               <p className="text-sm text-gray-400 mt-2">0 invoices</p>
             </div>
             <div className="bg-gray-800 rounded-lg p-6">
               <p className="text-gray-400 text-sm mb-2">Failed Payments</p>
-              <p className="text-3xl font-bold text-gray-500">$0</p>
+              <p className="text-3xl font-bold text-gray-500">£0</p>
               <p className="text-sm text-gray-400 mt-2">0 payments</p>
             </div>
             <div className="bg-gray-800 rounded-lg p-6">
               <p className="text-gray-400 text-sm mb-2">Active Subscriptions</p>
               <p className="text-3xl font-bold text-gray-500">0</p>
-              <p className="text-sm text-gray-400 mt-2">$0 MRR</p>
+              <p className="text-sm text-gray-400 mt-2">£0 MRR</p>
             </div>
           </div>
 

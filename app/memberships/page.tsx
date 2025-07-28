@@ -1,15 +1,64 @@
 'use client'
 
 import DashboardLayout from '../components/DashboardLayout'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import NewMembershipPlanModal from '../components/memberships/NewMembershipPlanModal'
+import { createClient } from '@/app/lib/supabase/client'
+import { formatBritishCurrency, formatBritishDate } from '@/app/lib/utils/british-format'
+
+interface MembershipPlan {
+  id: string
+  name: string
+  description: string
+  price: number
+  billing_period: 'monthly' | 'yearly' | 'one-time'
+  features: string[]
+  is_active: boolean
+  created_at: string
+  member_count?: number
+}
 
 export default function MembershipsPage() {
   const [activeTab, setActiveTab] = useState('plans')
   const [showNewPlanModal, setShowNewPlanModal] = useState(false)
+  const [membershipPlans, setMembershipPlans] = useState<MembershipPlan[]>([])
+  const [loading, setLoading] = useState(true)
 
   const handleNewPlan = () => {
     setShowNewPlanModal(true)
+  }
+
+  const fetchMembershipPlans = async () => {
+    setLoading(true)
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('membership_plans')
+        .select(`
+          *,
+          memberships:memberships(count)
+        `)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Error fetching membership plans:', error)
+      } else {
+        setMembershipPlans(data || [])
+      }
+    } catch (error) {
+      console.error('Error:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchMembershipPlans()
+  }, [])
+
+  const handleModalClose = () => {
+    setShowNewPlanModal(false)
+    fetchMembershipPlans() // Refresh the list
   }
 
   return (
@@ -56,14 +105,74 @@ export default function MembershipsPage() {
 
           {/* Content */}
           {activeTab === 'plans' && (
-            <div className="bg-gray-800 rounded-lg p-6">
-              <div className="text-center py-8">
-                <svg className="w-16 h-16 mx-auto mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-                </svg>
-                <p className="text-gray-400 mb-2">No membership plans created yet</p>
-                <p className="text-sm text-gray-500">Click "New Membership Plan" to create your first plan</p>
-              </div>
+            <div>
+              {loading ? (
+                <div className="bg-gray-800 rounded-lg p-6">
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
+                    <p className="text-gray-400 mt-4">Loading membership plans...</p>
+                  </div>
+                </div>
+              ) : membershipPlans.length === 0 ? (
+                <div className="bg-gray-800 rounded-lg p-6">
+                  <div className="text-center py-8">
+                    <svg className="w-16 h-16 mx-auto mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                    </svg>
+                    <p className="text-gray-400 mb-2">No membership plans created yet</p>
+                    <p className="text-sm text-gray-500">Click "New Membership Plan" to create your first plan</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {membershipPlans.map((plan) => (
+                    <div key={plan.id} className="bg-gray-800 rounded-lg p-6 hover:bg-gray-750 transition-colors">
+                      <div className="flex justify-between items-start mb-4">
+                        <h3 className="text-xl font-semibold">{plan.name}</h3>
+                        <span className={`px-2 py-1 text-xs rounded ${plan.is_active ? 'bg-green-600' : 'bg-gray-600'}`}>
+                          {plan.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
+                      
+                      <p className="text-gray-400 text-sm mb-4">{plan.description}</p>
+                      
+                      <div className="mb-4">
+                        <p className="text-3xl font-bold">
+                          {formatBritishCurrency(plan.price, true)}
+                          <span className="text-sm text-gray-400 font-normal">
+                            /{plan.billing_period === 'monthly' ? 'month' : plan.billing_period === 'yearly' ? 'year' : 'one-time'}
+                          </span>
+                        </p>
+                      </div>
+                      
+                      {plan.features && plan.features.length > 0 && (
+                        <ul className="space-y-2 mb-4">
+                          {plan.features.slice(0, 3).map((feature, index) => (
+                            <li key={index} className="text-sm text-gray-400 flex items-center">
+                              <svg className="w-4 h-4 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                              {feature}
+                            </li>
+                          ))}
+                          {plan.features.length > 3 && (
+                            <li className="text-sm text-gray-500 ml-6">+{plan.features.length - 3} more</li>
+                          )}
+                        </ul>
+                      )}
+                      
+                      <div className="flex justify-between items-center pt-4 border-t border-gray-700">
+                        <span className="text-sm text-gray-400">
+                          {plan.member_count || 0} members
+                        </span>
+                        <button className="text-sm text-orange-500 hover:text-orange-400 transition-colors">
+                          Edit Plan
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -89,7 +198,7 @@ export default function MembershipsPage() {
       
       <NewMembershipPlanModal 
         isOpen={showNewPlanModal}
-        onClose={() => setShowNewPlanModal(false)}
+        onClose={handleModalClose}
       />
     </DashboardLayout>
   )

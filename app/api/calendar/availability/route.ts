@@ -18,7 +18,7 @@ const defaultSettings: CalendarSettings = {
   },
   slotDuration: 30, // 30 minutes
   bufferTime: 15, // 15 minutes between appointments
-  timezone: 'America/New_York',
+  timezone: 'Europe/London',
   googleCalendarConnected: false
 }
 

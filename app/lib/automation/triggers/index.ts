@@ -339,9 +339,9 @@ export class ScheduleTrigger extends BaseTrigger {
         schedule_config: {
           cronExpression: this.config.cronExpression,
           interval: this.config.interval,
-          timezone: this.config.timezone || 'America/New_York',
+          timezone: this.config.timezone || 'Europe/London',
         },
-        timezone: this.config.timezone || 'America/New_York',
+        timezone: this.config.timezone || 'Europe/London',
         next_run_at: this.calculateNextRun(),
         is_active: true,
       })
@@ -378,7 +378,7 @@ export class ScheduleTrigger extends BaseTrigger {
   async test(data?: any): Promise<any> {
     return {
       scheduledTime: new Date().toISOString(),
-      timezone: this.config.timezone || 'America/New_York',
+      timezone: this.config.timezone || 'Europe/London',
     }
   }
   

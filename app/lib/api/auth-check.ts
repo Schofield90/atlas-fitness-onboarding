@@ -8,12 +8,23 @@ export class AuthError extends Error {
   }
 }
 
+export interface AuthenticatedUser {
+  id: string
+  email: string
+  organizationId: string
+  role?: string
+}
+
+// Cache for organization lookups to reduce database queries
+const orgCache = new Map<string, { organizationId: string; role?: string; timestamp: number }>()
+const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+
 /**
- * Check if the current request has a valid Supabase session
- * @returns The authenticated user object
- * @throws {AuthError} If no valid session exists
+ * Check if the current request has a valid Supabase session and return user with organization
+ * @returns The authenticated user object with organization info
+ * @throws {AuthError} If no valid session exists or no organization found
  */
-export async function requireAuth() {
+export async function requireAuth(): Promise<AuthenticatedUser> {
   const supabase = await createClient()
   
   // Get the current user session
@@ -23,19 +34,53 @@ export async function requireAuth() {
     throw new AuthError('You must be logged in to access this resource', 401)
   }
   
-  return user
+  // Check cache first
+  const cached = orgCache.get(user.id)
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return {
+      id: user.id,
+      email: user.email!,
+      organizationId: cached.organizationId,
+      role: cached.role
+    }
+  }
+  
+  // Get user's organization from the users table
+  const { data: userData, error: userError } = await supabase
+    .from('users')
+    .select('organization_id, role')
+    .eq('id', user.id)
+    .single()
+  
+  if (userError || !userData || !userData.organization_id) {
+    throw new AuthError('No organization found for this user', 403)
+  }
+  
+  // Cache the result
+  orgCache.set(user.id, {
+    organizationId: userData.organization_id,
+    role: userData.role,
+    timestamp: Date.now()
+  })
+  
+  return {
+    id: user.id,
+    email: user.email!,
+    organizationId: userData.organization_id,
+    role: userData.role
+  }
 }
 
 /**
  * Get the current user session without throwing an error
- * @returns The user object or null if not authenticated
+ * @returns The user object with organization or null if not authenticated
  */
-export async function getUser() {
-  const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  
-  return user
+export async function getUser(): Promise<AuthenticatedUser | null> {
+  try {
+    return await requireAuth()
+  } catch (error) {
+    return null
+  }
 }
 
 /**

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { X, Save } from 'lucide-react';
+import { createClient } from '@/app/lib/supabase/client';
 
 interface NewMembershipPlanModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ const NewMembershipPlanModal: React.FC<NewMembershipPlanModalProps> = ({ isOpen,
     maxMembers: '',
     trialDays: '0'
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   if (!isOpen) return null;
   
@@ -45,12 +47,75 @@ const NewMembershipPlanModal: React.FC<NewMembershipPlanModalProps> = ({ isOpen,
     });
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Add API call to save membership plan
-    console.log('Saving membership plan:', formData);
-    alert('Membership plan created successfully!');
-    onClose();
+    
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    
+    try {
+      const supabase = createClient();
+      
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert('You must be logged in to create a membership plan');
+        return;
+      }
+      
+      // Get user's organization
+      const { data: userData } = await supabase
+        .from('users')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single();
+        
+      if (!userData?.organization_id) {
+        alert('No organization found. Please contact support.');
+        return;
+      }
+      
+      // Convert price to pence (multiply by 100)
+      const priceInPence = Math.round(parseFloat(formData.price) * 100);
+      
+      // Determine billing period
+      let billingPeriod = 'monthly';
+      if (formData.durationType === 'year') {
+        billingPeriod = 'yearly';
+      } else if (formData.durationType === 'day' && formData.duration === '1') {
+        billingPeriod = 'one-time';
+      }
+      
+      // Save membership plan
+      const { data, error } = await supabase
+        .from('membership_plans')
+        .insert({
+          name: formData.name,
+          description: formData.description,
+          price: priceInPence,
+          billing_period: billingPeriod,
+          features: formData.features.filter(f => f.trim() !== ''),
+          is_active: true,
+          organization_id: userData.organization_id,
+          trial_days: parseInt(formData.trialDays) || 0,
+          max_members: formData.maxMembers ? parseInt(formData.maxMembers) : null
+        })
+        .select();
+      
+      if (error) {
+        console.error('Error creating membership plan:', error);
+        alert('Failed to create membership plan. Please try again.');
+        return;
+      }
+      
+      alert('Membership plan created successfully!');
+      onClose();
+    } catch (error) {
+      console.error('Error:', error);
+      alert('An error occurred. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   
   return (
@@ -87,7 +152,7 @@ const NewMembershipPlanModal: React.FC<NewMembershipPlanModalProps> = ({ isOpen,
                 Price
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">$</span>
+                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">£</span>
                 <input
                   type="number"
                   value={formData.price}
@@ -214,10 +279,20 @@ const NewMembershipPlanModal: React.FC<NewMembershipPlanModalProps> = ({ isOpen,
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors flex items-center gap-2 text-white"
+              disabled={isSubmitting}
+              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center gap-2 text-white"
             >
-              <Save className="h-4 w-4" />
-              Create Plan
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  Create Plan
+                </>
+              )}
             </button>
           </div>
         </form>

@@ -20,7 +20,7 @@ const mockClasses = [
     bookings: 18,
     capacity: 20,
     color: 'orange' as const,
-    earnings: '$360',
+    earnings: '£360',
     room: 'Studio A',
     day: 0, // Monday
     timeSlot: 3 // 9:00 AM
@@ -34,7 +34,7 @@ const mockClasses = [
     bookings: 22,
     capacity: 25,
     color: 'purple' as const,
-    earnings: '$440',
+    earnings: '£440',
     room: 'Studio B',
     day: 0,
     timeSlot: 4
@@ -48,7 +48,7 @@ const mockClasses = [
     bookings: 15,
     capacity: 15,
     color: 'blue' as const,
-    earnings: '$450',
+    earnings: '£450',
     room: 'Gym Floor',
     day: 0,
     timeSlot: 12
@@ -62,7 +62,7 @@ const mockClasses = [
     bookings: 12,
     capacity: 16,
     color: 'green' as const,
-    earnings: '$240',
+    earnings: '£240',
     room: 'Studio A',
     day: 1,
     timeSlot: 1
@@ -76,7 +76,7 @@ const mockClasses = [
     bookings: 20,
     capacity: 18,
     color: 'orange' as const,
-    earnings: '$300',
+    earnings: '£300',
     room: 'Studio B',
     day: 1,
     timeSlot: 6
@@ -90,7 +90,7 @@ const mockClasses = [
     bookings: 14,
     capacity: 20,
     color: 'pink' as const,
-    earnings: '$280',
+    earnings: '£280',
     room: 'Studio A',
     day: 2,
     timeSlot: 11

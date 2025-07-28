@@ -95,7 +95,7 @@ export async function unscheduleWorkflow(triggerId: string): Promise<void> {
 // Calculate next run time
 function calculateNextRunTime(config: any): Date | null {
   const now = new Date()
-  const timezone = config.timezone || 'America/New_York'
+  const timezone = config.timezone || 'Europe/London'
   
   switch (config.scheduleType) {
     case 'cron':

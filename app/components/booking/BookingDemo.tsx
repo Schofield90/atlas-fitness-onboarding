@@ -23,7 +23,7 @@ const MOCK_CLASSES = [
       spaces_available: 8,
       max_capacity: 15,
       instructor: 'Sarah Johnson',
-      price: '$15'
+      price: '£15'
     }
   },
   {
@@ -38,7 +38,7 @@ const MOCK_CLASSES = [
       spaces_available: 12,
       max_capacity: 20,
       instructor: 'Mike Chen',
-      price: '$12'
+      price: '£12'
     }
   },
   {
@@ -53,7 +53,7 @@ const MOCK_CLASSES = [
       spaces_available: 0,
       max_capacity: 10,
       instructor: 'Alex Rodriguez',
-      price: '$20'
+      price: '£20'
     }
   },
   // Tomorrow
@@ -69,7 +69,7 @@ const MOCK_CLASSES = [
       spaces_available: 15,
       max_capacity: 15,
       instructor: 'Sarah Johnson',
-      price: '$15'
+      price: '£15'
     }
   },
   {
@@ -100,7 +100,7 @@ const MOCK_CLASSES = [
       spaces_available: 18,
       max_capacity: 20,
       instructor: 'Mike Chen',
-      price: '$12'
+      price: '£12'
     }
   }
 ];

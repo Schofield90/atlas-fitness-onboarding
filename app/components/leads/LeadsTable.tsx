@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { formatBritishDate } from '@/app/lib/utils/british-format'
 
 interface Lead {
   id: string
@@ -97,7 +98,7 @@ export function LeadsTable({ statusFilter = 'all' }: LeadsTableProps) {
     if (diffInHours < 24) return `${Math.floor(diffInHours)}h ago`
     if (diffInHours < 48) return 'Yesterday'
     
-    return date.toLocaleDateString()
+    return formatBritishDate(date)
   }
 
   const filteredLeads = leads.filter(lead => 

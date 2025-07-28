@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/app/lib/supabase/server';
 import { sendWhatsAppMessage } from '@/app/lib/services/twilio';
+import { formatBritishDate, formatBritishDateTime } from '@/app/lib/utils/british-format';
 
 export async function POST(request: NextRequest) {
   try {
@@ -63,15 +64,11 @@ export async function POST(request: NextRequest) {
     // Send WhatsApp confirmation if phone number provided
     if (customerPhone) {
       const classDate = new Date(classSession.starts_at);
-      const formattedDate = classDate.toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        month: 'long', 
-        day: 'numeric' 
-      });
-      const formattedTime = classDate.toLocaleTimeString('en-US', { 
-        hour: 'numeric', 
+      const formattedDate = formatBritishDate(classDate);
+      const formattedTime = classDate.toLocaleTimeString('en-GB', { 
+        hour: '2-digit', 
         minute: '2-digit', 
-        hour12: true 
+        hour12: false 
       });
 
       const confirmationMessage = `🎉 Booking Confirmed!
@@ -115,7 +112,7 @@ Atlas Fitness Team`;
         .insert({
           client_id: customerId,
           activity_type: 'class_booked',
-          description: `Booked ${classSession.program.name} for ${new Date(classSession.starts_at).toLocaleDateString()}`,
+          description: `Booked ${classSession.program.name} for ${formatBritishDate(new Date(classSession.starts_at))}`,
           metadata: {
             class_session_id: classSessionId,
             booking_id: booking.id
@@ -190,7 +187,7 @@ export async function DELETE(request: NextRequest) {
     if (customerPhone) {
       const cancellationMessage = `✅ Booking Cancelled
 
-Your booking for ${booking.class_session.program.name} on ${new Date(booking.class_session.starts_at).toLocaleDateString()} has been cancelled.
+Your booking for ${booking.class_session.program.name} on ${formatBritishDate(new Date(booking.class_session.starts_at))} has been cancelled.
 
 We hope to see you in another class soon! 
 

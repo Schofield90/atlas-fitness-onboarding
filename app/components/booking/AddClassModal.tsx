@@ -40,7 +40,7 @@ const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose, onAdd })
       ...formData,
       id: Date.now().toString(),
       bookings: 0,
-      earnings: `$0`,
+      earnings: `£0`,
       color: classTypes.find(t => t.id === formData.type)?.color || 'orange'
     };
     
@@ -224,7 +224,7 @@ const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose, onAdd })
             
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Price ($)
+                Price (£)
               </label>
               <input
                 type="number"

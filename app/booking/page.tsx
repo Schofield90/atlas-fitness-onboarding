@@ -162,7 +162,7 @@ export default function BookingManagement() {
           />
           <QuickStat 
             label="Revenue Today" 
-            value="$0" 
+            value="£0" 
             change=""
             trend="neutral"
           />

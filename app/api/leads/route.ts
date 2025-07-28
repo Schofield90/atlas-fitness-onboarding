@@ -4,8 +4,8 @@ import { requireAuth, createErrorResponse } from '@/app/lib/api/auth-check'
 
 export async function GET(request: NextRequest) {
   try {
-    // Check authentication using the helper function
-    const user = await requireAuth()
+    // Check authentication and get organization
+    const userWithOrg = await requireAuth()
     
     // Create Supabase client
     const supabase = await createClient()
@@ -13,12 +13,18 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
     const source = searchParams.get('source')
+    const assignedTo = searchParams.get('assigned_to')
+    const createdBy = searchParams.get('created_by')
     
-    // Build query - now we can use user.id directly
+    // Build query - filter by organization for shared access
     let query = supabase
       .from('leads')
-      .select('*')
-      .eq('user_id', user.id) // Filter by authenticated user
+      .select(`
+        *,
+        created_by_user:users!leads_created_by_fkey(id, email, name),
+        assigned_to_user:users!leads_assigned_to_fkey(id, email, name)
+      `)
+      .eq('organization_id', userWithOrg.organizationId) // Filter by organization
       .order('created_at', { ascending: false })
     
     // Apply filters
@@ -28,6 +34,14 @@ export async function GET(request: NextRequest) {
     
     if (source) {
       query = query.eq('source', source)
+    }
+    
+    if (assignedTo) {
+      query = query.eq('assigned_to', assignedTo)
+    }
+    
+    if (createdBy) {
+      query = query.eq('created_by', createdBy)
     }
     
     const { data: leads, error } = await query
@@ -40,7 +54,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       leads: leads || [],
-      total: leads?.length || 0
+      total: leads?.length || 0,
+      organizationId: userWithOrg.organizationId
     })
     
   } catch (error) {
@@ -51,8 +66,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication
-    const user = await requireAuth()
+    // Check authentication and get organization
+    const userWithOrg = await requireAuth()
     
     const supabase = await createClient()
     const body = await request.json()
@@ -65,7 +80,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    // Create new lead with user_id from authenticated user
+    // Create new lead with organization_id and track creator
     const { data: lead, error } = await supabase
       .from('leads')
       .insert({
@@ -80,9 +95,15 @@ export async function POST(request: NextRequest) {
         page_id: body.page_id,
         form_id: body.form_id,
         field_data: body.custom_fields || {},
-        user_id: user.id // Use authenticated user's ID
+        organization_id: userWithOrg.organizationId, // Organization-wide access
+        created_by: userWithOrg.id, // Track who created it
+        assigned_to: body.assigned_to || userWithOrg.id // Default assignment to creator
       })
-      .select()
+      .select(`
+        *,
+        created_by_user:users!leads_created_by_fkey(id, email, name),
+        assigned_to_user:users!leads_assigned_to_fkey(id, email, name)
+      `)
       .single()
     
     if (error) {
@@ -102,8 +123,8 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    // Check authentication
-    const user = await requireAuth()
+    // Check authentication and get organization
+    const userWithOrg = await requireAuth()
     
     const supabase = await createClient()
     const body = await request.json()
@@ -112,16 +133,23 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Lead ID is required' }, { status: 400 })
     }
     
-    // Update lead - ensure it belongs to the authenticated user
+    // Remove fields that shouldn't be updated
+    const { id, organization_id, created_by, ...updateData } = body
+    
+    // Update lead - ensure it belongs to the user's organization
     const { data: lead, error } = await supabase
       .from('leads')
       .update({
-        status: body.status,
-        ...body
+        ...updateData,
+        updated_at: new Date().toISOString()
       })
       .eq('id', body.id)
-      .eq('user_id', user.id) // Ensure user owns this lead
-      .select()
+      .eq('organization_id', userWithOrg.organizationId) // Ensure org owns this lead
+      .select(`
+        *,
+        created_by_user:users!leads_created_by_fkey(id, email, name),
+        assigned_to_user:users!leads_assigned_to_fkey(id, email, name)
+      `)
       .single()
     
     if (error) {
@@ -145,8 +173,8 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    // Check authentication
-    const user = await requireAuth()
+    // Check authentication and get organization
+    const userWithOrg = await requireAuth()
     
     const supabase = await createClient()
     const { searchParams } = new URL(request.url)
@@ -156,12 +184,24 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Lead ID is required' }, { status: 400 })
     }
     
-    // Delete lead - ensure it belongs to the authenticated user
+    // First, verify the lead exists and belongs to the organization
+    const { data: existingLead, error: checkError } = await supabase
+      .from('leads')
+      .select('id')
+      .eq('id', leadId)
+      .eq('organization_id', userWithOrg.organizationId)
+      .single()
+    
+    if (checkError || !existingLead) {
+      return NextResponse.json({ error: 'Lead not found or unauthorized' }, { status: 404 })
+    }
+    
+    // Delete lead - ensure it belongs to the user's organization
     const { error } = await supabase
       .from('leads')
       .delete()
       .eq('id', leadId)
-      .eq('user_id', user.id) // Ensure user owns this lead
+      .eq('organization_id', userWithOrg.organizationId) // Ensure org owns this lead
     
     if (error) {
       console.error('Error deleting lead:', error)
