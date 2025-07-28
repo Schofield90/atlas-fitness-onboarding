@@ -85,23 +85,21 @@ export async function POST(request: NextRequest) {
       created_by: userWithOrg.id
     })
     
-    // Build insert data - check if created_by column exists
+    // Build insert data with only essential fields
     const insertData: any = {
       name: body.name,
       email: body.email,
       phone: body.phone,
-      source: body.source || 'manual',
-      status: body.status || 'new',
-      form_name: body.form_name,
-      campaign_name: body.campaign_name,
-      facebook_lead_id: body.facebook_lead_id,
-      page_id: body.page_id,
-      form_id: body.form_id,
-      field_data: body.custom_fields || {},
       organization_id: userWithOrg.organizationId
     }
     
-    // Try with created_by first
+    // Add optional fields only if they're provided
+    if (body.source) insertData.source = body.source
+    if (body.status) insertData.status = body.status
+    if (body.form_name) insertData.form_name = body.form_name
+    if (body.campaign_name) insertData.campaign_name = body.campaign_name
+    
+    // Create the lead
     const { data: lead, error } = await supabase
       .from('leads')
       .insert(insertData)
