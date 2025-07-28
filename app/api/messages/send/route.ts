@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/app/lib/supabase/server'
 import { requireAuth, createErrorResponse } from '@/app/lib/api/auth-check'
-import { sendSMS, sendWhatsApp } from '@/app/lib/services/twilio'
-import { sendEmail } from '@/app/lib/email/send-email'
+import { sendSMS, sendWhatsAppMessage } from '@/app/lib/services/twilio'
+import { Resend } from 'resend'
+
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(request: NextRequest) {
   try {
@@ -72,24 +74,39 @@ export async function POST(request: NextRequest) {
 
       switch (type) {
         case 'sms':
-          result = await sendSMS(to, messageBody)
-          externalId = result.sid
+          result = await sendSMS({ to, body: messageBody })
+          if (!result.success) {
+            throw new Error(result.error || 'Failed to send SMS')
+          }
+          externalId = result.messageId
           break
 
         case 'whatsapp':
-          result = await sendWhatsApp(to, messageBody)
-          externalId = result.sid
+          result = await sendWhatsAppMessage({ to, body: messageBody })
+          if (!result.success) {
+            throw new Error(result.error || 'Failed to send WhatsApp message')
+          }
+          externalId = result.messageId
           break
 
         case 'email':
-          result = await sendEmail({
+          if (!process.env.RESEND_API_KEY) {
+            throw new Error('Email service not configured')
+          }
+          
+          result = await resend.emails.send({
+            from: `Atlas Fitness <${process.env.RESEND_FROM_EMAIL || 'noreply@atlas-fitness.com'}>`,
             to,
             subject,
             text: messageBody,
-            from: `Atlas Fitness <${process.env.RESEND_FROM_EMAIL || 'noreply@atlas-fitness.com'}>`,
-            replyTo: userWithOrg.email
+            reply_to: userWithOrg.email
           })
-          externalId = result.id
+          
+          if ('error' in result && result.error) {
+            throw new Error(result.error.message || 'Failed to send email')
+          }
+          
+          externalId = result.data?.id
           break
 
         default:

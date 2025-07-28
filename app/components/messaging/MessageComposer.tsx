@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { X } from 'lucide-react'
+import { Toast } from '@/app/components/ui/Toast'
 
 interface MessageComposerProps {
   isOpen: boolean
@@ -23,6 +24,7 @@ export function MessageComposer({ isOpen, onClose, lead, onMessageSent }: Messag
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+  const [showSuccess, setShowSuccess] = useState(false)
 
   const handleSend = async () => {
     if (!message.trim()) {
@@ -63,11 +65,14 @@ export function MessageComposer({ isOpen, onClose, lead, onMessageSent }: Messag
       setSubject('')
       setMessage('')
       
-      // Notify parent
-      onMessageSent?.()
+      // Show success
+      setShowSuccess(true)
       
-      // Close modal
-      setTimeout(() => onClose(), 1000)
+      // Notify parent and close after a short delay
+      setTimeout(() => {
+        onMessageSent?.()
+        onClose()
+      }, 1500)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message')
     } finally {
@@ -239,6 +244,15 @@ export function MessageComposer({ isOpen, onClose, lead, onMessageSent }: Messag
           </button>
         </div>
       </div>
+
+      {/* Success Toast */}
+      {showSuccess && (
+        <Toast
+          message={`${messageType.toUpperCase()} sent successfully!`}
+          type="success"
+          onClose={() => setShowSuccess(false)}
+        />
+      )}
     </div>
   )
 }

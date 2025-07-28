@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import DashboardLayout from '@/app/components/DashboardLayout'
+import { MessageComposer } from '@/app/components/messaging/MessageComposer'
+import { MessageHistory } from '@/app/components/messaging/MessageHistory'
 
 interface Lead {
   id: string
@@ -29,6 +31,8 @@ export default function LeadDetailPage() {
   const [editing, setEditing] = useState(false)
   const [notes, setNotes] = useState('')
   const [userData, setUserData] = useState<any>(null)
+  const [messageModalOpen, setMessageModalOpen] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
 
   useEffect(() => {
     fetchLead()
@@ -195,6 +199,26 @@ export default function LeadDetailPage() {
               )}
             </div>
 
+            {/* Message History Section */}
+            <div className="bg-gray-800 rounded-lg p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">Messages</h2>
+                <button
+                  onClick={() => setMessageModalOpen(true)}
+                  className="bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded-lg flex items-center gap-2 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Send Message
+                </button>
+              </div>
+              
+              <div className="h-96 bg-gray-700 rounded-lg overflow-hidden">
+                <MessageHistory leadId={lead.id} />
+              </div>
+            </div>
+
             {/* Notes Section */}
             <div className="bg-gray-800 rounded-lg p-6">
               <h2 className="text-xl font-bold mb-4">Notes</h2>
@@ -236,15 +260,15 @@ export default function LeadDetailPage() {
                   </svg>
                   WhatsApp
                 </a>
-                <a 
-                  href={`mailto:${lead.email}`}
+                <button
+                  onClick={() => setMessageModalOpen(true)}
                   className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                   </svg>
-                  Email
-                </a>
+                  Send Message
+                </button>
               </div>
             </div>
 
@@ -288,6 +312,20 @@ export default function LeadDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Message Composer Modal */}
+      {lead && (
+        <MessageComposer
+          isOpen={messageModalOpen}
+          onClose={() => setMessageModalOpen(false)}
+          lead={lead}
+          onMessageSent={() => {
+            setMessageModalOpen(false)
+            // Refresh message history
+            window.location.reload()
+          }}
+        />
+      )}
     </DashboardLayout>
   )
 }
