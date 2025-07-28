@@ -35,7 +35,10 @@ export function AddLeadModal({ isOpen, onClose, onLeadAdded }: AddLeadModalProps
 
       if (!response.ok) {
         const data = await response.json()
-        throw new Error(data.error || 'Failed to add lead')
+        const errorMessage = data.details 
+          ? `${data.error}: ${data.details}` 
+          : data.error || 'Failed to add lead'
+        throw new Error(errorMessage)
       }
 
       // Reset form and close modal

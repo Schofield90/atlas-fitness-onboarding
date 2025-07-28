@@ -80,6 +80,15 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
+    // Log the data we're trying to insert
+    console.log('Creating lead with data:', {
+      name: body.name,
+      email: body.email,
+      phone: body.phone,
+      organization_id: userWithOrg.organizationId,
+      created_by: userWithOrg.id
+    })
+    
     // Create new lead with organization_id and track creator
     const { data: lead, error } = await supabase
       .from('leads')
@@ -108,7 +117,12 @@ export async function POST(request: NextRequest) {
     
     if (error) {
       console.error('Error creating lead:', error)
-      return NextResponse.json({ error: 'Failed to create lead' }, { status: 500 })
+      return NextResponse.json({ 
+        error: 'Failed to create lead',
+        details: error.message,
+        code: error.code,
+        hint: error.hint
+      }, { status: 500 })
     }
     
     return NextResponse.json({
