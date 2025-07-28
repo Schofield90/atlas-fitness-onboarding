@@ -2,10 +2,13 @@
 
 import DashboardLayout from '../components/DashboardLayout'
 import { useState } from 'react'
+import { createClient } from '@/app/lib/supabase/client'
 
 export default function FormsDocumentsPage() {
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [showFormBuilder, setShowFormBuilder] = useState(false)
+  const [formDescription, setFormDescription] = useState('')
+  const [generatingForm, setGeneratingForm] = useState(false)
 
   return (
     <DashboardLayout>
@@ -135,15 +138,21 @@ export default function FormsDocumentsPage() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <button className="p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left">
+                    <button 
+                      onClick={() => setFormDescription('Create a comprehensive gym liability waiver form that includes: member personal information, emergency contact details, acknowledgment of risks, liability release clause, photo/video consent, and signature fields')}
+                      className="p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left">
                       <h4 className="font-medium mb-1">Liability Waiver</h4>
                       <p className="text-sm text-gray-400">Standard gym liability and injury waiver</p>
                     </button>
-                    <button className="p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left">
+                    <button 
+                      onClick={() => setFormDescription('Create a health assessment form with: personal details, medical history checklist, current medications, previous injuries, fitness goals, physical limitations, doctor clearance requirement, and emergency medical information')}
+                      className="p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left">
                       <h4 className="font-medium mb-1">Health Assessment</h4>
                       <p className="text-sm text-gray-400">Medical history and fitness goals</p>
                     </button>
-                    <button className="p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left">
+                    <button 
+                      onClick={() => setFormDescription('Create a membership agreement form including: membership type selection, payment terms, automatic renewal clause, cancellation policy, gym rules and regulations, member responsibilities, and agreement signature')}
+                      className="p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left">
                       <h4 className="font-medium mb-1">Membership Agreement</h4>
                       <p className="text-sm text-gray-400">Terms, payment, and cancellation policy</p>
                     </button>
@@ -162,13 +171,18 @@ export default function FormsDocumentsPage() {
                     Cancel
                   </button>
                   <button 
-                    onClick={() => {
-                      alert('AI Form Builder coming soon! This will use AI to generate custom forms based on your requirements.')
-                      setShowFormBuilder(false)
-                    }}
-                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
+                    onClick={generateForm}
+                    disabled={generatingForm}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 rounded-lg transition-colors flex items-center gap-2"
                   >
-                    Generate Form
+                    {generatingForm ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Generating...
+                      </>
+                    ) : (
+                      'Generate Form'
+                    )}
                   </button>
                 </div>
               </div>

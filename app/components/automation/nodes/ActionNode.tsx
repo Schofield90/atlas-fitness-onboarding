@@ -32,7 +32,14 @@ const ActionNode = ({ data, selected }: CustomNodeProps) => {
             <Icon className="h-4 w-4 text-blue-400" />
             <span className="font-medium text-sm">Action</span>
           </div>
-          <button className="hover:bg-gray-600 p-1 rounded transition-colors">
+          <button 
+            className="hover:bg-gray-600 p-1 rounded transition-colors"
+            onClick={(e) => {
+              e.stopPropagation()
+              // The parent will handle the actual settings opening
+            }}
+            title="Configure node (or double-click)"
+          >
             <Settings className="h-3 w-3" />
           </button>
         </div>

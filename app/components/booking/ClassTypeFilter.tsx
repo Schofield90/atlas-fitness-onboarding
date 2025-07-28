@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Filter, Plus } from 'lucide-react';
 import { createClient } from '@/app/lib/supabase/client';
+import AddClassTypeModal from './AddClassTypeModal';
 
 interface ClassType {
   id: string;
@@ -15,6 +16,7 @@ const ClassTypeFilter: React.FC = () => {
   const [selectedType, setSelectedType] = useState('all');
   const [classTypes, setClassTypes] = useState<ClassType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
   
   useEffect(() => {
     fetchClassTypes();
@@ -106,10 +108,7 @@ const ClassTypeFilter: React.FC = () => {
           ))
         ) : (
           <button
-            onClick={() => {
-              console.log('Add first class type');
-              // TODO: Open modal to add class type
-            }}
+            onClick={() => setShowAddModal(true)}
             className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium
               border border-dashed border-gray-600 text-gray-400 hover:text-white hover:border-gray-500
               transition-all duration-200"
@@ -119,6 +118,14 @@ const ClassTypeFilter: React.FC = () => {
           </button>
         )}
       </div>
+      
+      <AddClassTypeModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onAdd={() => {
+          fetchClassTypes();
+        }}
+      />
     </div>
   );
 };

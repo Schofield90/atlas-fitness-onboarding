@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { Card, CardHeader, CardContent, CardTitle } from '../ui/Card';
 import Badge from '../ui/Badge';
@@ -12,37 +14,29 @@ import {
   MessageSquare,
   UserPlus,
   Calendar,
-  Star
+  Star,
+  Info
 } from 'lucide-react';
 
 const SelectedClassDetails: React.FC = () => {
-  // Mock selected class data
-  const selectedClass = {
-    id: '1',
-    title: 'HIIT Blast',
-    instructor: {
-      name: 'Sarah Chen',
-      avatar: '👩‍💼',
-      rating: 4.9,
-      experience: '5 years'
-    },
-    time: '9:00 AM - 9:45 AM',
-    date: 'Monday, July 24',
-    duration: 45,
-    bookings: 18,
-    capacity: 20,
-    waitlist: 3,
-    earnings: '$360',
-    room: 'Studio A',
-    description: 'High-intensity interval training designed to boost your metabolism and burn calories.',
-    equipment: ['Dumbbells', 'Kettlebells', 'Exercise Mats'],
-    attendees: [
-      { name: 'John Smith', status: 'checked-in', memberType: 'Premium' },
-      { name: 'Emma Davis', status: 'booked', memberType: 'Basic' },
-      { name: 'Mike Johnson', status: 'booked', memberType: 'Premium' },
-      { name: 'Sarah Wilson', status: 'no-show', memberType: 'Trial' }
-    ]
-  };
+  // No class selected by default
+  const selectedClass = null;
+  
+  if (!selectedClass) {
+    return (
+      <div className="p-6 h-full flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Info className="w-8 h-8 text-gray-400" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-300 mb-2">No Class Selected</h3>
+          <p className="text-sm text-gray-400">
+            Click on a class in the calendar to view its details
+          </p>
+        </div>
+      </div>
+    );
+  }
   
   const utilizationRate = (selectedClass.bookings / selectedClass.capacity) * 100;
   

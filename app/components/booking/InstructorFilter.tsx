@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Plus } from 'lucide-react';
 import { createClient } from '@/app/lib/supabase/client';
+import AddStaffModal from './AddStaffModal';
 
 interface Instructor {
   id: string;
@@ -17,6 +18,7 @@ const InstructorFilter: React.FC = () => {
   const [selectedInstructor, setSelectedInstructor] = useState('all');
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
   
   useEffect(() => {
     fetchInstructors();
@@ -120,10 +122,7 @@ const InstructorFilter: React.FC = () => {
           ))
         ) : (
           <button
-            onClick={() => {
-              console.log('Add first instructor');
-              // TODO: Open modal to add instructor
-            }}
+            onClick={() => setShowAddModal(true)}
             className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium
               border border-dashed border-gray-600 text-gray-400 hover:text-white hover:border-gray-500
               transition-all duration-200"
@@ -133,6 +132,14 @@ const InstructorFilter: React.FC = () => {
           </button>
         )}
       </div>
+      
+      <AddStaffModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onAdd={() => {
+          fetchInstructors();
+        }}
+      />
     </div>
   );
 };

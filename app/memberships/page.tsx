@@ -2,6 +2,7 @@
 
 import DashboardLayout from '../components/DashboardLayout'
 import { useState } from 'react'
+import NewMembershipPlanModal from '../components/memberships/NewMembershipPlanModal'
 
 export default function MembershipsPage() {
   const [activeTab, setActiveTab] = useState('plans')
@@ -85,6 +86,11 @@ export default function MembershipsPage() {
           )}
         </div>
       </div>
+      
+      <NewMembershipPlanModal 
+        isOpen={showNewPlanModal}
+        onClose={() => setShowNewPlanModal(false)}
+      />
     </DashboardLayout>
   )
 }

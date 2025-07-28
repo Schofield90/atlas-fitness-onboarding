@@ -67,6 +67,7 @@ import WaitNode from './nodes/WaitNode'
 import LoopNode from './nodes/LoopNode'
 import TransformNode from './nodes/TransformNode'
 import FilterNode from './nodes/FilterNode'
+import NodeConfigPanel from './NodeConfigPanel'
 
 // Node types mapping
 const nodeTypes = {
@@ -260,6 +261,8 @@ function WorkflowBuilderInner({ workflow, onSave, onTest }: WorkflowBuilderProps
   const [executionSteps, setExecutionSteps] = useState<ExecutionStep[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['triggers']))
+  const [showConfigPanel, setShowConfigPanel] = useState(false)
+  const [configNode, setConfigNode] = useState<WorkflowNode | null>(null)
 
   const { getNode, getEdges, getNodes } = useReactFlow()
 
@@ -321,6 +324,11 @@ function WorkflowBuilderInner({ workflow, onSave, onTest }: WorkflowBuilderProps
   // Node selection handler
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
     setSelectedNode(node.id)
+    // Open config panel on double click
+    if (event.detail === 2) {
+      setConfigNode(node as WorkflowNode)
+      setShowConfigPanel(true)
+    }
   }, [])
 
   // Delete selected elements
@@ -428,6 +436,25 @@ function WorkflowBuilderInner({ workflow, onSave, onTest }: WorkflowBuilderProps
     }
     return acc
   }, {} as Record<string, NodePaletteItem[]>)
+
+  // Handle node configuration save
+  const handleNodeConfigSave = useCallback((nodeId: string, config: any) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              config,
+              isValid: true,
+            },
+          }
+        }
+        return node
+      })
+    )
+  }, [setNodes])
 
   return (
     <div className="flex h-screen bg-gray-900 text-white">
@@ -592,7 +619,13 @@ function WorkflowBuilderInner({ workflow, onSave, onTest }: WorkflowBuilderProps
                   </button>
                   <button
                     className="p-1 hover:bg-gray-700 rounded"
-                    onClick={() => {/* TODO: Open node settings */}}
+                    onClick={() => {
+                      const node = getNode(selectedNode)
+                      if (node) {
+                        setConfigNode(node as WorkflowNode)
+                        setShowConfigPanel(true)
+                      }
+                    }}
                   >
                     <Settings className="h-4 w-4" />
                   </button>
@@ -675,6 +708,18 @@ function WorkflowBuilderInner({ workflow, onSave, onTest }: WorkflowBuilderProps
             )}
           </div>
         </div>
+      )}
+      
+      {/* Node Configuration Panel */}
+      {showConfigPanel && (
+        <NodeConfigPanel
+          node={configNode}
+          onClose={() => {
+            setShowConfigPanel(false)
+            setConfigNode(null)
+          }}
+          onSave={handleNodeConfigSave}
+        />
       )}
     </div>
   )
