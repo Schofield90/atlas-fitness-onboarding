@@ -714,3 +714,46 @@ To verify the localization:
 
 **Last Updated**: July 29, 2025
 **Status**: British localization fully implemented and deployed
+
+---
+
+## 📞 In-App Calling System (July 28, 2025)
+
+### Overview
+Implemented Twilio-powered in-app calling to replace the default tel: links that open FaceTime/native dialers.
+
+### Features
+- **Call Modal Interface** - Professional calling UI with status indicators
+- **Call States** - Idle, Connecting, Connected, Ended with visual feedback
+- **Call Controls** - Mute/unmute, end call, duration tracking
+- **Call Logging** - All calls logged in messages table for history
+- **Twilio Integration** - Server-initiated calls via Twilio Voice API
+
+### Components Created
+- `/app/components/calling/CallModal.tsx` - Main calling interface
+- `/app/api/calls/initiate/route.ts` - Start call endpoint
+- `/app/api/calls/twiml/route.ts` - TwiML response for call flow
+- `/app/api/calls/end/route.ts` - Log call completion
+
+### Setup Requirements
+For full calling functionality, add to environment variables:
+- `TWILIO_ACCOUNT_SID` - Already set for SMS
+- `TWILIO_AUTH_TOKEN` - Already set for SMS
+- `TWILIO_SMS_FROM` - Used as outbound number for calls
+- `NEXT_PUBLIC_APP_URL` - Your app URL for callbacks
+
+### Current Implementation
+- Basic call initiation through Twilio
+- Call status tracking and duration display
+- Simulated connection for testing
+- All calls logged as messages for history
+
+### Future Enhancements
+- Browser-based calling with Twilio Client SDK
+- Real-time audio streaming
+- Call recording playback
+- Conference calling for team calls
+- Call transfer capabilities
+
+**Last Updated**: July 28, 2025
+**Status**: In-app calling system implemented with Twilio integration

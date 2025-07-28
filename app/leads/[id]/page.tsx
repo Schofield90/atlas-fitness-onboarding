@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation'
 import DashboardLayout from '@/app/components/DashboardLayout'
 import { MessageComposer } from '@/app/components/messaging/MessageComposer'
 import { MessageHistory } from '@/app/components/messaging/MessageHistory'
+import { CallModal } from '@/app/components/calling/CallModal'
 
 interface Lead {
   id: string
@@ -33,6 +34,7 @@ export default function LeadDetailPage() {
   const [userData, setUserData] = useState<any>(null)
   const [messageModalOpen, setMessageModalOpen] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
+  const [callModalOpen, setCallModalOpen] = useState(false)
 
   useEffect(() => {
     fetchLead()
@@ -240,15 +242,15 @@ export default function LeadDetailPage() {
             <div className="bg-gray-800 rounded-lg p-6">
               <h3 className="text-lg font-bold mb-4">Quick Actions</h3>
               <div className="space-y-3">
-                <a 
-                  href={`tel:${lead.phone}`}
+                <button
+                  onClick={() => setCallModalOpen(true)}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                   </svg>
                   Call
-                </a>
+                </button>
                 <a 
                   href={`https://wa.me/${lead.phone.replace(/\D/g, '')}`}
                   target="_blank"
@@ -324,6 +326,15 @@ export default function LeadDetailPage() {
             // Refresh message history
             window.location.reload()
           }}
+        />
+      )}
+
+      {/* Call Modal */}
+      {lead && (
+        <CallModal
+          isOpen={callModalOpen}
+          onClose={() => setCallModalOpen(false)}
+          lead={lead}
         />
       )}
     </DashboardLayout>
