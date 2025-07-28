@@ -16,11 +16,7 @@ export async function GET(
     // Fetch the specific lead with organization check
     const { data: lead, error } = await supabase
       .from('leads')
-      .select(`
-        *,
-        created_by_user:users!leads_created_by_fkey(id, email, name),
-        assigned_to_user:users!leads_assigned_to_fkey(id, email, name)
-      `)
+      .select('*')
       .eq('id', id)
       .eq('organization_id', userWithOrg.organizationId) // Ensure org access
       .single()
@@ -61,11 +57,7 @@ export async function PATCH(
       })
       .eq('id', id)
       .eq('organization_id', userWithOrg.organizationId) // Ensure org owns this lead
-      .select(`
-        *,
-        created_by_user:users!leads_created_by_fkey(id, email, name),
-        assigned_to_user:users!leads_assigned_to_fkey(id, email, name)
-      `)
+      .select()
       .single()
     
     if (error || !lead) {
