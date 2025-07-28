@@ -20,9 +20,9 @@ export async function POST(request: Request) {
     )
     
     // 1. Find the auth user by email using admin API
-    const { data: { users }, error: authError } = await supabaseAdmin.auth.admin.listUsers()
+    const { data, error: authError } = await supabaseAdmin.auth.admin.listUsers()
     
-    if (authError) {
+    if (authError || !data) {
       return NextResponse.json({ 
         error: 'Failed to list users',
         authError: authError?.message
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     }
     
     // Find user by email
-    const authUser = users.find(u => u.email === email)
+    const authUser = data.users.find((u: any) => u.email === email)
     
     if (!authUser) {
       return NextResponse.json({ 
