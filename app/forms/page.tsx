@@ -9,6 +9,40 @@ export default function FormsDocumentsPage() {
   const [showFormBuilder, setShowFormBuilder] = useState(false)
   const [formDescription, setFormDescription] = useState('')
   const [generatingForm, setGeneratingForm] = useState(false)
+  
+  const generateForm = async () => {
+    if (!formDescription.trim()) {
+      alert('Please describe the form you want to create');
+      return;
+    }
+    
+    setGeneratingForm(true);
+    
+    try {
+      const response = await fetch('/api/ai/generate-form', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ description: formDescription }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to generate form');
+      }
+      
+      const data = await response.json();
+      console.log('Generated form:', data);
+      alert('Form generated successfully! This will be saved to your forms.');
+      setShowFormBuilder(false);
+      setFormDescription('');
+    } catch (error) {
+      console.error('Error generating form:', error);
+      alert('Failed to generate form. Please try again.');
+    } finally {
+      setGeneratingForm(false);
+    }
+  }
 
   return (
     <DashboardLayout>
@@ -131,6 +165,8 @@ export default function FormsDocumentsPage() {
                   <div>
                     <label className="block text-sm font-medium mb-2">What type of form do you need?</label>
                     <textarea 
+                      value={formDescription}
+                      onChange={(e) => setFormDescription(e.target.value)}
                       className="w-full px-4 py-3 bg-gray-700 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none resize-none"
                       rows={4}
                       placeholder="E.g., A gym membership waiver form with emergency contact info, health conditions, and liability release..."

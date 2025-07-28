@@ -1,24 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/app/lib/supabase/server'
+import { requireAuth, createErrorResponse } from '@/app/lib/api/auth-check'
 
 export async function GET(request: NextRequest) {
   try {
+    // Check authentication using the helper function
+    const user = await requireAuth()
+    
+    // Create Supabase client
     const supabase = await createClient()
     
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
     const source = searchParams.get('source')
     
-    // Build query
+    // Build query - now we can use user.id directly
     let query = supabase
       .from('leads')
       .select('*')
+      .eq('user_id', user.id) // Filter by authenticated user
       .order('created_at', { ascending: false })
     
     // Apply filters
@@ -44,21 +44,17 @@ export async function GET(request: NextRequest) {
     })
     
   } catch (error) {
-    console.error('Error in leads GET:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    // Use the error response helper
+    return createErrorResponse(error)
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    // Check authentication
+    const user = await requireAuth()
     
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
+    const supabase = await createClient()
     const body = await request.json()
     
     // Validate required fields
@@ -69,7 +65,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    // Create new lead
+    // Create new lead with user_id from authenticated user
     const { data: lead, error } = await supabase
       .from('leads')
       .insert({
@@ -84,7 +80,7 @@ export async function POST(request: NextRequest) {
         page_id: body.page_id,
         form_id: body.form_id,
         field_data: body.custom_fields || {},
-        user_id: user.id
+        user_id: user.id // Use authenticated user's ID
       })
       .select()
       .single()
@@ -100,28 +96,23 @@ export async function POST(request: NextRequest) {
     })
     
   } catch (error) {
-    console.error('Error in leads POST:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return createErrorResponse(error)
   }
 }
 
 export async function PATCH(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    // Check authentication
+    const user = await requireAuth()
     
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
+    const supabase = await createClient()
     const body = await request.json()
     
     if (!body.id) {
       return NextResponse.json({ error: 'Lead ID is required' }, { status: 400 })
     }
     
-    // Update lead
+    // Update lead - ensure it belongs to the authenticated user
     const { data: lead, error } = await supabase
       .from('leads')
       .update({
@@ -129,6 +120,7 @@ export async function PATCH(request: NextRequest) {
         ...body
       })
       .eq('id', body.id)
+      .eq('user_id', user.id) // Ensure user owns this lead
       .select()
       .single()
     
@@ -137,27 +129,26 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to update lead' }, { status: 500 })
     }
     
+    if (!lead) {
+      return NextResponse.json({ error: 'Lead not found or unauthorized' }, { status: 404 })
+    }
+    
     return NextResponse.json({
       success: true,
       lead
     })
     
   } catch (error) {
-    console.error('Error in leads PATCH:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return createErrorResponse(error)
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    // Check authentication
+    const user = await requireAuth()
     
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
+    const supabase = await createClient()
     const { searchParams } = new URL(request.url)
     const leadId = searchParams.get('id')
     
@@ -165,11 +156,12 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Lead ID is required' }, { status: 400 })
     }
     
-    // Delete lead
+    // Delete lead - ensure it belongs to the authenticated user
     const { error } = await supabase
       .from('leads')
       .delete()
       .eq('id', leadId)
+      .eq('user_id', user.id) // Ensure user owns this lead
     
     if (error) {
       console.error('Error deleting lead:', error)
@@ -182,7 +174,6 @@ export async function DELETE(request: NextRequest) {
     })
     
   } catch (error) {
-    console.error('Error in leads DELETE:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return createErrorResponse(error)
   }
 }
