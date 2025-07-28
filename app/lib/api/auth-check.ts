@@ -1,4 +1,5 @@
 import { createClient } from '@/app/lib/supabase/server'
+import { createAdminClient } from '@/app/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
 export class AuthError extends Error {
@@ -50,14 +51,21 @@ export async function requireAuth(): Promise<AuthenticatedUser> {
     }
   }
   
-  // Get user's organization from the users table
-  const { data: userData, error: userError } = await supabase
+  // Get user's organization from the users table using admin client to bypass RLS
+  const adminClient = createAdminClient()
+  const { data: userData, error: userError } = await adminClient
     .from('users')
     .select('organization_id, role')
     .eq('id', user.id)
     .single()
   
   if (userError || !userData || !userData.organization_id) {
+    // Log the error for debugging
+    console.error('Failed to get user organization:', {
+      userId: user.id,
+      error: userError,
+      userData
+    })
     throw new AuthError('No organization found for this user', 403)
   }
   
