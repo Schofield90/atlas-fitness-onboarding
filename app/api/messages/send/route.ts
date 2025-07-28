@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
             to,
             subject,
             text: messageBody,
-            reply_to: userWithOrg.email
+            replyTo: userWithOrg.email
           })
           
           if ('error' in result && result.error) {
