@@ -1,11 +1,35 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { analytics } from '@/app/lib/analytics/client'
+import { createClient } from '@/app/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 
 export default function HomePage() {
   const [email, setEmail] = useState('')
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
+  const supabase = createClient()
+
+  useEffect(() => {
+    checkUser()
+  }, [])
+
+  const checkUser = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        // User is logged in, redirect to dashboard
+        router.push('/dashboard')
+      } else {
+        setLoading(false)
+      }
+    } catch (error) {
+      console.error('Error checking auth:', error)
+      setLoading(false)
+    }
+  }
 
   const handleEmailSubmit = () => {
     if (email) {
@@ -17,6 +41,14 @@ export default function HomePage() {
   const handleWatchDemo = () => {
     analytics.trackClick('watch-demo-button', { location: 'hero' })
     analytics.trackCustomEvent('demo_interest', { source: 'hero_section' })
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+      </div>
+    )
   }
 
   return (
