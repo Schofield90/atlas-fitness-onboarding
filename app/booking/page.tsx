@@ -144,27 +144,27 @@ export default function BookingManagement() {
         <div className="grid grid-cols-4 gap-6 px-6 pb-4">
           <QuickStat 
             label="Today's Classes" 
-            value="12" 
-            change="+2 from last week"
-            trend="up"
+            value={classes.filter(c => new Date(c.startTime).toDateString() === new Date().toDateString()).length.toString()} 
+            change=""
+            trend="neutral"
           />
           <QuickStat 
             label="Total Bookings" 
-            value="284" 
-            change="+15% this week"
-            trend="up"
+            value="0" 
+            change=""
+            trend="neutral"
           />
           <QuickStat 
             label="Capacity" 
-            value="78%" 
-            change="+5% from average"
-            trend="up"
+            value="0%" 
+            change=""
+            trend="neutral"
           />
           <QuickStat 
             label="Revenue Today" 
-            value="$1,240" 
-            change="+$180 from yesterday"
-            trend="up"
+            value="$0" 
+            change=""
+            trend="neutral"
           />
         </div>
       </div>
