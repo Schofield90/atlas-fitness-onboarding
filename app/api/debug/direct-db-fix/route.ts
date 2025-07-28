@@ -19,23 +19,26 @@ export async function POST(request: Request) {
       }
     )
     
-    // 1. Find the auth user by email using RPC or auth admin
-    const { data: { users }, error: authError } = await supabaseAdmin.auth.admin.listUsers({
-      filter: { email },
-      page: 1,
-      perPage: 1
-    })
+    // 1. Find the auth user by email using admin API
+    const { data: { users }, error: authError } = await supabaseAdmin.auth.admin.listUsers()
     
-    if (authError || !users || users.length === 0) {
+    if (authError) {
+      return NextResponse.json({ 
+        error: 'Failed to list users',
+        authError: authError?.message
+      }, { status: 500 })
+    }
+    
+    // Find user by email
+    const authUser = users.find(u => u.email === email)
+    
+    if (!authUser) {
       return NextResponse.json({ 
         error: 'Auth user not found',
         email,
-        authError: authError?.message,
         hint: 'Make sure you are logged in with this email'
       }, { status: 404 })
     }
-    
-    const authUser = users[0]
     
     // 2. Delete any existing user entries
     await supabaseAdmin
