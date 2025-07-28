@@ -17,7 +17,7 @@ const sendSingleEmailSchema = z.object({
     'membership-expiring',
   ] as const),
   subject: z.string().optional(),
-  variables: z.record(z.any()),
+  variables: z.record(z.string(), z.any()),
   replyTo: z.string().email().optional(),
   entityId: z.string().uuid().optional(),
   entityType: z.enum(['lead', 'client', 'task']).optional(),
@@ -26,7 +26,7 @@ const sendSingleEmailSchema = z.object({
 const sendBulkEmailSchema = z.object({
   recipients: z.array(z.object({
     email: z.string().email(),
-    variables: z.record(z.any()),
+    variables: z.record(z.string(), z.any()),
   })),
   template: z.enum([
     'welcome-lead',
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: false,
         error: 'Validation error',
-        details: error.errors,
+        details: error.flatten().fieldErrors,
       }, { status: 400 })
     }
     

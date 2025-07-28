@@ -9,8 +9,18 @@ import WelcomeLeadEmail from '@/emails/templates/WelcomeLead'
 import ClientWelcomeEmail from '@/emails/templates/ClientWelcome'
 import StaffTaskNotificationEmail from '@/emails/templates/StaffTaskNotification'
 
-// Initialize Resend
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Initialize Resend (will be created when needed)
+let resend: Resend | null = null
+
+function getResendClient() {
+  if (!resend && process.env.RESEND_API_KEY) {
+    resend = new Resend(process.env.RESEND_API_KEY)
+  }
+  if (!resend) {
+    throw new Error('Resend API key not configured')
+  }
+  return resend
+}
 
 // Email template types
 export type EmailTemplate = 
@@ -52,13 +62,13 @@ function getEmailTemplate(template: EmailTemplate, variables: Record<string, any
   switch (template) {
     case 'welcome-lead':
       return {
-        component: WelcomeLeadEmail(variables),
+        component: WelcomeLeadEmail(variables as any),
         defaultSubject: `Welcome to ${variables.gymName || 'Atlas Fitness'}! Book Your Free Tour`,
       }
     
     case 'client-welcome':
       return {
-        component: ClientWelcomeEmail(variables),
+        component: ClientWelcomeEmail(variables as any),
         defaultSubject: `Welcome to the ${variables.gymName || 'Atlas Fitness'} Family!`,
       }
     
@@ -66,7 +76,7 @@ function getEmailTemplate(template: EmailTemplate, variables: Record<string, any
       const priority = variables.taskPriority || 'medium'
       const emoji = priority === 'urgent' ? '🚨' : priority === 'high' ? '⚡' : '📋'
       return {
-        component: StaffTaskNotificationEmail(variables),
+        component: StaffTaskNotificationEmail(variables as any),
         defaultSubject: `${emoji} New Task: ${variables.taskTitle}`,
       }
     
@@ -92,8 +102,8 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
     const subject = options.subject || defaultSubject
     
     // Render email to HTML and text
-    const html = render(component)
-    const text = render(component, { plainText: true })
+    const html = await render(component)
+    const text = await render(component, { plainText: true })
     
     // Prepare email data
     const emailData = {
@@ -107,7 +117,12 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
     }
     
     // Send email
-    const result = await resend.emails.send(emailData)
+    const result = await getResendClient().emails.send(emailData)
+    
+    // Check if the send was successful
+    if ('error' in result && result.error) {
+      throw new Error(result.error.message || 'Failed to send email')
+    }
     
     // Log success
     const duration = Date.now() - startTime
@@ -115,7 +130,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
       metadata: {
         template: options.template,
         to: Array.isArray(options.to) ? options.to.length + ' recipients' : options.to,
-        messageId: result.id,
+        messageId: result.data?.id,
         duration,
       }
     })
@@ -132,7 +147,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
     
     // Save to database for tracking
     await saveEmailRecord({
-      messageId: result.id,
+      messageId: result.data?.id,
       template: options.template,
       to: Array.isArray(options.to) ? options.to : [options.to],
       subject,
@@ -145,7 +160,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
     
     return {
       success: true,
-      messageId: result.id,
+      messageId: result.data?.id,
     }
     
   } catch (error) {
