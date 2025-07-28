@@ -19,6 +19,11 @@ export interface AuthenticatedUser {
 const orgCache = new Map<string, { organizationId: string; role?: string; timestamp: number }>()
 const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
+// Function to clear cache for a specific user
+export function clearUserCache(userId: string) {
+  orgCache.delete(userId)
+}
+
 /**
  * Check if the current request has a valid Supabase session and return user with organization
  * @returns The authenticated user object with organization info

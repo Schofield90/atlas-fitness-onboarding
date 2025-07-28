@@ -15,7 +15,7 @@ export default function FixUserPage() {
     setResult(null)
 
     try {
-      const response = await fetch('/api/debug/fix-user-org', {
+      const response = await fetch('/api/debug/force-fix-user', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -15,30 +15,42 @@ export async function GET() {
       }, { status: 401 })
     }
     
-    // Check users table
+    // Check users table - don't use .single() to avoid error if not found
     const { data: userData, error: userError } = await supabase
       .from('users')
       .select('*')
       .eq('id', user.id)
-      .single()
     
     // Check organizations
     const { data: organizations, error: orgError } = await supabase
       .from('organizations')
       .select('*')
     
-    // Check if organization_id exists in users table
-    const hasOrgId = userData?.organization_id ? true : false
+    // Check if user exists and has organization_id
+    const userRecord = userData && userData.length > 0 ? userData[0] : null
+    const hasOrgId = userRecord?.organization_id ? true : false
+    
+    // Also try to run requireAuth to see what error it gives
+    let authCheckError = null
+    try {
+      const { requireAuth } = await import('@/app/lib/api/auth-check')
+      const authUser = await requireAuth()
+      console.log('RequireAuth succeeded:', authUser)
+    } catch (err) {
+      authCheckError = err instanceof Error ? err.message : 'Unknown auth error'
+    }
     
     return NextResponse.json({
       success: true,
-      user: {
+      authUser: {
         id: user.id,
         email: user.email,
         hasOrganizationId: hasOrgId
       },
-      userData: userData || null,
+      userData: userRecord,
+      userDataCount: userData?.length || 0,
       organizations: organizations || [],
+      authCheckError,
       errors: {
         userError: userError?.message,
         orgError: orgError?.message
