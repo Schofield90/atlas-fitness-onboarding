@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { createClient } from '@/app/lib/supabase/client'
 
 export default function SignupPage() {
   const router = useRouter()
@@ -14,6 +15,7 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const supabase = createClient()
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -35,27 +37,48 @@ export default function SignupPage() {
     }
 
     try {
-      // Simulate successful signup by storing data locally
-      const userData = {
+      // Sign up the user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
-        name,
-        organizationName,
-        signedUpAt: new Date().toISOString(),
-        trialEnds: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
-      }
-      
-      localStorage.setItem('gymleadhub_trial_data', JSON.stringify(userData))
-      
-      // Simulate processing time
-      await new Promise(resolve => setTimeout(resolve, 2000))
+        password,
+        options: {
+          data: {
+            full_name: name,
+            organization_name: organizationName,
+          }
+        }
+      })
 
-      // Show success message
-      setSuccess(true)
-      
-      // Redirect to a simple dashboard after 3 seconds
-      setTimeout(() => {
-        router.push('/dashboard')
-      }, 3000)
+      if (authError) {
+        setError(authError.message)
+        return
+      }
+
+      if (authData?.user) {
+        // Create organization if needed
+        const { data: org, error: orgError } = await supabase
+          .from('organizations')
+          .insert({
+            name: organizationName,
+            owner_id: authData.user.id
+          })
+          .select()
+          .single()
+
+        if (orgError) {
+          console.error('Error creating organization:', orgError)
+          // Continue anyway - organization can be created later
+        }
+
+        // Show success message
+        setSuccess(true)
+        
+        // Redirect to dashboard after 2 seconds
+        setTimeout(() => {
+          router.push('/dashboard')
+          router.refresh()
+        }, 2000)
+      }
     } catch (err: any) {
       console.error('Signup error:', err)
       setError(err.message || 'Failed to create account')
@@ -70,10 +93,10 @@ export default function SignupPage() {
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
             <h2 className="mt-6 text-3xl font-extrabold text-white">
-              🎉 Welcome to Your 14-Day Free Trial!
+              🎉 Welcome to Gymleadhub!
             </h2>
             <p className="mt-2 text-sm text-gray-300">
-              Your Gymleadhub trial has started successfully.
+              Your account has been created successfully.
             </p>
             <p className="mt-2 text-sm text-gray-300">
               Redirecting to your dashboard...
@@ -92,7 +115,7 @@ export default function SignupPage() {
       <div className="max-w-md w-full space-y-8">
         <div>
           <Link 
-            href="/"
+            href="/landing"
             className="flex justify-center text-2xl font-bold text-orange-500 mb-8"
           >
             Gymleadhub

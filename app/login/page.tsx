@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { createClient } from '@/app/lib/supabase/client'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -10,6 +11,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const supabase = createClient()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -17,30 +19,21 @@ export default function LoginPage() {
     setError(null)
 
     try {
-      // Check if user exists in localStorage (simple demo auth)
-      const storedData = localStorage.getItem('gymleadhub_trial_data')
-      
-      if (!storedData) {
-        setError('No account found. Please sign up first.')
-        setLoading(false)
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (authError) {
+        setError(authError.message)
         return
       }
 
-      const userData = JSON.parse(storedData)
-      
-      // Simple email check (in a real app, you'd validate password too)
-      if (userData.email.toLowerCase() !== email.toLowerCase()) {
-        setError('Email not found. Please check your email or sign up.')
-        setLoading(false)
-        return
+      if (data?.user) {
+        // Successful login - router will handle redirect
+        router.push('/dashboard')
+        router.refresh()
       }
-
-      // Simulate processing time
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
-      // Redirect to dashboard
-      router.push('/dashboard')
-      
     } catch (err: any) {
       console.error('Login error:', err)
       setError('Failed to log in. Please try again.')
@@ -54,7 +47,7 @@ export default function LoginPage() {
       <div className="max-w-md w-full space-y-8">
         <div>
           <Link 
-            href="/"
+            href="/landing"
             className="flex justify-center text-2xl font-bold text-orange-500 mb-8"
           >
             Gymleadhub
@@ -161,14 +154,6 @@ export default function LoginPage() {
             </p>
           </div>
         </form>
-
-        {/* Demo Info */}
-        <div className="bg-gray-800 rounded-lg p-4 mt-6">
-          <h4 className="text-sm font-medium text-gray-300 mb-2">Demo Login Info:</h4>
-          <p className="text-xs text-gray-400">
-            Use the email address you signed up with. Password validation is simplified for demo purposes.
-          </p>
-        </div>
       </div>
     </div>
   )

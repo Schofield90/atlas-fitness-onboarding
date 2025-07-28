@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { createClient } from '@/app/lib/supabase/client'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -11,12 +12,26 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children, userData }: DashboardLayoutProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mounted, setMounted] = useState(false)
+  const [user, setUser] = useState<any>(null)
+  const supabase = createClient()
   
   useEffect(() => {
     setMounted(true)
+    checkUser()
   }, [])
+
+  const checkUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    setUser(user)
+  }
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
 
   const navigation = [
     {
@@ -329,14 +344,20 @@ export default function DashboardLayout({ children, userData }: DashboardLayoutP
                 </h1>
               </div>
               <div className="flex items-center space-x-4">
-                {userData && mounted && (
+                {(user || userData) && mounted && (
                   <>
-                    <span className="text-gray-300">Welcome, {userData.name || 'User'}</span>
+                    <span className="text-gray-300">Welcome, {user?.email || userData?.name || 'User'}</span>
                     {trialEnds && (
                       <div className="bg-orange-500 text-white px-3 py-1 rounded-full text-sm">
                         {daysLeft} days left in trial
                       </div>
                     )}
+                    <button
+                      onClick={handleLogout}
+                      className="px-4 py-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                    >
+                      Logout
+                    </button>
                   </>
                 )}
               </div>
