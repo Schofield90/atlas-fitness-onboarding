@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { formatBritishDate } from '@/app/lib/utils/british-format'
+import { MessageComposer } from '@/app/components/messaging/MessageComposer'
 
 interface Lead {
   id: string
@@ -25,6 +26,8 @@ export function LeadsTable({ statusFilter = 'all' }: LeadsTableProps) {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedLeads, setSelectedLeads] = useState<string[]>([])
+  const [messageModalOpen, setMessageModalOpen] = useState(false)
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
 
   useEffect(() => {
     fetchLeads()
@@ -239,9 +242,12 @@ export function LeadsTable({ statusFilter = 'all' }: LeadsTableProps) {
                         </svg>
                       </Link>
                       <button 
-                        onClick={() => window.location.href = `mailto:${lead.email}`}
+                        onClick={() => {
+                          setSelectedLead(lead)
+                          setMessageModalOpen(true)
+                        }}
                         className="p-1 hover:bg-gray-600 rounded transition-colors" 
-                        title="Send Email"
+                        title="Send Message"
                       >
                         <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -279,6 +285,22 @@ export function LeadsTable({ statusFilter = 'all' }: LeadsTableProps) {
             <button className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors">Next</button>
           </div>
         </div>
+      )}
+
+      {/* Message Composer Modal */}
+      {selectedLead && (
+        <MessageComposer
+          isOpen={messageModalOpen}
+          onClose={() => {
+            setMessageModalOpen(false)
+            setSelectedLead(null)
+          }}
+          lead={selectedLead}
+          onMessageSent={() => {
+            // Could refresh leads or show a success toast here
+            console.log('Message sent successfully')
+          }}
+        />
       )}
     </div>
   )
