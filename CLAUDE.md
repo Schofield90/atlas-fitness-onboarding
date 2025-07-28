@@ -135,6 +135,95 @@ RESEND_API_KEY=your-resend-key
    - Check "My Bookings" tab to see your bookings
    - Test cancellation (24+ hours before class)
 
+## 🗓️ Google Calendar Integration (July 28, 2025)
+
+### Overview
+Complete Google Calendar sync system allowing two-way synchronization between Atlas Fitness booking system and Google Calendar.
+
+### What Was Built
+
+1. **Google OAuth Integration**
+   - OAuth2 flow for Google Calendar authentication
+   - Secure token storage in Supabase
+   - Automatic token refresh handling
+
+2. **Calendar Sync System**
+   - Two-way sync (configurable direction)
+   - Sync bookings as calendar events
+   - Sync class sessions as calendar events
+   - Color-coded events by type
+   - Automatic conflict detection
+
+3. **UI Components**
+   - Calendar sync settings page (`/calendar-sync`)
+   - Calendar selection dropdown
+   - Sync configuration options
+   - Manual sync trigger
+   - Connection status display
+
+4. **Database Schema**
+   ```sql
+   - google_calendar_tokens: OAuth tokens storage
+   - calendar_sync_settings: User sync preferences
+   - calendar_sync_events: Sync tracking
+   ```
+
+### Setup Instructions
+
+1. **Create Google Cloud Project**
+   - Go to [Google Cloud Console](https://console.cloud.google.com)
+   - Create new project or select existing
+   - Enable Google Calendar API
+   
+2. **Create OAuth2 Credentials**
+   - Go to APIs & Services > Credentials
+   - Create OAuth 2.0 Client ID
+   - Application type: Web application
+   - Authorized redirect URI: `https://atlas-fitness-onboarding.vercel.app/api/auth/google/callback`
+   - For local development add: `http://localhost:3000/api/auth/google/callback`
+
+3. **Add Environment Variables**
+   ```env
+   GOOGLE_CLIENT_ID=your-client-id-from-google
+   GOOGLE_CLIENT_SECRET=your-client-secret-from-google
+   ANTHROPIC_API_KEY=your-anthropic-api-key
+   ```
+
+4. **Run Database Migration**
+   ```sql
+   -- Run in Supabase SQL Editor
+   -- /supabase/google-calendar-tokens.sql
+   ```
+
+### Usage
+
+1. Navigate to Dashboard → Calendar → Settings tab
+2. Click "Connect Google Calendar"
+3. Authorize access to your Google Calendar
+4. Select which calendar to sync with
+5. Configure sync settings:
+   - Toggle booking sync
+   - Toggle class sync
+   - Choose sync direction
+6. Click "Sync Now" to start manual sync
+
+### Technical Details
+
+**Key Files**:
+- `/app/lib/google/calendar.ts` - Google Calendar API wrapper
+- `/app/api/auth/google/route.ts` - OAuth initiation
+- `/app/api/auth/google/callback/route.ts` - OAuth callback
+- `/app/api/calendar/list/route.ts` - List user calendars
+- `/app/api/calendar/sync/route.ts` - Sync execution
+- `/app/calendar-sync/page.tsx` - Settings UI
+
+**Sync Features**:
+- Bookings appear with member name and class details
+- Classes show instructor and capacity info
+- Events are color-coded (Green for bookings, Yellow for classes)
+- Prevents duplicate syncs with event tracking
+- Respects timezone settings (Europe/London)
+
 ### 📋 Next Steps When Resuming
 
 1. **Enhance Booking System**:
@@ -164,11 +253,13 @@ RESEND_API_KEY=your-resend-key
    - [ ] Implement lead nurturing workflows
    - [ ] Add conversion tracking
 
-5. **Integrations to Add**:
-   - [ ] Stripe for payment processing
-   - [ ] Calendar booking system completion
-   - [ ] Email marketing integration
-   - [ ] Gym management software APIs
+5. **Google Calendar Enhancements**:
+   - [x] Basic two-way sync
+   - [ ] Real-time webhook updates
+   - [ ] Automatic sync scheduling (cron job)
+   - [ ] Sync staff schedules
+   - [ ] Handle recurring events
+   - [ ] Conflict resolution UI
 
 6. **Database Migrations**:
    - [ ] Run pending migrations for messaging tables

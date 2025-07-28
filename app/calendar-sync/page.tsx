@@ -1,0 +1,267 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { createClient } from '@/app/lib/supabase/client'
+import { Calendar as CalendarIcon, Settings, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react'
+
+export default function CalendarSyncPage() {
+  const [isConnected, setIsConnected] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
+  const [calendars, setCalendars] = useState<any[]>([])
+  const [selectedCalendar, setSelectedCalendar] = useState('')
+  const [syncSettings, setSyncSettings] = useState({
+    sync_bookings: true,
+    sync_classes: true,
+    sync_staff_schedules: false,
+    sync_direction: 'both'
+  })
+  
+  const supabase = createClient()
+
+  useEffect(() => {
+    checkConnection()
+    
+    // Check for OAuth callback
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('success') === 'true') {
+      checkConnection()
+      loadCalendars()
+    } else if (params.get('error')) {
+      console.error('OAuth error:', params.get('error'))
+    }
+  }, [])
+
+  const checkConnection = async () => {
+    const { data } = await supabase
+      .from('google_calendar_tokens')
+      .select('*')
+      .single()
+    
+    setIsConnected(!!data)
+    setLoading(false)
+    
+    if (data) {
+      loadSyncSettings()
+    }
+  }
+
+  const loadCalendars = async () => {
+    try {
+      const response = await fetch('/api/calendar/list')
+      const data = await response.json()
+      if (data.calendars) {
+        setCalendars(data.calendars)
+      }
+    } catch (error) {
+      console.error('Error loading calendars:', error)
+    }
+  }
+
+  const loadSyncSettings = async () => {
+    const { data } = await supabase
+      .from('calendar_sync_settings')
+      .select('*')
+      .single()
+    
+    if (data) {
+      setSyncSettings(data)
+      setSelectedCalendar(data.google_calendar_id)
+    }
+  }
+
+  const connectCalendar = () => {
+    window.location.href = '/api/auth/google'
+  }
+
+  const disconnectCalendar = async () => {
+    if (!confirm('Are you sure you want to disconnect your Google Calendar?')) return
+    
+    await supabase.from('google_calendar_tokens').delete()
+    await supabase.from('calendar_sync_settings').delete()
+    await supabase.from('calendar_sync_events').delete()
+    
+    setIsConnected(false)
+    setCalendars([])
+  }
+
+  const saveSyncSettings = async () => {
+    const { error } = await supabase
+      .from('calendar_sync_settings')
+      .upsert({
+        google_calendar_id: selectedCalendar,
+        google_calendar_name: calendars.find(c => c.id === selectedCalendar)?.summary,
+        ...syncSettings
+      })
+    
+    if (!error) {
+      alert('Settings saved!')
+    }
+  }
+
+  const syncNow = async () => {
+    setSyncing(true)
+    try {
+      const response = await fetch('/api/calendar/sync', { method: 'POST' })
+      const data = await response.json()
+      
+      if (data.success) {
+        alert(`Sync complete! ${data.synced} events synced.`)
+      } else {
+        alert('Sync failed. Please try again.')
+      }
+    } catch (error) {
+      console.error('Sync error:', error)
+      alert('Sync failed. Please try again.')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-900 text-white p-8">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-3xl font-bold mb-8">Google Calendar Integration</h1>
+        
+        {!isConnected ? (
+          <div className="bg-gray-800 rounded-lg p-8 text-center">
+            <CalendarIcon className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+            <h2 className="text-xl font-semibold mb-4">Connect Your Google Calendar</h2>
+            <p className="text-gray-400 mb-6">
+              Sync your bookings, classes, and schedules with Google Calendar for seamless management.
+            </p>
+            <button
+              onClick={connectCalendar}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+            >
+              Connect Google Calendar
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* Connection Status */}
+            <div className="bg-gray-800 rounded-lg p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="w-6 h-6 text-green-500" />
+                  <h2 className="text-xl font-semibold">Google Calendar Connected</h2>
+                </div>
+                <button
+                  onClick={disconnectCalendar}
+                  className="text-red-400 hover:text-red-300 text-sm"
+                >
+                  Disconnect
+                </button>
+              </div>
+              
+              {/* Calendar Selection */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium mb-2">Select Calendar</label>
+                <select
+                  value={selectedCalendar}
+                  onChange={(e) => setSelectedCalendar(e.target.value)}
+                  className="w-full p-3 bg-gray-700 rounded-lg"
+                >
+                  <option value="">Select a calendar...</option>
+                  {calendars.map((calendar) => (
+                    <option key={calendar.id} value={calendar.id}>
+                      {calendar.summary}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* Sync Settings */}
+              <div className="space-y-4">
+                <h3 className="font-medium">Sync Settings</h3>
+                
+                <div className="space-y-3">
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={syncSettings.sync_bookings}
+                      onChange={(e) => setSyncSettings({...syncSettings, sync_bookings: e.target.checked})}
+                      className="w-4 h-4"
+                    />
+                    <span>Sync member bookings</span>
+                  </label>
+                  
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={syncSettings.sync_classes}
+                      onChange={(e) => setSyncSettings({...syncSettings, sync_classes: e.target.checked})}
+                      className="w-4 h-4"
+                    />
+                    <span>Sync class schedules</span>
+                  </label>
+                  
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={syncSettings.sync_staff_schedules}
+                      onChange={(e) => setSyncSettings({...syncSettings, sync_staff_schedules: e.target.checked})}
+                      className="w-4 h-4"
+                    />
+                    <span>Sync staff schedules</span>
+                  </label>
+                </div>
+                
+                <div className="mt-4">
+                  <label className="block text-sm font-medium mb-2">Sync Direction</label>
+                  <select
+                    value={syncSettings.sync_direction}
+                    onChange={(e) => setSyncSettings({...syncSettings, sync_direction: e.target.value})}
+                    className="w-full p-3 bg-gray-700 rounded-lg"
+                  >
+                    <option value="both">Two-way sync</option>
+                    <option value="to_google">One-way to Google Calendar</option>
+                    <option value="from_google">One-way from Google Calendar</option>
+                  </select>
+                </div>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex gap-4 mt-6">
+                <button
+                  onClick={saveSyncSettings}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  Save Settings
+                </button>
+                <button
+                  onClick={syncNow}
+                  disabled={syncing || !selectedCalendar}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+                  {syncing ? 'Syncing...' : 'Sync Now'}
+                </button>
+              </div>
+            </div>
+            
+            {/* Sync Info */}
+            <div className="bg-gray-800 rounded-lg p-6">
+              <h3 className="font-medium mb-3">How Calendar Sync Works</h3>
+              <ul className="space-y-2 text-sm text-gray-400">
+                <li>• Bookings appear as events with member name and class details</li>
+                <li>• Class schedules show instructor and capacity information</li>
+                <li>• Changes in Google Calendar can update your gym schedule (if enabled)</li>
+                <li>• Events are color-coded by type for easy identification</li>
+                <li>• Automatic sync runs every 15 minutes</li>
+              </ul>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
