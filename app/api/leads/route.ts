@@ -19,11 +19,7 @@ export async function GET(request: NextRequest) {
     // Build query - filter by organization for shared access
     let query = supabase
       .from('leads')
-      .select(`
-        *,
-        created_by_user:users!leads_created_by_fkey(id, email, name),
-        assigned_to_user:users!leads_assigned_to_fkey(id, email, name)
-      `)
+      .select('*')
       .eq('organization_id', userWithOrg.organizationId) // Filter by organization
       .order('created_at', { ascending: false })
     
@@ -108,11 +104,7 @@ export async function POST(request: NextRequest) {
         created_by: userWithOrg.id, // Track who created it
         assigned_to: body.assigned_to || userWithOrg.id // Default assignment to creator
       })
-      .select(`
-        *,
-        created_by_user:users!leads_created_by_fkey(id, email, name),
-        assigned_to_user:users!leads_assigned_to_fkey(id, email, name)
-      `)
+      .select()
       .single()
     
     if (error) {
@@ -159,11 +151,7 @@ export async function PATCH(request: NextRequest) {
       })
       .eq('id', body.id)
       .eq('organization_id', userWithOrg.organizationId) // Ensure org owns this lead
-      .select(`
-        *,
-        created_by_user:users!leads_created_by_fkey(id, email, name),
-        assigned_to_user:users!leads_assigned_to_fkey(id, email, name)
-      `)
+      .select()
       .single()
     
     if (error) {
