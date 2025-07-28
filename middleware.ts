@@ -39,10 +39,8 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // If user is logged in and trying to access the home page, redirect to dashboard
-  if (user && request.nextUrl.pathname === '/') {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
-  }
+  // Home page is now handled by the page itself with server-side redirect
+  // No need to handle it here
 
   // Protected routes that require authentication
   const protectedRoutes = [
@@ -73,8 +71,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // If user is logged in and trying to access login/signup pages, redirect to dashboard
-  if (user && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup')) {
+  // If user is logged in and trying to access login/signup/landing pages, redirect to dashboard
+  if (user && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup' || request.nextUrl.pathname === '/landing')) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
