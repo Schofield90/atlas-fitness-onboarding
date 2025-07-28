@@ -1,9 +1,22 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/app/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 
 export async function POST() {
   try {
     const supabase = await createClient()
+    
+    // Create admin client to bypass RLS
+    const supabaseAdmin = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    )
     
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -15,22 +28,22 @@ export async function POST() {
       }, { status: 401 })
     }
     
-    // Check if user already exists in users table
-    const { data: existingUser, error: checkError } = await supabase
+    // Check if user already exists in users table using admin client
+    const { data: existingUser, error: checkError } = await supabaseAdmin
       .from('users')
       .select('*')
       .eq('id', user.id)
       .single()
     
-    if (existingUser) {
+    if (existingUser && !checkError) {
       return NextResponse.json({
         message: 'User already exists in users table',
         user: existingUser
       })
     }
     
-    // Get the Atlas Fitness organization
-    const { data: organization, error: orgError } = await supabase
+    // Get the Atlas Fitness organization using admin client
+    const { data: organization, error: orgError } = await supabaseAdmin
       .from('organizations')
       .select('*')
       .eq('name', 'Atlas Fitness')
@@ -43,8 +56,8 @@ export async function POST() {
       }, { status: 404 })
     }
     
-    // Create user entry with organization_id
-    const { data: newUser, error: insertError } = await supabase
+    // Create user entry with organization_id using admin client to bypass RLS
+    const { data: newUser, error: insertError } = await supabaseAdmin
       .from('users')
       .insert({
         id: user.id,
