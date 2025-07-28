@@ -1,11 +1,19 @@
 import { NextResponse } from 'next/server'
+import { createClient } from '@/app/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 
-export async function POST(request: Request) {
+export async function POST() {
   try {
-    // Get email from request body
-    const body = await request.json()
-    const email = body.email || 'sam@atlas-gyms.co.uk'
+    // Get current session user
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user) {
+      return NextResponse.json({ 
+        error: 'Not authenticated',
+        details: 'Please make sure you are logged in'
+      }, { status: 401 })
+    }
     
     // Create admin client
     const supabaseAdmin = createAdminClient(
@@ -19,31 +27,13 @@ export async function POST(request: Request) {
       }
     )
     
-    // 1. Find the auth user by email using RPC or auth admin
-    const { data: { users }, error: authError } = await supabaseAdmin.auth.admin.listUsers({
-      filter: { email },
-      page: 1,
-      perPage: 1
-    })
-    
-    if (authError || !users || users.length === 0) {
-      return NextResponse.json({ 
-        error: 'Auth user not found',
-        email,
-        authError: authError?.message,
-        hint: 'Make sure you are logged in with this email'
-      }, { status: 404 })
-    }
-    
-    const authUser = users[0]
-    
-    // 2. Delete any existing user entries
+    // Delete any existing user entries
     await supabaseAdmin
       .from('users')
       .delete()
-      .eq('id', authUser.id)
+      .eq('id', user.id)
     
-    // 3. Get Atlas Fitness organization
+    // Get Atlas Fitness organization
     const { data: orgs } = await supabaseAdmin
       .from('organizations')
       .select('*')
@@ -60,12 +50,12 @@ export async function POST(request: Request) {
       }, { status: 404 })
     }
     
-    // 4. Create user entry
+    // Create user entry
     const { data: newUser, error: insertError } = await supabaseAdmin
       .from('users')
       .insert({
-        id: authUser.id,
-        email: authUser.email,
+        id: user.id,
+        email: user.email || 'sam@atlas-gyms.co.uk',
         name: 'Sam Schofield',
         organization_id: atlasOrg.id,
         role: 'owner',
@@ -79,18 +69,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ 
         error: 'Failed to create user',
         details: insertError.message,
-        code: insertError.code
+        code: insertError.code,
+        hint: insertError.hint
       }, { status: 500 })
     }
     
-    // 5. Verify it worked
-    const { data: verify } = await supabaseAdmin
-      .from('users')
-      .select('*')
-      .eq('id', authUser.id)
-      .single()
-    
-    // 6. Test creating a lead
+    // Test creating a lead
     const { data: testLead, error: leadError } = await supabaseAdmin
       .from('leads')
       .insert({
@@ -100,19 +84,23 @@ export async function POST(request: Request) {
         source: 'manual',
         status: 'new',
         organization_id: atlasOrg.id,
-        created_by: authUser.id,
-        assigned_to: authUser.id
+        created_by: user.id,
+        assigned_to: user.id
       })
       .select()
     
+    // Clear cache
+    const { clearUserCache } = await import('@/app/lib/api/auth-check')
+    clearUserCache(user.id)
+    
     return NextResponse.json({
       success: true,
+      message: 'User successfully created and linked to Atlas Fitness',
       authUser: {
-        id: authUser.id,
-        email: authUser.email
+        id: user.id,
+        email: user.email
       },
       newUser,
-      verified: verify,
       organization: {
         id: atlasOrg.id,
         name: atlasOrg.name
@@ -126,7 +114,7 @@ export async function POST(request: Request) {
     
   } catch (error) {
     return NextResponse.json({ 
-      error: 'Direct fix failed',
+      error: 'Session fix failed',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }
