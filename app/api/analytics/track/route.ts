@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SupabaseAnalyticsStorage } from '@/app/lib/analytics/supabase-storage';
+import { AnalyticsEvent } from '@/app/lib/analytics/types';
 import { z } from 'zod';
 
 const eventSchema = z.object({
@@ -16,7 +17,7 @@ const eventSchema = z.object({
   screenResolution: z.string(),
   viewport: z.string(),
   metadata: z.record(z.string(), z.any()).optional()
-});
+}).strict();
 
 const batchSchema = z.object({
   events: z.array(eventSchema)
@@ -45,8 +46,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validated = batchSchema.parse(body);
     
-    // Store events in Supabase
-    await SupabaseAnalyticsStorage.storeEvents(validated.events);
+    // Store events in Supabase - cast to ensure type compatibility
+    await SupabaseAnalyticsStorage.storeEvents(validated.events as AnalyticsEvent[]);
     
     return NextResponse.json({ status: 'success' });
     
