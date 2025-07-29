@@ -52,7 +52,13 @@ export function CallModal({ isOpen, onClose, lead }: CallModalProps) {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to initiate call')
+        // Show detailed error information
+        const errorMessage = data.error || 'Failed to initiate call'
+        const details = data.details ? ` - ${data.details}` : ''
+        const debugInfo = data.debugInfo ? ` (${JSON.stringify(data.debugInfo)})` : ''
+        
+        console.error('Call initiation failed:', data)
+        throw new Error(errorMessage + details)
       }
 
       // In a real implementation, you would:
