@@ -647,6 +647,62 @@ Created a comprehensive AI training and management system at `/ai-config` with 5
 
 ---
 
+## 📞 Communication Features Status (July 29, 2025)
+
+### ✅ Completed Today
+
+#### 1. **Email History Working**
+- Created `email_logs` table with proper structure
+- Fixed PostgreSQL reserved word issue (`to` → `to_email`)
+- Emails now show in message history with collapsible view (first 150 chars)
+- Applied migration successfully
+
+#### 2. **SMS/WhatsApp History Fixed**
+- Created missing `sms_logs` and `whatsapp_logs` tables
+- Fixed webhook to use admin client (bypass RLS)
+- Fixed phone number format issues (07xxx → +447xxx)
+- Two-way conversations now display properly
+
+#### 3. **Message History Features**
+- Collapsible email messages (show first 150 chars with expand option)
+- Inbound/outbound message direction detection
+- Phone number normalization for UK numbers
+- All message types (Email, SMS, WhatsApp) displaying correctly
+
+### 🔧 Fixes Applied
+
+1. **Database Migrations Run**:
+   ```sql
+   -- Created email_logs, sms_logs, whatsapp_logs tables
+   -- Added proper indexes and RLS policies
+   ```
+
+2. **Phone Format Normalization**:
+   - `07490253471` → `+447490253471`
+   - `447490253471` → `+447490253471`
+   - Webhook saves with `+` prefix, leads might not have it
+
+3. **Webhook Configuration**:
+   - URL: `https://atlas-fitness-onboarding.vercel.app/api/webhooks/twilio`
+   - Using admin client to bypass RLS
+   - Proper error logging added
+
+### 📝 Debug Endpoints Created
+
+- `/api/debug/all-message-logs` - Check all message tables
+- `/api/debug/check-inbound-messages` - Verify incoming messages
+- `/api/debug/comprehensive-message-check` - Full system check
+- `/api/debug/check-lead-phone-format?leadId=XXX` - Check phone format issues
+
+### 🚨 Remaining Issue
+
+**Call Feature** - Still showing "Failed to initiate call"
+- Enhanced error logging added
+- Need to check Twilio call configuration
+- TwiML endpoint created at `/api/calls/twiml`
+
+---
+
 ## 🇬🇧 British Localization (July 29, 2025)
 
 ### Overview
