@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/app/lib/supabase/server'
 import { requireAuth, createErrorResponse } from '@/app/lib/api/auth-check'
+import twilio from 'twilio'
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,7 +9,22 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient()
     const body = await request.json()
 
-    const { leadId, duration } = body
+    const { leadId, duration, callSid } = body
+
+    // End the call on Twilio if callSid provided
+    if (callSid && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+      try {
+        const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+        
+        // Update call status to completed
+        await twilioClient.calls(callSid).update({
+          status: 'completed'
+        })
+      } catch (twilioError: any) {
+        console.error('Failed to end Twilio call:', twilioError)
+        // Continue even if Twilio update fails
+      }
+    }
 
     // Log call end in database
     const { error } = await supabase

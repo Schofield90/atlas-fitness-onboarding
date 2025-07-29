@@ -18,6 +18,8 @@ export function CallModal({ isOpen, onClose, lead }: CallModalProps) {
   const [callDuration, setCallDuration] = useState(0)
   const [isMuted, setIsMuted] = useState(false)
   const [error, setError] = useState('')
+  const [callSid, setCallSid] = useState<string | null>(null)
+  const [statusCheckInterval, setStatusCheckInterval] = useState<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     let interval: NodeJS.Timeout
@@ -28,6 +30,29 @@ export function CallModal({ isOpen, onClose, lead }: CallModalProps) {
     }
     return () => clearInterval(interval)
   }, [callStatus])
+  
+  // Cleanup on unmount or close
+  useEffect(() => {
+    return () => {
+      if (statusCheckInterval) {
+        clearInterval(statusCheckInterval)
+      }
+    }
+  }, [statusCheckInterval])
+  
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setCallStatus('idle')
+      setCallDuration(0)
+      setError('')
+      setCallSid(null)
+      if (statusCheckInterval) {
+        clearInterval(statusCheckInterval)
+        setStatusCheckInterval(null)
+      }
+    }
+  }, [isOpen, statusCheckInterval])
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -61,15 +86,35 @@ export function CallModal({ isOpen, onClose, lead }: CallModalProps) {
         throw new Error(errorMessage + details)
       }
 
-      // In a real implementation, you would:
-      // 1. Get a Twilio token from the response
-      // 2. Initialize Twilio Client SDK
-      // 3. Connect to Twilio
+      // Store the call SID for status checking
+      setCallSid(data.callSid)
       
-      // For now, simulate connection
-      setTimeout(() => {
-        setCallStatus('connected')
-      }, 2000)
+      // Start polling for call status
+      const interval = setInterval(async () => {
+        try {
+          const statusResponse = await fetch(`/api/calls/check-status?callSid=${data.callSid}`)
+          const statusData = await statusResponse.json()
+          
+          if (statusData.appStatus) {
+            setCallStatus(statusData.appStatus as any)
+            
+            // If call ended, stop polling
+            if (statusData.appStatus === 'ended') {
+              clearInterval(interval)
+              setStatusCheckInterval(null)
+              
+              // If there's a duration, update it
+              if (statusData.duration) {
+                setCallDuration(parseInt(statusData.duration))
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Failed to check call status:', err)
+        }
+      }, 1000) // Check every second
+      
+      setStatusCheckInterval(interval)
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to initiate call')
@@ -80,24 +125,31 @@ export function CallModal({ isOpen, onClose, lead }: CallModalProps) {
   const endCall = async () => {
     setCallStatus('ended')
     
-    // Log call duration
-    try {
-      await fetch('/api/calls/end', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          leadId: lead.id,
-          duration: callDuration
+    // Stop status polling
+    if (statusCheckInterval) {
+      clearInterval(statusCheckInterval)
+      setStatusCheckInterval(null)
+    }
+    
+    // End the call on Twilio's side
+    if (callSid) {
+      try {
+        await fetch('/api/calls/end', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            callSid,
+            leadId: lead.id,
+            duration: callDuration
+          })
         })
-      })
-    } catch (err) {
-      console.error('Failed to log call:', err)
+      } catch (err) {
+        console.error('Failed to end call:', err)
+      }
     }
 
     setTimeout(() => {
       onClose()
-      setCallStatus('idle')
-      setCallDuration(0)
     }, 1500)
   }
 
