@@ -175,7 +175,7 @@ async function handleVoiceWebhook(request: NextRequest) {
 }
 
 // Optional: Handle call status updates
-export async function handleCallStatus(request: NextRequest) {
+async function handleCallStatus(request: NextRequest) {
   try {
     const formData = await request.formData()
     const params = Object.fromEntries(formData)
