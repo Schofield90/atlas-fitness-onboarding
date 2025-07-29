@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
             throw new Error('Email service not configured')
           }
           
-          const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'
+          const fromEmail = process.env.RESEND_FROM_EMAIL || 'sam@atlas-gyms.co.uk'
           console.log('Sending email with Resend:', {
             from: `Atlas Fitness <${fromEmail}>`,
             to,

@@ -106,7 +106,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
     const text = await render(component, { plainText: true })
     
     // Check for from email configuration
-    const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'sam@atlas-gyms.co.uk'
     
     // Prepare email data
     const emailData = {
