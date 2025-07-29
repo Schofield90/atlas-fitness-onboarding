@@ -113,7 +113,10 @@ export async function POST(request: NextRequest) {
         code: twilioError.code,
         moreInfo: twilioError.moreInfo,
         status: twilioError.status,
-        details: twilioError
+        details: twilioError,
+        to: to,
+        from: process.env.TWILIO_SMS_FROM,
+        url: `${baseUrl}/api/calls/twiml?leadId=${leadId}`
       })
       
       // Check for specific Twilio errors
@@ -131,11 +134,37 @@ export async function POST(request: NextRequest) {
         }, { status: 400 })
       }
       
+      if (twilioError.code === 21614) {
+        return NextResponse.json({
+          error: 'Invalid phone number',
+          details: 'The "To" phone number is not a valid phone number'
+        }, { status: 400 })
+      }
+      
+      if (twilioError.code === 21401) {
+        return NextResponse.json({
+          error: 'Invalid Account SID',
+          details: 'The Twilio Account SID is incorrect'
+        }, { status: 401 })
+      }
+      
+      if (twilioError.code === 20003) {
+        return NextResponse.json({
+          error: 'Authentication failed',
+          details: 'Please check your Twilio Account SID and Auth Token'
+        }, { status: 401 })
+      }
+      
       return NextResponse.json({
         error: 'Failed to initiate call',
-        details: twilioError.message,
+        details: twilioError.message || 'Unknown error',
         code: twilioError.code,
-        moreInfo: twilioError.moreInfo
+        moreInfo: twilioError.moreInfo,
+        debugInfo: {
+          to: to,
+          from: process.env.TWILIO_SMS_FROM,
+          twilioUrl: `${baseUrl}/api/calls/twiml?leadId=${leadId}`
+        }
       }, { status: 500 })
     }
 
