@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/app/lib/supabase/server'
+import { createAdminClient } from '@/app/lib/supabase/admin'
 import { requireAuth, createErrorResponse } from '@/app/lib/api/auth-check'
 import twilio from 'twilio'
 
@@ -7,6 +8,7 @@ export async function POST(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth()
     const supabase = await createClient()
+    const adminSupabase = createAdminClient()
     const body = await request.json()
 
     const { leadId, to } = body
@@ -31,18 +33,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
     }
 
-    // Check if Twilio is configured
-    if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
-      return NextResponse.json({ 
-        error: 'Calling service not configured. Please set up Twilio credentials.' 
-      }, { status: 503 })
+    // Get organization's Twilio configuration
+    const { data: organization, error: orgError } = await adminSupabase
+      .from('organizations')
+      .select('*')
+      .eq('id', userWithOrg.organizationId)
+      .single()
+    
+    if (orgError || !organization) {
+      return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
     }
-
-    // Check if phone from number is configured
-    if (!process.env.TWILIO_SMS_FROM) {
-      return NextResponse.json({ 
-        error: 'Phone number not configured. Please set TWILIO_SMS_FROM.' 
-      }, { status: 503 })
+    
+    // Check if organization has a phone number
+    if (!organization.twilio_phone_number) {
+      // For testing, use the default configuration
+      if (userWithOrg.organizationId === '63589490-8f55-4157-bd3a-e141594b740e') {
+        // Use global Twilio config for your test org
+        if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
+          return NextResponse.json({ 
+            error: 'Calling service not configured. Please set up Twilio credentials.' 
+          }, { status: 503 })
+        }
+        if (!process.env.TWILIO_SMS_FROM) {
+          return NextResponse.json({ 
+            error: 'Phone number not configured. Please set TWILIO_SMS_FROM.' 
+          }, { status: 503 })
+        }
+      } else {
+        return NextResponse.json({ 
+          error: 'Your organization does not have a phone number configured. Please contact support.' 
+        }, { status: 503 })
+      }
     }
 
     // Check if app URL is configured
@@ -55,9 +76,23 @@ export async function POST(request: NextRequest) {
     // 2. Return the token to the client
     // 3. Client uses Twilio Voice SDK to make the call
 
-    // For server-initiated calls (simpler approach):
-    const accountSid = process.env.TWILIO_ACCOUNT_SID
-    const authToken = process.env.TWILIO_AUTH_TOKEN
+    // Use organization's Twilio credentials or default for test org
+    let accountSid: string
+    let authToken: string
+    let fromNumber: string
+    
+    if (organization.twilio_subaccount_sid && organization.twilio_subaccount_auth_token) {
+      // Use organization's sub-account
+      accountSid = organization.twilio_subaccount_sid
+      authToken = organization.twilio_subaccount_auth_token
+      fromNumber = organization.twilio_phone_number
+    } else {
+      // Use default account (for testing)
+      accountSid = process.env.TWILIO_ACCOUNT_SID!
+      authToken = process.env.TWILIO_AUTH_TOKEN!
+      fromNumber = organization.twilio_phone_number || process.env.TWILIO_SMS_FROM!
+    }
+    
     const twilioClient = twilio(accountSid, authToken)
 
     // Get base URL and trim any whitespace/newlines
@@ -80,8 +115,8 @@ export async function POST(request: NextRequest) {
       // Create a call that connects the user's phone to the lead's phone
       const call = await twilioClient.calls.create({
         to: to,
-        from: process.env.TWILIO_SMS_FROM!, // Using SMS number for outbound calls
-        url: `${baseUrl}/api/calls/twiml?leadId=${leadId}&userPhone=${encodeURIComponent(userPhone)}`, // TwiML instructions
+        from: fromNumber,
+        url: `${baseUrl}/api/calls/twiml?leadId=${leadId}&userPhone=${encodeURIComponent(userPhone)}&orgId=${userWithOrg.organizationId}`,
         statusCallback: `${baseUrl}/api/calls/status`,
         statusCallbackEvent: ['initiated', 'answered', 'completed'],
         record: true, // Record the call

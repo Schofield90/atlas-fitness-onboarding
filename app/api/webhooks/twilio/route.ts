@@ -131,27 +131,55 @@ export async function POST(request: NextRequest) {
     const adminSupabase = createAdminClient()
     const tableName = isWhatsApp ? 'whatsapp_logs' : 'sms_logs'
     
-    const logData = {
-      message_id: messageData.messageSid,
-      to: messageData.to,
-      from_number: cleanedFrom,
-      message: messageData.body,
-      status: 'received'
-    }
+    // Find which organization owns this phone number
+    const cleanedTo = messageData.to.replace('whatsapp:', '')
+    const { data: organization, error: orgError } = await adminSupabase
+      .from('organizations')
+      .select('*')
+      .eq('twilio_phone_number', cleanedTo)
+      .single()
     
-    console.log(`Saving incoming ${isWhatsApp ? 'WhatsApp' : 'SMS'} to ${tableName}:`, logData)
-    
-    const { error: insertError } = await adminSupabase.from(tableName).insert(logData)
-    
-    if (insertError) {
-      console.error(`Failed to save incoming message to ${tableName}:`, insertError)
+    if (orgError || !organization) {
+      console.error('No organization found for number:', cleanedTo)
+      // For now, use your test org as fallback
+      // In production, you'd reject the message
+      const fallbackOrgId = '63589490-8f55-4157-bd3a-e141594b740e'
+      
+      const logData = {
+        message_id: messageData.messageSid,
+        to: messageData.to,
+        from_number: cleanedFrom,
+        message: messageData.body,
+        status: 'received',
+        organization_id: fallbackOrgId
+      }
+      
+      await adminSupabase.from(tableName).insert(logData)
     } else {
-      console.log(`Successfully saved incoming message to ${tableName}`)
+      const logData = {
+        message_id: messageData.messageSid,
+        to: messageData.to,
+        from_number: cleanedFrom,
+        message: messageData.body,
+        status: 'received',
+        organization_id: organization.id
+      }
+      
+      console.log(`Saving incoming ${isWhatsApp ? 'WhatsApp' : 'SMS'} to ${tableName} for org ${organization.name}:`, logData)
+      
+      const { error: insertError } = await adminSupabase.from(tableName).insert(logData)
+      
+      if (insertError) {
+        console.error(`Failed to save incoming message to ${tableName}:`, insertError)
+      } else {
+        console.log(`Successfully saved incoming message to ${tableName}`)
+      }
     }
 
     // Handle specific keywords or commands
     const lowerBody = messageData.body.toLowerCase().trim()
     let responseMessage = null
+    let organizationId = organization?.id || '63589490-8f55-4157-bd3a-e141594b740e'
 
     switch (lowerBody) {
       case 'stop':

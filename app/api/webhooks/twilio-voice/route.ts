@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import twilio from 'twilio'
+import { createAdminClient } from '@/app/lib/supabase/admin'
 
 export async function POST(request: NextRequest) {
   return handleVoiceWebhook(request)
@@ -14,6 +15,7 @@ async function handleVoiceWebhook(request: NextRequest) {
     // Get form data from Twilio (they send as form-encoded)
     const formData = await request.formData().catch(() => null)
     const params = formData ? Object.fromEntries(formData) : {}
+    const adminSupabase = createAdminClient()
     
     // Log the incoming call details
     console.log('Voice webhook received:', {
@@ -36,17 +38,61 @@ async function handleVoiceWebhook(request: NextRequest) {
       // Someone is calling the Twilio number
       console.log('Handling inbound call from:', callerNumber)
       
-      // Greet the caller
+      // Find which organization owns this phone number
+      const { data: organization, error: orgError } = await adminSupabase
+        .from('organizations')
+        .select('*')
+        .eq('twilio_phone_number', calledNumber)
+        .single()
+      
+      if (orgError || !organization) {
+        console.error('No organization found for number:', calledNumber)
+        twiml.say({
+          voice: 'alice',
+          language: 'en-GB'
+        }, 'Sorry, this number is not currently in service.')
+        twiml.hangup()
+        return new NextResponse(twiml.toString(), {
+          headers: { 'Content-Type': 'text/xml' }
+        })
+      }
+      
+      // Log the incoming call
+      await adminSupabase.from('messages').insert({
+        organization_id: organization.id,
+        type: 'call',
+        direction: 'inbound',
+        from_number: callerNumber,
+        to_number: calledNumber,
+        twilio_sid: params.CallSid,
+        status: 'initiated',
+        body: 'Incoming phone call',
+        metadata: {
+          call_direction: 'inbound',
+          timestamp: new Date().toISOString()
+        }
+      })
+      
+      // Greet the caller with organization-specific greeting
       twiml.say({
         voice: 'alice',
         language: 'en-GB'
-      }, 'Thank you for calling Atlas Fitness.')
+      }, `Thank you for calling ${organization.name}.`)
       
       // Pause briefly
       twiml.pause({ length: 1 })
       
-      // Connect to the staff member
-      const staffPhone = process.env.USER_PHONE_NUMBER || process.env.DEFAULT_STAFF_PHONE
+      // Get staff phone for this organization
+      // TODO: This should come from organization settings/staff table
+      let staffPhone = null
+      if (organization.id === '63589490-8f55-4157-bd3a-e141594b740e') {
+        // Your test organization
+        staffPhone = process.env.USER_PHONE_NUMBER || '+447490253471'
+      } else {
+        // For other organizations, get from their settings
+        // This would be fetched from a staff/settings table
+        staffPhone = organization.primary_contact_phone
+      }
       
       if (staffPhone) {
         twiml.say({
@@ -68,7 +114,7 @@ async function handleVoiceWebhook(request: NextRequest) {
         twiml.say({
           voice: 'alice',
           language: 'en-GB'
-        }, 'We apologize, but we are unable to take your call at the moment. Please try again later or visit us at our Harrogate or York locations.')
+        }, 'We apologize, but we are unable to take your call at the moment. Please try again later.')
         
         twiml.hangup()
       }
