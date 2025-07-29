@@ -11,10 +11,10 @@ export async function GET(
     const supabase = await createClient()
     const { leadId } = await params
 
-    // Verify lead belongs to organization
+    // Verify lead belongs to organization and get contact info
     const { data: lead, error: leadError } = await supabase
       .from('leads')
-      .select('id')
+      .select('id, phone, email')
       .eq('id', leadId)
       .eq('organization_id', userWithOrg.organizationId)
       .single()
@@ -23,27 +23,65 @@ export async function GET(
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
     }
 
-    // Fetch messages for this lead
-    const { data: messages, error: messagesError } = await supabase
-      .from('messages')
-      .select(`
-        *,
-        user:users!messages_user_id_fkey (
-          first_name,
-          last_name
-        )
-      `)
-      .eq('lead_id', leadId)
-      .eq('organization_id', userWithOrg.organizationId)
+    // Fetch SMS messages
+    const { data: smsMessages = [], error: smsError } = await supabase
+      .from('sms_logs')
+      .select('*')
+      .eq('to', lead.phone || '')
       .order('created_at', { ascending: false })
 
-    if (messagesError) {
-      console.error('Error fetching messages:', messagesError)
-      return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 })
-    }
+    // Fetch WhatsApp messages
+    const { data: whatsappMessages = [], error: whatsappError } = await supabase
+      .from('whatsapp_logs')
+      .select('*')
+      .eq('to', lead.phone || '')
+      .order('created_at', { ascending: false })
+
+    // Fetch email messages
+    const { data: emailMessages = [], error: emailError } = await supabase
+      .from('email_logs')
+      .select('*')
+      .eq('to', lead.email || '')
+      .order('created_at', { ascending: false })
+
+    if (smsError) console.error('SMS fetch error:', smsError)
+    if (whatsappError) console.error('WhatsApp fetch error:', whatsappError)
+    if (emailError) console.error('Email fetch error:', emailError)
+
+    // Combine and format messages
+    const allMessages = [
+      ...smsMessages.map(msg => ({
+        id: msg.id,
+        type: 'sms' as const,
+        direction: 'outbound' as const,
+        status: msg.status,
+        body: msg.message,
+        created_at: msg.created_at,
+        sent_at: msg.created_at
+      })),
+      ...whatsappMessages.map(msg => ({
+        id: msg.id,
+        type: 'whatsapp' as const,
+        direction: 'outbound' as const,
+        status: msg.status,
+        body: msg.message,
+        created_at: msg.created_at,
+        sent_at: msg.created_at
+      })),
+      ...emailMessages.map(msg => ({
+        id: msg.id,
+        type: 'email' as const,
+        direction: 'outbound' as const,
+        status: msg.status,
+        subject: msg.subject,
+        body: msg.message,
+        created_at: msg.created_at,
+        sent_at: msg.created_at
+      }))
+    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
     return NextResponse.json({ 
-      messages: messages || [],
+      messages: allMessages,
       leadId 
     })
 

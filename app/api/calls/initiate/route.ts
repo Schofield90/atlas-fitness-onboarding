@@ -108,10 +108,34 @@ export async function POST(request: NextRequest) {
       })
 
     } catch (twilioError: any) {
-      console.error('Twilio error:', twilioError)
+      console.error('Twilio call error:', {
+        message: twilioError.message,
+        code: twilioError.code,
+        moreInfo: twilioError.moreInfo,
+        status: twilioError.status,
+        details: twilioError
+      })
+      
+      // Check for specific Twilio errors
+      if (twilioError.code === 21215) {
+        return NextResponse.json({
+          error: 'Invalid phone number format',
+          details: 'Please ensure the phone number includes country code (e.g., +447777777777)'
+        }, { status: 400 })
+      }
+      
+      if (twilioError.code === 21217) {
+        return NextResponse.json({
+          error: 'Phone number not verified',
+          details: 'The destination phone number needs to be verified in your Twilio trial account'
+        }, { status: 400 })
+      }
+      
       return NextResponse.json({
         error: 'Failed to initiate call',
-        details: twilioError.message
+        details: twilioError.message,
+        code: twilioError.code,
+        moreInfo: twilioError.moreInfo
       }, { status: 500 })
     }
 

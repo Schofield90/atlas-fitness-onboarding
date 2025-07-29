@@ -123,6 +123,17 @@ export async function POST(request: NextRequest) {
             message: messageBody,
             status: 'sent',
           })
+      } else if (type === 'email') {
+        await supabase
+          .from('email_logs')
+          .insert({
+            message_id: externalId,
+            to,
+            from_email: process.env.RESEND_FROM_EMAIL || 'sam@atlas-gyms.co.uk',
+            subject,
+            message: messageBody,
+            status: 'sent',
+          })
       }
 
       return NextResponse.json({
@@ -158,6 +169,17 @@ export async function POST(request: NextRequest) {
           .insert({
             to,
             from_number: process.env.TWILIO_WHATSAPP_FROM,
+            message: messageBody,
+            status: 'failed',
+            error: `${errorCode}: ${errorMessage}`,
+          })
+      } else if (type === 'email') {
+        await supabase
+          .from('email_logs')
+          .insert({
+            to,
+            from_email: process.env.RESEND_FROM_EMAIL || 'sam@atlas-gyms.co.uk',
+            subject,
             message: messageBody,
             status: 'failed',
             error: `${errorCode}: ${errorMessage}`,
