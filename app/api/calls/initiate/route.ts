@@ -65,18 +65,23 @@ export async function POST(request: NextRequest) {
     
     try {
       
+      // Get user's phone number from environment or request
+      // In production, you'd get this from the user's profile
+      const userPhone = body.userPhone || process.env.USER_PHONE_NUMBER || '+447777777777' // Default for testing
+      
       console.log('Initiating call with:', {
         to,
         from: process.env.TWILIO_SMS_FROM,
-        url: `${baseUrl}/api/calls/twiml?leadId=${leadId}`,
-        baseUrl
+        url: `${baseUrl}/api/calls/twiml?leadId=${leadId}&userPhone=${encodeURIComponent(userPhone)}`,
+        baseUrl,
+        userPhone
       })
 
       // Create a call that connects the user's phone to the lead's phone
       const call = await twilioClient.calls.create({
         to: to,
         from: process.env.TWILIO_SMS_FROM!, // Using SMS number for outbound calls
-        url: `${baseUrl}/api/calls/twiml?leadId=${leadId}`, // TwiML instructions
+        url: `${baseUrl}/api/calls/twiml?leadId=${leadId}&userPhone=${encodeURIComponent(userPhone)}`, // TwiML instructions
         statusCallback: `${baseUrl}/api/calls/status`,
         statusCallbackEvent: ['initiated', 'answered', 'completed'],
         record: true, // Record the call

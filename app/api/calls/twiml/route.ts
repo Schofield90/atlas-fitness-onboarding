@@ -14,28 +14,40 @@ async function handleTwiml(request: NextRequest) {
   try {
     const twiml = new twilio.twiml.VoiceResponse()
     
-    // Get lead ID from query params
+    // Get parameters from query
     const leadId = request.nextUrl.searchParams.get('leadId')
+    const userPhone = request.nextUrl.searchParams.get('userPhone')
     
-    console.log('TwiML request received for lead:', leadId)
+    console.log('TwiML request received:', { leadId, userPhone })
     
-    // Simple greeting message
-    twiml.say({
-      voice: 'alice',
-      language: 'en-GB'
-    }, 'Hello from Atlas Fitness. You are now connected with our team.')
-    
-    // Pause for 2 seconds
-    twiml.pause({ length: 2 })
-    
-    // Another message
-    twiml.say({
-      voice: 'alice',
-      language: 'en-GB'
-    }, 'This is a test call from your gym management system. The call is working correctly.')
-    
-    // End the call after the message
-    twiml.hangup()
+    if (userPhone) {
+      // This creates a real phone bridge
+      // The call will connect the lead to the user's phone
+      const dial = twiml.dial({
+        callerId: process.env.TWILIO_SMS_FROM, // Use your Twilio number as caller ID
+        record: 'record-from-ringing', // Start recording when phone starts ringing
+        recordingStatusCallback: `${(process.env.NEXT_PUBLIC_APP_URL || 'https://atlas-fitness-onboarding.vercel.app').trim()}/api/calls/recording`,
+        timeout: 30, // Ring for 30 seconds before timing out
+      })
+      
+      // Dial the user's phone number
+      dial.number(userPhone)
+      
+      // If the dial fails or user doesn't answer
+      twiml.say({
+        voice: 'alice',
+        language: 'en-GB'
+      }, 'Sorry, we could not connect your call. Please try again later.')
+    } else {
+      // Fallback if no user phone provided
+      twiml.say({
+        voice: 'alice',
+        language: 'en-GB'
+      }, 'Connecting you to Atlas Fitness.')
+      
+      // Just keep the line open for now
+      twiml.pause({ length: 300 }) // 5 minute pause
+    }
     
     const twimlString = twiml.toString()
     console.log('Generated TwiML:', twimlString)

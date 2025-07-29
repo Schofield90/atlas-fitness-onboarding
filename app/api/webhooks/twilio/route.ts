@@ -192,6 +192,67 @@ For assistance, please contact our support team.`
         
         // Use AI to generate response
         try {
+          // First, get lead ID to fetch conversation history
+          let leadId: string | null = null
+          const phoneVariations = [
+            cleanedFrom,
+            cleanedFrom.replace('+44', '0'),
+            cleanedFrom.replace('+44', '07')
+          ]
+          
+          const { data: leadData } = await adminSupabase
+            .from('leads')
+            .select('id')
+            .or(phoneVariations.map(p => `phone.eq.${p}`).join(','))
+            .single()
+          
+          if (leadData) {
+            leadId = leadData.id
+          }
+          
+          // Fetch conversation history if we have a lead
+          let conversationHistory: Array<{ role: 'user' | 'assistant'; message: string; timestamp?: string }> = []
+          
+          if (leadId) {
+            // Get messages from all tables
+            const tables = ['messages', 'sms_logs', 'whatsapp_logs']
+            const allMessages: any[] = []
+            
+            for (const table of tables) {
+              const { data } = await adminSupabase
+                .from(table)
+                .select('*')
+                .or(`lead_id.eq.${leadId},from_number.eq.${cleanedFrom},to.eq.${cleanedFrom}`)
+                .order('created_at', { ascending: true })
+                .limit(30)
+              
+              if (data) {
+                allMessages.push(...data.map((msg: any) => ({
+                  direction: msg.direction || (msg.from_number === cleanedFrom ? 'inbound' : 'outbound'),
+                  body: msg.body || msg.message || msg.subject || 'Phone call',
+                  created_at: msg.created_at || msg.sent_at
+                })))
+              }
+            }
+            
+            // Sort all messages by time and take last 20
+            allMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+            const recentMessages = allMessages.slice(-20)
+            
+            conversationHistory = recentMessages.map(msg => ({
+              role: msg.direction === 'inbound' ? 'user' as const : 'assistant' as const,
+              message: msg.body,
+              timestamp: msg.created_at
+            }))
+            
+            console.log('Fetched conversation history:', {
+              leadId,
+              totalMessages: allMessages.length,
+              recentMessages: conversationHistory.length,
+              lastMessage: conversationHistory[conversationHistory.length - 1]?.message
+            })
+          }
+          
           // First, fetch ALL knowledge to ensure we have data
           const { fetchCoreKnowledge } = await import('@/app/lib/knowledge')
           const coreKnowledge = await fetchCoreKnowledge()
@@ -247,14 +308,14 @@ For assistance, please contact our support team.`
             if (coreKnowledge.length > 0) {
               console.log('Using core knowledge as fallback')
               const fallbackContext = formatKnowledgeContext(coreKnowledge)
-              aiResponse = await generateAIResponse(messageData.body, cleanedFrom, fallbackContext)
+              aiResponse = await generateAIResponse(messageData.body, cleanedFrom, fallbackContext, conversationHistory)
               responseMessage = aiResponse.message
             } else {
               throw new Error('No knowledge data available in database')
             }
           } else {
             // Generate AI response with found knowledge
-            aiResponse = await generateAIResponse(messageData.body, cleanedFrom, knowledgeContext)
+            aiResponse = await generateAIResponse(messageData.body, cleanedFrom, knowledgeContext, conversationHistory)
             responseMessage = aiResponse.message
             
             console.log('AI Response generated:', {

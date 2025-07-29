@@ -27,7 +27,8 @@ export interface AIResponse {
 export async function generateAIResponse(
   userMessage: string,
   phoneNumber: string,
-  knowledgeContext: string
+  knowledgeContext: string,
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; message: string; timestamp?: string }>
 ): Promise<AIResponse> {
   try {
     // Fetch training feedback examples
@@ -60,6 +61,13 @@ KEY BEHAVIORS:
 4. Create urgency with limited-time offers when appropriate
 5. Use emojis sparingly for friendliness 💪
 
+CONVERSATION MEMORY RULES:
+1. REMEMBER what the customer has already told you
+2. NEVER ask for information they've already provided
+3. BUILD on previous messages - don't start fresh each time
+4. If they answered a question, acknowledge it and move forward
+5. Track the conversation flow and progress naturally
+
 RESPONSE FORMAT:
 - Maximum 2-3 sentences per response
 - End with a question or clear call-to-action
@@ -74,17 +82,39 @@ DOUBLE-CHECK: Before responding, verify you're using REAL data from the knowledg
       knowledgeContextLength: knowledgeContext.length
     })
 
+    // Build messages array with conversation history
+    const messages: Array<{ role: 'user' | 'assistant'; content: string }> = []
+    
+    // Add conversation history if provided
+    if (conversationHistory && conversationHistory.length > 0) {
+      // Include last 10 messages for context (5 exchanges)
+      const recentHistory = conversationHistory.slice(-10)
+      recentHistory.forEach(msg => {
+        messages.push({
+          role: msg.role,
+          content: msg.message
+        })
+      })
+    }
+    
+    // Add current message
+    messages.push({
+      role: 'user',
+      content: userMessage
+    })
+    
+    console.log('AI conversation context:', {
+      historyLength: conversationHistory?.length || 0,
+      messagesIncluded: messages.length,
+      currentMessage: userMessage
+    })
+
     const response = await anthropic.messages.create({
       model: 'claude-3-5-sonnet-20241022',
       max_tokens: 300,
       temperature: 0.7,
       system: systemPrompt,
-      messages: [
-        {
-          role: 'user',
-          content: userMessage,
-        },
-      ],
+      messages: messages,
     })
 
     const aiMessage = response.content[0].type === 'text' 

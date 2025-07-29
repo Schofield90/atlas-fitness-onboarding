@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import DashboardLayout from '@/app/components/DashboardLayout'
 import { MessageComposer } from '@/app/components/messaging/MessageComposer'
-import { MessageHistory } from '@/app/components/messaging/MessageHistory'
+import { UnifiedTimeline } from '@/app/components/messaging/UnifiedTimeline'
 import { CallModal } from '@/app/components/calling/CallModal'
 
 interface Lead {
@@ -201,24 +201,14 @@ export default function LeadDetailPage() {
               )}
             </div>
 
-            {/* Message History Section */}
+            {/* Unified Communication Timeline */}
             <div className="bg-gray-800 rounded-lg p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">Messages</h2>
-                <button
-                  onClick={() => setMessageModalOpen(true)}
-                  className="bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded-lg flex items-center gap-2 transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  Send Message
-                </button>
-              </div>
-              
-              <div className="h-96 bg-gray-700 rounded-lg overflow-hidden">
-                <MessageHistory leadId={lead.id} />
-              </div>
+              <h2 className="text-xl font-bold mb-4">Communication History</h2>
+              <UnifiedTimeline 
+                leadId={lead.id} 
+                leadPhone={lead.phone}
+                leadEmail={lead.email}
+              />
             </div>
 
             {/* Notes Section */}
