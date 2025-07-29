@@ -27,7 +27,7 @@ const sendBulkEmailSchema = z.object({
   recipients: z.array(z.object({
     email: z.string().email(),
     variables: z.record(z.string(), z.any()),
-  })),
+  }).strict()),
   template: z.enum([
     'welcome-lead',
     'client-welcome',
@@ -64,9 +64,9 @@ export async function POST(request: NextRequest) {
         }
       })
       
-      // Send bulk emails
+      // Send bulk emails - cast to ensure type compatibility
       const result = await sendBulkEmails(
-        validatedData.recipients,
+        validatedData.recipients as { email: string; variables: Record<string, any> }[],
         validatedData.template as EmailTemplate,
         {
           subject: validatedData.subject,
