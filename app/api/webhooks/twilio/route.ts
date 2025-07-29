@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient()
     const tableName = isWhatsApp ? 'whatsapp_logs' : 'sms_logs'
     
-    await supabase.from(tableName).insert({
+    const logData = {
       message_id: messageData.messageSid,
       to: messageData.to,
       from_number: cleanedFrom,
@@ -138,7 +138,17 @@ export async function POST(request: NextRequest) {
       status: 'received',
       has_media: parseInt(messageData.numMedia) > 0,
       ...(isWhatsApp && messageData.mediaUrl && { media_urls: [messageData.mediaUrl] })
-    })
+    }
+    
+    console.log(`Saving incoming ${isWhatsApp ? 'WhatsApp' : 'SMS'} to ${tableName}:`, logData)
+    
+    const { error: insertError } = await supabase.from(tableName).insert(logData)
+    
+    if (insertError) {
+      console.error(`Failed to save incoming message to ${tableName}:`, insertError)
+    } else {
+      console.log(`Successfully saved incoming message to ${tableName}`)
+    }
 
     // Handle specific keywords or commands
     const lowerBody = messageData.body.toLowerCase().trim()
