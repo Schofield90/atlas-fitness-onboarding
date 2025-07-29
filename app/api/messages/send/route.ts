@@ -45,22 +45,7 @@ export async function POST(request: NextRequest) {
     let message = { id: 'temp-' + Date.now() }
     let messageError = null
 
-    if (messageError) {
-      console.error('Error creating message record:', {
-        error: messageError,
-        code: messageError.code,
-        message: messageError.message,
-        details: messageError.details,
-        hint: messageError.hint,
-        data: messageData
-      })
-      return NextResponse.json({ 
-        error: 'Failed to create message record',
-        details: messageError.message,
-        code: messageError.code,
-        hint: messageError.hint
-      }, { status: 500 })
-    }
+    // Message creation removed - using existing logging tables
 
     // Send the message
     try {
