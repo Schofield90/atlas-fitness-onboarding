@@ -136,9 +136,7 @@ export async function POST(request: NextRequest) {
       to: messageData.to,
       from_number: cleanedFrom,
       message: messageData.body,
-      status: 'received',
-      has_media: parseInt(messageData.numMedia) > 0,
-      ...(isWhatsApp && messageData.mediaUrl && { media_urls: [messageData.mediaUrl] })
+      status: 'received'
     }
     
     console.log(`Saving incoming ${isWhatsApp ? 'WhatsApp' : 'SMS'} to ${tableName}:`, logData)
