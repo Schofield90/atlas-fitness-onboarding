@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     // Check if organization has a phone number
     if (!organization.twilio_phone_number) {
       // For testing, use the default configuration
-      if (userWithOrg.organizationId === '63589490-8f55-4157-bd3a-e141594b740e') {
+      if (userWithOrg.organizationId === '63589490-8f55-4157-bd3a-e141594b748e') {
         // Use global Twilio config for your test org
         if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
           return NextResponse.json({ 
@@ -106,10 +106,12 @@ export async function POST(request: NextRequest) {
       
       console.log('Initiating call with:', {
         to,
-        from: process.env.TWILIO_SMS_FROM,
-        url: `${baseUrl}/api/calls/twiml?leadId=${leadId}&userPhone=${encodeURIComponent(userPhone)}`,
+        from: fromNumber,
+        url: `${baseUrl}/api/calls/twiml?leadId=${leadId}&userPhone=${encodeURIComponent(userPhone)}&orgId=${userWithOrg.organizationId}`,
         baseUrl,
-        userPhone
+        userPhone,
+        accountSid: accountSid ? `${accountSid.substring(0, 8)}...` : 'NOT SET',
+        fromNumber
       })
 
       // Create a call that connects the user's phone to the lead's phone
@@ -123,19 +125,16 @@ export async function POST(request: NextRequest) {
       })
 
       // Log call initiation in database
-      const { error: logError } = await supabase
-        .from('messages')
+      const { error: logError } = await adminSupabase
+        .from('sms_logs')
         .insert({
           organization_id: userWithOrg.organizationId,
           lead_id: leadId,
-          user_id: userWithOrg.id,
-          type: 'sms', // Using SMS type for calls for now
+          message: `Phone call initiated to ${lead.name}`,
           direction: 'outbound',
-          status: 'pending',
-          body: `Phone call initiated to ${lead.name}`,
-          from_number: process.env.TWILIO_SMS_FROM,
+          from_number: fromNumber,
           to_number: to,
-          twilio_sid: call.sid,
+          twilio_message_sid: call.sid,
         })
 
       if (logError) {
