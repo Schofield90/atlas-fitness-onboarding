@@ -11,6 +11,9 @@ export async function POST(request: NextRequest) {
 }
 
 async function handleTwiml(request: NextRequest) {
+  console.log('TwiML handler called with URL:', request.url)
+  console.log('Query params:', Object.fromEntries(request.nextUrl.searchParams))
+  
   try {
     const twiml = new twilio.twiml.VoiceResponse()
     
@@ -18,32 +21,34 @@ async function handleTwiml(request: NextRequest) {
     const leadId = request.nextUrl.searchParams.get('leadId')
     let userPhone = request.nextUrl.searchParams.get('userPhone')
     
+    console.log('Raw params:', { leadId, userPhone })
+    
     // Fallback to environment variable if not in URL
     if (!userPhone) {
       userPhone = process.env.USER_PHONE_NUMBER || null
-      console.log('No userPhone in URL, using env variable:', userPhone)
+      console.log('No userPhone in URL, checking env variable:', {
+        envVarExists: !!process.env.USER_PHONE_NUMBER,
+        envVarValue: process.env.USER_PHONE_NUMBER ? 'SET' : 'NOT SET',
+        resultingUserPhone: userPhone
+      })
     }
     
-    console.log('TwiML request received:', { leadId, userPhone })
+    console.log('Final TwiML params:', { leadId, userPhone, hasUserPhone: !!userPhone })
     
     if (userPhone) {
-      // This creates a real phone bridge
-      // The call will connect the lead to the user's phone
+      console.log('Creating dial with userPhone:', userPhone)
+      console.log('Using callerId:', process.env.TWILIO_SMS_FROM)
+      
+      // Simplified dial without recording for now
       const dial = twiml.dial({
-        callerId: process.env.TWILIO_SMS_FROM, // Use your Twilio number as caller ID
-        record: 'record-from-ringing', // Start recording when phone starts ringing
-        recordingStatusCallback: `${(process.env.NEXT_PUBLIC_APP_URL || 'https://atlas-fitness-onboarding.vercel.app').trim()}/api/calls/recording`,
-        timeout: 30, // Ring for 30 seconds before timing out
+        callerId: process.env.TWILIO_SMS_FROM,
+        timeout: 30
       })
       
       // Dial the user's phone number
       dial.number(userPhone)
       
-      // If the dial fails or user doesn't answer
-      twiml.say({
-        voice: 'alice',
-        language: 'en-GB'
-      }, 'Sorry, we could not connect your call. Please try again later.')
+      console.log('Dial created successfully')
     } else {
       // No user phone configured
       console.error('No user phone number available for bridging call')
