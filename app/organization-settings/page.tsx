@@ -39,9 +39,6 @@ interface Staff {
   receives_emails: boolean
   routing_priority: number
   role: string
-  profiles?: {
-    name: string
-  }
 }
 
 export default function OrganizationSettingsPage() {
@@ -117,10 +114,7 @@ export default function OrganizationSettingsPage() {
 
       const { data } = await supabase
         .from('organization_staff')
-        .select(`
-          *,
-          profiles!organization_staff_user_id_fkey (name)
-        `)
+        .select('*')
         .eq('organization_id', profile.organization_id)
         .order('routing_priority')
 
@@ -491,8 +485,8 @@ export default function OrganizationSettingsPage() {
                   <div key={member.id} className="bg-gray-700 rounded-lg p-4">
                     <div className="flex justify-between items-start">
                       <div>
-                        <h3 className="font-medium">{member.profiles?.name || 'Unknown'}</h3>
-                        <p className="text-sm text-gray-400">{member.phone_number} • {member.email}</p>
+                        <h3 className="font-medium">{member.email}</h3>
+                        <p className="text-sm text-gray-400">{member.phone_number} • {member.role}</p>
                         <div className="flex gap-4 mt-2 text-xs">
                           <span className={member.receives_calls ? 'text-green-400' : 'text-gray-500'}>
                             {member.receives_calls ? '✓' : '✗'} Calls

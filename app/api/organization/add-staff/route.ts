@@ -18,21 +18,9 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    // Check if user exists by email
-    const { data: existingUser } = await adminSupabase
-      .from('profiles')
-      .select('id')
-      .eq('email', email)
-      .single()
-    
-    let userId = existingUser?.id
-    
-    // If user doesn't exist, create a placeholder with a unique ID
-    if (!userId) {
-      // For now, we'll create a staff record without a user_id
-      // In a real app, you'd send an invitation email
-      userId = `pending_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    }
+    // For now, we'll create a staff record with a pending user_id
+    // In a real app, you'd check if user exists and send invitation email
+    const userId = `pending_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     
     // Check if staff member already exists
     const { data: existingStaff } = await adminSupabase
