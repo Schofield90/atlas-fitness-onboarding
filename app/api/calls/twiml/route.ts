@@ -16,7 +16,13 @@ async function handleTwiml(request: NextRequest) {
     
     // Get parameters from query
     const leadId = request.nextUrl.searchParams.get('leadId')
-    const userPhone = request.nextUrl.searchParams.get('userPhone')
+    let userPhone = request.nextUrl.searchParams.get('userPhone')
+    
+    // Fallback to environment variable if not in URL
+    if (!userPhone) {
+      userPhone = process.env.USER_PHONE_NUMBER || null
+      console.log('No userPhone in URL, using env variable:', userPhone)
+    }
     
     console.log('TwiML request received:', { leadId, userPhone })
     
@@ -39,14 +45,14 @@ async function handleTwiml(request: NextRequest) {
         language: 'en-GB'
       }, 'Sorry, we could not connect your call. Please try again later.')
     } else {
-      // Fallback if no user phone provided
+      // No user phone configured
+      console.error('No user phone number available for bridging call')
       twiml.say({
         voice: 'alice',
         language: 'en-GB'
-      }, 'Connecting you to Atlas Fitness.')
+      }, 'Configuration error: No destination phone number set. Please configure USER_PHONE_NUMBER in your environment variables.')
       
-      // Just keep the line open for now
-      twiml.pause({ length: 300 }) // 5 minute pause
+      twiml.hangup()
     }
     
     const twimlString = twiml.toString()
