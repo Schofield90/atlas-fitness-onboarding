@@ -144,15 +144,26 @@ export async function POST(request: NextRequest) {
         }
         
         console.log('Inserting email log:', emailLog)
+        console.log('Email external ID:', externalId)
+        console.log('Email to:', to)
+        console.log('Email subject:', subject)
         
-        const { error: insertError } = await adminSupabase
+        const { data: insertedLog, error: insertError } = await adminSupabase
           .from('email_logs')
           .insert(emailLog)
+          .select()
+          .single()
         
         if (insertError) {
-          console.error('Failed to insert email log:', insertError)
+          console.error('Failed to insert email log:', {
+            error: insertError,
+            message: insertError.message,
+            code: insertError.code,
+            details: insertError.details,
+            hint: insertError.hint
+          })
         } else {
-          console.log('Email log inserted successfully')
+          console.log('Email log inserted successfully:', insertedLog)
         }
       }
 
