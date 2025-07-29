@@ -50,6 +50,10 @@ export default function LeadDetailPage() {
       if (res.ok) {
         const data = await res.json()
         setLead(data.lead)
+        // Load existing notes if any
+        if (data.lead.notes) {
+          setNotes(data.lead.notes)
+        }
       }
     } catch (error) {
       console.error('Error fetching lead:', error)
@@ -77,6 +81,28 @@ export default function LeadDetailPage() {
       }
     } catch (error) {
       console.error('Error updating lead:', error)
+    }
+  }
+
+  const saveNotes = async () => {
+    if (!lead) return
+    
+    try {
+      const res = await fetch('/api/leads', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: lead.id,
+          notes: notes
+        })
+      })
+      
+      if (res.ok) {
+        alert('Notes saved successfully!')
+      }
+    } catch (error) {
+      console.error('Error saving notes:', error)
+      alert('Failed to save notes')
     }
   }
 
@@ -220,7 +246,10 @@ export default function LeadDetailPage() {
                 placeholder="Add notes about this lead..."
                 className="w-full h-32 bg-gray-700 text-white placeholder-gray-400 rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
-              <button className="mt-3 bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded-lg transition-colors">
+              <button 
+                onClick={saveNotes}
+                className="mt-3 bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded-lg transition-colors"
+              >
                 Save Notes
               </button>
             </div>

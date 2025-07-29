@@ -179,7 +179,9 @@ export async function POST(request: NextRequest) {
     // Handle specific keywords or commands
     const lowerBody = messageData.body.toLowerCase().trim()
     let responseMessage = null
+    let aiResponse = null
     let organizationId = organization?.id || '63589490-8f55-4157-bd3a-e141594b740e'
+    let leadId: string | null = null
 
     switch (lowerBody) {
       case 'stop':
@@ -221,7 +223,6 @@ For assistance, please contact our support team.`
         // Use AI to generate response
         try {
           // First, get lead ID to fetch conversation history
-          let leadId: string | null = null
           const phoneVariations = [
             cleanedFrom,
             cleanedFrom.replace('+44', '0'),
@@ -338,8 +339,6 @@ For assistance, please contact our support team.`
             console.log('Context snippet for location:', knowledgeContext.substring(0, 500))
           }
           
-          let aiResponse = null
-          
           // If no knowledge found, log a warning
           if ((!orgKnowledge || orgKnowledge.length === 0) && knowledgeContext.length === 0) {
             console.warn('WARNING: No knowledge found for query:', messageData.body)
@@ -384,6 +383,46 @@ For assistance, please contact our support team.`
 
     // Send auto-response if applicable
     if (responseMessage) {
+      // Save the outgoing message to the appropriate table
+      const outgoingLogData = {
+        message_id: `AI_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        to: cleanedFrom, // Sending back to the sender
+        from_number: messageData.to.replace('whatsapp:', ''), // Our number
+        message: responseMessage,
+        status: 'sent',
+        organization_id: organizationId
+      }
+      
+      console.log(`Saving AI response to ${tableName}:`, outgoingLogData)
+      const { error: outgoingError } = await adminSupabase.from(tableName).insert(outgoingLogData)
+      
+      if (outgoingError) {
+        console.error(`Failed to save AI response to ${tableName}:`, outgoingError)
+      }
+      
+      // Also save to messages table if we have a lead
+      if (leadId) {
+        const { error: msgError } = await adminSupabase.from('messages').insert({
+          organization_id: organizationId,
+          lead_id: leadId,
+          type: isWhatsApp ? 'whatsapp' : 'sms',
+          direction: 'outbound',
+          from_number: messageData.to.replace('whatsapp:', ''),
+          to_number: cleanedFrom,
+          body: responseMessage,
+          status: 'sent',
+          metadata: {
+            ai_generated: true,
+            booking_intent: aiResponse?.shouldBookAppointment || false,
+            extracted_info: aiResponse?.extractedInfo || {}
+          }
+        })
+        
+        if (msgError) {
+          console.error('Failed to save AI response to messages table:', msgError)
+        }
+      }
+      
       const MessagingResponse = twilio.twiml.MessagingResponse
       const twiml = new MessagingResponse()
       twiml.message(responseMessage)
