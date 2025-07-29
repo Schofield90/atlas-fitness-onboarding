@@ -17,10 +17,13 @@ async function handleVoiceWebhook(request: NextRequest) {
     const params = formData ? Object.fromEntries(formData) : {}
     const adminSupabase = createAdminClient()
     
-    // Log the incoming call details
-    console.log('Voice webhook received:', {
+    // Log ALL incoming parameters for debugging
+    console.log('Voice webhook received - ALL PARAMS:', params)
+    console.log('Voice webhook received - Key details:', {
       from: params.From || 'unknown',
       to: params.To || 'unknown',
+      called: params.Called || 'unknown',
+      caller: params.Caller || 'unknown',
       callSid: params.CallSid || 'unknown',
       direction: params.Direction || 'unknown',
       callStatus: params.CallStatus || 'unknown'
@@ -118,27 +121,20 @@ async function handleVoiceWebhook(request: NextRequest) {
         
         twiml.hangup()
       }
-    } else if (direction === 'outbound-dial') {
-      // This is the second leg of an outbound call (connecting to the lead)
-      console.log('Handling outbound dial leg')
+    } else if (direction === 'outbound-dial' || direction === 'outbound-api') {
+      // This is an outbound call from your CRM to a lead
+      console.log('Handling outbound call - no organization lookup needed')
       
-      // For outbound calls initiated from the app, we just need to connect
-      // The greeting was already handled in the TwiML endpoint
+      // For outbound calls, we don't need to look up organization
+      // Just connect the call
       twiml.say({
         voice: 'alice',
         language: 'en-GB'
       }, 'Connecting your call.')
       
-    } else if (direction === 'outbound-api') {
-      // Outbound call initiated via API
-      console.log('Handling outbound API call')
-      
-      // The call should already be configured with dial in the initial TwiML
-      // This is just a fallback
-      twiml.say({
-        voice: 'alice',
-        language: 'en-GB'
-      }, 'Thank you for calling Atlas Fitness.')
+      // The actual dial happens in the TwiML endpoint or initial call setup
+      // This is just the initial response
+      console.log('Outbound call TwiML generated successfully')
     }
     
     // Generate TwiML string
