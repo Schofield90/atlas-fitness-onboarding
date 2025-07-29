@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/app/lib/supabase/server'
+import { createAdminClient } from '@/app/lib/supabase/admin'
 import { requireAuth, createErrorResponse } from '@/app/lib/api/auth-check'
 
 export async function GET(
@@ -9,6 +10,7 @@ export async function GET(
   try {
     const userWithOrg = await requireAuth()
     const supabase = await createClient()
+    const adminSupabase = createAdminClient() // Use admin client for reading logs
     const { leadId } = await params
 
     // Verify lead belongs to organization and get contact info
@@ -23,23 +25,23 @@ export async function GET(
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
     }
 
-    // Fetch SMS messages
-    const { data: smsMessages = [], error: smsError } = await supabase
+    // Fetch SMS messages using admin client
+    const { data: smsMessages = [], error: smsError } = await adminSupabase
       .from('sms_logs')
       .select('*')
       .eq('to', lead.phone || '')
       .order('created_at', { ascending: false })
 
-    // Fetch WhatsApp messages
-    const { data: whatsappMessages = [], error: whatsappError } = await supabase
+    // Fetch WhatsApp messages using admin client
+    const { data: whatsappMessages = [], error: whatsappError } = await adminSupabase
       .from('whatsapp_logs')
       .select('*')
       .eq('to', lead.phone || '')
       .order('created_at', { ascending: false })
 
-    // Fetch email messages
+    // Fetch email messages using admin client
     console.log('Fetching emails for:', lead.email)
-    const { data: emailMessages = [], error: emailError } = await supabase
+    const { data: emailMessages = [], error: emailError } = await adminSupabase
       .from('email_logs')
       .select('*')
       .eq('to_email', lead.email || '')

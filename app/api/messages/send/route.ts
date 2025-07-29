@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/app/lib/supabase/server'
+import { createAdminClient } from '@/app/lib/supabase/admin'
 import { requireAuth, createErrorResponse } from '@/app/lib/api/auth-check'
 import { sendSMS, sendWhatsAppMessage } from '@/app/lib/services/twilio'
 import { Resend } from 'resend'
@@ -10,6 +11,7 @@ export async function POST(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth()
     const supabase = await createClient()
+    const adminSupabase = createAdminClient() // Use admin client for logging
     const body = await request.json()
 
     const { leadId, type, to, subject, body: messageBody } = body
@@ -102,9 +104,9 @@ export async function POST(request: NextRequest) {
           throw new Error(`Unsupported message type: ${type}`)
       }
 
-      // Log to appropriate table based on type
+      // Log to appropriate table based on type using admin client
       if (type === 'sms') {
-        await supabase
+        const { error: logError } = await adminSupabase
           .from('sms_logs')
           .insert({
             message_id: externalId,
@@ -113,8 +115,12 @@ export async function POST(request: NextRequest) {
             message: messageBody,
             status: 'sent',
           })
+        
+        if (logError) {
+          console.error('Failed to log SMS:', logError)
+        }
       } else if (type === 'whatsapp') {
-        await supabase
+        const { error: logError } = await adminSupabase
           .from('whatsapp_logs')
           .insert({
             message_id: externalId,
@@ -123,6 +129,10 @@ export async function POST(request: NextRequest) {
             message: messageBody,
             status: 'sent',
           })
+        
+        if (logError) {
+          console.error('Failed to log WhatsApp:', logError)
+        }
       } else if (type === 'email') {
         const emailLog = {
           message_id: externalId,
@@ -135,7 +145,7 @@ export async function POST(request: NextRequest) {
         
         console.log('Inserting email log:', emailLog)
         
-        const { error: insertError } = await supabase
+        const { error: insertError } = await adminSupabase
           .from('email_logs')
           .insert(emailLog)
         
@@ -164,7 +174,7 @@ export async function POST(request: NextRequest) {
       const errorCode = (sendError as any)?.code || 'UNKNOWN'
       
       if (type === 'sms') {
-        await supabase
+        await adminSupabase
           .from('sms_logs')
           .insert({
             to,
@@ -174,7 +184,7 @@ export async function POST(request: NextRequest) {
             error: `${errorCode}: ${errorMessage}`,
           })
       } else if (type === 'whatsapp') {
-        await supabase
+        await adminSupabase
           .from('whatsapp_logs')
           .insert({
             to,
@@ -184,7 +194,7 @@ export async function POST(request: NextRequest) {
             error: `${errorCode}: ${errorMessage}`,
           })
       } else if (type === 'email') {
-        await supabase
+        await adminSupabase
           .from('email_logs')
           .insert({
             to_email: to,
