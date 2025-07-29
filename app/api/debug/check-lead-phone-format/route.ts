@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
       lead.phone?.startsWith('0') ? `+44${lead.phone.substring(1)}` : lead.phone
     ].filter(Boolean)
     
-    const results = {}
+    const results: Record<string, { found: number; error: any; messages: any[] }> = {}
     
     for (const phoneFormat of phoneVariations) {
       const { data: smsLogs, error: smsError } = await adminSupabase
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       results[phoneFormat] = {
         found: smsLogs?.length || 0,
         error: smsError,
-        messages: smsLogs
+        messages: smsLogs || []
       }
     }
     
