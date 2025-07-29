@@ -1,0 +1,144 @@
+-- Create forms table
+CREATE TABLE IF NOT EXISTS forms (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  type TEXT DEFAULT 'custom' CHECK (type IN ('waiver', 'contract', 'health', 'policy', 'custom')),
+  schema JSONB NOT NULL,
+  is_active BOOLEAN DEFAULT true,
+  created_by UUID REFERENCES profiles(id),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Create documents table
+CREATE TABLE IF NOT EXISTS documents (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  type TEXT DEFAULT 'other' CHECK (type IN ('waiver', 'contract', 'health', 'policy', 'other')),
+  file_url TEXT NOT NULL,
+  file_name TEXT NOT NULL,
+  file_size INTEGER,
+  mime_type TEXT,
+  uploaded_by UUID REFERENCES profiles(id),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Create form submissions table
+CREATE TABLE IF NOT EXISTS form_submissions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  form_id UUID NOT NULL REFERENCES forms(id) ON DELETE CASCADE,
+  lead_id UUID REFERENCES leads(id),
+  contact_id UUID REFERENCES contacts(id),
+  submission_data JSONB NOT NULL,
+  signature_url TEXT,
+  submitted_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  ip_address INET
+);
+
+-- Add indexes
+CREATE INDEX idx_forms_organization ON forms(organization_id);
+CREATE INDEX idx_forms_type ON forms(type);
+CREATE INDEX idx_forms_active ON forms(is_active);
+CREATE INDEX idx_documents_organization ON documents(organization_id);
+CREATE INDEX idx_documents_type ON documents(type);
+CREATE INDEX idx_form_submissions_form ON form_submissions(form_id);
+CREATE INDEX idx_form_submissions_lead ON form_submissions(lead_id);
+CREATE INDEX idx_form_submissions_contact ON form_submissions(contact_id);
+
+-- Enable RLS
+ALTER TABLE forms ENABLE ROW LEVEL SECURITY;
+ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE form_submissions ENABLE ROW LEVEL SECURITY;
+
+-- Forms policies
+CREATE POLICY "Users can view forms from their organization"
+  ON forms FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+      AND profiles.organization_id = forms.organization_id
+    )
+  );
+
+CREATE POLICY "Users can create forms for their organization"
+  ON forms FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+      AND profiles.organization_id = forms.organization_id
+    )
+  );
+
+CREATE POLICY "Users can update forms from their organization"
+  ON forms FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+      AND profiles.organization_id = forms.organization_id
+    )
+  );
+
+CREATE POLICY "Users can delete forms from their organization"
+  ON forms FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+      AND profiles.organization_id = forms.organization_id
+    )
+  );
+
+-- Documents policies
+CREATE POLICY "Users can view documents from their organization"
+  ON documents FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+      AND profiles.organization_id = documents.organization_id
+    )
+  );
+
+CREATE POLICY "Users can upload documents for their organization"
+  ON documents FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+      AND profiles.organization_id = documents.organization_id
+    )
+  );
+
+CREATE POLICY "Users can delete documents from their organization"
+  ON documents FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+      AND profiles.organization_id = documents.organization_id
+    )
+  );
+
+-- Form submissions policies
+CREATE POLICY "Users can view submissions from their organization"
+  ON form_submissions FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM forms
+      JOIN profiles ON profiles.organization_id = forms.organization_id
+      WHERE forms.id = form_submissions.form_id
+      AND profiles.id = auth.uid()
+    )
+  );
+
+-- Public can submit forms (for external form submissions)
+CREATE POLICY "Anyone can submit a form"
+  ON form_submissions FOR INSERT
+  WITH CHECK (true);

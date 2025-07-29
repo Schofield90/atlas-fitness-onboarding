@@ -1,14 +1,50 @@
 'use client'
 
 import DashboardLayout from '../components/DashboardLayout'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
+
+interface Form {
+  id: string
+  title: string
+  description: string
+  type: string
+  is_active: boolean
+  created_at: string
+}
 
 export default function FormsDocumentsPage() {
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [showFormBuilder, setShowFormBuilder] = useState(false)
   const [formDescription, setFormDescription] = useState('')
   const [generatingForm, setGeneratingForm] = useState(false)
+  const [forms, setForms] = useState<Form[]>([])
+  const [loading, setLoading] = useState(true)
+  const supabase = createClient()
+  
+  useEffect(() => {
+    fetchForms()
+  }, [])
+  
+  const getFormCountByType = (type: string) => {
+    return forms.filter(form => form.type === type).length
+  }
+  
+  const fetchForms = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('forms')
+        .select('*')
+        .order('created_at', { ascending: false })
+      
+      if (error) throw error
+      setForms(data || [])
+    } catch (error) {
+      console.error('Error fetching forms:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
   
   const generateForm = async () => {
     if (!formDescription.trim()) {
@@ -33,9 +69,10 @@ export default function FormsDocumentsPage() {
       
       const data = await response.json();
       console.log('Generated form:', data);
-      alert('Form generated successfully! This will be saved to your forms.');
+      alert('Form generated successfully!');
       setShowFormBuilder(false);
       setFormDescription('');
+      fetchForms(); // Refresh the forms list
     } catch (error) {
       console.error('Error generating form:', error);
       alert('Failed to generate form. Please try again.');
@@ -80,38 +117,76 @@ export default function FormsDocumentsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               <h3 className="font-semibold mb-1">Waivers</h3>
-              <p className="text-sm text-gray-400">0 documents</p>
+              <p className="text-sm text-gray-400">{getFormCountByType('waiver')} forms</p>
             </div>
             <div className="bg-gray-800 rounded-lg p-6 text-center hover:bg-gray-750 transition-colors cursor-pointer">
               <svg className="w-12 h-12 mx-auto mb-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
               </svg>
               <h3 className="font-semibold mb-1">Contracts</h3>
-              <p className="text-sm text-gray-400">0 documents</p>
+              <p className="text-sm text-gray-400">{getFormCountByType('contract')} forms</p>
             </div>
             <div className="bg-gray-800 rounded-lg p-6 text-center hover:bg-gray-750 transition-colors cursor-pointer">
               <svg className="w-12 h-12 mx-auto mb-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
               <h3 className="font-semibold mb-1">Health Forms</h3>
-              <p className="text-sm text-gray-400">0 documents</p>
+              <p className="text-sm text-gray-400">{getFormCountByType('health')} forms</p>
             </div>
             <div className="bg-gray-800 rounded-lg p-6 text-center hover:bg-gray-750 transition-colors cursor-pointer">
               <svg className="w-12 h-12 mx-auto mb-3 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
               </svg>
               <h3 className="font-semibold mb-1">Policies</h3>
-              <p className="text-sm text-gray-400">0 documents</p>
+              <p className="text-sm text-gray-400">{getFormCountByType('policy')} forms</p>
             </div>
           </div>
 
-          {/* Recent Documents */}
+          {/* Recent Forms & Documents */}
           <div className="bg-gray-800 rounded-lg p-6">
-            <h3 className="text-lg font-semibold mb-4">All Documents</h3>
-            <div className="text-center py-8">
-              <p className="text-gray-400">No documents uploaded yet</p>
-              <p className="text-sm text-gray-500 mt-2">Upload waivers, contracts, and policies to share with members</p>
-            </div>
+            <h3 className="text-lg font-semibold mb-4">All Forms & Documents</h3>
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"></div>
+              </div>
+            ) : forms.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-400">No forms created yet</p>
+                <p className="text-sm text-gray-500 mt-2">Use the AI Form Builder to create forms for your gym</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {forms.map((form) => (
+                  <div key={form.id} className="border border-gray-700 rounded-lg p-4 hover:bg-gray-750 transition-colors">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-medium">{form.title}</h4>
+                        <p className="text-sm text-gray-400 mt-1">{form.description}</p>
+                        <div className="flex items-center gap-4 mt-2">
+                          <span className="text-xs bg-gray-700 px-2 py-1 rounded">{form.type}</span>
+                          <span className={`text-xs ${form.is_active ? 'text-green-400' : 'text-gray-500'}`}>
+                            {form.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button className="text-gray-400 hover:text-white p-2">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        </button>
+                        <button className="text-gray-400 hover:text-white p-2">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Upload Modal */}
