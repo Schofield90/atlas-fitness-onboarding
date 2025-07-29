@@ -37,12 +37,23 @@ export async function GET(
       }
     }
     
+    // Create phone variations to catch all formats
+    const phoneVariations = [normalizedPhone]
+    if (lead.phone) {
+      phoneVariations.push(lead.phone)
+      if (lead.phone.startsWith('0')) {
+        phoneVariations.push(`+44${lead.phone.substring(1)}`)
+      }
+    }
+    const uniquePhones = [...new Set(phoneVariations)].filter(Boolean)
+    
     // Fetch SMS messages using admin client (both sent and received)
-    console.log('Fetching SMS for phone:', { original: lead.phone, normalized: normalizedPhone })
+    console.log('Fetching SMS for phone variations:', uniquePhones)
+    const phoneConditions = uniquePhones.map(p => `to.eq.${p},from_number.eq.${p}`).join(',')
     const { data: smsMessages = [], error: smsError } = await adminSupabase
       .from('sms_logs')
       .select('*')
-      .or(`to.eq.${normalizedPhone},from_number.eq.${normalizedPhone}`)
+      .or(phoneConditions)
       .order('created_at', { ascending: false })
     
     console.log('SMS query result:', { 
@@ -55,8 +66,17 @@ export async function GET(
     const { data: whatsappMessages = [], error: whatsappError } = await adminSupabase
       .from('whatsapp_logs')
       .select('*')
-      .or(`to.eq.${normalizedPhone},from_number.eq.${normalizedPhone}`)
+      .or(phoneConditions)
       .order('created_at', { ascending: false })
+
+    // Fetch from main messages table (includes all types)
+    const { data: mainMessages = [], error: mainError } = await adminSupabase
+      .from('messages')
+      .select('*')
+      .eq('lead_id', leadId)
+      .order('created_at', { ascending: false })
+    
+    console.log('Main messages found:', mainMessages.length)
 
     // Fetch email messages using admin client
     console.log('Fetching emails for:', lead.email)
@@ -117,8 +137,71 @@ export async function GET(
       }))
     ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
+    // Merge messages from all sources and deduplicate
+    const allMessagesMap = new Map()
+    
+    // Add main messages (has all types including AI responses)
+    mainMessages.forEach(msg => {
+      const key = `${msg.type}-${msg.twilio_sid || msg.id}`
+      if (!allMessagesMap.has(key)) {
+        allMessagesMap.set(key, {
+          id: msg.id,
+          type: msg.type || 'sms',
+          direction: msg.direction,
+          status: msg.status,
+          body: msg.body,
+          subject: msg.subject,
+          created_at: msg.created_at || msg.sent_at,
+          from_number: msg.from_number,
+          to_number: msg.to_number,
+          metadata: msg.metadata
+        })
+      }
+    })
+    
+    // Add messages from specific tables (might have some not in main table)
+    [...smsMessages, ...whatsappMessages, ...emailMessages].forEach(msg => {
+      const type = msg.message_id?.includes('whatsapp') ? 'whatsapp' : 
+                   msg.message_id?.includes('SM') ? 'sms' : 'email'
+      const key = `${type}-${msg.message_id || msg.id}`
+      
+      if (!allMessagesMap.has(key)) {
+        const direction = (msg.from_number === normalizedPhone || msg.from_number === lead.phone) ? 
+                         'inbound' : 'outbound'
+        
+        allMessagesMap.set(key, {
+          id: msg.id,
+          type: type as any,
+          direction,
+          status: msg.status,
+          body: msg.message || msg.body,
+          subject: msg.subject,
+          created_at: msg.created_at || msg.sent_at,
+          from_number: msg.from_number,
+          to_number: msg.to || msg.to_email
+        })
+      }
+    })
+    
+    // Convert to array and sort by time
+    const mergedMessages = Array.from(allMessagesMap.values())
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    
+    console.log('Merged messages:', {
+      total: mergedMessages.length,
+      fromMain: mainMessages.length,
+      fromSMS: smsMessages.length,
+      fromWhatsApp: whatsappMessages.length,
+      fromEmail: emailMessages.length
+    })
+
     return NextResponse.json({ 
-      messages: allMessages,
+      messages: {
+        emails: mergedMessages.filter(m => m.type === 'email'),
+        sms: mergedMessages.filter(m => m.type === 'sms'),
+        whatsapp: mergedMessages.filter(m => m.type === 'whatsapp'),
+        calls: mergedMessages.filter(m => m.type === 'call' || (m.body && m.body.includes('Phone call')))
+      },
       leadId 
     })
 
