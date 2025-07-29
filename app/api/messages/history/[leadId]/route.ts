@@ -25,25 +25,37 @@ export async function GET(
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
     }
 
+    // Normalize phone number for queries - ensure it has + prefix
+    let normalizedPhone = lead.phone || ''
+    if (normalizedPhone && !normalizedPhone.startsWith('+')) {
+      // If it starts with 0, assume UK number
+      if (normalizedPhone.startsWith('0')) {
+        normalizedPhone = `+44${normalizedPhone.substring(1)}`
+      } else if (normalizedPhone.match(/^44\d+$/)) {
+        // If it starts with 44, add +
+        normalizedPhone = `+${normalizedPhone}`
+      }
+    }
+    
     // Fetch SMS messages using admin client (both sent and received)
-    console.log('Fetching SMS for phone:', lead.phone)
+    console.log('Fetching SMS for phone:', { original: lead.phone, normalized: normalizedPhone })
     const { data: smsMessages = [], error: smsError } = await adminSupabase
       .from('sms_logs')
       .select('*')
-      .or(`to.eq.${lead.phone || ''},from_number.eq.${lead.phone || ''}`)
+      .or(`to.eq.${normalizedPhone},from_number.eq.${normalizedPhone}`)
       .order('created_at', { ascending: false })
     
     console.log('SMS query result:', { 
       count: smsMessages?.length, 
       error: smsError,
-      phoneUsed: lead.phone 
+      phoneUsed: normalizedPhone 
     })
 
     // Fetch WhatsApp messages using admin client (both sent and received)
     const { data: whatsappMessages = [], error: whatsappError } = await adminSupabase
       .from('whatsapp_logs')
       .select('*')
-      .or(`to.eq.${lead.phone || ''},from_number.eq.${lead.phone || ''}`)
+      .or(`to.eq.${normalizedPhone},from_number.eq.${normalizedPhone}`)
       .order('created_at', { ascending: false })
 
     // Fetch email messages using admin client
@@ -78,7 +90,7 @@ export async function GET(
       ...smsMessages.map(msg => ({
         id: msg.id,
         type: 'sms' as const,
-        direction: msg.from_number === lead.phone ? ('inbound' as const) : ('outbound' as const),
+        direction: msg.from_number === normalizedPhone ? ('inbound' as const) : ('outbound' as const),
         status: msg.status,
         body: msg.message,
         created_at: msg.created_at,
@@ -87,7 +99,7 @@ export async function GET(
       ...whatsappMessages.map(msg => ({
         id: msg.id,
         type: 'whatsapp' as const,
-        direction: msg.from_number === lead.phone ? ('inbound' as const) : ('outbound' as const),
+        direction: msg.from_number === normalizedPhone ? ('inbound' as const) : ('outbound' as const),
         status: msg.status,
         body: msg.message,
         created_at: msg.created_at,
