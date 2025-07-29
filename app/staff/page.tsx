@@ -6,6 +6,27 @@ import { useState } from 'react'
 export default function StaffPage() {
   const [activeTab, setActiveTab] = useState('team')
   const [showAddModal, setShowAddModal] = useState(false)
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    role: '',
+    hourlyRate: ''
+  })
+
+  const handleAddStaff = async (e: React.FormEvent) => {
+    e.preventDefault()
+    alert('Staff member added! (Database integration pending)')
+    setShowAddModal(false)
+    // Reset form
+    setFormData({
+      name: '',
+      email: '',
+      phone: '',
+      role: '',
+      hourlyRate: ''
+    })
+  }
 
   return (
     <DashboardLayout>
@@ -80,6 +101,100 @@ export default function StaffPage() {
           {activeTab === 'permissions' && (
             <div className="bg-gray-800 rounded-lg p-6">
               <p className="text-gray-400">Role-based access control settings coming soon...</p>
+            </div>
+          )}
+          
+          {/* Add Staff Modal */}
+          {showAddModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md">
+                <h3 className="text-xl font-bold mb-4">Add Staff Member</h3>
+                <form onSubmit={handleAddStaff} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Full Name</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-orange-500"
+                      placeholder="John Doe"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Email Address</label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-orange-500"
+                      placeholder="john@example.com"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Phone Number</label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-orange-500"
+                      placeholder="+44 7123 456789"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Role</label>
+                    <select
+                      value={formData.role}
+                      onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-orange-500"
+                      required
+                    >
+                      <option value="">Select a role</option>
+                      <option value="trainer">Personal Trainer</option>
+                      <option value="instructor">Group Instructor</option>
+                      <option value="receptionist">Receptionist</option>
+                      <option value="manager">Manager</option>
+                      <option value="cleaner">Cleaner</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Hourly Rate (Optional)</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">£</span>
+                      <input
+                        type="number"
+                        value={formData.hourlyRate}
+                        onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })}
+                        className="w-full pl-8 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-orange-500"
+                        placeholder="15.00"
+                        step="0.01"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-end gap-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddModal(false)}
+                      className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors"
+                    >
+                      Add Staff Member
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           )}
         </div>
