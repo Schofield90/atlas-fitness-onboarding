@@ -78,13 +78,13 @@ export async function provisionPhoneForOrganization({
     // Get the base URL for webhooks
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://atlas-fitness-onboarding.vercel.app'
     
-    const purchasedNumber = await subAccountClient.incomingPhoneNumbers.create({
+    const purchasedNumber = await twilioClient.incomingPhoneNumbers.create({
       phoneNumber: phoneNumber.phoneNumber,
       smsUrl: `${baseUrl}/api/webhooks/twilio`,
       smsMethod: 'POST',
       voiceUrl: `${baseUrl}/api/webhooks/twilio-voice`,
       voiceMethod: 'POST',
-      statusCallbackUrl: `${baseUrl}/api/webhooks/twilio-voice/status`,
+      statusCallback: `${baseUrl}/api/webhooks/twilio-voice/status`,
       statusCallbackMethod: 'POST'
     })
     
@@ -103,7 +103,7 @@ export async function provisionPhoneForOrganization({
     
     if (updateError) {
       // If database update fails, release the number
-      await subAccountClient.incomingPhoneNumbers(purchasedNumber.sid).remove()
+      await twilioClient.incomingPhoneNumbers(purchasedNumber.sid).remove()
       throw new Error(`Failed to update organization: ${updateError.message}`)
     }
     
