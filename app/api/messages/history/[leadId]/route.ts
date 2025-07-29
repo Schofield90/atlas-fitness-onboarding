@@ -41,6 +41,8 @@ export async function GET(
 
     // Fetch email messages using admin client
     console.log('Fetching emails for:', lead.email)
+    console.log('Lead data:', { id: lead.id, phone: lead.phone, email: lead.email })
+    
     const { data: emailMessages = [], error: emailError } = await adminSupabase
       .from('email_logs')
       .select('*')
@@ -49,11 +51,20 @@ export async function GET(
 
     if (smsError) console.error('SMS fetch error:', smsError)
     if (whatsappError) console.error('WhatsApp fetch error:', whatsappError)
-    if (emailError) console.error('Email fetch error:', emailError)
+    if (emailError) {
+      console.error('Email fetch error:', emailError)
+      console.error('Email error details:', {
+        message: emailError.message,
+        code: emailError.code,
+        details: emailError.details,
+        hint: emailError.hint
+      })
+    }
     
     console.log('Email messages found:', emailMessages.length)
     console.log('SMS messages found:', smsMessages.length)
     console.log('WhatsApp messages found:', whatsappMessages.length)
+    console.log('Total messages to return:', smsMessages.length + whatsappMessages.length + emailMessages.length)
 
     // Combine and format messages
     const allMessages = [
