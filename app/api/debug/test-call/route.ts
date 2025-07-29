@@ -40,19 +40,28 @@ export async function POST(request: NextRequest) {
     
     try {
       // First, let's validate the phone numbers
-      const lookupFrom = await twilioClient.lookups.v2
-        .phoneNumbers(config.fromNumber)
-        .fetch()
-        .catch(err => ({ error: err.message, code: err.code }))
-        
-      const lookupTo = await twilioClient.lookups.v2
-        .phoneNumbers(phoneNumber)
-        .fetch()
-        .catch(err => ({ error: err.message, code: err.code }))
+      let lookupFromResult: any
+      let lookupToResult: any
+      
+      try {
+        lookupFromResult = await twilioClient.lookups.v2
+          .phoneNumbers(config.fromNumber)
+          .fetch()
+      } catch (err: any) {
+        lookupFromResult = { error: err.message, code: err.code }
+      }
+      
+      try {
+        lookupToResult = await twilioClient.lookups.v2
+          .phoneNumbers(phoneNumber)
+          .fetch()
+      } catch (err: any) {
+        lookupToResult = { error: err.message, code: err.code }
+      }
       
       const validation = {
-        from: lookupFrom.error ? { valid: false, error: lookupFrom.error } : { valid: true, number: lookupFrom.phoneNumber },
-        to: lookupTo.error ? { valid: false, error: lookupTo.error } : { valid: true, number: lookupTo.phoneNumber }
+        from: lookupFromResult.error ? { valid: false, error: lookupFromResult.error } : { valid: true, number: lookupFromResult.phoneNumber },
+        to: lookupToResult.error ? { valid: false, error: lookupToResult.error } : { valid: true, number: lookupToResult.phoneNumber }
       }
       
       if (!validation.from.valid || !validation.to.valid) {
