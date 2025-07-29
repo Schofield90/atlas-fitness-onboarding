@@ -26,11 +26,18 @@ export async function GET(
     }
 
     // Fetch SMS messages using admin client (both sent and received)
+    console.log('Fetching SMS for phone:', lead.phone)
     const { data: smsMessages = [], error: smsError } = await adminSupabase
       .from('sms_logs')
       .select('*')
       .or(`to.eq.${lead.phone || ''},from_number.eq.${lead.phone || ''}`)
       .order('created_at', { ascending: false })
+    
+    console.log('SMS query result:', { 
+      count: smsMessages?.length, 
+      error: smsError,
+      phoneUsed: lead.phone 
+    })
 
     // Fetch WhatsApp messages using admin client (both sent and received)
     const { data: whatsappMessages = [], error: whatsappError } = await adminSupabase
