@@ -53,14 +53,20 @@ export async function provisionPhoneForOrganization({
     )
     
     // Step 2: Search for available phone numbers
+    const listOptions: any = {
+      smsEnabled: true,
+      voiceEnabled: true,
+      limit: 5
+    }
+    
+    // Only add areaCode if provided
+    if (areaCode) {
+      listOptions.areaCode = areaCode
+    }
+    
     const availableNumbers = await twilioClient.availablePhoneNumbers(countryCode)
       .local
-      .list({
-        areaCode: areaCode,
-        smsEnabled: true,
-        voiceEnabled: true,
-        limit: 5
-      })
+      .list(listOptions)
     
     if (availableNumbers.length === 0) {
       throw new Error('No available phone numbers found in the specified area')
