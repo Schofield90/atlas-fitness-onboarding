@@ -41,7 +41,7 @@ export async function GET(
     const { data: emailMessages = [], error: emailError } = await supabase
       .from('email_logs')
       .select('*')
-      .eq('to', lead.email || '')
+      .eq('"to"', lead.email || '')
       .order('created_at', { ascending: false })
 
     if (smsError) console.error('SMS fetch error:', smsError)
