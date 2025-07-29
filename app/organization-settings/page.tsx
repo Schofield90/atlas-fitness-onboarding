@@ -50,6 +50,12 @@ export default function OrganizationSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [activeTab, setActiveTab] = useState('general')
+  const [showAddStaff, setShowAddStaff] = useState(false)
+  const [newStaffData, setNewStaffData] = useState({
+    email: '',
+    phone_number: '',
+    role: 'staff'
+  })
   const supabase = createClient()
 
   useEffect(() => {
@@ -142,6 +148,66 @@ export default function OrganizationSettingsPage() {
       alert('Failed to save settings')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const addStaff = async () => {
+    try {
+      const response = await fetch('/api/organization/add-staff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newStaffData)
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to add staff member')
+      }
+
+      // Refresh staff list
+      fetchStaff()
+      setShowAddStaff(false)
+      setNewStaffData({ email: '', phone_number: '', role: 'staff' })
+      alert('Staff member added successfully!')
+    } catch (error: any) {
+      console.error('Error adding staff:', error)
+      alert(error.message || 'Failed to add staff member')
+    }
+  }
+
+  const removeStaff = async (staffId: string) => {
+    if (!confirm('Are you sure you want to remove this staff member?')) return
+
+    try {
+      const { error } = await supabase
+        .from('organization_staff')
+        .delete()
+        .eq('id', staffId)
+
+      if (error) throw error
+
+      fetchStaff()
+      alert('Staff member removed successfully!')
+    } catch (error) {
+      console.error('Error removing staff:', error)
+      alert('Failed to remove staff member')
+    }
+  }
+
+  const toggleStaffAvailability = async (staffId: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('organization_staff')
+        .update({ is_available: !currentStatus })
+        .eq('id', staffId)
+
+      if (error) throw error
+
+      fetchStaff()
+    } catch (error) {
+      console.error('Error updating staff availability:', error)
+      alert('Failed to update staff availability')
     }
   }
 
@@ -405,13 +471,22 @@ export default function OrganizationSettingsPage() {
             <div className="space-y-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold">Staff Members</h2>
-                <button className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                <button 
+                  onClick={() => setShowAddStaff(true)}
+                  className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                >
                   <Plus className="w-5 h-5" />
                   Add Staff
                 </button>
               </div>
 
               <div className="space-y-4">
+                {staff.length === 0 && (
+                  <div className="text-center py-8 text-gray-400">
+                    <p>No staff members added yet.</p>
+                    <p className="text-sm mt-2">Click "Add Staff" to add your first team member.</p>
+                  </div>
+                )}
                 {staff.map((member) => (
                   <div key={member.id} className="bg-gray-700 rounded-lg p-4">
                     <div className="flex justify-between items-start">
@@ -434,12 +509,18 @@ export default function OrganizationSettingsPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          member.is_available ? 'bg-green-600' : 'bg-red-600'
-                        }`}>
+                        <button
+                          onClick={() => toggleStaffAvailability(member.id, member.is_available)}
+                          className={`px-2 py-1 rounded text-xs transition-colors ${
+                            member.is_available ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'
+                          }`}
+                        >
                           {member.is_available ? 'Available' : 'Unavailable'}
-                        </span>
-                        <button className="text-red-400 hover:text-red-300">
+                        </button>
+                        <button 
+                          onClick={() => removeStaff(member.id)}
+                          className="text-red-400 hover:text-red-300"
+                        >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -451,6 +532,73 @@ export default function OrganizationSettingsPage() {
           )}
         </div>
       </div>
+
+      {/* Add Staff Modal */}
+      {showAddStaff && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-xl font-bold mb-4">Add Staff Member</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Email</label>
+                <input
+                  type="email"
+                  value={newStaffData.email}
+                  onChange={(e) => setNewStaffData({ ...newStaffData, email: e.target.value })}
+                  className="w-full bg-gray-700 text-white rounded-lg px-4 py-2"
+                  placeholder="staff@example.com"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Phone Number</label>
+                <input
+                  type="tel"
+                  value={newStaffData.phone_number}
+                  onChange={(e) => setNewStaffData({ ...newStaffData, phone_number: e.target.value })}
+                  className="w-full bg-gray-700 text-white rounded-lg px-4 py-2"
+                  placeholder="+447777777777"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Role</label>
+                <select
+                  value={newStaffData.role}
+                  onChange={(e) => setNewStaffData({ ...newStaffData, role: e.target.value })}
+                  className="w-full bg-gray-700 text-white rounded-lg px-4 py-2"
+                >
+                  <option value="owner">Owner</option>
+                  <option value="manager">Manager</option>
+                  <option value="staff">Staff</option>
+                  <option value="trainer">Trainer</option>
+                </select>
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                onClick={() => {
+                  setShowAddStaff(false)
+                  setNewStaffData({ email: '', phone_number: '', role: 'staff' })
+                }}
+                className="px-4 py-2 text-gray-400 hover:text-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={addStaff}
+                className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg"
+              >
+                Add Staff
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   )
 }
