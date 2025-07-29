@@ -16,16 +16,40 @@ export default function StaffPage() {
 
   const handleAddStaff = async (e: React.FormEvent) => {
     e.preventDefault()
-    alert('Staff member added! (Database integration pending)')
-    setShowAddModal(false)
-    // Reset form
-    setFormData({
-      name: '',
-      email: '',
-      phone: '',
-      role: '',
-      hourlyRate: ''
-    })
+    
+    try {
+      const response = await fetch('/api/organization/add-staff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          phone_number: formData.phone,
+          role: formData.role || 'staff'
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to add staff member')
+      }
+
+      alert('Staff member added successfully!')
+      setShowAddModal(false)
+      // Reset form
+      setFormData({
+        name: '',
+        email: '',
+        phone: '',
+        role: '',
+        hourlyRate: ''
+      })
+      
+      // TODO: Refresh staff list when implemented
+    } catch (error: any) {
+      console.error('Error adding staff:', error)
+      alert(error.message || 'Failed to add staff member')
+    }
   }
 
   return (
@@ -154,12 +178,10 @@ export default function StaffPage() {
                       required
                     >
                       <option value="">Select a role</option>
-                      <option value="trainer">Personal Trainer</option>
-                      <option value="instructor">Group Instructor</option>
-                      <option value="receptionist">Receptionist</option>
+                      <option value="owner">Owner</option>
                       <option value="manager">Manager</option>
-                      <option value="cleaner">Cleaner</option>
-                      <option value="other">Other</option>
+                      <option value="staff">Staff</option>
+                      <option value="trainer">Trainer</option>
                     </select>
                   </div>
                   
