@@ -71,7 +71,7 @@ export async function GET(
       ...smsMessages.map(msg => ({
         id: msg.id,
         type: 'sms' as const,
-        direction: (msg.from_number === lead.phone ? 'inbound' : 'outbound') as const,
+        direction: msg.from_number === lead.phone ? ('inbound' as const) : ('outbound' as const),
         status: msg.status,
         body: msg.message,
         created_at: msg.created_at,
@@ -80,7 +80,7 @@ export async function GET(
       ...whatsappMessages.map(msg => ({
         id: msg.id,
         type: 'whatsapp' as const,
-        direction: (msg.from_number === lead.phone ? 'inbound' : 'outbound') as const,
+        direction: msg.from_number === lead.phone ? ('inbound' as const) : ('outbound' as const),
         status: msg.status,
         body: msg.message,
         created_at: msg.created_at,
