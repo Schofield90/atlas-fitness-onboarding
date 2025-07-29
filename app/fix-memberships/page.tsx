@@ -247,7 +247,13 @@ CREATE TRIGGER update_memberships_updated_at BEFORE UPDATE ON memberships
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();`
 
       // Try to execute via SQL Editor simulation
-      const { error } = await supabase.rpc('exec_sql', { sql: migrationSQL }).catch(() => ({ error: 'exec_sql not available' }))
+      let error: any
+      try {
+        const result = await supabase.rpc('exec_sql', { sql: migrationSQL })
+        error = result.error
+      } catch (e) {
+        error = 'exec_sql not available'
+      }
       
       if (error) {
         // Provide manual instructions
