@@ -160,7 +160,8 @@ export async function GET(
     })
     
     // Add messages from specific tables (might have some not in main table)
-    [...smsMessages, ...whatsappMessages, ...emailMessages].forEach(msg => {
+    const allSpecificMessages = [...smsMessages, ...whatsappMessages, ...emailMessages]
+    allSpecificMessages.forEach(msg => {
       const type = msg.message_id?.includes('whatsapp') ? 'whatsapp' : 
                    msg.message_id?.includes('SM') ? 'sms' : 'email'
       const key = `${type}-${msg.message_id || msg.id}`
