@@ -9,6 +9,15 @@ const anthropic = new Anthropic({
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if API key is configured
+    if (!process.env.ANTHROPIC_API_KEY) {
+      console.error('ANTHROPIC_API_KEY is not set');
+      return NextResponse.json(
+        { error: 'AI service is not configured. Please set ANTHROPIC_API_KEY.' },
+        { status: 500 }
+      );
+    }
+
     const userWithOrg = await requireAuth();
     const supabase = await createClient();
     
@@ -90,7 +99,6 @@ Focus on creating comprehensive, legally sound forms for gym operations.`;
         description: formSchema.description,
         type: formType,
         schema: formSchema,
-        created_by: userWithOrg.id,
         is_active: true
       })
       .select()
@@ -106,10 +114,18 @@ Focus on creating comprehensive, legally sound forms for gym operations.`;
       form: savedForm
     });
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error generating form:', error);
+    
+    // Return more detailed error for debugging
+    const errorMessage = error.message || 'Failed to generate form';
+    const isAnthropicError = error.message?.includes('Anthropic') || error.message?.includes('API');
+    
     return NextResponse.json(
-      { error: 'Failed to generate form' },
+      { 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error.toString() : undefined
+      },
       { status: 500 }
     );
   }
