@@ -19,21 +19,12 @@ async function handleTwiml(request: NextRequest) {
     
     // Get parameters from query
     const leadId = request.nextUrl.searchParams.get('leadId')
-    let userPhone = request.nextUrl.searchParams.get('userPhone')
+    const userPhone = request.nextUrl.searchParams.get('userPhone')
+    const orgId = request.nextUrl.searchParams.get('orgId')
     
-    console.log('Raw params:', { leadId, userPhone })
+    console.log('Raw params:', { leadId, userPhone, orgId })
     
-    // Fallback to environment variable if not in URL
-    if (!userPhone) {
-      userPhone = process.env.USER_PHONE_NUMBER || null
-      console.log('No userPhone in URL, checking env variable:', {
-        envVarExists: !!process.env.USER_PHONE_NUMBER,
-        envVarValue: process.env.USER_PHONE_NUMBER ? 'SET' : 'NOT SET',
-        resultingUserPhone: userPhone
-      })
-    }
-    
-    console.log('Final TwiML params:', { leadId, userPhone, hasUserPhone: !!userPhone })
+    console.log('Final TwiML params:', { leadId, userPhone, orgId, hasUserPhone: !!userPhone })
     
     if (userPhone) {
       console.log('Creating dial with userPhone:', userPhone)

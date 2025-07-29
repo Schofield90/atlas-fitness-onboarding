@@ -289,9 +289,23 @@ For assistance, please contact our support team.`
             hasCoreData: coreKnowledge.length > 0
           })
           
-          // Fetch relevant knowledge for context
-          const knowledge = await fetchRelevantKnowledge(messageData.body)
-          const knowledgeContext = formatKnowledgeContext(knowledge)
+          // Fetch organization-specific knowledge
+          const { data: orgKnowledge } = await adminSupabase
+            .rpc('search_organization_knowledge', {
+              org_id: organizationId,
+              query_text: messageData.body,
+              limit_count: 10
+            })
+          
+          // Format organization-specific knowledge
+          let knowledgeContext = ''
+          if (orgKnowledge && orgKnowledge.length > 0) {
+            knowledgeContext = formatKnowledgeContext(orgKnowledge)
+          } else {
+            // Fallback to global knowledge if no org-specific found
+            const knowledge = await fetchRelevantKnowledge(messageData.body)
+            knowledgeContext = formatKnowledgeContext(knowledge)
+          }
           
           // Comprehensive knowledge debugging
           console.log('Knowledge fetching debug:', {

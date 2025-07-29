@@ -100,9 +100,26 @@ export async function POST(request: NextRequest) {
     
     try {
       
-      // Get user's phone number from environment or request
-      // In production, you'd get this from the user's profile
-      const userPhone = body.userPhone || process.env.USER_PHONE_NUMBER || '+447777777777' // Default for testing
+      // Get the calling staff member's phone number
+      let userPhone = body.userPhone // Can be passed explicitly
+      
+      if (!userPhone) {
+        // Get current user's staff record
+        const { data: staffRecord } = await adminSupabase
+          .from('organization_staff')
+          .select('phone_number')
+          .eq('organization_id', userWithOrg.organizationId)
+          .eq('user_id', userWithOrg.id)
+          .single()
+        
+        if (staffRecord?.phone_number) {
+          userPhone = staffRecord.phone_number
+        } else {
+          return NextResponse.json({
+            error: 'Your phone number is not configured. Please contact your administrator.'
+          }, { status: 400 })
+        }
+      }
       
       console.log('Initiating call with:', {
         to,

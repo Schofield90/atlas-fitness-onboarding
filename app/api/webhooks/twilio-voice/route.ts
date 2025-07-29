@@ -76,42 +76,58 @@ async function handleVoiceWebhook(request: NextRequest) {
         }
       })
       
-      // Greet the caller with organization-specific greeting
+      // Get organization settings
+      const { data: settings } = await adminSupabase
+        .from('organization_settings')
+        .select('*')
+        .eq('organization_id', organization.id)
+        .single()
+      
+      // Use organization-specific greeting or default
+      const greeting = settings?.default_greeting || 'Thank you for calling'
       twiml.say({
         voice: 'alice',
         language: 'en-GB'
-      }, `Thank you for calling ${organization.name}.`)
+      }, `${greeting} ${organization.name}.`)
       
       // Pause briefly
       twiml.pause({ length: 1 })
       
-      // Get staff phone for this organization
-      // TODO: This should come from organization settings/staff table
-      let staffPhone = null
-      if (organization.id === '63589490-8f55-4157-bd3a-e141594b740e') {
-        // Your test organization
-        staffPhone = process.env.USER_PHONE_NUMBER || '+447490253471'
-      } else {
-        // For other organizations, get from their settings
-        // This would be fetched from a staff/settings table
-        staffPhone = organization.primary_contact_phone
-      }
+      // Get available staff for this organization
+      const { data: availableStaff } = await adminSupabase
+        .rpc('get_available_staff_for_call', { org_id: organization.id })
       
-      if (staffPhone) {
+      if (availableStaff && availableStaff.length > 0) {
         twiml.say({
           voice: 'alice',
           language: 'en-GB'
         }, 'Please hold while we connect you to our team.')
         
-        // Create a dial to connect to staff
-        const dial = twiml.dial({
-          callerId: callerNumber, // Show the customer's number to staff
-          timeout: 30,
-          action: '/api/webhooks/twilio-voice/status' // Optional: handle post-call
-        })
+        // Get routing settings
+        const routingType = settings?.call_routing_type || 'single'
+        const callTimeout = settings?.call_timeout || 30
         
-        // Dial the staff member
-        dial.number(staffPhone)
+        if (routingType === 'simultaneous') {
+          // Ring all available staff at once
+          const dial = twiml.dial({
+            callerId: callerNumber,
+            timeout: callTimeout,
+            action: '/api/webhooks/twilio-voice/status'
+          })
+          
+          availableStaff.forEach(staff => {
+            dial.number(staff.phone_number)
+          })
+        } else {
+          // Single or round-robin - just use first available
+          const dial = twiml.dial({
+            callerId: callerNumber,
+            timeout: callTimeout,
+            action: '/api/webhooks/twilio-voice/status'
+          })
+          
+          dial.number(availableStaff[0].phone_number)
+        }
       } else {
         // No staff phone configured
         twiml.say({
