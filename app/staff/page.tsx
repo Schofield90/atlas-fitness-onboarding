@@ -39,31 +39,20 @@ export default function StaffPage() {
 
   const fetchStaff = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      console.log('Current user:', user)
-      if (!user) {
-        console.error('No user found')
+      // Get the organization ID from the API which handles auth properly
+      const response = await fetch('/api/organization/get-info')
+      if (!response.ok) {
+        console.error('Failed to get organization info')
         return
       }
-
-      const { data: profile, error: profileError } = await supabase
-        .from('users')
-        .select('organization_id')
-        .eq('id', user.id)
-        .single()
-
-      console.log('Profile data:', profile)
-      console.log('Profile error:', profileError)
-
-      if (!profile?.organization_id) {
-        console.error('No organization_id found for user')
-        return
-      }
+      
+      const { organizationId } = await response.json()
+      console.log('Organization ID:', organizationId)
 
       const { data, error: staffError } = await supabase
         .from('organization_staff')
         .select('*')
-        .eq('organization_id', profile.organization_id)
+        .eq('organization_id', organizationId)
         .order('created_at', { ascending: false })
 
       console.log('Staff data:', data)
