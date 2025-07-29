@@ -310,19 +310,16 @@ For assistance, please contact our support team.`
           // Comprehensive knowledge debugging
           console.log('Knowledge fetching debug:', {
             messageQuery: messageData.body,
-            knowledgeItemsCount: knowledge.length,
-            knowledgeTypes: knowledge.map(k => k.type),
+            knowledgeItemsCount: orgKnowledge?.length || 0,
             contextLength: knowledgeContext.length,
             hasRealData: knowledgeContext.includes('Harrogate') || knowledgeContext.includes('York') || knowledgeContext.includes('Claro Court'),
-            knowledgePreview: knowledge.slice(0, 5).map(k => ({
-              type: k.type,
-              content: k.content.substring(0, 100) + '...'
-            }))
+            usingOrgKnowledge: !!(orgKnowledge && orgKnowledge.length > 0)
           })
           
           // Log full context if it's a location question
           if (messageData.body.toLowerCase().includes('where') || messageData.body.toLowerCase().includes('location')) {
-            const locationKnowledge = knowledge.filter(k => 
+            const knowledgeToCheck = orgKnowledge || []
+            const locationKnowledge = knowledgeToCheck.filter((k: any) => 
               k.content.toLowerCase().includes('location') || 
               k.content.toLowerCase().includes('address') ||
               k.content.toLowerCase().includes('street') ||
@@ -344,7 +341,7 @@ For assistance, please contact our support team.`
           let aiResponse = null
           
           // If no knowledge found, log a warning
-          if (knowledge.length === 0) {
+          if ((!orgKnowledge || orgKnowledge.length === 0) && knowledgeContext.length === 0) {
             console.warn('WARNING: No knowledge found for query:', messageData.body)
             console.warn('Using fallback - checking if core knowledge exists...')
             if (coreKnowledge.length > 0) {
