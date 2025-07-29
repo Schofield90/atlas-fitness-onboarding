@@ -29,14 +29,14 @@ export async function GET(request: NextRequest) {
       defaultPhone: process.env.TWILIO_SMS_FROM
     }
     
-    // Check if messages table has organization_id column
-    const { data: messageColumns } = await adminSupabase
-      .rpc('get_table_columns', {
-        table_name: 'messages'
-      })
-      .catch(() => ({ data: null }))
+    // Check if messages table has organization_id column using a simpler query
+    const { data: testMessage, error: testError } = await adminSupabase
+      .from('messages')
+      .select('organization_id')
+      .limit(1)
     
-    const hasOrgIdColumn = messageColumns?.some((col: any) => col.column_name === 'organization_id')
+    // If the query succeeds or fails with a specific error, we can determine if the column exists
+    const hasOrgIdColumn = !testError || !testError.message.includes('column "organization_id" does not exist')
     
     return NextResponse.json({
       organization: {
