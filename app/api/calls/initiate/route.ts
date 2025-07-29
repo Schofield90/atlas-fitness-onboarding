@@ -38,6 +38,18 @@ export async function POST(request: NextRequest) {
       }, { status: 503 })
     }
 
+    // Check if phone from number is configured
+    if (!process.env.TWILIO_SMS_FROM) {
+      return NextResponse.json({ 
+        error: 'Phone number not configured. Please set TWILIO_SMS_FROM.' 
+      }, { status: 503 })
+    }
+
+    // Check if app URL is configured
+    if (!process.env.NEXT_PUBLIC_APP_URL) {
+      console.warn('NEXT_PUBLIC_APP_URL not configured, using fallback URL')
+    }
+
     // For browser-based calling, you would:
     // 1. Generate a Twilio Access Token with Voice grant
     // 2. Return the token to the client
@@ -49,12 +61,22 @@ export async function POST(request: NextRequest) {
     const twilioClient = twilio(accountSid, authToken)
 
     try {
+      // Get base URL
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://atlas-fitness-onboarding.vercel.app'
+      
+      console.log('Initiating call with:', {
+        to,
+        from: process.env.TWILIO_SMS_FROM,
+        url: `${baseUrl}/api/calls/twiml?leadId=${leadId}`,
+        baseUrl
+      })
+
       // Create a call that connects the user's phone to the lead's phone
       const call = await twilioClient.calls.create({
         to: to,
         from: process.env.TWILIO_SMS_FROM!, // Using SMS number for outbound calls
-        url: `${process.env.NEXT_PUBLIC_APP_URL}/api/calls/twiml?leadId=${leadId}`, // TwiML instructions
-        statusCallback: `${process.env.NEXT_PUBLIC_APP_URL}/api/calls/status`,
+        url: `${baseUrl}/api/calls/twiml?leadId=${leadId}`, // TwiML instructions
+        statusCallback: `${baseUrl}/api/calls/status`,
         statusCallbackEvent: ['initiated', 'answered', 'completed'],
         record: true, // Record the call
       })

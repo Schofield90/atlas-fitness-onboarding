@@ -26,6 +26,13 @@ export function MessageComposer({ isOpen, onClose, lead, onMessageSent }: Messag
   const [error, setError] = useState('')
   const [showSuccess, setShowSuccess] = useState(false)
 
+  // Allow external setting of message type
+  if (typeof window !== 'undefined') {
+    (window as any).setMessageType = (type: MessageType) => {
+      setMessageType(type)
+    }
+  }
+
   const handleSend = async () => {
     if (!message.trim()) {
       setError('Message cannot be empty')

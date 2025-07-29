@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import twilio from 'twilio'
 
+// Twilio makes GET requests to TwiML endpoints
+export async function GET(request: NextRequest) {
+  return handleTwiml(request)
+}
+
 export async function POST(request: NextRequest) {
+  return handleTwiml(request)
+}
+
+async function handleTwiml(request: NextRequest) {
   const twiml = new twilio.twiml.VoiceResponse()
   
   // Get lead ID from query params

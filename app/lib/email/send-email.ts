@@ -105,9 +105,12 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
     const html = await render(component)
     const text = await render(component, { plainText: true })
     
+    // Check for from email configuration
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'
+    
     // Prepare email data
     const emailData = {
-      from: `${options.variables.gymName || 'Atlas Fitness'} <${process.env.RESEND_FROM_EMAIL || 'noreply@atlasfitness.com'}>`,
+      from: `${options.variables.gymName || 'Atlas Fitness'} <${fromEmail}>`,
       to: Array.isArray(options.to) ? options.to : [options.to],
       subject,
       html,
@@ -115,6 +118,14 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
       replyTo: options.replyTo,
       attachments: options.attachments,
     }
+    
+    console.log('Sending email with:', {
+      from: emailData.from,
+      to: emailData.to,
+      subject: emailData.subject,
+      hasHtml: !!emailData.html,
+      hasText: !!emailData.text
+    })
     
     // Send email
     const result = await getResendClient().emails.send(emailData)
