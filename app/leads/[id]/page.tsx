@@ -255,8 +255,8 @@ export default function LeadDetailPage() {
                   onClick={() => {
                     setMessageModalOpen(true)
                     // Set message type to WhatsApp when modal opens
-                    if (window.setMessageType) {
-                      window.setMessageType('whatsapp')
+                    if ((window as any).setMessageType) {
+                      (window as any).setMessageType('whatsapp')
                     }
                   }}
                   className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors"
