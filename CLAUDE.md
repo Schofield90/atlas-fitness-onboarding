@@ -10,6 +10,9 @@
 - ✅ **British Localization**: Currency (£), dates (DD/MM/YYYY), timezone (Europe/London)
 - ✅ **Booking System**: GoTeamUp-style class booking with waitlists and credits
 - ✅ **Google Calendar**: Two-way sync for bookings and classes
+- ✅ **Staff Management**: Full staff member addition and display functionality
+- ✅ **Forms/Documents**: AI-powered form generation using OpenAI GPT-4
+- ✅ **Database Migrations**: Advanced features including workflows, analytics, and message templates
 
 ### What Needs Fixing:
 - 🔧 **Call Feature**: "Failed to initiate call" - Need to set USER_PHONE_NUMBER env variable
@@ -67,13 +70,37 @@ TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_WHATSAPP_FROM=whatsapp:+14155238886  # Must include whatsapp: prefix!
 TWILIO_SMS_FROM=+1234567890
 
+# OpenAI (Required for AI Form Builder)
+OPENAI_API_KEY=your-openai-api-key
+
 # Existing variables you should already have:
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 RESEND_API_KEY=your-resend-key
+USER_PHONE_NUMBER=+44YourPhoneNumber  # For call bridging
 # ... other existing vars
 ```
+
+### 🔧 Recent Fixes (July 29, 2025)
+
+#### 1. **Staff Management System**
+- ✅ Created `organization_staff` table to store staff members
+- ✅ Fixed staff addition API to work without profiles table
+- ✅ Fixed staff page to display added staff members
+- ✅ Staff list fetches using proper authentication system
+
+#### 2. **AI Form Builder**
+- ✅ Switched from Anthropic to OpenAI (GPT-4) for form generation
+- ✅ Fixed dependency conflicts by downgrading zod from v4 to v3
+- ✅ Fixed TypeScript compatibility issues across multiple routes
+- ✅ Forms now save to database with proper organization association
+
+#### 3. **Database Enhancements**
+- ✅ Added advanced tables: workflows, analytics_events, daily_reports, ai_training_data, message_templates
+- ✅ Implemented proper Row Level Security (RLS) policies
+- ✅ Added organization_id columns to existing tables for multi-tenancy
+- ✅ Created triggers for automatic timestamp updates
 
 ### 📱 WhatsApp Setup Instructions
 
@@ -856,3 +883,15 @@ For full calling functionality, add to environment variables:
 
 **Last Updated**: July 28, 2025
 **Status**: In-app calling system implemented with Twilio integration
+### 🚀 Latest Commits (July 29, 2025)
+
+b03d226 fix: TypeScript compatibility with zod v3 in email send route
+a995c3b fix: TypeScript compatibility with zod v3 in analytics route
+aa1c605 fix: Downgrade zod to v3 for OpenAI compatibility
+9381658 feat: Switch from Anthropic to OpenAI for form generation
+ddfabc5 fix: Improve error handling in AI form generation
+4b5ed96 fix: Use proper auth system to get organization ID for staff list
+d11055a fix: Correct table name from 'user' to 'users' and add debugging
+4010729 feat: Add staff list display functionality to staff page
+f7da0c4 fix: Update staff page to use actual API instead of hardcoded message
+06cce2c fix: Create organization_staff table and fix staff integration
