@@ -25,18 +25,18 @@ export async function GET(
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
     }
 
-    // Fetch SMS messages using admin client
+    // Fetch SMS messages using admin client (both sent and received)
     const { data: smsMessages = [], error: smsError } = await adminSupabase
       .from('sms_logs')
       .select('*')
-      .eq('to', lead.phone || '')
+      .or(`to.eq.${lead.phone || ''},from_number.eq.${lead.phone || ''}`)
       .order('created_at', { ascending: false })
 
-    // Fetch WhatsApp messages using admin client
+    // Fetch WhatsApp messages using admin client (both sent and received)
     const { data: whatsappMessages = [], error: whatsappError } = await adminSupabase
       .from('whatsapp_logs')
       .select('*')
-      .eq('to', lead.phone || '')
+      .or(`to.eq.${lead.phone || ''},from_number.eq.${lead.phone || ''}`)
       .order('created_at', { ascending: false })
 
     // Fetch email messages using admin client
@@ -71,7 +71,7 @@ export async function GET(
       ...smsMessages.map(msg => ({
         id: msg.id,
         type: 'sms' as const,
-        direction: 'outbound' as const,
+        direction: (msg.from_number === lead.phone ? 'inbound' : 'outbound') as const,
         status: msg.status,
         body: msg.message,
         created_at: msg.created_at,
@@ -80,7 +80,7 @@ export async function GET(
       ...whatsappMessages.map(msg => ({
         id: msg.id,
         type: 'whatsapp' as const,
-        direction: 'outbound' as const,
+        direction: (msg.from_number === lead.phone ? 'inbound' : 'outbound') as const,
         status: msg.status,
         body: msg.message,
         created_at: msg.created_at,
@@ -89,7 +89,7 @@ export async function GET(
       ...emailMessages.map(msg => ({
         id: msg.id,
         type: 'email' as const,
-        direction: 'outbound' as const,
+        direction: 'outbound' as const, // Email is always outbound for now
         status: msg.status,
         subject: msg.subject,
         body: msg.message,

@@ -27,6 +27,7 @@ export function MessageHistory({ leadId, onClose }: MessageHistoryProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'email' | 'sms' | 'whatsapp'>('all')
+  const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     fetchMessages()
@@ -204,7 +205,33 @@ export function MessageHistory({ leadId, onClose }: MessageHistoryProps) {
                   <div className="font-medium mb-1">{message.subject}</div>
                 )}
                 
-                <div className="text-sm whitespace-pre-wrap">{message.body}</div>
+                <div className="text-sm whitespace-pre-wrap">
+                  {message.type === 'email' && message.body.length > 150 ? (
+                    <>
+                      <div>
+                        {expandedMessages.has(message.id) 
+                          ? message.body 
+                          : message.body.slice(0, 150) + '...'}
+                      </div>
+                      <button
+                        onClick={() => {
+                          const newExpanded = new Set(expandedMessages)
+                          if (expandedMessages.has(message.id)) {
+                            newExpanded.delete(message.id)
+                          } else {
+                            newExpanded.add(message.id)
+                          }
+                          setExpandedMessages(newExpanded)
+                        }}
+                        className={`mt-2 text-xs ${message.direction === 'outbound' ? 'text-orange-200 hover:text-white' : 'text-gray-400 hover:text-white'} transition-colors`}
+                      >
+                        {expandedMessages.has(message.id) ? 'Show less' : 'Show more'}
+                      </button>
+                    </>
+                  ) : (
+                    message.body
+                  )}
+                </div>
                 
                 <div className={`text-xs mt-2 ${
                   message.direction === 'outbound' ? 'text-orange-200' : 'text-gray-400'
