@@ -40,31 +40,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
     }
 
-    // Create message record
-    const messageData = {
-      organization_id: userWithOrg.organizationId,
-      lead_id: leadId,
-      user_id: userWithOrg.id,
-      type,
-      direction: 'outbound',
-      status: 'pending',
-      subject: type === 'email' ? subject : null,
-      body: messageBody,
-      from_email: type === 'email' ? userWithOrg.email : null,
-      to_email: type === 'email' ? to : null,
-      from_number: type !== 'email' ? process.env.TWILIO_SMS_FROM : null,
-      to_number: type !== 'email' ? to : null,
-    }
-
-    const { data: message, error: messageError } = await supabase
-      .from('messages')
-      .insert(messageData)
-      .select()
-      .single()
+    // For now, skip creating message record since the tables don't exist
+    // We'll send the message directly
+    let message = { id: 'temp-' + Date.now() }
+    let messageError = null
 
     if (messageError) {
-      console.error('Error creating message record:', messageError)
-      return NextResponse.json({ error: 'Failed to create message record' }, { status: 500 })
+      console.error('Error creating message record:', {
+        error: messageError,
+        code: messageError.code,
+        message: messageError.message,
+        details: messageError.details,
+        hint: messageError.hint,
+        data: messageData
+      })
+      return NextResponse.json({ 
+        error: 'Failed to create message record',
+        details: messageError.message,
+        code: messageError.code,
+        hint: messageError.hint
+      }, { status: 500 })
     }
 
     // Send the message
@@ -94,11 +89,20 @@ export async function POST(request: NextRequest) {
             throw new Error('Email service not configured')
           }
           
+          const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'
+          console.log('Sending email with Resend:', {
+            from: `Atlas Fitness <${fromEmail}>`,
+            to,
+            subject,
+            hasApiKey: !!process.env.RESEND_API_KEY
+          })
+          
           result = await resend.emails.send({
-            from: `Atlas Fitness <${process.env.RESEND_FROM_EMAIL || 'noreply@atlas-fitness.com'}>`,
+            from: `Atlas Fitness <${fromEmail}>`,
             to,
             subject,
             text: messageBody,
+            html: `<p>${messageBody.replace(/\n/g, '<br>')}</p>`,
             replyTo: userWithOrg.email
           })
           
@@ -113,16 +117,28 @@ export async function POST(request: NextRequest) {
           throw new Error(`Unsupported message type: ${type}`)
       }
 
-      // Update message with success status
-      await supabase
-        .from('messages')
-        .update({
-          status: 'sent',
-          sent_at: new Date().toISOString(),
-          twilio_sid: type !== 'email' ? externalId : null,
-          resend_id: type === 'email' ? externalId : null,
-        })
-        .eq('id', message.id)
+      // Log to appropriate table based on type
+      if (type === 'sms') {
+        await supabase
+          .from('sms_logs')
+          .insert({
+            message_id: externalId,
+            to,
+            from_number: process.env.TWILIO_SMS_FROM,
+            message: messageBody,
+            status: 'sent',
+          })
+      } else if (type === 'whatsapp') {
+        await supabase
+          .from('whatsapp_logs')
+          .insert({
+            message_id: externalId,
+            to,
+            from_number: process.env.TWILIO_WHATSAPP_FROM,
+            message: messageBody,
+            status: 'sent',
+          })
+      }
 
       return NextResponse.json({
         success: true,
@@ -137,15 +153,31 @@ export async function POST(request: NextRequest) {
     } catch (sendError) {
       console.error('Error sending message:', sendError)
       
-      // Update message with error status
-      await supabase
-        .from('messages')
-        .update({
-          status: 'failed',
-          error_message: sendError instanceof Error ? sendError.message : 'Unknown error',
-          error_code: (sendError as any)?.code || 'UNKNOWN'
-        })
-        .eq('id', message.id)
+      // Log error to appropriate table
+      const errorMessage = sendError instanceof Error ? sendError.message : 'Unknown error'
+      const errorCode = (sendError as any)?.code || 'UNKNOWN'
+      
+      if (type === 'sms') {
+        await supabase
+          .from('sms_logs')
+          .insert({
+            to,
+            from_number: process.env.TWILIO_SMS_FROM,
+            message: messageBody,
+            status: 'failed',
+            error: `${errorCode}: ${errorMessage}`,
+          })
+      } else if (type === 'whatsapp') {
+        await supabase
+          .from('whatsapp_logs')
+          .insert({
+            to,
+            from_number: process.env.TWILIO_WHATSAPP_FROM,
+            message: messageBody,
+            status: 'failed',
+            error: `${errorCode}: ${errorMessage}`,
+          })
+      }
 
       return NextResponse.json({
         error: 'Failed to send message',
