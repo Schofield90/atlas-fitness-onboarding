@@ -124,16 +124,26 @@ export async function POST(request: NextRequest) {
             status: 'sent',
           })
       } else if (type === 'email') {
-        await supabase
+        const emailLog = {
+          message_id: externalId,
+          to_email: to,
+          from_email: process.env.RESEND_FROM_EMAIL || 'sam@atlas-gyms.co.uk',
+          subject,
+          message: messageBody,
+          status: 'sent',
+        }
+        
+        console.log('Inserting email log:', emailLog)
+        
+        const { error: insertError } = await supabase
           .from('email_logs')
-          .insert({
-            message_id: externalId,
-            to_email: to,
-            from_email: process.env.RESEND_FROM_EMAIL || 'sam@atlas-gyms.co.uk',
-            subject,
-            message: messageBody,
-            status: 'sent',
-          })
+          .insert(emailLog)
+        
+        if (insertError) {
+          console.error('Failed to insert email log:', insertError)
+        } else {
+          console.log('Email log inserted successfully')
+        }
       }
 
       return NextResponse.json({

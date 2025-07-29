@@ -38,6 +38,7 @@ export async function GET(
       .order('created_at', { ascending: false })
 
     // Fetch email messages
+    console.log('Fetching emails for:', lead.email)
     const { data: emailMessages = [], error: emailError } = await supabase
       .from('email_logs')
       .select('*')
@@ -47,6 +48,10 @@ export async function GET(
     if (smsError) console.error('SMS fetch error:', smsError)
     if (whatsappError) console.error('WhatsApp fetch error:', whatsappError)
     if (emailError) console.error('Email fetch error:', emailError)
+    
+    console.log('Email messages found:', emailMessages.length)
+    console.log('SMS messages found:', smsMessages.length)
+    console.log('WhatsApp messages found:', whatsappMessages.length)
 
     // Combine and format messages
     const allMessages = [
