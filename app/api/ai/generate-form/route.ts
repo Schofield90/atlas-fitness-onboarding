@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import { createClient } from '@/app/lib/supabase/server';
 import { requireAuth } from '@/app/lib/api/auth-check';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY!,
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY!,
 });
 
 export async function POST(request: NextRequest) {
   try {
     // Check if API key is configured
-    if (!process.env.ANTHROPIC_API_KEY) {
-      console.error('ANTHROPIC_API_KEY is not set');
+    if (!process.env.OPENAI_API_KEY) {
+      console.error('OPENAI_API_KEY is not set');
       return NextResponse.json(
-        { error: 'AI service is not configured. Please set ANTHROPIC_API_KEY.' },
+        { error: 'AI service is not configured. Please set OPENAI_API_KEY.' },
         { status: 500 }
       );
     }
@@ -50,12 +50,14 @@ Generate a JSON form schema with the following structure:
 
 Focus on creating comprehensive, legally sound forms for gym operations.`;
 
-    const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 2000,
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4-turbo-preview',
       temperature: 0.7,
-      system: systemPrompt,
       messages: [
+        {
+          role: 'system',
+          content: systemPrompt
+        },
         {
           role: 'user',
           content: description
@@ -64,13 +66,13 @@ Focus on creating comprehensive, legally sound forms for gym operations.`;
     });
     
     // Extract the JSON from the response
-    const content = response.content[0];
-    if (content.type !== 'text') {
-      throw new Error('Unexpected response type');
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error('No response content from OpenAI');
     }
     
     // Parse the JSON from the response
-    const jsonMatch = content.text.match(/\{[\s\S]*\}/);
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       throw new Error('No JSON found in response');
     }
