@@ -60,8 +60,8 @@ export async function POST(request: NextRequest) {
     const authToken = process.env.TWILIO_AUTH_TOKEN
     const twilioClient = twilio(accountSid, authToken)
 
-    // Get base URL
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://atlas-fitness-onboarding.vercel.app'
+    // Get base URL and trim any whitespace/newlines
+    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://atlas-fitness-onboarding.vercel.app').trim()
     
     try {
       
