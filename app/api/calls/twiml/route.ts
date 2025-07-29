@@ -11,36 +11,56 @@ export async function POST(request: NextRequest) {
 }
 
 async function handleTwiml(request: NextRequest) {
-  const twiml = new twilio.twiml.VoiceResponse()
-  
-  // Get lead ID from query params
-  const leadId = request.nextUrl.searchParams.get('leadId')
-  
-  // Create a simple message and then connect to an agent
-  twiml.say({
-    voice: 'alice',
-    language: 'en-GB'
-  }, 'Connecting you to Atlas Fitness. One moment please.')
-  
-  // Play hold music while connecting
-  twiml.play('http://demo.twilio.com/docs/classic.mp3')
-  
-  // In a real implementation, you would:
-  // 1. Dial the gym's agent/staff member
-  // 2. Conference both parties
-  // 3. Record the conversation
-  
-  // For now, just a simple response
-  twiml.say({
-    voice: 'alice',
-    language: 'en-GB'
-  }, 'Thank you for calling Atlas Fitness. This call is being recorded for quality purposes.')
-  
-  // Return TwiML response
-  return new NextResponse(twiml.toString(), {
-    status: 200,
-    headers: {
-      'Content-Type': 'text/xml',
-    },
-  })
+  try {
+    const twiml = new twilio.twiml.VoiceResponse()
+    
+    // Get lead ID from query params
+    const leadId = request.nextUrl.searchParams.get('leadId')
+    
+    console.log('TwiML request received for lead:', leadId)
+    
+    // Simple greeting message
+    twiml.say({
+      voice: 'alice',
+      language: 'en-GB'
+    }, 'Hello from Atlas Fitness. You are now connected with our team.')
+    
+    // Pause for 2 seconds
+    twiml.pause({ length: 2 })
+    
+    // Another message
+    twiml.say({
+      voice: 'alice',
+      language: 'en-GB'
+    }, 'This is a test call from your gym management system. The call is working correctly.')
+    
+    // End the call after the message
+    twiml.hangup()
+    
+    const twimlString = twiml.toString()
+    console.log('Generated TwiML:', twimlString)
+    
+    // Return TwiML response
+    return new NextResponse(twimlString, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/xml',
+        'Cache-Control': 'no-cache',
+      },
+    })
+  } catch (error: any) {
+    console.error('TwiML generation error:', error)
+    
+    // Return a simple valid TwiML on error
+    const errorTwiml = new twilio.twiml.VoiceResponse()
+    errorTwiml.say('Sorry, an error occurred. Please try again later.')
+    errorTwiml.hangup()
+    
+    return new NextResponse(errorTwiml.toString(), {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/xml',
+      },
+    })
+  }
 }
