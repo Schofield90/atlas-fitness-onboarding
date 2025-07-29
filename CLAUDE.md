@@ -1,6 +1,28 @@
 # Atlas Fitness Onboarding - Development Notes
 
-## Project Status (July 24, 2025)
+## 🎯 Current Status Summary (July 29, 2025)
+
+### What's Working:
+- ✅ **Email/SMS/WhatsApp**: All messaging features working, two-way conversations tracked
+- ✅ **Message History**: Shows all communications with collapsible email content
+- ✅ **WhatsApp AI**: Fully integrated with Claude AI, uses real gym data from knowledge base
+- ✅ **Multi-tenant Architecture**: Converted to SaaS model with organization-based routing
+- ✅ **British Localization**: Currency (£), dates (DD/MM/YYYY), timezone (Europe/London)
+- ✅ **Booking System**: GoTeamUp-style class booking with waitlists and credits
+- ✅ **Google Calendar**: Two-way sync for bookings and classes
+
+### What Needs Fixing:
+- 🔧 **Call Feature**: "Failed to initiate call" - Need to set USER_PHONE_NUMBER env variable
+- 🔧 **Booking Data**: System built but needs sample data created
+
+### Next Actions:
+1. Add `USER_PHONE_NUMBER=+44YourPhoneNumber` to Vercel environment variables
+2. Visit https://atlas-fitness-onboarding.vercel.app/call-test to debug calls
+3. Create sample booking data for testing
+
+---
+
+## Project Status (July 29, 2025)
 
 ### 🚀 Recent Achievements
 
@@ -694,12 +716,33 @@ Created a comprehensive AI training and management system at `/ai-config` with 5
 - `/api/debug/comprehensive-message-check` - Full system check
 - `/api/debug/check-lead-phone-format?leadId=XXX` - Check phone format issues
 
-### 🚨 Remaining Issue
+### 🚨 Call Feature Status (Working on Fix)
 
-**Call Feature** - Still showing "Failed to initiate call"
-- Enhanced error logging added
-- Need to check Twilio call configuration
-- TwiML endpoint created at `/api/calls/twiml`
+**Issue**: "Failed to initiate call" error
+**Root Causes Found**:
+1. Organization ID mismatch in code (was `63589490-8f55-4157-bd3a-e141594b740e`, should be `63589490-8f55-4157-bd3a-e141594b748e`)
+2. Code trying to log to non-existent `messages` table (changed to use `sms_logs`)
+3. Missing `USER_PHONE_NUMBER` environment variable (required for call bridging)
+
+**Fixes Applied**:
+- ✅ Fixed organization ID mismatch
+- ✅ Changed logging to use `sms_logs` table
+- ✅ Created comprehensive debug tools
+- ⏳ Need to set `USER_PHONE_NUMBER` environment variable
+
+**Debug Tools Created**:
+- `/call-test` - UI page for testing call functionality
+- `/api/debug/check-twilio-voice` - Check Twilio voice configuration
+- `/api/debug/simple-call-test` - Test with inline TwiML
+- `/api/debug/test-call-debug` - Comprehensive call debugging
+
+**Environment Variables Required for Calls**:
+```env
+TWILIO_ACCOUNT_SID=your-account-sid
+TWILIO_AUTH_TOKEN=your-auth-token  
+TWILIO_SMS_FROM=your-twilio-phone-number
+USER_PHONE_NUMBER=+447777777777  # YOUR phone to receive calls
+```
 
 ---
 
