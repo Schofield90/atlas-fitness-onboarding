@@ -126,8 +126,9 @@ export async function POST(request: NextRequest) {
       body: messageData.body
     })
 
-    // Store the incoming message
-    const supabase = await createClient()
+    // Store the incoming message - use admin client to bypass RLS
+    const { createAdminClient } = await import('@/app/lib/supabase/admin')
+    const adminSupabase = createAdminClient()
     const tableName = isWhatsApp ? 'whatsapp_logs' : 'sms_logs'
     
     const logData = {
@@ -142,7 +143,7 @@ export async function POST(request: NextRequest) {
     
     console.log(`Saving incoming ${isWhatsApp ? 'WhatsApp' : 'SMS'} to ${tableName}:`, logData)
     
-    const { error: insertError } = await supabase.from(tableName).insert(logData)
+    const { error: insertError } = await adminSupabase.from(tableName).insert(logData)
     
     if (insertError) {
       console.error(`Failed to save incoming message to ${tableName}:`, insertError)
