@@ -1,11 +1,30 @@
 'use client'
 
 import DashboardLayout from '../components/DashboardLayout'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/app/lib/supabase/client'
+
+interface Staff {
+  id: string
+  user_id: string
+  phone_number: string
+  email: string
+  is_available: boolean
+  receives_calls: boolean
+  receives_sms: boolean
+  receives_whatsapp: boolean
+  receives_emails: boolean
+  routing_priority: number
+  role: string
+}
 
 export default function StaffPage() {
   const [activeTab, setActiveTab] = useState('team')
   const [showAddModal, setShowAddModal] = useState(false)
+  const [staff, setStaff] = useState<Staff[]>([])
+  const [loading, setLoading] = useState(true)
+  const supabase = createClient()
+  
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -13,6 +32,37 @@ export default function StaffPage() {
     role: '',
     hourlyRate: ''
   })
+
+  useEffect(() => {
+    fetchStaff()
+  }, [])
+
+  const fetchStaff = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: profile } = await supabase
+        .from('user')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single()
+
+      if (!profile?.organization_id) return
+
+      const { data } = await supabase
+        .from('organization_staff')
+        .select('*')
+        .eq('organization_id', profile.organization_id)
+        .order('created_at', { ascending: false })
+
+      setStaff(data || [])
+    } catch (error) {
+      console.error('Error fetching staff:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleAddStaff = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -45,7 +95,8 @@ export default function StaffPage() {
         hourlyRate: ''
       })
       
-      // TODO: Refresh staff list when implemented
+      // Refresh staff list
+      fetchStaff()
     } catch (error: any) {
       console.error('Error adding staff:', error)
       alert(error.message || 'Failed to add staff member')
@@ -97,13 +148,56 @@ export default function StaffPage() {
           {/* Team Members */}
           {activeTab === 'team' && (
             <div className="bg-gray-800 rounded-lg p-6">
-              <div className="text-center py-8">
-                <svg className="w-16 h-16 mx-auto mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-                <p className="text-gray-400 mb-2">No staff members yet</p>
-                <p className="text-sm text-gray-500">Click "Add Staff Member" to get started</p>
-              </div>
+              {loading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"></div>
+                </div>
+              ) : staff.length === 0 ? (
+                <div className="text-center py-8">
+                  <svg className="w-16 h-16 mx-auto mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                  <p className="text-gray-400 mb-2">No staff members yet</p>
+                  <p className="text-sm text-gray-500">Click "Add Staff Member" to get started</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {staff.map((member) => (
+                    <div key={member.id} className="bg-gray-700 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center">
+                            <span className="text-white font-semibold">
+                              {member.email.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div>
+                            <h4 className="font-medium">{member.email}</h4>
+                            <p className="text-sm text-gray-400 capitalize">{member.role}</p>
+                          </div>
+                        </div>
+                        <div className={`px-2 py-1 rounded text-xs ${
+                          member.is_available ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'
+                        }`}>
+                          {member.is_available ? 'Available' : 'Unavailable'}
+                        </div>
+                      </div>
+                      <div className="space-y-1 text-sm">
+                        <p className="text-gray-400">
+                          <span className="inline-block w-16">Phone:</span>
+                          <span className="text-gray-300">{member.phone_number}</span>
+                        </p>
+                        <div className="flex gap-2 mt-2 text-xs">
+                          {member.receives_calls && <span className="bg-gray-600 px-2 py-1 rounded">Calls</span>}
+                          {member.receives_sms && <span className="bg-gray-600 px-2 py-1 rounded">SMS</span>}
+                          {member.receives_whatsapp && <span className="bg-gray-600 px-2 py-1 rounded">WhatsApp</span>}
+                          {member.receives_emails && <span className="bg-gray-600 px-2 py-1 rounded">Email</span>}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
