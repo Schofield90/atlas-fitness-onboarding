@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS email_logs (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   message_id VARCHAR(255),
-  "to" VARCHAR(255) NOT NULL,
+  to_email VARCHAR(255) NOT NULL,
   from_email VARCHAR(255),
   subject TEXT NOT NULL,
   message TEXT NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS email_logs (
 );
 
 -- Create indexes for better query performance
-CREATE INDEX idx_email_logs_to ON email_logs("to");
+CREATE INDEX idx_email_logs_to ON email_logs(to_email);
 CREATE INDEX idx_email_logs_workflow_execution ON email_logs(workflow_execution_id);
 CREATE INDEX idx_email_logs_created_at ON email_logs(created_at);
 

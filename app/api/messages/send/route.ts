@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
           .from('email_logs')
           .insert({
             message_id: externalId,
-            'to': to,
+            to_email: to,
             from_email: process.env.RESEND_FROM_EMAIL || 'sam@atlas-gyms.co.uk',
             subject,
             message: messageBody,
@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
         await supabase
           .from('email_logs')
           .insert({
-            'to': to,
+            to_email: to,
             from_email: process.env.RESEND_FROM_EMAIL || 'sam@atlas-gyms.co.uk',
             subject,
             message: messageBody,
