@@ -6,7 +6,6 @@ if (typeof self === 'undefined') {
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
-  transpilePackages: ['reactflow', '@reactflow/core'],
   
   // Enable experimental features for better performance
   experimental: {
@@ -15,16 +14,23 @@ const nextConfig = {
       'lucide-react',
       'date-fns',
       'recharts'
-    ],
-    // Server components external packages
-    serverComponentsExternalPackages: ['reactflow', '@reactflow/core', '@dnd-kit/core']
+    ]
   },
   
   // External packages for server components
   serverExternalPackages: [
     'twilio',
     'openai',
-    '@anthropic-ai/sdk'
+    '@anthropic-ai/sdk',
+    'reactflow',
+    '@reactflow/core',
+    '@reactflow/node-resizer',
+    '@reactflow/node-toolbar',
+    '@reactflow/controls',
+    '@reactflow/background',
+    '@reactflow/minimap',
+    '@dnd-kit/core',
+    '@dnd-kit/sortable'
   ],
   
   // Webpack optimizations
