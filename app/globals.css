@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import ReactFlow styles - this is handled properly by Next.js CSS pipeline */
+@import 'reactflow/dist/style.css';
+
 @keyframes slide-up {
   from {
     transform: translateY(100%);

@@ -23,10 +23,7 @@ import ReactFlow, {
   NodeChange,
   EdgeChange,
 } from 'reactflow'
-// Import styles conditionally to avoid SSR issues
-if (typeof window !== 'undefined') {
-  import('./reactflow-styles.css')
-}
+// ReactFlow styles are imported globally to avoid SSR issues
 import { 
   Save, 
   Play, 
