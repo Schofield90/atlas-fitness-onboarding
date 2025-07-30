@@ -1,27 +1,27 @@
 import { createClient } from '@/app/lib/supabase/server'
+import { createAdminClient } from '@/app/lib/supabase/admin'
 
 // Google Calendar API base URL
 const GOOGLE_CALENDAR_API = 'https://www.googleapis.com/calendar/v3'
 
 // Get valid access token (refresh if needed)
 export async function getValidAccessToken(userId: string): Promise<string | null> {
-  const supabase = await createClient()
+  const adminSupabase = createAdminClient()
   
-  // Get calendar integration
-  const { data: integration, error } = await supabase
-    .from('calendar_integrations')
+  // Get calendar integration from google_calendar_tokens table using admin client
+  const { data: integration, error } = await adminSupabase
+    .from('google_calendar_tokens')
     .select('*')
     .eq('user_id', userId)
-    .eq('provider', 'google')
     .single()
   
   if (error || !integration) {
-    console.error('No Google Calendar integration found:', error)
+    console.error('No Google Calendar tokens found:', error)
     return null
   }
   
   // Check if token is expired
-  if (integration.expires_at && new Date(integration.expires_at) <= new Date()) {
+  if (integration.expiry_date && new Date(integration.expiry_date) <= new Date()) {
     // Token is expired, refresh it
     const refreshResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
@@ -44,11 +44,11 @@ export async function getValidAccessToken(userId: string): Promise<string | null
     const tokens = await refreshResponse.json()
     
     // Update stored tokens
-    await supabase
-      .from('calendar_integrations')
+    await adminSupabase
+      .from('google_calendar_tokens')
       .update({
         access_token: tokens.access_token,
-        expires_at: tokens.expires_in ? new Date(Date.now() + tokens.expires_in * 1000).toISOString() : null,
+        expiry_date: tokens.expires_in ? new Date(Date.now() + tokens.expires_in * 1000).toISOString() : null,
       })
       .eq('id', integration.id)
     
