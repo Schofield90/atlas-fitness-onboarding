@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       userMessage: message,
-      aiResponse: aiResponse.message,
+      aiResponse: aiResponse.response,
       debug: {
         knowledgeItemsFound: knowledge.length,
         knowledgeContainsRealData: knowledgeContext.includes('Claro Court') || knowledgeContext.includes('Auster Road'),

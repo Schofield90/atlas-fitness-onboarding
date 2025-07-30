@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
         }))
       },
       knowledgeContext: knowledgeContext,
-      aiResponse: aiResponse.message,
+      aiResponse: aiResponse.response,
       debug: {
         contextLength: knowledgeContext.length,
         hasLocationInfo: knowledge.some(k => k.content.toLowerCase().includes('location')),

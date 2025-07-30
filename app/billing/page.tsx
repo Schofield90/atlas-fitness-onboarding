@@ -1,78 +1,155 @@
 'use client'
 
+import { useState, useEffect } from 'react'
+import { createClient } from '@/app/lib/supabase/client'
+import { useSearchParams } from 'next/navigation'
 import DashboardLayout from '../components/DashboardLayout'
+import { SaasBillingDashboard } from '@/app/components/saas/SaasBillingDashboard'
+import StripeConnect from '@/app/components/billing/StripeConnect'
+import Button from '@/app/components/ui/Button'
+import { Card } from '@/app/components/ui/Card'
+import { formatBritishCurrency } from '@/app/lib/utils/british-format'
 
-export default function BillingRevenuePage() {
+export default function BillingPage() {
+  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState('subscription')
+  const [organization, setOrganization] = useState<any>(null)
+  const searchParams = useSearchParams()
+  const supabase = createClient()
+  
+  useEffect(() => {
+    fetchOrganization()
+    
+    // Check for checkout success
+    if (searchParams.get('success') === 'true') {
+      // Show success message
+      const sessionId = searchParams.get('session_id')
+      console.log('Checkout successful:', sessionId)
+      // TODO: Show success toast
+    } else if (searchParams.get('canceled') === 'true') {
+      console.log('Checkout canceled')
+      // TODO: Show canceled message
+    }
+    
+    // Check for Stripe Connect success
+    if (searchParams.get('stripe_success') === 'true') {
+      console.log('Stripe Connect successful')
+      setActiveTab('payments')
+    } else if (searchParams.get('stripe_refresh') === 'true') {
+      console.log('Stripe Connect needs refresh')
+      setActiveTab('payments')
+    }
+  }, [searchParams])
+  
+  const fetchOrganization = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      
+      const { data: userOrg } = await supabase
+        .from('user_organizations')
+        .select('organization_id, organizations(*)')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .single()
+      
+      if (userOrg) {
+        setOrganization(userOrg.organizations)
+      }
+    } catch (error) {
+      console.error('Error fetching organization:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+  
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="p-6">
+          <div className="flex items-center justify-center">
+            Loading billing information...
+          </div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+  
   return (
     <DashboardLayout>
       <div className="p-6">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-6">
-            <h2 className="text-2xl font-bold">Billing & Revenue</h2>
-            <p className="text-gray-400 mt-1">Manage payments, invoices, and financial transactions</p>
+            <h2 className="text-2xl font-bold">Billing & Subscription</h2>
+            <p className="text-gray-400 mt-1">Manage your subscription, payments, and billing settings</p>
           </div>
-
-          {/* Revenue Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-gray-800 rounded-lg p-6">
-              <p className="text-gray-400 text-sm mb-2">Monthly Revenue</p>
-              <p className="text-3xl font-bold text-gray-500">£0</p>
-              <p className="text-sm text-gray-400 mt-2">No data yet</p>
-            </div>
-            <div className="bg-gray-800 rounded-lg p-6">
-              <p className="text-gray-400 text-sm mb-2">Outstanding</p>
-              <p className="text-3xl font-bold text-gray-500">£0</p>
-              <p className="text-sm text-gray-400 mt-2">0 invoices</p>
-            </div>
-            <div className="bg-gray-800 rounded-lg p-6">
-              <p className="text-gray-400 text-sm mb-2">Failed Payments</p>
-              <p className="text-3xl font-bold text-gray-500">£0</p>
-              <p className="text-sm text-gray-400 mt-2">0 payments</p>
-            </div>
-            <div className="bg-gray-800 rounded-lg p-6">
-              <p className="text-gray-400 text-sm mb-2">Active Subscriptions</p>
-              <p className="text-3xl font-bold text-gray-500">0</p>
-              <p className="text-sm text-gray-400 mt-2">£0 MRR</p>
-            </div>
+          
+          {/* Tab Navigation */}
+          <div className="flex space-x-1 mb-6">
+            <Button
+              variant={activeTab === 'subscription' ? 'default' : 'ghost'}
+              onClick={() => setActiveTab('subscription')}
+            >
+              Subscription
+            </Button>
+            <Button
+              variant={activeTab === 'revenue' ? 'default' : 'ghost'}
+              onClick={() => setActiveTab('revenue')}
+            >
+              Revenue
+            </Button>
+            <Button
+              variant={activeTab === 'payments' ? 'default' : 'ghost'}
+              onClick={() => setActiveTab('payments')}
+            >
+              Payment Settings
+            </Button>
           </div>
-
-          {/* Quick Actions */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <button className="bg-orange-600 hover:bg-orange-700 rounded-lg p-6 text-left transition-colors">
-              <h3 className="text-lg font-semibold mb-2">Create Invoice</h3>
-              <p className="text-sm opacity-90">Generate a new invoice for services</p>
-            </button>
-            <button className="bg-gray-800 hover:bg-gray-700 rounded-lg p-6 text-left transition-colors">
-              <h3 className="text-lg font-semibold mb-2">Process Payment</h3>
-              <p className="text-sm text-gray-400">Record a manual payment</p>
-            </button>
-            <button className="bg-gray-800 hover:bg-gray-700 rounded-lg p-6 text-left transition-colors">
-              <h3 className="text-lg font-semibold mb-2">Export Reports</h3>
-              <p className="text-sm text-gray-400">Download financial statements</p>
-            </button>
-          </div>
-
-          {/* Recent Transactions */}
-          <div className="bg-gray-800 rounded-lg p-6">
-            <h3 className="text-lg font-semibold mb-4">Recent Transactions</h3>
-            <div className="text-center py-8">
-              <p className="text-gray-400">No transactions yet</p>
-              <p className="text-sm text-gray-500 mt-2">Transactions will appear here once you start processing payments</p>
+          
+          {/* Tab Content */}
+          {activeTab === 'subscription' && <SaasBillingDashboard />}
+          
+          {activeTab === 'revenue' && (
+            <div className="space-y-6">
+              {/* Revenue Overview */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <Card className="p-6">
+                  <p className="text-gray-400 text-sm mb-2">Monthly Revenue</p>
+                  <p className="text-3xl font-bold">£0</p>
+                  <p className="text-sm text-gray-400 mt-2">No data yet</p>
+                </Card>
+                <Card className="p-6">
+                  <p className="text-gray-400 text-sm mb-2">Outstanding</p>
+                  <p className="text-3xl font-bold">£0</p>
+                  <p className="text-sm text-gray-400 mt-2">0 invoices</p>
+                </Card>
+                <Card className="p-6">
+                  <p className="text-gray-400 text-sm mb-2">Failed Payments</p>
+                  <p className="text-3xl font-bold">£0</p>
+                  <p className="text-sm text-gray-400 mt-2">0 payments</p>
+                </Card>
+                <Card className="p-6">
+                  <p className="text-gray-400 text-sm mb-2">Active Subscriptions</p>
+                  <p className="text-3xl font-bold">0</p>
+                  <p className="text-sm text-gray-400 mt-2">£0 MRR</p>
+                </Card>
+              </div>
+              
+              {/* Recent Transactions */}
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4">Recent Transactions</h3>
+                <div className="text-center py-8">
+                  <p className="text-gray-400">No transactions yet</p>
+                  <p className="text-sm text-gray-500 mt-2">Transactions will appear here once you start processing payments</p>
+                </div>
+              </Card>
             </div>
-          </div>
-
-          {/* Coming Soon Notice */}
-          <div className="mt-8 bg-blue-900/20 border border-blue-700 rounded-lg p-4">
-            <div className="flex items-center">
-              <svg className="w-5 h-5 text-blue-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className="text-sm text-gray-300">
-                Stripe integration coming soon for automated payment processing and subscription management.
-              </p>
-            </div>
-          </div>
+          )}
+          
+          {activeTab === 'payments' && (
+            <StripeConnect organizationId={organization?.id || ''} />
+          )}
         </div>
       </div>
     </DashboardLayout>

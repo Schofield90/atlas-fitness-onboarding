@@ -388,8 +388,112 @@ vercel --prod
 
 ---
 
-**Last Updated**: January 30, 2025 (10:00 AM)
-**Last Commit**: fix: Fix Google Calendar token storage and retrieval (86844ab)
+**Last Updated**: January 30, 2025 (6:00 PM)
+**Last Commit**: Implemented SaaS Billing & Stripe Connect for gym payments
+
+## 💳 SaaS Billing & Stripe Connect Implementation (January 30, 2025)
+
+### Overview
+Complete multi-tenant SaaS billing system with Stripe Connect marketplace payments. Gyms subscribe to the platform AND connect their own Stripe accounts to receive payments from their customers.
+
+### What Was Built
+
+#### 1. **SaaS Subscription System**
+- Three-tier pricing: Starter (£99/mo), Professional (£299/mo), Enterprise (£999/mo)
+- Usage-based limits per plan (SMS credits, email credits, bookings, staff accounts)
+- 14-day free trial for new organizations
+- Stripe subscription management with webhooks
+- Organization onboarding flow at `/onboarding`
+
+#### 2. **Stripe Connect Integration**
+- Gyms connect their own Stripe accounts via Express onboarding
+- Platform takes 3% commission on all transactions
+- Automatic fee splitting using Stripe's application_fee_amount
+- Dashboard access for connected accounts
+- Payment intent creation on connected accounts
+
+#### 3. **Database Schema**
+```sql
+- saas_plans: Platform subscription tiers
+- saas_subscriptions: Active subscriptions with Stripe IDs
+- organization_usage_metrics: Track usage against plan limits
+- organization_payment_settings: Stripe Connect account details
+- payment_transactions: All customer payments with platform fees
+- platform_commissions: Track commission on each transaction
+```
+
+#### 4. **Key Components**
+- `/app/components/saas/SaasBillingDashboard.tsx` - Subscription management UI
+- `/app/components/billing/StripeConnect.tsx` - Stripe Connect onboarding
+- `/app/components/payments/MembershipPayment.tsx` - Customer payment flow
+- `/app/billing/page.tsx` - Unified billing dashboard
+
+#### 5. **API Endpoints**
+- `/api/saas/billing` - Subscription management
+- `/api/saas/checkout` - Create Stripe checkout sessions
+- `/api/webhooks/stripe` - Handle Stripe webhooks
+- `/api/billing/stripe-connect/onboard` - Start Connect onboarding
+- `/api/billing/stripe-connect/status` - Check account status
+- `/api/payments/create-intent` - Create payment on connected account
+
+### How It Works
+
+**Platform Subscription Flow:**
+1. New organization signs up at `/onboarding`
+2. Chooses a plan (Starter/Pro/Enterprise)
+3. Redirected to Stripe Checkout
+4. 14-day free trial starts
+5. Usage tracked against plan limits
+
+**Gym Payment Processing:**
+1. Gym connects Stripe account via Express onboarding
+2. Customer makes payment (membership, class, etc.)
+3. Payment processed on gym's Stripe account
+4. Platform fee (3%) automatically deducted
+5. Gym receives payment minus platform fee
+6. Platform receives commission
+
+### Environment Variables Required
+```env
+# Platform Stripe Account
+STRIPE_SECRET_KEY=sk_test_xxx
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_xxx
+STRIPE_WEBHOOK_SECRET=whsec_xxx
+```
+
+### Setup Instructions
+
+1. **Run Database Migrations:**
+```bash
+# In Supabase SQL Editor
+-- Run /supabase/saas-billing-system.sql
+-- Run /supabase/payment-transactions.sql
+```
+
+2. **Configure Stripe Webhooks:**
+- Endpoint URL: `https://your-domain.com/api/webhooks/stripe`
+- Events to listen for:
+  - `customer.subscription.*`
+  - `invoice.payment_succeeded`
+  - `invoice.payment_failed`
+  - `checkout.session.completed`
+  - `payment_intent.succeeded`
+
+3. **Test the Flow:**
+- Sign up new organization at `/onboarding`
+- Go to Billing → Subscription tab
+- Choose a plan and complete checkout
+- Go to Billing → Payment Settings tab
+- Connect Stripe account
+- Process test payment through connected account
+
+### Platform Benefits
+- Recurring revenue from SaaS subscriptions
+- Transaction fees on all gym payments
+- Usage-based pricing enforcement
+- White-label options for Enterprise
+
+---
 
 ### 🚨 Current Status - BOOKING SYSTEM ISSUES
 

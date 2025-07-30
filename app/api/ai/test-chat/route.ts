@@ -25,8 +25,8 @@ export async function POST(request: NextRequest) {
     )
 
     return NextResponse.json({
-      response: aiResponse.message,
-      bookingIntent: aiResponse.shouldBookAppointment,
+      response: aiResponse.response,
+      bookingIntent: aiResponse.bookingIntent,
       extractedInfo: aiResponse.extractedInfo
     })
   } catch (error: any) {

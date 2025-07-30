@@ -39,15 +39,33 @@ export default function EditWorkflowPage() {
       // For now, use mock data
       const mockWorkflow: Workflow = {
         id,
+        organizationId: 'mock-org-id',
         name: 'Welcome Series',
         description: 'Automated welcome sequence for new leads',
-        trigger: {
-          type: 'lead_created',
-          conditions: {}
-        },
-        nodes: [],
-        edges: [],
         status: 'active',
+        version: 1,
+        workflowData: {
+          nodes: [],
+          edges: [],
+          variables: []
+        },
+        triggerType: 'lead_created',
+        triggerConfig: {},
+        settings: {
+          errorHandling: 'continue',
+          maxExecutionTime: 300,
+          timezone: 'Europe/London',
+          notifications: {
+            onError: true,
+            onComplete: false
+          }
+        },
+        stats: {
+          totalExecutions: 0,
+          successfulExecutions: 0,
+          failedExecutions: 0,
+          avgExecutionTime: 0
+        },
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       }

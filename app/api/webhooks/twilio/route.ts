@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
     // Try to find organization by lead phone number
     const { data: lead } = await adminSupabase
       .from('leads')
-      .select('organization_id')
+      .select('id, organization_id')
       .or(`phone.eq.${cleanedFrom},phone.eq.${phoneWithoutPrefix}`)
       .single()
     

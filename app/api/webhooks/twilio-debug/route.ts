@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     // Create TwiML response
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Message>${aiResponse.message}</Message>
+    <Message>${aiResponse.response}</Message>
 </Response>`
     
     return new NextResponse(twiml, {
