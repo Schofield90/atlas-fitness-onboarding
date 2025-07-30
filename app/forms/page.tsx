@@ -20,6 +20,9 @@ export default function FormsDocumentsPage() {
   const [generatingForm, setGeneratingForm] = useState(false)
   const [forms, setForms] = useState<Form[]>([])
   const [loading, setLoading] = useState(true)
+  const [generatedForm, setGeneratedForm] = useState<any>(null)
+  const [showFormPreview, setShowFormPreview] = useState(false)
+  const [editingForm, setEditingForm] = useState(false)
   const supabase = createClient()
   
   useEffect(() => {
@@ -32,13 +35,14 @@ export default function FormsDocumentsPage() {
   
   const fetchForms = async () => {
     try {
-      const { data, error } = await supabase
-        .from('forms')
-        .select('*')
-        .order('created_at', { ascending: false })
+      const response = await fetch('/api/forms/list')
+      const data = await response.json()
       
-      if (error) throw error
-      setForms(data || [])
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch forms')
+      }
+      
+      setForms(data.forms || [])
     } catch (error) {
       console.error('Error fetching forms:', error)
     } finally {
@@ -73,10 +77,10 @@ export default function FormsDocumentsPage() {
       
       if (data.success) {
         console.log('Generated form:', data.form);
-        alert('Form generated successfully!');
+        setGeneratedForm(data.form);
         setShowFormBuilder(false);
+        setShowFormPreview(true);
         setFormDescription('');
-        fetchForms(); // Refresh the forms list
       } else {
         throw new Error(data.error || 'Failed to generate form');
       }
@@ -87,6 +91,72 @@ export default function FormsDocumentsPage() {
     } finally {
       setGeneratingForm(false);
     }
+  }
+  
+  const saveForm = async () => {
+    try {
+      const response = await fetch('/api/forms/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(generatedForm),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save form');
+      }
+      
+      alert('Form saved successfully!');
+      setShowFormPreview(false);
+      setGeneratedForm(null);
+      fetchForms(); // Refresh the forms list
+    } catch (error: any) {
+      console.error('Error saving form:', error);
+      alert(error.message || 'Failed to save form. Please try again.');
+    }
+  }
+  
+  const updateFormField = (fieldId: string, updates: any) => {
+    setGeneratedForm((prev: any) => ({
+      ...prev,
+      schema: {
+        ...prev.schema,
+        fields: prev.schema.fields.map((field: any) =>
+          field.id === fieldId ? { ...field, ...updates } : field
+        )
+      }
+    }));
+  }
+  
+  const addFormField = () => {
+    const newField = {
+      id: `field_${Date.now()}`,
+      label: 'New Field',
+      type: 'text',
+      required: false,
+      placeholder: ''
+    };
+    
+    setGeneratedForm((prev: any) => ({
+      ...prev,
+      schema: {
+        ...prev.schema,
+        fields: [...prev.schema.fields, newField]
+      }
+    }));
+  }
+  
+  const removeFormField = (fieldId: string) => {
+    setGeneratedForm((prev: any) => ({
+      ...prev,
+      schema: {
+        ...prev.schema,
+        fields: prev.schema.fields.filter((field: any) => field.id !== fieldId)
+      }
+    }));
   }
 
   return (
@@ -303,6 +373,193 @@ export default function FormsDocumentsPage() {
                       'Generate Form'
                     )}
                   </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Form Preview Modal */}
+          {showFormPreview && generatedForm && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-gray-800 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+                <div className="p-6 border-b border-gray-700">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="text-xl font-bold">Form Preview</h3>
+                      <p className="text-gray-400 mt-1">Review and edit your form before saving</p>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        setShowFormPreview(false);
+                        setGeneratedForm(null);
+                      }}
+                      className="text-gray-400 hover:text-white"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="p-6">
+                  {/* Form Details */}
+                  <div className="mb-6 space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Form Title</label>
+                      <input 
+                        type="text"
+                        value={generatedForm.title}
+                        onChange={(e) => setGeneratedForm({ ...generatedForm, title: e.target.value })}
+                        className="w-full px-4 py-2 bg-gray-700 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Description</label>
+                      <textarea 
+                        value={generatedForm.description}
+                        onChange={(e) => setGeneratedForm({ ...generatedForm, description: e.target.value })}
+                        className="w-full px-4 py-2 bg-gray-700 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none resize-none"
+                        rows={2}
+                      />
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Type</label>
+                        <select 
+                          value={generatedForm.type}
+                          onChange={(e) => setGeneratedForm({ ...generatedForm, type: e.target.value })}
+                          className="px-4 py-2 bg-gray-700 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                        >
+                          <option value="waiver">Waiver</option>
+                          <option value="contract">Contract</option>
+                          <option value="health">Health</option>
+                          <option value="policy">Policy</option>
+                          <option value="custom">Custom</option>
+                        </select>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="checkbox"
+                          id="is_active"
+                          checked={generatedForm.is_active}
+                          onChange={(e) => setGeneratedForm({ ...generatedForm, is_active: e.target.checked })}
+                          className="w-4 h-4 text-orange-500 bg-gray-700 rounded focus:ring-orange-500"
+                        />
+                        <label htmlFor="is_active" className="text-sm">Active</label>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Form Fields */}
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <h4 className="font-medium">Form Fields</h4>
+                      <button 
+                        onClick={addFormField}
+                        className="px-3 py-1 bg-purple-600 hover:bg-purple-700 rounded text-sm transition-colors"
+                      >
+                        + Add Field
+                      </button>
+                    </div>
+                    
+                    {generatedForm.schema.fields.map((field: any, index: number) => (
+                      <div key={field.id} className="bg-gray-700 rounded-lg p-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-xs text-gray-400 mb-1">Label</label>
+                            <input 
+                              type="text"
+                              value={field.label}
+                              onChange={(e) => updateFormField(field.id, { label: e.target.value })}
+                              className="w-full px-3 py-1 bg-gray-600 rounded text-sm focus:ring-1 focus:ring-orange-500 focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-400 mb-1">Type</label>
+                            <select 
+                              value={field.type}
+                              onChange={(e) => updateFormField(field.id, { type: e.target.value })}
+                              className="w-full px-3 py-1 bg-gray-600 rounded text-sm focus:ring-1 focus:ring-orange-500 focus:outline-none"
+                            >
+                              <option value="text">Text</option>
+                              <option value="email">Email</option>
+                              <option value="tel">Phone</option>
+                              <option value="number">Number</option>
+                              <option value="date">Date</option>
+                              <option value="select">Select</option>
+                              <option value="checkbox">Checkbox</option>
+                              <option value="textarea">Textarea</option>
+                              <option value="signature">Signature</option>
+                            </select>
+                          </div>
+                          <div className="flex items-end gap-2">
+                            <div className="flex-1">
+                              <label className="block text-xs text-gray-400 mb-1">Placeholder</label>
+                              <input 
+                                type="text"
+                                value={field.placeholder || ''}
+                                onChange={(e) => updateFormField(field.id, { placeholder: e.target.value })}
+                                className="w-full px-3 py-1 bg-gray-600 rounded text-sm focus:ring-1 focus:ring-orange-500 focus:outline-none"
+                              />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <input 
+                                type="checkbox"
+                                id={`required_${field.id}`}
+                                checked={field.required}
+                                onChange={(e) => updateFormField(field.id, { required: e.target.checked })}
+                                className="w-3 h-3 text-orange-500 bg-gray-600 rounded focus:ring-orange-500"
+                              />
+                              <label htmlFor={`required_${field.id}`} className="text-xs">Required</label>
+                            </div>
+                            <button 
+                              onClick={() => removeFormField(field.id)}
+                              className="p-1 text-red-400 hover:text-red-300"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                        {field.type === 'select' && (
+                          <div className="mt-3">
+                            <label className="block text-xs text-gray-400 mb-1">Options (comma separated)</label>
+                            <input 
+                              type="text"
+                              value={field.options?.join(', ') || ''}
+                              onChange={(e) => updateFormField(field.id, { 
+                                options: e.target.value.split(',').map(o => o.trim()).filter(o => o) 
+                              })}
+                              className="w-full px-3 py-1 bg-gray-600 rounded text-sm focus:ring-1 focus:ring-orange-500 focus:outline-none"
+                              placeholder="Option 1, Option 2, Option 3"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="p-6 border-t border-gray-700">
+                  <div className="flex justify-end gap-3">
+                    <button 
+                      onClick={() => {
+                        setShowFormPreview(false);
+                        setGeneratedForm(null);
+                      }}
+                      className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                    >
+                      Discard
+                    </button>
+                    <button 
+                      onClick={saveForm}
+                      className="px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors"
+                    >
+                      Save Form
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

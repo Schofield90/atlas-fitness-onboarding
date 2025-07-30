@@ -103,36 +103,19 @@ Focus on creating comprehensive, legally sound forms for gym operations.`;
       formType = 'policy';
     }
     
-    // Save the form to the database
-    const { data: savedForm, error } = await supabase
-      .from('forms')
-      .insert({
-        organization_id: userWithOrg.organizationId,
-        title: formSchema.title,
-        description: formSchema.description,
-        type: formType,
-        schema: formSchema,
-        is_active: true
-      })
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('Error saving form:', error);
-      console.error('Insert data:', {
-        organization_id: userWithOrg.organizationId,
-        title: formSchema.title,
-        description: formSchema.description,
-        type: formType,
-        schema: formSchema,
-        is_active: true
-      });
-      throw new Error(`Failed to save form: ${error.message}`);
-    }
+    // Return the generated form without saving
+    const generatedForm = {
+      organization_id: userWithOrg.organizationId,
+      title: formSchema.title,
+      description: formSchema.description,
+      type: formType,
+      schema: formSchema,
+      is_active: true
+    };
     
     return NextResponse.json({
       success: true,
-      form: savedForm
+      form: generatedForm
     });
     
   } catch (error: any) {
