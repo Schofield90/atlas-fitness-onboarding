@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
-import { Calendar as CalendarIcon, Settings, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react'
+import { Calendar as CalendarIcon, Settings, RefreshCw, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react'
+import Link from 'next/link'
 
 export default function CalendarSyncPage() {
   const [isConnected, setIsConnected] = useState(false)
@@ -219,7 +220,25 @@ export default function CalendarSyncPage() {
   return (
     <div className="min-h-screen bg-gray-900 text-white p-8">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Google Calendar Integration</h1>
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-sm text-gray-400 mb-4">
+          <Link href="/dashboard" className="hover:text-white transition-colors">
+            Dashboard
+          </Link>
+          <span>/</span>
+          <span>Calendar Integration</span>
+        </div>
+        
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold">Google Calendar Integration</h1>
+          <Link 
+            href="/dashboard"
+            className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Dashboard
+          </Link>
+        </div>
         
         {!isConnected ? (
           <div className="bg-gray-800 rounded-lg p-8 text-center">
