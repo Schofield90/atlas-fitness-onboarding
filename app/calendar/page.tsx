@@ -70,7 +70,7 @@ export default function CalendarPage() {
       // Get wider date range to ensure we get all events
       const today = new Date()
       const startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1) // 1 month ago
-      const endDate = new Date(today.getFullYear(), today.getMonth() + 2, 0) // 2 months ahead
+      const endDate = new Date(today.getFullYear(), today.getMonth() + 3, 31) // 3 months ahead
       
       const params = new URLSearchParams({
         start: startDate.toISOString(),

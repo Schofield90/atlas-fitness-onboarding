@@ -47,8 +47,8 @@ export async function GET(request: NextRequest) {
       const events = await listCalendarEvents(
         tokenData, 
         calendarId,
-        start || new Date().toISOString(),
-        end || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days ahead
+        start || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // Default: 30 days ago
+        end || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString() // Default: 90 days ahead
       )
       
       // Transform Google Calendar events to our format
@@ -70,8 +70,8 @@ export async function GET(request: NextRequest) {
       
       console.log(`Fetched ${transformedEvents.length} events from Google Calendar`)
       console.log('Date range:', { 
-        start: start || new Date().toISOString(), 
-        end: end || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() 
+        start: start || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), 
+        end: end || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString() 
       })
       console.log('Sample events:', transformedEvents.slice(0, 3).map(e => ({
         title: e.title,
