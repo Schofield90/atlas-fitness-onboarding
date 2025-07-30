@@ -19,7 +19,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
-    const organizationId = user.user_metadata?.organization_id || user.id
+    // Get user's organization from user_organizations table
+    const { data: membership } = await supabase
+      .from('user_organizations')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .single()
+    
+    const organizationId = membership?.organization_id || 
+                          user.user_metadata?.organization_id || 
+                          '63589490-8f55-4157-bd3a-e141594b748e'
+    
+    console.log('Fetching events for organization:', organizationId)
     
     // Build query
     let query = supabase
