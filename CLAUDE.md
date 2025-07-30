@@ -122,6 +122,13 @@ USER_PHONE_NUMBER=+44YourPhoneNumber  # For call bridging
 - ✅ Created triggers for automatic timestamp updates
 - ✅ Fixed forms/documents table to work without profiles table
 
+#### 5. **Google OAuth for Login/Signup** ✅
+- ✅ Added Google OAuth buttons to login and signup pages
+- ✅ Created OAuth callback handler for Supabase integration
+- ✅ Automatic organization creation for Google signups
+- ✅ Session storage for organization name during OAuth flow
+- ✅ Created comprehensive setup documentation
+
 ### 📱 WhatsApp Setup Instructions
 
 1. **Join Twilio Sandbox** (Required for testing):
