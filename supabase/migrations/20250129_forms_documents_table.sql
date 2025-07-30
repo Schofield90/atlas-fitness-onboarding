@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS form_submissions (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   form_id UUID NOT NULL REFERENCES forms(id) ON DELETE CASCADE,
   lead_id UUID REFERENCES leads(id),
-  contact_id UUID REFERENCES contacts(id),
+  contact_id UUID,
   submission_data JSONB NOT NULL,
   signature_url TEXT,
   submitted_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
@@ -47,7 +47,6 @@ CREATE INDEX idx_documents_organization ON documents(organization_id);
 CREATE INDEX idx_documents_type ON documents(type);
 CREATE INDEX idx_form_submissions_form ON form_submissions(form_id);
 CREATE INDEX idx_form_submissions_lead ON form_submissions(lead_id);
-CREATE INDEX idx_form_submissions_contact ON form_submissions(contact_id);
 
 -- Enable RLS
 ALTER TABLE forms ENABLE ROW LEVEL SECURITY;

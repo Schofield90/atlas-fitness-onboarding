@@ -59,7 +59,7 @@ Focus on creating comprehensive, legally sound forms for gym operations.`;
     console.log('Calling OpenAI API...');
     
     const response = await openai.chat.completions.create({
-      model: 'gpt-4-turbo',
+      model: 'gpt-3.5-turbo',
       temperature: 0.7,
       messages: [
         {
