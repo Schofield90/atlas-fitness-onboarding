@@ -4,9 +4,24 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:turbo": "next dev --turbo",
+    "dev:quick": "NODE_OPTIONS='--max-old-space-size=4096' next dev --turbo",
     "build": "next build",
+    "build:fast": "NODE_OPTIONS='--max-old-space-size=4096' next build",
+    "build:analyze": "ANALYZE=true next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "lint:fix": "next lint --fix",
+    "typecheck": "tsc --noEmit --incremental --tsBuildInfoFile .tsbuildinfo",
+    "test:api": "node scripts/quick-test.js",
+    "vercel:dev": "vercel dev",
+    "vercel:deploy": "vercel --prod",
+    "vercel:preview": "vercel",
+    "vercel:env:pull": "vercel env pull .env.local",
+    "vercel:link": "vercel link",
+    "workflow": "node scripts/dev-workflow.js",
+    "clean": "rm -rf .next node_modules/.cache",
+    "clean:all": "rm -rf .next node_modules package-lock.json && npm install"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.57.0",

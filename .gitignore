@@ -75,6 +75,11 @@ build/
 .vercel/
 *.log
 
+# Development
+.turbo
+analyze/
+.tsbuildinfo
+
 # Temporary files
 *.tmp
 *.temp

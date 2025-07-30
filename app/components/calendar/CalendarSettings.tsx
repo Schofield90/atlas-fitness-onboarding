@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Calendar, Clock, Link as LinkIcon, Settings } from 'lucide-react'
+import { Calendar, Clock, Link as LinkIcon, Settings, RefreshCw } from 'lucide-react'
 import Link from 'next/link'
 
 export function CalendarSettings() {
@@ -16,8 +16,33 @@ export function CalendarSettings() {
   })
   const [slotDuration, setSlotDuration] = useState(30)
   const [bufferTime, setBufferTime] = useState(0)
+  const [isSyncing, setIsSyncing] = useState(false)
 
   const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+
+  const handleBidirectionalSync = async () => {
+    setIsSyncing(true)
+    try {
+      const response = await fetch('/api/calendar/sync-bidirectional', {
+        method: 'POST'
+      })
+      
+      if (!response.ok) {
+        throw new Error('Sync failed')
+      }
+      
+      const result = await response.json()
+      alert(result.message || 'Calendar sync completed successfully!')
+      
+      // Refresh the page to show updated events
+      window.location.reload()
+    } catch (error) {
+      console.error('Sync error:', error)
+      alert('Failed to sync calendars. Please try again.')
+    } finally {
+      setIsSyncing(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -128,13 +153,28 @@ export function CalendarSettings() {
           Sync your bookings with Google Calendar to keep everything in one place.
         </p>
         
-        <Link
-          href="/calendar-sync"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-        >
-          <LinkIcon className="h-4 w-4" />
-          Manage Google Calendar Sync
-        </Link>
+        <div className="flex gap-3">
+          <Link
+            href="/calendar-sync"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          >
+            <LinkIcon className="h-4 w-4" />
+            Manage Google Calendar Sync
+          </Link>
+          
+          <button
+            onClick={handleBidirectionalSync}
+            disabled={isSyncing}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+            {isSyncing ? 'Syncing...' : 'Sync Now'}
+          </button>
+        </div>
+        
+        <p className="text-xs text-gray-500 mt-4">
+          Sync Now will update both your CRM and Google Calendar with any changes made in either system.
+        </p>
       </div>
 
       {/* Save Button */}

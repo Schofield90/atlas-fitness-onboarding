@@ -6,6 +6,8 @@ import { Calendar } from '@/app/components/calendar/Calendar'
 import { GoogleStyleCalendar } from '@/app/components/calendar/GoogleStyleCalendar'
 import { CalendarSettings } from '@/app/components/calendar/CalendarSettings'
 import { BookingModal } from '@/app/components/calendar/BookingModal'
+import { EventDetailsModal } from '@/app/components/calendar/EventDetailsModal'
+import { EditEventModal } from '@/app/components/calendar/EditEventModal'
 import { Calendar as CalendarIcon, Settings, Link, Plus, LayoutGrid, CalendarDays } from 'lucide-react'
 import type { CalendarEvent, TimeSlot } from '@/app/lib/types/calendar'
 
@@ -18,6 +20,10 @@ export default function CalendarPage() {
   const [activeTab, setActiveTab] = useState<'calendar' | 'settings' | 'booking-links'>('calendar')
   const [calendarView, setCalendarView] = useState<'week' | 'month'>('week')
   const [useGoogleStyle, setUseGoogleStyle] = useState(true)
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
+  const [showEventDetails, setShowEventDetails] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null)
 
   useEffect(() => {
     // Check for success/error messages from Google Calendar connect
@@ -154,8 +160,51 @@ export default function CalendarPage() {
   }
 
   const handleEventClick = (event: CalendarEvent) => {
-    console.log('Event clicked:', event)
-    // You can add modal or detail view here
+    setSelectedEvent(event)
+    setShowEventDetails(true)
+  }
+
+  const handleEditEvent = (event: CalendarEvent) => {
+    setEditingEvent(event)
+    setShowEditModal(true)
+  }
+
+  const handleSaveEvent = async (updatedEvent: CalendarEvent) => {
+    try {
+      const response = await fetch('/api/calendar/events', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedEvent)
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update event')
+      }
+
+      await fetchEvents()
+      alert('Event updated successfully')
+    } catch (error) {
+      console.error('Error updating event:', error)
+      alert('Failed to update event')
+    }
+  }
+
+  const handleDeleteEvent = async (eventId: string) => {
+    try {
+      const response = await fetch(`/api/calendar/events?id=${eventId}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete event')
+      }
+
+      await fetchEvents()
+      alert('Event deleted successfully')
+    } catch (error) {
+      console.error('Error deleting event:', error)
+      alert('Failed to delete event')
+    }
   }
 
   const handleBookingComplete = () => {
@@ -316,6 +365,7 @@ export default function CalendarPage() {
                       <div
                         key={event.id}
                         className="p-3 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors cursor-pointer"
+                        onClick={() => handleEventClick(event)}
                       >
                         <h4 className="font-medium text-sm text-white">{event.title}</h4>
                         <p className="text-xs text-white mt-1">
@@ -375,6 +425,23 @@ export default function CalendarPage() {
           onBookingComplete={handleBookingComplete}
         />
       )}
+
+      {/* Event Details Modal */}
+      <EventDetailsModal
+        event={selectedEvent}
+        open={showEventDetails}
+        onOpenChange={setShowEventDetails}
+        onEdit={handleEditEvent}
+        onDelete={handleDeleteEvent}
+      />
+
+      {/* Edit Event Modal */}
+      <EditEventModal
+        event={editingEvent}
+        open={showEditModal}
+        onOpenChange={setShowEditModal}
+        onSave={handleSaveEvent}
+      />
         </div>
       </div>
     </DashboardLayout>
