@@ -23,6 +23,12 @@ export async function POST(request: NextRequest) {
     
     const { description } = await request.json();
     
+    console.log('Form generation request:', {
+      organizationId: userWithOrg.organizationId,
+      descriptionLength: description?.length || 0,
+      hasOpenAIKey: !!process.env.OPENAI_API_KEY
+    });
+    
     if (!description) {
       return NextResponse.json(
         { error: 'Description is required' },
@@ -50,8 +56,10 @@ Generate a JSON form schema with the following structure:
 
 Focus on creating comprehensive, legally sound forms for gym operations.`;
 
+    console.log('Calling OpenAI API...');
+    
     const response = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4-turbo',
       temperature: 0.7,
       messages: [
         {
@@ -64,6 +72,8 @@ Focus on creating comprehensive, legally sound forms for gym operations.`;
         }
       ]
     });
+    
+    console.log('OpenAI response received');
     
     // Extract the JSON from the response
     const content = response.choices[0]?.message?.content;
@@ -118,15 +128,29 @@ Focus on creating comprehensive, legally sound forms for gym operations.`;
     
   } catch (error: any) {
     console.error('Error generating form:', error);
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      response: error.response?.data
+    });
     
     // Return more detailed error for debugging
-    const errorMessage = error.message || 'Failed to generate form';
-    const isAnthropicError = error.message?.includes('Anthropic') || error.message?.includes('API');
+    let errorMessage = error.message || 'Failed to generate form';
+    
+    // Check for specific OpenAI errors
+    if (error.response?.data?.error) {
+      errorMessage = error.response.data.error.message || errorMessage;
+    }
     
     return NextResponse.json(
       { 
         error: errorMessage,
-        details: process.env.NODE_ENV === 'development' ? error.toString() : undefined
+        details: process.env.NODE_ENV === 'development' ? {
+          message: error.message,
+          name: error.name,
+          apiError: error.response?.data
+        } : undefined
       },
       { status: 500 }
     );

@@ -63,16 +63,23 @@ export default function FormsDocumentsPage() {
         body: JSON.stringify({ description: formDescription }),
       });
       
+      const data = await response.json();
+      console.log('API Response:', data);
+      
       if (!response.ok) {
-        throw new Error('Failed to generate form');
+        console.error('API Error:', data);
+        throw new Error(data.error || 'Failed to generate form');
       }
       
-      const data = await response.json();
-      console.log('Generated form:', data);
-      alert('Form generated successfully!');
-      setShowFormBuilder(false);
-      setFormDescription('');
-      fetchForms(); // Refresh the forms list
+      if (data.success) {
+        console.log('Generated form:', data.form);
+        alert('Form generated successfully!');
+        setShowFormBuilder(false);
+        setFormDescription('');
+        fetchForms(); // Refresh the forms list
+      } else {
+        throw new Error(data.error || 'Failed to generate form');
+      }
     } catch (error) {
       console.error('Error generating form:', error);
       alert('Failed to generate form. Please try again.');

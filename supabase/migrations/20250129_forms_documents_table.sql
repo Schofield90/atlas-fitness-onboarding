@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS forms (
   type TEXT DEFAULT 'custom' CHECK (type IN ('waiver', 'contract', 'health', 'policy', 'custom')),
   schema JSONB NOT NULL,
   is_active BOOLEAN DEFAULT true,
-  created_by UUID REFERENCES profiles(id),
+  created_by UUID,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS documents (
   file_name TEXT NOT NULL,
   file_size INTEGER,
   mime_type TEXT,
-  uploaded_by UUID REFERENCES profiles(id),
+  uploaded_by UUID,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -59,9 +59,9 @@ CREATE POLICY "Users can view forms from their organization"
   ON forms FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.organization_id = forms.organization_id
+      SELECT 1 FROM users
+      WHERE users.id = auth.uid()
+      AND users.organization_id = forms.organization_id
     )
   );
 
@@ -69,9 +69,9 @@ CREATE POLICY "Users can create forms for their organization"
   ON forms FOR INSERT
   WITH CHECK (
     EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.organization_id = forms.organization_id
+      SELECT 1 FROM users
+      WHERE users.id = auth.uid()
+      AND users.organization_id = forms.organization_id
     )
   );
 
@@ -79,9 +79,9 @@ CREATE POLICY "Users can update forms from their organization"
   ON forms FOR UPDATE
   USING (
     EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.organization_id = forms.organization_id
+      SELECT 1 FROM users
+      WHERE users.id = auth.uid()
+      AND users.organization_id = forms.organization_id
     )
   );
 
@@ -89,9 +89,9 @@ CREATE POLICY "Users can delete forms from their organization"
   ON forms FOR DELETE
   USING (
     EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.organization_id = forms.organization_id
+      SELECT 1 FROM users
+      WHERE users.id = auth.uid()
+      AND users.organization_id = forms.organization_id
     )
   );
 
@@ -100,9 +100,9 @@ CREATE POLICY "Users can view documents from their organization"
   ON documents FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.organization_id = documents.organization_id
+      SELECT 1 FROM users
+      WHERE users.id = auth.uid()
+      AND users.organization_id = documents.organization_id
     )
   );
 
@@ -110,9 +110,9 @@ CREATE POLICY "Users can upload documents for their organization"
   ON documents FOR INSERT
   WITH CHECK (
     EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.organization_id = documents.organization_id
+      SELECT 1 FROM users
+      WHERE users.id = auth.uid()
+      AND users.organization_id = documents.organization_id
     )
   );
 
@@ -120,9 +120,9 @@ CREATE POLICY "Users can delete documents from their organization"
   ON documents FOR DELETE
   USING (
     EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.organization_id = documents.organization_id
+      SELECT 1 FROM users
+      WHERE users.id = auth.uid()
+      AND users.organization_id = documents.organization_id
     )
   );
 
@@ -132,9 +132,9 @@ CREATE POLICY "Users can view submissions from their organization"
   USING (
     EXISTS (
       SELECT 1 FROM forms
-      JOIN profiles ON profiles.organization_id = forms.organization_id
+      JOIN users ON users.organization_id = forms.organization_id
       WHERE forms.id = form_submissions.form_id
-      AND profiles.id = auth.uid()
+      AND users.id = auth.uid()
     )
   );
 
