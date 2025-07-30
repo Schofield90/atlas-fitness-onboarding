@@ -95,8 +95,11 @@ export default function CalendarPage() {
       // Also fetch from local database
       try {
         const localResponse = await fetch(`/api/calendar/events?${params}`)
+        console.log('Local events response status:', localResponse.status)
+        
         if (localResponse.ok) {
           const localData = await localResponse.json()
+          console.log('Local events data:', localData)
           const localEvents = localData.events || []
           
           // Add local events that aren't already in Google Calendar (to avoid duplicates)
@@ -106,7 +109,10 @@ export default function CalendarPage() {
           )
           
           allEvents.push(...uniqueLocalEvents)
-          console.log(`Loaded ${uniqueLocalEvents.length} local events`)
+          console.log(`Loaded ${uniqueLocalEvents.length} unique local events`)
+          console.log('Unique local events:', uniqueLocalEvents)
+        } else {
+          console.error('Local events response not ok:', await localResponse.text())
         }
       } catch (error) {
         console.error('Error fetching local events:', error)
@@ -227,6 +233,15 @@ export default function CalendarPage() {
           {/* View Toggle */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  console.log('Force refreshing events...')
+                  fetchEvents()
+                }}
+                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors mr-4"
+              >
+                Refresh Events
+              </button>
               <button
                 onClick={() => setCalendarView('week')}
                 className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
