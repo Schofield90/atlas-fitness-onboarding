@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
 import { useSearchParams } from 'next/navigation'
 import DashboardLayout from '../components/DashboardLayout'
@@ -10,7 +10,7 @@ import Button from '@/app/components/ui/Button'
 import { Card } from '@/app/components/ui/Card'
 import { formatBritishCurrency } from '@/app/lib/utils/british-format'
 
-export default function BillingPage() {
+function BillingContent() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('subscription')
   const [organization, setOrganization] = useState<any>(null)
@@ -153,5 +153,13 @@ export default function BillingPage() {
         </div>
       </div>
     </DashboardLayout>
+  )
+}
+
+export default function BillingPage() {
+  return (
+    <Suspense fallback={<DashboardLayout><div className="flex items-center justify-center min-h-screen"><div className="text-gray-500">Loading billing information...</div></div></DashboardLayout>}>
+      <BillingContent />
+    </Suspense>
   )
 }

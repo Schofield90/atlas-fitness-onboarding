@@ -5,7 +5,8 @@ import { requireAuth, createErrorResponse } from '@/app/lib/api/auth-check'
 import { sendSMS, sendWhatsAppMessage } from '@/app/lib/services/twilio'
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const resendKey = process.env.RESEND_API_KEY
+const resend = resendKey ? new Resend(resendKey) : null
 
 export async function POST(request: NextRequest) {
   try {
@@ -83,6 +84,10 @@ export async function POST(request: NextRequest) {
             subject,
             hasApiKey: !!process.env.RESEND_API_KEY
           })
+          
+          if (!resend) {
+            throw new Error('Resend not configured')
+          }
           
           result = await resend.emails.send({
             from: `Atlas Fitness <${fromEmail}>`,
