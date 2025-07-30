@@ -3,9 +3,10 @@ import { createClient } from '@/app/lib/supabase/server'
 import { createAdminClient } from '@/app/lib/supabase/admin'
 import Stripe from 'stripe'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+const stripeKey = process.env.STRIPE_SECRET_KEY
+const stripe = stripeKey ? new Stripe(stripeKey, {
   apiVersion: '2025-06-30.basil',
-})
+}) : null
 
 export async function POST(request: NextRequest) {
   try {
@@ -48,6 +49,10 @@ export async function POST(request: NextRequest) {
     
     // Create new Stripe Connect account if doesn't exist
     if (!accountId) {
+      if (!stripe) {
+        return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 })
+      }
+      
       const account = await stripe.accounts.create({
         type: 'express',
         country: 'GB',
@@ -82,6 +87,10 @@ export async function POST(request: NextRequest) {
     }
     
     // Create account link for onboarding
+    if (!stripe) {
+      return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 })
+    }
+    
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
       refresh_url: `${process.env.NEXT_PUBLIC_APP_URL}/billing?tab=payments&stripe_refresh=true`,

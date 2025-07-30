@@ -14,15 +14,15 @@ import ReactFlow, {
   Panel,
   NodeToolbar,
   MarkerType,
-  type Connection,
-  type Edge,
-  type Node,
-  type ReactFlowInstance,
+  Connection,
+  Edge,
+  Node,
+  ReactFlowInstance,
   applyNodeChanges,
   applyEdgeChanges,
-  type NodeChange,
-  type EdgeChange,
-} from './ReactFlowWrapper'
+  NodeChange,
+  EdgeChange,
+} from 'reactflow'
 // ReactFlow styles are imported globally to avoid SSR issues
 import { 
   Save, 

@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/app/lib/supabase/server'
 import Stripe from 'stripe'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+const stripeKey = process.env.STRIPE_SECRET_KEY
+const stripe = stripeKey ? new Stripe(stripeKey, {
   apiVersion: '2025-06-30.basil',
-})
+}) : null
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,6 +38,11 @@ export async function POST(request: NextRequest) {
     
     if (!settings?.stripe_account_id) {
       return NextResponse.json({ error: 'No Stripe account connected' }, { status: 404 })
+    }
+    
+    // Check if Stripe is configured
+    if (!stripe) {
+      return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 })
     }
     
     // Create login link for Express dashboard

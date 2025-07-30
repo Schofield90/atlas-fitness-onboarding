@@ -9,9 +9,18 @@ console.log('Anthropic API Key status:', {
 })
 
 // Initialize Anthropic client
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || '',
-})
+let anthropic: Anthropic | null = null
+
+// Only initialize if we have a valid API key and not in build phase
+if (process.env.ANTHROPIC_API_KEY && process.env.NODE_ENV !== 'production') {
+  try {
+    anthropic = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    })
+  } catch (error) {
+    console.error('Failed to initialize Anthropic:', error)
+  }
+}
 
 export interface AIResponse {
   message: string
@@ -109,6 +118,10 @@ DOUBLE-CHECK: Before responding, verify you're using REAL data from the knowledg
       currentMessage: userMessage
     })
 
+    if (!anthropic) {
+      throw new Error('Anthropic not initialized')
+    }
+    
     const response = await anthropic.messages.create({
       model: 'claude-3-5-sonnet-20241022',
       max_tokens: 300,

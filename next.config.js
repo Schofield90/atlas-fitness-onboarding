@@ -1,14 +1,6 @@
-// Polyfill self for SSR
-if (typeof self === 'undefined') {
-  global.self = global;
-}
-
-const NodePolyfillPlugin = require('node-polyfill-webpack-plugin');
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
-  swcMinify: true,
   
   // Enable experimental features for better performance
   experimental: {
@@ -17,7 +9,9 @@ const nextConfig = {
       'lucide-react',
       'date-fns',
       'recharts'
-    ]
+    ],
+    // Disable static page generation for API routes
+    isrMemoryCacheSize: 0
   },
   
   // External packages for server components
@@ -25,96 +19,9 @@ const nextConfig = {
     'twilio',
     'openai',
     '@anthropic-ai/sdk',
-    'reactflow',
-    '@reactflow/core',
-    '@reactflow/node-resizer',
-    '@reactflow/node-toolbar',
-    '@reactflow/controls',
-    '@reactflow/background',
-    '@reactflow/minimap',
-    '@dnd-kit/core',
-    '@dnd-kit/sortable'
+    'bullmq',
+    'ioredis'
   ],
-  
-  // Webpack optimizations
-  webpack: (config, { dev, isServer, webpack }) => {
-    // Add banner to inject polyfills at the start of JS chunks only
-    config.plugins.push(
-      new webpack.BannerPlugin({
-        banner: 'if (typeof self === "undefined") { global.self = global; }',
-        raw: true,
-        entryOnly: false,
-        test: /\.js$/
-      })
-    );
-    
-    // Add node polyfills for client
-    if (!isServer) {
-      config.plugins.push(new NodePolyfillPlugin());
-    }
-    
-    // Ignore browser-only modules on server
-    if (isServer) {
-      config.plugins.push(
-        new webpack.IgnorePlugin({
-          resourceRegExp: /^(reactflow|@reactflow|@dnd-kit)/,
-        })
-      );
-    }
-    
-    // Optimize for production
-    if (!dev) {
-      config.optimization = {
-        ...config.optimization,
-        moduleIds: 'deterministic',
-        splitChunks: {
-          chunks: 'all',
-          cacheGroups: {
-            default: false,
-            vendors: false,
-            // Vendor chunk
-            vendor: {
-              name: 'vendor',
-              chunks: 'all',
-              test: /node_modules/,
-              priority: 20
-            },
-            // Common chunk
-            common: {
-              name: 'common',
-              minChunks: 2,
-              chunks: 'all',
-              priority: 10,
-              reuseExistingChunk: true,
-              enforce: true
-            }
-          }
-        }
-      };
-    }
-    
-    // Ignore certain warnings
-    config.ignoreWarnings = [
-      { module: /node_modules\/punycode/ },
-      { module: /node_modules\/encoding/ }
-    ];
-    
-    // Add bundle analyzer
-    if (process.env.ANALYZE === 'true') {
-      const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
-      config.plugins.push(
-        new BundleAnalyzerPlugin({
-          analyzerMode: 'static',
-          reportFilename: isServer
-            ? '../analyze/server.html'
-            : './analyze/client.html',
-          openAnalyzer: false
-        })
-      );
-    }
-    
-    return config;
-  },
   
   // Image optimization
   images: {
@@ -180,20 +87,5 @@ const nextConfig = {
     NEXT_TELEMETRY_DISABLED: '1'
   }
 };
-
-// Add turbopack configuration if using --turbo
-if (process.env.TURBOPACK) {
-  nextConfig.experimental = {
-    ...nextConfig.experimental,
-    turbo: {
-      rules: {
-        '*.svg': {
-          loaders: ['@svgr/webpack'],
-          as: '*.js',
-        },
-      },
-    },
-  };
-}
 
 module.exports = nextConfig;

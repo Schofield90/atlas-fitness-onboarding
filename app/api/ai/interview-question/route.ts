@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-})
+const anthropicKey = process.env.ANTHROPIC_API_KEY
+const anthropic = anthropicKey ? new Anthropic({
+  apiKey: anthropicKey,
+}) : null
 
 // Categories of information the AI needs to know
 const questionCategories = [
@@ -87,6 +88,10 @@ Return JSON in this format:
   "context": "Brief explanation why this info is important (optional)"
 }`
 
+    if (!anthropic) {
+      return NextResponse.json({ error: 'Anthropic not configured' }, { status: 500 })
+    }
+    
     const response = await anthropic.messages.create({
       model: 'claude-3-5-sonnet-20241022',
       max_tokens: 300,

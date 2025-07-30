@@ -8,13 +8,13 @@ import ReactFlow, {
   useEdgesState,
   Controls,
   Background,
+  Connection,
+  Edge,
+  Node,
   Handle,
   Position,
-  type Connection,
-  type Edge,
-  type Node,
-  type NodeProps,
-} from './ReactFlowWrapper'
+  NodeProps
+} from 'reactflow'
 // ReactFlow styles are imported globally to avoid SSR issues
 
 // Simple trigger node component
