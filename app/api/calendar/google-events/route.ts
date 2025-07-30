@@ -69,6 +69,12 @@ export async function GET(request: NextRequest) {
       }))
       
       console.log(`Fetched ${transformedEvents.length} events from Google Calendar`)
+      console.log('Date range:', { start: start || startDate, end: end || endDate })
+      console.log('Sample events:', transformedEvents.slice(0, 3).map(e => ({
+        title: e.title,
+        start: e.startTime,
+        end: e.endTime
+      })))
       
       return NextResponse.json({ 
         events: transformedEvents,

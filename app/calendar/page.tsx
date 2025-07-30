@@ -67,12 +67,14 @@ export default function CalendarPage() {
   const fetchEvents = async () => {
     setLoadingEvents(true)
     try {
-      const startOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1)
-      const endOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0)
+      // Get wider date range to ensure we get all events
+      const today = new Date()
+      const startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1) // 1 month ago
+      const endDate = new Date(today.getFullYear(), today.getMonth() + 2, 0) // 2 months ahead
       
       const params = new URLSearchParams({
-        start: startOfMonth.toISOString(),
-        end: endOfMonth.toISOString()
+        start: startDate.toISOString(),
+        end: endDate.toISOString()
       })
       
       // Try to fetch from Google Calendar first

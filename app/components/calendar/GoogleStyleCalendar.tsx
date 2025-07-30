@@ -57,20 +57,7 @@ export function GoogleStyleCalendar({
     }
   }, [view])
 
-  // Synchronize scrolling between time labels and calendar content
-  useEffect(() => {
-    const handleScroll = () => {
-      if (timelineRef.current && hoursRef.current) {
-        hoursRef.current.scrollTop = timelineRef.current.scrollTop
-      }
-    }
-
-    const timeline = timelineRef.current
-    if (timeline) {
-      timeline.addEventListener('scroll', handleScroll)
-      return () => timeline.removeEventListener('scroll', handleScroll)
-    }
-  }, [view])
+  // No longer need scroll sync since time labels are inside the scrollable area
 
   const getWeekStart = (date: Date) => {
     const d = new Date(date)
@@ -217,25 +204,25 @@ export function GoogleStyleCalendar({
         </div>
 
         {/* Calendar Grid */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Time labels */}
-          <div className="w-16 bg-gray-900 border-r border-gray-700 sticky left-0 z-10">
-            <div className="h-12 border-b border-gray-700" /> {/* Spacer for day headers */}
-            <div ref={hoursRef} className="overflow-hidden">
-              {Array.from({ length: 24 }).map((_, hour) => (
-                <div
-                  key={hour}
-                  className="h-[60px] px-2 py-1 text-xs text-gray-400 text-right"
-                >
-                  {hour === 0 ? '' : formatTime(hour)}
-                </div>
-              ))}
+        <div className="flex-1 overflow-auto google-calendar-scrollbar" ref={timelineRef}>
+          <div className="flex">
+            {/* Time labels - now inside scrollable area */}
+            <div className="w-16 bg-gray-900 border-r border-gray-700 sticky left-0 z-10">
+              <div className="h-12 bg-gray-900 border-b border-gray-700 sticky top-0" /> {/* Spacer for day headers */}
+              <div>
+                {Array.from({ length: 24 }).map((_, hour) => (
+                  <div
+                    key={hour}
+                    className="h-[60px] px-2 py-1 text-xs text-gray-400 text-right border-b border-gray-700"
+                  >
+                    {hour === 0 ? '' : formatTime(hour)}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* Days and time slots */}
-          <div className="flex-1 overflow-auto google-calendar-scrollbar" ref={timelineRef}>
-            <div className="flex h-full">
+            {/* Days and time slots */}
+            <div className="flex flex-1">
               {weekDays.map((day, dayIndex) => (
                 <div key={dayIndex} className="flex-1 border-r border-gray-700 last:border-r-0">
                   {/* Day header */}
