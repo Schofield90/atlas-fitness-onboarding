@@ -44,12 +44,12 @@ export async function GET(request: NextRequest) {
     
     try {
       // Fetch events from Google Calendar
-      const events = await listCalendarEvents(tokenData, calendarId, {
-        timeMin: start || new Date().toISOString(),
-        timeMax: end || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ahead
-        singleEvents: true,
-        orderBy: 'startTime'
-      })
+      const events = await listCalendarEvents(
+        tokenData, 
+        calendarId,
+        start || new Date().toISOString(),
+        end || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days ahead
+      )
       
       // Transform Google Calendar events to our format
       const transformedEvents = events.map((event: any) => ({
