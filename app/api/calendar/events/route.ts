@@ -154,15 +154,17 @@ export async function POST(request: NextRequest) {
       eventData.meeting_url = `https://meet.gymleadhub.com/${Date.now()}`
     }
     
-    // Check if Google Calendar is connected
-    const { data: settings } = await supabase
-      .from('calendar_settings')
-      .select('google_calendar_connected')
+    // Check if Google Calendar is connected by looking for tokens
+    const { data: googleTokens } = await supabase
+      .from('google_calendar_tokens')
+      .select('id')
       .eq('user_id', user.id)
       .single()
     
+    console.log('Google Calendar tokens found:', !!googleTokens)
+    
     // Create event in Google Calendar if connected
-    if (settings?.google_calendar_connected) {
+    if (googleTokens) {
       try {
         const googleResult = await createGoogleCalendarEvent(user.id, {
           title: eventData.title,
@@ -177,8 +179,12 @@ export async function POST(request: NextRequest) {
         if (googleResult.meetingUrl) {
           eventData.meeting_url = googleResult.meetingUrl
         }
-      } catch (error) {
-        console.error('Failed to create Google Calendar event:', error)
+      } catch (error: any) {
+        console.error('Failed to create Google Calendar event:', {
+          message: error.message,
+          code: error.code,
+          details: error
+        })
         // Continue creating local event even if Google Calendar fails
       }
     }
