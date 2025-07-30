@@ -35,20 +35,21 @@ const nextConfig = {
   
   // Webpack optimizations
   webpack: (config, { dev, isServer, webpack }) => {
-    // Polyfill self on server
+    // Handle polyfills
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      global: false,
+    };
+    
+    // Provide polyfills
+    config.plugins.push(
+      new webpack.ProvidePlugin({
+        global: 'globalThis',
+      })
+    );
+    
+    // Fix for browser-only packages on server
     if (isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        self: false,
-      };
-      
-      // Use ProvidePlugin to polyfill self
-      config.plugins.push(
-        new webpack.ProvidePlugin({
-          self: 'global',
-        })
-      );
-      
       // Ignore browser-only modules
       config.plugins.push(
         new webpack.IgnorePlugin({
