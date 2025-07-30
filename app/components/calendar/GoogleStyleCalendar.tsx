@@ -37,6 +37,8 @@ export function GoogleStyleCalendar({
   events = [],
   view = 'week'
 }: GoogleStyleCalendarProps) {
+  console.log('GoogleStyleCalendar - Total events received:', events.length)
+  console.log('GoogleStyleCalendar - First 5 events:', events.slice(0, 5))
   const [currentDate, setCurrentDate] = useState(new Date(selectedDate))
   const [currentTime, setCurrentTime] = useState(new Date())
   const timelineRef = useRef<HTMLDivElement>(null)
@@ -138,10 +140,14 @@ export function GoogleStyleCalendar({
   }
 
   const getEventsForDay = (date: Date) => {
-    return events.filter(event => {
+    const dayEvents = events.filter(event => {
       const eventDate = new Date(event.startTime)
       return eventDate.toDateString() === date.toDateString()
     })
+    if (dayEvents.length > 0) {
+      console.log(`Events for ${date.toDateString()}:`, dayEvents)
+    }
+    return dayEvents
   }
 
   const handleTimeSlotClick = (date: Date, hour: number) => {
