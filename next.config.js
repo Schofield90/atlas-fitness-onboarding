@@ -28,6 +28,13 @@ const nextConfig = {
   webpack: (config, { dev, isServer, webpack }) => {
     // Fix for browser-only packages
     if (isServer) {
+      // Ensure self is defined for all modules
+      config.plugins.unshift(
+        new webpack.DefinePlugin({
+          self: 'global',
+        })
+      );
+      
       // Use webpack externals to completely exclude these packages from server bundle
       config.externals = [...(config.externals || []), {
         'reactflow': 'commonjs reactflow',
@@ -42,6 +49,13 @@ const nextConfig = {
         '@dnd-kit/utilities': 'commonjs @dnd-kit/utilities',
         '@dnd-kit/modifiers': 'commonjs @dnd-kit/modifiers',
       }];
+      
+      // Also handle the reactflow CSS
+      config.module.rules.push({
+        test: /reactflow.*\.css$/,
+        use: 'null-loader',
+        sideEffects: false,
+      });
     }
     
     // Optimize for production
