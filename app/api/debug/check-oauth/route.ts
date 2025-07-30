@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
         redirectUri: redirectUri,
         authUrl: authUrl,
         authUrlParams: params,
-        actualRedirectUri: oauth2Client._opts.redirectUri || 'not set'
+        actualRedirectUri: redirectUri
       },
       instructions: [
         "Check that redirectUri matches EXACTLY what's in Google Console",
