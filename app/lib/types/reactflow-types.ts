@@ -1,6 +1,13 @@
 // ReactFlow type definitions to avoid importing from the library
 // This prevents SSR issues while maintaining type safety
 
+export enum Position {
+  Left = 'left',
+  Top = 'top',
+  Right = 'right',
+  Bottom = 'bottom',
+}
+
 export interface Node<T = any> {
   id: string;
   type?: string;
@@ -15,8 +22,8 @@ export interface Node<T = any> {
   dragging?: boolean;
   className?: string;
   style?: React.CSSProperties;
-  sourcePosition?: 'top' | 'right' | 'bottom' | 'left';
-  targetPosition?: 'top' | 'right' | 'bottom' | 'left';
+  sourcePosition?: Position;
+  targetPosition?: Position;
   parentNode?: string;
   extent?: 'parent' | [[number, number], [number, number]];
   expandParent?: boolean;
@@ -66,6 +73,6 @@ export interface NodeProps<T = any> {
   yPos: number;
   dragging: boolean;
   zIndex: number;
-  targetPosition?: 'top' | 'right' | 'bottom' | 'left';
-  sourcePosition?: 'top' | 'right' | 'bottom' | 'left';
+  targetPosition?: Position;
+  sourcePosition?: Position;
 }
