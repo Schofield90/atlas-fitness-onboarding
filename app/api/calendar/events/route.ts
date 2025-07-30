@@ -63,11 +63,17 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient()
     const body = await request.json()
     
+    console.log('=== Calendar Event Creation Debug ===')
+    
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
+      console.error('Auth error:', authError)
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    
+    console.log('User authenticated:', user.id)
+    console.log('User metadata:', user.user_metadata)
     
     // Validate required fields
     if (!body.title || !body.startTime || !body.endTime) {
@@ -77,7 +83,28 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    const organizationId = user.user_metadata?.organization_id || user.id
+    // Get organization from user_organizations table (new approach)
+    const { data: membership, error: membershipError } = await supabase
+      .from('user_organizations')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .order('created_at')
+      .limit(1)
+      .single()
+    
+    if (membershipError || !membership) {
+      console.error('No organization membership found:', membershipError)
+      // Fallback to metadata or default
+      const organizationId = user.user_metadata?.organization_id || '63589490-8f55-4157-bd3a-e141594b748e'
+      console.log('Using fallback organization ID:', organizationId)
+    } else {
+      console.log('Found organization membership:', membership.organization_id)
+    }
+    
+    const organizationId = membership?.organization_id || 
+                          user.user_metadata?.organization_id || 
+                          '63589490-8f55-4157-bd3a-e141594b748e' // Atlas Fitness default
     
     // Prepare event data
     const eventData = {
@@ -128,6 +155,8 @@ export async function POST(request: NextRequest) {
       }
     }
     
+    console.log('Event data to insert:', JSON.stringify(eventData, null, 2))
+    
     // Create event in database
     const { data: newEvent, error } = await supabase
       .from('calendar_events')
@@ -136,9 +165,21 @@ export async function POST(request: NextRequest) {
       .single()
     
     if (error) {
-      console.error('Error creating event:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      console.error('Database insert error:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      })
+      return NextResponse.json({ 
+        error: 'Failed to create event',
+        details: error.message,
+        code: error.code,
+        hint: error.hint
+      }, { status: 500 })
     }
+    
+    console.log('Event created successfully:', newEvent)
     
     // TODO: Send calendar invite email if requested
     if (body.sendCalendarInvite && body.attendees?.length > 0) {
