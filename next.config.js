@@ -1,3 +1,8 @@
+// Polyfill self for SSR
+if (typeof self === 'undefined') {
+  global.self = global;
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
@@ -41,6 +46,23 @@ const nextConfig = {
         '@dnd-kit/utilities': require.resolve('./app/lib/mocks/empty.js'),
         '@dnd-kit/modifiers': require.resolve('./app/lib/mocks/empty.js'),
       };
+      
+      // Add DefinePlugin to define self globally
+      config.plugins.push(
+        new webpack.DefinePlugin({
+          'typeof self': JSON.stringify('object'),
+          'self': 'global',
+        })
+      );
+      
+      // Add banner to ensure polyfill runs first
+      config.plugins.push(
+        new webpack.BannerPlugin({
+          banner: 'if (typeof self === "undefined") { global.self = global; }',
+          raw: true,
+          entryOnly: false,
+        })
+      );
     }
     
     // Optimize for production
