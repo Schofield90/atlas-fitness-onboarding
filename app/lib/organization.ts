@@ -93,7 +93,7 @@ export async function getUserOrganizations(userId: string): Promise<UserOrganiza
       organization_id,
       role,
       is_active,
-      organization:organizations(
+      organization:organizations!inner(
         id,
         name,
         subdomain,
@@ -110,7 +110,15 @@ export async function getUserOrganizations(userId: string): Promise<UserOrganiza
     return []
   }
   
-  return data || []
+  // Transform the data to match UserOrganization interface
+  const transformedData: UserOrganization[] = (data || []).map(item => ({
+    organization_id: item.organization_id,
+    role: item.role,
+    is_active: item.is_active,
+    organization: item.organization as Organization
+  }))
+  
+  return transformedData
 }
 
 /**
