@@ -56,13 +56,17 @@ export async function GET(request: NextRequest) {
     const adminSupabase = createAdminClient()
     
     // First, delete any existing tokens for this user
-    await adminSupabase
+    const { error: deleteError } = await adminSupabase
       .from('google_calendar_tokens')
       .delete()
       .eq('user_id', user.id)
     
+    if (deleteError) {
+      console.error('Error deleting existing tokens:', deleteError)
+    }
+    
     // Create new token record
-    const { error: dbError } = await adminSupabase
+    const { data: insertedToken, error: dbError } = await adminSupabase
       .from('google_calendar_tokens')
       .insert({
         user_id: user.id,
@@ -72,6 +76,10 @@ export async function GET(request: NextRequest) {
         token_type: tokens.token_type,
         scope: tokens.scope
       })
+      .select()
+      .single()
+    
+    console.log('Token insertion result:', { insertedToken: insertedToken ? 'success' : 'failed', error: dbError })
     
     if (dbError) {
       console.error('Error storing tokens:', dbError)
