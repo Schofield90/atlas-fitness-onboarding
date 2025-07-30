@@ -3,9 +3,12 @@ if (typeof self === 'undefined') {
   global.self = global;
 }
 
+const NodePolyfillPlugin = require('node-polyfill-webpack-plugin');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
+  swcMinify: true,
   
   // Enable experimental features for better performance
   experimental: {
@@ -35,9 +38,23 @@ const nextConfig = {
   
   // Webpack optimizations
   webpack: (config, { dev, isServer, webpack }) => {
-    // Fix for browser-only packages on server
+    // Add banner to inject polyfills at the start of JS chunks only
+    config.plugins.push(
+      new webpack.BannerPlugin({
+        banner: 'if (typeof self === "undefined") { global.self = global; }',
+        raw: true,
+        entryOnly: false,
+        test: /\.js$/
+      })
+    );
+    
+    // Add node polyfills for client
+    if (!isServer) {
+      config.plugins.push(new NodePolyfillPlugin());
+    }
+    
+    // Ignore browser-only modules on server
     if (isServer) {
-      // Ignore browser-only modules
       config.plugins.push(
         new webpack.IgnorePlugin({
           resourceRegExp: /^(reactflow|@reactflow|@dnd-kit)/,

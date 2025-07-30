@@ -3,15 +3,19 @@
 import dynamic from 'next/dynamic'
 
 // Dynamic import to avoid SSR issues with ReactFlow
-const ReactFlowProvider = dynamic(
-  () => import('reactflow').then(mod => mod.ReactFlowProvider),
-  { ssr: false }
-)
+// Temporarily disable ReactFlow to debug build issue
+const ReactFlowProvider = ({ children }: { children: React.ReactNode }) => <>{children}</>
 
-const SimpleWorkflowBuilder = dynamic(
-  () => import('@/app/components/automation/SimpleWorkflowBuilder'),
-  { ssr: false, loading: () => <div className="flex items-center justify-center h-full text-white">Loading workflow builder...</div> }
-)
+const SimpleWorkflowBuilder = () => {
+  return (
+    <div className="flex items-center justify-center h-full text-white">
+      <div className="text-center">
+        <p className="text-xl mb-4">Workflow Builder Temporarily Disabled</p>
+        <p className="text-gray-400">We're fixing a build issue. Check back soon!</p>
+      </div>
+    </div>
+  )
+}
 
 export default function WorkflowBuilderPage() {
   return (

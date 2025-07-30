@@ -6,14 +6,17 @@ import dynamic from 'next/dynamic'
 import DashboardLayout from '@/app/components/DashboardLayout'
 import type { Workflow } from '@/app/lib/types/automation'
 
-// Dynamic import to avoid SSR issues
-const WorkflowBuilder = dynamic(
-  () => import('@/app/components/automation/WorkflowBuilder'),
-  { 
-    ssr: false,
-    loading: () => <div className="flex items-center justify-center h-full text-white">Loading workflow builder...</div>
-  }
-)
+// Temporarily disable ReactFlow to debug build issue
+const WorkflowBuilder = (props: any) => {
+  return (
+    <div className="flex items-center justify-center h-full text-white">
+      <div className="text-center">
+        <p className="text-xl mb-4">Workflow Builder Temporarily Disabled</p>
+        <p className="text-gray-400">We're fixing a build issue. Check back soon!</p>
+      </div>
+    </div>
+  )
+}
 
 export default function EditWorkflowPage() {
   const router = useRouter()
