@@ -11,6 +11,7 @@ interface Form {
   type: string
   is_active: boolean
   created_at: string
+  schema?: any
 }
 
 export default function FormsDocumentsPage() {
@@ -95,8 +96,11 @@ export default function FormsDocumentsPage() {
   
   const saveForm = async () => {
     try {
-      const response = await fetch('/api/forms/save', {
-        method: 'POST',
+      const url = generatedForm.id ? '/api/forms/update' : '/api/forms/save';
+      const method = generatedForm.id ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -109,9 +113,10 @@ export default function FormsDocumentsPage() {
         throw new Error(data.error || 'Failed to save form');
       }
       
-      alert('Form saved successfully!');
+      alert(generatedForm.id ? 'Form updated successfully!' : 'Form saved successfully!');
       setShowFormPreview(false);
       setGeneratedForm(null);
+      setEditingForm(false);
       fetchForms(); // Refresh the forms list
     } catch (error: any) {
       console.error('Error saving form:', error);
@@ -157,6 +162,18 @@ export default function FormsDocumentsPage() {
         fields: prev.schema.fields.filter((field: any) => field.id !== fieldId)
       }
     }));
+  }
+  
+  const viewForm = (form: Form) => {
+    setGeneratedForm(form);
+    setShowFormPreview(true);
+    setEditingForm(false);
+  }
+  
+  const editForm = (form: Form) => {
+    setGeneratedForm(form);
+    setShowFormPreview(true);
+    setEditingForm(true);
   }
 
   return (
@@ -248,13 +265,21 @@ export default function FormsDocumentsPage() {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <button className="text-gray-400 hover:text-white p-2">
+                        <button 
+                          onClick={() => viewForm(form)}
+                          className="text-gray-400 hover:text-white p-2"
+                          title="View form"
+                        >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                           </svg>
                         </button>
-                        <button className="text-gray-400 hover:text-white p-2">
+                        <button 
+                          onClick={() => editForm(form)}
+                          className="text-gray-400 hover:text-white p-2"
+                          title="Edit form"
+                        >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
@@ -385,8 +410,10 @@ export default function FormsDocumentsPage() {
                 <div className="p-6 border-b border-gray-700">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h3 className="text-xl font-bold">Form Preview</h3>
-                      <p className="text-gray-400 mt-1">Review and edit your form before saving</p>
+                      <h3 className="text-xl font-bold">{editingForm ? 'Edit Form' : 'View Form'}</h3>
+                      <p className="text-gray-400 mt-1">
+                        {editingForm ? 'Make changes to your form' : (generatedForm.id ? 'Review your saved form' : 'Review and edit your form before saving')}
+                      </p>
                     </div>
                     <button 
                       onClick={() => {
@@ -410,8 +437,9 @@ export default function FormsDocumentsPage() {
                       <input 
                         type="text"
                         value={generatedForm.title}
-                        onChange={(e) => setGeneratedForm({ ...generatedForm, title: e.target.value })}
-                        className="w-full px-4 py-2 bg-gray-700 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                        onChange={(e) => editingForm && setGeneratedForm({ ...generatedForm, title: e.target.value })}
+                        readOnly={!editingForm && generatedForm.id}
+                        className={`w-full px-4 py-2 bg-gray-700 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none ${!editingForm && generatedForm.id ? 'opacity-75 cursor-not-allowed' : ''}`}
                       />
                     </div>
                     <div>
