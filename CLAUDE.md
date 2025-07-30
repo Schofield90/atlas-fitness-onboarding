@@ -1,6 +1,38 @@
 # Atlas Fitness Onboarding - Development Notes
 
-## 🎯 Current Status Summary (January 30, 2025)
+## 🎯 Current Status Summary (January 30, 2025 - 8:00 PM)
+
+### 🚀 MAJOR UPDATE: SSR Build Issues Resolved!
+
+**Build Status**: ✅ **WORKING** - Successfully building on Vercel!
+
+After extensive debugging, all Server-Side Rendering (SSR) build errors have been resolved. The application now builds and deploys successfully on Vercel.
+
+### 🔧 Build Issues Fixed (January 30, 2025):
+
+1. **Webpack Runtime Errors** ❌ → ✅
+   - Removed complex webpack polyfills causing "Cannot read properties of undefined (reading 'length')"
+   - Simplified next.config.js removing problematic configurations
+
+2. **Supabase SSR "document is not defined"** ❌ → ✅
+   - Added `export const dynamic = 'force-dynamic'` to affected pages
+   - Prevented static generation where browser APIs were used
+
+3. **Anthropic SDK Browser Detection** ❌ → ✅
+   - Implemented lazy initialization pattern
+   - SDK only instantiates when actually needed, not during build
+
+4. **Stripe API Initialization Errors** ❌ → ✅
+   - Added null checks to all Stripe initializations
+   - Created centralized stripe-server.ts helper (though using inline checks)
+
+5. **React Suspense Boundaries** ❌ → ✅
+   - Added Suspense wrapper for useSearchParams in billing page
+   - Fixed "useSearchParams requires Suspense" errors
+
+6. **Vercel Cron Job Limit** ❌ → ✅
+   - Removed calendar sync cron job from vercel.json
+   - Staying within 2 cron job limit on current plan
 
 ### What's Working:
 - ✅ **Email/SMS/WhatsApp**: All messaging features working, two-way conversations tracked
@@ -16,12 +48,57 @@
 - ✅ **Forms/Documents**: AI-powered form generation using OpenAI GPT-4
 - ✅ **Database Migrations**: Advanced features including workflows, analytics, and message templates
 - ✅ **Vercel CLI Optimization**: 30-60 second deployments with optimized build scripts
+- ✅ **SaaS Billing**: Complete Stripe subscription system with Connect marketplace
+- ✅ **SSR Build**: All Next.js 15 SSR compatibility issues resolved
+
+### 🚨 IMMEDIATE NEXT STEPS:
+
+1. **Add Environment Variables to Vercel** (CRITICAL):
+   ```env
+   # Required for app to function:
+   NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+   
+   # Messaging:
+   TWILIO_ACCOUNT_SID=your-twilio-sid
+   TWILIO_AUTH_TOKEN=your-twilio-token
+   TWILIO_SMS_FROM=+1234567890
+   TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
+   USER_PHONE_NUMBER=+447777777777  # Your phone for call bridging
+   RESEND_API_KEY=your-resend-key
+   
+   # AI & Forms:
+   ANTHROPIC_API_KEY=your-anthropic-key
+   OPENAI_API_KEY=your-openai-key
+   
+   # Payments:
+   STRIPE_SECRET_KEY=sk_test_xxx
+   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_xxx
+   STRIPE_WEBHOOK_SECRET=whsec_xxx
+   
+   # Google Calendar:
+   GOOGLE_CLIENT_ID=your-google-client-id
+   GOOGLE_CLIENT_SECRET=your-google-client-secret
+   ```
+
+2. **Test Core Features**:
+   - Login to dashboard: https://atlas-fitness-onboarding.vercel.app
+   - Send test WhatsApp/SMS
+   - Create a form
+   - Add a staff member
+
+3. **Fix Remaining Issues**:
+   - Add `USER_PHONE_NUMBER` for call feature
+   - Create sample booking data
+   - Re-enable middleware authentication (currently disabled)
 
 ### What Needs Fixing:
 - 🔧 **Call Feature**: "Failed to initiate call" - Need to set USER_PHONE_NUMBER env variable
 - 🔧 **Booking Data**: System built but needs sample data created
+- 🔧 **Middleware Auth**: Currently disabled to fix SSR issues
 
-### Next Actions:
+### Next Development Tasks:
 1. Add `USER_PHONE_NUMBER=+44YourPhoneNumber` to Vercel environment variables
 2. Visit https://atlas-fitness-onboarding.vercel.app/call-test to debug calls
 3. Create sample booking data for testing
@@ -395,8 +472,66 @@ vercel --prod
 
 ---
 
-**Last Updated**: January 30, 2025 (6:00 PM)
-**Last Commit**: Implemented SaaS Billing & Stripe Connect for gym payments
+## 📝 Technical Notes: SSR Build Fix Details
+
+### Problem Summary:
+Next.js 15 with App Router was failing to build on Vercel due to various SSR incompatibilities where client-side code was being executed during the build/static generation phase.
+
+### Solutions Applied:
+
+1. **Force Dynamic Rendering**:
+   ```typescript
+   export const dynamic = 'force-dynamic'
+   ```
+   Added to pages using Supabase client or browser-only APIs.
+
+2. **Lazy Initialization Pattern**:
+   ```typescript
+   // Before (fails at build time):
+   const anthropic = new Anthropic({ apiKey })
+   
+   // After (only initializes when needed):
+   let anthropic: Anthropic | null = null
+   function getAnthropicClient() {
+     if (!anthropic && process.env.ANTHROPIC_API_KEY) {
+       anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+     }
+     return anthropic
+   }
+   ```
+
+3. **Conditional API Initialization**:
+   ```typescript
+   const stripe = process.env.STRIPE_SECRET_KEY 
+     ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-06-30.basil' })
+     : null
+   ```
+
+4. **Suspense Boundaries**:
+   ```typescript
+   import { Suspense } from 'react'
+   
+   export default function BillingPage() {
+     return (
+       <Suspense fallback={<div>Loading...</div>}>
+         <BillingContent />
+       </Suspense>
+     )
+   }
+   ```
+
+### Key Files Modified:
+- `/app/lib/ai/anthropic.ts` - Lazy initialization
+- `/app/api/ai/interview-question/route.ts` - Lazy initialization
+- Multiple Stripe API routes - Added null checks
+- `/app/billing/page.tsx` - Added Suspense
+- `/app/login/page.tsx` & `/app/signup/page.tsx` - Force dynamic
+- `/middleware.ts` - Simplified (temporarily disabled auth)
+- `/next.config.js` - Removed invalid options
+- `/vercel.json` - Removed cron job
+
+**Last Updated**: January 30, 2025 (8:00 PM)
+**Last Commit**: Fixed SSR build errors and removed cron job for deployment
 
 ## 💳 SaaS Billing & Stripe Connect Implementation (January 30, 2025)
 
