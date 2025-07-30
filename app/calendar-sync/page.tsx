@@ -16,40 +16,66 @@ export default function CalendarSyncPage() {
     sync_staff_schedules: false,
     sync_direction: 'both'
   })
+  const [processingAuth, setProcessingAuth] = useState(false)
   
   const supabase = createClient()
 
   useEffect(() => {
-    checkConnection()
-    
     // Check for OAuth callback
     const params = new URLSearchParams(window.location.search)
     if (params.get('success') === 'true') {
-      checkConnection()
-      loadCalendars()
+      setProcessingAuth(true)
+      // Clear URL parameters
+      window.history.replaceState({}, '', '/calendar-sync')
+      // Give the database a moment to settle, then check connection
+      setTimeout(() => {
+        checkConnection()
+        setProcessingAuth(false)
+      }, 1500)
     } else if (params.get('error')) {
       console.error('OAuth error:', params.get('error'))
+      // Clear URL parameters
+      window.history.replaceState({}, '', '/calendar-sync')
+      checkConnection()
+    } else {
+      // Normal page load
+      checkConnection()
     }
   }, [])
 
   const checkConnection = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    
-    if (user) {
-      const { data } = await supabase
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      
+      if (userError || !user) {
+        console.error('Error getting user:', userError)
+        setLoading(false)
+        return
+      }
+      
+      const { data, error } = await supabase
         .from('google_calendar_tokens')
         .select('*')
         .eq('user_id', user.id)
         .single()
       
+      // Don't treat "no rows" as an error for connection status
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error checking connection:', error)
+      }
+      
       setIsConnected(!!data)
       
       if (data) {
-        loadSyncSettings()
+        await loadSyncSettings()
+        // If connected, also load calendars
+        await loadCalendars()
       }
+    } catch (error) {
+      console.error('Error in checkConnection:', error)
+    } finally {
+      setLoading(false)
     }
-    
-    setLoading(false)
   }
 
   const loadCalendars = async () => {
@@ -65,14 +91,28 @@ export default function CalendarSyncPage() {
   }
 
   const loadSyncSettings = async () => {
-    const { data } = await supabase
-      .from('calendar_sync_settings')
-      .select('*')
-      .single()
-    
-    if (data) {
-      setSyncSettings(data)
-      setSelectedCalendar(data.google_calendar_id)
+    try {
+      const { data, error } = await supabase
+        .from('calendar_sync_settings')
+        .select('*')
+        .single()
+      
+      // Don't treat "no rows" as an error
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading sync settings:', error)
+      }
+      
+      if (data) {
+        setSyncSettings({
+          sync_bookings: data.sync_bookings,
+          sync_classes: data.sync_classes,
+          sync_staff_schedules: data.sync_staff_schedules,
+          sync_direction: data.sync_direction
+        })
+        setSelectedCalendar(data.google_calendar_id)
+      }
+    } catch (error) {
+      console.error('Error in loadSyncSettings:', error)
     }
   }
 
@@ -132,10 +172,15 @@ export default function CalendarSyncPage() {
     }
   }
 
-  if (loading) {
+  if (loading || processingAuth) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          {processingAuth && (
+            <p className="text-gray-400">Completing Google Calendar connection...</p>
+          )}
+        </div>
       </div>
     )
   }
