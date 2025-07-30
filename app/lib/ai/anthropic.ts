@@ -28,8 +28,8 @@ export async function generateAIResponse(
   userMessage: string,
   phoneNumber: string,
   knowledgeContext: string,
-  conversationHistory?: Array<{ role: 'user' | 'assistant'; message: string; timestamp?: string }>
-): Promise<AIResponse> {
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string; timestamp?: string }>
+): Promise<{ response: string; extractedInfo?: any; bookingIntent?: boolean }> {
   try {
     // Fetch training feedback examples
     const feedbackExamples = await fetchActiveFeedback()
@@ -92,7 +92,7 @@ DOUBLE-CHECK: Before responding, verify you're using REAL data from the knowledg
       recentHistory.forEach(msg => {
         messages.push({
           role: msg.role,
-          content: msg.message
+          content: msg.content
         })
       })
     }
@@ -133,8 +133,8 @@ DOUBLE-CHECK: Before responding, verify you're using REAL data from the knowledg
     const extractedEmail = userMessage.match(emailRegex)?.[0]
 
     return {
-      message: aiMessage,
-      shouldBookAppointment: shouldBook,
+      response: aiMessage,
+      bookingIntent: shouldBook,
       extractedInfo: {
         email: extractedEmail,
         phone: phoneNumber,
@@ -156,8 +156,8 @@ DOUBLE-CHECK: Before responding, verify you're using REAL data from the knowledg
     
     // Fallback response
     return {
-      message: "Thanks for your message! I'm having a technical moment. Please text 'HELP' or call us at 01234 567890. We'd love to help you start your fitness journey! 💪",
-      shouldBookAppointment: false,
+      response: "Thanks for your message! I'm having a technical moment. Please text 'HELP' or call us at 01234 567890. We'd love to help you start your fitness journey! 💪",
+      bookingIntent: false,
     }
   }
 }
