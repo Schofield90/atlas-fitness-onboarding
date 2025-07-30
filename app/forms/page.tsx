@@ -80,9 +80,10 @@ export default function FormsDocumentsPage() {
       } else {
         throw new Error(data.error || 'Failed to generate form');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating form:', error);
-      alert('Failed to generate form. Please try again.');
+      const errorMessage = error.message || 'Failed to generate form. Please try again.';
+      alert(errorMessage);
     } finally {
       setGeneratingForm(false);
     }

@@ -118,7 +118,15 @@ Focus on creating comprehensive, legally sound forms for gym operations.`;
     
     if (error) {
       console.error('Error saving form:', error);
-      throw new Error('Failed to save form to database');
+      console.error('Insert data:', {
+        organization_id: userWithOrg.organizationId,
+        title: formSchema.title,
+        description: formSchema.description,
+        type: formType,
+        schema: formSchema,
+        is_active: true
+      });
+      throw new Error(`Failed to save form: ${error.message}`);
     }
     
     return NextResponse.json({
