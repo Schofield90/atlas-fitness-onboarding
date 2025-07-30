@@ -28,41 +28,20 @@ const nextConfig = {
   webpack: (config, { dev, isServer, webpack }) => {
     // Fix for browser-only packages
     if (isServer) {
-      // Create a mock module for server-side
-      const mockModule = `module.exports = {};`;
-      
-      // Replace problematic modules with mock modules on server
-      config.resolve.alias = {
-        ...config.resolve.alias,
-        'reactflow': require.resolve('./app/lib/mocks/empty.js'),
-        '@reactflow/core': require.resolve('./app/lib/mocks/empty.js'),
-        '@reactflow/node-resizer': require.resolve('./app/lib/mocks/empty.js'),
-        '@reactflow/node-toolbar': require.resolve('./app/lib/mocks/empty.js'),
-        '@reactflow/controls': require.resolve('./app/lib/mocks/empty.js'),
-        '@reactflow/background': require.resolve('./app/lib/mocks/empty.js'),
-        '@reactflow/minimap': require.resolve('./app/lib/mocks/empty.js'),
-        '@dnd-kit/core': require.resolve('./app/lib/mocks/empty.js'),
-        '@dnd-kit/sortable': require.resolve('./app/lib/mocks/empty.js'),
-        '@dnd-kit/utilities': require.resolve('./app/lib/mocks/empty.js'),
-        '@dnd-kit/modifiers': require.resolve('./app/lib/mocks/empty.js'),
-      };
-      
-      // Add DefinePlugin to define self globally
-      config.plugins.push(
-        new webpack.DefinePlugin({
-          'typeof self': JSON.stringify('object'),
-          'self': 'global',
-        })
-      );
-      
-      // Add banner to ensure polyfill runs first
-      config.plugins.push(
-        new webpack.BannerPlugin({
-          banner: 'if (typeof self === "undefined") { global.self = global; }',
-          raw: true,
-          entryOnly: false,
-        })
-      );
+      // Use webpack externals to completely exclude these packages from server bundle
+      config.externals = [...(config.externals || []), {
+        'reactflow': 'commonjs reactflow',
+        '@reactflow/core': 'commonjs @reactflow/core',
+        '@reactflow/node-resizer': 'commonjs @reactflow/node-resizer',
+        '@reactflow/node-toolbar': 'commonjs @reactflow/node-toolbar', 
+        '@reactflow/controls': 'commonjs @reactflow/controls',
+        '@reactflow/background': 'commonjs @reactflow/background',
+        '@reactflow/minimap': 'commonjs @reactflow/minimap',
+        '@dnd-kit/core': 'commonjs @dnd-kit/core',
+        '@dnd-kit/sortable': 'commonjs @dnd-kit/sortable',
+        '@dnd-kit/utilities': 'commonjs @dnd-kit/utilities',
+        '@dnd-kit/modifiers': 'commonjs @dnd-kit/modifiers',
+      }];
     }
     
     // Optimize for production
