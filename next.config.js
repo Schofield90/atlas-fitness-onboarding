@@ -41,14 +41,6 @@ const nextConfig = {
         '@dnd-kit/utilities': require.resolve('./app/lib/mocks/empty.js'),
         '@dnd-kit/modifiers': require.resolve('./app/lib/mocks/empty.js'),
       };
-      
-      // External modules to prevent bundling
-      config.externals = [
-        ...config.externals,
-        'reactflow',
-        /^@reactflow/,
-        /^@dnd-kit/,
-      ];
     }
     
     // Optimize for production

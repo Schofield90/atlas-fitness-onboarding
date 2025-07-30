@@ -15,7 +15,10 @@ import ReactFlow, {
   Position,
   NodeProps
 } from 'reactflow'
-import 'reactflow/dist/style.css'
+// Import styles conditionally to avoid SSR issues
+if (typeof window !== 'undefined') {
+  import('./reactflow-styles.css')
+}
 
 // Simple trigger node component
 const TriggerNode = ({ data }: NodeProps) => {
