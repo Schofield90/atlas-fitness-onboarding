@@ -33,17 +33,23 @@ export default function CalendarSyncPage() {
   }, [])
 
   const checkConnection = async () => {
-    const { data } = await supabase
-      .from('google_calendar_tokens')
-      .select('*')
-      .single()
+    const { data: { user } } = await supabase.auth.getUser()
     
-    setIsConnected(!!data)
-    setLoading(false)
-    
-    if (data) {
-      loadSyncSettings()
+    if (user) {
+      const { data } = await supabase
+        .from('google_calendar_tokens')
+        .select('*')
+        .eq('user_id', user.id)
+        .single()
+      
+      setIsConnected(!!data)
+      
+      if (data) {
+        loadSyncSettings()
+      }
     }
+    
+    setLoading(false)
   }
 
   const loadCalendars = async () => {
@@ -77,12 +83,20 @@ export default function CalendarSyncPage() {
   const disconnectCalendar = async () => {
     if (!confirm('Are you sure you want to disconnect your Google Calendar?')) return
     
-    await supabase.from('google_calendar_tokens').delete()
-    await supabase.from('calendar_sync_settings').delete()
-    await supabase.from('calendar_sync_events').delete()
+    const { data: { user } } = await supabase.auth.getUser()
     
-    setIsConnected(false)
-    setCalendars([])
+    if (user) {
+      await supabase
+        .from('google_calendar_tokens')
+        .delete()
+        .eq('user_id', user.id)
+      
+      await supabase.from('calendar_sync_settings').delete()
+      await supabase.from('calendar_sync_events').delete()
+      
+      setIsConnected(false)
+      setCalendars([])
+    }
   }
 
   const saveSyncSettings = async () => {
