@@ -87,36 +87,49 @@ export async function getCurrentOrganization(
 export async function getUserOrganizations(userId: string): Promise<UserOrganization[]> {
   const supabase = await createClient()
   
-  const { data, error } = await supabase
+  // First get the user's organization memberships
+  const { data: memberships, error: membershipError } = await supabase
     .from('user_organizations')
-    .select(`
-      organization_id,
-      role,
-      is_active,
-      organization:organizations!inner(
-        id,
-        name,
-        subdomain,
-        plan,
-        status
-      )
-    `)
+    .select('organization_id, role, is_active')
     .eq('user_id', userId)
     .eq('is_active', true)
     .order('created_at')
   
-  if (error) {
-    console.error('Error fetching user organizations:', error)
+  if (membershipError || !memberships) {
+    console.error('Error fetching user organizations:', membershipError)
     return []
   }
   
-  // Transform the data to match UserOrganization interface
-  const transformedData: UserOrganization[] = (data || []).map(item => ({
-    organization_id: item.organization_id,
-    role: item.role,
-    is_active: item.is_active,
-    organization: item.organization as Organization
-  }))
+  // Then get the organization details
+  const orgIds = memberships.map(m => m.organization_id)
+  const { data: organizations, error: orgError } = await supabase
+    .from('organizations')
+    .select('id, name, subdomain, plan, status')
+    .in('id', orgIds)
+  
+  if (orgError || !organizations) {
+    console.error('Error fetching organizations:', orgError)
+    return []
+  }
+  
+  // Combine the data
+  const transformedData: UserOrganization[] = memberships.map(membership => {
+    const org = organizations.find(o => o.id === membership.organization_id)
+    if (!org) return null
+    
+    return {
+      organization_id: membership.organization_id,
+      role: membership.role,
+      is_active: membership.is_active,
+      organization: {
+        id: org.id,
+        name: org.name,
+        subdomain: org.subdomain,
+        plan: org.plan,
+        status: org.status
+      }
+    }
+  }).filter((item): item is UserOrganization => item !== null)
   
   return transformedData
 }
