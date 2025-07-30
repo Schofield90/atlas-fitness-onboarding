@@ -1,6 +1,6 @@
 # Atlas Fitness Onboarding - Development Notes
 
-## 🎯 Current Status Summary (July 30, 2025)
+## 🎯 Current Status Summary (January 30, 2025)
 
 ### What's Working:
 - ✅ **Email/SMS/WhatsApp**: All messaging features working, two-way conversations tracked
@@ -17,7 +17,6 @@
 ### What Needs Fixing:
 - 🔧 **Call Feature**: "Failed to initiate call" - Need to set USER_PHONE_NUMBER env variable
 - 🔧 **Booking Data**: System built but needs sample data created
-- 🔧 **AI Form Generation**: Still failing after OpenAI migration - check OPENAI_API_KEY and run forms table migration
 
 ### Next Actions:
 1. Add `USER_PHONE_NUMBER=+44YourPhoneNumber` to Vercel environment variables
@@ -86,7 +85,7 @@ USER_PHONE_NUMBER=+44YourPhoneNumber  # For call bridging
 # ... other existing vars
 ```
 
-### 🔧 Recent Fixes (July 30, 2025)
+### 🔧 Recent Fixes (January 30, 2025)
 
 #### 1. **Staff Management System** ✅
 - ✅ Created `organization_staff` table to store staff members
@@ -94,17 +93,26 @@ USER_PHONE_NUMBER=+44YourPhoneNumber  # For call bridging
 - ✅ Fixed staff page to display added staff members
 - ✅ Staff list fetches using proper authentication system
 
-#### 2. **AI Form Builder** (In Progress)
+#### 2. **AI Form Builder** ✅
 - ✅ Switched from Anthropic to OpenAI (GPT-4) for form generation
 - ✅ Fixed dependency conflicts by downgrading zod from v4 to v3
 - ✅ Fixed TypeScript compatibility issues across multiple routes
 - ✅ Forms now save to database with proper organization association
-- 🔧 Fixed forms table migration to not depend on profiles table
-- 🔧 Added comprehensive error logging and debug endpoints
-- 🔧 Updated OpenAI model to gpt-4-turbo
-- ⚠️ **Current Issue**: Form generation still failing - debugging in progress
+- ✅ Fixed forms table migration to not depend on profiles table
+- ✅ Added comprehensive error logging and debug endpoints
+- ✅ Updated OpenAI model to gpt-3.5-turbo for better compatibility
+- ✅ Added form preview and edit functionality before saving
+- ✅ Fixed forms list display with proper authentication
 
-#### 3. **Database Enhancements**
+#### 3. **Google Calendar Integration** ✅
+- ✅ Fixed OAuth2 authentication error (invalid_request)
+- ✅ Fixed environment variable with newline character issue
+- ✅ Updated callback to use admin client for token storage
+- ✅ Added proper user_id tracking for multi-tenant support
+- ✅ Fixed calendar-sync page to filter by authenticated user
+- ✅ Users can now connect their Google Calendar accounts
+
+#### 4. **Database Enhancements**
 - ✅ Added advanced tables: workflows, analytics_events, daily_reports, ai_training_data, message_templates
 - ✅ Implemented proper Row Level Security (RLS) policies
 - ✅ Added organization_id columns to existing tables for multi-tenancy
@@ -377,8 +385,8 @@ vercel --prod
 
 ---
 
-**Last Updated**: July 30, 2025 (8:30 AM)
-**Last Commit**: fix: Debug and improve AI form generation with better error handling (57b4e27)
+**Last Updated**: January 30, 2025 (10:00 AM)
+**Last Commit**: fix: Fix Google Calendar token storage and retrieval (86844ab)
 
 ### 🚨 Current Status - BOOKING SYSTEM ISSUES
 
@@ -898,15 +906,15 @@ For full calling functionality, add to environment variables:
 
 **Last Updated**: July 28, 2025
 **Status**: In-app calling system implemented with Twilio integration
-### 🚀 Latest Commits (July 30, 2025)
+### 🚀 Latest Commits (January 30, 2025)
 
-57b4e27 fix: Debug and improve AI form generation with better error handling
-c792a26 docs: Update CLAUDE.md with latest fixes and commits
-b03d226 fix: TypeScript compatibility with zod v3 in email send route
-a995c3b fix: TypeScript compatibility with zod v3 in analytics route
-aa1c605 fix: Downgrade zod to v3 for OpenAI compatibility
-9381658 feat: Switch from Anthropic to OpenAI for form generation
-ddfabc5 fix: Improve error handling in AI form generation
-4b5ed96 fix: Use proper auth system to get organization ID for staff list
-d11055a fix: Correct table name from 'user' to 'users' and add debugging
-4010729 feat: Add staff list display functionality to staff page
+86844ab fix: Fix Google Calendar token storage and retrieval
+620f955 fix: Remove TypeScript error in OAuth debug endpoint
+47da5c7 debug: Add OAuth debugging endpoint and logging
+07cc253 fix: Improve Google OAuth security and configuration
+ead09ce feat: Add view and edit functionality for saved forms
+0134b1e feat: Add form preview and edit functionality before saving
+3fadf2b fix: Use admin client for form insertion to bypass RLS
+2ac88cc fix: Add detailed error logging for form save failures
+ab6f69b fix: Fix form generation by removing contacts table reference and using gpt-3.5-turbo
+cb6ca2c docs: Update notes with form generation debugging status
