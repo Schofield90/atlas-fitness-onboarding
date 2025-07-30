@@ -1,6 +1,7 @@
 // Automation System Types and Interfaces
 
-import { Node, Edge, Connection, NodeProps } from 'reactflow'
+// Use local type definitions to avoid SSR issues
+import type { Node, Edge, Connection, NodeProps } from './reactflow-types'
 
 // Workflow Types
 export interface Workflow {

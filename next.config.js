@@ -23,28 +23,32 @@ const nextConfig = {
   webpack: (config, { dev, isServer, webpack }) => {
     // Fix for browser-only packages
     if (isServer) {
-      // Replace problematic modules with empty modules on server
+      // Create a mock module for server-side
+      const mockModule = `module.exports = {};`;
+      
+      // Replace problematic modules with mock modules on server
       config.resolve.alias = {
         ...config.resolve.alias,
-        'reactflow': false,
-        '@reactflow/core': false,
-        '@reactflow/node-resizer': false,
-        '@reactflow/node-toolbar': false,
-        '@reactflow/controls': false,
-        '@reactflow/background': false,
-        '@reactflow/minimap': false,
-        '@dnd-kit/core': false,
-        '@dnd-kit/sortable': false,
-        '@dnd-kit/utilities': false,
-        '@dnd-kit/modifiers': false,
+        'reactflow': require.resolve('./app/lib/mocks/empty.js'),
+        '@reactflow/core': require.resolve('./app/lib/mocks/empty.js'),
+        '@reactflow/node-resizer': require.resolve('./app/lib/mocks/empty.js'),
+        '@reactflow/node-toolbar': require.resolve('./app/lib/mocks/empty.js'),
+        '@reactflow/controls': require.resolve('./app/lib/mocks/empty.js'),
+        '@reactflow/background': require.resolve('./app/lib/mocks/empty.js'),
+        '@reactflow/minimap': require.resolve('./app/lib/mocks/empty.js'),
+        '@dnd-kit/core': require.resolve('./app/lib/mocks/empty.js'),
+        '@dnd-kit/sortable': require.resolve('./app/lib/mocks/empty.js'),
+        '@dnd-kit/utilities': require.resolve('./app/lib/mocks/empty.js'),
+        '@dnd-kit/modifiers': require.resolve('./app/lib/mocks/empty.js'),
       };
       
-      // Also use ignore plugin as backup
-      config.plugins.push(
-        new webpack.IgnorePlugin({
-          resourceRegExp: /^(reactflow|@reactflow|@dnd-kit)/,
-        })
-      );
+      // External modules to prevent bundling
+      config.externals = [
+        ...config.externals,
+        'reactflow',
+        /^@reactflow/,
+        /^@dnd-kit/,
+      ];
     }
     
     // Optimize for production
