@@ -1,10 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 
-const anthropicKey = process.env.ANTHROPIC_API_KEY
-const anthropic = anthropicKey ? new Anthropic({
-  apiKey: anthropicKey,
-}) : null
+// Lazy initialization to avoid build-time instantiation
+let anthropic: Anthropic | null = null
+
+function getAnthropicClient(): Anthropic | null {
+  if (anthropic) return anthropic
+  
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) {
+    console.error('ANTHROPIC_API_KEY is not set')
+    return null
+  }
+  
+  try {
+    anthropic = new Anthropic({ apiKey })
+    return anthropic
+  } catch (error) {
+    console.error('Failed to initialize Anthropic:', error)
+    return null
+  }
+}
 
 // Categories of information the AI needs to know
 const questionCategories = [
@@ -88,11 +104,12 @@ Return JSON in this format:
   "context": "Brief explanation why this info is important (optional)"
 }`
 
-    if (!anthropic) {
+    const client = getAnthropicClient()
+    if (!client) {
       return NextResponse.json({ error: 'Anthropic not configured' }, { status: 500 })
     }
     
-    const response = await anthropic.messages.create({
+    const response = await client.messages.create({
       model: 'claude-3-5-sonnet-20241022',
       max_tokens: 300,
       temperature: 0.7,

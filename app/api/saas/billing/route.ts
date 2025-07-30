@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/app/lib/supabase/server'
 import Stripe from 'stripe'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+const stripeKey = process.env.STRIPE_SECRET_KEY
+const stripe = stripeKey ? new Stripe(stripeKey, {
   apiVersion: '2025-06-30.basil',
-})
+}) : null
 
 export async function GET(request: NextRequest) {
   try {
@@ -134,6 +135,11 @@ export async function POST(request: NextRequest) {
     let stripeCustomerId = organization.saas_subscriptions?.[0]?.stripe_customer_id
     
     if (!stripeCustomerId) {
+      // Check if Stripe is configured
+      if (!stripe) {
+        return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 })
+      }
+      
       // Create new Stripe customer
       const customer = await stripe.customers.create({
         email: user.email,
@@ -147,6 +153,10 @@ export async function POST(request: NextRequest) {
     
     // Attach payment method if provided
     if (paymentMethodId) {
+      if (!stripe) {
+        return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 })
+      }
+      
       await stripe.paymentMethods.attach(paymentMethodId, {
         customer: stripeCustomerId,
       })
@@ -162,6 +172,10 @@ export async function POST(request: NextRequest) {
     // Create or update subscription
     let stripeSubscription
     const existingSubscriptionId = organization.saas_subscriptions?.[0]?.stripe_subscription_id
+    
+    if (!stripe) {
+      return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 })
+    }
     
     if (existingSubscriptionId) {
       // Update existing subscription
@@ -248,6 +262,11 @@ export async function DELETE(request: NextRequest) {
     
     if (!subscription?.stripe_subscription_id) {
       return NextResponse.json({ error: 'No active subscription found' }, { status: 404 })
+    }
+    
+    // Check if Stripe is configured
+    if (!stripe) {
+      return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 })
     }
     
     // Cancel at period end

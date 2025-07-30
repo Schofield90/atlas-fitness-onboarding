@@ -2,23 +2,34 @@ import Anthropic from '@anthropic-ai/sdk'
 import { fetchActiveFeedback, formatFeedbackExamples } from './feedback'
 
 // Debug: Check if API key is loaded
-console.log('Anthropic API Key status:', {
-  exists: !!process.env.ANTHROPIC_API_KEY,
-  length: process.env.ANTHROPIC_API_KEY?.length || 0,
-  prefix: process.env.ANTHROPIC_API_KEY?.substring(0, 10) || 'NOT_SET'
-})
+if (typeof process !== 'undefined' && process.env) {
+  console.log('Anthropic API Key status:', {
+    exists: !!process.env.ANTHROPIC_API_KEY,
+    length: process.env.ANTHROPIC_API_KEY?.length || 0,
+    prefix: process.env.ANTHROPIC_API_KEY?.substring(0, 10) || 'NOT_SET'
+  })
+}
 
-// Initialize Anthropic client
+// Lazy initialization - only create client when needed
 let anthropic: Anthropic | null = null
 
-// Only initialize if we have a valid API key and not in build phase
-if (process.env.ANTHROPIC_API_KEY && process.env.NODE_ENV !== 'production') {
+function getAnthropicClient(): Anthropic | null {
+  if (anthropic) return anthropic
+  
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) {
+    console.error('ANTHROPIC_API_KEY is not set')
+    return null
+  }
+  
   try {
     anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
+      apiKey: apiKey,
     })
+    return anthropic
   } catch (error) {
     console.error('Failed to initialize Anthropic:', error)
+    return null
   }
 }
 
@@ -118,11 +129,12 @@ DOUBLE-CHECK: Before responding, verify you're using REAL data from the knowledg
       currentMessage: userMessage
     })
 
-    if (!anthropic) {
+    const client = getAnthropicClient()
+    if (!client) {
       throw new Error('Anthropic not initialized')
     }
     
-    const response = await anthropic.messages.create({
+    const response = await client.messages.create({
       model: 'claude-3-5-sonnet-20241022',
       max_tokens: 300,
       temperature: 0.7,

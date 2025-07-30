@@ -3,9 +3,10 @@ import { createClient } from '@/app/lib/supabase/server'
 import { createAdminClient } from '@/app/lib/supabase/admin'
 import Stripe from 'stripe'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+const stripeKey = process.env.STRIPE_SECRET_KEY
+const stripe = stripeKey ? new Stripe(stripeKey, {
   apiVersion: '2025-06-30.basil',
-})
+}) : null
 
 export async function POST(request: NextRequest) {
   try {

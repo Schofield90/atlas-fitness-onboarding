@@ -9,9 +9,7 @@ const nextConfig = {
       'lucide-react',
       'date-fns',
       'recharts'
-    ],
-    // Disable static page generation for API routes
-    isrMemoryCacheSize: 0
+    ]
   },
   
   // External packages for server components

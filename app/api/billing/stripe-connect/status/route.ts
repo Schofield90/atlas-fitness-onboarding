@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/app/lib/supabase/server'
 import Stripe from 'stripe'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+const stripeKey = process.env.STRIPE_SECRET_KEY
+const stripe = stripeKey ? new Stripe(stripeKey, {
   apiVersion: '2025-06-30.basil',
-})
+}) : null
 
 export async function GET(request: NextRequest) {
   try {
@@ -39,6 +40,11 @@ export async function GET(request: NextRequest) {
     
     if (settings?.stripe_account_id) {
       try {
+        // Check if Stripe is configured
+        if (!stripe) {
+          throw new Error('Stripe not configured')
+        }
+        
         // Fetch account details from Stripe
         const account = await stripe.accounts.retrieve(settings.stripe_account_id)
         

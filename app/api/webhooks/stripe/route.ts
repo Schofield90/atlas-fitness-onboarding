@@ -3,9 +3,10 @@ import { headers } from 'next/headers'
 import Stripe from 'stripe'
 import { createAdminClient } from '@/app/lib/supabase/admin'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+const stripeKey = process.env.STRIPE_SECRET_KEY
+const stripe = stripeKey ? new Stripe(stripeKey, {
   apiVersion: '2025-06-30.basil',
-})
+}) : null
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
 
@@ -17,6 +18,11 @@ export async function POST(request: NextRequest) {
     
     if (!signature) {
       return NextResponse.json({ error: 'No signature' }, { status: 401 })
+    }
+    
+    // Check if Stripe is configured
+    if (!stripe) {
+      return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 })
     }
     
     // Verify webhook signature
