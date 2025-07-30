@@ -3,7 +3,15 @@ import { OAuth2Client } from 'google-auth-library'
 
 // Initialize OAuth2 client
 export function getOAuth2Client() {
-  const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || 'https://atlas-fitness-onboarding.vercel.app'}/api/auth/google/callback`;
+  // Use a consistent redirect URI
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://atlas-fitness-onboarding.vercel.app';
+  const redirectUri = `${baseUrl}/api/auth/google/callback`;
+  
+  console.log('OAuth2Client config:', {
+    hasClientId: !!process.env.GOOGLE_CLIENT_ID,
+    hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+    redirectUri
+  });
   
   return new OAuth2Client(
     process.env.GOOGLE_CLIENT_ID,
