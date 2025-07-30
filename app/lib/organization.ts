@@ -5,7 +5,7 @@ import { NextRequest } from 'next/server'
 export interface Organization {
   id: string
   name: string
-  subdomain?: string
+  subdomain?: string | null
   plan: string
   status: string
 }
@@ -113,23 +113,25 @@ export async function getUserOrganizations(userId: string): Promise<UserOrganiza
   }
   
   // Combine the data
-  const transformedData: UserOrganization[] = memberships.map(membership => {
+  const transformedData: UserOrganization[] = []
+  
+  for (const membership of memberships) {
     const org = organizations.find(o => o.id === membership.organization_id)
-    if (!org) return null
-    
-    return {
-      organization_id: membership.organization_id,
-      role: membership.role,
-      is_active: membership.is_active,
-      organization: {
-        id: org.id,
-        name: org.name,
-        subdomain: org.subdomain,
-        plan: org.plan,
-        status: org.status
-      }
+    if (org) {
+      transformedData.push({
+        organization_id: membership.organization_id,
+        role: membership.role,
+        is_active: membership.is_active,
+        organization: {
+          id: org.id,
+          name: org.name,
+          subdomain: org.subdomain || null,
+          plan: org.plan,
+          status: org.status
+        }
+      })
     }
-  }).filter((item): item is UserOrganization => item !== null)
+  }
   
   return transformedData
 }
