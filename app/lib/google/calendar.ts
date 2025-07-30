@@ -3,10 +3,12 @@ import { OAuth2Client } from 'google-auth-library'
 
 // Initialize OAuth2 client
 export function getOAuth2Client() {
+  const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || 'https://atlas-fitness-onboarding.vercel.app'}/api/auth/google/callback`;
+  
   return new OAuth2Client(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/google/callback`
+    redirectUri
   )
 }
 
@@ -23,7 +25,14 @@ export function getAuthUrl() {
   return oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: scopes,
-    prompt: 'consent'
+    prompt: 'consent',
+    // Add state parameter for security
+    state: Buffer.from(JSON.stringify({
+      timestamp: Date.now(),
+      source: 'calendar-sync'
+    })).toString('base64'),
+    // Explicitly set response_type
+    response_type: 'code'
   })
 }
 

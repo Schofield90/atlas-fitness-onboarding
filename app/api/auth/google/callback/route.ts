@@ -6,6 +6,22 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const code = searchParams.get('code')
   const error = searchParams.get('error')
+  const state = searchParams.get('state')
+  
+  // Verify state parameter for security
+  if (state) {
+    try {
+      const stateData = JSON.parse(Buffer.from(state, 'base64').toString())
+      // Verify the state is recent (within 10 minutes)
+      if (Date.now() - stateData.timestamp > 10 * 60 * 1000) {
+        return NextResponse.redirect(
+          `${process.env.NEXT_PUBLIC_APP_URL}/calendar-sync?error=state_expired`
+        )
+      }
+    } catch (e) {
+      console.error('Invalid state parameter:', e)
+    }
+  }
   
   if (error) {
     return NextResponse.redirect(
