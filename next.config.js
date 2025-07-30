@@ -9,7 +9,9 @@ const nextConfig = {
       'lucide-react',
       'date-fns',
       'recharts'
-    ]
+    ],
+    // Disable server components external packages for problematic libraries
+    esmExternals: 'loose'
   },
   
   // External packages for server components
@@ -20,7 +22,16 @@ const nextConfig = {
   ],
   
   // Webpack optimizations
-  webpack: (config, { dev, isServer }) => {
+  webpack: (config, { dev, isServer, webpack }) => {
+    // Fix "self is not defined" error
+    if (isServer) {
+      config.plugins.push(
+        new webpack.DefinePlugin({
+          self: 'undefined',
+        })
+      );
+    }
+    
     // Optimize for production
     if (!dev) {
       config.optimization = {
