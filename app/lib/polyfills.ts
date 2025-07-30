@@ -1,5 +1,10 @@
 // Polyfills for SSR compatibility
 if (typeof window === 'undefined') {
+  // Ensure globalThis is available
+  if (typeof globalThis === 'undefined') {
+    (global as any).globalThis = global;
+  }
+  
   // Polyfill self for server-side rendering
   (global as any).self = global;
   
