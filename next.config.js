@@ -2,27 +2,22 @@
 const nextConfig = {
   output: 'standalone',
   
-  // Optimize for Vercel deployment
-  swcMinify: true,
-  
   // Enable experimental features for better performance
   experimental: {
     // Optimize packages
     optimizePackageImports: [
       'lucide-react',
-      '@supabase/supabase-js',
       'date-fns',
       'recharts'
-    ],
-    
-    // Better server components
-    serverComponentsExternalPackages: [
-      '@supabase/supabase-js',
-      'twilio',
-      'openai',
-      '@anthropic-ai/sdk'
     ]
   },
+  
+  // External packages for server components
+  serverExternalPackages: [
+    'twilio',
+    'openai',
+    '@anthropic-ai/sdk'
+  ],
   
   // Webpack optimizations
   webpack: (config, { dev, isServer }) => {
