@@ -75,10 +75,19 @@ export default function CalendarPage() {
         end: endOfMonth.toISOString()
       })
       
-      const response = await fetch(`/api/calendar/events?${params}`)
+      // Try to fetch from Google Calendar first
+      const response = await fetch(`/api/calendar/google-events?${params}`)
       if (response.ok) {
         const data = await response.json()
         setEvents(data.events || [])
+        console.log(`Loaded ${data.events?.length || 0} events from Google Calendar`)
+      } else {
+        // Fallback to local events
+        const localResponse = await fetch(`/api/calendar/events?${params}`)
+        if (localResponse.ok) {
+          const data = await localResponse.json()
+          setEvents(data.events || [])
+        }
       }
     } catch (error) {
       console.error('Error fetching events:', error)

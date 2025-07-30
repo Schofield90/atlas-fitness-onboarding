@@ -57,6 +57,21 @@ export function GoogleStyleCalendar({
     }
   }, [view])
 
+  // Synchronize scrolling between time labels and calendar content
+  useEffect(() => {
+    const handleScroll = () => {
+      if (timelineRef.current && hoursRef.current) {
+        hoursRef.current.scrollTop = timelineRef.current.scrollTop
+      }
+    }
+
+    const timeline = timelineRef.current
+    if (timeline) {
+      timeline.addEventListener('scroll', handleScroll)
+      return () => timeline.removeEventListener('scroll', handleScroll)
+    }
+  }, [view])
+
   const getWeekStart = (date: Date) => {
     const d = new Date(date)
     const day = d.getDay()
@@ -204,7 +219,7 @@ export function GoogleStyleCalendar({
         {/* Calendar Grid */}
         <div className="flex-1 flex overflow-hidden">
           {/* Time labels */}
-          <div className="w-16 bg-gray-900 border-r border-gray-700">
+          <div className="w-16 bg-gray-900 border-r border-gray-700 sticky left-0 z-10">
             <div className="h-12 border-b border-gray-700" /> {/* Spacer for day headers */}
             <div ref={hoursRef} className="overflow-hidden">
               {Array.from({ length: 24 }).map((_, hour) => (
@@ -281,10 +296,160 @@ export function GoogleStyleCalendar({
     )
   }
 
-  // Fallback to original month view for now
+  // Month view implementation
+  if (view === 'month') {
+    const year = currentDate.getFullYear()
+    const month = currentDate.getMonth()
+    const firstDay = new Date(year, month, 1)
+    const lastDay = new Date(year, month + 1, 0)
+    const daysInMonth = lastDay.getDate()
+    const startDayOfWeek = firstDay.getDay()
+    
+    // Calculate weeks
+    const weeks = []
+    let currentWeek = []
+    
+    // Add empty cells for days before month starts
+    for (let i = 0; i < startDayOfWeek; i++) {
+      currentWeek.push(null)
+    }
+    
+    // Add all days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      currentWeek.push(new Date(year, month, day))
+      if (currentWeek.length === 7) {
+        weeks.push(currentWeek)
+        currentWeek = []
+      }
+    }
+    
+    // Add empty cells for remaining days in last week
+    while (currentWeek.length > 0 && currentWeek.length < 7) {
+      currentWeek.push(null)
+    }
+    if (currentWeek.length > 0) {
+      weeks.push(currentWeek)
+    }
+    
+    return (
+      <div className="bg-gray-800 rounded-lg overflow-hidden h-full flex flex-col">
+        {/* Header */}
+        <div className="bg-gray-900 px-4 py-3 flex items-center justify-between border-b border-gray-700">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={goToToday}
+              className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white rounded-md text-sm font-medium transition-colors"
+            >
+              Today
+            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={navigatePrevious}
+                className="p-1.5 hover:bg-gray-700 rounded-md transition-colors"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <button
+                onClick={navigateNext}
+                className="p-1.5 hover:bg-gray-700 rounded-md transition-colors"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </div>
+            <h2 className="text-lg font-medium">
+              {monthNames[month]} {year}
+            </h2>
+          </div>
+        </div>
+
+        {/* Month Grid */}
+        <div className="flex-1 p-4">
+          {/* Day headers */}
+          <div className="grid grid-cols-7 gap-1 mb-2">
+            {dayNames.map(day => (
+              <div key={day} className="text-center text-sm font-medium text-gray-400 py-2">
+                {day}
+              </div>
+            ))}
+          </div>
+          
+          {/* Weeks */}
+          <div className="grid grid-rows-6 gap-1 h-full">
+            {weeks.map((week, weekIndex) => (
+              <div key={weekIndex} className="grid grid-cols-7 gap-1">
+                {week.map((day, dayIndex) => {
+                  if (!day) {
+                    return <div key={`empty-${dayIndex}`} className="bg-gray-900/50 rounded-md" />
+                  }
+                  
+                  const dayEvents = getEventsForDay(day)
+                  const isCurrentDay = isToday(day)
+                  const isSelected = day.toDateString() === selectedDate.toDateString()
+                  
+                  return (
+                    <div
+                      key={day.getDate()}
+                      onClick={() => onDateSelect(day)}
+                      className={`
+                        bg-gray-900/50 rounded-md p-2 cursor-pointer hover:bg-gray-700 transition-colors
+                        ${isCurrentDay ? 'ring-2 ring-blue-500' : ''}
+                        ${isSelected ? 'bg-gray-700' : ''}
+                      `}
+                    >
+                      <div className={`text-sm font-medium mb-1 ${isCurrentDay ? 'text-blue-400' : 'text-white'}`}>
+                        {day.getDate()}
+                      </div>
+                      <div className="space-y-1">
+                        {dayEvents.slice(0, 3).map((event, i) => {
+                          const title = event.title.toLowerCase()
+                          let bgColor = EVENT_COLORS.default
+                          
+                          for (const [key, color] of Object.entries(EVENT_COLORS)) {
+                            if (title.includes(key)) {
+                              bgColor = color
+                              break
+                            }
+                          }
+                          
+                          return (
+                            <div
+                              key={event.id}
+                              className="text-xs px-1 py-0.5 rounded truncate text-white cursor-pointer hover:opacity-80"
+                              style={{ backgroundColor: bgColor }}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onEventClick?.(event)
+                              }}
+                              title={event.title}
+                            >
+                              {new Date(event.startTime).toLocaleTimeString('en-US', {
+                                hour: 'numeric',
+                                minute: '2-digit'
+                              })} {event.title}
+                            </div>
+                          )
+                        })}
+                        {dayEvents.length > 3 && (
+                          <div className="text-xs text-gray-400">
+                            +{dayEvents.length - 3} more
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+  
+  // Default fallback
   return (
     <div className="bg-gray-800 rounded-lg p-6">
-      <p className="text-white">Month view coming soon...</p>
+      <p className="text-white">View not implemented</p>
     </div>
   )
 }
