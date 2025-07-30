@@ -8,6 +8,21 @@ export enum Position {
   Bottom = 'bottom',
 }
 
+export interface EdgeMarker {
+  type: MarkerType;
+  color?: string;
+  width?: number;
+  height?: number;
+  markerUnits?: string;
+  orient?: string;
+  strokeWidth?: number;
+}
+
+export enum MarkerType {
+  Arrow = 'arrow',
+  ArrowClosed = 'arrowclosed',
+}
+
 export interface Node<T = any> {
   id: string;
   type?: string;
@@ -51,8 +66,8 @@ export interface Edge<T = any> {
   hidden?: boolean;
   deletable?: boolean;
   selected?: boolean;
-  markerStart?: string;
-  markerEnd?: string;
+  markerStart?: string | EdgeMarker;
+  markerEnd?: string | EdgeMarker;
   [key: string]: any;
 }
 
