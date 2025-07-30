@@ -23,22 +23,30 @@ export default function CalendarSyncPage() {
   useEffect(() => {
     // Check for OAuth callback
     const params = new URLSearchParams(window.location.search)
+    console.log('Calendar sync page loaded with params:', Object.fromEntries(params))
+    
     if (params.get('success') === 'true') {
+      console.log('OAuth success detected, processing...')
       setProcessingAuth(true)
       // Clear URL parameters
       window.history.replaceState({}, '', '/calendar-sync')
       // Give the database a moment to settle, then check connection
       setTimeout(() => {
+        console.log('Checking connection after OAuth success...')
         checkConnection()
         setProcessingAuth(false)
       }, 1500)
     } else if (params.get('error')) {
-      console.error('OAuth error:', params.get('error'))
+      const error = params.get('error')
+      const details = params.get('details')
+      console.error('OAuth error:', error, details)
+      alert(`Connection failed: ${error}${details ? ` - ${details}` : ''}`)
       // Clear URL parameters
       window.history.replaceState({}, '', '/calendar-sync')
       checkConnection()
     } else {
       // Normal page load
+      console.log('Normal page load, checking connection...')
       checkConnection()
     }
   }, [])
@@ -53,20 +61,27 @@ export default function CalendarSyncPage() {
         return
       }
       
+      console.log('Checking tokens for user:', user.id)
+      
       const { data, error } = await supabase
         .from('google_calendar_tokens')
         .select('*')
         .eq('user_id', user.id)
         .single()
       
+      console.log('Token check result:', { data, error })
+      
       // Don't treat "no rows" as an error for connection status
       if (error && error.code !== 'PGRST116') {
         console.error('Error checking connection:', error)
       }
       
-      setIsConnected(!!data)
+      const connected = !!data
+      console.log('Connection status:', connected)
+      setIsConnected(connected)
       
       if (data) {
+        console.log('Token found, loading settings and calendars...')
         await loadSyncSettings()
         // If connected, also load calendars
         await loadCalendars()
@@ -92,9 +107,14 @@ export default function CalendarSyncPage() {
 
   const loadSyncSettings = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) return
+      
       const { data, error } = await supabase
         .from('calendar_sync_settings')
         .select('*')
+        .eq('user_id', user.id)
         .single()
       
       // Don't treat "no rows" as an error
@@ -140,9 +160,17 @@ export default function CalendarSyncPage() {
   }
 
   const saveSyncSettings = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) {
+      alert('Please sign in to save settings')
+      return
+    }
+    
     const { error } = await supabase
       .from('calendar_sync_settings')
       .upsert({
+        user_id: user.id,
         google_calendar_id: selectedCalendar,
         google_calendar_name: calendars.find(c => c.id === selectedCalendar)?.summary,
         ...syncSettings
@@ -150,6 +178,9 @@ export default function CalendarSyncPage() {
     
     if (!error) {
       alert('Settings saved!')
+    } else {
+      console.error('Error saving settings:', error)
+      alert('Failed to save settings')
     }
   }
 

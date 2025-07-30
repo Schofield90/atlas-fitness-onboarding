@@ -76,9 +76,12 @@ export async function GET(request: NextRequest) {
     if (dbError) {
       console.error('Error storing tokens:', dbError)
       return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_APP_URL}/calendar-sync?error=storage_failed`
+        `${process.env.NEXT_PUBLIC_APP_URL}/calendar-sync?error=storage_failed&details=${encodeURIComponent(dbError.message)}`
       )
     }
+    
+    console.log('Tokens stored successfully for user:', user.id)
+    console.log('Redirecting to:', `${process.env.NEXT_PUBLIC_APP_URL}/calendar-sync?success=true`)
     
     return NextResponse.redirect(
       `${process.env.NEXT_PUBLIC_APP_URL}/calendar-sync?success=true`
