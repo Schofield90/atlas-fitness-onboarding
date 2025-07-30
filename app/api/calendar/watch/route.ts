@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
           type: 'web_hook',
           address: webhookUrl,
           token: user.id, // Pass user ID as token for identification
-          expiration: expiration.getTime()
+          expiration: expiration.getTime().toString()
         }
       })
       
