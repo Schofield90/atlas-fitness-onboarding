@@ -89,9 +89,10 @@ export async function listCalendarEvents(
   const response = await calendar.events.list({
     calendarId,
     timeMin: timeMin || new Date().toISOString(),
-    timeMax,
+    timeMax: timeMax || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // Default to 1 year ahead if not specified
     singleEvents: true,
-    orderBy: 'startTime'
+    orderBy: 'startTime',
+    maxResults: 2500 // Maximum allowed by Google Calendar API
   })
   
   return response.data.items || []
