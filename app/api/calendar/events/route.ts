@@ -43,9 +43,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
     
+    // Transform database events to match CalendarEvent interface
+    const transformedEvents = (events || []).map(event => ({
+      id: event.id,
+      title: event.title,
+      description: event.description,
+      startTime: event.start_time,
+      endTime: event.end_time,
+      attendees: event.attendees || [],
+      meetingUrl: event.meeting_url,
+      status: event.status,
+      leadId: event.lead_id,
+      organizationId: event.organization_id,
+      createdBy: event.created_by,
+      googleEventId: event.google_event_id
+    }))
+    
     return NextResponse.json({ 
-      events: events || [],
-      total: events?.length || 0
+      events: transformedEvents,
+      total: transformedEvents.length
     })
     
   } catch (error) {

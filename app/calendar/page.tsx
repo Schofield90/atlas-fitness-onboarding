@@ -77,20 +77,48 @@ export default function CalendarPage() {
         end: endDate.toISOString()
       })
       
-      // Try to fetch from Google Calendar first
-      const response = await fetch(`/api/calendar/google-events?${params}`)
-      if (response.ok) {
-        const data = await response.json()
-        setEvents(data.events || [])
-        console.log(`Loaded ${data.events?.length || 0} events from Google Calendar`)
-      } else {
-        // Fallback to local events
+      // Fetch from both sources and merge
+      const allEvents: CalendarEvent[] = []
+      
+      // Fetch from Google Calendar
+      try {
+        const googleResponse = await fetch(`/api/calendar/google-events?${params}`)
+        if (googleResponse.ok) {
+          const googleData = await googleResponse.json()
+          allEvents.push(...(googleData.events || []))
+          console.log(`Loaded ${googleData.events?.length || 0} events from Google Calendar`)
+        }
+      } catch (error) {
+        console.error('Error fetching Google Calendar events:', error)
+      }
+      
+      // Also fetch from local database
+      try {
         const localResponse = await fetch(`/api/calendar/events?${params}`)
         if (localResponse.ok) {
-          const data = await localResponse.json()
-          setEvents(data.events || [])
+          const localData = await localResponse.json()
+          const localEvents = localData.events || []
+          
+          // Add local events that aren't already in Google Calendar (to avoid duplicates)
+          const googleEventIds = new Set(allEvents.map(e => e.googleEventId).filter(Boolean))
+          const uniqueLocalEvents = localEvents.filter((e: CalendarEvent) => 
+            !e.googleEventId || !googleEventIds.has(e.googleEventId)
+          )
+          
+          allEvents.push(...uniqueLocalEvents)
+          console.log(`Loaded ${uniqueLocalEvents.length} local events`)
         }
+      } catch (error) {
+        console.error('Error fetching local events:', error)
       }
+      
+      // Sort events by start time
+      allEvents.sort((a, b) => 
+        new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+      )
+      
+      setEvents(allEvents)
+      console.log(`Total events loaded: ${allEvents.length}`)
     } catch (error) {
       console.error('Error fetching events:', error)
       alert('Failed to load calendar events')
