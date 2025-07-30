@@ -24,10 +24,17 @@ export async function GET(request: NextRequest) {
       .from('google_calendar_tokens')
       .select('*', { count: 'exact', head: true })
     
-    // Get table columns
-    const { data: columns, error: columnsError } = await adminSupabase
-      .rpc('get_table_columns', { table_name: 'google_calendar_tokens' })
-      .catch(() => ({ data: null, error: 'RPC function not available' }))
+    // Get table columns (RPC might not exist, so we'll skip it)
+    let columns = null
+    let columnsError = null
+    try {
+      const result = await adminSupabase
+        .rpc('get_table_columns', { table_name: 'google_calendar_tokens' })
+      columns = result.data
+      columnsError = result.error
+    } catch (e) {
+      columnsError = 'RPC function not available'
+    }
     
     return NextResponse.json({
       tableExists: true,

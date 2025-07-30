@@ -34,10 +34,17 @@ export async function GET(request: NextRequest) {
       .from('google_calendar_tokens')
       .select('user_id, created_at, updated_at')
     
-    // Try manual query with raw SQL
-    const { data: rawQuery, error: rawError } = await adminSupabase
-      .rpc('get_tokens_for_user', { user_id_param: user.id })
-      .catch(() => ({ data: null, error: 'RPC not available' }))
+    // Try manual query with raw SQL (RPC might not exist)
+    let rawQuery = null
+    let rawError = null
+    try {
+      const result = await adminSupabase
+        .rpc('get_tokens_for_user', { user_id_param: user.id })
+      rawQuery = result.data
+      rawError = result.error
+    } catch (e) {
+      rawError = 'RPC not available'
+    }
     
     return NextResponse.json({
       userId: user.id,
