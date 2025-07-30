@@ -1,6 +1,6 @@
 # Atlas Fitness Onboarding - Development Notes
 
-## 🎯 Current Status Summary (July 29, 2025)
+## 🎯 Current Status Summary (July 30, 2025)
 
 ### What's Working:
 - ✅ **Email/SMS/WhatsApp**: All messaging features working, two-way conversations tracked
@@ -17,15 +17,19 @@
 ### What Needs Fixing:
 - 🔧 **Call Feature**: "Failed to initiate call" - Need to set USER_PHONE_NUMBER env variable
 - 🔧 **Booking Data**: System built but needs sample data created
+- 🔧 **AI Form Generation**: Still failing after OpenAI migration - check OPENAI_API_KEY and run forms table migration
 
 ### Next Actions:
 1. Add `USER_PHONE_NUMBER=+44YourPhoneNumber` to Vercel environment variables
 2. Visit https://atlas-fitness-onboarding.vercel.app/call-test to debug calls
 3. Create sample booking data for testing
+4. Add `OPENAI_API_KEY` to Vercel environment variables if not already set
+5. Run forms table migration in Supabase SQL editor
+6. Check debug endpoint: https://atlas-fitness-onboarding.vercel.app/api/debug/check-forms-setup
 
 ---
 
-## Project Status (July 29, 2025)
+## Project Status (July 30, 2025)
 
 ### 🚀 Recent Achievements
 
@@ -82,25 +86,30 @@ USER_PHONE_NUMBER=+44YourPhoneNumber  # For call bridging
 # ... other existing vars
 ```
 
-### 🔧 Recent Fixes (July 29, 2025)
+### 🔧 Recent Fixes (July 30, 2025)
 
-#### 1. **Staff Management System**
+#### 1. **Staff Management System** ✅
 - ✅ Created `organization_staff` table to store staff members
 - ✅ Fixed staff addition API to work without profiles table
 - ✅ Fixed staff page to display added staff members
 - ✅ Staff list fetches using proper authentication system
 
-#### 2. **AI Form Builder**
+#### 2. **AI Form Builder** (In Progress)
 - ✅ Switched from Anthropic to OpenAI (GPT-4) for form generation
 - ✅ Fixed dependency conflicts by downgrading zod from v4 to v3
 - ✅ Fixed TypeScript compatibility issues across multiple routes
 - ✅ Forms now save to database with proper organization association
+- 🔧 Fixed forms table migration to not depend on profiles table
+- 🔧 Added comprehensive error logging and debug endpoints
+- 🔧 Updated OpenAI model to gpt-4-turbo
+- ⚠️ **Current Issue**: Form generation still failing - debugging in progress
 
 #### 3. **Database Enhancements**
 - ✅ Added advanced tables: workflows, analytics_events, daily_reports, ai_training_data, message_templates
 - ✅ Implemented proper Row Level Security (RLS) policies
 - ✅ Added organization_id columns to existing tables for multi-tenancy
 - ✅ Created triggers for automatic timestamp updates
+- ✅ Fixed forms/documents table to work without profiles table
 
 ### 📱 WhatsApp Setup Instructions
 
@@ -164,6 +173,12 @@ USER_PHONE_NUMBER=+44YourPhoneNumber  # For call bridging
    - Check Vercel dashboard for any paused deployments
    - Ensure GitHub integration is active
    - Production branch should be set to `main`
+
+3. **AI Form Generation Failing**:
+   - Check if `OPENAI_API_KEY` is set in Vercel environment variables
+   - Verify forms table exists in Supabase (run migration if needed)
+   - Use debug endpoint: `/api/debug/check-forms-setup`
+   - Check Vercel function logs for detailed error messages
 
 ### 📱 Booking System Setup Instructions
 
@@ -362,8 +377,8 @@ vercel --prod
 
 ---
 
-**Last Updated**: July 24, 2025 (4:30 PM)
-**Last Commit**: Fixed force-create-data endpoint and improved error reporting
+**Last Updated**: July 30, 2025 (8:30 AM)
+**Last Commit**: fix: Debug and improve AI form generation with better error handling (57b4e27)
 
 ### 🚨 Current Status - BOOKING SYSTEM ISSUES
 
@@ -883,8 +898,10 @@ For full calling functionality, add to environment variables:
 
 **Last Updated**: July 28, 2025
 **Status**: In-app calling system implemented with Twilio integration
-### 🚀 Latest Commits (July 29, 2025)
+### 🚀 Latest Commits (July 30, 2025)
 
+57b4e27 fix: Debug and improve AI form generation with better error handling
+c792a26 docs: Update CLAUDE.md with latest fixes and commits
 b03d226 fix: TypeScript compatibility with zod v3 in email send route
 a995c3b fix: TypeScript compatibility with zod v3 in analytics route
 aa1c605 fix: Downgrade zod to v3 for OpenAI compatibility
@@ -893,5 +910,3 @@ ddfabc5 fix: Improve error handling in AI form generation
 4b5ed96 fix: Use proper auth system to get organization ID for staff list
 d11055a fix: Correct table name from 'user' to 'users' and add debugging
 4010729 feat: Add staff list display functionality to staff page
-f7da0c4 fix: Update staff page to use actual API instead of hardcoded message
-06cce2c fix: Create organization_staff table and fix staff integration
