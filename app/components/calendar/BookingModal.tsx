@@ -93,10 +93,7 @@ export function BookingModal({
           email: formData.email,
           name: formData.name || undefined
         }] : [],
-        leadId: leadId,
-        organizationId: organizationId,
-        createdBy: hostUserId,
-        googleCalendarConnected: !isPublicBooking
+        leadId: leadId
       }
       
       const response = await fetch('/api/calendar/events', {
@@ -106,7 +103,9 @@ export function BookingModal({
       })
       
       if (!response.ok) {
-        throw new Error('Failed to create booking')
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('Booking creation failed:', errorData)
+        throw new Error(errorData.error || 'Failed to create booking')
       }
       
       alert(
