@@ -119,6 +119,10 @@ export default function CalendarPage() {
       
       setEvents(allEvents)
       console.log(`Total events loaded: ${allEvents.length}`)
+      console.log('All events:', allEvents)
+      console.log('Today\'s events:', allEvents.filter(e => 
+        new Date(e.startTime).toDateString() === new Date().toDateString()
+      ))
     } catch (error) {
       console.error('Error fetching events:', error)
       alert('Failed to load calendar events')
