@@ -23,9 +23,26 @@ const nextConfig = {
   webpack: (config, { dev, isServer, webpack }) => {
     // Fix for browser-only packages
     if (isServer) {
+      // Replace problematic modules with empty modules on server
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        'reactflow': false,
+        '@reactflow/core': false,
+        '@reactflow/node-resizer': false,
+        '@reactflow/node-toolbar': false,
+        '@reactflow/controls': false,
+        '@reactflow/background': false,
+        '@reactflow/minimap': false,
+        '@dnd-kit/core': false,
+        '@dnd-kit/sortable': false,
+        '@dnd-kit/utilities': false,
+        '@dnd-kit/modifiers': false,
+      };
+      
+      // Also use ignore plugin as backup
       config.plugins.push(
         new webpack.IgnorePlugin({
-          resourceRegExp: /^(reactflow|@dnd-kit\/core|@dnd-kit\/sortable|react-dnd|react-dnd-html5-backend)$/,
+          resourceRegExp: /^(reactflow|@reactflow|@dnd-kit)/,
         })
       );
     }
