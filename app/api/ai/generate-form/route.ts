@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { createClient } from '@/app/lib/supabase/server';
 import { requireAuth } from '@/app/lib/api/auth-check';
+import { createAdminClient } from '@/app/lib/supabase/admin';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
     }
 
     const userWithOrg = await requireAuth();
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     
     const { description } = await request.json();
     
