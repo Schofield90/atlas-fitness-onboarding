@@ -1,7 +1,17 @@
 'use client'
 
-import { ReactFlowProvider } from 'reactflow'
-import SimpleWorkflowBuilder from '@/app/components/automation/SimpleWorkflowBuilder'
+import dynamic from 'next/dynamic'
+
+// Dynamic import to avoid SSR issues with ReactFlow
+const ReactFlowProvider = dynamic(
+  () => import('reactflow').then(mod => mod.ReactFlowProvider),
+  { ssr: false }
+)
+
+const SimpleWorkflowBuilder = dynamic(
+  () => import('@/app/components/automation/SimpleWorkflowBuilder'),
+  { ssr: false, loading: () => <div className="flex items-center justify-center h-full text-white">Loading workflow builder...</div> }
+)
 
 export default function WorkflowBuilderPage() {
   return (

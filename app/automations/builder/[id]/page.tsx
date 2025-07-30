@@ -2,9 +2,18 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import DashboardLayout from '@/app/components/DashboardLayout'
-import WorkflowBuilder from '@/app/components/automation/WorkflowBuilder'
 import type { Workflow } from '@/app/lib/types/automation'
+
+// Dynamic import to avoid SSR issues
+const WorkflowBuilder = dynamic(
+  () => import('@/app/components/automation/WorkflowBuilder'),
+  { 
+    ssr: false,
+    loading: () => <div className="flex items-center justify-center h-full text-white">Loading workflow builder...</div>
+  }
+)
 
 export default function EditWorkflowPage() {
   const router = useRouter()
@@ -30,107 +39,83 @@ export default function EditWorkflowPage() {
       // For now, use mock data
       const mockWorkflow: Workflow = {
         id,
-        organizationId: userData?.id || 'mock-org-id',
-        name: `Workflow ${id}`,
-        description: 'Edit this workflow',
+        name: 'Welcome Series',
+        description: 'Automated welcome sequence for new leads',
+        trigger: {
+          type: 'lead_created',
+          conditions: {}
+        },
+        nodes: [],
+        edges: [],
         status: 'active',
-        version: 1,
-        workflowData: {
-          nodes: [],
-          edges: [],
-          variables: []
-        },
-        triggerType: 'manual',
-        settings: {
-          errorHandling: 'stop',
-          maxExecutionTime: 300,
-          timezone: 'UTC',
-          notifications: {
-            onError: true,
-            onComplete: false
-          }
-        },
-        stats: {
-          totalExecutions: 0,
-          successfulExecutions: 0,
-          failedExecutions: 0,
-          avgExecutionTime: 0
-        },
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       }
+      
       setWorkflow(mockWorkflow)
     } catch (error) {
-      console.error('Error loading workflow:', error)
+      console.error('Failed to load workflow:', error)
     } finally {
       setLoading(false)
     }
   }
 
   const handleSave = async (updatedWorkflow: Workflow) => {
-    // TODO: Implement save to database
-    console.log('Saving workflow:', updatedWorkflow)
-    // For now, just show success message
-    alert('Workflow saved successfully!')
-    router.push('/automations')
-  }
-
-  const handleTest = async (testWorkflow: Workflow) => {
-    // TODO: Implement test execution
-    console.log('Testing workflow:', testWorkflow)
-    alert('Workflow test executed! Check the execution logs for results.')
+    try {
+      // TODO: Replace with actual API call
+      console.log('Saving workflow:', updatedWorkflow)
+      
+      // For now, just redirect back
+      router.push('/automations')
+    } catch (error) {
+      console.error('Failed to save workflow:', error)
+    }
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
-      </div>
-    )
-  }
-
-  if (!userData) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Access Restricted</h1>
-          <p className="text-gray-300 mb-8">Please sign up to access the workflow builder.</p>
-          <button 
-            onClick={() => router.push('/signup')}
-            className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg transition-colors"
-          >
-            Start Free Trial
-          </button>
+      <DashboardLayout userData={userData}>
+        <div className="flex items-center justify-center h-full">
+          <p className="text-white">Loading workflow...</p>
         </div>
-      </div>
+      </DashboardLayout>
     )
   }
 
   if (!workflow) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Workflow Not Found</h1>
-          <p className="text-gray-300 mb-8">The workflow you're looking for doesn't exist.</p>
-          <button 
-            onClick={() => router.push('/automations')}
-            className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg transition-colors"
-          >
-            Back to Automations
-          </button>
+      <DashboardLayout userData={userData}>
+        <div className="flex items-center justify-center h-full">
+          <p className="text-white">Workflow not found</p>
         </div>
-      </div>
+      </DashboardLayout>
     )
   }
 
   return (
     <DashboardLayout userData={userData}>
-      <div className="h-full">
-        <WorkflowBuilder 
-          workflow={workflow}
-          onSave={handleSave}
-          onTest={handleTest}
-        />
+      <div className="h-full flex flex-col">
+        <div className="bg-gray-800 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-white">Edit Workflow</h1>
+              <p className="text-gray-400">{workflow.name}</p>
+            </div>
+            <button
+              onClick={() => router.push('/automations')}
+              className="text-gray-400 hover:text-white"
+            >
+              ← Back to Automations
+            </button>
+          </div>
+        </div>
+        
+        <div className="flex-1">
+          <WorkflowBuilder
+            workflow={workflow}
+            onSave={handleSave}
+          />
+        </div>
       </div>
     </DashboardLayout>
   )

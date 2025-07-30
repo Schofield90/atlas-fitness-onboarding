@@ -9,9 +9,7 @@ const nextConfig = {
       'lucide-react',
       'date-fns',
       'recharts'
-    ],
-    // Disable server components external packages for problematic libraries
-    esmExternals: 'loose'
+    ]
   },
   
   // External packages for server components
@@ -23,11 +21,11 @@ const nextConfig = {
   
   // Webpack optimizations
   webpack: (config, { dev, isServer, webpack }) => {
-    // Fix "self is not defined" error
+    // Fix for browser-only packages
     if (isServer) {
       config.plugins.push(
-        new webpack.DefinePlugin({
-          self: 'undefined',
+        new webpack.IgnorePlugin({
+          resourceRegExp: /^(reactflow|@dnd-kit\/core|@dnd-kit\/sortable|react-dnd|react-dnd-html5-backend)$/,
         })
       );
     }
