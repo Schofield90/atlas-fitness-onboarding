@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react'
 import DashboardLayout from '../components/DashboardLayout'
 import { Calendar } from '@/app/components/calendar/Calendar'
+import { GoogleStyleCalendar } from '@/app/components/calendar/GoogleStyleCalendar'
 import { CalendarSettings } from '@/app/components/calendar/CalendarSettings'
 import { BookingModal } from '@/app/components/calendar/BookingModal'
-import { Calendar as CalendarIcon, Settings, Link, Plus } from 'lucide-react'
+import { Calendar as CalendarIcon, Settings, Link, Plus, LayoutGrid, CalendarDays } from 'lucide-react'
 import type { CalendarEvent, TimeSlot } from '@/app/lib/types/calendar'
 
 export default function CalendarPage() {
@@ -15,6 +16,8 @@ export default function CalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [loadingEvents, setLoadingEvents] = useState(false)
   const [activeTab, setActiveTab] = useState<'calendar' | 'settings' | 'booking-links'>('calendar')
+  const [calendarView, setCalendarView] = useState<'week' | 'month'>('week')
+  const [useGoogleStyle, setUseGoogleStyle] = useState(true)
 
   useEffect(() => {
     // Check for success/error messages from Google Calendar connect
@@ -30,7 +33,14 @@ export default function CalendarPage() {
       alert(getErrorMessage(error))
       window.history.replaceState({}, document.title, window.location.pathname)
     }
+    
+    // Fetch initial events
+    fetchEvents()
   }, [])
+
+  useEffect(() => {
+    fetchEvents()
+  }, [selectedDate])
 
   const getErrorMessage = (error: string) => {
     switch (error) {
@@ -81,6 +91,22 @@ export default function CalendarPage() {
   const handleSlotSelect = (slot: TimeSlot) => {
     setSelectedSlot(slot)
     setShowBookingModal(true)
+  }
+
+  const handleGoogleSlotSelect = (slot: { startTime: Date; endTime: Date }) => {
+    const timeSlot: TimeSlot = {
+      id: `slot-${slot.startTime.getTime()}`,
+      startTime: slot.startTime.toISOString(),
+      endTime: slot.endTime.toISOString(),
+      available: true
+    }
+    setSelectedSlot(timeSlot)
+    setShowBookingModal(true)
+  }
+
+  const handleEventClick = (event: CalendarEvent) => {
+    console.log('Event clicked:', event)
+    // You can add modal or detail view here
   }
 
   const handleBookingComplete = () => {
@@ -155,52 +181,100 @@ export default function CalendarPage() {
       {/* Tab Content */}
       {activeTab === 'calendar' && (
         <div className="space-y-4">
-          <div className="grid lg:grid-cols-[1fr,350px] gap-6">
-            <div>
-              <Calendar
+          {/* View Toggle */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCalendarView('week')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  calendarView === 'week' 
+                    ? 'bg-orange-600 text-white' 
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                <CalendarDays className="w-4 h-4 inline mr-1" />
+                Week
+              </button>
+              <button
+                onClick={() => setCalendarView('month')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  calendarView === 'month' 
+                    ? 'bg-orange-600 text-white' 
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                <LayoutGrid className="w-4 h-4 inline mr-1" />
+                Month
+              </button>
+            </div>
+            <button
+              onClick={() => setUseGoogleStyle(!useGoogleStyle)}
+              className="text-sm text-gray-400 hover:text-white transition-colors"
+            >
+              {useGoogleStyle ? 'Switch to Classic View' : 'Switch to Google Style'}
+            </button>
+          </div>
+
+          {/* Calendar Display */}
+          {useGoogleStyle ? (
+            <div className="h-[700px]">
+              <GoogleStyleCalendar
                 selectedDate={selectedDate}
                 onDateSelect={setSelectedDate}
-                onSlotSelect={handleSlotSelect}
+                onSlotSelect={handleGoogleSlotSelect}
+                onEventClick={handleEventClick}
+                events={events}
+                view={calendarView}
               />
             </div>
+          ) : (
+            <div className="grid lg:grid-cols-[1fr,350px] gap-6">
+              <div>
+                <Calendar
+                  selectedDate={selectedDate}
+                  onDateSelect={setSelectedDate}
+                  onSlotSelect={handleSlotSelect}
+                />
+              </div>
 
-            {/* Day Events */}
-            <div className="bg-gray-800 rounded-lg p-6">
-              <h3 className="text-lg font-bold mb-2 text-white">
-                {selectedDate.toLocaleDateString('en-US', {
-                  weekday: 'long',
-                  month: 'long',
-                  day: 'numeric'
-                })}
-              </h3>
-              <p className="text-white text-sm mb-4">
-                {getDayEvents().length} events scheduled
-              </p>
-              
-              {getDayEvents().length === 0 ? (
-                <p className="text-sm text-white opacity-60">No events scheduled</p>
-              ) : (
-                <div className="space-y-3">
-                  {getDayEvents().map((event) => (
-                    <div
-                      key={event.id}
-                      className="p-3 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors cursor-pointer"
-                    >
-                      <h4 className="font-medium text-sm text-white">{event.title}</h4>
-                      <p className="text-xs text-white mt-1">
-                        {formatEventTime(event)}
-                      </p>
-                      {event.attendees.length > 0 && (
-                        <p className="text-xs text-white opacity-60 mt-1">
-                          With: {event.attendees.map(a => a.email).join(', ')}
+              {/* Day Events */}
+              <div className="bg-gray-800 rounded-lg p-6">
+                <h3 className="text-lg font-bold mb-2 text-white">
+                  {selectedDate.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </h3>
+                <p className="text-white text-sm mb-4">
+                  {getDayEvents().length} events scheduled
+                </p>
+                
+                {getDayEvents().length === 0 ? (
+                  <p className="text-sm text-white opacity-60">No events scheduled</p>
+                ) : (
+                  <div className="space-y-3">
+                    {getDayEvents().map((event) => (
+                      <div
+                        key={event.id}
+                        className="p-3 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors cursor-pointer"
+                      >
+                        <h4 className="font-medium text-sm text-white">{event.title}</h4>
+                        <p className="text-xs text-white mt-1">
+                          {formatEventTime(event)}
                         </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+                        {event.attendees.length > 0 && (
+                          <p className="text-xs text-white opacity-60 mt-1">
+                            With: {event.attendees.map(a => a.email).join(', ')}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
