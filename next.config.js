@@ -6,6 +6,7 @@ if (typeof self === 'undefined') {
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
+  transpilePackages: ['reactflow', '@reactflow/core'],
   
   // Enable experimental features for better performance
   experimental: {
@@ -14,7 +15,9 @@ const nextConfig = {
       'lucide-react',
       'date-fns',
       'recharts'
-    ]
+    ],
+    // Server components external packages
+    serverComponentsExternalPackages: ['reactflow', '@reactflow/core', '@dnd-kit/core']
   },
   
   // External packages for server components
@@ -26,36 +29,26 @@ const nextConfig = {
   
   // Webpack optimizations
   webpack: (config, { dev, isServer, webpack }) => {
-    // Fix for browser-only packages
+    // Polyfill self on server
     if (isServer) {
-      // Ensure self is defined for all modules
-      config.plugins.unshift(
-        new webpack.DefinePlugin({
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        self: false,
+      };
+      
+      // Use ProvidePlugin to polyfill self
+      config.plugins.push(
+        new webpack.ProvidePlugin({
           self: 'global',
         })
       );
       
-      // Use webpack externals to completely exclude these packages from server bundle
-      config.externals = [...(config.externals || []), {
-        'reactflow': 'commonjs reactflow',
-        '@reactflow/core': 'commonjs @reactflow/core',
-        '@reactflow/node-resizer': 'commonjs @reactflow/node-resizer',
-        '@reactflow/node-toolbar': 'commonjs @reactflow/node-toolbar', 
-        '@reactflow/controls': 'commonjs @reactflow/controls',
-        '@reactflow/background': 'commonjs @reactflow/background',
-        '@reactflow/minimap': 'commonjs @reactflow/minimap',
-        '@dnd-kit/core': 'commonjs @dnd-kit/core',
-        '@dnd-kit/sortable': 'commonjs @dnd-kit/sortable',
-        '@dnd-kit/utilities': 'commonjs @dnd-kit/utilities',
-        '@dnd-kit/modifiers': 'commonjs @dnd-kit/modifiers',
-      }];
-      
-      // Also handle the reactflow CSS
-      config.module.rules.push({
-        test: /reactflow.*\.css$/,
-        use: 'null-loader',
-        sideEffects: false,
-      });
+      // Ignore browser-only modules
+      config.plugins.push(
+        new webpack.IgnorePlugin({
+          resourceRegExp: /^(reactflow|@reactflow|@dnd-kit)/,
+        })
+      );
     }
     
     // Optimize for production
