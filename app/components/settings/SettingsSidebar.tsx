@@ -19,7 +19,8 @@ import {
   CreditCard,
   Globe,
   Database,
-  ArrowLeft
+  ArrowLeft,
+  MapPin
 } from 'lucide-react'
 
 const settingsNavigation = [
@@ -27,6 +28,7 @@ const settingsNavigation = [
     category: "MY BUSINESS",
     items: [
       { name: "Business Profile", href: "/settings/business", icon: Building2 },
+      { name: "Locations", href: "/settings/locations", icon: MapPin },
       { name: "My Staff", href: "/settings/staff", icon: Users },
       { name: "Custom Fields", href: "/settings/custom-fields", icon: Settings },
       { name: "Tags", href: "/settings/tags", icon: Tag },

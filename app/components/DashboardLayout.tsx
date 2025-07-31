@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/app/lib/supabase/client'
+import LocationSwitcher from './LocationSwitcher'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -453,6 +454,7 @@ export default function DashboardLayout({ children, userData }: DashboardLayoutP
               </span>
             </div>
             <div className="flex items-center space-x-4">
+              <LocationSwitcher />
               {user && (
                 <span className="text-sm text-gray-400">
                   {user.email}

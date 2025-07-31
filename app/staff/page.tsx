@@ -3,6 +3,8 @@
 import DashboardLayout from '../components/DashboardLayout'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
+import { MapPin } from 'lucide-react'
+import StaffLocationModal from './StaffLocationModal'
 
 interface Staff {
   id: string
@@ -16,6 +18,7 @@ interface Staff {
   receives_emails: boolean
   routing_priority: number
   role: string
+  location_access?: any
 }
 
 export default function StaffPage() {
@@ -23,6 +26,7 @@ export default function StaffPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [staff, setStaff] = useState<Staff[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedStaffForLocation, setSelectedStaffForLocation] = useState<{id: string, name: string} | null>(null)
   const supabase = createClient()
   
   const [formData, setFormData] = useState({
@@ -195,6 +199,15 @@ export default function StaffPage() {
                           {member.receives_whatsapp && <span className="bg-gray-600 px-2 py-1 rounded">WhatsApp</span>}
                           {member.receives_emails && <span className="bg-gray-600 px-2 py-1 rounded">Email</span>}
                         </div>
+                        <div className="mt-3">
+                          <button
+                            onClick={() => setSelectedStaffForLocation({ id: member.id, name: member.email })}
+                            className="flex items-center gap-2 text-xs bg-gray-600 hover:bg-gray-500 px-3 py-1.5 rounded transition-colors"
+                          >
+                            <MapPin className="h-3 w-3" />
+                            {member.location_access?.all_locations ? 'All Locations' : 'Manage Locations'}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -314,6 +327,19 @@ export default function StaffPage() {
                 </form>
               </div>
             </div>
+          )}
+
+          {/* Location Access Modal */}
+          {selectedStaffForLocation && (
+            <StaffLocationModal
+              staffId={selectedStaffForLocation.id}
+              staffName={selectedStaffForLocation.name}
+              onClose={() => setSelectedStaffForLocation(null)}
+              onSave={() => {
+                setSelectedStaffForLocation(null)
+                fetchStaff()
+              }}
+            />
           )}
         </div>
       </div>
