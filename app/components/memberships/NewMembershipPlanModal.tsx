@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { X, Save } from 'lucide-react';
 import { createClient } from '@/app/lib/supabase/client';
+import { getCurrentUserOrganization } from '@/app/lib/organization-service';
 
 interface NewMembershipPlanModalProps {
   isOpen: boolean;
@@ -63,15 +64,11 @@ const NewMembershipPlanModal: React.FC<NewMembershipPlanModalProps> = ({ isOpen,
         return;
       }
       
-      // Get user's organization from organization_staff
-      const { data: staffData } = await supabase
-        .from('organization_staff')
-        .select('organization_id')
-        .eq('user_id', user.id)
-        .single();
+      // Get user's organization
+      const { organizationId, error: orgError } = await getCurrentUserOrganization();
         
-      if (!staffData?.organization_id) {
-        alert('No organization found. Please contact support.');
+      if (orgError || !organizationId) {
+        alert(orgError || 'No organization found. Please contact support.');
         return;
       }
       
@@ -96,7 +93,7 @@ const NewMembershipPlanModal: React.FC<NewMembershipPlanModalProps> = ({ isOpen,
           billing_period: billingPeriod,
           features: formData.features.filter(f => f.trim() !== ''),
           is_active: true,
-          organization_id: staffData.organization_id,
+          organization_id: organizationId,
           trial_days: parseInt(formData.trialDays) || 0,
           max_members: formData.maxMembers ? parseInt(formData.maxMembers) : null
         })
