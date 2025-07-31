@@ -50,8 +50,22 @@ export default function AddClassModal({ onClose, onSuccess }: AddClassModalProps
         throw new Error(error || 'Organization not found')
       }
 
-      // Create the class
-      const startDateTime = new Date(`${formData.start_date}T${formData.start_time}`)
+      // Validate required fields
+      if (!formData.name || !formData.instructor_name || !formData.start_time) {
+        throw new Error('Please fill in all required fields')
+      }
+
+      // For recurring classes, we only need the time, not a specific date
+      let startDateTime: Date | null = null
+      if (!formData.recurring) {
+        if (!formData.start_date) {
+          throw new Error('Please select a date for the class')
+        }
+        startDateTime = new Date(`${formData.start_date}T${formData.start_time}`)
+        if (isNaN(startDateTime.getTime())) {
+          throw new Error('Invalid date or time format')
+        }
+      }
       
       if (formData.recurring && formData.recurring_days.length > 0) {
         // Create recurring classes
@@ -62,7 +76,7 @@ export default function AddClassModal({ onClose, onSuccess }: AddClassModalProps
               organization_id: organizationId,
               name: formData.name,
               instructor_name: formData.instructor_name,
-              start_time: startDateTime.toISOString(),
+              start_time: formData.start_time, // For recurring, just store the time
               duration_minutes: parseInt(formData.duration_minutes),
               capacity: parseInt(formData.capacity),
               price: parseFloat(formData.price) * 100, // Convert to pence
@@ -82,7 +96,7 @@ export default function AddClassModal({ onClose, onSuccess }: AddClassModalProps
             organization_id: organizationId,
             name: formData.name,
             instructor_name: formData.instructor_name,
-            start_time: startDateTime.toISOString(),
+            start_time: startDateTime?.toISOString() || formData.start_time,
             duration_minutes: parseInt(formData.duration_minutes),
             capacity: parseInt(formData.capacity),
             price: parseFloat(formData.price) * 100, // Convert to pence
