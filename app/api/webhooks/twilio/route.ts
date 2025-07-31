@@ -264,17 +264,30 @@ For assistance, please contact our support team.`
       const twiml = new twilio.twiml.MessagingResponse()
       twiml.message(responseMessage)
       
-      // Log outgoing message
+      // Log outgoing message to the appropriate table
       const outgoingLog = {
-        to_email: cleanedFrom, // Using to_email field for phone number
+        message_id: `AI-${Date.now()}`, // Generate a unique ID for AI responses
+        to: cleanedFrom,
+        from_number: cleanedTo, // The business number
+        message: responseMessage,
+        status: 'sent',
+        organization_id: organizationId
+      }
+      
+      // Save to the appropriate logs table
+      await adminSupabase.from(tableName).insert(outgoingLog)
+      
+      // Also save to messages table for legacy support
+      await adminSupabase.from('messages').insert({
+        to_email: cleanedFrom,
         subject: `${channel.toUpperCase()} Reply`,
         body: responseMessage,
         status: 'sent',
         organization_id: organizationId,
-        lead_id: lead?.id
-      }
-      
-      await adminSupabase.from('messages').insert(outgoingLog)
+        lead_id: lead?.id,
+        type: channel,
+        direction: 'outbound'
+      })
       
       return new NextResponse(twiml.toString(), {
         headers: { 'Content-Type': 'text/xml' }

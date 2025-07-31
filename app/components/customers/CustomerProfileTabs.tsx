@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import ProfileTab from './tabs/ProfileTab'
 import ActivityTab from './tabs/ActivityTab'
+import MessagesTab from './tabs/MessagesTab'
 import RegistrationsTab from './tabs/RegistrationsTab'
 import WaiversTab from './tabs/WaiversTab'
 import FamilyTab from './tabs/FamilyTab'
@@ -22,6 +23,7 @@ export default function CustomerProfileTabs({ customer, onUpdate }: CustomerProf
   const tabs = [
     { id: 'profile', label: 'Profile' },
     { id: 'activity', label: 'Activity' },
+    { id: 'messages', label: 'Messages' },
     { id: 'registrations', label: 'Registrations' },
     { id: 'waivers', label: 'Waivers' },
     { id: 'family', label: 'Family' },
@@ -58,6 +60,7 @@ export default function CustomerProfileTabs({ customer, onUpdate }: CustomerProf
       <div>
         {activeTab === 'profile' && <ProfileTab customer={customer} onUpdate={onUpdate} />}
         {activeTab === 'activity' && <ActivityTab customerId={customer.id} />}
+        {activeTab === 'messages' && <MessagesTab customerId={customer.id} customer={customer} />}
         {activeTab === 'registrations' && <RegistrationsTab customerId={customer.id} />}
         {activeTab === 'waivers' && <WaiversTab customerId={customer.id} />}
         {activeTab === 'family' && <FamilyTab customerId={customer.id} organizationId={customer.organization_id} />}
