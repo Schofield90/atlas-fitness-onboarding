@@ -231,10 +231,14 @@ export default function MessagesTab({ customerId, customer }: MessagesTabProps) 
       {showComposer && (
         <div className="mb-6 p-4 bg-gray-800 rounded-lg">
           <MessageComposer
-            leadId={customerId}
-            leadName={customer.name}
-            leadEmail={customer.email}
-            leadPhone={customer.phone}
+            isOpen={true}
+            onClose={() => setShowComposer(false)}
+            lead={{
+              id: customerId,
+              name: customer.name,
+              email: customer.email,
+              phone: customer.phone
+            }}
             onMessageSent={() => {
               fetchMessages()
               setShowComposer(false)
