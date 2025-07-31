@@ -208,7 +208,7 @@ export function LeadsTable({ statusFilter = 'all' }: LeadsTableProps) {
                     />
                   </td>
                   <td className="p-4">
-                    <Link href={`/leads/${lead.id}`} className="hover:text-orange-400 transition-colors">
+                    <Link href={`/customers/${lead.id}`} className="hover:text-orange-400 transition-colors">
                       <div className="font-medium">{lead.name}</div>
                       {lead.form_name && (
                         <div className="text-xs text-gray-400">{lead.form_name}</div>
@@ -235,7 +235,7 @@ export function LeadsTable({ statusFilter = 'all' }: LeadsTableProps) {
                   </td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">
-                      <Link href={`/leads/${lead.id}`} className="p-1 hover:bg-gray-600 rounded transition-colors inline-block" title="View Details">
+                      <Link href={`/customers/${lead.id}`} className="p-1 hover:bg-gray-600 rounded transition-colors inline-block" title="View Details">
                         <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
