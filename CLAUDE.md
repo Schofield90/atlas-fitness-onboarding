@@ -552,9 +552,52 @@ Next.js 15 with App Router was failing to build on Vercel due to various SSR inc
 - `/next.config.js` - Removed invalid options
 - `/vercel.json` - Removed cron job
 
-**Last Updated**: January 31, 2025 (10:30 AM)
-**Last Commit**: bc12774 - fix: Fix TypeScript errors in custom-fields page
-**Previous Major Work**: Complete settings system implementation with all pages
+**Last Updated**: January 31, 2025 (11:20 AM)
+**Last Commit**: d0c39ba - fix: Add membership debug page and remove price field from classes
+**Session Status**: Paused for the day - membership plans display issue needs debugging
+
+## 🚀 Current Status (January 31, 2025 - End of Day)
+
+### ✅ What We Fixed Today:
+1. **Membership Plans Table**: Created missing `membership_plans` table with complete schema and RLS policies
+2. **Table Check Tool**: Created `/table-check` page - confirmed all tables exist
+3. **Class Sessions Schema**: Fixed missing columns error by creating migration for `capacity`, `instructor_name`, `price`, `location`, etc.
+4. **Debug Tools**: Created `/membership-debug` page to troubleshoot membership visibility
+
+### 🔧 Outstanding Issues:
+1. **Membership Plans Not Showing**: Plans are created successfully but not displaying on the memberships page
+   - Created debug page at `/membership-debug` to investigate
+   - Likely an organization filtering issue
+2. **Class Creation UI Updates Needed**:
+   - Remove price field from AddClassModal
+   - Change location to dropdown using created locations from database
+
+### 📝 SQL Migrations Run Today:
+```sql
+-- 1. Created membership_plans table
+CREATE TABLE IF NOT EXISTS membership_plans (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  price INTEGER NOT NULL,
+  billing_period VARCHAR(50) NOT NULL DEFAULT 'monthly',
+  features JSONB DEFAULT '[]'::jsonb,
+  is_active BOOLEAN DEFAULT true,
+  trial_days INTEGER DEFAULT 0,
+  max_members INTEGER,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2. Fixed class_sessions columns (in fix-class-sessions-columns.sql)
+```
+
+### 🎯 Next Session Priority:
+1. Use `/membership-debug` to identify why memberships aren't showing
+2. Fix the organization filtering issue
+3. Update AddClassModal to remove price and add location dropdown
+4. Test full membership and class creation flow
 
 ## 📋 TODO List Summary (Current Session)
 
