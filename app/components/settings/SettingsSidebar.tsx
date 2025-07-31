@@ -35,12 +35,12 @@ const settingsNavigation = [
   {
     category: "INTEGRATIONS",
     items: [
-      { name: "Email Services", href: "/settings/email", icon: Mail },
-      { name: "Phone & SMS", href: "/settings/phone", icon: Phone },
-      { name: "WhatsApp", href: "/settings/whatsapp", icon: MessageCircle },
-      { name: "Google Calendar", href: "/settings/google", icon: Calendar },
-      { name: "Payment Processing", href: "/settings/payments", icon: CreditCard },
-      { name: "Website & Forms", href: "/settings/website", icon: Globe },
+      { name: "Email Services", href: "/settings/integrations/email", icon: Mail },
+      { name: "Phone & SMS", href: "/settings/integrations/phone", icon: Phone },
+      { name: "WhatsApp", href: "/settings/integrations/whatsapp", icon: MessageCircle },
+      { name: "Google Calendar", href: "/settings/integrations/google", icon: Calendar },
+      { name: "Payment Processing", href: "/settings/integrations/payments", icon: CreditCard },
+      { name: "Website & Forms", href: "/settings/integrations/website", icon: Globe },
     ]
   },
   {

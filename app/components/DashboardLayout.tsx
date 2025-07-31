@@ -369,7 +369,7 @@ export default function DashboardLayout({ children, userData }: DashboardLayoutP
                   {pathname === '/store' && 'Store'}
                   {pathname === '/communications' && 'Communications'}
                   {pathname === '/customer-experience' && 'Customer Experience'}
-                  {pathname === '/settings' && 'Settings'}
+                  {pathname.startsWith('/settings') && 'Settings'}
                   {pathname === '/pro-tools' && 'Pro Tools'}
                   {pathname === '/staff' && 'Staff'}
                   {pathname === '/account' && 'My Account'}

@@ -212,7 +212,7 @@ export default function DashboardPage() {
               Manage your account settings and preferences.
             </p>
             <button 
-              onClick={() => alert('Settings page coming soon! You\'ll be able to manage your account settings and preferences.')}
+              onClick={() => router.push('/settings')}
               className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition-colors"
             >
               Open Settings
