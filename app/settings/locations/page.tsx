@@ -54,13 +54,31 @@ export default function LocationsPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
+      // First try organization_staff table
+      let organizationId = null
+      
       const { data: staffData } = await supabase
         .from('organization_staff')
         .select('organization_id')
         .eq('user_id', user.id)
         .single()
 
-      if (!staffData) return
+      if (staffData) {
+        organizationId = staffData.organization_id
+      } else {
+        // Fallback to user_organizations if needed
+        const { data: userOrgData } = await supabase
+          .from('user_organizations')
+          .select('organization_id')
+          .eq('user_id', user.id)
+          .single()
+          
+        if (userOrgData) {
+          organizationId = userOrgData.organization_id
+        }
+      }
+
+      if (!organizationId) return
 
       // Load locations with counts
       const { data: locationsData, error } = await supabase
@@ -70,7 +88,7 @@ export default function LocationsPage() {
           location_staff!location_staff_location_id_fkey(count),
           customers!customers_location_id_fkey(count)
         `)
-        .eq('organization_id', staffData.organization_id)
+        .eq('organization_id', organizationId)
         .order('is_primary', { ascending: false })
         .order('created_at', { ascending: true })
 
@@ -92,19 +110,29 @@ export default function LocationsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('Form submitted with data:', formData)
     
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) {
+        console.error('No user found')
+        alert('You must be logged in to add locations')
+        return
+      }
 
-      const { data: staffData } = await supabase
+      const { data: staffData, error: staffError } = await supabase
         .from('organization_staff')
         .select('organization_id')
         .eq('user_id', user.id)
         .single()
 
-      if (!staffData) return
+      if (staffError || !staffData) {
+        console.error('Staff data error:', staffError)
+        alert('Could not find your organization')
+        return
+      }
 
+      console.log('Organization ID:', staffData.organization_id)
       const slug = formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
 
       if (editingLocation) {
@@ -147,9 +175,9 @@ export default function LocationsPage() {
       setShowAddModal(false)
       setEditingLocation(null)
       loadLocations()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving location:', error)
-      alert('Failed to save location')
+      alert(`Failed to save location: ${error.message || 'Unknown error'}`)
     }
   }
 
