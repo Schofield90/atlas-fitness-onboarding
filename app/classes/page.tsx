@@ -5,6 +5,8 @@ import { createClient } from '@/app/lib/supabase/client'
 import { Calendar, Clock, Users, MapPin, DollarSign, Plus, Edit, Trash2, AlertTriangle } from 'lucide-react'
 import DashboardLayout from '../components/DashboardLayout'
 import AddClassModal from './AddClassModal'
+import { RequireOrganization } from '../components/auth/RequireOrganization'
+import { useOrganization } from '../hooks/useOrganization'
 
 interface ClassSession {
   id: string
@@ -21,7 +23,8 @@ interface ClassSession {
   bookings_count: number
 }
 
-export default function ClassesPage() {
+function ClassesPageContent() {
+  const { organizationId } = useOrganization()
   const [classes, setClasses] = useState<ClassSession[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -34,6 +37,8 @@ export default function ClassesPage() {
   }, [])
 
   const loadClasses = async () => {
+    if (!organizationId) return;
+    
     try {
       const { data, error } = await supabase
         .from('class_sessions')
@@ -41,6 +46,7 @@ export default function ClassesPage() {
           *,
           bookings:bookings(count)
         `)
+        .eq('organization_id', organizationId)
         .order('start_time', { ascending: true })
 
       if (error) throw error
@@ -354,5 +360,13 @@ export default function ClassesPage() {
         </div>
       </div>
     </DashboardLayout>
+  )
+}
+
+export default function ClassesPage() {
+  return (
+    <RequireOrganization>
+      <ClassesPageContent />
+    </RequireOrganization>
   )
 }

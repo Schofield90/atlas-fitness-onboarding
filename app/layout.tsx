@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import '@/app/lib/polyfills'
 import { AnalyticsProvider } from '@/app/components/analytics/provider'
+import { OrganizationProvider } from '@/app/hooks/useOrganization'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -20,7 +21,9 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <AnalyticsProvider>
-          {children}
+          <OrganizationProvider>
+            {children}
+          </OrganizationProvider>
         </AnalyticsProvider>
       </body>
     </html>

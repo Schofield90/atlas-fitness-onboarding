@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
 import { X } from 'lucide-react'
+import { getCurrentUserOrganization } from '@/app/lib/organization-service'
 
 interface AddClassModalProps {
   onClose: () => void
@@ -42,17 +43,12 @@ export default function AddClassModal({ onClose, onSuccess }: AddClassModalProps
     setLoading(true)
 
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
-
       // Get organization ID
-      const { data: staffData } = await supabase
-        .from('organization_staff')
-        .select('organization_id')
-        .eq('user_id', user.id)
-        .single()
-
-      if (!staffData) throw new Error('Organization not found')
+      const { organizationId, error } = await getCurrentUserOrganization()
+      
+      if (error || !organizationId) {
+        throw new Error(error || 'Organization not found')
+      }
 
       // Create the class
       const startDateTime = new Date(`${formData.start_date}T${formData.start_time}`)
@@ -63,7 +59,7 @@ export default function AddClassModal({ onClose, onSuccess }: AddClassModalProps
           const { error } = await supabase
             .from('class_sessions')
             .insert({
-              organization_id: staffData.organization_id,
+              organization_id: organizationId,
               name: formData.name,
               instructor_name: formData.instructor_name,
               start_time: startDateTime.toISOString(),
@@ -83,7 +79,7 @@ export default function AddClassModal({ onClose, onSuccess }: AddClassModalProps
         const { error } = await supabase
           .from('class_sessions')
           .insert({
-            organization_id: staffData.organization_id,
+            organization_id: organizationId,
             name: formData.name,
             instructor_name: formData.instructor_name,
             start_time: startDateTime.toISOString(),
