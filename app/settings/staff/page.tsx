@@ -31,36 +31,50 @@ export default function StaffManagementPage() {
 
       if (!userOrg) return
 
-      // Get all staff members in the organization
-      const { data: staffData } = await supabase
-        .from('user_organizations')
-        .select('*')
-        .eq('organization_id', userOrg.organization_id)
-        .order('created_at', { ascending: false })
-
-      // Also get staff details from organization_staff if it exists
+      // Get all staff from organization_staff table
       const { data: staffDetails } = await supabase
         .from('organization_staff')
         .select('*')
         .eq('organization_id', userOrg.organization_id)
+        .order('created_at', { ascending: false })
 
-      // Merge the data
-      const mergedStaff = staffData?.map((member: any) => {
-        const details = staffDetails?.find((d: any) => d.user_id === member.user_id)
-        return {
-          ...member,
-          id: member.user_id, // Use user_id as the id
-          name: details?.name || 'Staff Member',
-          avatar_url: details?.avatar_url,
-          phone: details?.phone,
-          position: details?.position,
-          email: details?.email || 'No email',
-          last_login_at: member.updated_at, // Use updated_at as a proxy for last login
-          created_at: member.created_at
-        }
-      }) || []
+      // Get current user's details for the owner
+      const currentUserStaff = {
+        id: user.id,
+        user_id: user.id,
+        name: user.email?.split('@')[0] || 'Owner',
+        email: user.email,
+        role: userOrg.role || 'owner',
+        is_active: true,
+        phone: null,
+        position: 'Owner',
+        last_login_at: new Date().toISOString(),
+        created_at: userOrg.created_at || new Date().toISOString()
+      }
 
-      setStaff(mergedStaff)
+      // Combine owner and staff
+      const allStaff = [currentUserStaff]
+      
+      // Add other staff members
+      if (staffDetails && staffDetails.length > 0) {
+        const otherStaff = staffDetails
+          .filter((s: any) => s.user_id !== user.id) // Don't duplicate the owner
+          .map((staff: any) => ({
+            id: staff.id,
+            user_id: staff.user_id,
+            name: staff.email?.split('@')[0] || 'Staff Member',
+            email: staff.email,
+            phone: staff.phone_number,
+            role: staff.role || 'staff',
+            is_active: staff.is_available !== false,
+            position: staff.role || 'Staff',
+            last_login_at: staff.updated_at || staff.created_at,
+            created_at: staff.created_at
+          }))
+        allStaff.push(...otherStaff)
+      }
+
+      setStaff(allStaff)
     } catch (error) {
       console.error('Error fetching staff:', error)
     } finally {
