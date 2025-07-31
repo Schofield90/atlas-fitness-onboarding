@@ -56,30 +56,22 @@ export default function ClassesPage() {
   const deleteAllClasses = async () => {
     setDeletingAll(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      const response = await fetch('/api/debug/delete-all-classes', {
+        method: 'DELETE',
+      })
 
-      const { data: staffData } = await supabase
-        .from('organization_staff')
-        .select('organization_id')
-        .eq('user_id', user.id)
-        .single()
+      const result = await response.json()
 
-      if (!staffData) return
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete classes')
+      }
 
-      // Delete all classes for this organization
-      const { error } = await supabase
-        .from('class_sessions')
-        .delete()
-        .eq('organization_id', staffData.organization_id)
-
-      if (error) throw error
-
+      console.log(`Deleted ${result.deletedCount} classes`)
       setShowDeleteAllModal(false)
       loadClasses()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting classes:', error)
-      alert('Failed to delete classes')
+      alert(error.message || 'Failed to delete classes')
     } finally {
       setDeletingAll(false)
     }
@@ -311,8 +303,11 @@ export default function ClassesPage() {
                   <AlertTriangle className="h-6 w-6 text-red-500" />
                   <h2 className="text-xl font-semibold text-white">Delete All Classes</h2>
                 </div>
-                <p className="text-gray-300 mb-6">
+                <p className="text-gray-300 mb-4">
                   Are you sure you want to delete all classes? This will remove all {classes.length} classes and cannot be undone.
+                </p>
+                <p className="text-sm text-gray-400 mb-6">
+                  If the normal delete doesn't work, try the "Force Delete" option below.
                 </p>
                 <div className="flex gap-4">
                   <button
@@ -321,6 +316,29 @@ export default function ClassesPage() {
                     className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white py-2 rounded transition-colors"
                   >
                     {deletingAll ? 'Deleting...' : 'Delete All Classes'}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setDeletingAll(true)
+                      try {
+                        const response = await fetch('/api/debug/force-delete-all-classes', {
+                          method: 'DELETE',
+                        })
+                        const result = await response.json()
+                        if (!response.ok) throw new Error(result.error)
+                        console.log('Force deleted all classes')
+                        setShowDeleteAllModal(false)
+                        loadClasses()
+                      } catch (error: any) {
+                        alert(`Force delete failed: ${error.message}`)
+                      } finally {
+                        setDeletingAll(false)
+                      }
+                    }}
+                    disabled={deletingAll}
+                    className="flex-1 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600 text-white py-2 rounded transition-colors"
+                  >
+                    Force Delete All
                   </button>
                   <button
                     onClick={() => setShowDeleteAllModal(false)}

@@ -1,34 +1,199 @@
 'use client'
 
 import DashboardLayout from '../components/DashboardLayout'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/app/lib/supabase/client'
+import { formatBritishCurrency, formatBritishDate } from '@/app/lib/utils/british-format'
+import { Trash2, Edit2, Tag } from 'lucide-react'
+
+interface DiscountCode {
+  id: string
+  code: string
+  description: string
+  discount_type: 'percentage' | 'fixed'
+  discount_value: number
+  valid_from: string | null
+  valid_until: string | null
+  usage_limit: number | null
+  times_used: number
+  is_active: boolean
+  created_at: string
+}
 
 export default function DiscountCodesPage() {
+  const [discountCodes, setDiscountCodes] = useState<DiscountCode[]>([])
+  const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [formData, setFormData] = useState({
     code: '',
     description: '',
-    discountType: 'percentage',
+    discountType: 'percentage' as 'percentage' | 'fixed',
     discountValue: '',
     validFrom: '',
     validUntil: '',
     usageLimit: ''
   })
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    fetchDiscountCodes()
+  }, [])
+
+  const fetchDiscountCodes = async () => {
+    try {
+      const supabase = createClient()
+      
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      // Get user's organization
+      const { data: staffData } = await supabase
+        .from('organization_staff')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single()
+
+      if (!staffData?.organization_id) return
+
+      // Fetch discount codes
+      const { data, error } = await supabase
+        .from('discount_codes')
+        .select('*')
+        .eq('organization_id', staffData.organization_id)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Error fetching discount codes:', error)
+        // If table doesn't exist, show empty state
+        if (error.code === '42P01') {
+          setDiscountCodes([])
+        }
+      } else {
+        setDiscountCodes(data || [])
+      }
+    } catch (error) {
+      console.error('Error:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleCreateDiscount = async (e: React.FormEvent) => {
     e.preventDefault()
-    alert('Discount code created! (Database integration pending)')
-    setShowCreateModal(false)
-    // Reset form
-    setFormData({
-      code: '',
-      description: '',
-      discountType: 'percentage',
-      discountValue: '',
-      validFrom: '',
-      validUntil: '',
-      usageLimit: ''
-    })
+    setSubmitting(true)
+
+    try {
+      const supabase = createClient()
+      
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        alert('You must be logged in to create discount codes')
+        return
+      }
+
+      // Get user's organization
+      const { data: staffData } = await supabase
+        .from('organization_staff')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single()
+
+      if (!staffData?.organization_id) {
+        alert('No organization found')
+        return
+      }
+
+      // Convert discount value based on type
+      let discountValue: number
+      if (formData.discountType === 'percentage') {
+        discountValue = parseInt(formData.discountValue)
+      } else {
+        // Convert pounds to pennies
+        discountValue = Math.round(parseFloat(formData.discountValue) * 100)
+      }
+
+      // Create the discount code
+      const { error } = await supabase
+        .from('discount_codes')
+        .insert({
+          organization_id: staffData.organization_id,
+          code: formData.code.toUpperCase(),
+          description: formData.description || null,
+          discount_type: formData.discountType,
+          discount_value: discountValue,
+          valid_from: formData.validFrom || null,
+          valid_until: formData.validUntil || null,
+          usage_limit: formData.usageLimit ? parseInt(formData.usageLimit) : null,
+          created_by: user.id,
+          is_active: true
+        })
+
+      if (error) {
+        console.error('Error creating discount code:', error)
+        if (error.code === '42P01') {
+          alert('Discount codes table not found. Please run the migration first.')
+        } else if (error.code === '23505') {
+          alert('This discount code already exists')
+        } else {
+          alert('Failed to create discount code')
+        }
+        return
+      }
+
+      // Reset form and close modal
+      setFormData({
+        code: '',
+        description: '',
+        discountType: 'percentage',
+        discountValue: '',
+        validFrom: '',
+        validUntil: '',
+        usageLimit: ''
+      })
+      setShowCreateModal(false)
+      fetchDiscountCodes()
+    } catch (error) {
+      console.error('Error:', error)
+      alert('An error occurred')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const toggleActive = async (id: string, currentStatus: boolean) => {
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('discount_codes')
+        .update({ is_active: !currentStatus })
+        .eq('id', id)
+
+      if (error) throw error
+      fetchDiscountCodes()
+    } catch (error) {
+      console.error('Error toggling discount status:', error)
+      alert('Failed to update discount code')
+    }
+  }
+
+  const deleteDiscount = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this discount code?')) return
+
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('discount_codes')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+      fetchDiscountCodes()
+    } catch (error) {
+      console.error('Error deleting discount:', error)
+      alert('Failed to delete discount code')
+    }
   }
 
   return (
@@ -49,15 +214,105 @@ export default function DiscountCodesPage() {
             </button>
           </div>
 
-          {/* Active Codes */}
-          <div className="bg-gray-800 rounded-lg p-6">
-            <div className="text-center py-8">
-              <svg className="w-16 h-16 mx-auto mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-              </svg>
-              <p className="text-gray-400 mb-2">No discount codes created yet</p>
-              <p className="text-sm text-gray-500">Click "Create Discount Code" to offer promotions to your customers</p>
-            </div>
+          {/* Discount Codes List */}
+          <div className="bg-gray-800 rounded-lg">
+            {loading ? (
+              <div className="p-6 text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
+                <p className="text-gray-400 mt-4">Loading discount codes...</p>
+              </div>
+            ) : discountCodes.length === 0 ? (
+              <div className="p-6">
+                <div className="text-center py-8">
+                  <Tag className="w-16 h-16 mx-auto mb-4 text-gray-600" />
+                  <p className="text-gray-400 mb-2">No discount codes created yet</p>
+                  <p className="text-sm text-gray-500">Click "Create Discount Code" to offer promotions to your customers</p>
+                </div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-700">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Code</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Description</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Discount</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Valid Period</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Usage</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-700">
+                    {discountCodes.map((code) => (
+                      <tr key={code.id} className="hover:bg-gray-700/50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="font-mono font-bold text-orange-500">{code.code}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm text-gray-300">{code.description || '-'}</span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="text-sm">
+                            {code.discount_type === 'percentage' 
+                              ? `${code.discount_value}%`
+                              : formatBritishCurrency(code.discount_value, true)
+                            }
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <div>
+                            {code.valid_from && (
+                              <div className="text-gray-400">
+                                From: {formatBritishDate(code.valid_from)}
+                              </div>
+                            )}
+                            {code.valid_until && (
+                              <div className="text-gray-400">
+                                Until: {formatBritishDate(code.valid_until)}
+                              </div>
+                            )}
+                            {!code.valid_from && !code.valid_until && (
+                              <span className="text-gray-500">Always valid</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <div>
+                            <div>{code.times_used} used</div>
+                            {code.usage_limit && (
+                              <div className="text-gray-400">of {code.usage_limit}</div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <button
+                            onClick={() => toggleActive(code.id, code.is_active)}
+                            className={`px-2 py-1 text-xs rounded ${
+                              code.is_active 
+                                ? 'bg-green-600 hover:bg-green-700' 
+                                : 'bg-gray-600 hover:bg-gray-700'
+                            } transition-colors`}
+                          >
+                            {code.is_active ? 'Active' : 'Inactive'}
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => deleteDiscount(code.id)}
+                              className="text-red-500 hover:text-red-400 transition-colors"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
           
           {/* Create Discount Modal */}
@@ -94,7 +349,7 @@ export default function DiscountCodesPage() {
                       <label className="block text-sm font-medium mb-2">Discount Type</label>
                       <select
                         value={formData.discountType}
-                        onChange={(e) => setFormData({ ...formData, discountType: e.target.value })}
+                        onChange={(e) => setFormData({ ...formData, discountType: e.target.value as 'percentage' | 'fixed' })}
                         className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-orange-500"
                       >
                         <option value="percentage">Percentage</option>
@@ -114,6 +369,7 @@ export default function DiscountCodesPage() {
                           onChange={(e) => setFormData({ ...formData, discountValue: e.target.value })}
                           className="w-full pl-8 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-orange-500"
                           placeholder="20"
+                          step={formData.discountType === 'fixed' ? '0.01' : '1'}
                           required
                         />
                       </div>
@@ -150,6 +406,7 @@ export default function DiscountCodesPage() {
                       onChange={(e) => setFormData({ ...formData, usageLimit: e.target.value })}
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-orange-500"
                       placeholder="Leave empty for unlimited"
+                      min="1"
                     />
                   </div>
                   
@@ -158,14 +415,16 @@ export default function DiscountCodesPage() {
                       type="button"
                       onClick={() => setShowCreateModal(false)}
                       className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                      disabled={submitting}
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors"
+                      className="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg transition-colors"
+                      disabled={submitting}
                     >
-                      Create Code
+                      {submitting ? 'Creating...' : 'Create Code'}
                     </button>
                   </div>
                 </form>

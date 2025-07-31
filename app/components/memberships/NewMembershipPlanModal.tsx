@@ -63,14 +63,14 @@ const NewMembershipPlanModal: React.FC<NewMembershipPlanModalProps> = ({ isOpen,
         return;
       }
       
-      // Get user's organization
-      const { data: userData } = await supabase
-        .from('users')
+      // Get user's organization from organization_staff
+      const { data: staffData } = await supabase
+        .from('organization_staff')
         .select('organization_id')
-        .eq('id', user.id)
+        .eq('user_id', user.id)
         .single();
         
-      if (!userData?.organization_id) {
+      if (!staffData?.organization_id) {
         alert('No organization found. Please contact support.');
         return;
       }
@@ -96,7 +96,7 @@ const NewMembershipPlanModal: React.FC<NewMembershipPlanModalProps> = ({ isOpen,
           billing_period: billingPeriod,
           features: formData.features.filter(f => f.trim() !== ''),
           is_active: true,
-          organization_id: userData.organization_id,
+          organization_id: staffData.organization_id,
           trial_days: parseInt(formData.trialDays) || 0,
           max_members: formData.maxMembers ? parseInt(formData.maxMembers) : null
         })
