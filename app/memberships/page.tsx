@@ -32,12 +32,36 @@ export default function MembershipsPage() {
     setLoading(true)
     try {
       const supabase = createClient()
+      
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        console.error('No authenticated user')
+        setLoading(false)
+        return
+      }
+      
+      // Get user's organization
+      const { data: staffData } = await supabase
+        .from('organization_staff')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single()
+      
+      if (!staffData?.organization_id) {
+        console.error('No organization found for user')
+        setLoading(false)
+        return
+      }
+      
+      // Fetch membership plans for the organization
       const { data, error } = await supabase
         .from('membership_plans')
         .select(`
           *,
           memberships:memberships(count)
         `)
+        .eq('organization_id', staffData.organization_id)
         .order('created_at', { ascending: false })
 
       if (error) {
