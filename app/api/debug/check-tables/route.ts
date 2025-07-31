@@ -23,22 +23,10 @@ export async function GET() {
       'organization_members'
     ]
     
-    // Query information_schema to see which tables exist
-    const { data, error } = await supabase
-      .from('information_schema.tables')
-      .select('table_name')
-      .eq('table_schema', 'public')
-      .in('table_name', tablesToCheck)
-    
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-    
-    const existingTables = data?.map(row => row.table_name) || []
-    const missingTables = tablesToCheck.filter(table => !existingTables.includes(table))
-    
-    // Also check if we can query some of these tables
+    // Check if we can query each table
     const tableChecks: Record<string, any> = {}
+    const existingTables: string[] = []
+    const missingTables: string[] = []
     
     for (const table of tablesToCheck) {
       try {
@@ -46,15 +34,27 @@ export async function GET() {
           .from(table)
           .select('*', { count: 'exact', head: true })
         
-        tableChecks[table] = {
-          exists: !error,
-          error: error?.message,
-          count: count || 0
+        if (error) {
+          missingTables.push(table)
+          tableChecks[table] = {
+            exists: false,
+            error: error.message,
+            count: 0
+          }
+        } else {
+          existingTables.push(table)
+          tableChecks[table] = {
+            exists: true,
+            error: null,
+            count: count || 0
+          }
         }
-      } catch (e) {
+      } catch (e: any) {
+        missingTables.push(table)
         tableChecks[table] = {
           exists: false,
-          error: 'Table does not exist'
+          error: e.message || 'Table does not exist',
+          count: 0
         }
       }
     }
