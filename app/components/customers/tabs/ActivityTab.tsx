@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@/app/lib/supabase/client'
 import { formatBritishDateTime } from '@/app/lib/utils/british-format'
 import { 
   Calendar, 
@@ -22,7 +22,7 @@ export default function ActivityTab({ customerId }: ActivityTabProps) {
   const [activities, setActivities] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
-  const supabase = createClientComponentClient()
+  const supabase = createClient()
 
   useEffect(() => {
     fetchActivities()

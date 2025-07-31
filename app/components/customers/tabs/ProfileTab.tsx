@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@/app/lib/supabase/client'
 import { Camera, Edit2, Save, X, Plus, Trash2, Phone, Mail, User } from 'lucide-react'
 import { formatBritishDate } from '@/app/lib/utils/british-format'
 
@@ -20,7 +20,7 @@ export default function ProfileTab({ customer, onUpdate }: ProfileTabProps) {
   const [notes, setNotes] = useState<any[]>([])
   const [newNote, setNewNote] = useState('')
   const [photos, setPhotos] = useState<any[]>([])
-  const supabase = createClientComponentClient()
+  const supabase = createClient()
 
   useEffect(() => {
     fetchProfileData()

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@/app/lib/supabase/client'
 import { CreditCard, Calendar, Clock, PauseCircle } from 'lucide-react'
 import { formatBritishDate, formatBritishCurrency } from '@/app/lib/utils/british-format'
 
@@ -12,7 +12,7 @@ interface MembershipsTabProps {
 export default function MembershipsTab({ customerId }: MembershipsTabProps) {
   const [memberships, setMemberships] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createClientComponentClient()
+  const supabase = createClient()
 
   useEffect(() => {
     fetchMemberships()

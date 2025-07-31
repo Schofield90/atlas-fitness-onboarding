@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@/app/lib/supabase/client'
 import { Calendar, Clock, MapPin, Users } from 'lucide-react'
 import { formatBritishDateTime } from '@/app/lib/utils/british-format'
 
@@ -12,7 +12,7 @@ interface RegistrationsTabProps {
 export default function RegistrationsTab({ customerId }: RegistrationsTabProps) {
   const [bookings, setBookings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createClientComponentClient()
+  const supabase = createClient()
 
   useEffect(() => {
     fetchBookings()

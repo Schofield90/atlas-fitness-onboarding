@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@/app/lib/supabase/client'
 import { Users, Plus, Trash2, Link, Unlink } from 'lucide-react'
 
 interface FamilyTabProps {
@@ -16,7 +16,7 @@ export default function FamilyTab({ customerId, organizationId }: FamilyTabProps
   const [showAddModal, setShowAddModal] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState('')
   const [relationship, setRelationship] = useState('parent')
-  const supabase = createClientComponentClient()
+  const supabase = createClient()
 
   useEffect(() => {
     fetchFamilyMembers()

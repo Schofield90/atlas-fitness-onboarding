@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@/app/lib/supabase/client'
 import { ArrowLeft, Phone, Mail, Calendar, MapPin, User, AlertCircle } from 'lucide-react'
 import CustomerProfileTabs from '@/app/components/customers/CustomerProfileTabs'
 import { formatBritishDate } from '@/app/lib/utils/british-format'
@@ -41,7 +41,7 @@ export default function CustomerDetailPage() {
   const [customer, setCustomer] = useState<Customer | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const supabase = createClientComponentClient()
+  const supabase = createClient()
 
   useEffect(() => {
     fetchCustomer()

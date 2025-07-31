@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@/app/lib/supabase/client'
 import { CreditCard, Download, Receipt } from 'lucide-react'
 import { formatBritishDateTime, formatBritishCurrency } from '@/app/lib/utils/british-format'
 
@@ -12,7 +12,7 @@ interface PaymentsTabProps {
 export default function PaymentsTab({ customerId }: PaymentsTabProps) {
   const [payments, setPayments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createClientComponentClient()
+  const supabase = createClient()
 
   useEffect(() => {
     fetchPayments()
