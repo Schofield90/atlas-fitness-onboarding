@@ -1,14 +1,21 @@
-'use client';
+'use client'
 
-import DashboardLayout from '@/app/components/DashboardLayout';
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 
 export default function SettingsPage() {
+  const router = useRouter()
+  
+  useEffect(() => {
+    // Redirect to business profile as the default settings page
+    router.push('/settings/business')
+  }, [router])
+  
   return (
-    <DashboardLayout>
-      <div className="p-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">Settings</h1>
-        <p className="text-gray-600">Settings features coming soon...</p>
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="text-center">
+        <p className="text-gray-400">Redirecting to settings...</p>
       </div>
-    </DashboardLayout>
-  );
+    </div>
+  )
 }
