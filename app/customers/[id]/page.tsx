@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/app/lib/supabase/client'
-import { ArrowLeft, Phone, Mail, Calendar, MapPin, User, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Phone, Mail, Calendar, MapPin, User, AlertCircle, MessageSquare } from 'lucide-react'
 import CustomerProfileTabs from '@/app/components/customers/CustomerProfileTabs'
+import { MessageComposer } from '@/app/components/messaging/MessageComposer'
 import { formatBritishDate } from '@/app/lib/utils/british-format'
 
 interface Customer {
@@ -41,6 +42,7 @@ export default function CustomerDetailPage() {
   const [customer, setCustomer] = useState<Customer | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showMessageModal, setShowMessageModal] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
@@ -76,6 +78,26 @@ export default function CustomerDetailPage() {
       age--
     }
     return `${age} years old`
+  }
+
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      'new': { label: 'Lead', color: 'bg-blue-500' },
+      'contacted': { label: 'Lead', color: 'bg-blue-500' },
+      'qualified': { label: 'Lead', color: 'bg-blue-500' },
+      'converted': { label: 'Client', color: 'bg-green-500' },
+      'active': { label: 'Client', color: 'bg-green-500' },
+      'inactive': { label: 'Ex-Client', color: 'bg-gray-500' },
+      'lost': { label: 'Ex-Client', color: 'bg-gray-500' }
+    }
+    
+    const config = statusConfig[status.toLowerCase() as keyof typeof statusConfig] || { label: 'Lead', color: 'bg-blue-500' }
+    
+    return (
+      <span className={`${config.color} text-white px-3 py-1 rounded-full text-sm font-medium`}>
+        {config.label}
+      </span>
+    )
   }
 
   if (loading) {
@@ -128,6 +150,7 @@ export default function CustomerDetailPage() {
               <div>
                 <h1 className="text-2xl font-bold text-white flex items-center gap-2">
                   {customer.name}
+                  {getStatusBadge(customer.status)}
                   {customer.is_vip && (
                     <span className="text-xs bg-yellow-500 text-black px-2 py-1 rounded-full">
                       VIP
@@ -163,8 +186,18 @@ export default function CustomerDetailPage() {
               </div>
             </div>
 
-            {/* Quick Stats */}
+            {/* Quick Actions & Stats */}
             <div className="flex items-center gap-6">
+              {/* Message Button */}
+              <button
+                onClick={() => setShowMessageModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <MessageSquare className="h-5 w-5" />
+                Message
+              </button>
+              
+              {/* Stats */}
               <div className="text-center">
                 <div className="text-2xl font-bold text-white">{customer.total_visits || 0}</div>
                 <div className="text-xs text-gray-400">Total Visits</div>
@@ -204,6 +237,19 @@ export default function CustomerDetailPage() {
       <div className="px-6 py-6">
         <CustomerProfileTabs customer={customer} onUpdate={fetchCustomer} />
       </div>
+
+      {/* Message Modal */}
+      {customer && (
+        <MessageComposer
+          isOpen={showMessageModal}
+          onClose={() => setShowMessageModal(false)}
+          lead={customer}
+          onMessageSent={() => {
+            setShowMessageModal(false)
+            // Could refresh activity log here
+          }}
+        />
+      )}
     </div>
   )
 }
