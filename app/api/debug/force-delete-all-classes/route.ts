@@ -25,11 +25,11 @@ export async function DELETE() {
     }
 
     // Delete ALL class sessions
-    const { data: deletedClasses, error: classError, count } = await serviceSupabase
+    const { data: deletedClasses, error: classError } = await serviceSupabase
       .from('class_sessions')
       .delete()
       .gte('id', '00000000-0000-0000-0000-000000000000') // This will match all UUIDs
-      .select('*', { count: 'exact' })
+      .select()
 
     if (classError) {
       throw classError
@@ -38,7 +38,7 @@ export async function DELETE() {
     return NextResponse.json({ 
       success: true, 
       message: 'All classes forcefully deleted',
-      deletedCount: deletedClasses?.length || count || 0
+      deletedCount: deletedClasses?.length || 0
     })
 
   } catch (error: any) {
