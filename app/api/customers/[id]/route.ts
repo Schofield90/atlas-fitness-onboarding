@@ -9,10 +9,10 @@ const supabaseAdmin = createClient(
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const customerId = params.id
+    const { id: customerId } = await params
     
     // Get customer basic info
     const { data: customer, error } = await supabaseAdmin
@@ -35,10 +35,10 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const customerId = params.id
+    const { id: customerId } = await params
     const updates = await req.json()
 
     const { data, error } = await supabaseAdmin
