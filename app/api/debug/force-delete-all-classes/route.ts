@@ -3,7 +3,7 @@ import { createClient } from '@/app/lib/supabase/server'
 
 export async function DELETE() {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     // Get the current user
     const { data: { user }, error: userError } = await supabase.auth.getUser()
@@ -12,7 +12,7 @@ export async function DELETE() {
     }
 
     // Use service role client to bypass RLS
-    const serviceSupabase = createClient()
+    const serviceSupabase = await createClient()
 
     // Delete ALL bookings first
     const { error: bookingsError } = await serviceSupabase
