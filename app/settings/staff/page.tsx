@@ -25,7 +25,7 @@ export default function StaffManagementPage() {
       // Get user's organization
       const { data: userOrg } = await supabase
         .from('user_organizations')
-        .select('organization_id')
+        .select('organization_id, role, created_at')
         .eq('user_id', user.id)
         .single()
 
