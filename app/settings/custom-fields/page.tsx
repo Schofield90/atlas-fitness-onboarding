@@ -24,8 +24,8 @@ export default function CustomFieldsPage() {
   const [editingField, setEditingField] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     name: '',
-    field_type: 'text' as const,
-    entity_type: 'customer' as const,
+    field_type: 'text' as 'text' | 'number' | 'date' | 'select' | 'checkbox' | 'textarea',
+    entity_type: 'customer' as 'lead' | 'customer' | 'booking' | 'staff',
     options: [] as string[],
     required: false
   })
@@ -100,7 +100,7 @@ export default function CustomFieldsPage() {
       if (error) throw error
 
       setShowCreateModal(false)
-      setFormData({ name: '', field_type: 'text', entity_type: 'customer', options: [], required: false })
+      setFormData({ name: '', field_type: 'text' as 'text' | 'number' | 'date' | 'select' | 'checkbox' | 'textarea', entity_type: 'customer' as 'lead' | 'customer' | 'booking' | 'staff', options: [], required: false })
       fetchCustomFields()
     } catch (error) {
       console.error('Error creating custom field:', error)
@@ -282,7 +282,7 @@ export default function CustomFieldsPage() {
                 </label>
                 <select
                   value={formData.field_type}
-                  onChange={(e) => setFormData({ ...formData, field_type: e.target.value as any })}
+                  onChange={(e) => setFormData({ ...formData, field_type: e.target.value as 'text' | 'number' | 'date' | 'select' | 'checkbox' | 'textarea' })}
                   className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
                 >
                   {fieldTypes.map(type => (
@@ -299,7 +299,7 @@ export default function CustomFieldsPage() {
                 </label>
                 <select
                   value={formData.entity_type}
-                  onChange={(e) => setFormData({ ...formData, entity_type: e.target.value as any })}
+                  onChange={(e) => setFormData({ ...formData, entity_type: e.target.value as 'lead' | 'customer' | 'booking' | 'staff' })}
                   className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
                 >
                   {entityTypes.map(type => (
