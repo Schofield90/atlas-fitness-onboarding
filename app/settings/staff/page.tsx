@@ -34,10 +34,7 @@ export default function StaffManagementPage() {
       // Get all staff members in the organization
       const { data: staffData } = await supabase
         .from('user_organizations')
-        .select(`
-          *,
-          user:auth.users(id, email, created_at, last_sign_in_at)
-        `)
+        .select('*')
         .eq('organization_id', userOrg.organization_id)
         .order('created_at', { ascending: false })
 
@@ -48,17 +45,18 @@ export default function StaffManagementPage() {
         .eq('organization_id', userOrg.organization_id)
 
       // Merge the data
-      const mergedStaff = staffData?.map(member => {
-        const details = staffDetails?.find(d => d.user_id === member.user_id)
+      const mergedStaff = staffData?.map((member: any) => {
+        const details = staffDetails?.find((d: any) => d.user_id === member.user_id)
         return {
           ...member,
-          name: details?.name || member.user?.email?.split('@')[0] || 'Unknown',
+          id: member.user_id, // Use user_id as the id
+          name: details?.name || 'Staff Member',
           avatar_url: details?.avatar_url,
           phone: details?.phone,
           position: details?.position,
-          email: member.user?.email,
-          last_login_at: member.user?.last_sign_in_at,
-          created_at: member.user?.created_at
+          email: details?.email || 'No email',
+          last_login_at: member.updated_at, // Use updated_at as a proxy for last login
+          created_at: member.created_at
         }
       }) || []
 
