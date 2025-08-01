@@ -1,21 +1,6 @@
 'use client'
 
-import dynamic from 'next/dynamic'
-
-// Dynamic import to avoid SSR issues with ReactFlow
-// Temporarily disable ReactFlow to debug build issue
-const ReactFlowProvider = ({ children }: { children: React.ReactNode }) => <>{children}</>
-
-const SimpleWorkflowBuilder = () => {
-  return (
-    <div className="flex items-center justify-center h-full text-white">
-      <div className="text-center">
-        <p className="text-xl mb-4">Workflow Builder Temporarily Disabled</p>
-        <p className="text-gray-400">We're fixing a build issue. Check back soon!</p>
-      </div>
-    </div>
-  )
-}
+import DynamicWorkflowBuilder from '@/app/components/automation/DynamicWorkflowBuilder'
 
 export default function WorkflowBuilderPage() {
   return (
@@ -33,9 +18,7 @@ export default function WorkflowBuilderPage() {
       </div>
       
       <div className="h-[calc(100vh-100px)]">
-        <ReactFlowProvider>
-          <SimpleWorkflowBuilder />
-        </ReactFlowProvider>
+        <DynamicWorkflowBuilder simple={true} />
       </div>
     </div>
   )

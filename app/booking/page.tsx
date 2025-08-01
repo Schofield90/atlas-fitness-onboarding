@@ -11,6 +11,7 @@ import CalendarViewToggle from '@/app/components/booking/CalendarViewToggle';
 import PremiumCalendarGrid from '@/app/components/booking/PremiumCalendarGrid';
 import SelectedClassDetails from '@/app/components/booking/SelectedClassDetails';
 import AddClassModal from '@/app/components/booking/AddClassModal';
+import { getCurrentUserOrganization } from '@/app/lib/organization-service';
 
 export default function BookingManagement() {
   const [showAddClass, setShowAddClass] = useState(false);
@@ -20,28 +21,31 @@ export default function BookingManagement() {
   const [loading, setLoading] = useState(true);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   
-  // Get organization ID from localStorage
+  // Get organization ID and fetch classes
   useEffect(() => {
-    const trialData = localStorage.getItem('gymleadhub_trial_data');
-    if (trialData) {
-      const parsed = JSON.parse(trialData);
-      if (parsed.organizationId) {
-        setOrganizationId(parsed.organizationId);
+    const initializeBooking = async () => {
+      try {
+        const { organizationId: orgId, error } = await getCurrentUserOrganization();
+        if (!error && orgId) {
+          setOrganizationId(orgId);
+          fetchClasses(orgId);
+        } else {
+          console.error('Failed to get organization:', error);
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Error initializing booking:', error);
+        setLoading(false);
       }
-    }
+    };
+    
+    initializeBooking();
   }, []);
   
-  // Fetch classes when organization ID is available
-  useEffect(() => {
-    if (organizationId) {
-      fetchClasses();
-    }
-  }, [organizationId]);
-  
-  const fetchClasses = async () => {
+  const fetchClasses = async (orgId: string) => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/booking/classes?organizationId=${organizationId}`);
+      const response = await fetch(`/api/booking/classes?organizationId=${orgId}`);
       if (response.ok) {
         const data = await response.json();
         setClasses(data.classes || []);

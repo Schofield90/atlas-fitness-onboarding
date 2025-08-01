@@ -3,8 +3,9 @@
 import DashboardLayout from '../components/DashboardLayout'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
-import { MapPin } from 'lucide-react'
+import { MapPin, UserPlus } from 'lucide-react'
 import StaffLocationModal from './StaffLocationModal'
+import InviteStaffModal from './InviteStaffModal'
 
 interface Staff {
   id: string
@@ -24,6 +25,7 @@ interface Staff {
 export default function StaffPage() {
   const [activeTab, setActiveTab] = useState('team')
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showInviteModal, setShowInviteModal] = useState(false)
   const [staff, setStaff] = useState<Staff[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedStaffForLocation, setSelectedStaffForLocation] = useState<{id: string, name: string} | null>(null)
@@ -119,12 +121,21 @@ export default function StaffPage() {
               <h2 className="text-2xl font-bold">Staff Management</h2>
               <p className="text-gray-400 mt-1">Manage your team members and their permissions</p>
             </div>
-            <button 
-              onClick={() => setShowAddModal(true)}
-              className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg transition-colors"
-            >
-              + Add Staff Member
-            </button>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setShowInviteModal(true)}
+                className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+              >
+                <UserPlus className="h-4 w-4" />
+                Invite Staff
+              </button>
+              <button 
+                onClick={() => setShowAddModal(true)}
+                className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg transition-colors"
+              >
+                Add Manually
+              </button>
+            </div>
           </div>
 
           {/* Tabs */}
@@ -341,6 +352,16 @@ export default function StaffPage() {
               }}
             />
           )}
+          
+          {/* Invite Staff Modal */}
+          <InviteStaffModal
+            isOpen={showInviteModal}
+            onClose={() => setShowInviteModal(false)}
+            onSuccess={() => {
+              setShowInviteModal(false)
+              fetchStaff()
+            }}
+          />
         </div>
       </div>
     </DashboardLayout>

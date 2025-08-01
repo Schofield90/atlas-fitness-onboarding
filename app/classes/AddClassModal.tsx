@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
 import { X } from 'lucide-react'
 import { getCurrentUserOrganization } from '@/app/lib/organization-service'
@@ -12,6 +12,7 @@ interface AddClassModalProps {
 
 export default function AddClassModal({ onClose, onSuccess }: AddClassModalProps) {
   const [loading, setLoading] = useState(false)
+  const [locations, setLocations] = useState<Array<{ id: string, name: string }>>([])
   const [formData, setFormData] = useState({
     name: '',
     instructor_name: '',
@@ -19,8 +20,7 @@ export default function AddClassModal({ onClose, onSuccess }: AddClassModalProps
     start_time: '',
     duration_minutes: '60',
     capacity: '20',
-    price: '',
-    location: 'Main Studio',
+    location: '',
     description: '',
     recurring: false,
     recurring_days: [] as number[]
@@ -37,6 +37,31 @@ export default function AddClassModal({ onClose, onSuccess }: AddClassModalProps
     { value: 5, label: 'Friday' },
     { value: 6, label: 'Saturday' }
   ]
+  
+  // Fetch locations on mount
+  useEffect(() => {
+    const fetchLocations = async () => {
+      const { organizationId } = await getCurrentUserOrganization()
+      if (!organizationId) return
+      
+      const { data, error } = await supabase
+        .from('locations')
+        .select('id, name')
+        .eq('organization_id', organizationId)
+        .eq('is_active', true)
+        .order('name')
+      
+      if (!error && data) {
+        setLocations(data)
+        // Set default location if there's only one
+        if (data.length === 1) {
+          setFormData(prev => ({ ...prev, location: data[0].name }))
+        }
+      }
+    }
+    
+    fetchLocations()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -79,7 +104,6 @@ export default function AddClassModal({ onClose, onSuccess }: AddClassModalProps
               start_time: formData.start_time, // For recurring, just store the time
               duration_minutes: parseInt(formData.duration_minutes),
               capacity: parseInt(formData.capacity),
-              price: parseFloat(formData.price) * 100, // Convert to pence
               location: formData.location,
               description: formData.description,
               recurring: true,
@@ -99,7 +123,6 @@ export default function AddClassModal({ onClose, onSuccess }: AddClassModalProps
             start_time: startDateTime?.toISOString() || formData.start_time,
             duration_minutes: parseInt(formData.duration_minutes),
             capacity: parseInt(formData.capacity),
-            price: parseFloat(formData.price) * 100, // Convert to pence
             location: formData.location,
             description: formData.description,
             recurring: false
@@ -260,7 +283,7 @@ export default function AddClassModal({ onClose, onSuccess }: AddClassModalProps
           </div>
 
           {/* Details */}
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">
                 Capacity*
@@ -277,31 +300,31 @@ export default function AddClassModal({ onClose, onSuccess }: AddClassModalProps
 
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">
-                Price (£)*
+                Location{locations.length > 0 ? '*' : ''}
               </label>
-              <input
-                type="number"
-                required
-                min="0"
-                step="0.01"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none"
-                placeholder="10.00"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
-                Location
-              </label>
-              <input
-                type="text"
-                value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none"
-                placeholder="Main Studio"
-              />
+              {locations.length > 0 ? (
+                <select
+                  value={formData.location}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none"
+                >
+                  <option value="">Select a location</option>
+                  {locations.map((loc) => (
+                    <option key={loc.id} value={loc.name}>
+                      {loc.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={formData.location}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none"
+                  placeholder="Main Studio"
+                />
+              )}
             </div>
           </div>
 

@@ -19,8 +19,8 @@ export async function GET(request: NextRequest) {
         program:programs(name, description, price_pennies)
       `)
       .eq('organization_id', organizationId)
-      .gte('starts_at', new Date().toISOString())
-      .order('starts_at', { ascending: true });
+      .gte('start_time', new Date().toISOString())
+      .order('start_time', { ascending: true });
 
     if (error) {
       console.error('Error fetching classes:', error);
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
         organization_id: organizationId,
         program_id: actualProgramId,
         instructor_name: instructor,
-        starts_at: startTime,
+        start_time: startTime,
         duration_minutes: duration,
         capacity,
         location: room,
@@ -127,7 +127,7 @@ export async function PUT(request: NextRequest) {
       .from('class_sessions')
       .update({
         instructor_name: updateData.instructor,
-        starts_at: updateData.startTime,
+        start_time: updateData.startTime,
         duration_minutes: updateData.duration,
         capacity: updateData.capacity,
         location: updateData.room,

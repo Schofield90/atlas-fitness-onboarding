@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/app/lib/supabase/client'
 import LocationSwitcher from './LocationSwitcher'
+import OrganizationSwitcher from './OrganizationSwitcher'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -454,6 +455,7 @@ export default function DashboardLayout({ children, userData }: DashboardLayoutP
               </span>
             </div>
             <div className="flex items-center space-x-4">
+              <OrganizationSwitcher />
               <LocationSwitcher />
               {user && (
                 <span className="text-sm text-gray-400">

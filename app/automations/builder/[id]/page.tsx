@@ -2,21 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import dynamic from 'next/dynamic'
 import DashboardLayout from '@/app/components/DashboardLayout'
+import DynamicWorkflowBuilder from '@/app/components/automation/DynamicWorkflowBuilder'
 import type { Workflow } from '@/app/lib/types/automation'
-
-// Temporarily disable ReactFlow to debug build issue
-const WorkflowBuilder = (props: any) => {
-  return (
-    <div className="flex items-center justify-center h-full text-white">
-      <div className="text-center">
-        <p className="text-xl mb-4">Workflow Builder Temporarily Disabled</p>
-        <p className="text-gray-400">We're fixing a build issue. Check back soon!</p>
-      </div>
-    </div>
-  )
-}
 
 export default function EditWorkflowPage() {
   const router = useRouter()
@@ -132,10 +120,7 @@ export default function EditWorkflowPage() {
         </div>
         
         <div className="flex-1">
-          <WorkflowBuilder
-            workflow={workflow}
-            onSave={handleSave}
-          />
+          <DynamicWorkflowBuilder />
         </div>
       </div>
     </DashboardLayout>

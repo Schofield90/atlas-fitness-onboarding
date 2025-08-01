@@ -3,20 +3,8 @@
 import DashboardLayout from '../components/DashboardLayout'
 import { useState, useEffect } from 'react'
 import NewMembershipPlanModal from '../components/memberships/NewMembershipPlanModal'
-import { createClient } from '@/app/lib/supabase/client'
 import { formatBritishCurrency, formatBritishDate } from '@/app/lib/utils/british-format'
-
-interface MembershipPlan {
-  id: string
-  name: string
-  description: string
-  price: number
-  billing_period: 'monthly' | 'yearly' | 'one-time'
-  features: string[]
-  is_active: boolean
-  created_at: string
-  member_count?: number
-}
+import { getMembershipPlans, type MembershipPlan } from '@/app/lib/services/membership-service'
 
 export default function MembershipsPage() {
   const [activeTab, setActiveTab] = useState('plans')
@@ -32,50 +20,16 @@ export default function MembershipsPage() {
     console.log('Starting to fetch membership plans...')
     setLoading(true)
     try {
-      const supabase = createClient()
-      
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser()
-      console.log('User:', user?.email)
-      if (!user) {
-        console.error('No authenticated user')
-        setLoading(false)
-        return
-      }
-      
-      // Get user's organization from user_organizations table
-      const { data: userOrg, error: orgError } = await supabase
-        .from('user_organizations')
-        .select('organization_id')
-        .eq('user_id', user.id)
-        .single()
-      
-      if (orgError || !userOrg?.organization_id) {
-        console.error('No organization found for user:', orgError)
-        setLoading(false)
-        return
-      }
-      
-      const organizationId = userOrg.organization_id
-      console.log('Organization ID:', organizationId)
-      
-      // Fetch membership plans for the organization
-      const { data, error } = await supabase
-        .from('membership_plans')
-        .select('*')
-        .eq('organization_id', organizationId)
-        .order('created_at', { ascending: false })
-
-      console.log('Membership plans result:', { data, error })
+      const { plans, error } = await getMembershipPlans()
       
       if (error) {
         console.error('Error fetching membership plans:', error)
       } else {
-        setMembershipPlans(data || [])
-        console.log('Set membership plans:', data?.length || 0, 'plans')
+        setMembershipPlans(plans)
+        console.log('Set membership plans:', plans.length, 'plans')
       }
     } catch (error) {
-      console.error('Error:', error)
+      console.error('Unexpected error:', error)
     } finally {
       console.log('Setting loading to false')
       setLoading(false)
