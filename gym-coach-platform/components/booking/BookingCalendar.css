@@ -1,0 +1,127 @@
+/* Custom styles for the booking calendar */
+
+/* Override react-big-calendar defaults for mobile responsiveness */
+.rbc-calendar {
+  font-family: inherit;
+}
+
+.rbc-header {
+  padding: 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  background-color: #f8fafc;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.rbc-today {
+  background-color: #eff6ff;
+}
+
+.rbc-off-range-bg {
+  background-color: #f8fafc;
+}
+
+.rbc-time-slot {
+  min-height: 40px;
+}
+
+.rbc-time-view {
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.rbc-timeslot-group {
+  min-height: 60px;
+}
+
+/* Event styling based on session type */
+.booking-event {
+  border: none !important;
+  border-radius: 0.375rem;
+  padding: 0.25rem;
+  font-size: 0.75rem;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.booking-event:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Gym class events */
+.booking-event-gym-class {
+  background-color: #3b82f6 !important;
+  color: white !important;
+}
+
+.booking-event-gym-class:hover {
+  background-color: #2563eb !important;
+}
+
+/* Personal training events */
+.booking-event-personal-training {
+  background-color: #10b981 !important;
+  color: white !important;
+}
+
+.booking-event-personal-training:hover {
+  background-color: #059669 !important;
+}
+
+/* Coaching call events */
+.booking-event-coaching-call {
+  background-color: #8b5cf6 !important;
+  color: white !important;
+}
+
+.booking-event-coaching-call:hover {
+  background-color: #7c3aed !important;
+}
+
+/* Full events */
+.booking-event-full {
+  opacity: 0.6;
+  background-color: #6b7280 !important;
+}
+
+.booking-event-full:hover {
+  background-color: #4b5563 !important;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 640px) {
+  .rbc-toolbar {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .rbc-toolbar-label {
+    order: -1;
+    width: 100%;
+    text-align: center;
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+  
+  .rbc-btn-group {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+  }
+  
+  .rbc-header {
+    padding: 0.375rem;
+    font-size: 0.75rem;
+  }
+  
+  .rbc-time-header-cell {
+    min-height: 60px;
+  }
+  
+  .booking-event {
+    font-size: 0.625rem;
+    padding: 0.125rem;
+  }
+}

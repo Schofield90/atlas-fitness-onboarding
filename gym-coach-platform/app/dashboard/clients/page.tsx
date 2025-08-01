@@ -19,8 +19,7 @@ export default function ClientsPage() {
   }
 
   const handleViewClient = (client: Client) => {
-    setSelectedClient(client)
-    // Could implement client details modal here
+    window.location.href = `/dashboard/clients/${client.id}`
   }
 
   return (

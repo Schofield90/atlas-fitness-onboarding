@@ -32,8 +32,20 @@ export default function LoginPage() {
       }
 
       if (data?.user) {
-        // Successful login - router will handle redirect
-        router.push('/dashboard')
+        // Check if user has organization
+        const { data: userOrg } = await supabase
+          .from('user_organizations')
+          .select('organization_id')
+          .eq('user_id', data.user.id)
+          .single()
+        
+        if (userOrg?.organization_id) {
+          // Has organization, go to dashboard
+          router.push('/dashboard')
+        } else {
+          // No organization, might need onboarding
+          router.push('/onboarding')
+        }
         router.refresh()
       }
     } catch (err: any) {

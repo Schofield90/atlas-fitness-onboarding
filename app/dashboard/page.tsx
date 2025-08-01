@@ -18,18 +18,23 @@ export default function DashboardPage() {
     }
   }, [])
 
+  // For local development, if no userData, create a default one
+  if (!userData && typeof window !== 'undefined') {
+    const defaultData = {
+      organizationName: 'Atlas Fitness',
+      gymName: 'Atlas Fitness',
+      email: 'samschofield90@hotmail.co.uk',
+      trialEnds: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() // 14 days from now
+    }
+    localStorage.setItem('gymleadhub_trial_data', JSON.stringify(defaultData))
+    setUserData(defaultData)
+  }
+  
   if (!userData) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Welcome to Gymleadhub!</h1>
-          <p className="text-gray-300 mb-8">Please sign up to access your dashboard.</p>
-          <Link 
-            href="/signup"
-            className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg transition-colors"
-          >
-            Start Free Trial
-          </Link>
+          <h1 className="text-2xl font-bold text-white mb-4">Loading...</h1>
         </div>
       </div>
     )
