@@ -43,8 +43,31 @@ export default function AutomationsPage() {
       setUserData(JSON.parse(storedData))
     }
     
-    // Simulate loading some sample workflows
-    setTimeout(() => {
+    fetchWorkflows()
+  }, [])
+
+  const fetchWorkflows = async () => {
+    try {
+      const response = await fetch('/api/automations/workflows')
+      if (response.ok) {
+        const data = await response.json()
+        setWorkflows(data.workflows.map((w: any) => ({
+          id: w.id,
+          name: w.name,
+          description: w.description || '',
+          status: w.status,
+          trigger: w.trigger_type || 'manual',
+          totalExecutions: w.total_executions || 0,
+          successRate: w.successful_executions && w.total_executions 
+            ? Math.round((w.successful_executions / w.total_executions) * 100)
+            : 0,
+          lastRun: w.last_run_at,
+          createdAt: w.created_at
+        })))
+      }
+    } catch (error) {
+      console.error('Error fetching workflows:', error)
+      // Fallback to sample data if no workflows exist
       setWorkflows([
         {
           id: '1',

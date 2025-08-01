@@ -26,8 +26,54 @@ export default function EditWorkflowPage() {
 
   const loadWorkflow = async (id: string) => {
     try {
-      // TODO: Replace with actual API call
-      // For now, use mock data
+      // Try to load existing workflow
+      if (id !== 'new') {
+        const response = await fetch(`/api/automations/workflows/${id}`)
+        if (response.ok) {
+          const data = await response.json()
+          const workflow: Workflow = {
+            id: data.workflow.id,
+            organizationId: data.workflow.organization_id,
+            name: data.workflow.name,
+            description: data.workflow.description,
+            status: data.workflow.status,
+            version: 1,
+            workflowData: {
+              nodes: data.workflow.nodes || [],
+              edges: data.workflow.edges || [],
+              variables: data.workflow.variables ? Object.entries(data.workflow.variables).map(([key, value]: [string, any]) => ({
+                id: key,
+                name: key,
+                type: typeof value === 'string' ? 'string' : 'number',
+                defaultValue: value
+              })) : []
+            },
+            triggerType: data.workflow.trigger_type || 'manual',
+            triggerConfig: data.workflow.trigger_config || {},
+            settings: data.workflow.settings || {
+              errorHandling: 'continue',
+              maxExecutionTime: 300,
+              timezone: 'Europe/London',
+              notifications: {
+                onError: true,
+                onComplete: false
+              }
+            },
+            stats: {
+              totalExecutions: data.workflow.total_executions || 0,
+              successfulExecutions: data.workflow.successful_executions || 0,
+              failedExecutions: data.workflow.failed_executions || 0,
+              avgExecutionTime: 0
+            },
+            createdAt: data.workflow.created_at,
+            updatedAt: data.workflow.updated_at
+          }
+          setWorkflow(workflow)
+          return
+        }
+      }
+      
+      // Create new workflow
       const mockWorkflow: Workflow = {
         id,
         organizationId: 'mock-org-id',
@@ -71,13 +117,48 @@ export default function EditWorkflowPage() {
 
   const handleSave = async (updatedWorkflow: Workflow) => {
     try {
-      // TODO: Replace with actual API call
-      console.log('Saving workflow:', updatedWorkflow)
+      // Prepare variables as object
+      const variables: Record<string, any> = {}
+      updatedWorkflow.workflowData.variables?.forEach(v => {
+        variables[v.name] = v.defaultValue
+      })
+
+      const payload = {
+        name: updatedWorkflow.name,
+        description: updatedWorkflow.description,
+        status: updatedWorkflow.status,
+        nodes: updatedWorkflow.workflowData.nodes,
+        edges: updatedWorkflow.workflowData.edges,
+        variables,
+        trigger_type: updatedWorkflow.triggerType,
+        trigger_config: updatedWorkflow.triggerConfig,
+        settings: updatedWorkflow.settings
+      }
+
+      if (params.id === 'new') {
+        // Create new workflow
+        const response = await fetch('/api/automations/workflows', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+        
+        if (!response.ok) throw new Error('Failed to create workflow')
+      } else {
+        // Update existing workflow
+        const response = await fetch(`/api/automations/workflows/${params.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+        
+        if (!response.ok) throw new Error('Failed to update workflow')
+      }
       
-      // For now, just redirect back
       router.push('/automations')
     } catch (error) {
       console.error('Failed to save workflow:', error)
+      alert('Failed to save workflow. Please try again.')
     }
   }
 
