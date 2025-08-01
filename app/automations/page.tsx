@@ -113,9 +113,9 @@ export default function AutomationsPage() {
           createdAt: '2024-01-20T11:20:00Z'
         }
       ])
-      setLoading(false)
-    }, 1000)
-  }, [])
+    }
+    setLoading(false)
+  }
 
   const getStatusIcon = (status: string) => {
     switch (status) {
