@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     // Send email with magic link
     const { error: emailError } = await resend.emails.send({
-      from: 'Atlas Fitness <noreply@yourdomain.com>',
+      from: 'Atlas Fitness <onboarding@resend.dev>',
       to: customerEmail,
       subject: 'Your Login Link - Atlas Fitness',
       html: `
