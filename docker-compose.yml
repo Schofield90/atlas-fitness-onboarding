@@ -1,19 +1,30 @@
 version: '3.8'
 
 services:
-  web:
+  app:
     build:
       context: .
       dockerfile: Dockerfile.dev
     ports:
       - "3000:3000"
+    volumes:
+      # Mount source code for hot reload
+      - .:/app
+      # Prevent node_modules from being overwritten
+      - /app/node_modules
+      # Prevent .next from being overwritten
+      - /app/.next
     environment:
+      # Ensure Next.js listens on all interfaces
+      - HOSTNAME=0.0.0.0
       - NODE_ENV=development
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
     env_file:
       - .env.local
-    volumes:
-      - .:/app
-      - /app/node_modules
-      - /app/.next
-    command: npm run dev
-    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

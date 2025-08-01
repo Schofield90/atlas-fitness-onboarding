@@ -90,3 +90,8 @@ analyze/
 ghl_call_recordings/
 audio_files/
 .env*.local
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+.docker/

@@ -1,17 +1,38 @@
-# Development Dockerfile
 FROM node:20-alpine
 
-# Set working directory
+# Install dependencies for better compatibility
+RUN apk add --no-cache libc6-compat python3 make g++
+
 WORKDIR /app
 
-# Copy package files
+# Copy package files first for better caching
 COPY package*.json ./
 
-# Install all dependencies (including devDependencies)
-RUN npm install
+# Install dependencies with better error handling
+RUN npm ci --no-audit --prefer-offline || npm install
 
-# Expose port 3000
+# Copy the rest of the application
+COPY . .
+
+# Create necessary directories with proper permissions
+RUN mkdir -p .next node_modules/.cache && \
+    chmod -R 777 .next node_modules/.cache
+
+# Use Docker-specific Next.js config
+RUN cp next.config.docker.js next.config.js
+
+# Expose the Next.js dev server port
 EXPOSE 3000
 
-# Start in development mode
-CMD ["npm", "run", "dev"]
+# Set environment variables for Docker
+ENV NODE_ENV=development
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1))"
+
+# Start the development server with better error handling
+CMD ["sh", "-c", "npm run dev -- --hostname 0.0.0.0"]
