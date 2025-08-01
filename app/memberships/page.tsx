@@ -29,12 +29,14 @@ export default function MembershipsPage() {
   }
 
   const fetchMembershipPlans = async () => {
+    console.log('Starting to fetch membership plans...')
     setLoading(true)
     try {
       const supabase = createClient()
       
       // Get current user
       const { data: { user } } = await supabase.auth.getUser()
+      console.log('User:', user?.email)
       if (!user) {
         console.error('No authenticated user')
         setLoading(false)
@@ -55,25 +57,27 @@ export default function MembershipsPage() {
       }
       
       const organizationId = userOrg.organization_id
+      console.log('Organization ID:', organizationId)
       
       // Fetch membership plans for the organization
       const { data, error } = await supabase
         .from('membership_plans')
-        .select(`
-          *,
-          memberships:memberships(count)
-        `)
+        .select('*')
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false })
 
+      console.log('Membership plans result:', { data, error })
+      
       if (error) {
         console.error('Error fetching membership plans:', error)
       } else {
         setMembershipPlans(data || [])
+        console.log('Set membership plans:', data?.length || 0, 'plans')
       }
     } catch (error) {
       console.error('Error:', error)
     } finally {
+      console.log('Setting loading to false')
       setLoading(false)
     }
   }
@@ -86,6 +90,8 @@ export default function MembershipsPage() {
     setShowNewPlanModal(false)
     fetchMembershipPlans() // Refresh the list
   }
+  
+  console.log('Render state:', { loading, membershipPlansCount: membershipPlans.length, activeTab })
 
   return (
     <DashboardLayout>
@@ -189,7 +195,7 @@ export default function MembershipsPage() {
                       
                       <div className="flex justify-between items-center pt-4 border-t border-gray-700">
                         <span className="text-sm text-gray-400">
-                          {plan.member_count || 0} members
+                          Active Plan
                         </span>
                         <button className="text-sm text-orange-500 hover:text-orange-400 transition-colors">
                           Edit Plan
