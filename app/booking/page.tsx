@@ -80,7 +80,7 @@ export default function BookingManagement() {
       if (response.ok) {
         alert(`Class "${classData.title}" has been added successfully!`);
         setShowAddClass(false);
-        fetchClasses(); // Refresh the class list
+        fetchClasses(organizationId); // Refresh the class list
       } else {
         const error = await response.json();
         alert(`Failed to add class: ${error.error}`);
