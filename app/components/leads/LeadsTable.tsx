@@ -15,6 +15,14 @@ interface Lead {
   created_at: string
   form_name?: string
   campaign_name?: string
+  lead_tags?: {
+    tag_id: string
+    tags: {
+      id: string
+      name: string
+      color: string
+    }
+  }[]
 }
 
 interface LeadsTableProps {
@@ -214,6 +222,19 @@ export function LeadsTable({ statusFilter = 'all' }: LeadsTableProps) {
                         <div className="text-xs text-gray-400">{lead.form_name}</div>
                       )}
                     </Link>
+                    {lead.lead_tags && lead.lead_tags.length > 0 && (
+                      <div className="flex gap-1 mt-2">
+                        {lead.lead_tags.map((leadTag) => (
+                          <span
+                            key={leadTag.tag_id}
+                            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-white"
+                            style={{ backgroundColor: leadTag.tags.color }}
+                          >
+                            {leadTag.tags.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </td>
                   <td className="p-4">
                     <div className="text-sm">{lead.email}</div>

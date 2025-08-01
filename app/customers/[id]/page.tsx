@@ -33,6 +33,14 @@ interface Customer {
   lifetime_value: number
   is_vip: boolean
   tags: string[]
+  lead_tags?: {
+    tag_id: string
+    tags: {
+      id: string
+      name: string
+      color: string
+    }
+  }[]
 }
 
 export default function CustomerDetailPage() {
@@ -54,7 +62,17 @@ export default function CustomerDetailPage() {
       setLoading(true)
       const { data, error } = await supabase
         .from('leads')
-        .select('*')
+        .select(`
+          *,
+          lead_tags (
+            tag_id,
+            tags (
+              id,
+              name,
+              color
+            )
+          )
+        `)
         .eq('id', customerId)
         .single()
 
@@ -156,6 +174,15 @@ export default function CustomerDetailPage() {
                       VIP
                     </span>
                   )}
+                  {customer.lead_tags && customer.lead_tags.map((leadTag) => (
+                    <span
+                      key={leadTag.tag_id}
+                      className="text-xs px-2 py-1 rounded-full text-white"
+                      style={{ backgroundColor: leadTag.tags.color }}
+                    >
+                      {leadTag.tags.name}
+                    </span>
+                  ))}
                 </h1>
                 <div className="flex items-center gap-4 text-sm text-gray-400 mt-1">
                   {customer.email && (

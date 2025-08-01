@@ -19,7 +19,17 @@ export async function GET(request: NextRequest) {
     // Build query - filter by organization for shared access
     let query = supabase
       .from('leads')
-      .select('*')
+      .select(`
+        *,
+        lead_tags (
+          tag_id,
+          tags (
+            id,
+            name,
+            color
+          )
+        )
+      `)
       .eq('organization_id', userWithOrg.organizationId) // Filter by organization
       .order('created_at', { ascending: false })
     
