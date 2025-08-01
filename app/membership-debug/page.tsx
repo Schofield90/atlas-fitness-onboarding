@@ -14,11 +14,18 @@ export default function MembershipDebugPage() {
       // Get current user
       const { data: { user } } = await supabase.auth.getUser()
       
-      // Get user's organization
+      // Get user's organization from staff table
       const { data: staffData } = await supabase
         .from('organization_staff')
         .select('organization_id')
         .eq('user_id', user?.id || '')
+        .single()
+      
+      // Check if user owns an organization
+      const { data: ownedOrg } = await supabase
+        .from('organizations')
+        .select('*')
+        .eq('owner_id', user?.id || '')
         .single()
       
       // Check all membership plans
@@ -30,11 +37,13 @@ export default function MembershipDebugPage() {
       // Check membership plans for user's organization
       let orgPlans = null
       let orgError = null
-      if (staffData?.organization_id) {
+      const orgId = staffData?.organization_id || ownedOrg?.id
+      
+      if (orgId) {
         const { data, error } = await supabase
           .from('membership_plans')
           .select('*')
-          .eq('organization_id', staffData.organization_id)
+          .eq('organization_id', orgId)
           .order('created_at', { ascending: false })
         
         orgPlans = data
@@ -46,7 +55,16 @@ export default function MembershipDebugPage() {
           id: user?.id,
           email: user?.email
         },
-        organization_id: staffData?.organization_id || null,
+        staff_entry: {
+          exists: !!staffData,
+          organization_id: staffData?.organization_id || null
+        },
+        owned_organization: {
+          exists: !!ownedOrg,
+          id: ownedOrg?.id || null,
+          name: ownedOrg?.name || null
+        },
+        organization_id: staffData?.organization_id || ownedOrg?.id || null,
         all_plans: {
           count: allPlans?.length || 0,
           error: allError?.message,
