@@ -1,11 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+export const dynamic = 'force-dynamic'
+
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/app/lib/supabase/client'
 import { CheckCircle, XCircle, Loader } from 'lucide-react'
 
-export default function AcceptInvitePage() {
+function AcceptInviteContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [status, setStatus] = useState<'checking' | 'valid' | 'invalid' | 'expired' | 'accepted'>('checking')
@@ -196,5 +198,22 @@ export default function AcceptInvitePage() {
         {renderContent()}
       </div>
     </div>
+  )
+}
+
+export default function AcceptInvitePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+        <div className="bg-gray-800 rounded-lg p-8 max-w-lg w-full">
+          <div className="text-center">
+            <Loader className="h-12 w-12 animate-spin text-orange-500 mx-auto mb-4" />
+            <p className="text-gray-400">Loading...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <AcceptInviteContent />
+    </Suspense>
   )
 }
