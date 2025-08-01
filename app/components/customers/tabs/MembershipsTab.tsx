@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
 import { CreditCard, Calendar, Clock, PauseCircle } from 'lucide-react'
 import { formatBritishDate, formatBritishCurrency } from '@/app/lib/utils/british-format'
+import AddMembershipModal from '../AddMembershipModal'
 
 interface MembershipsTabProps {
   customerId: string
@@ -12,17 +13,36 @@ interface MembershipsTabProps {
 export default function MembershipsTab({ customerId }: MembershipsTabProps) {
   const [memberships, setMemberships] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [customerName, setCustomerName] = useState('')
   const supabase = createClient()
 
   useEffect(() => {
     fetchMemberships()
+    fetchCustomerName()
   }, [customerId])
+
+  const fetchCustomerName = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('leads')
+        .select('name')
+        .eq('id', customerId)
+        .single()
+      
+      if (!error && data) {
+        setCustomerName(data.name)
+      }
+    } catch (error) {
+      console.error('Error fetching customer name:', error)
+    }
+  }
 
   const fetchMemberships = async () => {
     try {
       setLoading(true)
       const { data, error } = await supabase
-        .from('memberships')
+        .from('customer_memberships')
         .select(`
           *,
           membership_plan:membership_plans(*)
@@ -66,7 +86,10 @@ export default function MembershipsTab({ customerId }: MembershipsTabProps) {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-lg font-semibold text-white">Memberships</h3>
-        <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+        <button 
+          onClick={() => setShowAddModal(true)}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
           Add Membership
         </button>
       </div>
@@ -136,6 +159,17 @@ export default function MembershipsTab({ customerId }: MembershipsTabProps) {
           ))}
         </div>
       )}
+      
+      <AddMembershipModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        customerId={customerId}
+        customerName={customerName}
+        onSuccess={() => {
+          fetchMemberships()
+          setShowAddModal(false)
+        }}
+      />
     </div>
   )
 }
