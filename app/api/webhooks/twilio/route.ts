@@ -277,18 +277,6 @@ For assistance, please contact our support team.`
       // Save to the appropriate logs table
       await adminSupabase.from(tableName).insert(outgoingLog)
       
-      // Also save to messages table for legacy support
-      await adminSupabase.from('messages').insert({
-        to_email: cleanedFrom,
-        subject: `${channel.toUpperCase()} Reply`,
-        body: responseMessage,
-        status: 'sent',
-        organization_id: organizationId,
-        lead_id: lead?.id,
-        type: channel,
-        direction: 'outbound'
-      })
-      
       return new NextResponse(twiml.toString(), {
         headers: { 'Content-Type': 'text/xml' }
       })

@@ -68,30 +68,48 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Send email with magic link
-    const { error: emailError } = await resend.emails.send({
-      from: 'Atlas Fitness <onboarding@resend.dev>',
-      to: customerEmail,
-      subject: 'Your Login Link - Atlas Fitness',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Welcome${customerName ? ` ${customerName}` : ''}!</h2>
-          <p>Click the link below to access your Atlas Fitness account:</p>
-          <a href="${data.properties.action_link}" style="display: inline-block; background-color: #f97316; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0;">
-            Log In to Your Account
-          </a>
-          <p style="color: #666; font-size: 14px;">This link will expire in 1 hour for security reasons.</p>
-          <p style="color: #666; font-size: 14px;">If you didn't request this link, you can safely ignore this email.</p>
-        </div>
-      `
-    })
+    // Try to send with Resend first
+    try {
+      const { error: emailError } = await resend.emails.send({
+        from: 'Atlas Fitness <onboarding@resend.dev>',
+        to: customerEmail,
+        subject: 'Your Login Link - Atlas Fitness',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Welcome${customerName ? ` ${customerName}` : ''}!</h2>
+            <p>Click the link below to access your Atlas Fitness account:</p>
+            <a href="${data.properties.action_link}" style="display: inline-block; background-color: #f97316; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0;">
+              Log In to Your Account
+            </a>
+            <p style="color: #666; font-size: 14px;">This link will expire in 1 hour for security reasons.</p>
+            <p style="color: #666; font-size: 14px;">If you didn't request this link, you can safely ignore this email.</p>
+          </div>
+        `
+      })
 
-    if (emailError) {
-      console.error('Error sending email:', emailError)
-      return NextResponse.json(
-        { error: 'Failed to send email', details: emailError },
-        { status: 500 }
-      )
+      if (emailError) {
+        console.error('Resend error:', emailError)
+        // Return the magic link directly if email fails
+        return NextResponse.json({
+          success: true,
+          message: `Email service unavailable. Use this link to log in:`,
+          email: customerEmail,
+          customer: customerName,
+          magicLink: data.properties.action_link,
+          note: 'Copy this link and open it in your browser. It expires in 1 hour.'
+        })
+      }
+    } catch (error) {
+      console.error('Resend exception:', error)
+      // Return the magic link directly if email fails
+      return NextResponse.json({
+        success: true,
+        message: `Email service unavailable. Use this link to log in:`,
+        email: customerEmail,
+        customer: customerName,
+        magicLink: data.properties.action_link,
+        note: 'Copy this link and open it in your browser. It expires in 1 hour.'
+      })
     }
 
     return NextResponse.json({

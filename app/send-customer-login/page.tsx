@@ -73,9 +73,23 @@ export default function SendCustomerLoginPage() {
               <div className="mt-4 p-4 bg-green-900/50 border border-green-700 rounded-lg">
                 <p className="text-green-300 font-medium">{result.message}</p>
                 <p className="text-sm text-gray-400 mt-1">
-                  Sent to: {result.email}
+                  {result.email}
                   {result.customer && ` (${result.customer})`}
                 </p>
+                {result.magicLink && (
+                  <div className="mt-3">
+                    <p className="text-sm text-yellow-400 mb-2">{result.note}</p>
+                    <div className="bg-gray-800 p-3 rounded border border-gray-600 break-all">
+                      <code className="text-xs text-gray-300">{result.magicLink}</code>
+                    </div>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(result.magicLink)}
+                      className="mt-2 text-sm text-orange-400 hover:text-orange-300"
+                    >
+                      Copy link to clipboard
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
