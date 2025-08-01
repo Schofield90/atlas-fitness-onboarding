@@ -41,47 +41,20 @@ export default function MembershipsPage() {
         return
       }
       
-      // Get user's organization
-      let organizationId = null
-      
-      // First check if user is in organization_staff
-      const { data: staffData } = await supabase
-        .from('organization_staff')
+      // Get user's organization from user_organizations table
+      const { data: userOrg, error: orgError } = await supabase
+        .from('user_organizations')
         .select('organization_id')
         .eq('user_id', user.id)
         .single()
       
-      if (staffData?.organization_id) {
-        organizationId = staffData.organization_id
-      } else {
-        // If not in staff table, check if they own an organization
-        const { data: ownedOrg } = await supabase
-          .from('organizations')
-          .select('id')
-          .eq('owner_id', user.id)
-          .single()
-        
-        if (ownedOrg?.id) {
-          organizationId = ownedOrg.id
-          
-          // Create organization_staff entry for owner
-          await supabase
-            .from('organization_staff')
-            .insert({
-              organization_id: ownedOrg.id,
-              user_id: user.id,
-              email: user.email || '',
-              role: 'owner',
-              is_active: true
-            })
-        }
-      }
-      
-      if (!organizationId) {
-        console.error('No organization found for user')
+      if (orgError || !userOrg?.organization_id) {
+        console.error('No organization found for user:', orgError)
         setLoading(false)
         return
       }
+      
+      const organizationId = userOrg.organization_id
       
       // Fetch membership plans for the organization
       const { data, error } = await supabase
