@@ -44,8 +44,8 @@ export default function OrganizationSwitcher() {
 
       if (!userOrgsError && userOrgs) {
         const orgs = userOrgs
-          .filter(uo => uo.organizations)
-          .map(uo => ({
+          .filter((uo: any) => uo.organizations)
+          .map((uo: any) => ({
             id: uo.organizations.id,
             name: uo.organizations.name,
             role: uo.role
