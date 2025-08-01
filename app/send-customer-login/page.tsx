@@ -15,7 +15,8 @@ export default function SendCustomerLoginPage() {
     setResult(null)
 
     try {
-      const response = await fetch('/api/customers/send-login-link', {
+      // Try the new endpoint that just generates the link
+      const response = await fetch('/api/customers/get-magic-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
@@ -24,10 +25,16 @@ export default function SendCustomerLoginPage() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to send login link')
+        throw new Error(data.error || 'Failed to generate login link')
       }
 
-      setResult(data)
+      setResult({
+        success: true,
+        message: data.message,
+        email: email,
+        magicLink: data.magicLink,
+        note: 'Copy this link and send it to the customer, or have them open it directly.'
+      })
     } catch (err: any) {
       setError(err.message)
     } finally {
