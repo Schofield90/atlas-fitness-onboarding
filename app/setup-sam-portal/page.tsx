@@ -18,26 +18,56 @@ export default function SetupSamPortalPage() {
 
   const checkSamClient = async () => {
     try {
-      // Check if Sam exists
+      // First, let's check all clients to see what's in the table
+      const { data: allClients, error: allError } = await supabase
+        .from('clients')
+        .select('id, name, email, organization_id')
+        .order('created_at', { ascending: false });
+      
+      console.log('All clients:', allClients);
+      console.log('Total clients found:', allClients?.length || 0);
+
+      // Check if Sam exists by email
       const { data: samClient, error } = await supabase
         .from('clients')
         .select('*')
         .eq('email', 'samschofield90@hotmail.co.uk')
-        .single();
+        .maybeSingle();
 
-      if (error || !samClient) {
-        console.log('Sam not found, checking by name...');
-        const { data: byName } = await supabase
+      if (error) {
+        console.error('Error searching by email:', error);
+      }
+
+      if (!samClient) {
+        console.log('Sam not found by email, checking by name...');
+        const { data: byName, error: nameError } = await supabase
           .from('clients')
           .select('*')
           .eq('name', 'Sam Schofield')
-          .single();
+          .maybeSingle();
         
-        if (byName) {
+        if (nameError) {
+          console.error('Error searching by name:', nameError);
+        }
+        
+        if (!byName) {
+          // Try case-insensitive search
+          const { data: byNameInsensitive } = await supabase
+            .from('clients')
+            .select('*')
+            .ilike('name', '%sam%schofield%');
+          
+          console.log('Case-insensitive search results:', byNameInsensitive);
+          
+          if (byNameInsensitive && byNameInsensitive.length > 0) {
+            setClient(byNameInsensitive[0]);
+            await checkPortalAccess(byNameInsensitive[0].id);
+          } else {
+            console.log('Sam not found at all. Available clients:', allClients?.map(c => ({ name: c.name, email: c.email })));
+          }
+        } else {
           setClient(byName);
           await checkPortalAccess(byName.id);
-        } else {
-          console.log('Sam not found at all');
         }
       } else {
         setClient(samClient);
@@ -124,6 +154,57 @@ export default function SetupSamPortalPage() {
     }
   };
 
+  const createSamClient = async () => {
+    setLoading(true);
+    try {
+      // Get the current user's organization
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert('You must be logged in to create a client');
+        return;
+      }
+
+      // Get organization ID from user_organizations
+      const { data: userOrg } = await supabase
+        .from('user_organizations')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!userOrg) {
+        alert('Organization not found');
+        return;
+      }
+
+      // Create Sam Schofield client
+      const { data: newClient, error } = await supabase
+        .from('clients')
+        .insert({
+          name: 'Sam Schofield',
+          email: 'samschofield90@hotmail.co.uk',
+          organization_id: userOrg.organization_id,
+          status: 'active',
+          phone: '+447490253471' // Add phone if needed
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating client:', error);
+        alert('Failed to create client: ' + error.message);
+        return;
+      }
+
+      setClient(newClient);
+      alert('Sam Schofield client created successfully!');
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Failed to create client');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const sendWelcomeEmail = async () => {
     if (!client || !portalAccess) return;
 
@@ -183,8 +264,17 @@ export default function SetupSamPortalPage() {
             </div>
           </div>
         ) : (
-          <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
-            Sam Schofield client not found. Please create the client first.
+          <div className="space-y-4">
+            <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
+              Sam Schofield client not found. Please create the client first.
+            </div>
+            <button
+              onClick={createSamClient}
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              disabled={loading}
+            >
+              {loading ? 'Creating...' : 'Create Sam Schofield Client'}
+            </button>
           </div>
         )}
       </div>
