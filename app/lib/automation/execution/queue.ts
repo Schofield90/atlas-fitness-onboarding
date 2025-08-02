@@ -153,6 +153,12 @@ export async function enqueueWorkflowExecution(
   // Determine which queue to use
   const queue = options?.priority && options.priority > 5 ? priorityQueue : workflowQueue
   
+  if (!queue) {
+    console.warn('Workflow queue not available - Redis not configured')
+    // Still return execution ID even if queue is not available
+    return execution.id
+  }
+  
   // Add job to queue
   const job = await queue.add(
     'execute-workflow',
@@ -183,9 +189,14 @@ export async function enqueueWorkflowExecution(
 
 // Create workflow execution worker
 export function createWorkflowWorker() {
+  if (!Worker || !redisConnection) {
+    console.warn('Workflow worker disabled - Redis not configured')
+    return null
+  }
+  
   const worker = new Worker(
     'workflow-executions',
-    async (job: Job) => {
+    async (job: any) => {
       const { executionId, workflowId, workflow, triggerData } = job.data
       
       try {
@@ -265,9 +276,14 @@ export function createWorkflowWorker() {
 
 // Create priority workflow worker
 export function createPriorityWorker() {
+  if (!Worker || !redisConnection) {
+    console.warn('Priority worker disabled - Redis not configured')
+    return null
+  }
+  
   const worker = new Worker(
     'priority-executions',
-    async (job: Job) => {
+    async (job: any) => {
       const { executionId, workflowId, workflow, triggerData } = job.data
       
       try {
@@ -326,9 +342,14 @@ export function createPriorityWorker() {
 
 // Create delayed action worker
 export function createDelayedActionWorker() {
+  if (!Worker || !redisConnection) {
+    console.warn('Delayed action worker disabled - Redis not configured')
+    return null
+  }
+  
   const worker = new Worker(
     'delayed-actions',
-    async (job: Job) => {
+    async (job: any) => {
       const { executionId, nodeId, resumeData } = job.data
       
       // Resume workflow execution at specific node
@@ -398,7 +419,18 @@ export async function getQueueStats() {
   }
 }
 
-async function getQueueMetrics(queue: Queue) {
+async function getQueueMetrics(queue: any) {
+  if (!queue) {
+    return {
+      waiting: 0,
+      active: 0,
+      completed: 0,
+      failed: 0,
+      delayed: 0,
+      total: 0,
+    }
+  }
+  
   const [waiting, active, completed, failed, delayed] = await Promise.all([
     queue.getWaitingCount(),
     queue.getActiveCount(),
@@ -421,17 +453,30 @@ async function getQueueMetrics(queue: Queue) {
 export async function pauseQueue(queueName: 'workflow' | 'priority' | 'delayed') {
   const queue = queueName === 'workflow' ? workflowQueue : 
                 queueName === 'priority' ? priorityQueue : delayedQueue
+  if (!queue) {
+    console.warn(`Cannot pause ${queueName} queue - Redis not configured`)
+    return
+  }
   await queue.pause()
 }
 
 export async function resumeQueue(queueName: 'workflow' | 'priority' | 'delayed') {
   const queue = queueName === 'workflow' ? workflowQueue : 
                 queueName === 'priority' ? priorityQueue : delayedQueue
+  if (!queue) {
+    console.warn(`Cannot resume ${queueName} queue - Redis not configured`)
+    return
+  }
   await queue.resume()
 }
 
 // Clean up old jobs
 export async function cleanupOldJobs(olderThan: number = 7 * 24 * 60 * 60 * 1000) {
+  if (!workflowQueue || !priorityQueue || !delayedQueue) {
+    console.warn('Cannot cleanup jobs - Redis not configured')
+    return
+  }
+  
   const timestamp = Date.now() - olderThan
   
   await Promise.all([
@@ -450,6 +495,11 @@ export async function scheduleDelayedAction(
   delay: number,
   resumeData: Record<string, any>
 ): Promise<void> {
+  if (!delayedQueue) {
+    console.warn('Cannot schedule delayed action - Redis not configured')
+    return
+  }
+  
   await delayedQueue.add(
     'resume-execution',
     {
@@ -466,12 +516,15 @@ export async function scheduleDelayedAction(
 
 // Cancel workflow execution
 export async function cancelWorkflowExecution(executionId: string): Promise<void> {
-  // Try to remove from all queues
-  await Promise.all([
-    workflowQueue.remove(executionId),
-    priorityQueue.remove(executionId),
-    delayedQueue.remove(executionId),
-  ]).catch(() => {}) // Ignore errors if job not found
+  // Try to remove from all queues if they exist
+  const removePromises = []
+  if (workflowQueue) removePromises.push(workflowQueue.remove(executionId))
+  if (priorityQueue) removePromises.push(priorityQueue.remove(executionId))
+  if (delayedQueue) removePromises.push(delayedQueue.remove(executionId))
+  
+  if (removePromises.length > 0) {
+    await Promise.all(removePromises).catch(() => {}) // Ignore errors if job not found
+  }
   
   // Update execution status
   await updateExecutionStatus(executionId, 'cancelled', {
@@ -481,6 +534,11 @@ export async function cancelWorkflowExecution(executionId: string): Promise<void
 
 // Initialize queue monitoring
 export function initializeQueueMonitoring() {
+  if (!queueEvents) {
+    console.warn('Queue monitoring disabled - Redis not configured')
+    return
+  }
+  
   queueEvents.on('waiting', ({ jobId }) => {
     console.log(`Job ${jobId} is waiting`)
   })

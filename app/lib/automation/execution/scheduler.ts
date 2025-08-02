@@ -48,7 +48,7 @@ export const schedulerQueue = redisConnection && Queue ? new Queue('workflow-sch
 }) : null
 
 // Active schedules map
-const activeSchedules = new Map<string, Job>()
+const activeSchedules = new Map<string, any>()
 
 // Schedule a workflow
 export async function scheduleWorkflow(
@@ -70,6 +70,11 @@ export async function scheduleWorkflow(
   }
   
   // Add job to scheduler queue
+  if (!schedulerQueue) {
+    console.warn('Scheduler queue not available - Redis not configured')
+    return
+  }
+  
   const job = await schedulerQueue.add(
     'execute-scheduled-workflow',
     {
@@ -106,7 +111,9 @@ export async function unscheduleWorkflow(triggerId: string): Promise<void> {
   }
   
   // Remove any pending jobs
-  await schedulerQueue.remove(`schedule-${triggerId}`)
+  if (schedulerQueue) {
+    await schedulerQueue.remove(`schedule-${triggerId}`)
+  }
   
   // Update database
   const supabase = await createClient()
@@ -171,9 +178,14 @@ function calculateNextRunTime(config: any): Date | null {
 
 // Create scheduler worker
 export function createSchedulerWorker() {
+  if (!Worker || !redisConnection) {
+    console.warn('Scheduler worker disabled - Redis not configured')
+    return null
+  }
+  
   const worker = new Worker(
     'workflow-scheduler',
-    async (job: Job) => {
+    async (job: any) => {
       const { triggerId, workflowId, config } = job.data
       
       try {
