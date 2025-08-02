@@ -11,12 +11,17 @@ export async function DELETE() {
 
     const supabase = createAdminClient()
     
+    // First count how many we're going to delete
+    const { count: beforeCount } = await supabase
+      .from('class_sessions')
+      .select('*', { count: 'exact', head: true })
+      .eq('organization_id', organizationId)
+    
     // Delete ALL classes for the current organization
-    const { error: deleteError, count } = await supabase
+    const { error: deleteError } = await supabase
       .from('class_sessions')
       .delete()
       .eq('organization_id', organizationId)
-      .select('*', { count: 'exact' })
     
     if (deleteError) {
       console.error('Delete error:', deleteError)
@@ -34,10 +39,10 @@ export async function DELETE() {
     
     return NextResponse.json({
       success: true,
-      deletedCount: count || 0,
+      deletedCount: beforeCount || 0,
       remainingCount: remainingCount || 0,
       organizationId,
-      message: `Deleted ${count || 0} classes. ${remainingCount || 0} classes remaining.`
+      message: `Deleted ${beforeCount || 0} classes. ${remainingCount || 0} classes remaining.`
     })
   } catch (error: any) {
     console.error('Error in force clean:', error)
