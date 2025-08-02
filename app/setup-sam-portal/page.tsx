@@ -40,10 +40,11 @@ export default function SetupSamPortalPage() {
 
       if (!samClient) {
         console.log('Sam not found by email, checking by name...');
+        // Try by full name
         const { data: byName, error: nameError } = await supabase
           .from('clients')
           .select('*')
-          .eq('name', 'Sam Schofield')
+          .or('name.eq.Sam Schofield,and(first_name.eq.Sam,last_name.eq.Schofield)')
           .maybeSingle();
         
         if (nameError) {
@@ -51,11 +52,11 @@ export default function SetupSamPortalPage() {
         }
         
         if (!byName) {
-          // Try case-insensitive search
+          // Try case-insensitive search on both name fields
           const { data: byNameInsensitive } = await supabase
             .from('clients')
             .select('*')
-            .ilike('name', '%sam%schofield%');
+            .or('name.ilike.%sam%schofield%,and(first_name.ilike.%sam%,last_name.ilike.%schofield%)');
           
           console.log('Case-insensitive search results:', byNameInsensitive);
           
@@ -63,7 +64,10 @@ export default function SetupSamPortalPage() {
             setClient(byNameInsensitive[0]);
             await checkPortalAccess(byNameInsensitive[0].id);
           } else {
-            console.log('Sam not found at all. Available clients:', allClients?.map(c => ({ name: c.name, email: c.email })));
+            console.log('Sam not found at all. Available clients:', allClients?.map(c => ({ 
+              name: c.name || `${c.first_name} ${c.last_name}`, 
+              email: c.email 
+            })));
           }
         } else {
           setClient(byName);
@@ -177,20 +181,18 @@ export default function SetupSamPortalPage() {
       }
 
       // Create Sam Schofield client
-      // First, let's check if the table accepts 'name' or needs first_name/last_name
-      let clientData: any = {
-        email: 'samschofield90@hotmail.co.uk',
-        organization_id: userOrg.organization_id,
-        status: 'active',
-        phone: '+447490253471'
-      };
-
-      // Try with 'name' field first
-      clientData.name = 'Sam Schofield';
-      
       const { data: newClient, error } = await supabase
         .from('clients')
-        .insert(clientData)
+        .insert({
+          first_name: 'Sam',
+          last_name: 'Schofield',
+          name: 'Sam Schofield',
+          email: 'samschofield90@hotmail.co.uk',
+          organization_id: userOrg.organization_id,
+          status: 'active',
+          phone: '+447490253471',
+          client_type: 'gym_member'
+        })
         .select()
         .single();
 
@@ -255,7 +257,7 @@ export default function SetupSamPortalPage() {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <User className="h-4 w-4 text-gray-500" />
-              <span className="font-medium">Name:</span> {client.name}
+              <span className="font-medium">Name:</span> {client.name || `${client.first_name} ${client.last_name}`}
             </div>
             <div className="flex items-center gap-2">
               <Mail className="h-4 w-4 text-gray-500" />
