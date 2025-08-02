@@ -101,35 +101,27 @@ export default function SetupSamPortalPage() {
 
     setLoading(true);
     try {
-      // Generate access code
-      const accessCode = generateAccessCode();
-      const magicToken = crypto.randomUUID();
-
-      // Get organization ID - try to find it from existing data
-      const { data: org } = await supabase
-        .from('organizations')
-        .select('id')
-        .limit(1)
-        .single();
-
-      const { data, error } = await supabase
-        .from('client_portal_access')
-        .insert({
-          client_id: client.id,
-          organization_id: org?.id || null,
-          access_code: accessCode,
-          magic_link_token: magicToken,
-          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      const response = await fetch('/api/setup/create-portal-access', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          clientId: client.id
         })
-        .select()
-        .single();
+      });
 
-      if (error) throw error;
-      setPortalAccess(data);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create portal access');
+      }
+
+      setPortalAccess(data.portalAccess);
       alert('Portal access created!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating portal access:', error);
-      alert('Failed to create portal access');
+      alert('Failed to create portal access: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -161,49 +153,26 @@ export default function SetupSamPortalPage() {
   const createSamClient = async () => {
     setLoading(true);
     try {
-      // Get the current user's organization
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        alert('You must be logged in to create a client');
-        return;
+      // Call API endpoint to create client with admin privileges
+      const response = await fetch('/api/setup/create-sam-client', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create client');
       }
 
-      // Get organization ID from user_organizations
-      const { data: userOrg } = await supabase
-        .from('user_organizations')
-        .select('organization_id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!userOrg) {
-        alert('Organization not found');
-        return;
-      }
-
-      // Create Sam Schofield client
-      const { data: newClient, error } = await supabase
-        .from('clients')
-        .insert({
-          first_name: 'Sam',
-          last_name: 'Schofield',
-          name: 'Sam Schofield',
-          email: 'samschofield90@hotmail.co.uk',
-          organization_id: userOrg.organization_id,
-          status: 'active',
-          phone: '+447490253471',
-          client_type: 'gym_member'
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creating client:', error);
-        alert('Failed to create client: ' + error.message);
-        return;
-      }
+      const newClient = data.client;
 
       setClient(newClient);
       alert('Sam Schofield client created successfully!');
+      // Refresh the page to show portal access options
+      await checkSamClient();
     } catch (error) {
       console.error('Error:', error);
       alert('Failed to create client');
