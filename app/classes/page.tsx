@@ -30,16 +30,25 @@ function ClassesPageContent() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false)
   const [deletingAll, setDeletingAll] = useState(false)
+  const [lastRefresh, setLastRefresh] = useState(Date.now())
   const supabase = createClient()
 
   useEffect(() => {
     loadClasses()
-  }, [])
+  }, [organizationId, lastRefresh])
+
+  const forceRefresh = () => {
+    setLastRefresh(Date.now())
+    setClasses([]) // Clear current state
+    setLoading(true)
+  }
 
   const loadClasses = async () => {
     if (!organizationId) return;
     
     try {
+      // Add timestamp to prevent caching
+      const timestamp = new Date().getTime()
       const { data, error } = await supabase
         .from('class_sessions')
         .select(`
@@ -48,6 +57,7 @@ function ClassesPageContent() {
         `)
         .eq('organization_id', organizationId)
         .order('start_time', { ascending: true })
+        .limit(1000) // Add explicit limit
 
       if (error) throw error
 
@@ -141,6 +151,25 @@ function ClassesPageContent() {
               <p className="text-gray-400">Manage your gym classes and schedules</p>
             </div>
             <div className="flex gap-3">
+              <button
+                onClick={forceRefresh}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg flex items-center gap-2 transition-colors"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    Refreshing...
+                  </>
+                ) : (
+                  <>
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Force Refresh
+                  </>
+                )}
+              </button>
               {classes.length > 0 && (
                 <button
                   onClick={() => setShowDeleteAllModal(true)}
