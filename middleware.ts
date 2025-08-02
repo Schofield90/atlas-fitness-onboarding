@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
+import { createMiddlewareClient } from '@/app/lib/supabase/middleware'
 
 // Public routes that don't require authentication
 const publicRoutes = [
@@ -56,7 +56,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Create supabase client
-  const supabase = createMiddlewareClient({ req: request, res })
+  const supabase = createMiddlewareClient(request, res)
 
   // Get session
   const {
