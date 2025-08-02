@@ -4,7 +4,6 @@
   "buildCommand": "npm run build:fast",
   "devCommand": "npm run dev:turbo",
   "installCommand": "npm ci --prefer-offline",
-  "ignoreCommand": "npx turbo-ignore",
   "functions": {
     "app/api/**/*.ts": {
       "maxDuration": 30,
