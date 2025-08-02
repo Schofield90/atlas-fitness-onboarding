@@ -3,19 +3,17 @@ import { createAdminClient } from '@/app/lib/supabase/admin'
 
 export async function POST(request: NextRequest) {
   try {
-    const { accessCode } = await request.json()
+    const { token } = await request.json()
     
-    console.log('Verifying access code:', accessCode)
-    
-    if (!accessCode) {
+    if (!token) {
       return NextResponse.json({ 
-        error: 'Access code is required' 
+        error: 'Token is required' 
       }, { status: 400 })
     }
 
     const adminSupabase = createAdminClient()
     
-    // Look up the access code
+    // Look up the token
     const { data: portalAccess, error } = await adminSupabase
       .from('client_portal_access')
       .select(`
@@ -31,32 +29,32 @@ export async function POST(request: NextRequest) {
           user_id
         )
       `)
-      .eq('access_code', accessCode.toUpperCase())
+      .eq('magic_link_token', token)
       .single()
 
     if (error || !portalAccess) {
-      console.error('Access code lookup error:', error)
+      console.error('Token lookup error:', error)
       return NextResponse.json({ 
-        error: 'Invalid access code' 
+        error: 'Invalid or expired link',
+        details: error?.message 
       }, { status: 400 })
     }
 
     // Check if expired
     if (portalAccess.expires_at && new Date(portalAccess.expires_at) < new Date()) {
       return NextResponse.json({ 
-        error: 'This access code has expired' 
+        error: 'This link has expired' 
       }, { status: 400 })
     }
 
     return NextResponse.json({ 
       success: true,
-      portalAccess,
-      client: portalAccess.clients
+      portalAccess
     })
   } catch (error: any) {
-    console.error('Error verifying access code:', error)
+    console.error('Error verifying token:', error)
     return NextResponse.json({ 
-      error: 'Failed to verify access code',
+      error: 'Failed to verify token',
       details: error.message 
     }, { status: 500 })
   }

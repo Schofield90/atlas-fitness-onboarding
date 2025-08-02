@@ -23,6 +23,8 @@ export default function ClaimPortalAccessPage() {
   const verifyToken = async () => {
     const token = searchParams.get('token')
     
+    console.log('Verifying token:', token)
+    
     if (!token) {
       setError('Invalid access link')
       setLoading(false)
@@ -30,23 +32,29 @@ export default function ClaimPortalAccessPage() {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('client_portal_access')
-        .select('*, clients(*)')
-        .eq('magic_link_token', token)
-        .single()
+      // Call API to verify token with admin privileges
+      const response = await fetch('/api/client-portal/verify-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ token })
+      })
 
-      if (error || !data) {
-        setError('Invalid or expired link')
+      const result = await response.json()
+      console.log('Token verification result:', result)
+
+      if (!response.ok) {
+        setError(result.error || 'Invalid or expired link')
         return
       }
 
-      if (data.is_claimed) {
+      if (result.portalAccess.is_claimed) {
         setError('This access has already been claimed')
         return
       }
 
-      setPortalAccess(data)
+      setPortalAccess(result.portalAccess)
     } catch (err) {
       console.error('Token verification error:', err)
       setError('Failed to verify access')
@@ -72,51 +80,36 @@ export default function ClaimPortalAccessPage() {
     setError('')
 
     try {
-      // Create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: portalAccess.clients.email,
-        password: password,
-        options: {
-          data: {
-            client_id: portalAccess.client_id,
-            name: portalAccess.clients.name || `${portalAccess.clients.first_name} ${portalAccess.clients.last_name}`
-          }
-        }
+      // Call API to claim portal access
+      const response = await fetch('/api/client-portal/claim', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          portalAccessId: portalAccess.id,
+          clientId: portalAccess.client_id,
+          email: portalAccess.clients.email,
+          password: password,
+          clientName: portalAccess.clients.name || `${portalAccess.clients.first_name} ${portalAccess.clients.last_name}`
+        })
       })
 
-      if (authError) throw authError
+      const result = await response.json()
 
-      if (authData.user) {
-        // Update client with user_id
-        const { error: updateClientError } = await supabase
-          .from('clients')
-          .update({ user_id: authData.user.id })
-          .eq('id', portalAccess.client_id)
-
-        if (updateClientError) throw updateClientError
-
-        // Mark portal access as claimed
-        const { error: claimError } = await supabase
-          .from('client_portal_access')
-          .update({
-            is_claimed: true,
-            claimed_at: new Date().toISOString(),
-            user_id: authData.user.id
-          })
-          .eq('id', portalAccess.id)
-
-        if (claimError) throw claimError
-
-        // Sign in the user
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: portalAccess.clients.email,
-          password: password
-        })
-
-        if (signInError) throw signInError
-
-        router.push('/client/dashboard')
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create account')
       }
+
+      // Sign in the user
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: portalAccess.clients.email,
+        password: password
+      })
+
+      if (signInError) throw signInError
+
+      router.push('/client/dashboard')
     } catch (err: any) {
       console.error('Claim error:', err)
       setError(err.message || 'Failed to set up account')
