@@ -109,24 +109,45 @@ export default function AddClassModal({ onClose, onSuccess }: AddClassModalProps
       for (const startTime of validTimes) {
         if (formData.recurring && formData.recurring_days.length > 0) {
           // Create recurring classes for each day and each time
-          for (const dayOfWeek of formData.recurring_days) {
-            const { error } = await supabase
-              .from('class_sessions')
-              .insert({
-                organization_id: organizationId,
-                name: formData.name,
-                instructor_name: formData.instructor_name,
-                start_time: startTime, // For recurring, just store the time
-                duration_minutes: parseInt(formData.duration_minutes),
-                capacity: parseInt(formData.capacity),
-                location: formData.location,
-                description: formData.description,
-                recurring: true,
-                day_of_week: dayOfWeek
-              })
+          // Generate dates for the next few weeks
+          const weeksToGenerate = 4 // Generate 4 weeks ahead
+          const startDate = new Date()
+          startDate.setHours(0, 0, 0, 0) // Start from today
+          
+          for (let week = 0; week < weeksToGenerate; week++) {
+            for (const dayOfWeek of formData.recurring_days) {
+              // Calculate the date for this day of the week
+              const currentDate = new Date(startDate)
+              currentDate.setDate(startDate.getDate() + (week * 7))
+              
+              // Find the next occurrence of this day of the week
+              const daysUntilTarget = dayOfWeek - currentDate.getDay()
+              const targetDate = new Date(currentDate)
+              targetDate.setDate(currentDate.getDate() + daysUntilTarget)
+              
+              // Skip if the date is in the past
+              if (targetDate < new Date()) continue
+              
+              // Set the time
+              const [hours, minutes] = startTime.split(':').map(Number)
+              targetDate.setHours(hours, minutes, 0, 0)
 
-            if (error) throw error
-            totalClassesCreated++
+              const { error } = await supabase
+                .from('class_sessions')
+                .insert({
+                  organization_id: organizationId,
+                  name: formData.name,
+                  instructor_name: formData.instructor_name,
+                  start_time: targetDate.toISOString(),
+                  duration_minutes: parseInt(formData.duration_minutes),
+                  capacity: parseInt(formData.capacity),
+                  location: formData.location,
+                  description: formData.description
+                })
+
+              if (error) throw error
+              totalClassesCreated++
+            }
           }
         } else {
           // Create single class for each time slot
@@ -149,8 +170,7 @@ export default function AddClassModal({ onClose, onSuccess }: AddClassModalProps
               duration_minutes: parseInt(formData.duration_minutes),
               capacity: parseInt(formData.capacity),
               location: formData.location,
-              description: formData.description,
-              recurring: false
+              description: formData.description
             })
 
           if (error) throw error
