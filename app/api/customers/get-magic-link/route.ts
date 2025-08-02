@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     
     // First check if user exists in auth.users
     const { data: users } = await supabase.auth.admin.listUsers()
-    const existingUser = users?.users?.find(u => u.email === email)
+    const existingUser = users?.users?.find((u: any) => u.email === email)
     
     if (existingUser) {
       // User exists, generate magic link
