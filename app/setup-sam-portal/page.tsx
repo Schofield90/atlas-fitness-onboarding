@@ -177,15 +177,20 @@ export default function SetupSamPortalPage() {
       }
 
       // Create Sam Schofield client
+      // First, let's check if the table accepts 'name' or needs first_name/last_name
+      let clientData: any = {
+        email: 'samschofield90@hotmail.co.uk',
+        organization_id: userOrg.organization_id,
+        status: 'active',
+        phone: '+447490253471'
+      };
+
+      // Try with 'name' field first
+      clientData.name = 'Sam Schofield';
+      
       const { data: newClient, error } = await supabase
         .from('clients')
-        .insert({
-          name: 'Sam Schofield',
-          email: 'samschofield90@hotmail.co.uk',
-          organization_id: userOrg.organization_id,
-          status: 'active',
-          phone: '+447490253471' // Add phone if needed
-        })
+        .insert(clientData)
         .select()
         .single();
 

@@ -1,36 +1,33 @@
 #!/bin/bash
 
-echo "🚀 Starting Atlas Fitness Development Server..."
-echo "==========================================="
+echo "🚀 Starting Atlas Fitness Local Development"
+echo "=========================================="
 echo ""
 
-# Kill any existing processes on port 3000
+# Kill any existing processes on common ports
+echo "🧹 Cleaning up old processes..."
 lsof -ti:3000 | xargs kill -9 2>/dev/null
 lsof -ti:3001 | xargs kill -9 2>/dev/null
+lsof -ti:3002 | xargs kill -9 2>/dev/null
 
-echo "✅ Cleared ports 3000 and 3001"
+# Check if .env.local exists
+if [ ! -f .env.local ]; then
+    echo "📥 Syncing environment variables from Vercel..."
+    vercel env pull .env.local
+fi
+
+# Display the URL prominently
 echo ""
-echo "🔧 Starting Next.js development server..."
+echo "🌐 Starting development server..."
 echo ""
-echo "The app will open in your browser in 10 seconds..."
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "                                                                                "
+echo "   🎯 Your app will be available at:  http://localhost:3000                    "
+echo "                                                                                "
+echo "   If port 3000 is busy, check the console for the actual port                 "
+echo "                                                                                "
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-# Start the dev server
-npm run dev &
-
-# Wait for the server to start
-sleep 10
-
-# Open in browser
-echo "🌐 Opening http://localhost:3000 in your default browser..."
-open http://localhost:3000
-
-echo ""
-echo "If the browser doesn't open automatically, try:"
-echo "  - http://localhost:3000"
-echo "  - http://127.0.0.1:3000"
-echo ""
-echo "Press Ctrl+C to stop the server"
-
-# Keep the script running
-wait
+# Start the development server
+npm run dev

@@ -95,3 +95,4 @@ audio_files/
 .dockerignore
 docker-compose.override.yml
 .docker/
+.vercel
