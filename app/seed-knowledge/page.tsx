@@ -93,8 +93,8 @@ export default function SeedKnowledgePage() {
                       Created {result.itemsCreated} knowledge entries
                     </p>
                     <ul className="text-sm text-green-600 mt-2 space-y-1">
-                      {Object.entries(result.byType).map(([type, count]) => (
-                        <li key={type}>• {type}: {count} items</li>
+                      {Object.entries(result.byType || {}).map(([type, count]) => (
+                        <li key={type}>• {type}: {count as React.ReactNode} items</li>
                       ))}
                     </ul>
                   </div>

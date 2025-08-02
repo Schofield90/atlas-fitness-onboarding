@@ -65,7 +65,7 @@ export default function SetupSamPortalPage() {
             await checkPortalAccess(byNameInsensitive[0].id);
           } else {
             console.log('Sam not found at all. Available clients:', allClients?.map(c => ({ 
-              name: c.name || `${c.first_name} ${c.last_name}`, 
+              name: c.name, 
               email: c.email 
             })));
           }
