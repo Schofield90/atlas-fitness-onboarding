@@ -21,36 +21,34 @@ export default function ClientPortalLoginPage() {
     setError('')
 
     try {
-      // Verify access code
-      const { data: portalAccess, error: accessError } = await supabase
-        .from('client_portal_access')
-        .select('*, clients(*)')
-        .eq('access_code', accessCode.toUpperCase())
-        .single()
+      // Call API to verify access code
+      const response = await fetch('/api/client-portal/verify-code', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          accessCode: accessCode.toUpperCase()
+        })
+      })
 
-      if (accessError || !portalAccess) {
-        setError('Invalid access code')
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(data.error || 'Invalid access code')
         return
       }
 
-      if (portalAccess.is_claimed && portalAccess.user_id) {
-        // Already claimed, log them in
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: portalAccess.clients.email,
-          password: accessCode // Using access code as password for simplicity
-        })
-
-        if (signInError) {
-          setError('Please use the magic link sent to your email')
-          return
-        }
+      if (data.portalAccess.is_claimed && data.portalAccess.user_id) {
+        // Already claimed, try to sign in with the email
+        // For first-time setup, they'll need to use magic link
+        setError('This access has been claimed. Please use the Email Link option to sign in.')
+        return
       } else {
         // First time, redirect to claim page
-        router.push(`/client-portal/claim?token=${portalAccess.magic_link_token}`)
+        router.push(`/client-portal/claim?token=${data.portalAccess.magic_link_token}`)
         return
       }
-
-      router.push('/client/dashboard')
     } catch (err) {
       console.error('Login error:', err)
       setError('Failed to login')
