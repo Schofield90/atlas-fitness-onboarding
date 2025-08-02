@@ -17,7 +17,7 @@ export default function AddClassModal({ onClose, onSuccess }: AddClassModalProps
     name: '',
     instructor_name: '',
     start_date: '',
-    start_time: '',
+    start_times: [''], // Changed to array for multiple times
     duration_minutes: '60',
     capacity: '20',
     location: '',
@@ -63,6 +63,49 @@ export default function AddClassModal({ onClose, onSuccess }: AddClassModalProps
     fetchLocations()
   }, [])
 
+  const addTimeSlot = () => {
+    setFormData(prev => ({
+      ...prev,
+      start_times: [...prev.start_times, '']
+    }))
+  }
+
+  const removeTimeSlot = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      start_times: prev.start_times.filter((_, i) => i !== index)
+    }))
+  }
+
+  const updateTimeSlot = (index: number, time: string) => {
+    setFormData(prev => ({
+      ...prev,
+      start_times: prev.start_times.map((t, i) => i === index ? time : t)
+    }))
+  }
+
+  const setPresetTimes = (preset: string) => {
+    let times: string[] = []
+    switch (preset) {
+      case 'early-morning':
+        times = ['06:00', '06:30', '07:00', '07:30']
+        break
+      case 'morning':
+        times = ['08:00', '09:00', '10:00', '11:00']
+        break
+      case 'lunch':
+        times = ['12:00', '12:30', '13:00', '13:30']
+        break
+      case 'evening':
+        times = ['17:00', '17:30', '18:00', '18:30', '19:00', '19:30']
+        break
+      case 'hourly':
+        times = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00']
+        break
+    }
+    setFormData(prev => ({ ...prev, start_times: times }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -76,61 +119,67 @@ export default function AddClassModal({ onClose, onSuccess }: AddClassModalProps
       }
 
       // Validate required fields
-      if (!formData.name || !formData.instructor_name || !formData.start_time) {
-        throw new Error('Please fill in all required fields')
+      const validTimes = formData.start_times.filter(time => time.trim() !== '')
+      if (!formData.name || !formData.instructor_name || validTimes.length === 0) {
+        throw new Error('Please fill in all required fields and at least one time slot')
       }
 
-      // For recurring classes, we only need the time, not a specific date
-      let startDateTime: Date | null = null
-      if (!formData.recurring) {
-        if (!formData.start_date) {
-          throw new Error('Please select a date for the class')
-        }
-        startDateTime = new Date(`${formData.start_date}T${formData.start_time}`)
-        if (isNaN(startDateTime.getTime())) {
-          throw new Error('Invalid date or time format')
-        }
-      }
-      
-      if (formData.recurring && formData.recurring_days.length > 0) {
-        // Create recurring classes
-        for (const dayOfWeek of formData.recurring_days) {
+      let totalClassesCreated = 0
+
+      // For each time slot
+      for (const startTime of validTimes) {
+        if (formData.recurring && formData.recurring_days.length > 0) {
+          // Create recurring classes for each day and each time
+          for (const dayOfWeek of formData.recurring_days) {
+            const { error } = await supabase
+              .from('class_sessions')
+              .insert({
+                organization_id: organizationId,
+                name: formData.name,
+                instructor_name: formData.instructor_name,
+                start_time: startTime, // For recurring, just store the time
+                duration_minutes: parseInt(formData.duration_minutes),
+                capacity: parseInt(formData.capacity),
+                location: formData.location,
+                description: formData.description,
+                recurring: true,
+                day_of_week: dayOfWeek
+              })
+
+            if (error) throw error
+            totalClassesCreated++
+          }
+        } else {
+          // Create single class for each time slot
+          if (!formData.start_date) {
+            throw new Error('Please select a date for the class')
+          }
+          
+          const startDateTime = new Date(`${formData.start_date}T${startTime}`)
+          if (isNaN(startDateTime.getTime())) {
+            throw new Error(`Invalid time format: ${startTime}`)
+          }
+
           const { error } = await supabase
             .from('class_sessions')
             .insert({
               organization_id: organizationId,
               name: formData.name,
               instructor_name: formData.instructor_name,
-              start_time: formData.start_time, // For recurring, just store the time
+              start_time: startDateTime.toISOString(),
               duration_minutes: parseInt(formData.duration_minutes),
               capacity: parseInt(formData.capacity),
               location: formData.location,
               description: formData.description,
-              recurring: true,
-              day_of_week: dayOfWeek
+              recurring: false
             })
 
           if (error) throw error
+          totalClassesCreated++
         }
-      } else {
-        // Create single class
-        const { error } = await supabase
-          .from('class_sessions')
-          .insert({
-            organization_id: organizationId,
-            name: formData.name,
-            instructor_name: formData.instructor_name,
-            start_time: startDateTime?.toISOString() || formData.start_time,
-            duration_minutes: parseInt(formData.duration_minutes),
-            capacity: parseInt(formData.capacity),
-            location: formData.location,
-            description: formData.description,
-            recurring: false
-          })
-
-        if (error) throw error
       }
 
+      alert(`Successfully created ${totalClassesCreated} class${totalClassesCreated > 1 ? 'es' : ''}!`)
       onSuccess()
       onClose()
     } catch (error: any) {
@@ -249,36 +298,109 @@ export default function AddClassModal({ onClose, onSuccess }: AddClassModalProps
               </div>
             )}
 
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  Start Time*
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-300">
+                  Start Times* (e.g., 6:00, 6:30, 7:00, 7:30)
                 </label>
-                <input
-                  type="time"
-                  required
-                  value={formData.start_time}
-                  onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  Duration (minutes)*
-                </label>
-                <select
-                  value={formData.duration_minutes}
-                  onChange={(e) => setFormData({ ...formData, duration_minutes: e.target.value })}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none"
+                <button
+                  type="button"
+                  onClick={addTimeSlot}
+                  className="text-blue-400 hover:text-blue-300 text-sm font-medium"
                 >
-                  <option value="30">30 minutes</option>
-                  <option value="45">45 minutes</option>
-                  <option value="60">60 minutes</option>
-                  <option value="90">90 minutes</option>
-                  <option value="120">120 minutes</option>
-                </select>
+                  + Add Time Slot
+                </button>
               </div>
+              
+              <div className="mb-3">
+                <p className="text-xs text-gray-500 mb-1">Quick presets:</p>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setPresetTimes('early-morning')}
+                    className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded"
+                  >
+                    Early (6:00-7:30)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPresetTimes('morning')}
+                    className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded"
+                  >
+                    Morning (8:00-11:00)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPresetTimes('lunch')}
+                    className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded"
+                  >
+                    Lunch (12:00-13:30)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPresetTimes('evening')}
+                    className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded"
+                  >
+                    Evening (17:00-19:30)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPresetTimes('hourly')}
+                    className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded"
+                  >
+                    Hourly (9:00-18:00)
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {formData.start_times.map((time, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <input
+                      type="time"
+                      required
+                      value={time}
+                      onChange={(e) => updateTimeSlot(index, e.target.value)}
+                      className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none"
+                      placeholder="e.g., 06:00"
+                    />
+                    {formData.start_times.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeTimeSlot(index)}
+                        className="text-red-400 hover:text-red-300 px-2 py-2 rounded"
+                        title="Remove time slot"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {formData.start_times.length > 1 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Will create {formData.start_times.filter(t => t.trim()).length} class{formData.start_times.filter(t => t.trim()).length !== 1 ? 'es' : ''} 
+                  {formData.recurring && formData.recurring_days.length > 0 && 
+                    ` × ${formData.recurring_days.length} day${formData.recurring_days.length !== 1 ? 's' : ''} = ${formData.start_times.filter(t => t.trim()).length * formData.recurring_days.length} total classes`
+                  }
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                Duration (minutes)*
+              </label>
+              <select
+                value={formData.duration_minutes}
+                onChange={(e) => setFormData({ ...formData, duration_minutes: e.target.value })}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none"
+              >
+                <option value="30">30 minutes</option>
+                <option value="45">45 minutes</option>
+                <option value="60">60 minutes</option>
+                <option value="90">90 minutes</option>
+                <option value="120">120 minutes</option>
+              </select>
             </div>
           </div>
 
