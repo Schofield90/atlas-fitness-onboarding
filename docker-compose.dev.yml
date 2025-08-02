@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mount source code for hot reload
+      - ./app:/app/app
+      - ./public:/app/public
+      - ./lib:/app/lib
+      - ./components:/app/components
+      # Mount env file
+      - ./.env.local:/app/.env.local
+    environment:
+      - NODE_ENV=development
+      - WATCHPACK_POLLING=true # For file watching in Docker
+    command: npm run dev
+    stdin_open: true
+    tty: true
