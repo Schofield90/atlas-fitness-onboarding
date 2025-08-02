@@ -6,9 +6,11 @@ import { WorkflowExecutor } from '@/app/lib/automation/execution/executor'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
+    
     const { organizationId, error: orgError } = await getCurrentUserOrganization()
     if (orgError || !organizationId) {
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
@@ -21,7 +23,7 @@ export async function POST(
     const { data: workflow, error: workflowError } = await supabase
       .from('workflows')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', organizationId)
       .single()
 

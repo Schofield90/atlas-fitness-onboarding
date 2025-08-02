@@ -4,9 +4,11 @@ import { getCurrentUserOrganization } from '@/app/lib/services/membership-servic
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
+    
     const { organizationId, error: orgError } = await getCurrentUserOrganization()
     if (orgError || !organizationId) {
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
@@ -17,7 +19,7 @@ export async function GET(
     const { data, error } = await supabase
       .from('workflows')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', organizationId)
       .single()
 
@@ -34,9 +36,11 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
+    
     const { organizationId, error: orgError } = await getCurrentUserOrganization()
     if (orgError || !organizationId) {
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
@@ -62,7 +66,7 @@ export async function PUT(
     const { data, error } = await supabase
       .from('workflows')
       .update(updateData)
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', organizationId)
       .select()
       .single()
@@ -81,9 +85,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
+    
     const { organizationId, error: orgError } = await getCurrentUserOrganization()
     if (orgError || !organizationId) {
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
@@ -94,7 +100,7 @@ export async function DELETE(
     const { error } = await supabase
       .from('workflows')
       .delete()
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('organization_id', organizationId)
 
     if (error) {
