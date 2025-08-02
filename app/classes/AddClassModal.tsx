@@ -84,27 +84,6 @@ export default function AddClassModal({ onClose, onSuccess }: AddClassModalProps
     }))
   }
 
-  const setPresetTimes = (preset: string) => {
-    let times: string[] = []
-    switch (preset) {
-      case 'early-morning':
-        times = ['06:00', '06:30', '07:00', '07:30']
-        break
-      case 'morning':
-        times = ['08:00', '09:00', '10:00', '11:00']
-        break
-      case 'lunch':
-        times = ['12:00', '12:30', '13:00', '13:30']
-        break
-      case 'evening':
-        times = ['17:00', '17:30', '18:00', '18:30', '19:00', '19:30']
-        break
-      case 'hourly':
-        times = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00']
-        break
-    }
-    setFormData(prev => ({ ...prev, start_times: times }))
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -301,57 +280,20 @@ export default function AddClassModal({ onClose, onSuccess }: AddClassModalProps
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-medium text-gray-300">
-                  Start Times* (e.g., 6:00, 6:30, 7:00, 7:30)
+                  Start Times*
                 </label>
                 <button
                   type="button"
                   onClick={addTimeSlot}
-                  className="text-blue-400 hover:text-blue-300 text-sm font-medium"
+                  className="text-blue-400 hover:text-blue-300 text-sm font-medium flex items-center gap-1"
                 >
-                  + Add Time Slot
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  Add Time
                 </button>
               </div>
               
-              <div className="mb-3">
-                <p className="text-xs text-gray-500 mb-1">Quick presets:</p>
-                <div className="flex flex-wrap gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setPresetTimes('early-morning')}
-                    className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded"
-                  >
-                    Early (6:00-7:30)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPresetTimes('morning')}
-                    className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded"
-                  >
-                    Morning (8:00-11:00)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPresetTimes('lunch')}
-                    className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded"
-                  >
-                    Lunch (12:00-13:30)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPresetTimes('evening')}
-                    className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded"
-                  >
-                    Evening (17:00-19:30)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPresetTimes('hourly')}
-                    className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded"
-                  >
-                    Hourly (9:00-18:00)
-                  </button>
-                </div>
-              </div>
               <div className="space-y-2">
                 {formData.start_times.map((time, index) => (
                   <div key={index} className="flex items-center gap-2">
@@ -361,23 +303,25 @@ export default function AddClassModal({ onClose, onSuccess }: AddClassModalProps
                       value={time}
                       onChange={(e) => updateTimeSlot(index, e.target.value)}
                       className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none"
-                      placeholder="e.g., 06:00"
                     />
                     {formData.start_times.length > 1 && (
                       <button
                         type="button"
                         onClick={() => removeTimeSlot(index)}
-                        className="text-red-400 hover:text-red-300 px-2 py-2 rounded"
+                        className="text-red-400 hover:text-red-300 p-2 rounded hover:bg-gray-700"
                         title="Remove time slot"
                       >
-                        ×
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
                       </button>
                     )}
                   </div>
                 ))}
               </div>
+              
               {formData.start_times.length > 1 && (
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 mt-2">
                   Will create {formData.start_times.filter(t => t.trim()).length} class{formData.start_times.filter(t => t.trim()).length !== 1 ? 'es' : ''} 
                   {formData.recurring && formData.recurring_days.length > 0 && 
                     ` × ${formData.recurring_days.length} day${formData.recurring_days.length !== 1 ? 's' : ''} = ${formData.start_times.filter(t => t.trim()).length * formData.recurring_days.length} total classes`
