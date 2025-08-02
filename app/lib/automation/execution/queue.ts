@@ -1,7 +1,27 @@
 // Workflow Execution Queue
 
-import { Queue, Worker, Job, QueueEvents } from 'bullmq'
-import Redis from 'ioredis'
+// Skip Redis imports during build
+const isBuildTime = process.env.NODE_ENV === 'production' && process.env.VERCEL
+
+let Queue: any = null
+let Worker: any = null
+let Job: any = null
+let QueueEvents: any = null
+let Redis: any = null
+
+if (!isBuildTime) {
+  try {
+    const bullmq = require('bullmq')
+    Queue = bullmq.Queue
+    Worker = bullmq.Worker
+    Job = bullmq.Job
+    QueueEvents = bullmq.QueueEvents
+    Redis = require('ioredis')
+  } catch (error) {
+    console.warn('BullMQ/Redis not available:', error)
+  }
+}
+
 import { createClient } from '@/app/lib/supabase/server'
 import { WorkflowExecutor } from './executor'
 import type { 
@@ -11,17 +31,26 @@ import type {
   WorkflowEvent 
 } from '@/app/lib/types/automation'
 
-// Redis connection
-const redisConnection = new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD,
-  maxRetriesPerRequest: null,
-  enableReadyCheck: false,
-})
+// Redis connection - only create if not during build
+let redisConnection: any = null
 
-// Create queues
-export const workflowQueue = new Queue('workflow-executions', {
+if (!isBuildTime && Redis) {
+  try {
+    redisConnection = new Redis({
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379'),
+      password: process.env.REDIS_PASSWORD,
+      maxRetriesPerRequest: null,
+      enableReadyCheck: false,
+      lazyConnect: true,
+    })
+  } catch (error) {
+    console.warn('Redis connection failed, workflow queues disabled:', error)
+  }
+}
+
+// Create queues only if Redis is available
+export const workflowQueue = redisConnection ? new Queue('workflow-executions', {
   connection: redisConnection,
   defaultJobOptions: {
     removeOnComplete: {
@@ -38,9 +67,9 @@ export const workflowQueue = new Queue('workflow-executions', {
       delay: 2000,
     },
   },
-})
+}) : null
 
-export const priorityQueue = new Queue('priority-executions', {
+export const priorityQueue = redisConnection ? new Queue('priority-executions', {
   connection: redisConnection,
   defaultJobOptions: {
     removeOnComplete: {
@@ -55,17 +84,17 @@ export const priorityQueue = new Queue('priority-executions', {
       delay: 1000,
     },
   },
-})
+}) : null
 
 // Queue for delayed actions (wait nodes)
-export const delayedQueue = new Queue('delayed-actions', {
+export const delayedQueue = redisConnection ? new Queue('delayed-actions', {
   connection: redisConnection,
-})
+}) : null
 
 // Queue events for monitoring
-const queueEvents = new QueueEvents('workflow-executions', {
+const queueEvents = redisConnection ? new QueueEvents('workflow-executions', {
   connection: redisConnection,
-})
+}) : null
 
 // Enqueue workflow execution
 export async function enqueueWorkflowExecution(

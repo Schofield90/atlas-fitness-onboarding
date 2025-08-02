@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/app/lib/supabase/client'
 import { CheckCircle, Mail } from 'lucide-react'
 
-export default function ClaimPortalAccessPage() {
+function ClaimPortalAccessContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
@@ -226,5 +226,13 @@ export default function ClaimPortalAccessPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ClaimPortalAccessPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div></div>}>
+      <ClaimPortalAccessContent />
+    </Suspense>
   )
 }

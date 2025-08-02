@@ -1,24 +1,51 @@
 // Workflow Scheduler Service
 
-import { Queue, Worker, Job } from 'bullmq'
-import Redis from 'ioredis'
+// Skip Redis imports during build
+const isBuildTime = process.env.NODE_ENV === 'production' && process.env.VERCEL
+
+let Queue: any = null
+let Worker: any = null
+let Job: any = null
+let Redis: any = null
+
+if (!isBuildTime) {
+  try {
+    const bullmq = require('bullmq')
+    Queue = bullmq.Queue
+    Worker = bullmq.Worker
+    Job = bullmq.Job
+    Redis = require('ioredis')
+  } catch (error) {
+    console.warn('BullMQ/Redis not available for scheduler:', error)
+  }
+}
+
 const parser = require('cron-parser')
 import { createClient } from '@/app/lib/supabase/server'
 import { enqueueWorkflowExecution } from './queue'
 
 // Redis connection
-const redisConnection = new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD,
-  maxRetriesPerRequest: null,
-  enableReadyCheck: false,
-})
+let redisConnection: any = null
+
+if (!isBuildTime && Redis) {
+  try {
+    redisConnection = new Redis({
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379'),
+      password: process.env.REDIS_PASSWORD,
+      maxRetriesPerRequest: null,
+      enableReadyCheck: false,
+      lazyConnect: true,
+    })
+  } catch (error) {
+    console.warn('Redis connection failed for scheduler:', error)
+  }
+}
 
 // Scheduler queue
-export const schedulerQueue = new Queue('workflow-scheduler', {
+export const schedulerQueue = redisConnection && Queue ? new Queue('workflow-scheduler', {
   connection: redisConnection,
-})
+}) : null
 
 // Active schedules map
 const activeSchedules = new Map<string, Job>()
