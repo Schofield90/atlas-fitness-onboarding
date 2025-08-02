@@ -17,10 +17,17 @@ export async function POST(request: NextRequest) {
     const {
       amount, // in pence
       customerId,
+      clientId, // Support both old and new naming
+      programId,
+      organizationId,
       description,
       membershipId,
       type = 'membership_payment'
     } = body
+    
+    // Use clientId if provided, otherwise fall back to customerId
+    const clientIdToUse = clientId || customerId
+    const orgIdToUse = organizationId
     
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser()
@@ -30,9 +37,9 @@ export async function POST(request: NextRequest) {
     
     // Get customer's organization
     const { data: customer } = await supabase
-      .from('contacts')
+      .from('clients')
       .select('organization_id, email, stripe_customer_id')
-      .eq('id', customerId)
+      .eq('id', clientIdToUse)
       .single()
     
     if (!customer) {
@@ -66,13 +73,13 @@ export async function POST(request: NextRequest) {
     // Create or retrieve Stripe customer on connected account
     let stripeCustomerId = customer.stripe_customer_id
     
-    if (!stripeCustomerId) {
+    if (!stripeCustomerId && stripe) {
       // Create customer on connected account
       const stripeCustomer = await stripe.customers.create({
         email: customer.email,
         metadata: {
-          contact_id: customerId,
-          organization_id: customer.organization_id
+          client_id: clientIdToUse,
+          organization_id: customer.organization_id || orgIdToUse
         }
       }, {
         stripeAccount: paymentSettings.stripe_account_id
@@ -82,23 +89,28 @@ export async function POST(request: NextRequest) {
       
       // Save customer ID
       await adminSupabase
-        .from('contacts')
+        .from('clients')
         .update({ stripe_customer_id: stripeCustomerId })
-        .eq('id', customerId)
+        .eq('id', clientIdToUse)
     }
     
+    if (!stripe) {
+      return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 })
+    }
+
     // Create payment intent on connected account
     const paymentIntent = await stripe.paymentIntents.create({
       amount,
       currency: 'gbp',
       customer: stripeCustomerId,
-      description,
+      description: description || `${type} for program ${programId}`,
       application_fee_amount: platformFeeAmount,
       metadata: {
         type,
-        contact_id: customerId,
-        organization_id: customer.organization_id,
+        client_id: clientIdToUse,
+        organization_id: customer.organization_id || orgIdToUse,
         membership_id: membershipId || '',
+        program_id: programId || '',
         user_id: user.id
       },
       automatic_payment_methods: {
@@ -112,17 +124,17 @@ export async function POST(request: NextRequest) {
     await adminSupabase
       .from('payment_transactions')
       .insert({
-        organization_id: customer.organization_id,
-        contact_id: customerId,
-        membership_id: membershipId,
+        organization_id: customer.organization_id || orgIdToUse,
+        customer_id: clientIdToUse,
         stripe_payment_intent_id: paymentIntent.id,
-        amount,
-        currency: 'GBP',
+        amount_pennies: amount,
+        currency: 'gbp',
         status: 'pending',
-        type,
-        platform_fee: platformFeeAmount,
+        description: description || `${type} for program ${programId}`,
+        platform_fee_pennies: platformFeeAmount,
         metadata: {
-          description,
+          type,
+          program_id: programId,
           created_by: user.id
         }
       })

@@ -1,15 +1,126 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
+
+// Public routes that don't require authentication
+const publicRoutes = [
+  '/',
+  '/landing',
+  '/login',
+  '/signup',
+  '/auth/callback',
+  '/client-portal/login',
+  '/client-portal/claim',
+  '/client-access',
+  '/test-client',
+  '/api/auth',
+  '/api/client-portal',
+  '/api/client-access',
+  '/api/webhooks',
+  '/api/test',
+  '/api/debug'
+]
+
+// Client-only routes
+const clientRoutes = [
+  '/client',
+  '/booking'
+]
+
+// Admin routes that require organization
+const adminRoutes = [
+  '/dashboard',
+  '/leads',
+  '/messages',
+  '/automations',
+  '/calendar',
+  '/staff',
+  '/forms',
+  '/settings',
+  '/billing',
+  '/memberships',
+  '/ai-config'
+]
 
 export async function middleware(request: NextRequest) {
-  // For now, disable middleware authentication checks to fix build
-  // This is a temporary solution to get the build working
+  const { pathname } = request.nextUrl
+  const res = NextResponse.next()
   
-  // Allow all requests for now
-  return NextResponse.next()
+  // Check if route is public
+  const isPublicRoute = publicRoutes.some(route => 
+    pathname === route || pathname.startsWith(route + '/')
+  )
+  
+  if (isPublicRoute) {
+    return res
+  }
+
+  // Create supabase client
+  const supabase = createMiddlewareClient({ req: request, res })
+
+  // Get session
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  // No session - redirect to login
+  if (!session) {
+    const redirectUrl = new URL('/login', request.url)
+    redirectUrl.searchParams.set('redirect', pathname)
+    return NextResponse.redirect(redirectUrl)
+  }
+
+  // Check if user is trying to access client routes
+  const isClientRoute = clientRoutes.some(route => 
+    pathname.startsWith(route)
+  )
+
+  if (isClientRoute) {
+    // Check if user is a client (has client_id in metadata or is linked to a client)
+    const { data: client } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('user_id', session.user.id)
+      .single()
+
+    if (!client) {
+      // Not a client, redirect to main dashboard
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+    
+    return res
+  }
+
+  // Check if user is trying to access admin routes
+  const isAdminRoute = adminRoutes.some(route => 
+    pathname.startsWith(route)
+  )
+
+  if (isAdminRoute) {
+    // Check if user has an organization
+    const { data: userOrg } = await supabase
+      .from('user_organizations')
+      .select('organization_id, role')
+      .eq('user_id', session.user.id)
+      .single()
+
+    if (!userOrg) {
+      // No organization - redirect to onboarding
+      if (pathname !== '/onboarding') {
+        return NextResponse.redirect(new URL('/onboarding', request.url))
+      }
+    }
+
+    // Store organization ID in headers for API routes
+    if (userOrg) {
+      res.headers.set('x-organization-id', userOrg.organization_id)
+      res.headers.set('x-user-role', userOrg.role)
+    }
+  }
+
+  return res
 }
 
-// Configure which routes the middleware should run on
 export const config = {
   matcher: [
     /*
@@ -18,8 +129,6 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder
-     * 
-     * This now includes API routes for protection
      */
     '/((?!_next/static|_next/image|favicon.ico|public).*)',
   ],

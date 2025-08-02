@@ -15,6 +15,11 @@ interface OnboardingStep {
   completed: boolean
 }
 
+interface TeamMember {
+  email: string
+  role: 'admin' | 'staff' | 'viewer'
+}
+
 export default function OnboardingPage() {
   const router = useRouter()
   const supabase = createClient()
@@ -29,6 +34,9 @@ export default function OnboardingPage() {
   })
   const [selectedPlan, setSelectedPlan] = useState('starter')
   const [plans, setPlans] = useState<any[]>([])
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+  const [newMemberEmail, setNewMemberEmail] = useState('')
+  const [newMemberRole, setNewMemberRole] = useState<'admin' | 'staff' | 'viewer'>('staff')
   
   const steps: OnboardingStep[] = [
     {
@@ -188,6 +196,61 @@ export default function OnboardingPage() {
   
   const skipToApp = () => {
     router.push('/dashboard')
+  }
+  
+  const addTeamMember = () => {
+    if (!newMemberEmail || !validateEmail(newMemberEmail)) {
+      alert('Please enter a valid email address')
+      return
+    }
+    
+    if (teamMembers.some(m => m.email === newMemberEmail)) {
+      alert('This email has already been added')
+      return
+    }
+    
+    setTeamMembers([...teamMembers, { email: newMemberEmail, role: newMemberRole }])
+    setNewMemberEmail('')
+    setNewMemberRole('staff')
+  }
+  
+  const removeTeamMember = (email: string) => {
+    setTeamMembers(teamMembers.filter(m => m.email !== email))
+  }
+  
+  const inviteTeamMembers = async () => {
+    if (teamMembers.length === 0) {
+      skipToApp()
+      return
+    }
+    
+    try {
+      setLoading(true)
+      
+      // Send invitations
+      const response = await fetch('/api/staff/invite-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ members: teamMembers })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to send invitations')
+      }
+      
+      // Continue to dashboard
+      router.push('/dashboard?onboarding=complete')
+    } catch (error) {
+      console.error('Error inviting team:', error)
+      // Continue anyway
+      skipToApp()
+    } finally {
+      setLoading(false)
+    }
+  }
+  
+  const validateEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
   }
   
   if (loading) {
@@ -360,13 +423,51 @@ export default function OnboardingPage() {
                     type="email"
                     className="flex-1 px-4 py-2 border rounded-lg"
                     placeholder="team@example.com"
+                    value={newMemberEmail}
+                    onChange={(e) => setNewMemberEmail(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && addTeamMember()}
                   />
-                  <select className="px-4 py-2 border rounded-lg">
+                  <select 
+                    className="px-4 py-2 border rounded-lg"
+                    value={newMemberRole}
+                    onChange={(e) => setNewMemberRole(e.target.value as 'admin' | 'staff' | 'viewer')}
+                  >
                     <option value="admin">Admin</option>
                     <option value="staff">Staff</option>
                     <option value="viewer">Viewer</option>
                   </select>
-                  <Button variant="outline">Add</Button>
+                  <Button variant="outline" onClick={addTeamMember}>Add</Button>
+                </div>
+                
+                {/* Team member list */}
+                {teamMembers.length > 0 && (
+                  <div className="mt-6 space-y-2">
+                    <h3 className="font-medium text-sm text-gray-700">Team members to invite:</h3>
+                    {teamMembers.map((member) => (
+                      <div key={member.email} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div>
+                          <p className="font-medium">{member.email}</p>
+                          <p className="text-sm text-gray-500 capitalize">{member.role}</p>
+                        </div>
+                        <button
+                          onClick={() => removeTeamMember(member.email)}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {/* Role descriptions */}
+                <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+                  <h4 className="font-medium text-sm mb-2">Role Permissions:</h4>
+                  <ul className="text-sm text-gray-600 space-y-1">
+                    <li><strong>Admin:</strong> Full access to all features and settings</li>
+                    <li><strong>Staff:</strong> Manage members, bookings, and messages</li>
+                    <li><strong>Viewer:</strong> Read-only access to reports and data</li>
+                  </ul>
                 </div>
               </div>
               
@@ -374,9 +475,26 @@ export default function OnboardingPage() {
                 <Button variant="outline" onClick={() => setCurrentStep(1)}>
                   Back
                 </Button>
-                <Button onClick={skipToApp}>
-                  Continue to Dashboard
-                </Button>
+                <div className="space-x-4">
+                  <Button variant="outline" onClick={skipToApp}>
+                    Skip for now
+                  </Button>
+                  <Button 
+                    onClick={inviteTeamMembers}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Sending invites...
+                      </>
+                    ) : (
+                      teamMembers.length > 0 
+                        ? `Send ${teamMembers.length} invitation${teamMembers.length > 1 ? 's' : ''}`
+                        : 'Continue to Dashboard'
+                    )}
+                  </Button>
+                </div>
               </div>
             </div>
           )}
