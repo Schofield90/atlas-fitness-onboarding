@@ -15,7 +15,13 @@ export async function GET(request: NextRequest) {
     // Get user's organization
     const { data: userOrg, error: orgError } = await supabase
       .from('user_organizations')
-      .select('organization_id, organizations(id, name)')
+      .select(`
+        organization_id,
+        organizations (
+          id,
+          name
+        )
+      `)
       .eq('user_id', user.id)
       .single()
 
@@ -26,9 +32,12 @@ export async function GET(request: NextRequest) {
       }, { status: 200 })
     }
 
+    // Type assertion to handle the nested organization data
+    const orgData = userOrg as any
+
     return NextResponse.json({
       organizationId: userOrg.organization_id,
-      organizationName: userOrg.organizations?.name || 'Unknown'
+      organizationName: orgData.organizations?.name || 'Unknown'
     })
   } catch (error) {
     console.error('Error fetching organization:', error)
