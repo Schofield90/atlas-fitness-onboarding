@@ -1,12 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { createClient } from '@/app/lib/supabase/client';
 import { Check, Copy, Mail, User } from 'lucide-react';
-import { toast } from 'react-hot-toast';
 
 export default function SetupSamPortalPage() {
   const [loading, setLoading] = useState(true);
@@ -14,7 +10,7 @@ export default function SetupSamPortalPage() {
   const [portalAccess, setPortalAccess] = useState<any>(null);
   const [copied, setCopied] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
-  const supabase = createClientComponentClient();
+  const supabase = createClient();
 
   useEffect(() => {
     checkSamClient();
@@ -75,24 +71,31 @@ export default function SetupSamPortalPage() {
       const accessCode = generateAccessCode();
       const magicToken = crypto.randomUUID();
 
+      // Get organization ID - try to find it from existing data
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('id')
+        .limit(1)
+        .single();
+
       const { data, error } = await supabase
         .from('client_portal_access')
         .insert({
           client_id: client.id,
-          organization_id: client.organization_id,
+          organization_id: org?.id || null,
           access_code: accessCode,
           magic_link_token: magicToken,
-          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
         })
         .select()
         .single();
 
       if (error) throw error;
       setPortalAccess(data);
-      toast.success('Portal access created!');
+      alert('Portal access created!');
     } catch (error) {
       console.error('Error creating portal access:', error);
-      toast.error('Failed to create portal access');
+      alert('Failed to create portal access');
     } finally {
       setLoading(false);
     }
@@ -116,9 +119,8 @@ export default function SetupSamPortalPage() {
       await navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-      toast.success('Copied to clipboard');
     } catch (error) {
-      toast.error('Failed to copy');
+      alert('Failed to copy');
     }
   };
 
@@ -132,14 +134,14 @@ export default function SetupSamPortalPage() {
       });
 
       if (response.ok) {
-        toast.success('Welcome email sent!');
+        alert('Welcome email sent!');
         await checkPortalAccess(client.id);
       } else {
-        toast.error('Failed to send email');
+        alert('Failed to send email');
       }
     } catch (error) {
       console.error('Error sending email:', error);
-      toast.error('Error sending email');
+      alert('Error sending email');
     } finally {
       setSendingEmail(false);
     }
@@ -161,181 +163,162 @@ export default function SetupSamPortalPage() {
       <h1 className="text-3xl font-bold">Setup Sam Schofield Portal Access</h1>
 
       {/* Client Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Client Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {client ? (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">Name:</span> {client.name}
-              </div>
-              <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">Email:</span> {client.email || 'Not set'}
-              </div>
-              <div>
-                <span className="font-medium">Status:</span> {client.status}
-              </div>
-              <div>
-                <span className="font-medium">ID:</span> {client.id}
-              </div>
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-xl font-semibold mb-4">Client Information</h2>
+        {client ? (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <User className="h-4 w-4 text-gray-500" />
+              <span className="font-medium">Name:</span> {client.name}
             </div>
-          ) : (
-            <Alert>
-              <AlertDescription>
-                Sam Schofield client not found. Please create the client first.
-              </AlertDescription>
-            </Alert>
-          )}
-        </CardContent>
-      </Card>
+            <div className="flex items-center gap-2">
+              <Mail className="h-4 w-4 text-gray-500" />
+              <span className="font-medium">Email:</span> {client.email || 'Not set'}
+            </div>
+            <div>
+              <span className="font-medium">Status:</span> {client.status}
+            </div>
+            <div>
+              <span className="font-medium">ID:</span> {client.id}
+            </div>
+          </div>
+        ) : (
+          <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
+            Sam Schofield client not found. Please create the client first.
+          </div>
+        )}
+      </div>
 
       {/* Portal Access */}
       {client && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Portal Access</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {portalAccess ? (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold mb-4">Portal Access</h2>
+          {portalAccess ? (
+            <div className="space-y-4">
+              <div className="bg-green-50 border border-green-200 rounded p-4 flex items-center gap-2">
+                <Check className="h-4 w-4 text-green-600" />
+                <span className="text-green-800">Portal access is set up!</span>
+              </div>
+
               <div className="space-y-4">
-                <Alert className="bg-green-50 border-green-200">
-                  <Check className="h-4 w-4 text-green-600" />
-                  <AlertDescription className="text-green-800">
-                    Portal access is set up!
-                  </AlertDescription>
-                </Alert>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium">Access Code</label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <code className="flex-1 p-2 bg-gray-100 rounded font-mono">
-                        {portalAccess.access_code}
-                      </code>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => copyToClipboard(portalAccess.access_code)}
-                      >
-                        {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium">Magic Link</label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <input
-                        type="text"
-                        value={magicLink}
-                        readOnly
-                        className="flex-1 p-2 text-sm bg-gray-100 rounded"
-                      />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => copyToClipboard(magicLink)}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium">Portal Login URL</label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <input
-                        type="text"
-                        value={`${portalUrl}/login`}
-                        readOnly
-                        className="flex-1 p-2 text-sm bg-gray-100 rounded"
-                      />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => window.open(`${portalUrl}/login`, '_blank')}
-                      >
-                        Open
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <Button
-                    onClick={() => window.open(magicLink, '_blank')}
-                    className="flex-1"
-                  >
-                    Test Magic Link Login
-                  </Button>
-                  {client.email && (
-                    <Button
-                      onClick={sendWelcomeEmail}
-                      variant="outline"
-                      disabled={sendingEmail}
+                <div>
+                  <label className="text-sm font-medium">Access Code</label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <code className="flex-1 p-2 bg-gray-100 rounded font-mono">
+                      {portalAccess.access_code}
+                    </code>
+                    <button
+                      className="px-3 py-2 border rounded hover:bg-gray-50"
+                      onClick={() => copyToClipboard(portalAccess.access_code)}
                     >
-                      {sendingEmail ? 'Sending...' : 'Send Welcome Email'}
-                    </Button>
-                  )}
+                      {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
 
-                <div className="text-sm text-muted-foreground">
-                  <p>Status: {portalAccess.is_claimed ? 'Claimed' : 'Unclaimed'}</p>
-                  <p>Expires: {new Date(portalAccess.expires_at).toLocaleDateString()}</p>
-                  {portalAccess.welcome_email_sent && (
-                    <p>Welcome email sent: {new Date(portalAccess.welcome_email_sent_at).toLocaleString()}</p>
-                  )}
+                <div>
+                  <label className="text-sm font-medium">Magic Link</label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <input
+                      type="text"
+                      value={magicLink}
+                      readOnly
+                      className="flex-1 p-2 text-sm bg-gray-100 rounded"
+                    />
+                    <button
+                      className="px-3 py-2 border rounded hover:bg-gray-50"
+                      onClick={() => copyToClipboard(magicLink)}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">Portal Login URL</label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <input
+                      type="text"
+                      value={`${portalUrl}/login`}
+                      readOnly
+                      className="flex-1 p-2 text-sm bg-gray-100 rounded"
+                    />
+                    <button
+                      className="px-3 py-2 border rounded hover:bg-gray-50"
+                      onClick={() => window.open(`${portalUrl}/login`, '_blank')}
+                    >
+                      Open
+                    </button>
+                  </div>
                 </div>
               </div>
-            ) : (
-              <div className="space-y-4">
-                <Alert>
-                  <AlertDescription>
-                    No portal access found for Sam. Click below to create it.
-                  </AlertDescription>
-                </Alert>
-                <Button onClick={createPortalAccess} className="w-full">
-                  Create Portal Access
-                </Button>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => window.open(magicLink, '_blank')}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  Test Magic Link Login
+                </button>
+                {client.email && (
+                  <button
+                    onClick={sendWelcomeEmail}
+                    className="px-4 py-2 border rounded hover:bg-gray-50"
+                    disabled={sendingEmail}
+                  >
+                    {sendingEmail ? 'Sending...' : 'Send Welcome Email'}
+                  </button>
+                )}
               </div>
-            )}
-          </CardContent>
-        </Card>
+
+              <div className="text-sm text-gray-600">
+                <p>Status: {portalAccess.is_claimed ? 'Claimed' : 'Unclaimed'}</p>
+                <p>Expires: {new Date(portalAccess.expires_at).toLocaleDateString()}</p>
+                {portalAccess.welcome_email_sent && (
+                  <p>Welcome email sent: {new Date(portalAccess.welcome_email_sent_at).toLocaleString()}</p>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
+                No portal access found for Sam. Click below to create it.
+              </div>
+              <button 
+                onClick={createPortalAccess} 
+                className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Create Portal Access
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Quick Links */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Links for Testing</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <Button
-            variant="outline"
-            className="w-full"
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-xl font-semibold mb-4">Quick Links for Testing</h2>
+        <div className="space-y-2">
+          <button
+            className="w-full px-4 py-2 border rounded hover:bg-gray-50 text-left"
             onClick={() => window.open('/client-portal/login', '_blank')}
           >
             Open Client Portal Login Page
-          </Button>
-          <Button
-            variant="outline"
-            className="w-full"
+          </button>
+          <button
+            className="w-full px-4 py-2 border rounded hover:bg-gray-50 text-left"
             onClick={() => window.open('/client/booking', '_blank')}
           >
             Open Client Booking Page
-          </Button>
-          <Button
-            variant="outline"
-            className="w-full"
+          </button>
+          <button
+            className="w-full px-4 py-2 border rounded hover:bg-gray-50 text-left"
             onClick={() => window.open('/client/dashboard', '_blank')}
           >
             Open Client Dashboard
-          </Button>
-        </CardContent>
-      </Card>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
