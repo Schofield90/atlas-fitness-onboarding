@@ -56,8 +56,8 @@ export async function POST(
     }
 
     // Execute workflow asynchronously
-    const executor = new WorkflowExecutor()
-    executor.execute(workflow, execution.id, body.inputData || {}).then(async (result) => {
+    const executor = new WorkflowExecutor(workflow, execution.id)
+    executor.execute(body.inputData || {}).then(async (result) => {
       // Update execution with results
       await adminSupabase
         .from('workflow_executions')
