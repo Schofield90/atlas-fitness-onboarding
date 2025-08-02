@@ -45,7 +45,8 @@ export default function EditWorkflowPage() {
                 id: key,
                 name: key,
                 type: typeof value === 'string' ? 'string' : 'number',
-                defaultValue: value
+                value: value,
+                scope: 'workflow' as const
               })) : []
             },
             triggerType: data.workflow.trigger_type || 'manual',
@@ -120,7 +121,7 @@ export default function EditWorkflowPage() {
       // Prepare variables as object
       const variables: Record<string, any> = {}
       updatedWorkflow.workflowData.variables?.forEach(v => {
-        variables[v.name] = v.defaultValue
+        variables[v.name] = v.value
       })
 
       const payload = {
