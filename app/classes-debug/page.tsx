@@ -310,11 +310,10 @@ export default function ClassesDebugPage() {
           {showAddModal && organizationId && (
             <AddClassModal
               onClose={() => setShowAddModal(false)}
-              onClassAdded={() => {
+              onSuccess={() => {
                 setShowAddModal(false)
                 if (organizationId) loadClasses(organizationId)
               }}
-              organizationId={organizationId}
             />
           )}
         </div>
