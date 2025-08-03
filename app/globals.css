@@ -1,9 +1,9 @@
+/* Import ReactFlow styles - must come before Tailwind directives */
+@import 'reactflow/dist/style.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Import ReactFlow styles - this is handled properly by Next.js CSS pipeline */
-@import 'reactflow/dist/style.css';
 
 @keyframes slide-up {
   from {

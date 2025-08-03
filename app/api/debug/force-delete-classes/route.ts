@@ -13,13 +13,16 @@ export async function DELETE() {
 
     console.log('Starting force delete of all classes...')
 
-    // Step 1: Delete all bookings first (foreign key constraint)
+    // Step 1: Count and delete all bookings first (foreign key constraint)
     console.log('Deleting all bookings...')
-    const { error: bookingError, count: bookingCount } = await supabase
+    const { count: bookingCount } = await supabase
+      .from('bookings')
+      .select('*', { count: 'exact', head: true })
+    
+    const { error: bookingError } = await supabase
       .from('bookings')
       .delete()
       .gte('created_at', '2000-01-01') // This ensures we match all rows
-      .select('*', { count: 'exact' })
 
     if (bookingError) {
       console.error('Booking deletion error:', bookingError)
@@ -27,13 +30,16 @@ export async function DELETE() {
       console.log(`Deleted ${bookingCount || 0} bookings`)
     }
 
-    // Step 2: Delete all waitlist entries
+    // Step 2: Count and delete all waitlist entries
     console.log('Deleting all waitlist entries...')
-    const { error: waitlistError, count: waitlistCount } = await supabase
+    const { count: waitlistCount } = await supabase
+      .from('waitlist')
+      .select('*', { count: 'exact', head: true })
+    
+    const { error: waitlistError } = await supabase
       .from('waitlist')
       .delete()
       .gte('created_at', '2000-01-01')
-      .select('*', { count: 'exact' })
 
     if (waitlistError) {
       console.error('Waitlist deletion error:', waitlistError)
@@ -59,11 +65,16 @@ export async function DELETE() {
     let totalDeleted = 0
     
     for (const org of orgs || []) {
-      const { error: deleteError, count } = await supabase
+      // Count before delete
+      const { count } = await supabase
+        .from('class_sessions')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', org.id)
+      
+      const { error: deleteError } = await supabase
         .from('class_sessions')
         .delete()
         .eq('organization_id', org.id)
-        .select('*', { count: 'exact' })
 
       if (!deleteError && count) {
         totalDeleted += count
@@ -85,15 +96,16 @@ export async function DELETE() {
         const batchSize = 100
         for (let i = 0; i < remainingClasses.length; i += batchSize) {
           const batch = remainingClasses.slice(i, i + batchSize).map(c => c.id)
-          const { error: batchError, count } = await supabase
+          const batchCount = batch.length
+          
+          const { error: batchError } = await supabase
             .from('class_sessions')
             .delete()
             .in('id', batch)
-            .select('*', { count: 'exact' })
 
-          if (!batchError && count) {
-            totalDeleted += count
-            console.log(`Batch deleted ${count} classes`)
+          if (!batchError) {
+            totalDeleted += batchCount
+            console.log(`Batch deleted ${batchCount} classes`)
           }
         }
       }
