@@ -104,6 +104,23 @@ export default function AddClassModal({ onClose, onSuccess }: AddClassModalProps
       }
 
       let totalClassesCreated = 0
+      
+      // First create a program for this class type
+      const { data: program, error: programError } = await supabase
+        .from('programs')
+        .insert({
+          organization_id: organizationId,
+          name: formData.name,
+          description: formData.description || 'Fitness class',
+          price_pennies: 1000, // Default £10
+          is_active: true
+        })
+        .select()
+        .single()
+
+      if (programError) {
+        throw new Error('Failed to create program: ' + programError.message)
+      }
 
       // For each time slot
       for (const startTime of validTimes) {
@@ -136,6 +153,7 @@ export default function AddClassModal({ onClose, onSuccess }: AddClassModalProps
                 .from('class_sessions')
                 .insert({
                   organization_id: organizationId,
+                  program_id: program.id,
                   name: formData.name,
                   instructor_name: formData.instructor_name,
                   start_time: targetDate.toISOString(),
@@ -164,6 +182,7 @@ export default function AddClassModal({ onClose, onSuccess }: AddClassModalProps
             .from('class_sessions')
             .insert({
               organization_id: organizationId,
+              program_id: program.id,
               name: formData.name,
               instructor_name: formData.instructor_name,
               start_time: startDateTime.toISOString(),
