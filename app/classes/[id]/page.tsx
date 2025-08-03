@@ -22,6 +22,7 @@ interface ClassType {
 interface ClassSession {
   id: string
   start_time: string
+  end_time: string
   duration_minutes: number
   capacity: number
   location: string
