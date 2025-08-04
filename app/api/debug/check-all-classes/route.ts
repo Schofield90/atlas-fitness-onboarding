@@ -58,7 +58,7 @@ export async function GET() {
         instructor: c.instructor_name,
         capacity: c.capacity,
         bookingsCount: c.bookings?.length || 0,
-        program: c.program?.name
+        program: Array.isArray(c.program) ? c.program[0]?.name : c.program?.name
       })),
       errors: {
         classError,
