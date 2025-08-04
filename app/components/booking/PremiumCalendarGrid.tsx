@@ -301,7 +301,7 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({
     return (
       <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-2xl p-4">
         <div className="space-y-4 max-h-[600px] overflow-y-auto">
-          {Object.entries(classesByDate).sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime()).map(([date, dateClasses]) => (
+          {Object.entries(classesByDate).sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime()).map(([date, dateClasses]: [string, any[]]) => (
             <div key={date} className="border-b border-gray-700 pb-4 last:border-0">
               <h3 className="text-sm font-semibold text-gray-300 mb-2">
                 {new Date(date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
