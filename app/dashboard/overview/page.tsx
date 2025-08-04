@@ -7,11 +7,14 @@ import { LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis
 import { createClient } from '@/app/lib/supabase/client';
 import { getCurrentUserOrganization } from '@/app/lib/organization-service';
 import DashboardLayout from '@/app/components/DashboardLayout';
+import ClassDetailModal from '@/app/components/dashboard/ClassDetailModal';
 
 export default function DashboardOverview() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [selectedClass, setSelectedClass] = useState<any>(null);
+  const [showClassModal, setShowClassModal] = useState(false);
   const [dashboardData, setDashboardData] = useState({
     pendingPayments: { total: 0, count: 0 },
     confirmedRevenue: { total: 0, count: 0 },
@@ -262,85 +265,116 @@ export default function DashboardOverview() {
         {/* Middle Row - Events, Billing, To-dos */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           {/* Upcoming Events */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="font-semibold text-gray-900">Upcoming Events</h3>
-              <button 
-                onClick={() => router.push('/booking')}
-                className="text-xs text-blue-600 hover:text-blue-700"
-              >
-                View all
-              </button>
+          <div className="bg-gray-800 rounded-lg shadow border border-gray-700">
+            <div className="p-4 border-b border-gray-700">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-900/30 rounded-lg">
+                  <Calendar className="w-5 h-5 text-green-400" />
+                </div>
+                <h3 className="font-semibold text-white">Upcoming Events</h3>
+              </div>
             </div>
             <div className="p-4">
-              <div className="space-y-3">
-                {dashboardData.upcomingEvents.map((event) => (
-                  <div 
-                    key={event.id} 
-                    className="flex items-center justify-between cursor-pointer hover:bg-gray-50 p-2 rounded"
-                    onClick={() => router.push('/booking')}
-                  >
-                    <div>
-                      <p className="font-medium text-gray-900">{event.title}</p>
-                      <p className="text-sm text-gray-600">{event.date} at {event.time}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-gray-900">{event.bookings}/{event.capacity}</p>
-                      <p className="text-xs text-gray-600">Booked</p>
-                    </div>
+              {dashboardData.upcomingEvents.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="flex text-xs text-gray-400 font-medium mb-2">
+                    <div className="flex-1">ALL</div>
+                    <div className="w-20 text-right">YOURS</div>
                   </div>
-                ))}
-              </div>
+                  {dashboardData.upcomingEvents.slice(0, 5).map((event) => (
+                    <div 
+                      key={event.id} 
+                      className="group cursor-pointer hover:bg-gray-700/50 p-3 rounded-lg transition-colors"
+                      onClick={() => {
+                        setSelectedClass(event);
+                        setShowClassModal(true);
+                      }}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="text-sm font-medium text-gray-300 mb-1">
+                            {new Date(event.startTime).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} - {event.time}
+                          </div>
+                          <div className="text-white font-medium group-hover:text-orange-400 transition-colors">
+                            [{event.instructor?.substring(0, 2).toUpperCase() || 'TBD'}] {event.title}
+                          </div>
+                        </div>
+                        <div className="text-right ml-4">
+                          <div className="text-white font-medium">{event.bookings}/{event.capacity}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-400 text-sm">No upcoming events scheduled</p>
+              )}
             </div>
           </div>
 
           {/* Upcoming Billing */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="font-semibold text-gray-900">Upcoming Billing</h3>
-              <button 
-                onClick={() => router.push('/billing')}
-                className="text-xs text-blue-600 hover:text-blue-700"
-              >
-                View all
-              </button>
+          <div className="bg-gray-800 rounded-lg shadow border border-gray-700">
+            <div className="p-4 border-b border-gray-700">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-900/30 rounded-lg">
+                    <CreditCard className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <h3 className="font-semibold text-white">Upcoming Billing</h3>
+                </div>
+                <button 
+                  onClick={() => router.push('/billing')}
+                  className="text-xs text-orange-400 hover:text-orange-300"
+                >
+                  View all
+                </button>
+              </div>
             </div>
             <div className="p-4">
-              <div className="space-y-3">
-                {dashboardData.upcomingBilling.map((billing) => (
-                  <div 
-                    key={billing.id} 
-                    className="flex items-center justify-between cursor-pointer hover:bg-gray-50 p-2 rounded"
-                    onClick={() => router.push('/billing')}
-                  >
-                    <div>
-                      <p className="font-medium text-gray-900">{billing.customer}</p>
-                      <p className="text-sm text-gray-600">{billing.date}</p>
+              {dashboardData.upcomingBilling.length > 0 ? (
+                <div className="space-y-3">
+                  {dashboardData.upcomingBilling.map((billing) => (
+                    <div 
+                      key={billing.id} 
+                      className="flex items-center justify-between cursor-pointer hover:bg-gray-700/50 p-2 rounded transition-colors"
+                      onClick={() => router.push('/billing')}
+                    >
+                      <div>
+                        <p className="font-medium text-white">{billing.customer}</p>
+                        <p className="text-sm text-gray-400">{billing.date}</p>
+                      </div>
+                      <p className="font-medium text-green-400">£{billing.amount.toFixed(2)}</p>
                     </div>
-                    <p className="font-medium text-gray-900">£{billing.amount.toFixed(2)}</p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-400 text-sm">No upcoming billing</p>
+              )}
             </div>
           </div>
 
           {/* To-dos */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-4 border-b border-gray-200">
-              <h3 className="font-semibold text-gray-900">To-dos</h3>
+          <div className="bg-gray-800 rounded-lg shadow border border-gray-700">
+            <div className="p-4 border-b border-gray-700">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-900/30 rounded-lg">
+                  <Activity className="w-5 h-5 text-purple-400" />
+                </div>
+                <h3 className="font-semibold text-white">To-dos</h3>
+              </div>
             </div>
             <div className="p-4">
               <div className="space-y-3">
                 {dashboardData.todos.map((todo) => (
                   <div key={todo.id} className="flex items-start gap-3">
                     <div className={`w-2 h-2 rounded-full mt-1.5 ${
-                      todo.type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
+                      todo.type === 'warning' ? 'bg-yellow-400' : 'bg-blue-400'
                     }`} />
-                    <p className="text-sm text-gray-700">{todo.text}</p>
+                    <p className="text-sm text-gray-300">{todo.text}</p>
                   </div>
                 ))}
                 {dashboardData.todos.length === 0 && (
-                  <p className="text-sm text-gray-500">No outstanding to-dos</p>
+                  <p className="text-sm text-gray-400">No outstanding to-dos</p>
                 )}
               </div>
             </div>
@@ -506,6 +540,18 @@ export default function DashboardOverview() {
           </div>
         </div>
       </div>
+
+      {/* Class Detail Modal */}
+      {selectedClass && (
+        <ClassDetailModal
+          isOpen={showClassModal}
+          onClose={() => {
+            setShowClassModal(false);
+            setSelectedClass(null);
+          }}
+          classSession={selectedClass}
+        />
+      )}
     </DashboardLayout>
   );
 }
