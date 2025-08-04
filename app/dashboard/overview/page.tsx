@@ -152,7 +152,7 @@ export default function DashboardOverview() {
               <h1 className="text-3xl font-bold mb-2">Dashboard Overview</h1>
               <p className="text-gray-300">Welcome back! Here's what's happening in your gym today.</p>
             </div>
-          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3">
             {/* Quick Actions */}
             <button 
               onClick={() => router.push('/leads/new')}
@@ -177,6 +177,8 @@ export default function DashboardOverview() {
             </button>
           </div>
         </div>
+      </div>
+
         {/* Quick Search Bar */}
         <div className="mb-6">
           <div className="relative max-w-md">
