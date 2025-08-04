@@ -24,12 +24,12 @@ export async function GET(request: Request) {
       supabase = await createClient();
     }
     
-    // Try to fetch bookings with clients join
+    // Try to fetch bookings with leads join (since we unified to leads table)
     const { data: bookings, error } = await supabase
       .from('bookings')
       .select(`
         *,
-        client:clients(
+        customer:leads(
           id,
           name,
           email
@@ -55,23 +55,23 @@ export async function GET(request: Request) {
         );
       }
       
-      // Get client details separately
-      const clientIds = bookingsSimple.map(b => b.client_id).filter(Boolean);
-      const { data: clients } = await supabase
-        .from('clients')
+      // Get customer details separately from leads table
+      const customerIds = bookingsSimple.map(b => b.customer_id).filter(Boolean);
+      const { data: customers } = await supabase
+        .from('leads')
         .select('id, name, email')
-        .in('id', clientIds);
+        .in('id', customerIds);
       
       // Get membership data
       let membershipData = {};
-      if (clientIds.length > 0) {
+      if (customerIds.length > 0) {
         const { data: memberships } = await supabase
           .from('customer_memberships')
           .select(`
             customer_id,
             membership_plan:membership_plans(name)
           `)
-          .in('customer_id', clientIds)
+          .in('customer_id', customerIds)
           .eq('status', 'active');
         
         if (memberships) {
@@ -84,21 +84,24 @@ export async function GET(request: Request) {
       
       // Merge the data
       const attendees = bookingsSimple.map(booking => {
-        const client = clients?.find(c => c.id === booking.client_id);
-        let membershipDisplay = membershipData[booking.client_id] || 'No Membership';
+        const customer = customers?.find(c => c.id === booking.customer_id);
+        let membershipDisplay = membershipData[booking.customer_id] || 'No Membership';
         
         // Override with registration type if it's free or drop-in
         if (booking.registration_type === 'free') {
           membershipDisplay = 'Complimentary (Free)';
         } else if (booking.registration_type === 'drop-in') {
           membershipDisplay = 'Drop-in';
+        } else if (booking.registration_type === 'membership') {
+          // Get the actual membership name from the membership data
+          membershipDisplay = membershipData[booking.customer_id] || 'Monthly Membership';
         }
         
         return {
           id: booking.id,
-          clientId: booking.client_id,
-          name: client?.name || 'Unknown',
-          email: client?.email || '',
+          clientId: booking.customer_id,
+          name: customer?.name || 'Unknown',
+          email: customer?.email || '',
           status: booking.status || 'registered',
           membershipType: membershipDisplay
         };
@@ -132,21 +135,24 @@ export async function GET(request: Request) {
     
     // Transform bookings to attendees format
     const attendees = (bookings || []).map(booking => {
-      const clientId = booking.client?.id || booking.client_id;
-      let membershipDisplay = membershipData[clientId] || 'No Membership';
+      const customerId = booking.customer?.id || booking.customer_id;
+      let membershipDisplay = membershipData[customerId] || 'No Membership';
       
       // Override with registration type if it's free or drop-in
       if (booking.registration_type === 'free') {
         membershipDisplay = 'Complimentary (Free)';
       } else if (booking.registration_type === 'drop-in') {
         membershipDisplay = 'Drop-in';
+      } else if (booking.registration_type === 'membership') {
+        // Get the actual membership name from the membership data
+        membershipDisplay = membershipData[customerId] || 'Monthly Membership';
       }
       
       return {
         id: booking.id,
-        clientId,
-        name: booking.client?.name || 'Unknown',
-        email: booking.client?.email || '',
+        clientId: customerId,
+        name: booking.customer?.name || 'Unknown',
+        email: booking.customer?.email || '',
         status: booking.status || 'registered',
         membershipType: membershipDisplay
       };
