@@ -170,6 +170,7 @@ export default function SessionDetailModal({ isOpen, onClose, session, onUpdate 
       const organizationId = session.organization_id || '63589490-8f55-4157-bd3a-e141594b740e';
       
       // Create a booking for this customer - minimal fields only
+      let bookingData;
       const { data, error } = await supabase
         .from('bookings')
         .insert({
@@ -195,10 +196,12 @@ export default function SessionDetailModal({ isOpen, onClose, session, onUpdate 
             .single();
           
           if (clientError) throw clientError;
-          data = bookingWithClient;
+          bookingData = bookingWithClient;
         } else {
           throw error;
         }
+      } else {
+        bookingData = data;
       }
       
       // Refresh attendees list
