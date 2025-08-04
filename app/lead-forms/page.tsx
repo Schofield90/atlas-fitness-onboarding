@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
+import DashboardLayout from '@/app/components/DashboardLayout'
 
 export default function LeadFormsPage() {
   const [embedCode, setEmbedCode] = useState('')
@@ -16,6 +17,9 @@ export default function LeadFormsPage() {
     week: 0,
     conversion: 0
   })
+  const [showFormBuilder, setShowFormBuilder] = useState(false)
+  const [formDescription, setFormDescription] = useState('')
+  const [generatingForm, setGeneratingForm] = useState(false)
   
   const supabase = createClient()
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://atlas-fitness-onboarding.vercel.app'
@@ -63,6 +67,44 @@ export default function LeadFormsPage() {
       week: week || 0,
       conversion: 0
     })
+  }
+
+  const generateForm = async () => {
+    if (!formDescription.trim()) {
+      alert('Please describe the form you want to create');
+      return;
+    }
+    
+    setGeneratingForm(true);
+    
+    try {
+      const response = await fetch('/api/ai/generate-form', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ description: formDescription }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate form');
+      }
+      
+      if (data.success) {
+        // For now, we'll show the form was generated
+        alert('Form generated successfully! Form saving functionality will be implemented.');
+        setShowFormBuilder(false);
+        setFormDescription('');
+        // In the future, this will save the form and redirect to form editor
+      }
+    } catch (error: any) {
+      console.error('Error generating form:', error);
+      alert(error.message || 'Failed to generate form. Please try again.');
+    } finally {
+      setGeneratingForm(false);
+    }
   }
 
   const generateEmbedCode = (formId: string, type: 'iframe' | 'popup' | 'inline') => {
@@ -131,8 +173,9 @@ export default function LeadFormsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-8">
-      <div className="max-w-7xl mx-auto">
+    <DashboardLayout>
+      <div className="min-h-screen bg-gray-900 text-white p-8">
+        <div className="max-w-7xl mx-auto">
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-4">Lead Forms</h1>
           <p className="text-gray-400">Create and manage embeddable lead capture forms for your landing pages</p>
@@ -168,7 +211,7 @@ export default function LeadFormsPage() {
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-semibold">Your Forms</h2>
               <button 
-                onClick={() => alert('Form builder coming soon! For now, you can customize fields by modifying the embed form.')}
+                onClick={() => setShowFormBuilder(true)}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
               >
                 Create New Form
@@ -374,7 +417,86 @@ export default function LeadFormsPage() {
             </div>
           </div>
         )}
+
+        {/* AI Form Builder Modal */}
+        {showFormBuilder && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+              <h3 className="text-xl font-bold mb-4">Create Lead Form</h3>
+              <p className="text-gray-400 mb-6">
+                Describe the lead capture form you want to create for your landing page
+              </p>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">What information do you want to collect?</label>
+                  <textarea 
+                    value={formDescription}
+                    onChange={(e) => setFormDescription(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none text-white"
+                    rows={4}
+                    placeholder="E.g., Create a free trial signup form with name, email, phone, fitness goals checkboxes (weight loss, muscle gain, endurance), preferred contact time, and how they heard about us..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <button 
+                    onClick={() => setFormDescription('Create a free trial signup form with: full name, email, phone number, fitness goals (checkboxes for weight loss, muscle gain, strength training, endurance), preferred class times, and how they heard about us')}
+                    className="p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left">
+                    <h4 className="font-medium mb-1">Free Trial Form</h4>
+                    <p className="text-sm text-gray-400">Capture trial signups with goals</p>
+                  </button>
+                  <button 
+                    onClick={() => setFormDescription('Create a contact form for general inquiries with: name, email, phone (optional), subject dropdown (membership info, class schedules, personal training, other), message textarea, and preferred contact method')}
+                    className="p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left">
+                    <h4 className="font-medium mb-1">Contact Form</h4>
+                    <p className="text-sm text-gray-400">General inquiries and questions</p>
+                  </button>
+                  <button 
+                    onClick={() => setFormDescription('Create a class interest form with: name, email, phone, interested classes (checkboxes for yoga, HIIT, spin, strength training, pilates), experience level, availability, and any injuries or limitations')}
+                    className="p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left">
+                    <h4 className="font-medium mb-1">Class Interest</h4>
+                    <p className="text-sm text-gray-400">Specific class registrations</p>
+                  </button>
+                  <button 
+                    onClick={() => setFormDescription('Create a quick lead capture form with just: first name, email address, and a single dropdown for main fitness goal (lose weight, build muscle, get stronger, improve health)')}
+                    className="p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left">
+                    <h4 className="font-medium mb-1">Quick Capture</h4>
+                    <p className="text-sm text-gray-400">Minimal fields for high conversion</p>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button 
+                  onClick={() => {
+                    setShowFormBuilder(false);
+                    setFormDescription('');
+                  }}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={generateForm}
+                  disabled={generatingForm}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  {generatingForm ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Generating...
+                    </>
+                  ) : (
+                    'Generate Form'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        </div>
       </div>
-    </div>
+    </DashboardLayout>
   )
 }
