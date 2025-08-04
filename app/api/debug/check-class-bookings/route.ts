@@ -64,7 +64,7 @@ export async function GET(request: Request) {
         id: c.id,
         start_time: c.start_time,
         capacity: c.capacity,
-        program: c.program?.name,
+        program: Array.isArray(c.program) ? c.program[0]?.name : c.program?.name,
         bookingsArray: Array.isArray(c.bookings),
         bookingsLength: c.bookings?.length || 0,
         bookings: c.bookings

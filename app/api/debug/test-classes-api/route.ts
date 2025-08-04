@@ -23,7 +23,7 @@ export async function GET() {
       classes: classes?.map(c => ({
         id: c.id,
         start_time: c.start_time,
-        program: c.program?.name,
+        program: Array.isArray(c.program) ? c.program[0]?.name : c.program?.name,
         bookingsArray: Array.isArray(c.bookings),
         bookingsCount: c.bookings?.length || 0,
         bookings: c.bookings,

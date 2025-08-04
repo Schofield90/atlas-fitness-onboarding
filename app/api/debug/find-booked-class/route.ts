@@ -52,7 +52,7 @@ export async function GET() {
         start_time: targetClass.start_time,
         organization_id: targetClass.organization_id,
         bookingsCount: targetClass.bookings?.length || 0,
-        program: targetClass.program?.name
+        program: Array.isArray(targetClass.program) ? targetClass.program[0]?.name : targetClass.program?.name
       } : null,
       classesWithBookings: bookedClasses.map(c => ({
         id: c.id,
