@@ -542,9 +542,7 @@ export default function DashboardOverview() {
             )}
           </div>
         </div>
-        </div>
       </div>
-    </div>
 
       {/* Class Detail Modal */}
       {selectedClass && (
