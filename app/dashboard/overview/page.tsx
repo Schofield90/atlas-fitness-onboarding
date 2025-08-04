@@ -6,6 +6,7 @@ import { Calendar, DollarSign, Users, TrendingUp, Bell, Gift, CreditCard, Activi
 import { LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { createClient } from '@/app/lib/supabase/client';
 import { getCurrentUserOrganization } from '@/app/lib/organization-service';
+import DashboardLayout from '@/app/components/DashboardLayout';
 
 export default function DashboardOverview() {
   const router = useRouter();
@@ -130,24 +131,27 @@ export default function DashboardOverview() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading dashboard...</p>
+      <DashboardLayout>
+        <div className="min-h-[60vh] flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+            <p className="text-gray-400">Loading dashboard...</p>
+          </div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
-            <p className="text-sm text-gray-600">Welcome back! Here's what's happening in your gym today.</p>
-          </div>
+    <DashboardLayout>
+      <div className="container mx-auto px-6 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">Dashboard Overview</h1>
+              <p className="text-gray-300">Welcome back! Here's what's happening in your gym today.</p>
+            </div>
           <div className="flex items-center gap-3">
             {/* Quick Actions */}
             <button 
@@ -173,9 +177,6 @@ export default function DashboardOverview() {
             </button>
           </div>
         </div>
-      </div>
-
-      <div className="p-6">
         {/* Quick Search Bar */}
         <div className="mb-6">
           <div className="relative max-w-md">
@@ -503,6 +504,6 @@ export default function DashboardOverview() {
           </div>
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }

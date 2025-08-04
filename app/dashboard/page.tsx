@@ -12,10 +12,23 @@ export default function DashboardPage() {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
   const [userData, setUserData] = useState<any>(null)
+  const [systemMode, setSystemMode] = useState<string>('crm')
   const facebookConnection = useFacebookConnection()
 
   useEffect(() => {
     setMounted(true)
+    
+    // Check system mode
+    const savedMode = localStorage.getItem('systemMode')
+    if (savedMode) {
+      setSystemMode(savedMode)
+      // If in booking mode, redirect to overview dashboard
+      if (savedMode === 'booking') {
+        router.push('/dashboard/overview')
+        return
+      }
+    }
+    
     // Check for stored data
     const storedData = localStorage.getItem('gymleadhub_trial_data')
     if (storedData) {
