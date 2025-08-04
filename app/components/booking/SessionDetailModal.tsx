@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Calendar, MapPin, User, Users, Clock, Edit2, MoreVertical, UserPlus, Download, Mail, ChevronLeft, ChevronRight } from 'lucide-react';
 import { createClient } from '@/app/lib/supabase/client';
 import { createAdminClient } from '@/app/lib/supabase/admin';
+import RegistrationOptionsModal from './RegistrationOptionsModal';
 
 interface Attendee {
   id: string;
@@ -25,10 +26,12 @@ export default function SessionDetailModal({ isOpen, onClose, session, onUpdate 
   const [activeTab, setActiveTab] = useState<'attendees' | 'activity'>('attendees');
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+  const [showOptionsMenu, setShowOptionsMenu] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   
   useEffect(() => {
     if (session) {
@@ -36,82 +39,43 @@ export default function SessionDetailModal({ isOpen, onClose, session, onUpdate 
     }
   }, [session]);
   
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showOptionsMenu && !(event.target as Element).closest('.attendee-options-menu')) {
+        setShowOptionsMenu(null);
+      }
+    };
+    
+    if (showOptionsMenu) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [showOptionsMenu]);
+  
   const fetchAttendees = async () => {
     try {
       setLoading(true);
-      let supabase;
-      try {
-        supabase = await createAdminClient();
-      } catch {
-        supabase = createClient();
-      }
-      
       console.log('Fetching attendees for session:', session.id);
       
-      // First try with customers table
-      let { data: bookings, error } = await supabase
-        .from('bookings')
-        .select(`
-          *,
-          customer:customers(
-            id,
-            first_name,
-            last_name,
-            email
-          )
-        `)
-        .eq('class_session_id', session.id)
-        .order('created_at');
+      // Use API endpoint to fetch attendees
+      const response = await fetch(`/api/booking/attendees?sessionId=${session.id}`);
+      const result = await response.json();
       
-      if (error) {
-        console.log('Customers table not found, trying clients');
-        // If customers table doesn't exist, try with clients
-        let supabaseForClients;
-        try {
-          supabaseForClients = await createAdminClient();
-        } catch {
-          supabaseForClients = createClient();
-        }
-        const { data: bookingsWithClients, error: clientError } = await supabaseForClients
-          .from('bookings')
-          .select(`
-            *,
-            client:clients(
-              id,
-              name,
-              email
-            )
-          `)
-          .eq('class_session_id', session.id)
-          .order('created_at');
-        
-        if (clientError) {
-          console.error('Error fetching bookings:', clientError);
-          throw clientError;
-        }
-        
-        // Transform bookings with clients to attendees format
-        const attendeesList = (bookingsWithClients || []).map(booking => ({
-          id: booking.client?.id || booking.client_id,
-          name: booking.client?.name || 'Unknown',
-          email: booking.client?.email || '',
-          status: booking.status || 'registered',
-          membershipType: '12 Month Programme' // TODO: Get from actual membership
-        }));
-        
-        setAttendees(attendeesList);
-      } else {
-        // Transform bookings with customers to attendees format
-        const attendeesList = (bookings || []).map(booking => ({
-          id: booking.customer?.id || booking.customer_id,
-          name: booking.customer ? `${booking.customer.first_name} ${booking.customer.last_name}` : 'Unknown',
-          email: booking.customer?.email || '',
-          status: booking.status || 'registered',
-          membershipType: '12 Month Programme' // TODO: Get from actual membership
-        }));
-        
-        setAttendees(attendeesList);
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch attendees');
       }
+      
+      // Transform attendees to the format expected by the component
+      const attendeesList = (result.attendees || []).map((attendee: any) => ({
+        id: attendee.clientId || attendee.id,
+        name: attendee.name,
+        email: attendee.email,
+        status: attendee.status || 'registered',
+        membershipType: attendee.membershipType || 'No Membership'
+      }));
+      
+      setAttendees(attendeesList);
     } catch (error) {
       console.error('Error fetching attendees:', error);
       setAttendees([]);
@@ -132,31 +96,35 @@ export default function SessionDetailModal({ isOpen, onClose, session, onUpdate 
       
       console.log('Searching for customers with query:', query);
       
-      // First try the customers table
-      let { data, error } = await supabase
-        .from('customers')
-        .select('id, first_name, last_name, email')
-        .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,email.ilike.%${query}%`)
+      // Search in leads table (single source of truth for all customers)
+      console.log('Searching in leads table for:', query);
+      let { data: leadsData, error: leadsError } = await supabase
+        .from('leads')
+        .select('id, email, name, status')
+        .or(`name.ilike.%${query}%,email.ilike.%${query}%`)
         .limit(10);
       
-      if (error) {
-        console.log('Customers table not found, trying clients table');
-        // If customers table doesn't exist, try clients table
-        const { data: clientsData, error: clientsError } = await supabase
-          .from('clients')
-          .select('id, name, email')
-          .or(`name.ilike.%${query}%,email.ilike.%${query}%`)
-          .limit(10);
+      let data = [];
+      
+      if (!leadsError && leadsData && leadsData.length > 0) {
+        console.log('Found customers:', leadsData);
+        // Filter to show converted/clients first
+        const sortedLeads = leadsData.sort((a, b) => {
+          if (a.status === 'converted' && b.status !== 'converted') return -1;
+          if (b.status === 'converted' && a.status !== 'converted') return 1;
+          return 0;
+        });
         
-        if (clientsError) throw clientsError;
-        
-        // Transform clients data to match customers format
-        data = (clientsData || []).map(client => ({
-          id: client.id,
-          first_name: client.name?.split(' ')[0] || '',
-          last_name: client.name?.split(' ').slice(1).join(' ') || '',
-          email: client.email
+        data = sortedLeads.map(lead => ({
+          id: lead.id,
+          first_name: lead.name?.split(' ')[0] || '',
+          last_name: lead.name?.split(' ').slice(1).join(' ') || '',
+          email: lead.email,
+          name: lead.name || '',
+          status: lead.status
         }));
+        
+        console.log('Mapped search results:', data);
       }
       
       console.log('Search results:', data);
@@ -169,11 +137,19 @@ export default function SessionDetailModal({ isOpen, onClose, session, onUpdate 
     }
   };
   
-  const addCustomerToSession = async (customer: any) => {
+  const openRegistrationModal = (customer: any) => {
+    setSelectedCustomer(customer);
+    setShowRegistrationModal(true);
+    // Clear search
+    setSearchQuery('');
+    setSearchResults([]);
+  };
+
+  const handleCustomerRegistration = async (customer: any, registrationType: 'membership' | 'drop-in' | 'free', membershipId?: string) => {
     try {
-      console.log('Adding customer to session:', { customer, session });
+      console.log('Registering customer:', { customer, session, registrationType, membershipId });
       
-      // Use API endpoint to bypass RLS issues
+      // Use API endpoint to register customer
       const response = await fetch('/api/booking/add-customer', {
         method: 'POST',
         headers: {
@@ -182,28 +158,27 @@ export default function SessionDetailModal({ isOpen, onClose, session, onUpdate 
         body: JSON.stringify({
           classSessionId: session.id,
           customerId: customer.id,
-          clientId: customer.id // Send both in case either works
+          clientId: customer.id, // Send both in case either works
+          registrationType,
+          membershipId
         }),
       });
       
       const result = await response.json();
       
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to add customer');
+        throw new Error(result.error || 'Failed to register customer');
       }
       
       // Refresh attendees list
       fetchAttendees();
       
-      // Clear search
-      setSearchQuery('');
-      setSearchResults([]);
-      
       // Show success message
-      console.log('Customer added successfully');
+      console.log('Customer registered successfully');
     } catch (error: any) {
-      console.error('Error adding customer to session:', error);
-      alert(`Failed to add customer to session: ${error.message || 'Unknown error'}`);
+      console.error('Error registering customer:', error);
+      alert(`Failed to register customer: ${error.message || 'Unknown error'}`);
+      throw error; // Re-throw to let the modal handle it
     }
   };
   
@@ -252,6 +227,44 @@ export default function SessionDetailModal({ isOpen, onClose, session, onUpdate 
     } catch (error) {
       console.error('Error updating attendee status:', error);
       alert('Failed to update status');
+    }
+  };
+  
+  const removeAttendee = async (attendeeId: string) => {
+    if (!confirm('Are you sure you want to remove this attendee from the session?')) {
+      return;
+    }
+    
+    try {
+      // Use API endpoint to remove attendee
+      const response = await fetch('/api/booking/remove-attendee', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          classSessionId: session.id,
+          customerId: attendeeId
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to remove attendee');
+      }
+      
+      // Remove from local state
+      setAttendees(prev => prev.filter(a => a.id !== attendeeId));
+      
+      // Close options menu
+      setShowOptionsMenu(null);
+      
+      // Show success message
+      console.log('Attendee removed successfully');
+    } catch (error: any) {
+      console.error('Error removing attendee:', error);
+      alert(`Failed to remove attendee: ${error.message || 'Unknown error'}`);
     }
   };
   
@@ -412,11 +425,11 @@ export default function SessionDetailModal({ isOpen, onClose, session, onUpdate 
                 {searchResults.map((customer) => (
                   <button
                     key={customer.id}
-                    onClick={() => addCustomerToSession(customer)}
+                    onClick={() => openRegistrationModal(customer)}
                     className="w-full text-left px-4 py-2 hover:bg-gray-100 border-b border-gray-100 last:border-0"
                   >
                     <div className="font-medium text-sm text-gray-900">
-                      {customer.first_name} {customer.last_name}
+                      {customer.name || `${customer.first_name || ''} ${customer.last_name || ''}`.trim()}
                     </div>
                     <div className="text-xs text-gray-500">{customer.email}</div>
                   </button>
@@ -484,8 +497,7 @@ export default function SessionDetailModal({ isOpen, onClose, session, onUpdate 
                       <div>
                         <div className="font-medium text-gray-900">{attendee.name}</div>
                         <div className="text-sm text-gray-600">
-                          {attendee.membershipType} 
-                          {attendee.status === 'registered' && ' (via a reservation)'}
+                          {attendee.membershipType}
                         </div>
                       </div>
                     </div>
@@ -503,9 +515,30 @@ export default function SessionDetailModal({ isOpen, onClose, session, onUpdate 
                           <option value="cancelled">Cancelled</option>
                         </select>
                       </div>
-                      <button className="p-2 hover:bg-gray-200 rounded">
-                        <MoreVertical className="w-4 h-4 text-gray-600" />
-                      </button>
+                      <div className="relative attendee-options-menu">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowOptionsMenu(showOptionsMenu === attendee.id ? null : attendee.id);
+                          }}
+                          className="p-2 hover:bg-gray-200 rounded"
+                        >
+                          <MoreVertical className="w-4 h-4 text-gray-600" />
+                        </button>
+                        
+                        {/* Dropdown Menu */}
+                        {showOptionsMenu === attendee.id && (
+                          <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1 min-w-[160px]">
+                            <button
+                              onClick={() => removeAttendee(attendee.id)}
+                              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                            >
+                              <X className="w-4 h-4" />
+                              Remove from session
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -520,6 +553,20 @@ export default function SessionDetailModal({ isOpen, onClose, session, onUpdate 
           )}
         </div>
       </div>
+      
+      {/* Registration Options Modal */}
+      {selectedCustomer && (
+        <RegistrationOptionsModal
+          isOpen={showRegistrationModal}
+          onClose={() => {
+            setShowRegistrationModal(false);
+            setSelectedCustomer(null);
+          }}
+          customer={selectedCustomer}
+          session={session}
+          onRegister={handleCustomerRegistration}
+        />
+      )}
     </div>
   );
 }

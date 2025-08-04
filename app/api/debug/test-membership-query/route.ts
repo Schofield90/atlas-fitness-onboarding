@@ -1,76 +1,68 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/app/lib/supabase/server'
+import { NextResponse } from 'next/server';
+import { createClient } from '@/app/lib/supabase/server';
 
-export async function GET(req: NextRequest) {
+export async function GET(request: Request) {
   try {
-    const supabase = await createClient()
+    const { searchParams } = new URL(request.url);
+    const customerId = searchParams.get('customerId');
     
-    // Get current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    const supabase = await createClient();
     
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Not authenticated', userError }, { status: 401 })
-    }
+    const results: any = {};
     
-    // Get user's organization from user_organizations table
-    const { data: userOrg, error: orgError } = await supabase
-      .from('user_organizations')
-      .select('organization_id')
-      .eq('user_id', user.id)
-      .single()
-    
-    // Fetch membership plans - try without the memberships count first
-    const { data: plansSimple, error: simpleError } = await supabase
-      .from('membership_plans')
+    // 1. Direct query to customer_memberships
+    const { data: direct, error: directError } = await supabase
+      .from('customer_memberships')
       .select('*')
-      .eq('organization_id', userOrg?.organization_id || '')
-      .order('created_at', { ascending: false })
+      .eq('customer_id', customerId || '9433c71d-2c3f-4d99-b254-68ae5b56978a'); // Sam's ID from earlier
     
-    // Also try with the full query
-    const { data: plansWithCount, error: countError } = await supabase
-      .from('membership_plans')
+    results.directQuery = {
+      data: direct,
+      error: directError?.message,
+      count: direct?.length || 0
+    };
+    
+    // 2. Query with joins (same as modal)
+    const { data: withJoins, error: joinError } = await supabase
+      .from('customer_memberships')
       .select(`
         *,
-        memberships:memberships(count)
+        membership_plan:membership_plans(*)
       `)
-      .eq('organization_id', userOrg?.organization_id || '')
-      .order('created_at', { ascending: false })
+      .eq('customer_id', customerId || '9433c71d-2c3f-4d99-b254-68ae5b56978a')
+      .in('status', ['active', 'paused']);
     
-    // Get all membership plans (no filter) to check if any exist
-    const { data: allPlans, error: allError } = await supabase
-      .from('membership_plans')
-      .select('*')
-      .order('created_at', { ascending: false })
+    results.withJoins = {
+      data: withJoins,
+      error: joinError?.message,
+      count: withJoins?.length || 0
+    };
     
-    return NextResponse.json({
-      user: {
-        id: user.id,
-        email: user.email
-      },
-      userOrg,
-      orgError: orgError?.message,
-      organizationId: userOrg?.organization_id,
-      plansSimple: {
-        count: plansSimple?.length || 0,
-        data: plansSimple,
-        error: simpleError?.message
-      },
-      plansWithCount: {
-        count: plansWithCount?.length || 0,
-        data: plansWithCount,
-        error: countError?.message
-      },
-      allPlans: {
-        count: allPlans?.length || 0,
-        data: allPlans,
-        error: allError?.message
-      }
-    })
+    // 3. Check if this ID exists in leads
+    const { data: leadCheck } = await supabase
+      .from('leads')
+      .select('id, name, email')
+      .eq('id', customerId || '9433c71d-2c3f-4d99-b254-68ae5b56978a');
+    
+    results.leadExists = {
+      exists: leadCheck && leadCheck.length > 0,
+      data: leadCheck
+    };
+    
+    // 4. Check all memberships (no filter)
+    const { data: allMemberships, count } = await supabase
+      .from('customer_memberships')
+      .select('customer_id, status', { count: 'exact' })
+      .limit(20);
+    
+    results.allMembershipsPreview = {
+      totalCount: count,
+      sample: allMemberships
+    };
+    
+    return NextResponse.json(results);
+    
   } catch (error: any) {
-    return NextResponse.json({ 
-      error: 'Internal server error', 
-      message: error.message,
-      stack: error.stack
-    }, { status: 500 })
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

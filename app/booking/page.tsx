@@ -81,7 +81,7 @@ export default function BookingManagement() {
             instructor: cls.instructor_name,
             time: startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
             duration: cls.duration_minutes,
-            bookings: cls.bookings_count || 0,
+            bookings: cls.bookings?.length || 0,
             capacity: cls.capacity,
             color: 'orange' as const,
             earnings: `£${((cls.program?.price_pennies || 0) / 100).toFixed(0)}`,

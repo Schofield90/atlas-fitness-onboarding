@@ -11,12 +11,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Organization ID required' }, { status: 400 });
     }
 
-    // Get all class sessions with program details
+    // Get all class sessions with program details and booking count
     const { data: classes, error } = await supabase
       .from('class_sessions')
       .select(`
         *,
-        program:programs(name, description, price_pennies)
+        program:programs(name, description, price_pennies),
+        bookings(id)
       `)
       .eq('organization_id', organizationId)
       .gte('start_time', new Date().toISOString())
