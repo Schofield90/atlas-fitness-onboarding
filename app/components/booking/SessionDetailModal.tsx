@@ -39,7 +39,12 @@ export default function SessionDetailModal({ isOpen, onClose, session, onUpdate 
   const fetchAttendees = async () => {
     try {
       setLoading(true);
-      const supabase = await createAdminClient();
+      let supabase;
+      try {
+        supabase = await createAdminClient();
+      } catch {
+        supabase = createClient();
+      }
       
       console.log('Fetching attendees for session:', session.id);
       
@@ -61,8 +66,13 @@ export default function SessionDetailModal({ isOpen, onClose, session, onUpdate 
       if (error) {
         console.log('Customers table not found, trying clients');
         // If customers table doesn't exist, try with clients
-        const supabaseAdmin = await createAdminClient();
-        const { data: bookingsWithClients, error: clientError } = await supabaseAdmin
+        let supabaseForClients;
+        try {
+          supabaseForClients = await createAdminClient();
+        } catch {
+          supabaseForClients = createClient();
+        }
+        const { data: bookingsWithClients, error: clientError } = await supabaseForClients
           .from('bookings')
           .select(`
             *,
@@ -161,47 +171,25 @@ export default function SessionDetailModal({ isOpen, onClose, session, onUpdate 
   
   const addCustomerToSession = async (customer: any) => {
     try {
-      // Use admin client to bypass RLS
-      const supabase = await createAdminClient();
-      
       console.log('Adding customer to session:', { customer, session });
       
-      // Get the organization ID from the session or use fallback
-      const organizationId = session.organization_id || '63589490-8f55-4157-bd3a-e141594b740e';
+      // Use API endpoint to bypass RLS issues
+      const response = await fetch('/api/booking/add-customer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          classSessionId: session.id,
+          customerId: customer.id,
+          clientId: customer.id // Send both in case either works
+        }),
+      });
       
-      // Create a booking for this customer - minimal fields only
-      let bookingData;
-      const { data, error } = await supabase
-        .from('bookings')
-        .insert({
-          class_session_id: session.id,
-          customer_id: customer.id
-        })
-        .select()
-        .single();
+      const result = await response.json();
       
-      if (error) {
-        console.error('Booking insert error:', error);
-        
-        // Try with client_id if customer_id failed
-        if (error.message?.includes('customer_id')) {
-          const supabaseAdmin = await createAdminClient();
-          const { data: bookingWithClient, error: clientError } = await supabaseAdmin
-            .from('bookings')
-            .insert({
-              class_session_id: session.id,
-              client_id: customer.id // Use client_id instead
-            })
-            .select()
-            .single();
-          
-          if (clientError) throw clientError;
-          bookingData = bookingWithClient;
-        } else {
-          throw error;
-        }
-      } else {
-        bookingData = data;
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to add customer');
       }
       
       // Refresh attendees list
@@ -241,7 +229,12 @@ export default function SessionDetailModal({ isOpen, onClose, session, onUpdate 
   
   const updateAttendeeStatus = async (attendeeId: string, newStatus: string) => {
     try {
-      const supabase = await createAdminClient();
+      let supabase;
+      try {
+        supabase = await createAdminClient();
+      } catch {
+        supabase = createClient();
+      }
       
       // Update booking status
       const { error } = await supabase
