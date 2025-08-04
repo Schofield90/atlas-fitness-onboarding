@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/app/lib/supabase/admin'
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
 export async function POST(request: NextRequest) {
   try {
@@ -70,6 +70,9 @@ export async function POST(request: NextRequest) {
 
     // Try to send with Resend first
     try {
+      if (!resend) {
+        throw new Error('Email service not configured')
+      }
       const { error: emailError } = await resend.emails.send({
         from: 'Atlas Fitness <onboarding@resend.dev>',
         to: customerEmail,
