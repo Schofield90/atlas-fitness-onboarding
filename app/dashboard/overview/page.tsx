@@ -131,7 +131,7 @@ export default function DashboardOverview() {
 
   if (loading) {
     return (
-      <DashboardLayout>
+      <DashboardLayout userData={null}>
         <div className="min-h-[60vh] flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
@@ -143,7 +143,7 @@ export default function DashboardOverview() {
   }
 
   return (
-    <DashboardLayout>
+    <DashboardLayout userData={null}>
       <div className="container mx-auto px-6 py-8">
         {/* Header */}
         <div className="mb-8">
