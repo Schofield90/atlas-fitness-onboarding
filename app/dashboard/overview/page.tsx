@@ -99,7 +99,9 @@ export default function DashboardOverview() {
       time: new Date(event.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
       date: new Date(event.startTime).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
       bookings: event.bookings,
-      capacity: event.capacity
+      capacity: event.capacity,
+      instructor: event.instructor,
+      startTime: event.startTime
     })) || [];
   };
 
@@ -147,7 +149,8 @@ export default function DashboardOverview() {
 
   return (
     <DashboardLayout userData={null}>
-      <div className="container mx-auto px-6 py-8">
+      <div className="min-h-screen bg-gray-900">
+        <div className="container mx-auto px-6 py-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
@@ -159,17 +162,17 @@ export default function DashboardOverview() {
             {/* Quick Actions */}
             <button 
               onClick={() => router.push('/leads/new')}
-              className="p-2 hover:bg-gray-100 rounded-lg"
+              className="p-2 hover:bg-gray-700 rounded-lg"
               title="Add new lead"
             >
-              <Plus className="w-5 h-5 text-gray-600" />
+              <Plus className="w-5 h-5 text-gray-400" />
             </button>
             <button 
               onClick={() => router.push('/test-whatsapp')}
-              className="p-2 hover:bg-gray-100 rounded-lg"
+              className="p-2 hover:bg-gray-700 rounded-lg"
               title="Send message"
             >
-              <Send className="w-5 h-5 text-gray-600" />
+              <Send className="w-5 h-5 text-gray-400" />
             </button>
             <button 
               onClick={() => router.push('/settings/notifications')}
@@ -189,7 +192,7 @@ export default function DashboardOverview() {
             <input
               type="text"
               placeholder="Search customers, classes, or transactions..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 text-white placeholder-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && e.currentTarget.value) {
                   router.push(`/leads?search=${encodeURIComponent(e.currentTarget.value)}`);
@@ -203,62 +206,62 @@ export default function DashboardOverview() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
           {/* Pending Payments */}
           <div 
-            className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-lg transition-shadow"
+            className="bg-gray-800 rounded-lg shadow p-6 cursor-pointer hover:shadow-lg transition-shadow border border-gray-700"
             onClick={() => router.push('/billing')}
           >
             <div className="flex items-center justify-between mb-4">
-              <div className="p-2 bg-yellow-100 rounded-lg">
-                <DollarSign className="w-6 h-6 text-yellow-600" />
+              <div className="p-2 bg-yellow-900/30 rounded-lg">
+                <DollarSign className="w-6 h-6 text-yellow-400" />
               </div>
-              <span className="text-xs font-medium text-gray-500">PENDING</span>
+              <span className="text-xs font-medium text-gray-400">PENDING</span>
             </div>
-            <h3 className="text-2xl font-bold text-gray-900">£{dashboardData.pendingPayments.total.toFixed(2)}</h3>
-            <p className="text-sm text-gray-600">{dashboardData.pendingPayments.count} pending</p>
+            <h3 className="text-2xl font-bold text-white">£{dashboardData.pendingPayments.total.toFixed(2)}</h3>
+            <p className="text-sm text-gray-400">{dashboardData.pendingPayments.count} pending</p>
           </div>
 
           {/* Confirmed Revenue */}
           <div 
-            className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-lg transition-shadow"
+            className="bg-gray-800 rounded-lg shadow p-6 cursor-pointer hover:shadow-lg transition-shadow border border-gray-700"
             onClick={() => router.push('/billing')}
           >
             <div className="flex items-center justify-between mb-4">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <DollarSign className="w-6 h-6 text-green-600" />
+              <div className="p-2 bg-green-900/30 rounded-lg">
+                <DollarSign className="w-6 h-6 text-green-400" />
               </div>
-              <span className="text-xs font-medium text-gray-500">CONFIRMED</span>
+              <span className="text-xs font-medium text-gray-400">CONFIRMED</span>
             </div>
-            <h3 className="text-2xl font-bold text-gray-900">£{dashboardData.confirmedRevenue.total.toFixed(2)}</h3>
-            <p className="text-sm text-gray-600">{dashboardData.confirmedRevenue.count} confirmed</p>
+            <h3 className="text-2xl font-bold text-white">£{dashboardData.confirmedRevenue.total.toFixed(2)}</h3>
+            <p className="text-sm text-gray-400">{dashboardData.confirmedRevenue.count} confirmed</p>
           </div>
 
           {/* Accounts Created */}
           <div 
-            className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-lg transition-shadow"
+            className="bg-gray-800 rounded-lg shadow p-6 cursor-pointer hover:shadow-lg transition-shadow border border-gray-700"
             onClick={() => router.push('/leads')}
           >
             <div className="flex items-center justify-between mb-4">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Users className="w-6 h-6 text-blue-600" />
+              <div className="p-2 bg-blue-900/30 rounded-lg">
+                <Users className="w-6 h-6 text-blue-400" />
               </div>
-              <span className="text-xs font-medium text-green-600">+{dashboardData.recentCustomers.percentChange}%</span>
+              <span className="text-xs font-medium text-green-400">+{dashboardData.recentCustomers.percentChange}%</span>
             </div>
-            <h3 className="text-2xl font-bold text-gray-900">{dashboardData.recentCustomers.count}</h3>
-            <p className="text-sm text-gray-600">New customers (30d)</p>
+            <h3 className="text-2xl font-bold text-white">{dashboardData.recentCustomers.count}</h3>
+            <p className="text-sm text-gray-400">New customers (30d)</p>
           </div>
 
           {/* Events Booked */}
           <div 
-            className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-lg transition-shadow"
+            className="bg-gray-800 rounded-lg shadow p-6 cursor-pointer hover:shadow-lg transition-shadow border border-gray-700"
             onClick={() => router.push('/booking')}
           >
             <div className="flex items-center justify-between mb-4">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Calendar className="w-6 h-6 text-purple-600" />
+              <div className="p-2 bg-purple-900/30 rounded-lg">
+                <Calendar className="w-6 h-6 text-purple-400" />
               </div>
-              <span className="text-xs font-medium text-gray-500">THIS MONTH</span>
+              <span className="text-xs font-medium text-gray-400">THIS MONTH</span>
             </div>
-            <h3 className="text-2xl font-bold text-gray-900">{dashboardData.eventsBooked.count}</h3>
-            <p className="text-sm text-gray-600">Events booked</p>
+            <h3 className="text-2xl font-bold text-white">{dashboardData.eventsBooked.count}</h3>
+            <p className="text-sm text-gray-400">Events booked</p>
           </div>
         </div>
 
@@ -384,14 +387,14 @@ export default function DashboardOverview() {
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Customer Growth Chart */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">Customer Accounts Created</h3>
+          <div className="bg-gray-800 rounded-lg shadow p-6 border border-gray-700">
+            <h3 className="font-semibold text-white mb-4">Customer Accounts Created</h3>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={dashboardData.customerGrowth}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="date" stroke="#666" fontSize={12} />
-                  <YAxis stroke="#666" fontSize={12} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="date" stroke="#9CA3AF" fontSize={12} />
+                  <YAxis stroke="#9CA3AF" fontSize={12} />
                   <Tooltip />
                   <Line type="monotone" dataKey="value" stroke="#3B82F6" strokeWidth={2} dot={{ fill: '#3B82F6' }} />
                 </LineChart>
@@ -400,14 +403,14 @@ export default function DashboardOverview() {
           </div>
 
           {/* Revenue Growth Chart */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">Revenue</h3>
+          <div className="bg-gray-800 rounded-lg shadow p-6 border border-gray-700">
+            <h3 className="font-semibold text-white mb-4">Revenue</h3>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={dashboardData.revenueGrowth}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="date" stroke="#666" fontSize={12} />
-                  <YAxis stroke="#666" fontSize={12} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="date" stroke="#9CA3AF" fontSize={12} />
+                  <YAxis stroke="#9CA3AF" fontSize={12} />
                   <Tooltip formatter={(value) => `£${value}`} />
                   <Line type="monotone" dataKey="value" stroke="#10B981" strokeWidth={2} dot={{ fill: '#10B981' }} />
                 </LineChart>
@@ -419,8 +422,8 @@ export default function DashboardOverview() {
         {/* Bottom Row - Memberships & Revenue */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Active Memberships */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">Active Memberships</h3>
+          <div className="bg-gray-800 rounded-lg shadow p-6 border border-gray-700">
+            <h3 className="font-semibold text-white mb-4">Active Memberships</h3>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -444,8 +447,8 @@ export default function DashboardOverview() {
           </div>
 
           {/* Revenue by Purchase */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">Revenue By Purchase</h3>
+          <div className="bg-gray-800 rounded-lg shadow p-6 border border-gray-700">
+            <h3 className="font-semibold text-white mb-4">Revenue By Purchase</h3>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -467,36 +470,36 @@ export default function DashboardOverview() {
               </ResponsiveContainer>
             </div>
             <div className="mt-4 text-center">
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-2xl font-bold text-white">
                 £{dashboardData.revenueByType.reduce((sum, item) => sum + item.value, 0).toFixed(2)}
               </p>
-              <p className="text-sm text-gray-600">Total Revenue</p>
+              <p className="text-sm text-gray-400">Total Revenue</p>
             </div>
           </div>
 
           {/* Recent Revenue */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-4 border-b border-gray-200">
-              <h3 className="font-semibold text-gray-900">Recent Revenue</h3>
+          <div className="bg-gray-800 rounded-lg shadow border border-gray-700">
+            <div className="p-4 border-b border-gray-700">
+              <h3 className="font-semibold text-white">Recent Revenue</h3>
             </div>
             <div className="p-4">
               <table className="w-full">
                 <thead>
-                  <tr className="text-xs text-gray-500 uppercase">
+                  <tr className="text-xs text-gray-400 uppercase">
                     <th className="text-left pb-2">Type</th>
                     <th className="text-right pb-2">Amount</th>
                   </tr>
                 </thead>
                 <tbody className="text-sm">
                   {dashboardData.recentTransactions.map((transaction) => (
-                    <tr key={transaction.id} className="border-t border-gray-100">
+                    <tr key={transaction.id} className="border-t border-gray-700">
                       <td className="py-2">
-                        <p className="font-medium text-gray-900">{transaction.type}</p>
-                        <p className="text-xs text-gray-600">{transaction.customer}</p>
+                        <p className="font-medium text-white">{transaction.type}</p>
+                        <p className="text-xs text-gray-400">{transaction.customer}</p>
                       </td>
                       <td className="text-right py-2">
-                        <p className="font-medium text-gray-900">£{transaction.amount.toFixed(2)}</p>
-                        <p className="text-xs text-gray-600">{transaction.status}</p>
+                        <p className="font-medium text-white">£{transaction.amount.toFixed(2)}</p>
+                        <p className="text-xs text-gray-400">{transaction.status}</p>
                       </td>
                     </tr>
                   ))}
@@ -508,18 +511,18 @@ export default function DashboardOverview() {
 
         {/* Birthday Widget */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mt-6">
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-gray-800 rounded-lg shadow p-6 border border-gray-700">
             <div className="flex items-center gap-3 mb-4">
-              <Gift className="w-5 h-5 text-pink-600" />
-              <h3 className="font-semibold text-gray-900">Upcoming Birthdays</h3>
+              <Gift className="w-5 h-5 text-pink-400" />
+              <h3 className="font-semibold text-white">Upcoming Birthdays</h3>
             </div>
             {dashboardData.upcomingBirthdays.length > 0 ? (
               <div className="space-y-3">
                 {dashboardData.upcomingBirthdays.map((birthday: any) => (
                   <div key={birthday.id} className="flex items-center justify-between">
                     <div>
-                      <p className="font-medium text-gray-900">{birthday.name}</p>
-                      <p className="text-xs text-gray-600">
+                      <p className="font-medium text-white">{birthday.name}</p>
+                      <p className="text-xs text-gray-400">
                         {birthday.daysUntil === 0 ? 'Today!' : 
                          birthday.daysUntil === 1 ? 'Tomorrow' : 
                          `In ${birthday.daysUntil} days`} • Turning {birthday.age}
@@ -527,7 +530,7 @@ export default function DashboardOverview() {
                     </div>
                     <button 
                       onClick={() => router.push(`/leads/${birthday.id}`)}
-                      className="text-xs text-blue-600 hover:text-blue-700"
+                      className="text-xs text-blue-400 hover:text-blue-300"
                     >
                       Send wishes
                     </button>
@@ -535,11 +538,13 @@ export default function DashboardOverview() {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-600">No birthdays in the next 30 days</p>
+              <p className="text-sm text-gray-400">No birthdays in the next 30 days</p>
             )}
           </div>
         </div>
+        </div>
       </div>
+    </div>
 
       {/* Class Detail Modal */}
       {selectedClass && (

@@ -12,7 +12,7 @@ interface ClassDetailModalProps {
     date: string;
     time: string;
     startTime: string;
-    instructor: string;
+    instructor?: string;
     capacity: number;
     bookings: number;
     room?: string;
