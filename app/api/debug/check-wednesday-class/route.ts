@@ -47,7 +47,7 @@ export async function GET() {
       wednesdayClasses: wednesdayClasses?.map(c => ({
         id: c.id,
         time: new Date(c.start_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-        program: Array.isArray(c.program) ? c.program[0]?.name : c.program?.name,
+        program: c.program as any,
         bookingsFromRelation: c.bookings?.length || 0,
         bookingsData: c.bookings
       })),
@@ -61,7 +61,7 @@ export async function GET() {
       recentBookings: recentBookings?.map(b => ({
         id: b.id,
         customerName: b.customer?.name,
-        className: b.class_session?.program ? (Array.isArray(b.class_session.program) ? b.class_session.program[0]?.name : b.class_session.program?.name) : undefined,
+        className: b.class_session?.program as any,
         classTime: b.class_session?.start_time,
         createdAt: b.created_at
       })),

@@ -61,7 +61,7 @@ export async function GET() {
           customerId: b.customer_id,
           createdAt: b.created_at,
           classTime: b.class_session?.start_time,
-          className: b.class_session?.program ? (Array.isArray(b.class_session.program) ? b.class_session.program[0]?.name : b.class_session.program?.name) : undefined
+          className: b.class_session?.program as any
         }))
       },
       weekClasses: {
@@ -72,7 +72,7 @@ export async function GET() {
           startTime: c.start_time,
           day: new Date(c.start_time).toLocaleDateString('en-US', { weekday: 'short' }),
           time: new Date(c.start_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-          program: Array.isArray(c.program) ? c.program[0]?.name : c.program?.name,
+          program: c.program as any,
           bookingsCount: c.bookings?.length || 0
         }))
       }

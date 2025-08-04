@@ -50,7 +50,7 @@ export async function GET(request: Request) {
       if (!acc[day]) acc[day] = [];
       acc[day].push({
         time: date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-        program: Array.isArray(cls.program) ? cls.program[0]?.name : cls.program?.name,
+        program: cls.program as any,
         instructor: cls.instructor_name
       });
       return acc;
