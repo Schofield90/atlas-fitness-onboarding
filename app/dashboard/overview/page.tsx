@@ -145,6 +145,7 @@ export default function DashboardOverview() {
         </div>
       </DashboardLayout>
     );
+  }
 
   return (
     <DashboardLayout userData={null}>
