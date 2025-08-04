@@ -49,96 +49,43 @@ const ClassBlock: React.FC<ClassBlockProps> = ({
   
   return (
     <div
-      onClick={onSelect}
+      onClick={() => {
+        console.log('ClassBlock clicked:', title);
+        if (onSelect) onSelect();
+      }}
       className={`
-        relative p-4 rounded-lg cursor-pointer
-        border transition-all duration-200 hover:scale-[1.02] hover:shadow-lg
-        backdrop-blur-sm
+        relative px-2 py-1 rounded cursor-pointer
+        border transition-all duration-200 hover:shadow-md
         ${getColorClasses(color)}
       `}
       style={{ 
-        height: `${Math.max(duration * 1.2, 80)}px`,
-        minHeight: '80px'
+        height: 'calc(100% - 4px)',
+        fontSize: '11px'
       }}
     >
-      {/* Header */}
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex-1 min-w-0">
-          <h4 className="font-semibold text-white text-sm truncate">{title}</h4>
-          <p className="text-xs text-white opacity-80 truncate">{instructor}</p>
-        </div>
-        <Badge variant="success" className="ml-2 text-xs">
-          {earnings}
-        </Badge>
+      {/* Title and Time */}
+      <div className="flex items-start justify-between mb-1">
+        <h4 className="font-semibold text-white text-xs truncate flex-1">{title}</h4>
+        <span className="text-xs text-gray-300 ml-1">{duration}m</span>
       </div>
       
-      {/* Time and Duration */}
-      <div className="flex items-center gap-2 mb-3">
-        <Clock className="w-3 h-3 text-gray-400" />
-        <span className="text-xs text-white">{time}</span>
-        <span className="text-xs text-gray-400">({duration}min)</span>
-      </div>
+      {/* Instructor */}
+      <p className="text-xs text-gray-300 truncate mb-1">{instructor}</p>
       
-      {/* Room */}
-      {room && (
-        <div className="flex items-center gap-2 mb-3">
-          <MapPin className="w-3 h-3 text-gray-400" />
-          <span className="text-xs text-white">{room}</span>
-        </div>
-      )}
-      
-      {/* Capacity Progress */}
-      <div className="mb-3">
-        <div className="flex items-center justify-between text-xs mb-1">
-          <div className="flex items-center gap-1">
-            <Users className="w-3 h-3 text-gray-400" />
-            <span className="text-white opacity-70">Capacity</span>
+      {/* Capacity */}
+      <div className="flex items-center justify-between">
+        <div className="flex-1 mr-2">
+          <div className="h-1 bg-gray-700 rounded-full overflow-hidden">
+            <div 
+              className={`h-full ${getUtilizationColor()}`}
+              style={{ width: `${Math.min(utilization, 100)}%` }}
+            />
           </div>
-          <span className="text-white font-medium">{bookings}/{capacity}</span>
         </div>
-        <div className="h-1.5 bg-gray-900 rounded-full overflow-hidden">
-          <div 
-            className={`h-full transition-all duration-300 ${getUtilizationColor()}`}
-            style={{ width: `${Math.min(utilization, 100)}%` }}
-          />
-        </div>
-        {utilization >= 100 && (
-          <div className="text-xs text-amber-400 mt-1 font-medium">
-            Full + {bookings - capacity} waitlist
-          </div>
-        )}
+        <span className="text-xs text-white">
+          {bookings}/{capacity}
+        </span>
       </div>
-      
-      {/* Quick Actions */}
-      <div className="flex gap-2 mt-auto">
-        <button 
-          className="text-xs text-white opacity-70 hover:opacity-100 transition-opacity"
-          onClick={(e) => {
-            e.stopPropagation();
-            console.log(`View details for ${title}`);
-            alert(`Class details modal would open for ${title}`);
-          }}
-        >
-          Details
-        </button>
-        <button 
-          className="text-xs text-white opacity-70 hover:opacity-100 transition-opacity"
-          onClick={(e) => {
-            e.stopPropagation();
-            console.log(`Message attendees of ${title}`);
-            alert(`Message modal would open to contact ${bookings} attendees of ${title}`);
-          }}
-        >
-          Message
-        </button>
-      </div>
-      
-      {/* Status Indicators */}
-      {utilization >= 100 && (
-        <div className="absolute top-2 right-2">
-          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-        </div>
-      )}
     </div>
   );
 };

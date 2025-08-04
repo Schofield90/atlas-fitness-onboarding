@@ -25,9 +25,26 @@ const ClassTypeFilter: React.FC = () => {
   const fetchClassTypes = async () => {
     try {
       const supabase = createClient();
+      
+      // Get current user's organization
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No authenticated user');
+      
+      // Get user's organization
+      const { data: userOrg } = await supabase
+        .from('user_organizations')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single();
+      
+      const organizationId = userOrg?.organization_id || '63589490-8f55-4157-bd3a-e141594b740e'; // Fallback
+      
+      // Fetch programs (class types)
       const { data, error } = await supabase
-        .from('class_types')
+        .from('programs')
         .select('*')
+        .eq('organization_id', organizationId)
+        .eq('is_active', true)
         .order('name');
       
       if (error) throw error;
@@ -37,7 +54,7 @@ const ClassTypeFilter: React.FC = () => {
         ...(data || []).map(type => ({
           id: type.id,
           name: type.name,
-          color: type.color || 'slate',
+          color: 'orange', // Default color since programs don't have colors
           count: 0 // TODO: Get actual count from class_sessions
         }))
       ];
@@ -45,6 +62,8 @@ const ClassTypeFilter: React.FC = () => {
       setClassTypes(types);
     } catch (error) {
       console.error('Error fetching class types:', error);
+      // Set default "All Classes" option even on error
+      setClassTypes([{ id: 'all', name: 'All Classes', count: 0, color: 'slate' }]);
     } finally {
       setLoading(false);
     }

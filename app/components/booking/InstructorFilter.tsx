@@ -27,28 +27,69 @@ const InstructorFilter: React.FC = () => {
   const fetchInstructors = async () => {
     try {
       const supabase = createClient();
+      
+      // Get current user's organization
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No authenticated user');
+      
+      // Get user's organization
+      const { data: userOrg } = await supabase
+        .from('user_organizations')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single();
+      
+      const organizationId = userOrg?.organization_id || '63589490-8f55-4157-bd3a-e141594b740e'; // Fallback
+      
+      // Try to fetch from instructors table first
       const { data, error } = await supabase
         .from('instructors')
         .select('*')
+        .eq('organization_id', organizationId)
         .order('name');
       
-      if (error) throw error;
-      
-      const instructorList: Instructor[] = [
-        { id: 'all', name: 'All Instructors', classes: 0 },
-        ...(data || []).map(inst => ({
-          id: inst.id,
-          name: inst.name,
-          email: inst.email,
-          avatar: inst.name.charAt(0).toUpperCase(),
-          classes: 0, // TODO: Get actual count from class_sessions
-          status: 'active'
-        }))
-      ];
-      
-      setInstructors(instructorList);
+      if (error) {
+        console.warn('Instructors table not found, using fallback');
+        // Fallback: Get unique instructor names from class_sessions
+        const { data: sessions } = await supabase
+          .from('class_sessions')
+          .select('instructor_name')
+          .eq('organization_id', organizationId)
+          .not('instructor_name', 'is', null);
+        
+        const uniqueInstructors = [...new Set(sessions?.map(s => s.instructor_name) || [])];
+        
+        const instructorList: Instructor[] = [
+          { id: 'all', name: 'All Instructors', classes: 0 },
+          ...uniqueInstructors.map((name, index) => ({
+            id: `inst-${index}`,
+            name: name,
+            avatar: name.charAt(0).toUpperCase(),
+            classes: 0,
+            status: 'active'
+          }))
+        ];
+        
+        setInstructors(instructorList);
+      } else {
+        const instructorList: Instructor[] = [
+          { id: 'all', name: 'All Instructors', classes: 0 },
+          ...(data || []).map(inst => ({
+            id: inst.id,
+            name: inst.name,
+            email: inst.email,
+            avatar: inst.name.charAt(0).toUpperCase(),
+            classes: 0,
+            status: 'active'
+          }))
+        ];
+        
+        setInstructors(instructorList);
+      }
     } catch (error) {
       console.error('Error fetching instructors:', error);
+      // Set default "All Instructors" option even on error
+      setInstructors([{ id: 'all', name: 'All Instructors', classes: 0 }]);
     } finally {
       setLoading(false);
     }

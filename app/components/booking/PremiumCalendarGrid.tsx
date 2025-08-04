@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import ClassBlock from './ClassBlock';
+import SessionDetailModal from './SessionDetailModal';
 
 const timeSlots = [
-  '6:00 AM', '7:00 AM', '8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM',
-  '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM',
-  '6:00 PM', '7:00 PM', '8:00 PM', '9:00 PM'
+  '6:00 AM', '6:30 AM', '7:00 AM', '7:30 AM', '8:00 AM', '8:30 AM', 
+  '9:00 AM', '9:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
+  '12:00 PM', '12:30 PM', '1:00 PM', '1:30 PM', '2:00 PM', '2:30 PM', 
+  '3:00 PM', '3:30 PM', '4:00 PM', '4:30 PM', '5:00 PM', '5:30 PM',
+  '6:00 PM', '6:30 PM', '7:00 PM', '7:30 PM', '8:00 PM', '8:30 PM', '9:00 PM'
 ];
 
 const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -103,10 +106,21 @@ interface PremiumCalendarGridProps {
 }
 
 const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({ classes = [], loading = false }) => {
-  const [selectedClass, setSelectedClass] = useState<string | null>(null);
+  const [selectedClass, setSelectedClass] = useState<any | null>(null);
+  const [showSessionDetail, setShowSessionDetail] = useState(false);
   
   const getClassesForDayAndTime = (dayIndex: number, timeIndex: number) => {
-    return classes.filter(cls => cls.day === dayIndex && cls.timeSlot === timeIndex);
+    const filtered = classes.filter(cls => cls.day === dayIndex && cls.timeSlot === timeIndex);
+    if (filtered.length > 0) {
+      console.log(`Found ${filtered.length} classes for day ${dayIndex}, timeSlot ${timeIndex}:`, filtered);
+    }
+    return filtered;
+  };
+  
+  const handleClassClick = (cls: any) => {
+    console.log('handleClassClick called with:', cls);
+    setSelectedClass(cls);
+    setShowSessionDetail(true);
   };
   
   if (loading) {
@@ -151,7 +165,7 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({ classes = [],
           {timeSlots.map((time, index) => (
             <div
               key={index}
-              className="h-20 border-b border-gray-700 px-3 py-2 flex items-start justify-end"
+              className="h-16 border-b border-gray-700 px-3 py-1 flex items-start justify-end"
             >
               <span className="text-xs text-gray-500 font-medium">
                 {time}
@@ -178,42 +192,30 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({ classes = [],
               {timeSlots.map((_, timeIndex) => (
                 <div
                   key={timeIndex}
-                  className="h-20 border-b border-gray-700 relative"
+                  className="h-16 border-b border-gray-700 relative"
                 >
                   {/* Classes in this time slot */}
                   {getClassesForDayAndTime(dayIndex, timeIndex).map((cls, classIndex) => (
                     <div
                       key={cls.id}
-                      className="absolute inset-x-2 top-1"
+                      className="absolute inset-x-1 pointer-events-none"
                       style={{ 
-                        zIndex: classIndex + 1,
-                        transform: `translateY(${classIndex * 4}px)`
+                        top: '2px',
+                        width: 'calc(100% - 8px)'
                       }}
                     >
-                      <ClassBlock
-                        {...cls}
-                        onSelect={() => setSelectedClass(cls.id)}
-                      />
+                      <div className="pointer-events-auto">
+                        <ClassBlock
+                          {...cls}
+                          onSelect={() => handleClassClick(cls)}
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
               ))}
               
-              {/* Add class button overlay */}
-              <div className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-200">
-                <div className="h-full w-full flex items-center justify-center">
-                  <button 
-                    className="bg-slate-800/90 hover:bg-slate-700/90 border border-slate-600 rounded-lg px-3 py-2 text-xs text-slate-300 hover:text-white transition-colors backdrop-blur-sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      console.log(`Add class on ${day}`);
-                      alert(`Add class modal would open for ${day}`);
-                    }}
-                  >
-                    + Add Class
-                  </button>
-                </div>
-              </div>
+              {/* Add class button overlay - removed for now as it blocks clicks */}
             </div>
           </div>
         ))}
@@ -233,6 +235,16 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({ classes = [],
           </div>
         </div>
       )}
+      
+      {/* Session Detail Modal */}
+      <SessionDetailModal
+        isOpen={showSessionDetail}
+        onClose={() => {
+          setShowSessionDetail(false);
+          setSelectedClass(null);
+        }}
+        session={selectedClass}
+      />
     </div>
   );
 };

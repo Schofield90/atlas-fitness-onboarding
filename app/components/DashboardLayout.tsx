@@ -388,6 +388,9 @@ export default function DashboardLayout({ children, userData }: DashboardLayoutP
               <Link
                 key={item.name}
                 href={item.href}
+                onClick={() => {
+                  console.log(`Navigating from ${pathname} to ${item.href}`)
+                }}
                 className={`
                   flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors
                   ${isActive

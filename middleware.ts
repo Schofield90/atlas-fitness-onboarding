@@ -23,8 +23,7 @@ const publicRoutes = [
 
 // Client-only routes
 const clientRoutes = [
-  '/client',
-  '/booking'
+  '/client'
 ]
 
 // Admin routes that require organization
@@ -34,6 +33,7 @@ const adminRoutes = [
   '/messages',
   '/automations',
   '/calendar',
+  '/booking',
   '/staff',
   '/forms',
   '/settings',

@@ -1,42 +1,50 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useFacebookConnection } from '@/app/hooks/useFacebookConnection'
 import DashboardLayout from '@/app/components/DashboardLayout'
 
+export const dynamic = 'force-dynamic'
+
 export default function DashboardPage() {
   const router = useRouter()
+  const [mounted, setMounted] = useState(false)
   const [userData, setUserData] = useState<any>(null)
   const facebookConnection = useFacebookConnection()
 
   useEffect(() => {
+    setMounted(true)
+    // Check for stored data
     const storedData = localStorage.getItem('gymleadhub_trial_data')
     if (storedData) {
       setUserData(JSON.parse(storedData))
+    } else {
+      // Create default data only on client side
+      const defaultData = {
+        organizationName: 'Atlas Fitness',
+        gymName: 'Atlas Fitness',
+        email: 'samschofield90@hotmail.co.uk',
+        trialEnds: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() // 14 days from now
+      }
+      localStorage.setItem('gymleadhub_trial_data', JSON.stringify(defaultData))
+      setUserData(defaultData)
     }
   }, [])
-
-  // For local development, if no userData, create a default one
-  if (!userData && typeof window !== 'undefined') {
-    const defaultData = {
-      organizationName: 'Atlas Fitness',
-      gymName: 'Atlas Fitness',
-      email: 'samschofield90@hotmail.co.uk',
-      trialEnds: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() // 14 days from now
-    }
-    localStorage.setItem('gymleadhub_trial_data', JSON.stringify(defaultData))
-    setUserData(defaultData)
-  }
   
-  if (!userData) {
+  if (!mounted || !userData) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Loading...</h1>
+      <DashboardLayout userData={null}>
+        <div className="container mx-auto px-6 py-8">
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+              <h1 className="text-xl font-medium text-gray-400">Loading dashboard...</h1>
+            </div>
+          </div>
         </div>
-      </div>
+      </DashboardLayout>
     )
   }
 
@@ -54,7 +62,7 @@ export default function DashboardPage() {
         <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-lg p-6 mb-8">
           <h2 className="text-xl font-bold mb-2">🚀 Your Free Trial is Active!</h2>
           <p className="mb-4">
-            Your 14-day free trial expires on {trialEnds.toLocaleDateString()}. 
+            Your 14-day free trial expires on {mounted ? trialEnds.toLocaleDateString('en-GB') : '...'}. 
             That's {daysLeft} days to experience the power of Atlas Fitness.
           </p>
           <button className="bg-white text-orange-500 font-bold py-2 px-4 rounded hover:bg-gray-100 transition-colors">
@@ -101,8 +109,8 @@ export default function DashboardPage() {
                 <div className="flex items-center mb-3">
                   <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
                   <span className="text-green-400 text-sm">
-                    Connected {facebookConnection.connectedAt && 
-                      `(${new Date(facebookConnection.connectedAt).toLocaleDateString()})`}
+                    Connected {mounted && facebookConnection.connectedAt && 
+                      `(${new Date(facebookConnection.connectedAt).toLocaleDateString('en-GB')})`}
                   </span>
                 </div>
                 <div className="flex gap-2">
