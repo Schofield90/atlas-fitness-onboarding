@@ -90,7 +90,7 @@ export async function GET() {
         .eq('organization_id', organizationId)
         .gte('created_at', last30Days.toISOString()),
 
-      // Upcoming classes
+      // Upcoming classes - get next 10 classes regardless of date range
       supabase
         .from('class_sessions')
         .select(`
@@ -100,8 +100,8 @@ export async function GET() {
         `)
         .eq('organization_id', organizationId)
         .gte('start_time', now.toISOString())
-        .lte('start_time', new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString())
-        .order('start_time', { ascending: true }),
+        .order('start_time', { ascending: true })
+        .limit(10),
 
       // Recent transactions/payments
       supabase
@@ -152,14 +152,17 @@ export async function GET() {
       ? ((currentMonthCustomers - previousMonthCustomers) / previousMonthCustomers * 100).toFixed(0)
       : 0;
 
-    // Format upcoming events
+    // Format upcoming events with full details
     const upcomingEvents = classes.map(cls => ({
       id: cls.id,
       title: cls.program?.name || 'Class',
       startTime: cls.start_time,
+      endTime: cls.end_time,
       bookings: cls.bookings?.length || 0,
       capacity: cls.capacity,
-      instructor: cls.instructor_name
+      instructor: cls.instructor_name || 'TBD',
+      location: cls.location || 'Studio',
+      duration: cls.duration_minutes || 60
     }));
 
     // Calculate membership breakdown

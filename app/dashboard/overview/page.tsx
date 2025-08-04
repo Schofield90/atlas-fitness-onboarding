@@ -101,7 +101,10 @@ export default function DashboardOverview() {
       bookings: event.bookings,
       capacity: event.capacity,
       instructor: event.instructor,
-      startTime: event.startTime
+      location: event.location,
+      duration: event.duration,
+      startTime: event.startTime,
+      endTime: event.endTime
     })) || [];
   };
 
@@ -296,14 +299,20 @@ export default function DashboardOverview() {
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="text-sm font-medium text-gray-300 mb-1">
-                              {new Date(event.startTime).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} - {event.time}
+                              {new Date(event.startTime).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} - {event.time}
                             </div>
-                            <div className="text-white font-medium group-hover:text-orange-400 transition-colors">
-                              [{event.instructor?.substring(0, 2).toUpperCase() || 'TBD'}] {event.title}
+                            <div className="text-white font-medium group-hover:text-orange-400 transition-colors mb-1">
+                              {event.title}
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              {event.instructor} • {event.location} • {event.duration || 60} mins
                             </div>
                           </div>
                           <div className="text-right ml-4">
                             <div className="text-white font-medium">{event.bookings}/{event.capacity}</div>
+                            <div className="text-xs text-gray-400">
+                              {event.capacity - event.bookings} left
+                            </div>
                           </div>
                         </div>
                       </div>
