@@ -6,26 +6,60 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient();
     const searchParams = request.nextUrl.searchParams;
     const organizationId = searchParams.get('organizationId');
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
     
     if (!organizationId) {
       return NextResponse.json({ error: 'Organization ID required' }, { status: 400 });
     }
 
+    // Use provided dates or default to next 7 days
+    const start = startDate ? new Date(startDate) : new Date();
+    const end = endDate ? new Date(endDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
     // Get all class sessions with program details and booking count
+    console.log('[API] Fetching classes for org:', organizationId, 'Date range:', start.toISOString(), 'to', end.toISOString());
+    
     const { data: classes, error } = await supabase
       .from('class_sessions')
       .select(`
         *,
         program:programs(name, description, price_pennies),
-        bookings(id)
+        bookings!left(
+          id,
+          customer_id,
+          status,
+          created_at
+        )
       `)
       .eq('organization_id', organizationId)
-      .gte('start_time', new Date().toISOString())
+      .gte('start_time', start.toISOString())
+      .lte('start_time', end.toISOString())
       .order('start_time', { ascending: true });
+    
+    console.log('[API] Raw query result - class count:', classes?.length);
+    console.log('[API] Sample class with bookings:', classes?.[0] ? {
+      id: classes[0].id,
+      start_time: classes[0].start_time,
+      bookings_count: classes[0].bookings?.length || 0,
+      bookings: classes[0].bookings
+    } : 'No classes found');
 
     if (error) {
       console.error('Error fetching classes:', error);
       return NextResponse.json({ error: 'Failed to fetch classes' }, { status: 500 });
+    }
+
+    // Log all classes with bookings for debugging
+    if (classes && classes.length > 0) {
+      const classesWithBookings = classes.filter(c => c.bookings && c.bookings.length > 0);
+      console.log('API: Classes with bookings:', classesWithBookings.length);
+      classesWithBookings.forEach(cls => {
+        console.log(`Class ${cls.id} at ${cls.start_time}:`, {
+          bookingsCount: cls.bookings?.length || 0,
+          bookings: cls.bookings
+        });
+      });
     }
 
     return NextResponse.json({ classes });

@@ -13,6 +13,8 @@ import SelectedClassDetails from '@/app/components/booking/SelectedClassDetails'
 import AddClassModal from '@/app/components/booking/AddClassModal';
 import { getCurrentUserOrganization } from '@/app/lib/organization-service';
 
+export const dynamic = 'force-dynamic';
+
 export default function BookingManagement() {
   const [showAddClass, setShowAddClass] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -20,42 +22,109 @@ export default function BookingManagement() {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [calendarView, setCalendarView] = useState<'day' | 'week' | 'month'>('week');
+  const [currentDate, setCurrentDate] = useState(new Date());
   
   // Get organization ID and fetch classes
   useEffect(() => {
     const initializeBooking = async () => {
       try {
         const { organizationId: orgId, error } = await getCurrentUserOrganization();
-        if (!error && orgId) {
-          setOrganizationId(orgId);
-          fetchClasses(orgId);
-        } else {
-          console.error('Failed to get organization:', error);
-          // Use hardcoded organization ID as fallback for testing
-          const fallbackOrgId = '63589490-8f55-4157-bd3a-e141594b740e'; // Atlas Fitness
-          console.log('Using fallback organization ID:', fallbackOrgId);
-          setOrganizationId(fallbackOrgId);
-          fetchClasses(fallbackOrgId);
-        }
+        console.log('Current user organization:', { orgId, error });
+        
+        // Always use the correct organization ID for now
+        const correctOrgId = '63589490-8f55-4157-bd3a-e141594b748e';
+        console.log('Using organization ID:', correctOrgId);
+        setOrganizationId(correctOrgId);
       } catch (error) {
         console.error('Error initializing booking:', error);
         // Use hardcoded organization ID as fallback for testing
-        const fallbackOrgId = '63589490-8f55-4157-bd3a-e141594b740e'; // Atlas Fitness
-        console.log('Using fallback organization ID:', fallbackOrgId);
-        setOrganizationId(fallbackOrgId);
-        fetchClasses(fallbackOrgId);
+        const correctOrgId = '63589490-8f55-4157-bd3a-e141594b748e'; // Atlas Fitness
+        console.log('Using fallback organization ID:', correctOrgId);
+        setOrganizationId(correctOrgId);
       }
     };
     
     initializeBooking();
   }, []);
   
-  const fetchClasses = async (orgId: string) => {
+  // Fetch classes when organization ID or date range changes
+  useEffect(() => {
+    if (organizationId) {
+      const range = getDateRange(currentDate, calendarView);
+      fetchClasses(organizationId, range.start, range.end);
+    }
+  }, [organizationId, currentDate, calendarView]);
+  
+  // Helper function to get date range based on view type
+  const getDateRange = (date: Date, view: 'day' | 'week' | 'month') => {
+    const start = new Date(date);
+    const end = new Date(date);
+    
+    switch (view) {
+      case 'day':
+        start.setHours(0, 0, 0, 0);
+        end.setHours(23, 59, 59, 999);
+        break;
+      case 'week':
+        // Start from Sunday
+        const dayOfWeek = start.getDay();
+        start.setDate(start.getDate() - dayOfWeek);
+        start.setHours(0, 0, 0, 0);
+        end.setDate(start.getDate() + 6);
+        end.setHours(23, 59, 59, 999);
+        break;
+      case 'month':
+        start.setDate(1);
+        start.setHours(0, 0, 0, 0);
+        end.setMonth(end.getMonth() + 1);
+        end.setDate(0); // Last day of month
+        end.setHours(23, 59, 59, 999);
+        break;
+    }
+    
+    return { start, end };
+  };
+  
+  const fetchClasses = async (orgId: string, startDate?: Date, endDate?: Date) => {
     try {
+      console.log('BookingPage: fetchClasses called with orgId:', orgId, 'dates:', startDate, endDate);
       setLoading(true);
-      const response = await fetch(`/api/booking/classes?organizationId=${orgId}`);
+      
+      // Calculate date range based on view and currentDate if not provided
+      if (!startDate || !endDate) {
+        const range = getDateRange(currentDate, calendarView);
+        startDate = range.start;
+        endDate = range.end;
+      }
+      
+      const params = new URLSearchParams({
+        organizationId: orgId,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString()
+      });
+      
+      const response = await fetch(`/api/booking/classes?${params}&t=${Date.now()}&r=${Math.random()}`, {
+        cache: 'no-store',
+        next: { revalidate: 0 },
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
       if (response.ok) {
         const data = await response.json();
+        console.log('API Response - Full data:', data);
+        console.log('API Response - Number of classes:', data.classes?.length);
+        if (data.classes && data.classes.length > 0) {
+          console.log('API Response - First class raw:', data.classes[0]);
+          console.log('API Response - First class bookings:', {
+            bookings: data.classes[0].bookings,
+            isArray: Array.isArray(data.classes[0].bookings),
+            length: data.classes[0].bookings?.length
+          });
+        }
         // Transform the classes to match the expected format
         const transformedClasses = (data.classes || []).map((cls: any) => {
           const startDate = new Date(cls.start_time);
@@ -63,7 +132,9 @@ export default function BookingManagement() {
           const hour = startDate.getHours();
           const minutes = startDate.getMinutes();
           
-          // Convert day (Sunday = 0) to Monday-first (Monday = 0)
+          // Convert to match weekDays array in PremiumCalendarGrid: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+          // JavaScript: Sunday = 0, Monday = 1, etc.
+          // We need: Monday = 0, Tuesday = 1, ..., Sunday = 6
           const day = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
           
           // Calculate time slot for 30-minute intervals
@@ -81,7 +152,7 @@ export default function BookingManagement() {
             instructor: cls.instructor_name,
             time: startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
             duration: cls.duration_minutes,
-            bookings: cls.bookings?.length || 0,
+            bookings: Array.isArray(cls.bookings) ? cls.bookings.filter(b => b.status !== 'cancelled').length : 0,
             capacity: cls.capacity,
             color: 'orange' as const,
             earnings: `£${((cls.program?.price_pennies || 0) / 100).toFixed(0)}`,
@@ -93,6 +164,28 @@ export default function BookingManagement() {
         }).filter(cls => cls !== null); // Remove null entries for classes outside time range
         
         console.log(`Loaded ${transformedClasses.length} classes for the calendar`);
+        
+        // Debug: Show classes by day
+        const classesByDay = transformedClasses.reduce((acc, cls) => {
+          if (!acc[cls.day]) acc[cls.day] = [];
+          acc[cls.day].push(`${cls.time} - ${cls.title}`);
+          return acc;
+        }, {} as Record<number, string[]>);
+        console.log('Classes by day (0=Mon, 6=Sun):', classesByDay);
+        
+        // Log classes with bookings
+        const classesWithBookings = transformedClasses.filter(c => c.bookings > 0);
+        console.log(`Classes with bookings: ${classesWithBookings.length}`, classesWithBookings);
+        
+        console.log('Raw API data for first class:', data.classes[0]);
+        console.log('First class booking details:', transformedClasses[0] ? {
+          id: transformedClasses[0].id,
+          title: transformedClasses[0].title,
+          bookings: transformedClasses[0].bookings,
+          capacity: transformedClasses[0].capacity,
+          bookingsLength: transformedClasses[0].bookings?.length,
+          rawBookings: data.classes[0]?.bookings
+        } : 'No classes');
         setClasses(transformedClasses);
       }
     } catch (error) {
@@ -147,6 +240,19 @@ export default function BookingManagement() {
           </div>
           
           <div className="flex items-center gap-3">
+            <Button 
+              variant="outline" 
+              className="border-slate-700"
+              onClick={() => {
+                console.log('Manual refresh triggered');
+                if (organizationId) {
+                  const range = getDateRange(currentDate, calendarView);
+                  fetchClasses(organizationId, range.start, range.end);
+                }
+              }}
+            >
+              Refresh
+            </Button>
             <div className="relative">
               <Button 
                 variant="outline" 
@@ -229,9 +335,40 @@ export default function BookingManagement() {
         
         {/* Calendar/Schedule View */}
         <div className="flex-1 p-6 overflow-hidden">
-          <CalendarViewToggle />
+          <CalendarViewToggle 
+            view={calendarView}
+            currentDate={currentDate}
+            onViewChange={(newView) => {
+              setCalendarView(newView);
+              if (organizationId) {
+                const range = getDateRange(currentDate, newView);
+                fetchClasses(organizationId, range.start, range.end);
+              }
+            }}
+            onDateChange={(newDate) => {
+              setCurrentDate(newDate);
+              if (organizationId) {
+                const range = getDateRange(newDate, calendarView);
+                fetchClasses(organizationId, range.start, range.end);
+              }
+            }}
+          />
           <div className="h-[calc(100%-80px)] overflow-auto">
-            <PremiumCalendarGrid classes={classes} loading={loading} />
+            <PremiumCalendarGrid 
+              classes={classes} 
+              loading={loading}
+              view={calendarView}
+              currentDate={currentDate}
+              onClassUpdate={() => {
+                console.log('BookingPage: onClassUpdate callback triggered, organizationId:', organizationId);
+                if (organizationId) {
+                  const range = getDateRange(currentDate, calendarView);
+                  fetchClasses(organizationId, range.start, range.end);
+                } else {
+                  console.error('BookingPage: Cannot refresh - organizationId is null');
+                }
+              }}
+            />
           </div>
         </div>
         

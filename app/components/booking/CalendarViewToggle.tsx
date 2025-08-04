@@ -1,10 +1,20 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Calendar, Grid, List, ChevronLeft, ChevronRight } from 'lucide-react';
 import Button from '../ui/Button';
 
-const CalendarViewToggle: React.FC = () => {
-  const [view, setView] = useState<'day' | 'week' | 'month'>('week');
-  const [currentDate, setCurrentDate] = useState(new Date());
+interface CalendarViewToggleProps {
+  view: 'day' | 'week' | 'month';
+  currentDate: Date;
+  onViewChange: (view: 'day' | 'week' | 'month') => void;
+  onDateChange: (date: Date) => void;
+}
+
+const CalendarViewToggle: React.FC<CalendarViewToggleProps> = ({ 
+  view, 
+  currentDate, 
+  onViewChange, 
+  onDateChange 
+}) => {
   
   const formatDateRange = () => {
     const start = new Date(currentDate);
@@ -45,7 +55,7 @@ const CalendarViewToggle: React.FC = () => {
         break;
     }
     
-    setCurrentDate(newDate);
+    onDateChange(newDate);
   };
   
   return (
@@ -79,7 +89,7 @@ const CalendarViewToggle: React.FC = () => {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setCurrentDate(new Date())}
+          onClick={() => onDateChange(new Date())}
         >
           Today
         </Button>
@@ -89,7 +99,7 @@ const CalendarViewToggle: React.FC = () => {
       <div className="flex items-center gap-2">
         <div className="flex bg-gray-800 border border-gray-700 rounded-lg p-1">
           <button
-            onClick={() => setView('day')}
+            onClick={() => onViewChange('day')}
             className={`
               px-3 py-1.5 text-sm font-medium rounded-md transition-colors
               ${view === 'day' 
@@ -101,7 +111,7 @@ const CalendarViewToggle: React.FC = () => {
             Day
           </button>
           <button
-            onClick={() => setView('week')}
+            onClick={() => onViewChange('week')}
             className={`
               px-3 py-1.5 text-sm font-medium rounded-md transition-colors
               ${view === 'week' 
@@ -113,7 +123,7 @@ const CalendarViewToggle: React.FC = () => {
             Week
           </button>
           <button
-            onClick={() => setView('month')}
+            onClick={() => onViewChange('month')}
             className={`
               px-3 py-1.5 text-sm font-medium rounded-md transition-colors
               ${view === 'month' 

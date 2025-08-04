@@ -29,6 +29,11 @@ const ClassBlock: React.FC<ClassBlockProps> = ({
 }) => {
   const utilization = (bookings / capacity) * 100;
   
+  // Debug logging
+  React.useEffect(() => {
+    console.log('ClassBlock render:', { title, bookings, capacity });
+  }, [title, bookings, capacity]);
+  
   const getColorClasses = (color: string) => {
     const colors = {
       orange: 'bg-gradient-to-br from-orange-600/20 to-orange-700/30 border-orange-600/50 hover:from-orange-600/30 hover:to-orange-700/40',
@@ -50,7 +55,7 @@ const ClassBlock: React.FC<ClassBlockProps> = ({
   return (
     <div
       onClick={() => {
-        console.log('ClassBlock clicked:', title);
+        console.log('ClassBlock clicked:', { title, bookings, capacity });
         if (onSelect) onSelect();
       }}
       className={`

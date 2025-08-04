@@ -10,7 +10,30 @@ const timeSlots = [
   '6:00 PM', '6:30 PM', '7:00 PM', '7:30 PM', '8:00 PM', '8:30 PM', '9:00 PM'
 ];
 
-const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+// Get days array based on view type
+const getDaysForView = (view: 'day' | 'week' | 'month', date: Date) => {
+  if (view === 'day') {
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    return [dayNames[date.getDay()]];
+  } else if (view === 'week') {
+    return weekDays;
+  } else {
+    // For month view, generate days of the month
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    
+    const days = [];
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push(i.toString());
+    }
+    return days;
+  }
+};
 
 // Mock class data
 const mockClasses = [
@@ -103,9 +126,18 @@ const mockClasses = [
 interface PremiumCalendarGridProps {
   classes?: any[];
   loading?: boolean;
+  onClassUpdate?: () => void;
+  view?: 'day' | 'week' | 'month';
+  currentDate?: Date;
 }
 
-const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({ classes = [], loading = false }) => {
+const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({ 
+  classes = [], 
+  loading = false, 
+  onClassUpdate,
+  view = 'week',
+  currentDate = new Date()
+}) => {
   const [selectedClass, setSelectedClass] = useState<any | null>(null);
   const [showSessionDetail, setShowSessionDetail] = useState(false);
   
@@ -113,6 +145,18 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({ classes = [],
     const filtered = classes.filter(cls => cls.day === dayIndex && cls.timeSlot === timeIndex);
     if (filtered.length > 0) {
       console.log(`Found ${filtered.length} classes for day ${dayIndex}, timeSlot ${timeIndex}:`, filtered);
+      // If multiple classes at same time, pick the one closest to current date
+      if (filtered.length > 1) {
+        const now = new Date();
+        filtered.sort((a, b) => {
+          const dateA = new Date(a.startTime);
+          const dateB = new Date(b.startTime);
+          const diffA = Math.abs(dateA.getTime() - now.getTime());
+          const diffB = Math.abs(dateB.getTime() - now.getTime());
+          return diffA - diffB;
+        });
+        console.log('Multiple classes found, sorted by closest date. Using:', filtered[0]);
+      }
     }
     return filtered;
   };
@@ -136,6 +180,8 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({ classes = [],
     );
   }
   
+  const days = getDaysForView(view, currentDate);
+  
   if (!classes || classes.length === 0) {
     return (
       <div className="bg-gray-800 rounded-xl border border-gray-700 p-8">
@@ -152,6 +198,140 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({ classes = [],
     );
   }
   
+  // Render different layouts based on view type
+  if (view === 'day') {
+    return (
+      <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-2xl">
+        <div className="grid grid-cols-2 h-full">
+          {/* Time column */}
+          <div className="border-r border-gray-700 bg-gray-800/50">
+            <div className="h-16 border-b border-gray-700 flex items-center justify-center">
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                Time
+              </span>
+            </div>
+            {timeSlots.map((time, index) => (
+              <div
+                key={index}
+                className="h-16 border-b border-gray-700 px-3 py-1 flex items-start justify-end"
+              >
+                <span className="text-xs text-gray-500 font-medium">
+                  {time}
+                </span>
+              </div>
+            ))}
+          </div>
+          
+          {/* Single day column */}
+          <div className="border-r border-gray-700 last:border-r-0">
+            <div className="h-16 border-b border-gray-700 p-3 bg-gray-800/30">
+              <div className="text-center">
+                <div className="font-semibold text-white text-sm">
+                  {currentDate.toLocaleDateString('en-GB', { weekday: 'long' })}
+                </div>
+                <div className="text-xs text-gray-400 mt-1">
+                  {currentDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                </div>
+              </div>
+            </div>
+            
+            {/* Time slots for the day */}
+            <div className="relative">
+              {timeSlots.map((_, timeIndex) => {
+                // For day view, we need to filter classes by the exact date
+                const dayClasses = classes.filter(cls => {
+                  const classDate = new Date(cls.startTime);
+                  return classDate.toDateString() === currentDate.toDateString() && 
+                         cls.timeSlot === timeIndex;
+                });
+                
+                return (
+                  <div
+                    key={timeIndex}
+                    className="h-16 border-b border-gray-700 relative"
+                  >
+                    {dayClasses.slice(0, 1).map((cls) => (
+                      <div
+                        key={cls.id}
+                        className="absolute inset-x-1 pointer-events-none"
+                        style={{ 
+                          top: '2px',
+                          width: 'calc(100% - 8px)'
+                        }}
+                      >
+                        <div className="pointer-events-auto">
+                          <ClassBlock
+                            {...cls}
+                            onSelect={() => handleClassClick(cls)}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+        
+        {/* Session Detail Modal */}
+        <SessionDetailModal
+          isOpen={showSessionDetail}
+          onClose={() => {
+            setShowSessionDetail(false);
+            setSelectedClass(null);
+          }}
+          session={selectedClass}
+          onUpdate={onClassUpdate}
+        />
+      </div>
+    );
+  }
+  
+  // Month view
+  if (view === 'month') {
+    // For month view, create a simple list-style layout
+    const classesByDate = classes.reduce((acc, cls) => {
+      const date = new Date(cls.startTime).toDateString();
+      if (!acc[date]) acc[date] = [];
+      acc[date].push(cls);
+      return acc;
+    }, {} as Record<string, any[]>);
+    
+    return (
+      <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-2xl p-4">
+        <div className="space-y-4 max-h-[600px] overflow-y-auto">
+          {Object.entries(classesByDate).sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime()).map(([date, dateClasses]) => (
+            <div key={date} className="border-b border-gray-700 pb-4 last:border-0">
+              <h3 className="text-sm font-semibold text-gray-300 mb-2">
+                {new Date(date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                {dateClasses.map(cls => (
+                  <div key={cls.id} className="cursor-pointer" onClick={() => handleClassClick(cls)}>
+                    <ClassBlock {...cls} onSelect={() => handleClassClick(cls)} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        {/* Session Detail Modal */}
+        <SessionDetailModal
+          isOpen={showSessionDetail}
+          onClose={() => {
+            setShowSessionDetail(false);
+            setSelectedClass(null);
+          }}
+          session={selectedClass}
+          onUpdate={onClassUpdate}
+        />
+      </div>
+    );
+  }
+  
+  // Default week view
   return (
     <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-2xl">
       <div className="grid grid-cols-8 h-full">
@@ -194,8 +374,8 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({ classes = [],
                   key={timeIndex}
                   className="h-16 border-b border-gray-700 relative"
                 >
-                  {/* Classes in this time slot */}
-                  {getClassesForDayAndTime(dayIndex, timeIndex).map((cls, classIndex) => (
+                  {/* Classes in this time slot - only show the first (most recent) one */}
+                  {getClassesForDayAndTime(dayIndex, timeIndex).slice(0, 1).map((cls, classIndex) => (
                     <div
                       key={cls.id}
                       className="absolute inset-x-1 pointer-events-none"
@@ -244,6 +424,7 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({ classes = [],
           setSelectedClass(null);
         }}
         session={selectedClass}
+        onUpdate={onClassUpdate}
       />
     </div>
   );

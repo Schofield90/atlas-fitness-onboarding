@@ -42,7 +42,13 @@ export default function SessionDetailModal({ isOpen, onClose, session, onUpdate 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (showOptionsMenu && !(event.target as Element).closest('.attendee-options-menu')) {
+      if (showOptionsMenu && 
+          !showOptionsMenu.includes('main') && 
+          !(event.target as Element).closest('.attendee-options-menu')) {
+        setShowOptionsMenu(null);
+      }
+      if (showOptionsMenu === 'main' && 
+          !(event.target as Element).closest('.main-options-menu')) {
         setShowOptionsMenu(null);
       }
     };
@@ -147,7 +153,13 @@ export default function SessionDetailModal({ isOpen, onClose, session, onUpdate 
 
   const handleCustomerRegistration = async (customer: any, registrationType: 'membership' | 'drop-in' | 'free', membershipId?: string) => {
     try {
-      console.log('Registering customer:', { customer, session, registrationType, membershipId });
+      console.log('Registering customer:', { 
+        customer, 
+        sessionId: session.id,
+        sessionDate: session.startTime,
+        registrationType, 
+        membershipId 
+      });
       
       // Use API endpoint to register customer
       const response = await fetch('/api/booking/add-customer', {
@@ -173,8 +185,33 @@ export default function SessionDetailModal({ isOpen, onClose, session, onUpdate 
       // Refresh attendees list
       fetchAttendees();
       
+      // Call onUpdate to refresh the main calendar
+      console.log('SessionDetailModal: Calling onUpdate callback, onUpdate exists:', !!onUpdate);
+      if (onUpdate) {
+        console.log('[REFRESH] Starting calendar refresh...');
+        await onUpdate();
+        console.log('[REFRESH] Calendar refresh completed');
+        
+        // Wait a bit to ensure data is committed
+        await new Promise(resolve => setTimeout(resolve, 500));
+        console.log('[REFRESH] Additional wait completed');
+      } else {
+        console.warn('SessionDetailModal: No onUpdate callback provided');
+      }
+      
       // Show success message
-      console.log('Customer registered successfully');
+      console.log('Customer registered successfully for session:', session.id);
+      console.log('Session details:', { 
+        id: session.id, 
+        startTime: session.startTime,
+        title: session.title 
+      });
+      
+      // Force a page refresh as a temporary workaround
+      if (!onUpdate) {
+        console.log('No onUpdate callback, forcing window reload');
+        window.location.reload();
+      }
     } catch (error: any) {
       console.error('Error registering customer:', error);
       alert(`Failed to register customer: ${error.message || 'Unknown error'}`);
@@ -304,9 +341,12 @@ export default function SessionDetailModal({ isOpen, onClose, session, onUpdate 
                 <ChevronRight className="w-5 h-5" />
               </button>
               
-              <div className="relative ml-4">
+              <div className="relative ml-4 main-options-menu">
                 <button 
-                  onClick={() => setShowOptionsMenu(showOptionsMenu ? null : 'main')}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowOptionsMenu(showOptionsMenu === 'main' ? null : 'main');
+                  }}
                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2"
                 >
                   Options
@@ -315,9 +355,9 @@ export default function SessionDetailModal({ isOpen, onClose, session, onUpdate 
                 
                 {showOptionsMenu === 'main' && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
-                    <button className="w-full text-left px-4 py-2 hover:bg-gray-100">Edit Session</button>
-                    <button className="w-full text-left px-4 py-2 hover:bg-gray-100">Duplicate</button>
-                    <button className="w-full text-left px-4 py-2 hover:bg-gray-100">Cancel Session</button>
+                    <button className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700">Edit Session</button>
+                    <button className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700">Duplicate</button>
+                    <button className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700">Cancel Session</button>
                     <button className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600">Delete</button>
                   </div>
                 )}
