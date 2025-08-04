@@ -48,7 +48,7 @@ export async function GET() {
         start_time: specificClass.start_time,
         isInFuture: new Date(specificClass.start_time) > now,
         bookingsCount: specificClass.bookings?.length || 0,
-        program: specificClass.program?.name
+        program: (specificClass.program as any)
       } : null,
       allClasses: allClasses?.map(c => ({
         id: c.id,
@@ -58,7 +58,7 @@ export async function GET() {
         instructor: c.instructor_name,
         capacity: c.capacity,
         bookingsCount: c.bookings?.length || 0,
-        program: Array.isArray(c.program) ? c.program[0]?.name : c.program?.name
+        program: c.program as any
       })),
       errors: {
         classError,
