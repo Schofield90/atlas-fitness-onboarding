@@ -306,14 +306,14 @@ export default function SessionDetailModal({ isOpen, onClose, session, onUpdate 
               
               <div className="relative ml-4">
                 <button 
-                  onClick={() => setShowOptionsMenu(!showOptionsMenu)}
+                  onClick={() => setShowOptionsMenu(showOptionsMenu ? null : 'main')}
                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2"
                 >
                   Options
                   <MoreVertical className="w-4 h-4" />
                 </button>
                 
-                {showOptionsMenu && (
+                {showOptionsMenu === 'main' && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
                     <button className="w-full text-left px-4 py-2 hover:bg-gray-100">Edit Session</button>
                     <button className="w-full text-left px-4 py-2 hover:bg-gray-100">Duplicate</button>
