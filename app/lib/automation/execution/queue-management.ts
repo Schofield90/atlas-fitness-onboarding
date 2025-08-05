@@ -1159,7 +1159,11 @@ export class QueueManagementService {
   // Queue management operations
   async pauseAllQueues(): Promise<boolean> {
     try {
-      await pauseQueue('all', 'Manual pause via management service')
+      await Promise.all([
+        pauseQueue('workflow'),
+        pauseQueue('priority'),
+        pauseQueue('delayed')
+      ])
       return true
     } catch (error) {
       console.error('Failed to pause all queues:', error)
@@ -1169,7 +1173,11 @@ export class QueueManagementService {
 
   async resumeAllQueues(): Promise<boolean> {
     try {
-      await resumeQueue('all', 'Manual resume via management service')
+      await Promise.all([
+        resumeQueue('workflow'),
+        resumeQueue('priority'),
+        resumeQueue('delayed')
+      ])
       return true
     } catch (error) {
       console.error('Failed to resume all queues:', error)
