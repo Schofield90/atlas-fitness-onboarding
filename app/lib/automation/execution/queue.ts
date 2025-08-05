@@ -53,6 +53,7 @@ export enum JobPriority {
 
 // Job data types
 export interface JobData {
+  type?: JobType
   workflowId?: string
   executionId?: string
   organizationId?: string

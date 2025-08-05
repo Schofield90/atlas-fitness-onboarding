@@ -810,6 +810,10 @@ export class JobProcessorFactory {
   }
 
   static async processJob(data: JobData): Promise<any> {
+    if (!data.type) {
+      throw new Error('Job type is required')
+    }
+    
     const processor = this.get(data.type)
     
     if (!processor) {
