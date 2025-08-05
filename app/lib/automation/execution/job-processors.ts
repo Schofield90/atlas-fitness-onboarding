@@ -677,7 +677,7 @@ export class WhatsAppMessageProcessor extends BaseJobProcessor {
         message: personalizedMessage,
         template_name: templateName,
         status: 'sent',
-        external_id: result.id,
+        external_id: result.messageSid,
         sent_at: new Date().toISOString(),
         created_at: new Date().toISOString()
       })
@@ -688,7 +688,7 @@ export class WhatsAppMessageProcessor extends BaseJobProcessor {
       recipientId,
       message: personalizedMessage,
       templateName,
-      externalId: result.id,
+      externalId: result.messageSid,
       sentAt: new Date().toISOString()
     }
   }
