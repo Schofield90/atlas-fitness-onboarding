@@ -527,8 +527,7 @@ export async function resumeQueue(queueName: 'workflow' | 'priority' | 'delayed'
   await queue.resume()
 }
 
-// Export configuration and types
-export type { JobData, EnqueueOptions, QueueConfig }
+// Export configuration (types are already exported as interfaces above)
 export { redisConnection }
 
 // Clean up old jobs
