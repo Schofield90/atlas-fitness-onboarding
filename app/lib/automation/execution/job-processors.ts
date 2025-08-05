@@ -173,7 +173,7 @@ export class LeadQualificationProcessor extends BaseJobProcessor {
       .eq('organization_id', data.organizationId)
       .single()
 
-    return !error && lead
+    return !error && !!lead
   }
 
   async execute(data: JobData): Promise<any> {
