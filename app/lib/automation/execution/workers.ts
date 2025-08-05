@@ -972,5 +972,4 @@ export async function getWorkersHealth(): Promise<WorkerHealth[]> {
   return healthStatuses
 }
 
-// Export worker types
-export type { WorkerConfig, WorkerHealth }
+// Worker types are already exported as interfaces above
