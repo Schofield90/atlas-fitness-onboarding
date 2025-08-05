@@ -776,11 +776,11 @@ export class WorkflowExecutionEngine {
   
   // Static method to create a queue-enabled execution engine
   static createQueueEnabled(): WorkflowExecutionEngine {
-    return new WorkflowExecutionEngine({ useQueue: true });
+    return new WorkflowExecutionEngine();
   }
   
   // Static method to create a direct execution engine (no queue)
   static createDirect(): WorkflowExecutionEngine {
-    return new WorkflowExecutionEngine({ useQueue: false });
+    return new WorkflowExecutionEngine();
   }
 }
