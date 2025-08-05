@@ -9,6 +9,7 @@ interface SendWhatsAppOptions {
   to: string;
   body: string;
   organizationId?: string;
+  templateName?: string;
 }
 
 export async function sendWhatsApp(options: SendWhatsAppOptions) {
