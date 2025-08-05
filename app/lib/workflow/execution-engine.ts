@@ -386,26 +386,6 @@ export class WorkflowExecutionEngine {
       .eq('id', this.executionId);
   }
 
-  private async updateWorkflowStats(workflowId: string, success: boolean) {
-    if (!this.supabase) return;
-    
-    const updates: any = {
-      total_executions: this.supabase.raw('total_executions + 1'),
-      last_run_at: new Date().toISOString()
-    };
-    
-    if (success) {
-      updates.successful_executions = this.supabase.raw('successful_executions + 1');
-    } else {
-      updates.failed_executions = this.supabase.raw('failed_executions + 1');
-    }
-    
-    await this.supabase
-      .from('workflows')
-      .update(updates)
-      .eq('id', workflowId);
-  }
-
   // Enhanced workflow statistics with execution time tracking
   private async updateWorkflowStats(workflowId: string, success: boolean, executionTimeMs?: number) {
     if (!this.supabase) return;
