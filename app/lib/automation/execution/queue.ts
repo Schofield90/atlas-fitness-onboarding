@@ -55,6 +55,7 @@ export interface JobData {
   nodeId?: string
   actionType?: string
   payload?: any
+  context?: any
 }
 
 export interface EnqueueOptions {
