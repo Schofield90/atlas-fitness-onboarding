@@ -48,7 +48,6 @@ export interface QueueHealthStatus {
     workflow: QueueStatus
     priority: QueueStatus
     delayed: QueueStatus
-    deadLetter: QueueStatus
   }
   workers: WorkerHealth[]
   redis: RedisStatus
@@ -301,8 +300,7 @@ export class QueueManagementService {
       const queues = {
         workflow: await this.buildQueueStatus('workflow', queueStats.workflow),
         priority: await this.buildQueueStatus('priority', queueStats.priority),
-        delayed: await this.buildQueueStatus('delayed', queueStats.delayed),
-        deadLetter: await this.buildQueueStatus('deadLetter', queueStats.deadLetter)
+        delayed: await this.buildQueueStatus('delayed', queueStats.delayed)
       }
 
       // Determine overall health
