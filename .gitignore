@@ -34,7 +34,6 @@ Google Drive
 .claude.json
 .claude.json.backup
 .claude.json.corrupted.*
-.claude/
 
 # Ads and tracking
 .BidstackAds-*/
