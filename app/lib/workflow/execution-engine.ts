@@ -667,11 +667,7 @@ export class WorkflowExecutionEngine {
     await sendSMS({
       to: recipientPhone,
       body: smsContent,
-      organizationId,
-      metadata: {
-        workflowId: context._workflowId,
-        executionId: context._executionId
-      }
+      organizationId
     });
     
     console.log(`📱 SMS sent to ${recipientPhone}`);
