@@ -5,7 +5,6 @@ import {
   workflowQueue, 
   priorityQueue, 
   delayedQueue, 
-  deadLetterQueue,
   redisConnection,
   getQueueStats,
   pauseQueue,
