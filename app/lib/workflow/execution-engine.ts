@@ -514,7 +514,8 @@ export class WorkflowExecutionEngine {
           break;
           
         case 'Wait':
-          return await this.executeWaitEnhanced(node, context, workflow);
+          await this.executeWait(nodeData);
+          break;
           
         default:
           console.warn(`Unknown action type: ${label}`);
