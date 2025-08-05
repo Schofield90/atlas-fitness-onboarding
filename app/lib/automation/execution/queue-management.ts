@@ -343,8 +343,7 @@ export class QueueManagementService {
         queues: {
           workflow: this.createErrorQueueStatus('workflow'),
           priority: this.createErrorQueueStatus('priority'),
-          delayed: this.createErrorQueueStatus('delayed'),
-          deadLetter: this.createErrorQueueStatus('deadLetter')
+          delayed: this.createErrorQueueStatus('delayed')
         },
         workers: [],
         redis: this.createErrorRedisStatus(),
