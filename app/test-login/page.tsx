@@ -1,56 +1,90 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
+import { useState } from 'react';
+import { createClient } from '@/app/lib/supabase/client';
 
-export default function TestLoginPage() {
+export default function TestLogin() {
+  const [email, setEmail] = useState('sam@atlas-gyms.co.uk');
+  const [password, setPassword] = useState('');
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async () => {
+    setLoading(true);
+    setMessage('');
+    
+    try {
+      const supabase = createClient();
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        setMessage('Error: ' + error.message);
+      } else if (data?.user) {
+        setMessage('Success! Redirecting...');
+        window.location.href = '/dashboard';
+      } else {
+        setMessage('No user data returned');
+      }
+    } catch (err: any) {
+      setMessage('Catch error: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-      <div className="bg-gray-800 p-8 rounded-lg shadow-lg max-w-md w-full">
-        <h1 className="text-2xl font-bold text-white mb-6">Atlas Fitness - Local Development</h1>
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-gray-800 rounded-lg p-8">
+        <h1 className="text-2xl font-bold text-white mb-6">Test Login</h1>
         
         <div className="space-y-4">
-          <div className="p-4 bg-blue-900/50 rounded-lg">
-            <p className="text-white mb-2">✅ Your local server is working!</p>
-            <p className="text-gray-300 text-sm">Now you need to log in to access the app.</p>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+            />
           </div>
           
-          <div className="space-y-3">
-            <Link 
-              href="/login" 
-              className="block w-full bg-blue-600 text-white text-center py-3 px-4 rounded-lg hover:bg-blue-700 transition"
-            >
-              Go to Login Page
-            </Link>
-            
-            <Link 
-              href="/signup" 
-              className="block w-full bg-gray-700 text-white text-center py-3 px-4 rounded-lg hover:bg-gray-600 transition"
-            >
-              Create New Account
-            </Link>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+              className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              placeholder="Enter your password"
+            />
           </div>
           
-          <div className="mt-6 p-4 bg-gray-900 rounded-lg">
-            <p className="text-gray-400 text-sm mb-2">Direct URLs:</p>
-            <ul className="text-xs text-gray-500 space-y-1">
-              <li>• Login: <span className="text-blue-400">http://localhost:3000/login</span></li>
-              <li>• Signup: <span className="text-blue-400">http://localhost:3000/signup</span></li>
-              <li>• Dashboard: <span className="text-blue-400">http://localhost:3000/dashboard</span></li>
-            </ul>
-          </div>
+          <button
+            onClick={handleLogin}
+            disabled={loading || !password}
+            className="w-full py-3 bg-orange-500 text-white font-medium rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Logging in...' : 'Login'}
+          </button>
           
-          <div className="mt-6 text-center">
-            <a 
-              href="https://atlas-fitness-onboarding.vercel.app" 
-              className="text-sm text-gray-400 hover:text-white"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Or use the deployed version →
-            </a>
-          </div>
+          {message && (
+            <div className={message.includes('Error') ? 'p-4 rounded-lg bg-red-900/20 text-red-400' : 'p-4 rounded-lg bg-green-900/20 text-green-400'}>
+              {message}
+            </div>
+          )}
+        </div>
+        
+        <div className="mt-6 text-center">
+          <a href="/login" className="text-blue-400 hover:text-blue-300">
+            ← Back to normal login
+          </a>
         </div>
       </div>
     </div>
-  )
+  );
 }

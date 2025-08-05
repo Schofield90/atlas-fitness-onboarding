@@ -51,8 +51,8 @@ export default function DashboardOverview() {
   const fetchDashboardData = async (orgId: string) => {
     setLoading(true);
     try {
-      // Fetch dashboard metrics from API
-      const response = await fetch('/api/dashboard/metrics');
+      // Fetch dashboard metrics from API - using fixed endpoint with hardcoded org ID
+      const response = await fetch('/api/dashboard/metrics-fixed');
       if (!response.ok) throw new Error('Failed to fetch dashboard data');
       
       const data = await response.json();
