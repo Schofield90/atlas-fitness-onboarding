@@ -29,6 +29,37 @@ A comprehensive CRM platform for gym management with Facebook lead integration a
 - React Query
 - OpenAI API for lead qualification
 
+## 🤖 Claude Code Sub-Agent System
+
+This project uses an advanced multi-agent development approach with 5 specialized AI agents:
+
+### Available Agents
+
+| Agent | Expertise | Use Cases |
+|-------|-----------|-----------|
+| `@database-architect` | PostgreSQL, Supabase, RLS, migrations | Schema design, query optimization, performance tuning |
+| `@api-integration-specialist` | Third-party APIs, webhooks, OAuth | Twilio, Stripe, Meta Ads, Google integrations |
+| `@automation-engine-architect` | BullMQ, Redis, queue systems | Workflow execution, job processing, event handling |
+| `@ai-services-engineer` | OpenAI, Anthropic, ML features | Lead scoring, content generation, conversational AI |
+| `@automation-workflow-architect` | React Flow, visual builders | Workflow design, node systems, UI components |
+
+### How to Use Agents
+
+When working on complex features, engage the appropriate specialist:
+
+```markdown
+# Example: Adding new integration
+1. @api-integration-specialist - Design integration architecture
+2. @database-architect - Create storage schema for integration data
+3. @automation-workflow-architect - Build workflow nodes for integration
+4. @ai-services-engineer - Add intelligent features
+```
+
+### Agent Context Files
+- `.claude/agents/` - Individual agent specifications
+- `.claude/context/` - Shared project context and standards
+- `.claude/CLAUDE.md` - Main configuration and workflow guide
+
 ## Getting Started
 
 1. Clone the repository
@@ -51,6 +82,15 @@ This project is configured for deployment on Vercel. The main branch auto-deploy
 
 **Production URL**: https://atlas-fitness-onboarding.vercel.app
 
-## Development Notes
+## 📋 Documentation
 
-See `CLAUDE.md` for detailed development notes and project status.# Force deployment
+### Development Documentation
+- **`PROGRESS.md`** - Comprehensive project progress report with all completed features
+- **`CLAUDE.md`** - Detailed development notes and current status
+- **`.claude/`** - Sub-agent system documentation and context files
+
+### Key Information
+- **Production URL**: https://atlas-fitness-onboarding.vercel.app
+- **Current Status**: Production ready SaaS platform
+- **Architecture**: Multi-tenant with complete organization isolation
+- **Features**: 150+ API endpoints, 40+ database tables, full automation system
