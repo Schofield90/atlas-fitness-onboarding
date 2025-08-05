@@ -688,11 +688,7 @@ export class WorkflowExecutionEngine {
     await sendWhatsApp({
       to: recipientPhone,
       body: whatsappContent,
-      organizationId,
-      metadata: {
-        workflowId: context._workflowId,
-        executionId: context._executionId
-      }
+      organizationId
     });
     
     console.log(`💬 WhatsApp sent to ${recipientPhone}`);
