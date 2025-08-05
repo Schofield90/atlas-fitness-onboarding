@@ -147,32 +147,20 @@ export async function POST(request: NextRequest) {
           webhookTimestamp: new Date().toISOString()
         };
 
-        // Enqueue workflow execution with enhanced options
-        const enqueueOptions: EnqueueOptions = {
-          priority: workflowPriority,
-          delay: triggerConfig.delay || 0,
-          metadata: {
-            source: 'form_submitted_webhook',
-            formId,
-            formType,
-            leadId: lead?.id,
-            workflowName: workflow.name,
-            organizationId: organizationId,
-            correlationId: `form_${formId}_${Date.now()}`,
-            ...metadata
-          }
-        };
-
+        // Enqueue workflow execution
         const executionId = await enqueueWorkflowExecution(
           workflow.id,
           triggerData,
-          enqueueOptions
+          {
+            priority: workflowPriority === JobPriority.HIGH ? 1 : workflowPriority === JobPriority.NORMAL ? 2 : 3,
+            delay: triggerConfig.delay || 0
+          }
         );
 
         executions.push({
           workflowId: workflow.id,
           workflowName: workflow.name,
-          executionId: typeof executionId === 'string' ? executionId : executionId?.executionId,
+          executionId: executionId,
           status: 'queued',
           priority: workflowPriority,
           queuedAt: new Date().toISOString()
@@ -317,7 +305,7 @@ function determineFormWorkflowPriority(formType: string, formData: any, workflow
   const workflowPriority = workflow.settings?.priority || 'normal';
   
   if (workflowPriority === 'critical' || hasUrgentKeywords || formType === 'emergency') {
-    return JobPriority.CRITICAL;
+    return JobPriority.HIGH;
   }
   
   if (workflowPriority === 'high' || leadScore >= 70 || highPriorityForms.includes(formType) || isHighValueForm) {

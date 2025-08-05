@@ -556,13 +556,7 @@ export class DeadLetterQueueManager {
         },
         {
           priority: recoveryPriority,
-          delay,
-          attempts: 2, // Fewer attempts for recovered jobs
-          metadata: {
-            ...originalJob.data.metadata,
-            isRecovery: true,
-            originalJobId: originalJob.id
-          }
+          delay
         }
       )
 
@@ -784,7 +778,7 @@ export class DeadLetterQueueManager {
 
   private getDLQPriority(classification: string): JobPriority {
     switch (classification) {
-      case 'persistent': return JobPriority.CRITICAL
+      case 'persistent': return JobPriority.HIGH
       case 'configuration': return JobPriority.HIGH
       case 'transient': return JobPriority.NORMAL
       case 'data': return JobPriority.NORMAL
@@ -1147,4 +1141,4 @@ Please investigate and resolve this issue. Update the task status when complete.
 export const deadLetterQueueManager = new DeadLetterQueueManager()
 
 // Export types and classes
-export type { DeadLetterJobData }
+// DeadLetterJobData is already exported above

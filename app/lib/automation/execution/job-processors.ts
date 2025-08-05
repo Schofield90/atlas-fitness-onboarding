@@ -843,12 +843,4 @@ export class JobProcessorFactory {
   }
 }
 
-// Export all processors and factory
-export {
-  WorkflowExecutionProcessor,
-  LeadQualificationProcessor,
-  EmailSequenceProcessor,
-  SMSCampaignProcessor,
-  WhatsAppMessageProcessor,
-  DataSyncProcessor
-}
+// All processors are already exported above

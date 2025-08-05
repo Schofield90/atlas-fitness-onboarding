@@ -127,31 +127,20 @@ export async function POST(request: NextRequest) {
           webhookTimestamp: new Date().toISOString()
         };
 
-        // Enqueue workflow execution with enhanced options
-        const enqueueOptions: EnqueueOptions = {
-          priority: workflowPriority,
-          delay: triggerConfig.delay || 0,
-          metadata: {
-            source: 'lead_created_webhook',
-            leadId: lead.id,
-            leadSource: leadSource,
-            workflowName: workflow.name,
-            organizationId: organizationId,
-            correlationId: `lead_${lead.id}_${Date.now()}`,
-            ...metadata
-          }
-        };
-
+        // Enqueue workflow execution
         const executionId = await enqueueWorkflowExecution(
           workflow.id,
           triggerData,
-          enqueueOptions
+          {
+            priority: workflowPriority === JobPriority.HIGH ? 1 : workflowPriority === JobPriority.NORMAL ? 2 : 3,
+            delay: triggerConfig.delay || 0
+          }
         );
 
         executions.push({
           workflowId: workflow.id,
           workflowName: workflow.name,
-          executionId: typeof executionId === 'string' ? executionId : executionId?.executionId,
+          executionId: executionId,
           status: 'queued',
           priority: workflowPriority,
           queuedAt: new Date().toISOString()
@@ -251,7 +240,7 @@ function determineWorkflowPriority(leadSource: string, workflow: any, lead: any)
   const workflowPriority = workflow.settings?.priority || 'normal';
   
   if (workflowPriority === 'critical' || leadScore >= 90 || isRecentLead) {
-    return JobPriority.CRITICAL;
+    return JobPriority.HIGH;
   }
   
   if (workflowPriority === 'high' || leadScore >= 70 || highPrioritySources.includes(leadSource)) {

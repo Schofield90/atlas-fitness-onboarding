@@ -123,6 +123,10 @@ export default function SimpleWorkflowBuilder() {
   const [emailTemplates, setEmailTemplates] = useState<any[]>([])
   const [availableTags, setAvailableTags] = useState<any[]>([])
   const [loadingConfig, setLoadingConfig] = useState(true)
+  const [showAIAssistant, setShowAIAssistant] = useState(false)
+  const [aiPrompt, setAiPrompt] = useState('')
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([])
 
   // Fetch configuration data on mount
   useEffect(() => {
@@ -274,6 +278,15 @@ export default function SimpleWorkflowBuilder() {
       {/* Canvas */}
       <div className="flex-1 relative">
         <div className="absolute top-4 left-4 z-10 flex gap-2">
+          <button
+            onClick={() => setShowAIAssistant(true)}
+            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg shadow-lg transition-colors flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            AI Assistant
+          </button>
           <button
             onClick={async () => {
               const workflowName = prompt('Enter workflow name:')
@@ -592,6 +605,36 @@ export default function SimpleWorkflowBuilder() {
                 </div>
               )}
 
+              {selectedNode.type === 'action' && selectedNode.data.label === 'Send WhatsApp' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">WhatsApp Message</label>
+                  <textarea
+                    className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    rows={4}
+                    placeholder="Enter WhatsApp message..."
+                    value={selectedNode.data.message || ''}
+                    onChange={(e) => {
+                      const updatedNodes = nodes.map(node => {
+                        if (node.id === selectedNode.id) {
+                          return {
+                            ...node,
+                            data: {
+                              ...node.data,
+                              message: e.target.value
+                            }
+                          }
+                        }
+                        return node
+                      })
+                      setNodes(updatedNodes)
+                    }}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    You can use variables like {'{first_name}'} and {'{gym_name}'}
+                  </p>
+                </div>
+              )}
+
               {selectedNode.type === 'action' && selectedNode.data.label === 'Wait' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Wait Duration</label>
@@ -812,6 +855,158 @@ export default function SimpleWorkflowBuilder() {
               >
                 Done
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Assistant Modal */}
+      {showAIAssistant && (
+        <div className="absolute inset-0 bg-black bg-opacity-50 z-30 flex items-center justify-center p-4">
+          <div className="bg-gray-800 rounded-lg shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden">
+            <div className="p-6 border-b border-gray-700">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <svg className="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  AI Workflow Assistant
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowAIAssistant(false)
+                    setAiPrompt('')
+                    setAiSuggestions([])
+                  }}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Describe your workflow
+                </label>
+                <textarea
+                  className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                  rows={4}
+                  placeholder="E.g., 'When a new lead comes in from Facebook, wait 5 minutes, then send a welcome SMS, and if they don't respond within 1 hour, send a follow-up email'"
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                />
+              </div>
+
+              {/* Quick Templates */}
+              <div>
+                <p className="text-sm font-medium text-gray-300 mb-2">Quick Templates:</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setAiPrompt('Create a welcome sequence for new leads with SMS and email follow-ups')}
+                    className="text-left p-3 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm text-gray-300 transition-colors"
+                  >
+                    👋 Welcome Sequence
+                  </button>
+                  <button
+                    onClick={() => setAiPrompt('Build a lead nurturing campaign with multiple touchpoints over 7 days')}
+                    className="text-left p-3 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm text-gray-300 transition-colors"
+                  >
+                    📈 Lead Nurturing
+                  </button>
+                  <button
+                    onClick={() => setAiPrompt('Set up appointment reminders 24 hours and 1 hour before scheduled time')}
+                    className="text-left p-3 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm text-gray-300 transition-colors"
+                  >
+                    📅 Appointment Reminders
+                  </button>
+                  <button
+                    onClick={() => setAiPrompt('Create a re-engagement workflow for inactive leads after 30 days')}
+                    className="text-left p-3 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm text-gray-300 transition-colors"
+                  >
+                    🔄 Re-engagement
+                  </button>
+                </div>
+              </div>
+
+              {/* AI Suggestions */}
+              {aiSuggestions.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-gray-300 mb-2">AI Suggestions:</p>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {aiSuggestions.map((suggestion, index) => (
+                      <div key={index} className="p-3 bg-gray-700 rounded-lg text-sm text-gray-300">
+                        {suggestion}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={async () => {
+                    if (!aiPrompt.trim()) return
+                    
+                    setAiLoading(true)
+                    try {
+                      const response = await fetch('/api/ai/workflow-assistant', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt: aiPrompt })
+                      })
+                      
+                      if (response.ok) {
+                        const data = await response.json()
+                        if (data.workflow) {
+                          // Apply the AI-generated workflow
+                          setNodes(data.workflow.nodes || [])
+                          setEdges(data.workflow.edges || [])
+                          setShowAIAssistant(false)
+                          setAiPrompt('')
+                        }
+                        if (data.suggestions) {
+                          setAiSuggestions(data.suggestions)
+                        }
+                      }
+                    } catch (error) {
+                      console.error('AI Assistant error:', error)
+                      alert('Failed to get AI suggestions. Please try again.')
+                    } finally {
+                      setAiLoading(false)
+                    }
+                  }}
+                  disabled={!aiPrompt.trim() || aiLoading}
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
+                  {aiLoading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Building Workflow...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      Generate Workflow
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowAIAssistant(false)
+                    setAiPrompt('')
+                    setAiSuggestions([])
+                  }}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </div>

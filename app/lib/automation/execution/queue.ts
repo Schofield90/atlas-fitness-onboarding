@@ -31,6 +31,56 @@ import type {
   WorkflowEvent 
 } from '@/app/lib/types/automation'
 
+// Job types and priorities
+export enum JobType {
+  WORKFLOW_EXECUTION = 'workflow_execution',
+  EMAIL_SEND = 'email_send',
+  SMS_SEND = 'sms_send',
+  WEBHOOK_CALL = 'webhook_call',
+  DATA_UPDATE = 'data_update'
+}
+
+export enum JobPriority {
+  HIGH = 1,
+  NORMAL = 2,
+  LOW = 3
+}
+
+// Job data types
+export interface JobData {
+  workflowId?: string
+  executionId?: string
+  organizationId?: string
+  triggerData?: any
+  nodeId?: string
+  actionType?: string
+  payload?: any
+}
+
+export interface EnqueueOptions {
+  priority?: JobPriority
+  delay?: number
+  attempts?: number
+  backoff?: {
+    type: 'exponential' | 'fixed'
+    delay: number
+  }
+  metadata?: Record<string, any>
+}
+
+export interface QueueConfig {
+  redis?: any
+  defaultJobOptions?: {
+    removeOnComplete?: boolean
+    removeOnFail?: boolean
+    attempts?: number
+    backoff?: {
+      type: string
+      delay: number
+    }
+  }
+}
+
 // Redis connection - only create if not during build
 let redisConnection: any = null
 
@@ -471,13 +521,8 @@ export async function resumeQueue(queueName: 'workflow' | 'priority' | 'delayed'
 }
 
 // Export configuration and types
-export {
-  JobType,
-  JobPriority,
-  type JobData,
-  type EnqueueOptions,
-  type QueueConfig
-}
+export type { JobData, EnqueueOptions, QueueConfig }
+export { redisConnection }
 
 // Clean up old jobs
 export async function cleanupOldJobs(olderThan: number = 7 * 24 * 60 * 60 * 1000) {
