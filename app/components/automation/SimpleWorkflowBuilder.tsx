@@ -116,6 +116,8 @@ export default function SimpleWorkflowBuilder() {
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
   const [selectedCategory, setSelectedCategory] = useState('Triggers')
   const [nodeIdCounter, setNodeIdCounter] = useState(1)
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null)
+  const [showSettings, setShowSettings] = useState(false)
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -214,9 +216,9 @@ export default function SimpleWorkflowBuilder() {
           <p className="mb-2">💡 Tips:</p>
           <ul className="space-y-1 text-xs">
             <li>• Drag nodes to the canvas</li>
+            <li>• Click nodes to configure settings</li>
             <li>• Connect nodes by dragging handles</li>
             <li>• Select and press Delete to remove</li>
-            <li>• Click a node to select it</li>
           </ul>
         </div>
       </div>
@@ -274,6 +276,10 @@ export default function SimpleWorkflowBuilder() {
           onConnect={onConnect}
           onDrop={onDrop}
           onDragOver={onDragOver}
+          onNodeClick={(event, node) => {
+            setSelectedNode(node)
+            setShowSettings(true)
+          }}
           nodeTypes={nodeTypes}
           fitView
           className="bg-gray-900"
@@ -282,6 +288,334 @@ export default function SimpleWorkflowBuilder() {
           <Controls />
         </ReactFlow>
       </div>
+
+      {/* Settings Panel */}
+      {showSettings && selectedNode && (
+        <div className="absolute right-0 top-0 w-96 h-full bg-gray-800 shadow-xl z-20 overflow-y-auto">
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-white">Node Settings</h3>
+              <button
+                onClick={() => {
+                  setShowSettings(false)
+                  setSelectedNode(null)
+                }}
+                className="text-gray-400 hover:text-white"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Node Info */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Node Type</label>
+                <div className="bg-gray-700 px-4 py-2 rounded-lg">
+                  <p className="text-white font-medium">{selectedNode.data.label}</p>
+                  <p className="text-gray-400 text-sm">{selectedNode.data.description}</p>
+                </div>
+              </div>
+
+              {/* Trigger-specific settings */}
+              {selectedNode.type === 'trigger' && selectedNode.data.label === 'New Lead' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Lead Source</label>
+                  <select 
+                    className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    onChange={(e) => {
+                      const updatedNodes = nodes.map(node => {
+                        if (node.id === selectedNode.id) {
+                          return {
+                            ...node,
+                            data: {
+                              ...node.data,
+                              source: e.target.value
+                            }
+                          }
+                        }
+                        return node
+                      })
+                      setNodes(updatedNodes)
+                    }}
+                    value={selectedNode.data.source || 'all'}
+                  >
+                    <option value="all">All Sources</option>
+                    <option value="website">Website Form</option>
+                    <option value="facebook">Facebook Lead Ad</option>
+                    <option value="instagram">Instagram</option>
+                    <option value="walk-in">Walk-in</option>
+                    <option value="referral">Referral</option>
+                  </select>
+                </div>
+              )}
+
+              {selectedNode.type === 'trigger' && selectedNode.data.label === 'Form Submitted' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Select Form</label>
+                  <select 
+                    className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    onChange={(e) => {
+                      const updatedNodes = nodes.map(node => {
+                        if (node.id === selectedNode.id) {
+                          return {
+                            ...node,
+                            data: {
+                              ...node.data,
+                              formId: e.target.value,
+                              formName: e.target.options[e.target.selectedIndex].text
+                            }
+                          }
+                        }
+                        return node
+                      })
+                      setNodes(updatedNodes)
+                    }}
+                    value={selectedNode.data.formId || ''}
+                  >
+                    <option value="">Select a form...</option>
+                    <option value="form-1">Contact Form</option>
+                    <option value="form-2">Free Trial Form</option>
+                    <option value="form-3">Membership Inquiry</option>
+                    <option value="form-4">Class Booking Form</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Action-specific settings */}
+              {selectedNode.type === 'action' && selectedNode.data.label === 'Send Email' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Email Template</label>
+                    <select 
+                      className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      onChange={(e) => {
+                        const updatedNodes = nodes.map(node => {
+                          if (node.id === selectedNode.id) {
+                            return {
+                              ...node,
+                              data: {
+                                ...node.data,
+                                templateId: e.target.value
+                              }
+                            }
+                          }
+                          return node
+                        })
+                        setNodes(updatedNodes)
+                      }}
+                      value={selectedNode.data.templateId || ''}
+                    >
+                      <option value="">Select template...</option>
+                      <option value="welcome">Welcome Email</option>
+                      <option value="trial-reminder">Trial Reminder</option>
+                      <option value="class-confirmation">Class Confirmation</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Subject Line</label>
+                    <input
+                      type="text"
+                      className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      placeholder="Enter email subject..."
+                      value={selectedNode.data.subject || ''}
+                      onChange={(e) => {
+                        const updatedNodes = nodes.map(node => {
+                          if (node.id === selectedNode.id) {
+                            return {
+                              ...node,
+                              data: {
+                                ...node.data,
+                                subject: e.target.value
+                              }
+                            }
+                          }
+                          return node
+                        })
+                        setNodes(updatedNodes)
+                      }}
+                    />
+                  </div>
+                </>
+              )}
+
+              {selectedNode.type === 'action' && selectedNode.data.label === 'Send SMS' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">SMS Message</label>
+                  <textarea
+                    className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    rows={4}
+                    placeholder="Enter SMS message..."
+                    value={selectedNode.data.message || ''}
+                    onChange={(e) => {
+                      const updatedNodes = nodes.map(node => {
+                        if (node.id === selectedNode.id) {
+                          return {
+                            ...node,
+                            data: {
+                              ...node.data,
+                              message: e.target.value
+                            }
+                          }
+                        }
+                        return node
+                      })
+                      setNodes(updatedNodes)
+                    }}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    {(selectedNode.data.message || '').length}/160 characters
+                  </p>
+                </div>
+              )}
+
+              {selectedNode.type === 'action' && selectedNode.data.label === 'Wait' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Wait Duration</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      className="flex-1 bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      placeholder="Duration"
+                      min="1"
+                      value={selectedNode.data.duration || ''}
+                      onChange={(e) => {
+                        const updatedNodes = nodes.map(node => {
+                          if (node.id === selectedNode.id) {
+                            return {
+                              ...node,
+                              data: {
+                                ...node.data,
+                                duration: e.target.value
+                              }
+                            }
+                          }
+                          return node
+                        })
+                        setNodes(updatedNodes)
+                      }}
+                    />
+                    <select 
+                      className="bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      value={selectedNode.data.unit || 'minutes'}
+                      onChange={(e) => {
+                        const updatedNodes = nodes.map(node => {
+                          if (node.id === selectedNode.id) {
+                            return {
+                              ...node,
+                              data: {
+                                ...node.data,
+                                unit: e.target.value
+                              }
+                            }
+                          }
+                          return node
+                        })
+                        setNodes(updatedNodes)
+                      }}
+                    >
+                      <option value="minutes">Minutes</option>
+                      <option value="hours">Hours</option>
+                      <option value="days">Days</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {selectedNode.type === 'condition' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Condition</label>
+                  <select 
+                    className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 mb-2"
+                    value={selectedNode.data.field || ''}
+                    onChange={(e) => {
+                      const updatedNodes = nodes.map(node => {
+                        if (node.id === selectedNode.id) {
+                          return {
+                            ...node,
+                            data: {
+                              ...node.data,
+                              field: e.target.value
+                            }
+                          }
+                        }
+                        return node
+                      })
+                      setNodes(updatedNodes)
+                    }}
+                  >
+                    <option value="">Select field...</option>
+                    <option value="email">Email</option>
+                    <option value="tag">Tag</option>
+                    <option value="source">Lead Source</option>
+                    <option value="score">Lead Score</option>
+                  </select>
+                  
+                  <select 
+                    className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 mb-2"
+                    value={selectedNode.data.operator || ''}
+                    onChange={(e) => {
+                      const updatedNodes = nodes.map(node => {
+                        if (node.id === selectedNode.id) {
+                          return {
+                            ...node,
+                            data: {
+                              ...node.data,
+                              operator: e.target.value
+                            }
+                          }
+                        }
+                        return node
+                      })
+                      setNodes(updatedNodes)
+                    }}
+                  >
+                    <option value="">Select operator...</option>
+                    <option value="equals">Equals</option>
+                    <option value="contains">Contains</option>
+                    <option value="greater">Greater than</option>
+                    <option value="less">Less than</option>
+                  </select>
+                  
+                  <input
+                    type="text"
+                    className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    placeholder="Value"
+                    value={selectedNode.data.value || ''}
+                    onChange={(e) => {
+                      const updatedNodes = nodes.map(node => {
+                        if (node.id === selectedNode.id) {
+                          return {
+                            ...node,
+                            data: {
+                              ...node.data,
+                              value: e.target.value
+                            }
+                          }
+                        }
+                        return node
+                      })
+                      setNodes(updatedNodes)
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Save button */}
+              <button
+                onClick={() => {
+                  setShowSettings(false)
+                  setSelectedNode(null)
+                }}
+                className="w-full bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
