@@ -37,7 +37,12 @@ export enum JobType {
   EMAIL_SEND = 'email_send',
   SMS_SEND = 'sms_send',
   WEBHOOK_CALL = 'webhook_call',
-  DATA_UPDATE = 'data_update'
+  DATA_UPDATE = 'data_update',
+  LEAD_QUALIFICATION = 'lead_qualification',
+  EMAIL_SEQUENCE = 'email_sequence',
+  SMS_CAMPAIGN = 'sms_campaign',
+  WHATSAPP_MESSAGE = 'whatsapp_message',
+  DATA_SYNC = 'data_sync'
 }
 
 export enum JobPriority {
