@@ -24,7 +24,6 @@ import {
   workflowQueue, 
   priorityQueue, 
   delayedQueue, 
-  deadLetterQueue,
   redisConnection,
   JobType,
   JobData,
@@ -207,10 +206,9 @@ export class WorkerManager {
 
   // Start dead letter queue worker
   private async startDeadLetterWorker(): Promise<void> {
-    if (!deadLetterQueue) {
-      console.warn('Dead letter queue not available - skipping DLQ worker')
-      return
-    }
+    // Dead letter queue functionality is not implemented yet
+    console.warn('Dead letter queue not available - skipping DLQ worker')
+    return
 
     const config: WorkerConfig = {
       name: 'dead-letter',
