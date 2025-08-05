@@ -1209,13 +1209,4 @@ export class QueueManagementService {
 // Export singleton queue management service
 export const queueManagementService = new QueueManagementService()
 
-// Export types
-export type {
-  QueueManagerConfig,
-  QueueHealthStatus,
-  QueueStatus,
-  RedisStatus,
-  SystemStatus,
-  Alert,
-  PerformanceMetrics
-}
+// Types are already exported as interfaces above
