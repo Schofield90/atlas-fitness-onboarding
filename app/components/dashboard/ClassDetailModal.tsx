@@ -116,7 +116,31 @@ export default function ClassDetailModal({ isOpen, onClose, classSession }: Clas
             </div>
           </div>
 
-          {/* Actions */}
+          {/* Action Buttons */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <button
+              onClick={() => {
+                onClose();
+                window.location.href = `/booking/session/${classSession.id}`;
+              }}
+              className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              <Users className="w-4 h-4" />
+              Manage Attendees
+            </button>
+            <button
+              onClick={() => {
+                onClose();
+                window.location.href = `/booking/session/${classSession.id}/add-member`;
+              }}
+              className="px-4 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              <User className="w-4 h-4" />
+              Add Member
+            </button>
+          </div>
+
+          {/* Bottom Actions */}
           <div className="flex gap-3">
             <button
               onClick={() => {
