@@ -29,6 +29,7 @@ export const QUEUE_NAMES = {
 
 // Default queue options
 export const defaultQueueOptions: QueueOptions = {
+  connection: redisConnection,
   defaultJobOptions: {
     attempts: 3,
     backoff: {
