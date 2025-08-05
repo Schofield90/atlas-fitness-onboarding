@@ -8,6 +8,7 @@ interface SendEmailOptions {
   subject: string;
   html: string;
   organizationId?: string;
+  metadata?: Record<string, any>;
 }
 
 export async function sendEmail(options: SendEmailOptions) {
