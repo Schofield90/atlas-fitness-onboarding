@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState, useRef } from 'react'
+import { useCallback, useState, useRef, useEffect } from 'react'
 import ReactFlow, {
   ReactFlowProvider,
   addEdge,
@@ -118,6 +118,38 @@ export default function SimpleWorkflowBuilder() {
   const [nodeIdCounter, setNodeIdCounter] = useState(1)
   const [selectedNode, setSelectedNode] = useState<Node | null>(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [availableForms, setAvailableForms] = useState<any[]>([])
+  const [leadSources, setLeadSources] = useState<any[]>([])
+  const [loadingConfig, setLoadingConfig] = useState(true)
+
+  // Fetch configuration data on mount
+  useEffect(() => {
+    const fetchConfigData = async () => {
+      try {
+        setLoadingConfig(true)
+        
+        // Fetch forms
+        const formsResponse = await fetch('/api/workflow-config/forms')
+        const formsData = await formsResponse.json()
+        if (formsData.success) {
+          setAvailableForms(formsData.forms)
+        }
+        
+        // Fetch lead sources
+        const sourcesResponse = await fetch('/api/workflow-config/lead-sources')
+        const sourcesData = await sourcesResponse.json()
+        if (sourcesData.success) {
+          setLeadSources(sourcesData.sources)
+        }
+      } catch (error) {
+        console.error('Error fetching workflow config:', error)
+      } finally {
+        setLoadingConfig(false)
+      }
+    }
+    
+    fetchConfigData()
+  }, [])
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -341,12 +373,16 @@ export default function SimpleWorkflowBuilder() {
                     }}
                     value={selectedNode.data.source || 'all'}
                   >
-                    <option value="all">All Sources</option>
-                    <option value="website">Website Form</option>
-                    <option value="facebook">Facebook Lead Ad</option>
-                    <option value="instagram">Instagram</option>
-                    <option value="walk-in">Walk-in</option>
-                    <option value="referral">Referral</option>
+                    {loadingConfig ? (
+                      <option>Loading sources...</option>
+                    ) : (
+                      leadSources.map(source => (
+                        <option key={source.id} value={source.id}>
+                          {source.name}
+                          {source.hasData && ` (${source.count} leads)`}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
               )}
@@ -354,9 +390,31 @@ export default function SimpleWorkflowBuilder() {
               {selectedNode.type === 'trigger' && selectedNode.data.label === 'Form Submitted' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Select Form</label>
+                  {!loadingConfig && availableForms.length === 1 && availableForms[0].category === 'All Forms' && (
+                    <div className="mb-3 p-3 bg-yellow-900/30 border border-yellow-600 rounded-lg">
+                      <p className="text-sm text-yellow-400">
+                        No forms found. Create forms in the Forms section or connect Facebook to import lead forms.
+                      </p>
+                    </div>
+                  )}
                   <select 
                     className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
                     onChange={(e) => {
+                      const formId = e.target.value;
+                      let formData = null;
+                      
+                      // Find the selected form details
+                      for (const category of availableForms) {
+                        const form = category.items.find((f: any) => f.id === formId);
+                        if (form) {
+                          formData = {
+                            ...form,
+                            category: category.category
+                          };
+                          break;
+                        }
+                      }
+                      
                       const updatedNodes = nodes.map(node => {
                         if (node.id === selectedNode.id) {
                           return {
@@ -364,7 +422,11 @@ export default function SimpleWorkflowBuilder() {
                             data: {
                               ...node.data,
                               formId: e.target.value,
-                              formName: e.target.options[e.target.selectedIndex].text
+                              formName: e.target.options[e.target.selectedIndex].text,
+                              formType: formData?.type,
+                              formCategory: formData?.category,
+                              pageId: formData?.pageId,
+                              pageName: formData?.pageName
                             }
                           }
                         }
@@ -375,10 +437,20 @@ export default function SimpleWorkflowBuilder() {
                     value={selectedNode.data.formId || ''}
                   >
                     <option value="">Select a form...</option>
-                    <option value="form-1">Contact Form</option>
-                    <option value="form-2">Free Trial Form</option>
-                    <option value="form-3">Membership Inquiry</option>
-                    <option value="form-4">Class Booking Form</option>
+                    {loadingConfig ? (
+                      <option>Loading forms...</option>
+                    ) : (
+                      availableForms.map(category => (
+                        <optgroup key={category.category} label={category.category}>
+                          {category.items.map((form: any) => (
+                            <option key={form.id} value={form.id}>
+                              {form.name}
+                              {form.description && ` - ${form.description}`}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))
+                    )}
                   </select>
                 </div>
               )}
