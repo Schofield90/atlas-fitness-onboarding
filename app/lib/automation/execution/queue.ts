@@ -470,6 +470,15 @@ export async function resumeQueue(queueName: 'workflow' | 'priority' | 'delayed'
   await queue.resume()
 }
 
+// Export configuration and types
+export {
+  JobType,
+  JobPriority,
+  type JobData,
+  type EnqueueOptions,
+  type QueueConfig
+}
+
 // Clean up old jobs
 export async function cleanupOldJobs(olderThan: number = 7 * 24 * 60 * 60 * 1000) {
   if (!workflowQueue || !priorityQueue || !delayedQueue) {

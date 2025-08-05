@@ -127,6 +127,27 @@ export async function POST(request: NextRequest) {
     // Trigger webhook for new lead
     await triggerWebhook('new_lead', newLead)
     
+    // Trigger workflow for form submission
+    try {
+      const workflowResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/webhooks/form-submitted`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          formId,
+          formData: newLead,
+          lead: newLead,
+          organizationId: newLead.organization_id || '63589490-8f55-4157-bd3a-e141594b748e', // Hardcoded for now
+          formType: 'website'
+        })
+      })
+      
+      if (!workflowResponse.ok) {
+        console.error('Failed to trigger form submitted webhook')
+      }
+    } catch (workflowError) {
+      console.error('Error triggering workflow:', workflowError)
+    }
+    
     // Send WhatsApp notification if configured
     if (phone) {
       await sendWhatsAppNotification(phone, first_name)

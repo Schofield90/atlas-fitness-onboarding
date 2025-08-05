@@ -120,6 +120,8 @@ export default function SimpleWorkflowBuilder() {
   const [showSettings, setShowSettings] = useState(false)
   const [availableForms, setAvailableForms] = useState<any[]>([])
   const [leadSources, setLeadSources] = useState<any[]>([])
+  const [emailTemplates, setEmailTemplates] = useState<any[]>([])
+  const [availableTags, setAvailableTags] = useState<any[]>([])
   const [loadingConfig, setLoadingConfig] = useState(true)
 
   // Fetch configuration data on mount
@@ -140,6 +142,20 @@ export default function SimpleWorkflowBuilder() {
         const sourcesData = await sourcesResponse.json()
         if (sourcesData.success) {
           setLeadSources(sourcesData.sources)
+        }
+        
+        // Fetch email templates
+        const templatesResponse = await fetch('/api/workflow-config/email-templates')
+        const templatesData = await templatesResponse.json()
+        if (templatesData.success) {
+          setEmailTemplates(templatesData.templates)
+        }
+        
+        // Fetch tags
+        const tagsResponse = await fetch('/api/workflow-config/tags')
+        const tagsData = await tagsResponse.json()
+        if (tagsData.success) {
+          setAvailableTags(tagsData.tags)
         }
       } catch (error) {
         console.error('Error fetching workflow config:', error)
@@ -264,6 +280,32 @@ export default function SimpleWorkflowBuilder() {
               if (!workflowName) return
               
               try {
+                // Extract trigger configuration
+                const triggerNode = nodes.find(n => n.type === 'trigger');
+                let triggerType = 'manual';
+                let triggerConfig = {};
+                
+                if (triggerNode) {
+                  switch (triggerNode.data.label) {
+                    case 'New Lead':
+                      triggerType = 'lead_created';
+                      triggerConfig = {
+                        source: triggerNode.data.source || 'all'
+                      };
+                      break;
+                    case 'Form Submitted':
+                      triggerType = 'form_submitted';
+                      triggerConfig = {
+                        formId: triggerNode.data.formId || 'all',
+                        formType: triggerNode.data.formType,
+                        formCategory: triggerNode.data.formCategory,
+                        pageId: triggerNode.data.pageId,
+                        pageName: triggerNode.data.pageName
+                      };
+                      break;
+                  }
+                }
+                
                 const response = await fetch('/api/workflows', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
@@ -272,7 +314,9 @@ export default function SimpleWorkflowBuilder() {
                     description: 'Created with workflow builder',
                     nodes,
                     edges,
-                    status: 'draft'
+                    status: 'draft',
+                    trigger_type: triggerType,
+                    trigger_config: triggerConfig
                   })
                 })
                 
@@ -480,9 +524,15 @@ export default function SimpleWorkflowBuilder() {
                       value={selectedNode.data.templateId || ''}
                     >
                       <option value="">Select template...</option>
-                      <option value="welcome">Welcome Email</option>
-                      <option value="trial-reminder">Trial Reminder</option>
-                      <option value="class-confirmation">Class Confirmation</option>
+                      {loadingConfig ? (
+                        <option>Loading templates...</option>
+                      ) : (
+                        emailTemplates.map(template => (
+                          <option key={template.id} value={template.id}>
+                            {template.name}
+                          </option>
+                        ))
+                      )}
                     </select>
                   </div>
                   <div>
@@ -592,6 +642,84 @@ export default function SimpleWorkflowBuilder() {
                       <option value="days">Days</option>
                     </select>
                   </div>
+                </div>
+              )}
+
+              {selectedNode.type === 'action' && selectedNode.data.label === 'Add Tag' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Select or Create Tag</label>
+                  <select 
+                    className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 mb-2"
+                    onChange={(e) => {
+                      const updatedNodes = nodes.map(node => {
+                        if (node.id === selectedNode.id) {
+                          return {
+                            ...node,
+                            data: {
+                              ...node.data,
+                              tag: e.target.value
+                            }
+                          }
+                        }
+                        return node
+                      })
+                      setNodes(updatedNodes)
+                    }}
+                    value={selectedNode.data.tag || ''}
+                  >
+                    <option value="">Select a tag...</option>
+                    {loadingConfig ? (
+                      <option>Loading tags...</option>
+                    ) : (
+                      <>
+                        <optgroup label="Lead Status">
+                          {availableTags
+                            .filter(tag => ['hot-lead', 'warm-lead', 'cold-lead'].includes(tag.value))
+                            .map(tag => (
+                              <option key={tag.value} value={tag.value}>
+                                {tag.label}
+                                {tag.count > 0 && ` (${tag.count} leads)`}
+                              </option>
+                            ))}
+                        </optgroup>
+                        <optgroup label="Common Tags">
+                          {availableTags
+                            .filter(tag => !['hot-lead', 'warm-lead', 'cold-lead'].includes(tag.value))
+                            .map(tag => (
+                              <option key={tag.value} value={tag.value}>
+                                {tag.label}
+                                {tag.count > 0 && ` (${tag.count} leads)`}
+                              </option>
+                            ))}
+                        </optgroup>
+                      </>
+                    )}
+                  </select>
+                  <input
+                    type="text"
+                    className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    placeholder="Or type a new tag..."
+                    value={selectedNode.data.customTag || ''}
+                    onChange={(e) => {
+                      const updatedNodes = nodes.map(node => {
+                        if (node.id === selectedNode.id) {
+                          return {
+                            ...node,
+                            data: {
+                              ...node.data,
+                              customTag: e.target.value,
+                              tag: e.target.value.toLowerCase().replace(/\s+/g, '-')
+                            }
+                          }
+                        }
+                        return node
+                      })
+                      setNodes(updatedNodes)
+                    }}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Tags help categorize and segment your leads
+                  </p>
                 </div>
               )}
 

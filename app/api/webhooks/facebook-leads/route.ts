@@ -80,6 +80,27 @@ export async function POST(request: NextRequest) {
                 const result = await response.json()
                 if (result.success) {
                   console.log('✅ Lead synced successfully:', result.lead)
+                  
+                  // Trigger workflow for form submission
+                  try {
+                    const workflowResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/webhooks/form-submitted`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        formId: leadData.form_id,
+                        formData: result.lead,
+                        lead: result.lead,
+                        organizationId: result.organizationId,
+                        formType: 'facebook'
+                      })
+                    })
+                    
+                    if (workflowResponse.ok) {
+                      console.log('✅ Workflows triggered for Facebook lead')
+                    }
+                  } catch (workflowError) {
+                    console.error('Failed to trigger workflows:', workflowError)
+                  }
                 } else {
                   console.error('❌ Failed to sync lead:', result.error)
                 }

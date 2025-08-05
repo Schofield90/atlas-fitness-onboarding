@@ -126,6 +126,25 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
     
+    // Trigger workflow for new lead
+    try {
+      const webhookResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/webhooks/lead-created`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lead,
+          organizationId: userWithOrg.organizationId
+        })
+      })
+      
+      if (!webhookResponse.ok) {
+        console.error('Failed to trigger lead created webhook')
+      }
+    } catch (webhookError) {
+      console.error('Error triggering workflow:', webhookError)
+      // Don't fail the lead creation if webhook fails
+    }
+    
     return NextResponse.json({
       success: true,
       lead
