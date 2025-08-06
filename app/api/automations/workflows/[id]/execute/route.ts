@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/app/lib/supabase/server'
 import { createAdminClient } from '@/app/lib/supabase/admin'
-import { getCurrentUserOrganization } from '@/app/lib/services/membership-service'
+import { getCurrentUserOrganization } from '@/app/lib/organization-server'
 import { WorkflowExecutor } from '@/app/lib/automation/execution/executor'
 
 export async function POST(

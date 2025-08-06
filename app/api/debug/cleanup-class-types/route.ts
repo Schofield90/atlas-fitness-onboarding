@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/app/lib/supabase/admin'
-import { getCurrentUserOrganization } from '@/app/lib/services/membership-service'
+import { getCurrentUserOrganization } from '@/app/lib/organization-server'
 
 export async function DELETE() {
   try {

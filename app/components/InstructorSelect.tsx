@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Plus, User } from 'lucide-react'
 import { getInstructors, createInstructor, Instructor } from '@/app/lib/services/instructor-service'
-import { getCurrentUserOrganization } from '@/app/lib/services/membership-service'
+import { getCurrentUserOrganization } from '@/app/lib/organization-client'
 
 interface InstructorSelectProps {
   value: string

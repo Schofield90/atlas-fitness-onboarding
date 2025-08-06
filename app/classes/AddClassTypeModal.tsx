@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
 import { X } from 'lucide-react'
-import { getCurrentUserOrganization } from '@/app/lib/services/membership-service'
+import { getCurrentUserOrganization } from '@/app/lib/organization-client'
 
 interface AddClassTypeModalProps {
   onClose: () => void

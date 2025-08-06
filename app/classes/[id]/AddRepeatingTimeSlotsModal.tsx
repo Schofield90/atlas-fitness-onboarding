@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
 import { X, Plus, Trash2 } from 'lucide-react'
-import { getCurrentUserOrganization } from '@/app/lib/services/membership-service'
+import { getCurrentUserOrganization } from '@/app/lib/organization-client'
 import InstructorSelect from '@/app/components/InstructorSelect'
 
 interface AddRepeatingTimeSlotsModalProps {
