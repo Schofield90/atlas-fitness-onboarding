@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { handleApiRoute, supabaseAdmin, validateRequestBody } from '@/lib/api/middleware'
 import { z } from 'zod'
 
@@ -46,10 +46,10 @@ export async function GET(request: NextRequest) {
       throw new Error('Failed to fetch webhook endpoints')
     }
 
-    return {
+    return NextResponse.json({
       webhooks: webhooks || [],
       total: webhooks?.length || 0
-    }
+    })
   })
 }
 
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
       user_id: user.id
     })
 
-    return webhook
+    return NextResponse.json(webhook)
   })
 }
 
@@ -172,7 +172,7 @@ export async function PUT(request: NextRequest) {
       throw new Error('Failed to update webhook endpoint')
     }
 
-    return webhook
+    return NextResponse.json(webhook)
   })
 }
 
@@ -221,6 +221,6 @@ export async function DELETE(request: NextRequest) {
       user_id: user.id
     })
 
-    return { success: true, id }
+    return NextResponse.json({ success: true, id })
   })
 }

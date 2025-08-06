@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { handleApiRoute, supabaseAdmin, parseSearchParams } from '@/lib/api/middleware'
 import { z } from 'zod'
 
@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
       })
       .sort((a, b) => a.days_until_birthday - b.days_until_birthday)
 
-    return {
+    return NextResponse.json({
       contacts: contactsWithUpcomingBirthdays,
       total: contactsWithUpcomingBirthdays.length,
       date_range: {
@@ -109,6 +109,6 @@ export async function GET(request: NextRequest) {
         end_date: endDate.toISOString().split('T')[0],
         days_ahead
       }
-    }
+    })
   })
 }

@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { handleApiRoute, supabaseAdmin } from '@/lib/api/middleware'
 
 export async function GET(request: NextRequest) {
@@ -41,9 +41,9 @@ export async function GET(request: NextRequest) {
       updated_at: tag.updated_at
     })) || []
 
-    return {
+    return NextResponse.json({
       tags: tagsWithCounts,
       total: tagsWithCounts.length
-    }
+    })
   })
 }

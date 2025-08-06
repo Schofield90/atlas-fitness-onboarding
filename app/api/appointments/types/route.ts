@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { handleApiRoute, supabaseAdmin } from '@/lib/api/middleware'
 
 export async function GET(request: NextRequest) {
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
       return groups
     }, {} as Record<string, typeof typesWithCounts>)
 
-    return {
+    return NextResponse.json({
       appointment_types: typesWithCounts,
       grouped_by_type: groupedByType,
       total: typesWithCounts.length,
@@ -70,6 +70,6 @@ export async function GET(request: NextRequest) {
           count: groupedByType[type].length
         }))
       }
-    }
+    })
   })
 }
