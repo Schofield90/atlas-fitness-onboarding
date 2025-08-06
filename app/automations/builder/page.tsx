@@ -1,25 +1,56 @@
 'use client'
 
-import DynamicWorkflowBuilder from '@/app/components/automation/DynamicWorkflowBuilder'
+import { EnhancedWorkflowBuilderWrapper } from '@/app/components/automation/EnhancedWorkflowBuilder'
+import { getCurrentUserOrganization } from '@/app/lib/organization-client'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function WorkflowBuilderPage() {
+  const [organizationId, setOrganizationId] = useState<string | null>(null)
+  const router = useRouter()
+
+  useEffect(() => {
+    async function loadOrganization() {
+      const { organization } = await getCurrentUserOrganization()
+      if (organization) {
+        setOrganizationId(organization.id)
+      } else {
+        router.push('/login')
+      }
+    }
+    loadOrganization()
+  }, [router])
+
+  if (!organizationId) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    )
+  }
+
+  const handleSave = async (workflow: any) => {
+    try {
+      const response = await fetch('/api/workflows', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(workflow)
+      })
+
+      if (response.ok) {
+        router.push('/automations')
+      }
+    } catch (error) {
+      console.error('Error saving workflow:', error)
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gray-900">
-      <div className="bg-gray-800 border-b border-gray-700 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-white">Create New Workflow</h1>
-            <p className="text-gray-400">Build your automation by dragging nodes onto the canvas</p>
-          </div>
-          <a href="/automations" className="text-gray-400 hover:text-white">
-            ← Back to Automations
-          </a>
-        </div>
-      </div>
-      
-      <div className="h-[calc(100vh-100px)]">
-        <DynamicWorkflowBuilder simple={true} />
-      </div>
+    <div className="h-screen bg-gray-50">
+      <EnhancedWorkflowBuilderWrapper 
+        organizationId={organizationId}
+        onSave={handleSave}
+      />
     </div>
   )
 }
