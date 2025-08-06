@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { ChevronDown, Facebook, Globe, Mail, Phone, FileText, Webhook, Plus, X, MessageSquare, Instagram } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { ChevronDown, Facebook, Globe, Mail, Phone, FileText, Webhook, Plus, X, MessageSquare, Instagram, Calendar, User, Tag, Clock, PhoneCall, MousePointer, AlertTriangle, CheckCircle, XCircle, Target, TrendingUp, TrendingDown } from 'lucide-react'
 
 interface TriggerType {
   id: string
@@ -43,7 +43,32 @@ const TRIGGER_TYPES: TriggerType[] = [
   { id: 'sms_received', name: 'SMS message received', description: 'When an SMS is received' },
   { id: 'email_received', name: 'Email received', description: 'When an email is received' },
   { id: 'manual_entry', name: 'Manual lead entry', description: 'When a lead is manually added' },
-  { id: 'webhook', name: 'Webhook received', description: 'When a webhook payload is received' }
+  { id: 'webhook', name: 'Webhook received', description: 'When a webhook payload is received' },
+  
+  // Contact Management Triggers
+  { id: 'birthday_trigger', name: 'Contact birthday', description: 'When it is a contact\'s birthday' },
+  { id: 'contact_changed', name: 'Contact information changed', description: 'When contact details are updated' },
+  { id: 'contact_tagged', name: 'Contact tagged', description: 'When a contact is assigned a tag' },
+  { id: 'custom_date_field', name: 'Custom date field reached', description: 'When a custom date field reaches its date' },
+  
+  // Communication Triggers
+  { id: 'call_status_change', name: 'Call status changed', description: 'When a call status changes (answered, missed, etc.)' },
+  { id: 'email_opened', name: 'Email opened', description: 'When a contact opens an email' },
+  { id: 'email_clicked', name: 'Email link clicked', description: 'When a contact clicks a link in an email' },
+  { id: 'email_bounced', name: 'Email bounced', description: 'When an email bounces' },
+  { id: 'email_unsubscribed', name: 'Email unsubscribed', description: 'When a contact unsubscribes from emails' },
+  
+  // Appointment Triggers
+  { id: 'appointment_booked', name: 'Appointment booked', description: 'When an appointment is scheduled' },
+  { id: 'appointment_cancelled', name: 'Appointment cancelled', description: 'When an appointment is cancelled' },
+  { id: 'appointment_completed', name: 'Appointment completed', description: 'When an appointment is marked as completed' },
+  { id: 'appointment_no_show', name: 'Appointment no-show', description: 'When a contact doesn\'t show up for an appointment' },
+  
+  // Opportunity/Pipeline Triggers
+  { id: 'opportunity_created', name: 'Opportunity created', description: 'When a new opportunity is created' },
+  { id: 'opportunity_stage_changed', name: 'Opportunity stage changed', description: 'When an opportunity moves to a different stage' },
+  { id: 'opportunity_won', name: 'Opportunity won', description: 'When an opportunity is marked as won' },
+  { id: 'opportunity_lost', name: 'Opportunity lost', description: 'When an opportunity is marked as lost' }
 ]
 
 export default function LeadTriggerConfig({ config, onChange, organizationId }: LeadTriggerConfigProps) {
@@ -255,7 +280,6 @@ export default function LeadTriggerConfig({ config, onChange, organizationId }: 
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
-        )
       )}
 
       {/* Filters - Facebook Lead Form */}

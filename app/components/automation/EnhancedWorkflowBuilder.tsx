@@ -31,7 +31,19 @@ import {
   Mail,
   Users,
   Filter,
-  Zap
+  Zap,
+  Calendar,
+  Tag,
+  Webhook,
+  Phone,
+  MailOpen,
+  Target,
+  TrendingUp,
+  Reply,
+  ClipboardCheck,
+  FileText,
+  StickyNote,
+  Bell
 } from 'lucide-react'
 
 // Import configuration components
@@ -39,6 +51,21 @@ import LeadTriggerConfig from './config/LeadTriggerConfig'
 import EmailActionConfig from './config/EmailActionConfig'
 import WaitActionConfig from './config/WaitActionConfig'
 import SMSActionConfig from './config/SMSActionConfig'
+import BirthdayTriggerConfig from './config/BirthdayTriggerConfig'
+import ContactTagTriggerConfig from './config/ContactTagTriggerConfig'
+import WebhookTriggerConfig from './config/WebhookTriggerConfig'
+import AppointmentTriggerConfig from './config/AppointmentTriggerConfig'
+import ContactChangedTriggerConfig from './config/ContactChangedTriggerConfig'
+import CustomDateTriggerConfig from './config/CustomDateTriggerConfig'
+import CallStatusTriggerConfig from './config/CallStatusTriggerConfig'
+import EmailEventTriggerConfig from './config/EmailEventTriggerConfig'
+import OpportunityCreatedTriggerConfig from './config/OpportunityCreatedTriggerConfig'
+import OpportunityStageChangedTriggerConfig from './config/OpportunityStageChangedTriggerConfig'
+import CustomerRepliedTriggerConfig from './config/CustomerRepliedTriggerConfig'
+import SurveySubmittedTriggerConfig from './config/SurveySubmittedTriggerConfig'
+import FormSubmittedTriggerConfig from './config/FormSubmittedTriggerConfig'
+import NoteAddedTriggerConfig from './config/NoteAddedTriggerConfig'
+import TaskReminderTriggerConfig from './config/TaskReminderTriggerConfig'
 import { safeAlert } from '@/app/lib/utils/safe-alert'
 
 // Simple node components for the canvas
@@ -123,9 +150,130 @@ const nodeTypes = {
 const nodeTemplates = [
   {
     type: 'trigger',
+    subtype: 'lead_trigger',
     label: 'Lead Trigger',
     description: 'When a new lead is created',
     icon: Users,
+    category: 'Triggers'
+  },
+  {
+    type: 'trigger',
+    subtype: 'birthday_trigger',
+    label: 'Birthday Trigger',
+    description: 'When it\'s a contact\'s birthday',
+    icon: Calendar,
+    category: 'Triggers'
+  },
+  {
+    type: 'trigger',
+    subtype: 'contact_changed',
+    label: 'Contact Changed',
+    description: 'When contact info changes',
+    icon: Users,
+    category: 'Triggers'
+  },
+  {
+    type: 'trigger',
+    subtype: 'contact_tagged',
+    label: 'Contact Tagged',
+    description: 'When contact is tagged',
+    icon: Tag,
+    category: 'Triggers'
+  },
+  {
+    type: 'trigger',
+    subtype: 'custom_date_trigger',
+    label: 'Custom Date',
+    description: 'On specific dates/schedules',
+    icon: Calendar,
+    category: 'Triggers'
+  },
+  {
+    type: 'trigger',
+    subtype: 'webhook_received',
+    label: 'Webhook',
+    description: 'When webhook is received',
+    icon: Webhook,
+    category: 'Triggers'
+  },
+  {
+    type: 'trigger',
+    subtype: 'call_status_changed',
+    label: 'Call Status',
+    description: 'When call status changes',
+    icon: Phone,
+    category: 'Triggers'
+  },
+  {
+    type: 'trigger',
+    subtype: 'email_event',
+    label: 'Email Event',
+    description: 'Email opens, clicks, etc.',
+    icon: MailOpen,
+    category: 'Triggers'
+  },
+  {
+    type: 'trigger',
+    subtype: 'appointment_status',
+    label: 'Appointment',
+    description: 'Appointment status changes',
+    icon: Calendar,
+    category: 'Triggers'
+  },
+  {
+    type: 'trigger',
+    subtype: 'opportunity_created',
+    label: 'Opportunity Created',
+    description: 'When new opportunity is created',
+    icon: Target,
+    category: 'Triggers'
+  },
+  {
+    type: 'trigger',
+    subtype: 'opportunity_stage_changed',
+    label: 'Opportunity Stage',
+    description: 'When opportunity stage changes',
+    icon: TrendingUp,
+    category: 'Triggers'
+  },
+  {
+    type: 'trigger',
+    subtype: 'customer_replied',
+    label: 'Customer Replied',
+    description: 'When customer replies to message',
+    icon: Reply,
+    category: 'Triggers'
+  },
+  {
+    type: 'trigger',
+    subtype: 'survey_submitted',
+    label: 'Survey Submitted',
+    description: 'When survey is submitted',
+    icon: ClipboardCheck,
+    category: 'Triggers'
+  },
+  {
+    type: 'trigger',
+    subtype: 'form_submitted',
+    label: 'Form Submitted',
+    description: 'When form is submitted',
+    icon: FileText,
+    category: 'Triggers'
+  },
+  {
+    type: 'trigger',
+    subtype: 'note_added',
+    label: 'Note Added',
+    description: 'When note is added to contact',
+    icon: StickyNote,
+    category: 'Triggers'
+  },
+  {
+    type: 'trigger',
+    subtype: 'task_reminder',
+    label: 'Task Reminder',
+    description: 'Task due date reminders',
+    icon: Bell,
     category: 'Triggers'
   },
   {
@@ -184,6 +332,7 @@ export default function EnhancedWorkflowBuilder({ organizationId, workflowId, on
         data: { 
           label: 'New Lead', 
           description: 'When a lead is created',
+          subtype: 'lead_trigger',
           config: {}
         }
       }
@@ -223,6 +372,7 @@ export default function EnhancedWorkflowBuilder({ organizationId, workflowId, on
         data: {
           label: template.label,
           description: template.description,
+          subtype: template.subtype || template.type,
           config: {}
         }
       }
@@ -373,9 +523,50 @@ export default function EnhancedWorkflowBuilder({ organizationId, workflowId, on
       organizationId
     }
 
+    // Handle trigger subtypes
+    if (selectedNode.type === 'trigger') {
+      const subtype = selectedNode.data.subtype || 'lead_trigger'
+      
+      switch (subtype) {
+        case 'lead_trigger':
+          return <LeadTriggerConfig {...commonProps} />
+        case 'birthday_trigger':
+          return <BirthdayTriggerConfig {...commonProps} />
+        case 'contact_changed':
+          return <ContactChangedTriggerConfig {...commonProps} />
+        case 'contact_tagged':
+          return <ContactTagTriggerConfig {...commonProps} />
+        case 'custom_date_trigger':
+          return <CustomDateTriggerConfig {...commonProps} />
+        case 'webhook_received':
+          return <WebhookTriggerConfig {...commonProps} />
+        case 'call_status_changed':
+          return <CallStatusTriggerConfig {...commonProps} />
+        case 'email_event':
+          return <EmailEventTriggerConfig {...commonProps} />
+        case 'appointment_status':
+          return <AppointmentTriggerConfig {...commonProps} />
+        case 'opportunity_created':
+          return <OpportunityCreatedTriggerConfig {...commonProps} />
+        case 'opportunity_stage_changed':
+          return <OpportunityStageChangedTriggerConfig {...commonProps} />
+        case 'customer_replied':
+          return <CustomerRepliedTriggerConfig {...commonProps} />
+        case 'survey_submitted':
+          return <SurveySubmittedTriggerConfig {...commonProps} />
+        case 'form_submitted':
+          return <FormSubmittedTriggerConfig {...commonProps} />
+        case 'note_added':
+          return <NoteAddedTriggerConfig {...commonProps} />
+        case 'task_reminder':
+          return <TaskReminderTriggerConfig {...commonProps} />
+        default:
+          return <LeadTriggerConfig {...commonProps} />
+      }
+    }
+
+    // Handle other node types
     switch (selectedNode.type) {
-      case 'trigger':
-        return <LeadTriggerConfig {...commonProps} />
       case 'email':
         return <EmailActionConfig {...commonProps} />
       case 'wait':
