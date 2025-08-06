@@ -44,7 +44,8 @@ import {
   FileText,
   StickyNote,
   Bell,
-  Trash2
+  Trash2,
+  MessageCircle
 } from 'lucide-react'
 
 // Import configuration components
@@ -68,6 +69,35 @@ import FormSubmittedTriggerConfig from './config/FormSubmittedTriggerConfig'
 import NoteAddedTriggerConfig from './config/NoteAddedTriggerConfig'
 import TaskReminderTriggerConfig from './config/TaskReminderTriggerConfig'
 import { safeAlert } from '@/app/lib/utils/safe-alert'
+
+// Import unified config panel for enhanced actions
+import UnifiedNodeConfigPanel from './config/UnifiedNodeConfigPanel'
+
+// Add WhatsApp node component
+const WhatsAppNode = ({ data, selected, id }: NodeProps) => (
+  <div className={`bg-gradient-to-r from-teal-500 to-teal-600 text-white p-4 rounded-lg shadow-lg min-w-[220px] relative group ${selected ? 'ring-2 ring-teal-300' : ''}`}>
+    {data.onDelete && (
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          data.onDelete(id)
+        }}
+        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-md"
+        title="Delete node"
+      >
+        <X className="w-3 h-3" />
+      </button>
+    )}
+    <Handle type="target" position={Position.Top} className="w-3 h-3" />
+    <div className="flex items-center justify-between mb-2">
+      <MessageCircle className="w-5 h-5" />
+      <span className="text-xs bg-teal-700 px-2 py-1 rounded">Action</span>
+    </div>
+    <div className="font-bold text-sm mb-1">{data.label}</div>
+    <div className="text-xs opacity-80">{data.description || 'Configure WhatsApp...'}</div>
+    <Handle type="source" position={Position.Bottom} className="w-3 h-3" />
+  </div>
+)
 
 // Simple node components for the canvas
 const TriggerNode = ({ data, selected, id }: NodeProps) => (
@@ -204,6 +234,7 @@ const nodeTypes = {
   email: EmailNode,
   wait: WaitNode,
   sms: SMSNode,
+  whatsapp: WhatsAppNode,
   condition: ConditionNode
 }
 
@@ -352,6 +383,13 @@ const nodeTemplates = [
     category: 'Actions'
   },
   {
+    type: 'whatsapp',
+    label: 'Send WhatsApp',
+    description: 'Send a WhatsApp message',
+    icon: MessageCircle,
+    category: 'Actions'
+  },
+  {
     type: 'wait',
     label: 'Wait',
     description: 'Wait before next action',
@@ -484,6 +522,12 @@ export default function EnhancedWorkflowBuilder({ organizationId, workflowId, on
             } else if (config.mode === 'custom' && config.customEmail?.subject) {
               description = `Subject: ${config.customEmail.subject.substring(0, 30)}...`
             }
+          } else if (node.type === 'whatsapp') {
+            if (config.mode === 'template' && config.templateId) {
+              description = 'Send WhatsApp template'
+            } else if (config.message) {
+              description = `WhatsApp: ${config.message.substring(0, 30)}...`
+            }
           } else if (node.type === 'wait' && config.duration) {
             description = `Wait ${config.duration.value} ${config.duration.unit}`
           } else if (node.type === 'sms' && config.message) {
@@ -510,6 +554,7 @@ export default function EnhancedWorkflowBuilder({ organizationId, workflowId, on
       trigger: "Great start! Now add an action. Try sending a welcome email or SMS to engage the lead immediately.",
       email: "Email added! Consider adding a wait period before the next action to avoid overwhelming the lead.",
       sms: "SMS is great for quick engagement! Add a condition to check if they responded before sending follow-ups.",
+      whatsapp: "WhatsApp messages have high open rates! Consider adding interactive buttons for better engagement.",
       wait: "Good timing strategy! Now add a follow-up action like another email or SMS.",
       condition: "Smart branching! Add different actions for each path to personalize the journey."
     }
@@ -588,6 +633,27 @@ export default function EnhancedWorkflowBuilder({ organizationId, workflowId, on
 
   const renderConfigPanel = () => {
     if (!selectedNode) return null
+
+    // Check if this is an enhanced action that should use UnifiedNodeConfigPanel
+    const isEnhancedAction = selectedNode.type === 'email' || selectedNode.type === 'sms' || selectedNode.type === 'whatsapp'
+    
+    if (isEnhancedAction) {
+      return (
+        <UnifiedNodeConfigPanel
+          node={selectedNode}
+          onClose={() => {
+            setShowConfigPanel(false)
+            setSelectedNode(null)
+          }}
+          onSave={(nodeId, config) => {
+            updateNodeConfig(config)
+            setShowConfigPanel(false)
+            setSelectedNode(null)
+          }}
+          organizationId={organizationId}
+        />
+      )
+    }
 
     const commonProps = {
       config: selectedNode.data.config || {},
@@ -776,27 +842,34 @@ export default function EnhancedWorkflowBuilder({ organizationId, workflowId, on
 
       {/* Right Sidebar - Configuration Panel */}
       {showConfigPanel && selectedNode && (
-        <div className="w-96 bg-white border-l border-gray-200 shadow-lg overflow-y-auto">
-          <div className="sticky top-0 bg-white border-b border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-gray-900">
-                Configure {selectedNode.data.label}
-              </h3>
-              <button
-                onClick={() => {
-                  setShowConfigPanel(false)
-                  setSelectedNode(null)
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
+        <>
+          {/* Check if it's an enhanced action that renders its own panel */}
+          {(selectedNode.type === 'email' || selectedNode.type === 'sms' || selectedNode.type === 'whatsapp') ? (
+            renderConfigPanel()
+          ) : (
+            <div className="w-96 bg-white border-l border-gray-200 shadow-lg overflow-y-auto">
+              <div className="sticky top-0 bg-white border-b border-gray-200 p-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-900">
+                    Configure {selectedNode.data.label}
+                  </h3>
+                  <button
+                    onClick={() => {
+                      setShowConfigPanel(false)
+                      setSelectedNode(null)
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-4">
+                {renderConfigPanel()}
+              </div>
             </div>
-          </div>
-          <div className="p-4">
-            {renderConfigPanel()}
-          </div>
-        </div>
+          )}
+        </>
       )}
     </div>
   )
