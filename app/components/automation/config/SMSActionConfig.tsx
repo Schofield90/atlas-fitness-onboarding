@@ -1,14 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { MessageSquare, Variable, Sparkles, Eye, Clock } from 'lucide-react'
+import { MessageSquare, Variable, Sparkles, Eye, Clock, Send, CheckCircle, XCircle, Loader2 } from 'lucide-react'
 
 interface SMSActionConfigProps {
   config: any
   onChange: (config: any) => void
+  organizationId?: string
 }
 
-export default function SMSActionConfig({ config, onChange }: SMSActionConfigProps) {
+export default function SMSActionConfig({ config, onChange, organizationId }: SMSActionConfigProps) {
   const [message, setMessage] = useState(config.message || '')
   const [showVariables, setShowVariables] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
@@ -18,6 +19,9 @@ export default function SMSActionConfig({ config, onChange }: SMSActionConfigPro
     trackDelivery: true,
     fallbackToEmail: false
   })
+  const [testPhone, setTestPhone] = useState('')
+  const [sendingTest, setSendingTest] = useState(false)
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
 
   const availableVariables = [
     { key: '[first_name]', label: 'First Name', example: 'John' },
@@ -108,6 +112,68 @@ Reply YES to claim your FREE trial session, or call us to chat.
     })
 
     return preview
+  }
+
+  const sendTestSMS = async () => {
+    if (!testPhone || !organizationId) return
+    
+    setSendingTest(true)
+    setTestResult(null)
+    
+    try {
+      // Prepare test message with variable replacement
+      let testMessage = message || 'Test SMS from [organization_name]. Your SMS integration is working correctly!'
+      
+      // Replace variables with sample data for test
+      const sampleData = {
+        '[first_name]': 'John',
+        '[last_name]': 'Doe', 
+        '[name]': 'John Doe',
+        '[organization_name]': 'Atlas Fitness',
+        '[phone]': testPhone,
+        '[email]': 'john@example.com',
+        '[lead_source]': 'Website',
+        '[interest]': 'Personal Training',
+        '[current_date]': new Date().toLocaleDateString('en-GB'),
+        '[current_time]': new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+      }
+      
+      Object.entries(sampleData).forEach(([key, value]) => {
+        testMessage = testMessage.replace(new RegExp(key.replace('[', '\\[').replace(']', '\\]'), 'g'), value)
+      })
+      
+      const response = await fetch('/api/sms/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          organizationId,
+          testPhone,
+          message: testMessage,
+          includeOptOut: sendingOptions.includeOptOut
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok) {
+        setTestResult({
+          success: true,
+          message: 'Test SMS sent successfully! Check your phone.'
+        })
+      } else {
+        setTestResult({
+          success: false,
+          message: data.error || 'Failed to send test SMS'
+        })
+      }
+    } catch (error: any) {
+      setTestResult({
+        success: false,
+        message: error.message || 'An error occurred while sending the test SMS'
+      })
+    } finally {
+      setSendingTest(false)
+    }
   }
 
   return (
@@ -231,6 +297,69 @@ Reply YES to claim your FREE trial session, or call us to chat.
           </div>
         </div>
       )}
+
+      {/* Test SMS Section */}
+      <div className="border-t border-gray-200 pt-4">
+        <h4 className="text-sm font-medium text-gray-700 mb-3">Test SMS</h4>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Send test SMS to
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="tel"
+                value={testPhone}
+                onChange={(e) => setTestPhone(e.target.value)}
+                placeholder="+447123456789"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              <button
+                type="button"
+                onClick={sendTestSMS}
+                disabled={!testPhone || sendingTest || !message}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              >
+                {sendingTest ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4 mr-2" />
+                )}
+                Send Test
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Include country code (e.g., +44 for UK, +1 for US)
+            </p>
+          </div>
+          
+          {testResult && (
+            <div className={`p-3 rounded-md ${testResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+              <div className="flex items-start">
+                {testResult.success ? (
+                  <CheckCircle className="w-5 h-5 text-green-500 mr-2 mt-0.5" />
+                ) : (
+                  <XCircle className="w-5 h-5 text-red-500 mr-2 mt-0.5" />
+                )}
+                <p className={`text-sm ${testResult.success ? 'text-green-700' : 'text-red-700'}`}>
+                  {testResult.message}
+                </p>
+              </div>
+            </div>
+          )}
+          
+          <div className="bg-gray-50 rounded-md p-3">
+            <h5 className="text-sm font-medium text-gray-700 mb-1">What gets tested:</h5>
+            <ul className="text-xs text-gray-600 space-y-1">
+              <li>• SMS delivery and Twilio configuration</li>
+              <li>• Message content with variables replaced</li>
+              <li>• Character count and message splitting</li>
+              <li>• Opt-out compliance (if enabled)</li>
+              <li>• Phone number formatting</li>
+            </ul>
+          </div>
+        </div>
+      </div>
 
       {/* Preview */}
       <div>
