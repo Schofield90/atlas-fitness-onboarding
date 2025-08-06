@@ -431,7 +431,9 @@ export default function SimpleWorkflowBuilder() {
       }
       
       // Auto-save to localStorage as backup
-      localStorage.setItem('workflow_autosave', JSON.stringify(workflowData))
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('workflow_autosave', JSON.stringify(workflowData))
+      }
       
     } catch (error) {
       console.error('Auto-save failed:', error)
@@ -448,12 +450,12 @@ export default function SimpleWorkflowBuilder() {
   useEffect(() => {
     const loadAutoSaved = () => {
       try {
-        const saved = localStorage.getItem('workflow_autosave')
+        const saved = typeof window !== 'undefined' ? localStorage.getItem('workflow_autosave') : null
         if (saved && nodes.length === 0) {
           const workflowData = JSON.parse(saved)
           if (workflowData.nodes?.length > 0) {
             // Show restore prompt
-            const restore = window.confirm('Found auto-saved workflow. Would you like to restore it?')
+            const restore = typeof window !== 'undefined' ? window.confirm('Found auto-saved workflow. Would you like to restore it?') : false
             if (restore) {
               setNodes(workflowData.nodes)
               setEdges(workflowData.edges || [])
@@ -649,17 +651,25 @@ export default function SimpleWorkflowBuilder() {
                   const saved = await response.json()
                   
                   // Clear auto-save after successful save
-                  localStorage.removeItem('workflow_autosave')
+                  if (typeof window !== 'undefined') {
+                    localStorage.removeItem('workflow_autosave')
+                  }
                   
-                  alert(`Advanced workflow "${workflowName}" saved successfully with AI enhancements!`)
-                  window.location.href = '/automations'
+                  if (typeof window !== 'undefined') {
+                    alert(`Advanced workflow "${workflowName}" saved successfully with AI enhancements!`)
+                    window.location.href = '/automations'
+                  }
                 } else {
                   const errorData = await response.json()
-                  alert(`Failed to save workflow: ${errorData.error || 'Unknown error'}`)
+                  if (typeof window !== 'undefined') {
+                    alert(`Failed to save workflow: ${errorData.error || 'Unknown error'}`)
+                  }
                 }
               } catch (error) {
                 console.error('Save error:', error)
-                alert('Error saving workflow. Auto-save backup is available.')
+                if (typeof window !== 'undefined') {
+                  alert('Error saving workflow. Auto-save backup is available.')
+                }
               }
             }}
             className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg shadow-lg transition-colors"
