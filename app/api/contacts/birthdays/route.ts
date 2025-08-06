@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     // Process birthdays and filter by date range
     const contactsWithUpcomingBirthdays = birthdayReminders
       ?.map(reminder => {
-        const contact = reminder.contacts
+        const contact = Array.isArray(reminder.contacts) ? reminder.contacts[0] : reminder.contacts
         if (!contact || !reminder.birth_date) return null
 
         const birthDate = new Date(reminder.birth_date)
