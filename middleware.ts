@@ -23,7 +23,9 @@ const publicRoutes = [
   '/direct-dashboard',
   '/quick-add-class',
   '/api/quick-add-class',
-  '/api/debug'
+  '/api/debug',
+  '/quick-login',
+  '/auth-debug'
 ]
 
 // Client-only routes
