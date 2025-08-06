@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Search, Plus, Eye, Edit, Sparkles, Mail, Template, Wand2 } from 'lucide-react'
+import { Search, Plus, Eye, Edit, Sparkles, Mail, FileText, Wand2 } from 'lucide-react'
 
 interface EmailTemplate {
   id: string
@@ -194,7 +194,7 @@ export function EmailSelector({
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8" aria-label="Tabs">
           {[
-            { id: 'existing', label: 'Existing Templates', icon: Template },
+            { id: 'existing', label: 'Existing Templates', icon: FileText },
             { id: 'ai_generate', label: 'AI Generate', icon: Wand2 },
             { id: 'create', label: 'Create New', icon: Plus }
           ].map(({ id, label, icon: Icon }) => (
@@ -360,7 +360,7 @@ export function EmailSelector({
 
       {activeTab === 'create' && (
         <div className="text-center py-12 text-gray-500">
-          <Template className="mx-auto h-12 w-12 text-gray-400" />
+          <FileText className="mx-auto h-12 w-12 text-gray-400" />
           <h3 className="mt-2 text-sm font-medium text-gray-900">Create New Template</h3>
           <p className="mt-1 text-sm text-gray-500">
             Template creation form will be implemented here
