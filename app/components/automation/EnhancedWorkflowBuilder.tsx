@@ -592,7 +592,7 @@ export default function EnhancedWorkflowBuilder({ organizationId, workflowId, on
                 .filter((t) => t.category === category)
                 .map((template) => (
                   <div
-                    key={template.type}
+                    key={template.type === 'trigger' ? `${template.type}-${template.subtype}` : template.type}
                     draggable
                     onDragStart={(e) => onDragStart(e, template)}
                     className="flex items-center p-3 bg-white rounded-lg border border-gray-200 cursor-move hover:border-blue-300 hover:shadow-sm transition-all"
