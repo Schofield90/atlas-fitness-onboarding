@@ -6,8 +6,6 @@ import { useRouter } from 'next/navigation'
 import { useFacebookConnection } from '@/app/hooks/useFacebookConnection'
 import DashboardLayout from '@/app/components/DashboardLayout'
 
-export const dynamic = 'force-dynamic'
-
 export default function DashboardPage() {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)

@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { handleApiRoute, supabaseAdmin, parseSearchParams } from '@/lib/api/middleware'
 import { z } from 'zod'
 
@@ -134,7 +134,7 @@ export async function GET(request: NextRequest) {
       return groups
     }, {} as Record<string, typeof staffWithDetails>)
 
-    return {
+    return NextResponse.json({
       staff: staffWithDetails,
       grouped_by_role: staffByRole,
       total: staffWithDetails.length,
@@ -146,6 +146,6 @@ export async function GET(request: NextRequest) {
           available_count: staffByRole[role].filter(s => s.is_available).length
         }))
       }
-    }
+    })
   })
 }
