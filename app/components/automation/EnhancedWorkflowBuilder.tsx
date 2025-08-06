@@ -43,7 +43,8 @@ import {
   ClipboardCheck,
   FileText,
   StickyNote,
-  Bell
+  Bell,
+  Trash2
 } from 'lucide-react'
 
 // Import configuration components
@@ -69,8 +70,20 @@ import TaskReminderTriggerConfig from './config/TaskReminderTriggerConfig'
 import { safeAlert } from '@/app/lib/utils/safe-alert'
 
 // Simple node components for the canvas
-const TriggerNode = ({ data, selected }: NodeProps) => (
-  <div className={`bg-gradient-to-r from-orange-500 to-orange-600 text-white p-4 rounded-lg shadow-lg min-w-[220px] ${selected ? 'ring-2 ring-orange-300' : ''}`}>
+const TriggerNode = ({ data, selected, id }: NodeProps) => (
+  <div className={`bg-gradient-to-r from-orange-500 to-orange-600 text-white p-4 rounded-lg shadow-lg min-w-[220px] relative group ${selected ? 'ring-2 ring-orange-300' : ''}`}>
+    {data.onDelete && (
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          data.onDelete(id)
+        }}
+        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-md"
+        title="Delete node"
+      >
+        <X className="w-3 h-3" />
+      </button>
+    )}
     <div className="flex items-center justify-between mb-2">
       <Users className="w-5 h-5" />
       <span className="text-xs bg-orange-700 px-2 py-1 rounded">Trigger</span>
@@ -81,8 +94,20 @@ const TriggerNode = ({ data, selected }: NodeProps) => (
   </div>
 )
 
-const EmailNode = ({ data, selected }: NodeProps) => (
-  <div className={`bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-lg shadow-lg min-w-[220px] ${selected ? 'ring-2 ring-blue-300' : ''}`}>
+const EmailNode = ({ data, selected, id }: NodeProps) => (
+  <div className={`bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-lg shadow-lg min-w-[220px] relative group ${selected ? 'ring-2 ring-blue-300' : ''}`}>
+    {data.onDelete && (
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          data.onDelete(id)
+        }}
+        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-md"
+        title="Delete node"
+      >
+        <X className="w-3 h-3" />
+      </button>
+    )}
     <Handle type="target" position={Position.Top} className="w-3 h-3" />
     <div className="flex items-center justify-between mb-2">
       <Mail className="w-5 h-5" />
@@ -94,8 +119,20 @@ const EmailNode = ({ data, selected }: NodeProps) => (
   </div>
 )
 
-const WaitNode = ({ data, selected }: NodeProps) => (
-  <div className={`bg-gradient-to-r from-purple-500 to-purple-600 text-white p-4 rounded-lg shadow-lg min-w-[220px] ${selected ? 'ring-2 ring-purple-300' : ''}`}>
+const WaitNode = ({ data, selected, id }: NodeProps) => (
+  <div className={`bg-gradient-to-r from-purple-500 to-purple-600 text-white p-4 rounded-lg shadow-lg min-w-[220px] relative group ${selected ? 'ring-2 ring-purple-300' : ''}`}>
+    {data.onDelete && (
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          data.onDelete(id)
+        }}
+        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-md"
+        title="Delete node"
+      >
+        <X className="w-3 h-3" />
+      </button>
+    )}
     <Handle type="target" position={Position.Top} className="w-3 h-3" />
     <div className="flex items-center justify-between mb-2">
       <Clock className="w-5 h-5" />
@@ -107,8 +144,20 @@ const WaitNode = ({ data, selected }: NodeProps) => (
   </div>
 )
 
-const SMSNode = ({ data, selected }: NodeProps) => (
-  <div className={`bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-lg shadow-lg min-w-[220px] ${selected ? 'ring-2 ring-green-300' : ''}`}>
+const SMSNode = ({ data, selected, id }: NodeProps) => (
+  <div className={`bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-lg shadow-lg min-w-[220px] relative group ${selected ? 'ring-2 ring-green-300' : ''}`}>
+    {data.onDelete && (
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          data.onDelete(id)
+        }}
+        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-md"
+        title="Delete node"
+      >
+        <X className="w-3 h-3" />
+      </button>
+    )}
     <Handle type="target" position={Position.Top} className="w-3 h-3" />
     <div className="flex items-center justify-between mb-2">
       <MessageSquare className="w-5 h-5" />
@@ -120,8 +169,20 @@ const SMSNode = ({ data, selected }: NodeProps) => (
   </div>
 )
 
-const ConditionNode = ({ data, selected }: NodeProps) => (
-  <div className={`bg-gradient-to-r from-indigo-500 to-indigo-600 text-white p-4 rounded-lg shadow-lg min-w-[220px] ${selected ? 'ring-2 ring-indigo-300' : ''}`}>
+const ConditionNode = ({ data, selected, id }: NodeProps) => (
+  <div className={`bg-gradient-to-r from-indigo-500 to-indigo-600 text-white p-4 rounded-lg shadow-lg min-w-[220px] relative group ${selected ? 'ring-2 ring-indigo-300' : ''}`}>
+    {data.onDelete && (
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          data.onDelete(id)
+        }}
+        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-md"
+        title="Delete node"
+      >
+        <X className="w-3 h-3" />
+      </button>
+    )}
     <Handle type="target" position={Position.Top} className="w-3 h-3" />
     <div className="flex items-center justify-between mb-2">
       <Filter className="w-5 h-5" />
@@ -333,7 +394,8 @@ export default function EnhancedWorkflowBuilder({ organizationId, workflowId, on
           label: 'New Lead', 
           description: 'When a lead is created',
           subtype: 'lead_trigger',
-          config: {}
+          config: {},
+          onDelete: deleteNode
         }
       }
       setNodes([triggerNode])
@@ -373,7 +435,8 @@ export default function EnhancedWorkflowBuilder({ organizationId, workflowId, on
           label: template.label,
           description: template.description,
           subtype: template.subtype || template.type,
-          config: {}
+          config: {},
+          onDelete: deleteNode
         }
       }
 
@@ -389,6 +452,15 @@ export default function EnhancedWorkflowBuilder({ organizationId, workflowId, on
     setSelectedNode(node)
     setShowConfigPanel(true)
   }, [])
+
+  const deleteNode = useCallback((nodeId: string) => {
+    setNodes((nds) => nds.filter((node) => node.id !== nodeId))
+    setEdges((eds) => eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId))
+    if (selectedNode?.id === nodeId) {
+      setSelectedNode(null)
+      setShowConfigPanel(false)
+    }
+  }, [selectedNode, setNodes, setEdges])
 
   const onDragStart = (event: React.DragEvent, template: any) => {
     event.dataTransfer.setData('application/reactflow', JSON.stringify(template))
