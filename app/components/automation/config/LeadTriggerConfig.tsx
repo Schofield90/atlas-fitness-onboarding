@@ -61,14 +61,17 @@ export default function LeadTriggerConfig({ config, onChange, organizationId }: 
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadAvailableData()
     if (config.triggerType) {
       setSelectedTriggerType(config.triggerType)
     }
     if (config.name) {
       setTriggerName(config.name)
     }
-  }, [organizationId])
+  }, [])
+
+  useEffect(() => {
+    loadAvailableData()
+  }, [organizationId, selectedTriggerType])
 
   useEffect(() => {
     // Auto-generate trigger name based on selection
@@ -87,30 +90,49 @@ export default function LeadTriggerConfig({ config, onChange, organizationId }: 
 
   const loadAvailableData = async () => {
     try {
-      // Mock data - in production, fetch from API
-      const mockPages: FacebookPage[] = [
-        { id: 'page_123', name: 'Atlas Fitness Main' },
-        { id: 'page_456', name: 'Atlas Fitness Downtown' },
-        { id: 'page_789', name: 'Atlas Fitness North' }
-      ]
+      setLoading(true)
       
-      const mockForms: FacebookForm[] = [
-        { id: 'form_001', name: 'Free Trial Form', pageId: 'page_123' },
-        { id: 'form_002', name: 'Membership Inquiry', pageId: 'page_123' },
-        { id: 'form_003', name: 'Class Booking', pageId: 'page_456' },
-        { id: 'form_004', name: 'Personal Training Request', pageId: 'page_789' }
-      ]
+      if (selectedTriggerType === 'facebook_lead_form' || selectedTriggerType === 'instagram_lead_form') {
+        // Fetch Facebook pages
+        const pagesResponse = await fetch('/api/integrations/facebook/pages')
+        if (pagesResponse.ok) {
+          const pagesData = await pagesResponse.json()
+          if (pagesData.pages) {
+            setFacebookPages(pagesData.pages.map((page: any) => ({
+              id: page.id,
+              name: page.name
+            })))
+            
+            // Extract all forms from pages
+            const allForms: FacebookForm[] = []
+            pagesData.pages.forEach((page: any) => {
+              page.forms?.forEach((form: any) => {
+                allForms.push({
+                  id: form.facebook_form_id || form.id,
+                  name: form.form_name || form.name,
+                  pageId: page.id
+                })
+              })
+            })
+            setFacebookForms(allForms)
+          }
+        } else {
+          console.error('Failed to fetch Facebook pages')
+        }
+      }
       
-      const mockWebForms: WebsiteForm[] = [
-        { id: 'web_001', name: 'Contact Form', type: 'contact' },
-        { id: 'web_002', name: 'Free Trial Signup', type: 'trial' },
-        { id: 'web_003', name: 'Newsletter Signup', type: 'newsletter' },
-        { id: 'web_004', name: 'Class Registration', type: 'class' }
-      ]
-      
-      setFacebookPages(mockPages)
-      setFacebookForms(mockForms)
-      setWebsiteForms(mockWebForms)
+      if (selectedTriggerType === 'website_form') {
+        // Fetch website forms
+        const formsResponse = await fetch('/api/integrations/website/forms')
+        if (formsResponse.ok) {
+          const formsData = await formsResponse.json()
+          if (formsData.forms) {
+            setWebsiteForms(formsData.forms)
+          }
+        } else {
+          console.error('Failed to fetch website forms')
+        }
+      }
     } catch (error) {
       console.error('Error loading data:', error)
     } finally {
@@ -233,10 +255,28 @@ export default function LeadTriggerConfig({ config, onChange, organizationId }: 
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
+        )
       )}
 
       {/* Filters - Facebook Lead Form */}
       {selectedTriggerType === 'facebook_lead_form' && (
+        facebookPages.length === 0 ? (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+            <Facebook className="w-12 h-12 text-yellow-600 mx-auto mb-3" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No Facebook Pages Connected
+            </h3>
+            <p className="text-gray-600 mb-4">
+              You need to connect your Facebook account and select pages to use Facebook lead forms.
+            </p>
+            <a
+              href="/integrations/facebook"
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Connect Facebook Account
+            </a>
+          </div>
+        ) : (
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2 uppercase tracking-wide">
@@ -314,10 +354,28 @@ export default function LeadTriggerConfig({ config, onChange, organizationId }: 
             Add filters
           </button>
         </div>
+        )
       )}
 
       {/* Filters - Website Form */}
       {selectedTriggerType === 'website_form' && (
+        websiteForms.length === 0 ? (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+            <Globe className="w-12 h-12 text-yellow-600 mx-auto mb-3" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No Website Forms Created
+            </h3>
+            <p className="text-gray-600 mb-4">
+              You need to create website forms before you can use them as triggers.
+            </p>
+            <a
+              href="/forms"
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Create Website Form
+            </a>
+          </div>
+        ) : (
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2 uppercase tracking-wide">
@@ -349,6 +407,7 @@ export default function LeadTriggerConfig({ config, onChange, organizationId }: 
             </div>
           </div>
         </div>
+        )
       )}
 
     </div>

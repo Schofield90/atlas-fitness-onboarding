@@ -1,173 +1,108 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { createClient } from '@/app/lib/supabase/server'
+import { getCurrentUserOrganization } from '@/app/lib/organization-server'
 
-export const runtime = 'nodejs'
-
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    // Retrieve the stored access token from secure cookie
-    const cookieStore = await cookies()
-    const tokenCookie = cookieStore.get('fb_token_data')
+    const supabase = await createClient()
+    const { organizationId, error: orgError } = await getCurrentUserOrganization()
     
-    let storedAccessToken = null
-    let facebookUserId = null
-    
-    if (tokenCookie?.value) {
-      try {
-        const tokenData = JSON.parse(tokenCookie.value)
-        storedAccessToken = tokenData.access_token
-        facebookUserId = tokenData.user_id
-        console.log('🔑 Retrieved Facebook token from cookie for user:', facebookUserId)
-      } catch (e) {
-        console.error('Failed to parse token cookie:', e)
-      }
-    }
-    
-    if (!storedAccessToken || !facebookUserId) {
-      console.log('⚠️ No real Facebook access token available, using demo data')
-      
-      // Return demo data when no real token
-      return await returnDemoPages()
+    if (orgError || !organizationId) {
+      return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
     }
 
-    console.log('📄 Fetching real Facebook Pages from Graph API')
-    console.log('🔑 Using access token:', storedAccessToken.substring(0, 20) + '...')
-    
-    // Real Facebook Graph API call
-    const apiUrl = `https://graph.facebook.com/v18.0/me/accounts?fields=id,name,access_token,cover,category,fan_count,website,emails,phone&access_token=${storedAccessToken}`
-    console.log('🌐 API URL:', apiUrl.replace(storedAccessToken, 'TOKEN_HIDDEN'))
-    
-    const response = await fetch(apiUrl)
-    const data = await response.json()
-    
-    console.log('📥 Facebook API Response:', {
-      status: response.status,
-      hasError: !!data.error,
-      hasData: !!data.data,
-      dataLength: data.data?.length || 0
-    })
-    
-    if (data.error) {
-      console.error('❌ Facebook API error:', data.error)
-      
-      // Fall back to demo data if API fails
-      if (data.error.code === 190) { // Invalid access token
-        console.log('🔄 Access token invalid, falling back to demo data')
-        return await returnDemoPages()
-      }
-      
-      return NextResponse.json(
-        { 
-          error: 'Facebook API error', 
-          details: data.error.message,
-          code: data.error.code 
-        }, 
-        { status: 400 }
-      )
+    // Fetch Facebook pages for the organization
+    const { data: pages, error } = await supabase
+      .from('facebook_pages')
+      .select(`
+        id,
+        facebook_page_id,
+        page_name,
+        page_access_token,
+        is_active,
+        is_primary,
+        lead_forms:facebook_lead_forms(
+          id,
+          facebook_form_id,
+          form_name,
+          is_active,
+          last_sync_at
+        )
+      `)
+      .eq('organization_id', organizationId)
+      .eq('is_active', true)
+      .order('is_primary', { ascending: false })
+      .order('page_name')
+
+    if (error) {
+      console.error('Error fetching Facebook pages:', error)
+      return NextResponse.json({ error: 'Failed to fetch pages' }, { status: 500 })
     }
 
-    console.log(`✅ Retrieved ${data.data?.length || 0} real Facebook pages`)
+    // Transform data for the frontend
+    const transformedPages = pages?.map(page => ({
+      id: page.facebook_page_id,
+      name: page.page_name,
+      forms: page.lead_forms?.filter((form: any) => form.is_active) || []
+    })) || []
 
     return NextResponse.json({
-      success: true,
-      pages: (data.data || []).map((page: any) => ({
-        id: page.id,
-        name: page.name,
-        access_token: page.access_token, // Page-specific token for lead forms
-        cover: page.cover?.source,
-        category: page.category,
-        hasLeadAccess: !!page.access_token, // If we have page token, we can access leads
-        followers_count: page.fan_count || 0,
-        website: page.website,
-        emails: page.emails || [],
-        phone: page.phone
-      })),
-      pagination: {
-        total: data.data?.length || 0,
-        has_next: !!data.paging?.next
-      },
-      debug: {
-        api_call: 'GET /me/accounts',
-        permissions_required: ['pages_show_list', 'pages_read_engagement'],
-        data_source: 'facebook_api',
-        timestamp: new Date().toISOString()
-      }
+      pages: transformedPages,
+      hasConnection: pages && pages.length > 0
     })
-
   } catch (error) {
-    console.error('❌ Error fetching Facebook pages:', error)
-    
-    // Fall back to demo data on any error
-    console.log('🔄 Falling back to demo data due to error')
-    return await returnDemoPages()
+    console.error('Error in GET /api/integrations/facebook/pages:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
-// Helper function to return demo data
-async function returnDemoPages() {
-    // Demo data - replace with real API call
-    const demoPages = [
-      {
-        id: '123456789',
-        name: 'Atlas Fitness Gym',
-        access_token: 'page_token_123',
-        cover: {
-          source: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=200&fit=crop'
-        },
-        category: 'Gym/Physical Fitness Center',
-        hasLeadAccess: true,
-        followers_count: 2847,
-        website: 'https://atlas-fitness.com'
-      },
-      {
-        id: '987654321', 
-        name: 'Atlas Fitness Downtown',
-        access_token: 'page_token_456',
-        cover: {
-          source: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&h=200&fit=crop'
-        },
-        category: 'Gym/Physical Fitness Center',
-        hasLeadAccess: true,
-        followers_count: 1523,
-        website: 'https://atlas-fitness.com/downtown'
-      },
-      {
-        id: '456789123',
-        name: 'Atlas Nutrition Blog',
-        access_token: 'page_token_789',
-        cover: {
-          source: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=400&h=200&fit=crop'
-        },
-        category: 'Health/Wellness Website',
-        hasLeadAccess: false,
-        followers_count: 985,
-        website: 'https://blog.atlas-fitness.com'
-      }
-    ]
+// Create or update Facebook pages
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const { organizationId, error: orgError } = await getCurrentUserOrganization()
+    
+    if (orgError || !organizationId) {
+      return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
+    }
 
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    const body = await request.json()
+    const { pages, integrationId } = body
 
-    return NextResponse.json({
-      success: true,
-      pages: demoPages.map(page => ({
-        id: page.id,
-        name: page.name,
-        access_token: page.access_token, // Page-specific token for lead forms
-        cover: page.cover?.source,
-        category: page.category,
-        hasLeadAccess: page.hasLeadAccess,
-        followers_count: page.followers_count,
-        website: page.website
-      })),
-      pagination: {
-        total: demoPages.length,
-        has_next: false
-      },
-      debug: {
-        api_call: 'GET /me/accounts',
-        permissions_required: ['pages_show_list', 'pages_read_engagement'],
-        note: 'Demo data - replace with real Facebook Graph API call'
-      }
+    if (!pages || !Array.isArray(pages)) {
+      return NextResponse.json({ error: 'Invalid pages data' }, { status: 400 })
+    }
+
+    // Upsert pages
+    const upsertData = pages.map(page => ({
+      organization_id: organizationId,
+      integration_id: integrationId,
+      facebook_page_id: page.id,
+      page_name: page.name,
+      page_access_token: page.access_token,
+      is_active: true,
+      is_primary: page.is_primary || false
+    }))
+
+    const { data, error } = await supabase
+      .from('facebook_pages')
+      .upsert(upsertData, {
+        onConflict: 'organization_id,facebook_page_id'
+      })
+      .select()
+
+    if (error) {
+      console.error('Error upserting Facebook pages:', error)
+      return NextResponse.json({ error: 'Failed to save pages' }, { status: 500 })
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      pages: data,
+      message: `Successfully saved ${data.length} pages`
     })
+  } catch (error) {
+    console.error('Error in POST /api/integrations/facebook/pages:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
 }
