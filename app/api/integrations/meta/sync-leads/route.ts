@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
       formName: formRecord.form_name,
       pageName: Array.isArray(formRecord.facebook_pages) 
         ? formRecord.facebook_pages[0]?.page_name 
-        : formRecord.facebook_pages?.page_name,
+        : (formRecord.facebook_pages as any)?.page_name,
       results: syncResults,
       summary: {
         totalFetched: leads.length,

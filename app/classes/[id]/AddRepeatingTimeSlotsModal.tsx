@@ -156,12 +156,12 @@ export default function AddRepeatingTimeSlotsModal({ onClose, onSuccess, program
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-gray-800 rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Add Repeating Time Slots</h2>
+          <h2 className="text-2xl font-bold text-white">Add Repeating Time Slots</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
+            className="text-gray-400 hover:text-gray-200"
           >
             <X className="h-6 w-6" />
           </button>
@@ -170,7 +170,7 @@ export default function AddRepeatingTimeSlotsModal({ onClose, onSuccess, program
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Days Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-gray-300 mb-3">
               Select Days:
             </label>
             <div className="grid grid-cols-7 gap-2">
@@ -191,8 +191,8 @@ export default function AddRepeatingTimeSlotsModal({ onClose, onSuccess, program
                   <div className={`
                     px-3 py-2 rounded-lg border-2 cursor-pointer text-center transition-colors
                     ${selectedDays.includes(day.value) 
-                      ? 'border-blue-600 bg-blue-50 text-blue-600' 
-                      : 'border-gray-300 hover:border-gray-400 text-gray-900'
+                      ? 'border-blue-600 bg-blue-900 text-blue-400' 
+                      : 'border-gray-600 hover:border-gray-500 text-gray-300'
                     }
                   `}>
                     {day.label}
@@ -206,44 +206,44 @@ export default function AddRepeatingTimeSlotsModal({ onClose, onSuccess, program
           <div>
             <div className="grid grid-cols-3 gap-4 mb-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-300 mb-1">
                   Class Duration (minutes):
                 </label>
                 <input
                   type="number"
                   value={duration}
                   onChange={(e) => setDuration(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-300 mb-1">
                   Start Date:
                 </label>
                 <input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-300 mb-1">
                   End Date:
                 </label>
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   disabled={isIndefinite}
                   required={!isIndefinite}
                 />
               </div>
             </div>
-            <label className="flex items-center text-gray-900">
+            <label className="flex items-center text-gray-300">
               <input
                 type="checkbox"
                 checked={isIndefinite}
@@ -257,13 +257,13 @@ export default function AddRepeatingTimeSlotsModal({ onClose, onSuccess, program
           {/* Time Slots */}
           <div>
             <div className="flex justify-between items-center mb-3">
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-300">
                 Time Slots:
               </label>
               <button
                 type="button"
                 onClick={addTimeSlot}
-                className="text-blue-600 hover:text-blue-700 flex items-center gap-1 text-sm"
+                className="text-blue-400 hover:text-blue-300 flex items-center gap-1 text-sm"
               >
                 <Plus className="h-4 w-4" />
                 Add Time Slot
@@ -278,7 +278,7 @@ export default function AddRepeatingTimeSlotsModal({ onClose, onSuccess, program
                       type="time"
                       value={slot.time}
                       onChange={(e) => updateTimeSlot(slot.id, 'time', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     />
                   </div>
@@ -295,7 +295,7 @@ export default function AddRepeatingTimeSlotsModal({ onClose, onSuccess, program
                       value={slot.capacity}
                       onChange={(e) => updateTimeSlot(slot.id, 'capacity', e.target.value)}
                       placeholder="Capacity"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     />
                   </div>
@@ -314,7 +314,7 @@ export default function AddRepeatingTimeSlotsModal({ onClose, onSuccess, program
                       <button
                         type="button"
                         onClick={() => removeTimeSlot(slot.id)}
-                        className="text-red-600 hover:text-red-700 p-2"
+                        className="text-red-400 hover:text-red-300 p-2"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -329,7 +329,7 @@ export default function AddRepeatingTimeSlotsModal({ onClose, onSuccess, program
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              className="px-4 py-2 text-gray-400 hover:text-gray-300"
             >
               Cancel
             </button>

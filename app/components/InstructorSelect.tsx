@@ -59,7 +59,7 @@ export default function InstructorSelect({ value, onChange, required = false, cl
 
   if (loading) {
     return (
-      <div className={`w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 ${className}`}>
+      <div className={`w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700 text-gray-300 ${className}`}>
         Loading instructors...
       </div>
     )
@@ -73,7 +73,7 @@ export default function InstructorSelect({ value, onChange, required = false, cl
           value={newInstructorName}
           onChange={(e) => setNewInstructorName(e.target.value)}
           placeholder="Enter instructor name"
-          className={`w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 ${className}`}
+          className={`w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${className}`}
           autoFocus
         />
         <div className="flex gap-2">
@@ -91,7 +91,7 @@ export default function InstructorSelect({ value, onChange, required = false, cl
               setShowAddNew(false)
               setNewInstructorName('')
             }}
-            className="px-3 py-1 text-gray-600 hover:text-gray-800 text-sm"
+            className="px-3 py-1 text-gray-400 hover:text-gray-300 text-sm"
           >
             Cancel
           </button>
@@ -112,7 +112,7 @@ export default function InstructorSelect({ value, onChange, required = false, cl
           }
         }}
         required={required}
-        className={`w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none pr-10 ${className}`}
+        className={`w-full px-3 py-2 border border-gray-600 rounded-md bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none pr-10 ${className}`}
       >
         <option value="">Select instructor...</option>
         {instructors.map(instructor => (
@@ -120,11 +120,11 @@ export default function InstructorSelect({ value, onChange, required = false, cl
             {instructor.name}
           </option>
         ))}
-        <option value="__add_new__" className="font-medium text-blue-600">
+        <option value="__add_new__" className="font-medium">
           + Add new instructor
         </option>
       </select>
-      <User className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+      <User className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
     </div>
   )
 }
