@@ -17,6 +17,7 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('Login attempt started with email:', email)
     setLoading(true)
     setError(null)
 
@@ -25,13 +26,17 @@ export default function LoginPage() {
         email,
         password,
       })
+      
+      console.log('Auth response:', { data, authError })
 
       if (authError) {
+        console.error('Auth error:', authError)
         setError(authError.message)
         return
       }
 
       if (data?.user) {
+        console.log('User authenticated:', data.user.id)
         // Check if user has organization
         const { data: userOrg } = await supabase
           .from('user_organizations')
