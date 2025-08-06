@@ -11,10 +11,11 @@ export default function WorkflowBuilderPage() {
 
   useEffect(() => {
     async function loadOrganization() {
-      const { organization } = await getCurrentUserOrganization()
-      if (organization) {
-        setOrganizationId(organization.id)
+      const { organizationId, error } = await getCurrentUserOrganization()
+      if (organizationId) {
+        setOrganizationId(organizationId)
       } else {
+        console.error('Auth error:', error)
         router.push('/login')
       }
     }
