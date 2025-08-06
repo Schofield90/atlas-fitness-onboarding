@@ -295,13 +295,23 @@ export default function ClassDetailPage() {
                         {Object.values(dayPatterns).map(pattern => {
                           const startTime = new Date(pattern.start_time)
                           const endTime = new Date(pattern.end_time)
-                          const timeRange = `${startTime.toLocaleTimeString('en-GB', { 
-                            hour: 'numeric', 
-                            minute: '2-digit' 
-                          })}–${endTime.toLocaleTimeString('en-GB', { 
-                            hour: 'numeric', 
-                            minute: '2-digit' 
-                          })}`
+                          
+                          // Calculate if it's exactly 1 hour
+                          const durationMinutes = pattern.duration_minutes
+                          const isOneHour = durationMinutes === 60
+                          
+                          const timeDisplay = isOneHour 
+                            ? `${startTime.toLocaleTimeString('en-GB', { 
+                                hour: 'numeric', 
+                                minute: '2-digit' 
+                              })} • 1 hour`
+                            : `${startTime.toLocaleTimeString('en-GB', { 
+                                hour: 'numeric', 
+                                minute: '2-digit' 
+                              })}–${endTime.toLocaleTimeString('en-GB', { 
+                                hour: 'numeric', 
+                                minute: '2-digit' 
+                              })}`
 
                           const dropdownKey = `${day}-${pattern.start_time}-${pattern.instructor_name}`
                           
@@ -310,7 +320,7 @@ export default function ClassDetailPage() {
                               <div className="flex justify-between items-center">
                                 <div>
                                   <p className="text-gray-900 font-medium">
-                                    {timeRange} @ {pattern.location}
+                                    {timeDisplay} @ {pattern.location}
                                   </p>
                                   <p className="text-gray-600">
                                     Limit: {pattern.capacity} • {pattern.instructor_name}
