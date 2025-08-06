@@ -9,7 +9,7 @@ export function getStripe(): Stripe {
   }
   
   return new Stripe(stripeKey, {
-    apiVersion: '2025-06-30.basil',
+    apiVersion: '2025-07-30.basil',
   })
 }
 
