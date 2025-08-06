@@ -1,5 +1,7 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -35,8 +37,10 @@ export default function AutomationsPage() {
   const router = useRouter()
   const [workflows, setWorkflows] = useState<Workflow[]>([])
   const [loading, setLoading] = useState(true)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
     fetchWorkflows()
   }, [])
 
@@ -147,6 +151,15 @@ export default function AutomationsPage() {
       ...w,
       status: currentStatus === 'active' ? 'paused' : 'active'
     } as Workflow : w))
+  }
+
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+      </div>
+    )
   }
 
   return (
