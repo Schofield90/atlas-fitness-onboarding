@@ -971,6 +971,10 @@ export default function SimpleWorkflowBuilder() {
                         if (data.suggestions) {
                           setAiSuggestions(data.suggestions)
                         }
+                      } else {
+                        const errorData = await response.json()
+                        console.error('AI Assistant API error:', errorData)
+                        alert(errorData.error || 'Failed to generate workflow. Please make sure you are logged in.')
                       }
                     } catch (error) {
                       console.error('AI Assistant error:', error)
