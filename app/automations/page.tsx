@@ -33,16 +33,10 @@ interface Workflow {
 
 export default function AutomationsPage() {
   const router = useRouter()
-  const [userData, setUserData] = useState<any>(null)
   const [workflows, setWorkflows] = useState<Workflow[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const storedData = localStorage.getItem('gymleadhub_trial_data')
-    if (storedData) {
-      setUserData(JSON.parse(storedData))
-    }
-    
     fetchWorkflows()
   }, [])
 
@@ -155,25 +149,8 @@ export default function AutomationsPage() {
     } as Workflow : w))
   }
 
-  if (!userData) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Welcome to Gymleadhub!</h1>
-          <p className="text-gray-300 mb-8">Please sign up to access automations.</p>
-          <Link 
-            href="/signup"
-            className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg transition-colors"
-          >
-            Start Free Trial
-          </Link>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <DashboardLayout userData={userData}>
+    <DashboardLayout>
       <div className="container mx-auto px-6 py-8">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">

@@ -210,7 +210,7 @@ async function getOrganizationScoringStats(supabase: any, organizationId: string
       .select('lead_score')
       .eq('organization_id', organizationId)
     
-    const stats = {
+    const stats: any = {
       totalLeads: temperatureStats?.length || 0,
       hot: 0,
       warm: 0,
