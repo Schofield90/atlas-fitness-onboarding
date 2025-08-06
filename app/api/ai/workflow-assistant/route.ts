@@ -31,19 +31,25 @@ function parseWorkflowDescription(description: string) {
   const actionKeywords = ['send', 'wait', 'add', 'create', 'update', 'assign']
   const conditionKeywords = ['if', 'unless', 'check']
   
-  // Simple parsing logic
-  const sentences = description.toLowerCase().split(/[,.]/).map(s => s.trim()).filter(s => s)
+  // Better parsing - split by "then", "and", or natural breaks
+  const lowerDesc = description.toLowerCase()
+  const parts = lowerDesc.split(/\s+(?:then|and)\s+|\s*,\s*/)
+  const sentences = parts.map(s => s.trim()).filter(s => s)
+  
+  // Always ensure we have at least one trigger node
+  let hasTrigger = false
   
   sentences.forEach((sentence, index) => {
     let nodeType = 'action'
     let label = 'Action'
     let nodeDescription = sentence
     
-    // Detect trigger
-    if (index === 0 && triggerKeywords.some(keyword => sentence.includes(keyword))) {
+    // Detect trigger - look for trigger keywords or make first sentence a trigger
+    if (!hasTrigger && (index === 0 || triggerKeywords.some(keyword => sentence.includes(keyword)))) {
       nodeType = 'trigger'
+      hasTrigger = true
       
-      if (sentence.includes('new lead') || sentence.includes('lead')) {
+      if (sentence.includes('lead comes in') || sentence.includes('new lead') || sentence.includes('lead')) {
         label = 'New Lead'
         nodeDescription = 'When a new lead is created'
         if (sentence.includes('facebook')) {
@@ -66,13 +72,16 @@ function parseWorkflowDescription(description: string) {
       }
     }
     // Detect send actions
-    else if (sentence.includes('send')) {
+    else if (sentence.includes('send') || sentence.includes('email')) {
       if (sentence.includes('sms') || sentence.includes('text')) {
         label = 'Send SMS'
         nodeDescription = 'Send an SMS message'
       } else if (sentence.includes('email')) {
         label = 'Send Email'
         nodeDescription = 'Send an email to the lead'
+        if (sentence.includes('welcome')) {
+          nodeDescription = 'Send a welcome email'
+        }
       } else if (sentence.includes('whatsapp')) {
         label = 'Send WhatsApp'
         nodeDescription = 'Send a WhatsApp message'
@@ -175,7 +184,9 @@ export async function POST(request: NextRequest) {
     }
     
     // Parse the prompt to generate workflow
+    console.log('AI Assistant - Parsing prompt:', prompt)
     const workflow = parseWorkflowDescription(prompt)
+    console.log('AI Assistant - Generated workflow:', JSON.stringify(workflow, null, 2))
     
     // Generate helpful suggestions
     const suggestions = generateSuggestions(prompt)
