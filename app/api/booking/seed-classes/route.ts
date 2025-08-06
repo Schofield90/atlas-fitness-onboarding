@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/app/lib/supabase/server'
-import { getCurrentUserOrganization } from '@/app/lib/organization-service'
+import { getCurrentUserOrganization } from '@/app/lib/organization-server'
 
 // Sample class types and data
 const CLASS_TYPES = [

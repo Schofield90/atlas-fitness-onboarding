@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { createClient } from '@/app/lib/supabase/server'
+import { getCurrentUserOrganization } from '@/app/lib/organization-server'
 
 export const runtime = 'nodejs' // Force Node.js runtime for better env var support
 
@@ -111,28 +113,55 @@ export async function GET(request: NextRequest) {
 
     console.log('✅ Facebook user verified:', userData.name, userData.email)
 
-    // Step 4: Store the integration data in a secure HTTP-only cookie
-    // This persists across deployments but should be replaced with a database in production
-    const fbTokenData = {
-      access_token: finalAccessToken,
-      expires_in: expiresIn,
-      user_id: userData.id,
-      user_name: userData.name,
-      user_email: userData.email,
-      created_at: new Date().toISOString()
+    // Step 4: Get current user and organization
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user) {
+      console.error('❌ User not authenticated during OAuth callback')
+      const callbackUrl = new URL('/integrations/facebook/callback', request.url)
+      callbackUrl.searchParams.set('error', 'authentication_required')
+      return NextResponse.redirect(callbackUrl)
     }
 
-    // Store token in HTTP-only cookie (expires in 60 days to match Facebook token)
-    const cookieStore = await cookies()
-    cookieStore.set('fb_token_data', JSON.stringify(fbTokenData), {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 24 * 60 * 60, // 60 days
-      path: '/'
-    })
+    const { organizationId, error: orgError } = await getCurrentUserOrganization()
+    
+    if (orgError || !organizationId) {
+      console.error('❌ No organization found during OAuth callback')
+      const callbackUrl = new URL('/integrations/facebook/callback', request.url)
+      callbackUrl.searchParams.set('error', 'no_organization')
+      return NextResponse.redirect(callbackUrl)
+    }
 
-    console.log('💾 Stored Facebook token in secure cookie for user:', userData.id, userData.name)
+    // Step 5: Store integration data in database
+    const tokenExpiresAt = new Date(Date.now() + (expiresIn * 1000))
+    
+    const { error: insertError } = await supabase
+      .from('facebook_integrations')
+      .upsert({
+        organization_id: organizationId,
+        user_id: user.id,
+        facebook_user_id: userData.id,
+        facebook_user_name: userData.name,
+        facebook_user_email: userData.email,
+        access_token: finalAccessToken,
+        token_expires_at: tokenExpiresAt.toISOString(),
+        granted_scopes: [], // We'll update this from token info
+        is_active: true,
+        last_sync_at: new Date().toISOString(),
+        settings: {}
+      }, {
+        onConflict: 'organization_id,facebook_user_id'
+      })
+
+    if (insertError) {
+      console.error('❌ Failed to store Facebook integration:', insertError)
+      const callbackUrl = new URL('/integrations/facebook/callback', request.url)
+      callbackUrl.searchParams.set('error', 'storage_failed')
+      return NextResponse.redirect(callbackUrl)
+    }
+
+    console.log('💾 Stored Facebook integration in database for user:', userData.id, userData.name)
 
     const callbackUrl = new URL('/integrations/facebook/callback', request.url)
     callbackUrl.searchParams.set('success', 'true')

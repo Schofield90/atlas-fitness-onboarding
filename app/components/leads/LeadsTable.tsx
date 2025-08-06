@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { formatBritishDate } from '@/app/lib/utils/british-format'
 import { MessageComposer } from '@/app/components/messaging/MessageComposer'
+import { LeadScoringBadge, TemperatureIndicator } from './LeadScoringBadge'
 
 interface Lead {
   id: string
@@ -15,6 +16,8 @@ interface Lead {
   created_at: string
   form_name?: string
   campaign_name?: string
+  lead_score?: number
+  temperature?: string
   lead_tags?: {
     tag_id: string
     tags: {
@@ -36,6 +39,8 @@ export function LeadsTable({ statusFilter = 'all' }: LeadsTableProps) {
   const [selectedLeads, setSelectedLeads] = useState<string[]>([])
   const [messageModalOpen, setMessageModalOpen] = useState(false)
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
+  const [sortBy, setSortBy] = useState<string>('created_desc')
+  const [temperatureFilter, setTemperatureFilter] = useState<string>('all')
 
   useEffect(() => {
     fetchLeads()
@@ -112,11 +117,69 @@ export function LeadsTable({ statusFilter = 'all' }: LeadsTableProps) {
     return formatBritishDate(date)
   }
 
-  const filteredLeads = leads.filter(lead => 
-    lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    lead.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    lead.phone.includes(searchTerm)
-  )
+  const filteredAndSortedLeads = () => {
+    let filtered = leads.filter(lead => 
+      lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      lead.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      lead.phone.includes(searchTerm)
+    )
+    
+    // Apply temperature filter
+    if (temperatureFilter !== 'all') {
+      const getTemperature = (score: number) => {
+        if (score >= 80) return 'hot'
+        if (score >= 60) return 'warm'
+        if (score >= 40) return 'lukewarm'
+        return 'cold'
+      }
+      
+      filtered = filtered.filter(lead => {
+        const temperature = getTemperature(lead.lead_score || 0)
+        return temperature === temperatureFilter
+      })
+    }
+    
+    // Apply sorting
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'score_desc':
+          return (b.lead_score || 0) - (a.lead_score || 0)
+        case 'score_asc':
+          return (a.lead_score || 0) - (b.lead_score || 0)
+        case 'name_asc':
+          return a.name.localeCompare(b.name)
+        case 'created_desc':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        case 'created_asc':
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        default:
+          return 0
+      }
+    })
+    
+    return filtered
+  }
+  
+  const processedLeads = filteredAndSortedLeads()
+  
+  const recordActivity = async (leadId: string, activityType: string) => {
+    try {
+      await fetch('/api/leads/activities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leadId,
+          activityType,
+          activityValue: 1.0
+        })
+      })
+      
+      // Refresh leads to show updated scores
+      fetchLeads()
+    } catch (error) {
+      console.error('Error recording activity:', error)
+    }
+  }
 
   if (loading) {
     return (
@@ -129,8 +192,8 @@ export function LeadsTable({ statusFilter = 'all' }: LeadsTableProps) {
   return (
     <div>
       {/* Search and Filters */}
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="relative">
             <input
               type="text"
@@ -143,11 +206,42 @@ export function LeadsTable({ statusFilter = 'all' }: LeadsTableProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
-          <button className="bg-gray-700 hover:bg-gray-600 p-2 rounded-lg transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-            </svg>
-          </button>
+          
+          {/* Temperature Filter */}
+          <div className="flex space-x-2">
+            {[
+              { value: 'all', label: 'All', color: 'bg-gray-600' },
+              { value: 'hot', label: 'Hot', color: 'bg-red-500' },
+              { value: 'warm', label: 'Warm', color: 'bg-orange-500' },
+              { value: 'lukewarm', label: 'Lukewarm', color: 'bg-yellow-500' },
+              { value: 'cold', label: 'Cold', color: 'bg-blue-500' }
+            ].map((option) => (
+              <button
+                key={option.value}
+                onClick={() => setTemperatureFilter(option.value)}
+                className={`px-3 py-1 rounded-full text-xs transition-colors ${
+                  temperatureFilter === option.value
+                    ? `${option.color} text-white`
+                    : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          
+          {/* Sort Options */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="bg-gray-700 text-white rounded px-3 py-1 text-sm"
+          >
+            <option value="score_desc">Score (High to Low)</option>
+            <option value="score_asc">Score (Low to High)</option>
+            <option value="name_asc">Name (A to Z)</option>
+            <option value="created_desc">Recently Created</option>
+            <option value="created_asc">Oldest First</option>
+          </select>
         </div>
         
         {selectedLeads.length > 0 && (
@@ -169,7 +263,7 @@ export function LeadsTable({ statusFilter = 'all' }: LeadsTableProps) {
                   type="checkbox"
                   onChange={(e) => {
                     if (e.target.checked) {
-                      setSelectedLeads(filteredLeads.map(l => l.id))
+                      setSelectedLeads(processedLeads.map(l => l.id))
                     } else {
                       setSelectedLeads([])
                     }
@@ -179,6 +273,8 @@ export function LeadsTable({ statusFilter = 'all' }: LeadsTableProps) {
               </th>
               <th className="p-4 text-left font-medium">Name</th>
               <th className="p-4 text-left font-medium">Contact</th>
+              <th className="p-4 text-left font-medium">Score</th>
+              <th className="p-4 text-left font-medium">Temperature</th>
               <th className="p-4 text-left font-medium">Source</th>
               <th className="p-4 text-left font-medium">Status</th>
               <th className="p-4 text-left font-medium">Created</th>
@@ -186,7 +282,7 @@ export function LeadsTable({ statusFilter = 'all' }: LeadsTableProps) {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-600">
-            {filteredLeads.length === 0 ? (
+            {processedLeads.length === 0 ? (
               <tr>
                 <td colSpan={7} className="p-8 text-center text-gray-400">
                   <div className="flex flex-col items-center">
@@ -199,7 +295,7 @@ export function LeadsTable({ statusFilter = 'all' }: LeadsTableProps) {
                 </td>
               </tr>
             ) : (
-              filteredLeads.map((lead) => (
+              processedLeads.map((lead) => (
                 <tr key={lead.id} className="hover:bg-gray-600/50 transition-colors">
                   <td className="p-4">
                     <input
@@ -241,6 +337,14 @@ export function LeadsTable({ statusFilter = 'all' }: LeadsTableProps) {
                     <div className="text-sm text-gray-400">{lead.phone}</div>
                   </td>
                   <td className="p-4">
+                    <LeadScoringBadge score={lead.lead_score || 0} showBreakdown size="sm" />
+                  </td>
+                  <td className="p-4">
+                    <TemperatureIndicator 
+                      temperature={lead.temperature || (lead.lead_score >= 80 ? 'hot' : lead.lead_score >= 60 ? 'warm' : lead.lead_score >= 40 ? 'lukewarm' : 'cold')} 
+                    />
+                  </td>
+                  <td className="p-4">
                     {getSourceIcon(lead.source)}
                     {lead.campaign_name && (
                       <div className="text-xs text-gray-400 mt-1">{lead.campaign_name}</div>
@@ -275,15 +379,21 @@ export function LeadsTable({ statusFilter = 'all' }: LeadsTableProps) {
                         </svg>
                       </button>
                       <button 
-                        onClick={() => {
-                          // For now, just log. Could add a dropdown menu here
-                          console.log('More actions for lead:', lead.id)
-                        }}
+                        onClick={() => recordActivity(lead.id, 'email_open')}
                         className="p-1 hover:bg-gray-600 rounded transition-colors" 
-                        title="More Actions"
+                        title="Record Email Open"
                       >
                         <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                      <button 
+                        onClick={() => recordActivity(lead.id, 'website_visit')}
+                        className="p-1 hover:bg-gray-600 rounded transition-colors" 
+                        title="Record Website Visit"
+                      >
+                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
                         </svg>
                       </button>
                     </div>
@@ -299,7 +409,7 @@ export function LeadsTable({ statusFilter = 'all' }: LeadsTableProps) {
       {filteredLeads.length > 0 && (
         <div className="flex justify-between items-center mt-6">
           <p className="text-sm text-gray-400">
-            Showing {filteredLeads.length} of {leads.length} leads
+            Showing {processedLeads.length} of {leads.length} leads
           </p>
           <div className="flex gap-2">
             <button className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors">Previous</button>

@@ -1,5 +1,5 @@
 import { createClient } from '@/app/lib/supabase/client'
-import { getCurrentUserOrganization } from '@/app/lib/organization-service'
+import { getCurrentUserOrganization } from '@/app/lib/organization-server'
 
 // Re-export for convenience
 export { getCurrentUserOrganization }
