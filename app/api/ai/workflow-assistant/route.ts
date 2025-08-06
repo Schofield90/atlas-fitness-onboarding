@@ -31,10 +31,21 @@ function parseWorkflowDescription(description: string) {
   const actionKeywords = ['send', 'wait', 'add', 'create', 'update', 'assign']
   const conditionKeywords = ['if', 'unless', 'check']
   
-  // Better parsing - split by "then", "and", or natural breaks
+  // Better parsing - split by "then", "and", or action keywords
   const lowerDesc = description.toLowerCase()
-  const parts = lowerDesc.split(/\s+(?:then|and)\s+|\s*,\s*/)
+  
+  // First try to split by common connectors
+  let parts = lowerDesc.split(/\s+(?:then|and then|after that)\s+|\s*,\s*/)
+  
+  // If we only got one part, try to split by action keywords
+  if (parts.length === 1) {
+    // Look for action keywords and split before them
+    const actionPattern = new RegExp(`\\s+(?=${actionKeywords.join('|')})`, 'i')
+    parts = lowerDesc.split(actionPattern)
+  }
+  
   const sentences = parts.map(s => s.trim()).filter(s => s)
+  console.log('Parsed sentences:', sentences)
   
   // Always ensure we have at least one trigger node
   let hasTrigger = false
