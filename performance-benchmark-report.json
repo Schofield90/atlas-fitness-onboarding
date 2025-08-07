@@ -1,0 +1,99 @@
+{
+  "timestamp": "2025-08-07T09:35:08.697Z",
+  "database": "https://lzlrojoaxrqvmhempnkn.supabase.co",
+  "summary": {
+    "totalTests": 8,
+    "passed": 5,
+    "failed": 3,
+    "averageResponseTime": 56.52400108750001
+  },
+  "results": [
+    {
+      "operation": "Query by organization_id",
+      "avgTime": 50.631195999999974,
+      "minTime": 34.67879199999993,
+      "maxTime": 73.45166699999982,
+      "samples": 10,
+      "queries": [],
+      "status": "FAIL",
+      "threshold": 50
+    },
+    {
+      "operation": "Query by email (indexed)",
+      "avgTime": 45.54837080000002,
+      "minTime": 39.95579099999986,
+      "maxTime": 66.4267920000002,
+      "samples": 10,
+      "queries": [],
+      "status": "FAIL",
+      "threshold": 20
+    },
+    {
+      "operation": "Query by date range",
+      "avgTime": 43.224137500000005,
+      "minTime": 35.4236249999999,
+      "maxTime": 51.6615410000004,
+      "samples": 10,
+      "queries": [],
+      "status": "PASS",
+      "threshold": 100
+    },
+    {
+      "operation": "Multi-condition query",
+      "avgTime": 40.924537700000016,
+      "minTime": 31.76741600000014,
+      "maxTime": 57.729959000000235,
+      "samples": 10,
+      "queries": [],
+      "status": "PASS",
+      "threshold": 75
+    },
+    {
+      "operation": "Join with organizations",
+      "avgTime": 36.748849900000096,
+      "minTime": 32.253667000000405,
+      "maxTime": 42.148125000000164,
+      "samples": 10,
+      "queries": [],
+      "status": "PASS",
+      "threshold": 150
+    },
+    {
+      "operation": "Count with filters",
+      "avgTime": 67.83251660000019,
+      "minTime": 33.92958300000009,
+      "maxTime": 97.80220800000006,
+      "samples": 10,
+      "queries": [],
+      "status": "FAIL",
+      "threshold": 50
+    },
+    {
+      "operation": "Single insert",
+      "avgTime": 88.09314999999988,
+      "minTime": 76.54762500000015,
+      "maxTime": 92.89266599999974,
+      "samples": 5,
+      "queries": [],
+      "status": "PASS",
+      "threshold": 100
+    },
+    {
+      "operation": "Bulk insert (10 records)",
+      "avgTime": 79.18925019999988,
+      "minTime": 70.59570900000017,
+      "maxTime": 89.07741699999951,
+      "samples": 5,
+      "queries": [],
+      "status": "PASS",
+      "threshold": 200
+    }
+  ],
+  "recommendations": [
+    "Ensure organization_id indexes are being used effectively",
+    "Monitor query performance in production using Supabase dashboard",
+    "Set up alerts for slow queries exceeding thresholds",
+    "Review and optimize database indexes monthly",
+    "Consider implementing query result caching for frequently accessed data"
+  ]
+}

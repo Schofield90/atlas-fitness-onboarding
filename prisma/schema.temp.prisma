@@ -1,0 +1,17 @@
+// This is your Prisma schema file,
+// Generated from existing Supabase database
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Note: This is a basic schema. Run 'npx prisma db pull' with proper credentials
+// to get the complete schema with all columns and relationships.
+

@@ -100,3 +100,5 @@ audio_files/
 docker-compose.override.yml
 .docker/
 .vercel
+
+/lib/generated/prisma

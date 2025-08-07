@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/app/lib/supabase/admin';
+import { requireAuth, createOrgScopedClient } from '@/lib/auth-middleware'
 
 export async function POST(request: NextRequest) {
+  // Authentication check
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
+  
+  // Create organization-scoped Supabase client
+  const supabase = createOrgScopedClient(auth.organizationId)
+  
   try {
     const body = await request.json();
     const { triggerType, leadData } = body;

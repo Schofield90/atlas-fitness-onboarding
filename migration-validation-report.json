@@ -1,0 +1,397 @@
+{
+  "timestamp": "2025-08-07T09:28:31.995Z",
+  "summary": {
+    "valid": 31,
+    "warnings": 1,
+    "invalid": 2,
+    "total": 34
+  },
+  "validations": [
+    {
+      "file": "20240722_enable_rls_security.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Consider using IF NOT EXISTS for idempotent migrations"
+      ]
+    },
+    {
+      "file": "20240723_calendar_system.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Table calendar_integrations might need organization_id for multi-tenancy",
+        "Table calendar_settings might need organization_id for multi-tenancy",
+        "Table calendar_events might need organization_id for multi-tenancy",
+        "Table booking_links might need organization_id for multi-tenancy"
+      ]
+    },
+    {
+      "file": "20240724_automation_system.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Table workflow_templates might need organization_id for multi-tenancy",
+        "Table workflows might need organization_id for multi-tenancy",
+        "Table workflow_versions might need organization_id for multi-tenancy",
+        "Table workflow_nodes might need organization_id for multi-tenancy",
+        "Table workflow_executions might need organization_id for multi-tenancy",
+        "Table workflow_execution_steps might need organization_id for multi-tenancy",
+        "Table trigger_definitions might need organization_id for multi-tenancy",
+        "Table action_definitions might need organization_id for multi-tenancy",
+        "Table workflow_triggers might need organization_id for multi-tenancy",
+        "Table webhook_triggers might need organization_id for multi-tenancy",
+        "Table schedule_triggers might need organization_id for multi-tenancy",
+        "Table workflow_code_snippets might need organization_id for multi-tenancy",
+        "Table workflow_variables might need organization_id for multi-tenancy",
+        "Table workflow_queue might need organization_id for multi-tenancy",
+        "Table workflow_analytics might need organization_id for multi-tenancy"
+      ]
+    },
+    {
+      "file": "20240725_messaging_logs.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Table sms_logs might need organization_id for multi-tenancy",
+        "Table whatsapp_logs might need organization_id for multi-tenancy"
+      ]
+    },
+    {
+      "file": "20240726_contacts.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Table contacts might need organization_id for multi-tenancy"
+      ]
+    },
+    {
+      "file": "20250129_advanced_features.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Table workflows might need organization_id for multi-tenancy",
+        "Table workflow_executions might need organization_id for multi-tenancy",
+        "Table analytics_events might need organization_id for multi-tenancy",
+        "Table daily_reports might need organization_id for multi-tenancy",
+        "Table ai_training_data might need organization_id for multi-tenancy",
+        "Table message_templates might need organization_id for multi-tenancy"
+      ]
+    },
+    {
+      "file": "20250129_forms_documents_table.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Table forms might need organization_id for multi-tenancy",
+        "Table documents might need organization_id for multi-tenancy",
+        "Table form_submissions might need organization_id for multi-tenancy"
+      ]
+    },
+    {
+      "file": "20250129_multi_tenant_communications.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Table organization_settings might need organization_id for multi-tenancy",
+        "Table organization_staff might need organization_id for multi-tenancy"
+      ]
+    },
+    {
+      "file": "20250129_multi_tenant_phone_system.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Table phone_number_provisions might need organization_id for multi-tenancy"
+      ]
+    },
+    {
+      "file": "20250129_organization_knowledge.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Table organization_knowledge might need organization_id for multi-tenancy",
+        "Table knowledge_templates might need organization_id for multi-tenancy"
+      ]
+    },
+    {
+      "file": "20250129_organization_staff_table.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Table organization_staff might need organization_id for multi-tenancy"
+      ]
+    },
+    {
+      "file": "20250130_fix_forms_table.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Consider using IF NOT EXISTS for idempotent migrations",
+        "Table forms might need organization_id for multi-tenancy",
+        "Table documents might need organization_id for multi-tenancy",
+        "Table form_submissions might need organization_id for multi-tenancy"
+      ]
+    },
+    {
+      "file": "20250130_fix_google_calendar_rls.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction"
+      ]
+    },
+    {
+      "file": "20250130_multi_tenant_fix.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Table organizations might need organization_id for multi-tenancy",
+        "Table user_organizations might need organization_id for multi-tenancy"
+      ]
+    },
+    {
+      "file": "20250724_booking_system.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Table public might need organization_id for multi-tenancy",
+        "Table public might need organization_id for multi-tenancy",
+        "Table public might need organization_id for multi-tenancy",
+        "Table public might need organization_id for multi-tenancy",
+        "Table public might need organization_id for multi-tenancy",
+        "Table public might need organization_id for multi-tenancy"
+      ]
+    },
+    {
+      "file": "20250724_booking_system_integration.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Table gym_programs might need organization_id for multi-tenancy",
+        "Table class_schedules might need organization_id for multi-tenancy",
+        "Table class_bookings might need organization_id for multi-tenancy",
+        "Table class_waitlist might need organization_id for multi-tenancy"
+      ]
+    },
+    {
+      "file": "20250724_public_access.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction"
+      ]
+    },
+    {
+      "file": "20250727_analytics_system.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Consider using IF NOT EXISTS for idempotent migrations",
+        "Table analytics_events might need organization_id for multi-tenancy",
+        "Table analytics_aggregates might need organization_id for multi-tenancy"
+      ]
+    },
+    {
+      "file": "20250728110657_add_crm_tables.sql",
+      "status": "INVALID",
+      "issues": [
+        "File name should follow pattern: YYYYMMDD_description.sql"
+      ],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Table campaigns might need organization_id for multi-tenancy",
+        "Table automations might need organization_id for multi-tenancy",
+        "Table lead_activities might need organization_id for multi-tenancy",
+        "Table staff_tasks might need organization_id for multi-tenancy",
+        "New tables should have RLS enabled for security"
+      ]
+    },
+    {
+      "file": "20250728_add_organization_to_leads.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction"
+      ]
+    },
+    {
+      "file": "20250729_create_sms_whatsapp_logs.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Table sms_logs might need organization_id for multi-tenancy",
+        "Table whatsapp_logs might need organization_id for multi-tenancy"
+      ]
+    },
+    {
+      "file": "20250729_email_logs.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Table email_logs might need organization_id for multi-tenancy"
+      ]
+    },
+    {
+      "file": "20250729_fix_email_logs.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Consider using IF NOT EXISTS for idempotent migrations",
+        "Table email_logs might need organization_id for multi-tenancy"
+      ]
+    },
+    {
+      "file": "20250729_fix_leads_organization_structure.sql",
+      "status": "WARNING",
+      "issues": [
+        "DROP COLUMN is destructive - consider deprecation first"
+      ],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Table organizations might need organization_id for multi-tenancy",
+        "New tables should have RLS enabled for security"
+      ]
+    },
+    {
+      "file": "20250729_messages_table.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Table messages might need organization_id for multi-tenancy"
+      ]
+    },
+    {
+      "file": "20250805141032_audit_logging_system.sql",
+      "status": "INVALID",
+      "issues": [
+        "File name should follow pattern: YYYYMMDD_description.sql"
+      ],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Table audit_logs might need organization_id for multi-tenancy",
+        "Table audit_logs_archive might need organization_id for multi-tenancy"
+      ]
+    },
+    {
+      "file": "20250805_add_performance_indexes.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction"
+      ]
+    },
+    {
+      "file": "20250805_default_email_templates.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction"
+      ]
+    },
+    {
+      "file": "20250806_ai_lead_scoring_system.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Table lead_scoring_factors might need organization_id for multi-tenancy",
+        "Table lead_activities might need organization_id for multi-tenancy",
+        "Table lead_ai_insights might need organization_id for multi-tenancy",
+        "Table lead_score_history might need organization_id for multi-tenancy"
+      ]
+    },
+    {
+      "file": "20250806_appointment_automation_triggers.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Table appointment_status_changes might need organization_id for multi-tenancy",
+        "Table appointment_reminders might need organization_id for multi-tenancy",
+        "Table customer_booking_patterns might need organization_id for multi-tenancy",
+        "Table no_show_tracking might need organization_id for multi-tenancy",
+        "Table booking_availability_requests might need organization_id for multi-tenancy"
+      ]
+    },
+    {
+      "file": "20250806_event_automation_triggers.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Table webhook_endpoints might need organization_id for multi-tenancy",
+        "Table webhook_requests might need organization_id for multi-tenancy",
+        "Table call_tracking might need organization_id for multi-tenancy",
+        "Table email_events might need organization_id for multi-tenancy",
+        "Table customer_reply_tracking might need organization_id for multi-tenancy",
+        "Table survey_submissions might need organization_id for multi-tenancy",
+        "Table trigger_links might need organization_id for multi-tenancy",
+        "Table trigger_link_clicks might need organization_id for multi-tenancy"
+      ]
+    },
+    {
+      "file": "20250806_facebook_integration_comprehensive.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Table facebook_integrations might need organization_id for multi-tenancy",
+        "Table facebook_pages might need organization_id for multi-tenancy",
+        "Table facebook_lead_forms might need organization_id for multi-tenancy",
+        "Table facebook_leads might need organization_id for multi-tenancy",
+        "Table facebook_webhooks might need organization_id for multi-tenancy",
+        "Table facebook_ad_accounts might need organization_id for multi-tenancy",
+        "Table facebook_campaigns might need organization_id for multi-tenancy"
+      ]
+    },
+    {
+      "file": "20250806_general_automation_triggers.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Table contact_tags might need organization_id for multi-tenancy",
+        "Table contact_tag_assignments might need organization_id for multi-tenancy",
+        "Table birthday_reminders might need organization_id for multi-tenancy",
+        "Table custom_date_reminders might need organization_id for multi-tenancy",
+        "Table contact_notes might need organization_id for multi-tenancy",
+        "Table contact_change_log might need organization_id for multi-tenancy"
+      ]
+    },
+    {
+      "file": "20250806_opportunity_pipeline_triggers.sql",
+      "status": "VALID",
+      "issues": [],
+      "suggestions": [
+        "Consider wrapping migration in BEGIN/COMMIT transaction",
+        "Table pipeline_stages might need organization_id for multi-tenancy",
+        "Table opportunities might need organization_id for multi-tenancy",
+        "Table opportunity_stage_changes might need organization_id for multi-tenancy",
+        "Table opportunity_activities might need organization_id for multi-tenancy",
+        "Table stale_opportunity_rules might need organization_id for multi-tenancy",
+        "Table opportunity_alerts might need organization_id for multi-tenancy"
+      ]
+    }
+  ]
+}

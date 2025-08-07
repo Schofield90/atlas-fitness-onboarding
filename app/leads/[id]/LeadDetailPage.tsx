@@ -110,7 +110,8 @@ export function LeadDetailPage() {
   
   const getTemperature = (score: number) => {
     if (score >= 80) return 'hot'
-    if (score >= 60) return 'warm'\n    if (score >= 40) return 'lukewarm'
+    if (score >= 60) return 'warm'
+    if (score >= 40) return 'lukewarm'
     return 'cold'
   }
   
@@ -270,4 +271,84 @@ export function LeadDetailPage() {
               <div className="bg-gray-800 rounded-lg p-6">
                 <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  {[\n                    { type: 'email_open', label: 'Email Opened', icon: '📧', value: 2 },\n                    { type: 'email_click', label: 'Email Clicked', icon: '🔗', value: 3 },\n                    { type: 'website_visit', label: 'Website Visit', icon: '🌐', value: 2 },\n                    { type: 'form_submission', label: 'Form Submitted', icon: '📋', value: 5 },\n                    { type: 'call_answer', label: 'Call Answered', icon: '📞', value: 8 },\n                    { type: 'sms_reply', label: 'SMS Reply', icon: '💬', value: 6 },\n                    { type: 'booking_attempt', label: 'Booking Attempt', icon: '📅', value: 10 },\n                    { type: 'social_engagement', label: 'Social Engagement', icon: '👍', value: 2 }\n                  ].map((action) => (\n                    <button\n                      key={action.type}\n                      onClick={() => recordActivity(action.type, action.value)}\n                      className="p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-center"\n                    >\n                      <div className="text-2xl mb-1">{action.icon}</div>\n                      <div className="text-xs font-medium">{action.label}</div>\n                      <div className="text-xs text-orange-400">+{action.value} pts</div>\n                    </button>\n                  ))}\n                </div>\n              </div>\n            </div>\n            \n            {/* Quick Stats */}\n            <div className="space-y-6">\n              <div className="bg-gray-800 rounded-lg p-6">\n                <h3 className="text-lg font-semibold mb-4">Score Breakdown</h3>\n                <LeadScoringBreakdown leadId={leadId} />\n              </div>\n            </div>\n          </div>\n        )}\n        \n        {activeTab === 'scoring' && (\n          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">\n            <LeadScoringBreakdown leadId={leadId} showHistory className="h-fit" />\n            <div className="space-y-6">\n              <div className="bg-gray-800 rounded-lg p-6">\n                <h3 className="text-lg font-semibold mb-4">Scoring Actions</h3>\n                <div className="space-y-3">\n                  <button\n                    onClick={updateLeadScore}\n                    className="w-full bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded transition-colors"\n                  >\n                    Recalculate Score\n                  </button>\n                  <button className="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded transition-colors">\n                    View Score History\n                  </button>\n                  <button className="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded transition-colors">\n                    Export Scoring Data\n                  </button>\n                </div>\n              </div>\n            </div>\n          </div>\n        )}\n        \n        {activeTab === 'insights' && (\n          <div className="grid grid-cols-1 lg:grid-cols-1 gap-8">\n            <AIInsightsPanel leadId={leadId} />\n          </div>\n        )}\n        \n        {activeTab === 'recommendations' && (\n          <div className="grid grid-cols-1 lg:grid-cols-1 gap-8">\n            <AIRecommendationsPanel leadId={leadId} />\n          </div>\n        )}\n        \n        {activeTab === 'activity' && (\n          <div className="bg-gray-800 rounded-lg p-6">\n            <h3 className="text-lg font-semibold mb-4">Activity Timeline</h3>\n            <p className="text-gray-400">Activity timeline will be displayed here...</p>\n          </div>\n        )}\n      </div>\n    </div>\n  )\n}
+                  {[
+                    { type: 'email_open', label: 'Email Opened', icon: '📧', value: 2 },
+                    { type: 'email_click', label: 'Email Clicked', icon: '🔗', value: 3 },
+                    { type: 'website_visit', label: 'Website Visit', icon: '🌐', value: 2 },
+                    { type: 'form_submission', label: 'Form Submitted', icon: '📋', value: 5 },
+                    { type: 'call_answer', label: 'Call Answered', icon: '📞', value: 8 },
+                    { type: 'sms_reply', label: 'SMS Reply', icon: '💬', value: 6 },
+                    { type: 'booking_attempt', label: 'Booking Attempt', icon: '📅', value: 10 },
+                    { type: 'social_engagement', label: 'Social Engagement', icon: '👍', value: 2 }
+                  ].map((action) => (
+                    <button
+                      key={action.type}
+                      onClick={() => recordActivity(action.type, action.value)}
+                      className="p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-center"
+                    >
+                      <div className="text-2xl mb-1">{action.icon}</div>
+                      <div className="text-xs font-medium">{action.label}</div>
+                      <div className="text-xs text-orange-400">+{action.value} pts</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            
+            {/* Quick Stats */}
+            <div className="space-y-6">
+              <div className="bg-gray-800 rounded-lg p-6">
+                <h3 className="text-lg font-semibold mb-4">Score Breakdown</h3>
+                <LeadScoringBreakdown leadId={leadId} />
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {activeTab === 'scoring' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <LeadScoringBreakdown leadId={leadId} showHistory className="h-fit" />
+            <div className="space-y-6">
+              <div className="bg-gray-800 rounded-lg p-6">
+                <h3 className="text-lg font-semibold mb-4">Scoring Actions</h3>
+                <div className="space-y-3">
+                  <button
+                    onClick={updateLeadScore}
+                    className="w-full bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded transition-colors"
+                  >
+                    Recalculate Score
+                  </button>
+                  <button className="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded transition-colors">
+                    View Score History
+                  </button>
+                  <button className="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded transition-colors">
+                    Export Scoring Data
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {activeTab === 'insights' && (
+          <div className="grid grid-cols-1 lg:grid-cols-1 gap-8">
+            <AIInsightsPanel leadId={leadId} />
+          </div>
+        )}
+        
+        {activeTab === 'recommendations' && (
+          <div className="grid grid-cols-1 lg:grid-cols-1 gap-8">
+            <AIRecommendationsPanel leadId={leadId} />
+          </div>
+        )}
+        
+        {activeTab === 'activity' && (
+          <div className="bg-gray-800 rounded-lg p-6">
+            <h3 className="text-lg font-semibold mb-4">Activity Timeline</h3>
+            <p className="text-gray-400">Activity timeline will be displayed here...</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

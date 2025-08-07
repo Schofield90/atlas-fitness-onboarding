@@ -1,0 +1,48 @@
+echo "🔍 Running pre-commit checks..."
+
+# 1. Run type checking
+echo "📋 Type checking..."
+npm run type-check || {
+  echo "❌ Type checking failed. Please fix TypeScript errors."
+  exit 1
+}
+
+# 2. Run linting
+echo "🧹 Linting..."
+npm run lint || {
+  echo "❌ Linting failed. Run 'npm run lint:fix' to fix issues."
+  exit 1
+}
+
+# 3. Run security validation
+echo "🔐 Security validation..."
+npx tsx scripts/validate-existing-db.ts --quick || {
+  echo "❌ Security validation failed. Check for organization isolation issues."
+  exit 1
+}
+
+# 4. Check for sensitive data
+echo "🔍 Checking for sensitive data..."
+git diff --cached --name-only | while read file; do
+  if [ -f "$file" ]; then
+    # Check for API keys, passwords, etc.
+    if grep -E "(sk-[a-zA-Z0-9]{48}|pk_test_|sk_test_|password\s*=|api[_-]?key\s*=)" "$file" > /dev/null; then
+      echo "❌ Found potential sensitive data in $file"
+      echo "   Please remove API keys, passwords, and secrets before committing."
+      exit 1
+    fi
+  fi
+done
+
+# 5. Check migration files
+echo "📁 Checking migration files..."
+git diff --cached --name-only | grep -E "migrations/.*\.sql$" | while read file; do
+  if [ -f "$file" ]; then
+    npx tsx scripts/migration-validator.ts "$file" || {
+      echo "❌ Migration validation failed for $file"
+      exit 1
+    }
+  fi
+done
+
+echo "✅ All pre-commit checks passed!"

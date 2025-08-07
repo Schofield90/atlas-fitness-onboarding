@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { headers } from 'next/headers'
+import { requireAuth, createOrgScopedClient } from '@/lib/auth-middleware'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,9 +9,16 @@ const supabaseAdmin = createClient(
 )
 
 export async function GET(
-  req: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Authentication check
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
+  
+  // Create organization-scoped Supabase client
+  const supabase = createOrgScopedClient(auth.organizationId)
+  
   try {
     const { id: customerId } = await params
     
@@ -34,12 +42,19 @@ export async function GET(
 }
 
 export async function PATCH(
-  req: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Authentication check
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
+  
+  // Create organization-scoped Supabase client
+  const supabase = createOrgScopedClient(auth.organizationId)
+  
   try {
     const { id: customerId } = await params
-    const updates = await req.json()
+    const updates = await request.json()
 
     const { data, error } = await supabaseAdmin
       .from('leads')

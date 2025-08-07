@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { handleApiRoute, supabaseAdmin } from '@/lib/api/middleware'
+import { requireAuth, createOrgScopedClient } from '@/lib/auth-middleware'
 
 export async function GET(request: NextRequest) {
+  // Authentication check
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
+  
+  // Create organization-scoped Supabase client
+  const supabase = createOrgScopedClient(auth.organizationId)
+  
   return handleApiRoute(request, async (req) => {
     const { user } = req
     

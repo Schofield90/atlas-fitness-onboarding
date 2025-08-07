@@ -1,0 +1,101 @@
+{
+  "timestamp": "2025-08-07T09:27:17.701Z",
+  "summary": {
+    "total": 18,
+    "passed": 12,
+    "failed": 6,
+    "percentage": 67
+  },
+  "results": [
+    {
+      "test": "tasks has organization_id column",
+      "status": "PASS",
+      "message": "Column exists"
+    },
+    {
+      "test": "bookings has organization_id column",
+      "status": "PASS",
+      "message": "Column exists"
+    },
+    {
+      "test": "memberships has organization_id column",
+      "status": "PASS",
+      "message": "Column exists"
+    },
+    {
+      "test": "leads has organization_id column",
+      "status": "PASS",
+      "message": "Column exists"
+    },
+    {
+      "test": "sms_logs has organization_id column",
+      "status": "PASS",
+      "message": "Column exists"
+    },
+    {
+      "test": "whatsapp_logs has organization_id column",
+      "status": "PASS",
+      "message": "Column exists"
+    },
+    {
+      "test": "leads has no NULL organization_id",
+      "status": "PASS",
+      "message": "No NULL values found"
+    },
+    {
+      "test": "sms_logs has no NULL organization_id",
+      "status": "FAIL",
+      "message": "Found 2 records with NULL organization_id"
+    },
+    {
+      "test": "tasks has no NULL organization_id",
+      "status": "PASS",
+      "message": "No NULL values found"
+    },
+    {
+      "test": "bookings has no NULL organization_id",
+      "status": "PASS",
+      "message": "No NULL values found"
+    },
+    {
+      "test": "memberships has no NULL organization_id",
+      "status": "PASS",
+      "message": "No NULL values found"
+    },
+    {
+      "test": "Cross-organization access prevention",
+      "status": "FAIL",
+      "message": "Error during test: Error: Failed to create test organizations"
+    },
+    {
+      "test": "tasks has RLS enabled",
+      "status": "FAIL",
+      "message": "RLS not enabled or error checking"
+    },
+    {
+      "test": "bookings has RLS enabled",
+      "status": "FAIL",
+      "message": "RLS not enabled or error checking"
+    },
+    {
+      "test": "memberships has RLS enabled",
+      "status": "FAIL",
+      "message": "RLS not enabled or error checking"
+    },
+    {
+      "test": "leads has RLS enabled",
+      "status": "FAIL",
+      "message": "RLS not enabled or error checking"
+    },
+    {
+      "test": "Auth middleware exists",
+      "status": "PASS",
+      "message": "File found at lib/auth-middleware.ts"
+    },
+    {
+      "test": "Auth middleware exports required functions",
+      "status": "PASS",
+      "message": "Both requireAuth and createOrgScopedClient found"
+    }
+  ]
+}

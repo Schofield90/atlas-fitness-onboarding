@@ -1,8 +1,16 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/app/lib/supabase/server'
 import { listCalendars } from '@/app/lib/google/calendar'
+import { requireAuth, createOrgScopedClient } from '@/lib/auth-middleware'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Authentication check
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
+  
+  // Create organization-scoped Supabase client
+  const supabase = createOrgScopedClient(auth.organizationId)
+  
   try {
     const supabase = await createClient()
     

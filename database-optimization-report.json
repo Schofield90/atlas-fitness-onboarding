@@ -1,0 +1,57 @@
+{
+  "timestamp": "2025-08-07T09:18:00.000Z",
+  "database_validation_results": {
+    "errors": 5,
+    "warnings": 1,
+    "suggestions": 9
+  },
+  "critical_issues_found": {
+    "missing_organization_id_columns": [
+      "tasks",
+      "bookings", 
+      "memberships"
+    ],
+    "null_organization_id_records": {
+      "sms_logs": 2
+    }
+  },
+  "optimizations_to_apply": {
+    "sql_file": "scripts/fix-database-issues.sql",
+    "steps": [
+      "1. Add missing organization_id columns to tasks, bookings, memberships tables",
+      "2. Fix NULL organization_id values in sms_logs",
+      "3. Add NOT NULL constraints after fixing data",
+      "4. Create performance indexes on frequently queried columns",
+      "5. Enable Row Level Security (RLS) on tables",
+      "6. Create RLS policies for organization isolation",
+      "7. Create security audit log table",
+      "8. Create organization access validation function"
+    ]
+  },
+  "performance_indexes_to_create": [
+    "idx_leads_organization_id",
+    "idx_leads_email",
+    "idx_leads_created_at",
+    "idx_bookings_class_session_id",
+    "idx_bookings_member_id",
+    "idx_bookings_organization_id",
+    "idx_class_sessions_start_time",
+    "idx_whatsapp_logs_phone_number",
+    "idx_sms_logs_phone_number",
+    "idx_tasks_organization_id",
+    "idx_memberships_organization_id"
+  ],
+  "security_improvements": {
+    "rls_policies": "Will enforce organization-based data isolation",
+    "audit_logging": "Will track sensitive operations",
+    "access_validation": "Will validate cross-organization access attempts"
+  },
+  "next_steps": [
+    "1. Go to Supabase Dashboard > SQL Editor",
+    "2. Copy contents of scripts/fix-database-issues.sql",
+    "3. Review the SQL carefully",
+    "4. Execute the SQL in the editor",
+    "5. Verify all changes applied successfully",
+    "6. Run validation script again to confirm fixes"
+  ]
+}

@@ -1,0 +1,94 @@
+{
+  "timestamp": "2025-08-07T09:29:53.582Z",
+  "database": "https://lzlrojoaxrqvmhempnkn.supabase.co",
+  "healthScore": 100,
+  "healthStatus": "🟢 Excellent",
+  "summary": {
+    "total": 12,
+    "critical": 0,
+    "warnings": 0,
+    "good": 12
+  },
+  "metrics": [
+    {
+      "category": "Table Size",
+      "metric": "leads row count",
+      "value": 1,
+      "status": "GOOD"
+    },
+    {
+      "category": "Table Size",
+      "metric": "bookings row count",
+      "value": 7,
+      "status": "GOOD"
+    },
+    {
+      "category": "Table Size",
+      "metric": "class_sessions row count",
+      "value": 1876,
+      "status": "GOOD"
+    },
+    {
+      "category": "Table Size",
+      "metric": "sms_logs row count",
+      "value": 8,
+      "status": "GOOD"
+    },
+    {
+      "category": "Table Size",
+      "metric": "whatsapp_logs row count",
+      "value": 46,
+      "status": "GOOD"
+    },
+    {
+      "category": "Table Size",
+      "metric": "tasks row count",
+      "value": 0,
+      "status": "GOOD"
+    },
+    {
+      "category": "Multi-tenancy",
+      "metric": "Total organizations",
+      "value": 1,
+      "status": "GOOD"
+    },
+    {
+      "category": "Performance",
+      "metric": "Missing indexes",
+      "value": 0,
+      "status": "GOOD"
+    },
+    {
+      "category": "Security",
+      "metric": "Tables without RLS",
+      "value": 0,
+      "status": "GOOD"
+    },
+    {
+      "category": "Activity",
+      "metric": "New leads (24h)",
+      "value": 0,
+      "status": "GOOD"
+    },
+    {
+      "category": "Activity",
+      "metric": "New bookings (24h)",
+      "value": 0,
+      "status": "GOOD"
+    },
+    {
+      "category": "Activity",
+      "metric": "Messages sent (24h)",
+      "value": 0,
+      "status": "GOOD"
+    }
+  ],
+  "recommendations": [
+    "📋 Regular maintenance tasks:",
+    "   - Run database validation weekly",
+    "   - Monitor table sizes and archive old data",
+    "   - Review and optimize slow queries",
+    "   - Update indexes based on query patterns",
+    "   - Audit security policies monthly"
+  ]
+}

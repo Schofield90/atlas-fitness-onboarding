@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/app/lib/supabase/admin'
 import { Resend } from 'resend'
+import { requireAuth, createOrgScopedClient } from '@/lib/auth-middleware'
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
 export async function POST(request: NextRequest) {
+  // Authentication check
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
+  
+  // Create organization-scoped Supabase client
+  const supabase = createOrgScopedClient(auth.organizationId)
+  
   try {
     const { email, customerId } = await request.json()
     

@@ -1,282 +1,177 @@
--- Comprehensive Facebook Integration Migration
--- This migration creates all necessary tables for Facebook lead generation integration
--- Supporting multi-tenant access, OAuth tokens, pages, lead forms, and leads
-
--- Enable UUID extension if not already enabled
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Create facebook_integrations table for storing OAuth tokens and integration details
 CREATE TABLE IF NOT EXISTS facebook_integrations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    
-    -- Facebook user information
     facebook_user_id TEXT NOT NULL,
     facebook_user_name TEXT NOT NULL,
     facebook_user_email TEXT,
-    
-    -- OAuth token management
     access_token TEXT NOT NULL,
     token_expires_at TIMESTAMPTZ,
     refresh_token TEXT,
-    long_lived_token TEXT, -- Facebook long-lived user access token
-    
-    -- Permission and scope management
-    granted_scopes TEXT[] DEFAULT '{}', -- Array of granted permissions
+    long_lived_token TEXT,
+    granted_scopes TEXT[] DEFAULT '{}',
     required_scopes TEXT[] DEFAULT '{leads_retrieval,pages_read_engagement,pages_manage_metadata}',
-    
-    -- Integration status
     is_active BOOLEAN DEFAULT true,
     connection_status TEXT NOT NULL DEFAULT 'active' CHECK (connection_status IN ('active', 'expired', 'revoked', 'error')),
     last_sync_at TIMESTAMPTZ,
-    sync_frequency_hours INTEGER DEFAULT 1, -- How often to sync leads
-    
-    -- Configuration and metadata
+    sync_frequency_hours INTEGER DEFAULT 1,
     settings JSONB DEFAULT '{}',
-    webhook_config JSONB DEFAULT '{}', -- Webhook configuration
-    error_details JSONB DEFAULT '{}', -- Store connection errors
-    
-    -- Audit fields
+    webhook_config JSONB DEFAULT '{}',
+    error_details JSONB DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    
-    -- Constraints
     UNIQUE(organization_id, facebook_user_id)
 );
 
--- Create facebook_pages table for storing connected Facebook pages
 CREATE TABLE IF NOT EXISTS facebook_pages (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     integration_id UUID NOT NULL REFERENCES facebook_integrations(id) ON DELETE CASCADE,
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    
-    -- Facebook page information
     facebook_page_id TEXT NOT NULL,
     page_name TEXT NOT NULL,
     page_username TEXT,
     page_category TEXT,
-    page_category_list JSONB DEFAULT '[]', -- Array of category objects
-    
-    -- Page access token (different from user token)
+    page_category_list JSONB DEFAULT '[]',
     access_token TEXT NOT NULL,
     token_expires_at TIMESTAMPTZ,
-    
-    -- Page status and configuration
     is_active BOOLEAN DEFAULT false,
-    is_primary BOOLEAN DEFAULT false, -- Primary page for the organization
+    is_primary BOOLEAN DEFAULT false,
     webhook_subscribed BOOLEAN DEFAULT false,
-    
-    -- Page metadata and permissions
-    page_info JSONB DEFAULT '{}', -- Store additional page metadata (about, website, etc.)
-    permissions TEXT[] DEFAULT '{}', -- Page-specific permissions
-    page_insights JSONB DEFAULT '{}', -- Store page insights data
-    
-    -- Lead generation settings
+    page_info JSONB DEFAULT '{}',
+    permissions TEXT[] DEFAULT '{}',
+    page_insights JSONB DEFAULT '{}',
     lead_sync_enabled BOOLEAN DEFAULT true,
     auto_assign_leads BOOLEAN DEFAULT true,
     default_lead_status TEXT DEFAULT 'new',
-    lead_assignment_rules JSONB DEFAULT '{}', -- Rules for auto-assigning leads to staff
-    
-    -- Audit fields
+    lead_assignment_rules JSONB DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     last_sync_at TIMESTAMPTZ,
-    
-    -- Constraints
-    UNIQUE(organization_id, facebook_page_id),
-    CONSTRAINT unique_primary_page_per_org UNIQUE (organization_id, is_primary) WHERE (is_primary = true) -- Only one primary page per org
+    UNIQUE(organization_id, facebook_page_id)
 );
 
--- Create facebook_lead_forms table for storing lead forms from each page
 CREATE TABLE IF NOT EXISTS facebook_lead_forms (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     page_id UUID NOT NULL REFERENCES facebook_pages(id) ON DELETE CASCADE,
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    
-    -- Facebook form information
     facebook_form_id TEXT NOT NULL,
     form_name TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'archived', 'deleted')),
-    
-    -- Form structure and field mapping
-    questions JSONB DEFAULT '[]', -- Form questions structure from Facebook
-    field_mappings JSONB DEFAULT '{}', -- Mapping Facebook fields to CRM fields
-    custom_field_mappings JSONB DEFAULT '{}', -- Custom field mappings
-    
-    -- Form configuration
+    questions JSONB DEFAULT '[]',
+    field_mappings JSONB DEFAULT '{}',
+    custom_field_mappings JSONB DEFAULT '{}',
     is_active BOOLEAN DEFAULT true,
     auto_sync_enabled BOOLEAN DEFAULT true,
-    lead_qualification_rules JSONB DEFAULT '{}', -- Rules for qualifying leads
-    
-    -- Form metadata
+    lead_qualification_rules JSONB DEFAULT '{}',
     form_description TEXT,
     thank_you_message TEXT,
     privacy_policy_url TEXT,
-    created_time TIMESTAMPTZ, -- When form was created on Facebook
-    
-    -- Sync and processing
+    created_time TIMESTAMPTZ,
     last_sync_at TIMESTAMPTZ,
     total_leads_count INTEGER DEFAULT 0,
     processed_leads_count INTEGER DEFAULT 0,
-    
-    -- Audit fields
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    
-    -- Constraints
     UNIQUE(organization_id, facebook_form_id)
 );
 
--- Create facebook_leads table for storing actual leads from forms
 CREATE TABLE IF NOT EXISTS facebook_leads (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     form_id UUID NOT NULL REFERENCES facebook_lead_forms(id) ON DELETE CASCADE,
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    
-    -- Facebook lead identification
     facebook_lead_id TEXT NOT NULL,
-    
-    -- Raw lead data from Facebook
-    lead_data JSONB NOT NULL, -- Raw lead data structure from Facebook API
-    field_data JSONB NOT NULL DEFAULT '{}', -- Processed field data
-    custom_fields JSONB DEFAULT '{}', -- Additional custom fields
-    
-    -- Lead processing and CRM integration
-    crm_lead_id UUID REFERENCES leads(id), -- Link to converted CRM lead
+    lead_data JSONB NOT NULL,
+    field_data JSONB NOT NULL DEFAULT '{}',
+    custom_fields JSONB DEFAULT '{}',
+    crm_lead_id UUID REFERENCES leads(id),
     processing_status TEXT NOT NULL DEFAULT 'pending' CHECK (processing_status IN ('pending', 'processing', 'processed', 'failed', 'duplicate')),
-    
-    -- Lead qualification and scoring
     qualification_score INTEGER DEFAULT 0,
     qualification_status TEXT DEFAULT 'unqualified' CHECK (qualification_status IN ('unqualified', 'qualified', 'hot', 'cold')),
-    
-    -- Processing details
     processed_at TIMESTAMPTZ,
     error_message TEXT,
     retry_count INTEGER DEFAULT 0,
-    
-    -- Lead metadata
-    ad_id TEXT, -- Associated ad ID if available
-    ad_name TEXT, -- Associated ad name
-    campaign_id TEXT, -- Associated campaign ID
-    campaign_name TEXT, -- Associated campaign name
-    
-    -- Timestamps from Facebook
-    created_time TIMESTAMPTZ NOT NULL, -- When lead was created on Facebook
-    
-    -- Audit fields
+    ad_id TEXT,
+    ad_name TEXT,
+    campaign_id TEXT,
+    campaign_name TEXT,
+    created_time TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    
-    -- Constraints
     UNIQUE(organization_id, facebook_lead_id)
 );
 
--- Create facebook_webhooks table for storing webhook events
 CREATE TABLE IF NOT EXISTS facebook_webhooks (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    
-    -- Webhook identification
-    webhook_id TEXT, -- Facebook webhook ID if available
-    
-    -- Event details
-    object_type TEXT NOT NULL, -- page, user, etc.
-    event_type TEXT NOT NULL, -- feed, mention, leadgen, etc.
-    event_data JSONB NOT NULL, -- Raw webhook payload
-    
-    -- Processing status
+    webhook_id TEXT,
+    object_type TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    event_data JSONB NOT NULL,
     processed_at TIMESTAMPTZ,
     processing_status TEXT NOT NULL DEFAULT 'pending' CHECK (processing_status IN ('pending', 'processed', 'failed', 'ignored')),
     error_message TEXT,
     retry_count INTEGER DEFAULT 0,
-    
-    -- Event metadata
     facebook_page_id TEXT,
     facebook_form_id TEXT,
     facebook_lead_id TEXT,
-    
-    -- Audit fields
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    
-    -- Indexes for webhook processing
     CONSTRAINT facebook_webhooks_processing_check 
         CHECK (processing_status = 'processed' OR processed_at IS NULL)
 );
 
--- Create facebook_ad_accounts table for storing ad account information
 CREATE TABLE IF NOT EXISTS facebook_ad_accounts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     integration_id UUID NOT NULL REFERENCES facebook_integrations(id) ON DELETE CASCADE,
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    
-    -- Facebook ad account information
     facebook_ad_account_id TEXT NOT NULL,
     account_name TEXT NOT NULL,
     account_status TEXT,
     currency TEXT,
     timezone_name TEXT,
-    
-    -- Account capabilities and permissions
     is_active BOOLEAN DEFAULT true,
-    permissions TEXT[] DEFAULT '{}', -- Ad account permissions
-    account_capabilities JSONB DEFAULT '[]', -- Available capabilities
-    
-    -- Account metadata
-    business_id TEXT, -- Associated Facebook Business ID
+    permissions TEXT[] DEFAULT '{}',
+    account_capabilities JSONB DEFAULT '[]',
+    business_id TEXT,
     business_name TEXT,
-    spend_cap INTEGER, -- Account spend cap in cents
-    
-    -- Sync and insights
+    spend_cap INTEGER,
     last_insights_sync_at TIMESTAMPTZ,
-    insights_data JSONB DEFAULT '{}', -- Store account insights
-    
-    -- Audit fields
+    insights_data JSONB DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    
-    -- Constraints
     UNIQUE(organization_id, facebook_ad_account_id)
 );
 
--- Create facebook_campaigns table for tracking campaign performance
 CREATE TABLE IF NOT EXISTS facebook_campaigns (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     ad_account_id UUID NOT NULL REFERENCES facebook_ad_accounts(id) ON DELETE CASCADE,
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    
-    -- Campaign information
     facebook_campaign_id TEXT NOT NULL,
     campaign_name TEXT NOT NULL,
     objective TEXT,
     status TEXT,
-    
-    -- Campaign insights and metrics
     insights JSONB DEFAULT '{}',
     spend DECIMAL(10,2) DEFAULT 0,
     impressions INTEGER DEFAULT 0,
     clicks INTEGER DEFAULT 0,
     leads_count INTEGER DEFAULT 0,
-    
-    -- Date tracking
     start_time TIMESTAMPTZ,
     stop_time TIMESTAMPTZ,
     last_insights_sync_at TIMESTAMPTZ,
-    
-    -- Audit fields
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    
     UNIQUE(organization_id, facebook_campaign_id)
 );
 
--- Create comprehensive indexes for performance
 CREATE INDEX IF NOT EXISTS idx_facebook_integrations_organization_id ON facebook_integrations(organization_id);
 CREATE INDEX IF NOT EXISTS idx_facebook_integrations_user_id ON facebook_integrations(user_id);
 CREATE INDEX IF NOT EXISTS idx_facebook_integrations_facebook_user_id ON facebook_integrations(facebook_user_id);
 CREATE INDEX IF NOT EXISTS idx_facebook_integrations_is_active ON facebook_integrations(is_active);
 CREATE INDEX IF NOT EXISTS idx_facebook_integrations_connection_status ON facebook_integrations(connection_status);
 CREATE INDEX IF NOT EXISTS idx_facebook_integrations_token_expires_at ON facebook_integrations(token_expires_at) WHERE token_expires_at IS NOT NULL;
+
+CREATE UNIQUE INDEX idx_facebook_pages_primary_per_org ON facebook_pages(organization_id, is_primary) WHERE is_primary = true;
 
 CREATE INDEX IF NOT EXISTS idx_facebook_pages_integration_id ON facebook_pages(integration_id);
 CREATE INDEX IF NOT EXISTS idx_facebook_pages_organization_id ON facebook_pages(organization_id);
@@ -317,7 +212,6 @@ CREATE INDEX IF NOT EXISTS idx_facebook_campaigns_organization_id ON facebook_ca
 CREATE INDEX IF NOT EXISTS idx_facebook_campaigns_facebook_campaign_id ON facebook_campaigns(facebook_campaign_id);
 CREATE INDEX IF NOT EXISTS idx_facebook_campaigns_status ON facebook_campaigns(status);
 
--- Create function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -326,7 +220,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create triggers for updated_at timestamps
 CREATE TRIGGER update_facebook_integrations_updated_at BEFORE UPDATE ON facebook_integrations
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -345,7 +238,6 @@ CREATE TRIGGER update_facebook_ad_accounts_updated_at BEFORE UPDATE ON facebook_
 CREATE TRIGGER update_facebook_campaigns_updated_at BEFORE UPDATE ON facebook_campaigns
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Enable Row Level Security (RLS) on all tables
 ALTER TABLE facebook_integrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE facebook_pages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE facebook_lead_forms ENABLE ROW LEVEL SECURITY;
@@ -354,9 +246,6 @@ ALTER TABLE facebook_webhooks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE facebook_ad_accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE facebook_campaigns ENABLE ROW LEVEL SECURITY;
 
--- Create comprehensive RLS policies for multi-tenant access
-
--- Facebook Integrations RLS Policies
 CREATE POLICY "Users can view facebook integrations in their organization" ON facebook_integrations
     FOR SELECT USING (organization_id IN (
         SELECT organization_id FROM users WHERE id = auth.uid()
@@ -377,7 +266,6 @@ CREATE POLICY "Users can delete facebook integrations in their organization" ON 
         SELECT organization_id FROM users WHERE id = auth.uid()
     ));
 
--- Facebook Pages RLS Policies
 CREATE POLICY "Users can view facebook pages in their organization" ON facebook_pages
     FOR SELECT USING (organization_id IN (
         SELECT organization_id FROM users WHERE id = auth.uid()
@@ -398,7 +286,6 @@ CREATE POLICY "Users can delete facebook pages in their organization" ON faceboo
         SELECT organization_id FROM users WHERE id = auth.uid()
     ));
 
--- Facebook Lead Forms RLS Policies
 CREATE POLICY "Users can view facebook lead forms in their organization" ON facebook_lead_forms
     FOR SELECT USING (organization_id IN (
         SELECT organization_id FROM users WHERE id = auth.uid()
@@ -419,7 +306,6 @@ CREATE POLICY "Users can delete facebook lead forms in their organization" ON fa
         SELECT organization_id FROM users WHERE id = auth.uid()
     ));
 
--- Facebook Leads RLS Policies
 CREATE POLICY "Users can view facebook leads in their organization" ON facebook_leads
     FOR SELECT USING (organization_id IN (
         SELECT organization_id FROM users WHERE id = auth.uid()
@@ -440,7 +326,6 @@ CREATE POLICY "Users can delete facebook leads in their organization" ON faceboo
         SELECT organization_id FROM users WHERE id = auth.uid()
     ));
 
--- Facebook Webhooks RLS Policies
 CREATE POLICY "Users can view facebook webhooks in their organization" ON facebook_webhooks
     FOR SELECT USING (organization_id IN (
         SELECT organization_id FROM users WHERE id = auth.uid()
@@ -461,7 +346,6 @@ CREATE POLICY "Users can delete facebook webhooks in their organization" ON face
         SELECT organization_id FROM users WHERE id = auth.uid()
     ));
 
--- Facebook Ad Accounts RLS Policies
 CREATE POLICY "Users can view facebook ad accounts in their organization" ON facebook_ad_accounts
     FOR SELECT USING (organization_id IN (
         SELECT organization_id FROM users WHERE id = auth.uid()
@@ -482,7 +366,6 @@ CREATE POLICY "Users can delete facebook ad accounts in their organization" ON f
         SELECT organization_id FROM users WHERE id = auth.uid()
     ));
 
--- Facebook Campaigns RLS Policies
 CREATE POLICY "Users can view facebook campaigns in their organization" ON facebook_campaigns
     FOR SELECT USING (organization_id IN (
         SELECT organization_id FROM users WHERE id = auth.uid()
@@ -503,9 +386,6 @@ CREATE POLICY "Users can delete facebook campaigns in their organization" ON fac
         SELECT organization_id FROM users WHERE id = auth.uid()
     ));
 
--- Create advanced functions for Facebook lead processing
-
--- Function to process Facebook lead data into CRM lead
 CREATE OR REPLACE FUNCTION process_facebook_lead_to_crm(
     p_facebook_lead_id UUID
 )
@@ -519,7 +399,6 @@ DECLARE
     lead_source TEXT := 'facebook_lead_form';
     lead_metadata JSONB;
 BEGIN
-    -- Get the Facebook lead with related form and page data
     SELECT 
         fl.*, 
         flf.form_name, 
@@ -539,7 +418,6 @@ BEGIN
         RAISE EXCEPTION 'Facebook lead not found: %', p_facebook_lead_id;
     END IF;
     
-    -- Extract lead data using field mappings or fallback to common field names
     lead_name := COALESCE(
         fb_lead.field_data->>'full_name',
         fb_lead.field_data->>'name',
@@ -560,7 +438,6 @@ BEGIN
         fb_lead.lead_data->>'phone_number'
     );
     
-    -- Build comprehensive metadata
     lead_metadata := jsonb_build_object(
         'facebook_lead_id', fb_lead.facebook_lead_id,
         'facebook_form_name', fb_lead.form_name,
@@ -577,7 +454,6 @@ BEGIN
         'facebook_created_time', fb_lead.created_time
     );
     
-    -- Insert or update CRM lead
     INSERT INTO leads (
         organization_id,
         name,
@@ -607,7 +483,6 @@ BEGIN
         updated_at = NOW()
     RETURNING id INTO crm_lead_id;
     
-    -- Update the Facebook lead record with processing results
     UPDATE facebook_leads 
     SET 
         crm_lead_id = crm_lead_id,
@@ -619,7 +494,6 @@ BEGIN
     
 EXCEPTION
     WHEN OTHERS THEN
-        -- Update Facebook lead with error status
         UPDATE facebook_leads 
         SET 
             processing_status = 'failed',
@@ -631,23 +505,19 @@ EXCEPTION
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Function to automatically process Facebook leads (trigger function)
 CREATE OR REPLACE FUNCTION auto_process_facebook_lead()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- Only process if auto-sync is enabled for the form
     IF EXISTS (
         SELECT 1 FROM facebook_lead_forms 
         WHERE id = NEW.form_id 
         AND auto_sync_enabled = true 
         AND is_active = true
     ) THEN
-        -- Attempt to process the lead
         BEGIN
             PERFORM process_facebook_lead_to_crm(NEW.id);
         EXCEPTION 
             WHEN OTHERS THEN
-                -- Error handling is done within the process function
                 NULL;
         END;
     END IF;
@@ -656,7 +526,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Function to qualify Facebook leads based on rules
 CREATE OR REPLACE FUNCTION qualify_facebook_lead(
     p_facebook_lead_id UUID
 )
@@ -668,7 +537,6 @@ DECLARE
     field_value TEXT;
     rule JSONB;
 BEGIN
-    -- Get lead and form qualification rules
     SELECT fl.*, flf.lead_qualification_rules
     INTO fb_lead
     FROM facebook_leads fl
@@ -681,18 +549,15 @@ BEGIN
     
     form_rules := fb_lead.lead_qualification_rules;
     
-    -- Process qualification rules (example implementation)
     IF form_rules IS NOT NULL THEN
         FOR rule IN SELECT * FROM jsonb_array_elements(form_rules)
         LOOP
             field_value := fb_lead.field_data->>rule->>'field';
             
-            -- Score based on field presence
             IF rule->>'type' = 'field_present' AND field_value IS NOT NULL AND field_value != '' THEN
                 qualification_score := qualification_score + COALESCE((rule->>'score')::INTEGER, 10);
             END IF;
             
-            -- Score based on field value matching
             IF rule->>'type' = 'field_contains' 
                AND field_value IS NOT NULL 
                AND field_value ILIKE '%' || (rule->>'value') || '%' THEN
@@ -701,7 +566,6 @@ BEGIN
         END LOOP;
     END IF;
     
-    -- Update lead with qualification score and status
     UPDATE facebook_leads 
     SET 
         qualification_score = qualification_score,
@@ -717,17 +581,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Create trigger for automatic Facebook lead processing
 CREATE TRIGGER auto_process_facebook_lead_trigger
     AFTER INSERT ON facebook_leads
     FOR EACH ROW
     EXECUTE FUNCTION auto_process_facebook_lead();
 
--- Create trigger for automatic lead qualification
 CREATE OR REPLACE FUNCTION auto_qualify_facebook_lead()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- Qualify the lead after field data is set
     IF NEW.field_data IS NOT NULL AND NEW.field_data != '{}' THEN
         PERFORM qualify_facebook_lead(NEW.id);
     END IF;
@@ -741,7 +602,6 @@ CREATE TRIGGER auto_qualify_facebook_lead_trigger
     FOR EACH ROW
     EXECUTE FUNCTION auto_qualify_facebook_lead();
 
--- Add helpful comments for documentation
 COMMENT ON TABLE facebook_integrations IS 'Stores Facebook OAuth integration data and settings for organizations';
 COMMENT ON TABLE facebook_pages IS 'Stores Facebook Page information linked to integrations with lead generation settings';
 COMMENT ON TABLE facebook_lead_forms IS 'Stores Facebook Lead Generation form information with field mappings and qualification rules';

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { handleApiRoute, supabaseAdmin, parseSearchParams } from '@/lib/api/middleware'
 import { z } from 'zod'
+import { requireAuth, createOrgScopedClient } from '@/lib/auth-middleware'
 
 const birthdayQuerySchema = z.object({
   days_ahead: z.string().optional().transform((val) => val ? parseInt(val) : 30),
@@ -8,6 +9,13 @@ const birthdayQuerySchema = z.object({
 })
 
 export async function GET(request: NextRequest) {
+  // Authentication check
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
+  
+  // Create organization-scoped Supabase client
+  const supabase = createOrgScopedClient(auth.organizationId)
+  
   return handleApiRoute(request, async (req) => {
     const { user } = req
     
