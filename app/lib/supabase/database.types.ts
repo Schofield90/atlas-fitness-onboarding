@@ -422,6 +422,264 @@ export interface Database {
           created_at?: string
         }
       }
+      sops: {
+        Row: {
+          id: string
+          organization_id: string
+          title: string
+          content: string
+          description: string | null
+          category: string
+          tags: string[]
+          version: number
+          status: 'draft' | 'review' | 'approved' | 'archived'
+          created_by: string
+          approved_by: string | null
+          approved_at: string | null
+          effective_date: string | null
+          review_date: string | null
+          content_type: 'markdown' | 'html' | 'document'
+          document_url: string | null
+          document_filename: string | null
+          embedding: string | null
+          ai_summary: string | null
+          related_sops: string[] | null
+          training_required: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          title: string
+          content: string
+          description?: string | null
+          category: string
+          tags?: string[]
+          version?: number
+          status?: 'draft' | 'review' | 'approved' | 'archived'
+          created_by: string
+          approved_by?: string | null
+          approved_at?: string | null
+          effective_date?: string | null
+          review_date?: string | null
+          content_type?: 'markdown' | 'html' | 'document'
+          document_url?: string | null
+          document_filename?: string | null
+          embedding?: string | null
+          ai_summary?: string | null
+          related_sops?: string[] | null
+          training_required?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          title?: string
+          content?: string
+          description?: string | null
+          category?: string
+          tags?: string[]
+          version?: number
+          status?: 'draft' | 'review' | 'approved' | 'archived'
+          created_by?: string
+          approved_by?: string | null
+          approved_at?: string | null
+          effective_date?: string | null
+          review_date?: string | null
+          content_type?: 'markdown' | 'html' | 'document'
+          document_url?: string | null
+          document_filename?: string | null
+          embedding?: string | null
+          ai_summary?: string | null
+          related_sops?: string[] | null
+          training_required?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      sop_versions: {
+        Row: {
+          id: string
+          sop_id: string
+          version: number
+          title: string
+          content: string
+          changes_summary: string | null
+          created_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          sop_id: string
+          version: number
+          title: string
+          content: string
+          changes_summary?: string | null
+          created_by: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          sop_id?: string
+          version?: number
+          title?: string
+          content?: string
+          changes_summary?: string | null
+          created_by?: string
+          created_at?: string
+        }
+      }
+      sop_training_records: {
+        Row: {
+          id: string
+          sop_id: string
+          user_id: string
+          organization_id: string
+          status: 'assigned' | 'in_progress' | 'completed' | 'overdue'
+          assigned_at: string
+          started_at: string | null
+          completed_at: string | null
+          quiz_score: number | null
+          quiz_passed: boolean | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          sop_id: string
+          user_id: string
+          organization_id: string
+          status?: 'assigned' | 'in_progress' | 'completed' | 'overdue'
+          assigned_at?: string
+          started_at?: string | null
+          completed_at?: string | null
+          quiz_score?: number | null
+          quiz_passed?: boolean | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          sop_id?: string
+          user_id?: string
+          organization_id?: string
+          status?: 'assigned' | 'in_progress' | 'completed' | 'overdue'
+          assigned_at?: string
+          started_at?: string | null
+          completed_at?: string | null
+          quiz_score?: number | null
+          quiz_passed?: boolean | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      sop_categories: {
+        Row: {
+          id: string
+          organization_id: string
+          name: string
+          description: string | null
+          color: string | null
+          icon: string | null
+          parent_id: string | null
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          name: string
+          description?: string | null
+          color?: string | null
+          icon?: string | null
+          parent_id?: string | null
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          name?: string
+          description?: string | null
+          color?: string | null
+          icon?: string | null
+          parent_id?: string | null
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      sop_comments: {
+        Row: {
+          id: string
+          sop_id: string
+          user_id: string
+          content: string
+          parent_comment_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          sop_id: string
+          user_id: string
+          content: string
+          parent_comment_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          sop_id?: string
+          user_id?: string
+          content?: string
+          parent_comment_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      sop_chat_logs: {
+        Row: {
+          id: string
+          organization_id: string
+          user_id: string
+          sop_id: string | null
+          question: string
+          answer: string
+          confidence: number
+          context_sop_ids: string[] | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          user_id: string
+          sop_id?: string | null
+          question: string
+          answer: string
+          confidence: number
+          context_sop_ids?: string[] | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          user_id?: string
+          sop_id?: string | null
+          question?: string
+          answer?: string
+          confidence?: number
+          context_sop_ids?: string[] | null
+          created_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never

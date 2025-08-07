@@ -1,32 +1,32 @@
 'use client'
 
-import { Shield, Server, Mail } from 'lucide-react'
+import { Shield, Server, MessageSquare } from 'lucide-react'
 
-interface EmailServiceSelectorProps {
+interface SMSServiceSelectorProps {
   provider: string
   onChange: (provider: string) => void
 }
 
-export default function EmailServiceSelector({ provider, onChange }: EmailServiceSelectorProps) {
+export default function SMSServiceSelector({ provider, onChange }: SMSServiceSelectorProps) {
   const providers = [
     {
       id: 'standard',
-      name: 'Standard Server',
-      description: 'Managed email delivery through our platform',
-      icon: <Mail className="h-8 w-8" />,
-      features: ['No setup required', 'High deliverability', 'Included in subscription']
+      name: 'Standard Service',
+      description: 'Managed SMS delivery through our platform',
+      icon: <MessageSquare className="h-8 w-8" />,
+      features: ['No setup required', 'UK numbers included', 'Compliance handled']
     },
     {
       id: 'dedicated',
-      name: 'Dedicated Server',
-      description: 'Premium managed email service',
+      name: 'Dedicated Service',
+      description: 'Premium SMS service with dedicated numbers',
       icon: <Shield className="h-8 w-8" />,
-      features: ['Enhanced reputation', 'Priority support', 'Advanced analytics']
+      features: ['Dedicated phone number', 'Enhanced delivery rates', 'Priority support']
     },
     {
-      id: 'smtp',
-      name: 'SMTP Server',
-      description: 'Connect your own email provider',
+      id: 'custom',
+      name: 'Custom Integration',
+      description: 'Connect your own SMS provider',
       icon: <Server className="h-8 w-8" />,
       features: ['Use existing provider', 'Full control', 'Custom configuration']
     }
@@ -34,7 +34,7 @@ export default function EmailServiceSelector({ provider, onChange }: EmailServic
 
   return (
     <div className="bg-gray-800 rounded-lg p-6">
-      <h3 className="text-lg font-semibold text-white mb-4">Email Service Provider</h3>
+      <h3 className="text-lg font-semibold text-white mb-4">SMS Service Provider</h3>
       <div className="grid md:grid-cols-3 gap-4">
         {providers.map((providerOption) => (
           <button

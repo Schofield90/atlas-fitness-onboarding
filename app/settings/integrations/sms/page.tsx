@@ -2,15 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
-import { Mail, Send, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
+import { MessageSquare, Send, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import SettingsHeader from '@/app/components/settings/SettingsHeader'
-import EmailServiceSelector from '@/app/components/settings/integrations/email/EmailServiceSelector'
-import SMTPConfiguration from '@/app/components/settings/integrations/email/SMTPConfiguration'
-import SendgridConfiguration from '@/app/components/settings/integrations/email/SendgridConfiguration'
-import MailgunConfiguration from '@/app/components/settings/integrations/email/MailgunConfiguration'
-import EmailTestPanel from '@/app/components/settings/integrations/email/EmailTestPanel'
+import SMSServiceSelector from '@/app/components/settings/integrations/sms/SMSServiceSelector'
 
-export default function EmailIntegrationPage() {
+export default function SMSIntegrationPage() {
   const [settings, setSettings] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -33,33 +29,32 @@ export default function EmailIntegrationPage() {
 
       if (!userOrg) return
 
-      // Get email integration settings
-      const { data: emailSettings } = await supabase
+      // Get SMS integration settings
+      const { data: smsSettings } = await supabase
         .from('integration_settings')
         .select('*')
         .eq('organization_id', userOrg.organization_id)
-        .eq('integration_type', 'email')
+        .eq('integration_type', 'sms')
         .single()
 
-      if (emailSettings) {
-        setSettings(emailSettings)
+      if (smsSettings) {
+        setSettings(smsSettings)
       } else {
         // Create default settings
         const defaultSettings = {
           organization_id: userOrg.organization_id,
-          integration_type: 'email',
+          integration_type: 'sms',
           enabled: false,
           config: {
             provider: 'standard',
             from_name: '',
-            from_email: '',
-            reply_to_email: ''
+            sender_id: ''
           }
         }
         setSettings(defaultSettings)
       }
     } catch (error) {
-      console.error('Error fetching email settings:', error)
+      console.error('Error fetching SMS settings:', error)
     } finally {
       setLoading(false)
     }
@@ -95,7 +90,7 @@ export default function EmailIntegrationPage() {
         await fetchSettings()
       }
     } catch (error) {
-      console.error('Error saving email settings:', error)
+      console.error('Error saving SMS settings:', error)
     } finally {
       setSaving(false)
     }
@@ -112,9 +107,9 @@ export default function EmailIntegrationPage() {
   return (
     <div className="space-y-6">
       <SettingsHeader 
-        title="Email Integration"
-        description="Configure email delivery settings for sending transactional emails"
-        icon={<Mail className="h-6 w-6" />}
+        title="SMS Integration"
+        description="Configure SMS messaging settings for customer communications"
+        icon={<MessageSquare className="h-6 w-6" />}
         action={
           <button
             onClick={handleSave}
@@ -131,10 +126,10 @@ export default function EmailIntegrationPage() {
         }
       />
 
-      {/* Email Service Status */}
+      {/* SMS Service Status */}
       <div className="bg-gray-800 rounded-lg p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-white">Email Service Status</h3>
+          <h3 className="text-lg font-semibold text-white">SMS Service Status</h3>
           <div className="flex items-center gap-2">
             {settings?.enabled ? (
               <>
@@ -153,7 +148,7 @@ export default function EmailIntegrationPage() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-gray-400 text-sm">
-              Enable email integration to send automated emails to your customers
+              Enable SMS integration to send automated messages to your customers
             </p>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
@@ -168,9 +163,9 @@ export default function EmailIntegrationPage() {
         </div>
       </div>
 
-      {/* Email Service Provider Selection */}
-      <EmailServiceSelector
-        provider={settings?.config?.provider || 'smtp'}
+      {/* SMS Service Provider Selection */}
+      <SMSServiceSelector
+        provider={settings?.config?.provider || 'standard'}
         onChange={(provider) => setSettings({
           ...settings,
           config: { ...settings.config, provider }
@@ -178,20 +173,13 @@ export default function EmailIntegrationPage() {
       />
 
       {/* Provider-specific Configuration */}
-      {settings?.config?.provider === 'smtp' && (
-        <SMTPConfiguration
-          config={settings.config}
-          onChange={(config) => setSettings({ ...settings, config })}
-        />
-      )}
-      
       {settings?.config?.provider === 'standard' && (
         <div className="bg-gray-800 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Standard Server Configuration</h3>
+          <h3 className="text-lg font-semibold text-white mb-4">Standard Service Configuration</h3>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">
-                From Name
+                Business Name
               </label>
               <input
                 type="text"
@@ -204,24 +192,9 @@ export default function EmailIntegrationPage() {
                 placeholder="Your Gym Name"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">
-                From Email
-              </label>
-              <input
-                type="email"
-                value={settings.config.from_email || ''}
-                onChange={(e) => setSettings({
-                  ...settings,
-                  config: { ...settings.config, from_email: e.target.value }
-                })}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                placeholder="noreply@yourgym.com"
-              />
-            </div>
             <div className="bg-blue-900/20 border border-blue-900/50 rounded-lg p-3">
               <p className="text-blue-400 text-sm">
-                Your emails will be delivered through our managed service. High deliverability and monitoring included.
+                Your SMS messages will be sent through our managed service with UK compliance included.
               </p>
             </div>
           </div>
@@ -230,11 +203,11 @@ export default function EmailIntegrationPage() {
       
       {settings?.config?.provider === 'dedicated' && (
         <div className="bg-gray-800 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Dedicated Server Configuration</h3>
+          <h3 className="text-lg font-semibold text-white mb-4">Dedicated Service Configuration</h3>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">
-                From Name
+                Business Name
               </label>
               <input
                 type="text"
@@ -247,32 +220,57 @@ export default function EmailIntegrationPage() {
                 placeholder="Your Gym Name"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">
-                From Email
-              </label>
-              <input
-                type="email"
-                value={settings.config.from_email || ''}
-                onChange={(e) => setSettings({
-                  ...settings,
-                  config: { ...settings.config, from_email: e.target.value }
-                })}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                placeholder="noreply@yourgym.com"
-              />
-            </div>
             <div className="bg-green-900/20 border border-green-900/50 rounded-lg p-3">
               <p className="text-green-400 text-sm">
-                Premium dedicated IP address for maximum deliverability. Advanced analytics and priority support included.
+                Premium dedicated number with enhanced delivery rates and priority support.
               </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Email Test Panel */}
-      {settings?.enabled && <EmailTestPanel settings={settings} />}
+      {settings?.config?.provider === 'custom' && (
+        <div className="bg-gray-800 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-white mb-4">Custom Integration</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">
+                Provider Name
+              </label>
+              <input
+                type="text"
+                value={settings.config.provider_name || ''}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  config: { ...settings.config, provider_name: e.target.value }
+                })}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                placeholder="e.g., Twilio, MessageBird"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">
+                From Number/Sender ID
+              </label>
+              <input
+                type="text"
+                value={settings.config.sender_id || ''}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  config: { ...settings.config, sender_id: e.target.value }
+                })}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                placeholder="+44XXXXXXXXXX or AlphaName"
+              />
+            </div>
+            <div className="bg-yellow-900/20 border border-yellow-900/50 rounded-lg p-3">
+              <p className="text-yellow-400 text-sm">
+                You'll need to configure API credentials separately. Contact support for integration assistance.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
