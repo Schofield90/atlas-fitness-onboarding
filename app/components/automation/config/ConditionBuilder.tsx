@@ -131,12 +131,12 @@ export function ConditionBuilder({
     onChange(conditions.filter((_, i) => i !== index))
   }
 
-  const getFieldType = (fieldId: string): 'string' | 'number' | 'boolean' | 'date' | 'array' => {
+  const getFieldType = (fieldId: string): 'string' | 'number' | 'boolean' | 'date' | 'array' | 'select' => {
     const field = availableFields.find(f => f.id === fieldId)
     return field?.type || 'string'
   }
 
-  const getOperatorsForType = (type: 'string' | 'number' | 'boolean' | 'date' | 'array'): ConditionOperator[] => {
+  const getOperatorsForType = (type: 'string' | 'number' | 'boolean' | 'date' | 'array' | 'select'): ConditionOperator[] => {
     const baseOperators: ConditionOperator[] = ['equals', 'not_equals']
     
     switch (type) {
@@ -150,6 +150,8 @@ export function ConditionBuilder({
         return [...baseOperators, 'in', 'not_in', 'is_empty', 'is_not_empty']
       case 'boolean':
         return ['equals', 'not_equals']
+      case 'select':
+        return [...baseOperators, 'in', 'not_in']
       default:
         return baseOperators
     }

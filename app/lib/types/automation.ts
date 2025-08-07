@@ -147,7 +147,7 @@ export interface Condition {
   field: string
   operator: ComparisonOperator
   value: any
-  dataType?: 'string' | 'number' | 'boolean' | 'date' | 'array'
+  dataType?: 'string' | 'number' | 'boolean' | 'date' | 'array' | 'select'
 }
 
 // Condition operator types for logical groups

@@ -8,6 +8,7 @@ import ReactFlow, {
   useEdgesState,
   Controls,
   Background,
+  BackgroundVariant,
   Connection,
   Edge,
   Node,
@@ -573,7 +574,7 @@ export default function AdvancedWorkflowBuilder({ initialWorkflow, onSave }: Adv
             maxZoom={2}
             attributionPosition="bottom-left"
           >
-            <Background pattern="dots" gap={20} size={1} />
+            <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
             <Controls />
             <MiniMap 
               nodeColor={(node) => {
