@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { handleApiRoute, supabaseAdmin, validateRequestBody } from '@/lib/api/middleware'
+import { handleApiRoute, supabaseAdmin } from '@/lib/api/middleware'
 import { z } from 'zod'
 
 const webhookEndpointSchema = z.object({
@@ -58,13 +58,11 @@ export async function POST(request: NextRequest) {
     const { user } = req
     const body = await request.json()
     
-    const { data: validatedData, error: validationError } = await validateRequestBody(
-      body,
-      webhookEndpointSchema
-    )
-
-    if (validationError || !validatedData) {
-      throw new Error(validationError || 'Invalid request body')
+    let validatedData: z.infer<typeof webhookEndpointSchema>
+    try {
+      validatedData = webhookEndpointSchema.parse(body)
+    } catch (error) {
+      throw new Error('Invalid request body')
     }
 
     const webhookData = {
@@ -124,13 +122,11 @@ export async function PUT(request: NextRequest) {
       throw new Error('Webhook endpoint ID is required')
     }
 
-    const { data: validatedData, error: validationError } = await validateRequestBody(
-      updateData,
-      webhookUpdateSchema
-    )
-
-    if (validationError || !validatedData) {
-      throw new Error(validationError || 'Invalid request body')
+    let validatedData: z.infer<typeof webhookUpdateSchema>
+    try {
+      validatedData = webhookUpdateSchema.parse(updateData)
+    } catch (error) {
+      throw new Error('Invalid request body')
     }
 
     // Verify the webhook belongs to the user's organization
