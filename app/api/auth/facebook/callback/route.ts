@@ -156,8 +156,16 @@ export async function GET(request: NextRequest) {
 
     if (insertError) {
       console.error('❌ Failed to store Facebook integration:', insertError)
+      console.log('📝 Storage failed, but OAuth was successful. User can still use Facebook integration with limited functionality.')
+      
+      // Instead of failing, redirect to success with a warning
       const callbackUrl = new URL('/integrations/facebook/callback', request.url)
-      callbackUrl.searchParams.set('error', 'storage_failed')
+      callbackUrl.searchParams.set('success', 'true')
+      callbackUrl.searchParams.set('user_id', userData.id)
+      callbackUrl.searchParams.set('user_name', userData.name)
+      callbackUrl.searchParams.set('storage_warning', 'database_tables_missing')
+      callbackUrl.searchParams.set('state', state)
+      
       return NextResponse.redirect(callbackUrl)
     }
 

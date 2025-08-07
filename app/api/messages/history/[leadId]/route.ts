@@ -159,27 +159,60 @@ export async function GET(
       }
     })
     
-    // Add messages from specific tables (might have some not in main table)
-    const allSpecificMessages = [...smsMessages, ...whatsappMessages, ...emailMessages]
-    allSpecificMessages.forEach(msg => {
-      const type = msg.message_id?.includes('whatsapp') ? 'whatsapp' : 
-                   msg.message_id?.includes('SM') ? 'sms' : 'email'
-      const key = `${type}-${msg.message_id || msg.id}`
-      
+    // Add SMS messages from SMS logs table
+    smsMessages.forEach(msg => {
+      const key = `sms-${msg.message_id || msg.id}`
       if (!allMessagesMap.has(key)) {
         const direction = (msg.from_number === normalizedPhone || msg.from_number === lead.phone) ? 
                          'inbound' : 'outbound'
         
         allMessagesMap.set(key, {
           id: msg.id,
-          type: type as any,
+          type: 'sms',
           direction,
+          status: msg.status,
+          body: msg.message || msg.body,
+          created_at: msg.created_at || msg.sent_at,
+          from_number: msg.from_number,
+          to_number: msg.to
+        })
+      }
+    })
+
+    // Add WhatsApp messages from WhatsApp logs table
+    whatsappMessages.forEach(msg => {
+      const key = `whatsapp-${msg.message_id || msg.id}`
+      if (!allMessagesMap.has(key)) {
+        const direction = (msg.from_number === normalizedPhone || msg.from_number === lead.phone) ? 
+                         'inbound' : 'outbound'
+        
+        allMessagesMap.set(key, {
+          id: msg.id,
+          type: 'whatsapp',
+          direction,
+          status: msg.status,
+          body: msg.message || msg.body,
+          created_at: msg.created_at || msg.sent_at,
+          from_number: msg.from_number,
+          to_number: msg.to
+        })
+      }
+    })
+
+    // Add Email messages from Email logs table
+    emailMessages.forEach(msg => {
+      const key = `email-${msg.message_id || msg.id}`
+      if (!allMessagesMap.has(key)) {
+        allMessagesMap.set(key, {
+          id: msg.id,
+          type: 'email',
+          direction: 'outbound', // Email is always outbound for now
           status: msg.status,
           body: msg.message || msg.body,
           subject: msg.subject,
           created_at: msg.created_at || msg.sent_at,
           from_number: msg.from_number,
-          to_number: msg.to || msg.to_email
+          to_number: msg.to_email
         })
       }
     })
@@ -197,7 +230,8 @@ export async function GET(
     })
 
     return NextResponse.json({ 
-      messages: {
+      messages: mergedMessages, // Return flat array as expected by the component
+      messagesByType: {
         emails: mergedMessages.filter(m => m.type === 'email'),
         sms: mergedMessages.filter(m => m.type === 'sms'),
         whatsapp: mergedMessages.filter(m => m.type === 'whatsapp'),

@@ -46,8 +46,12 @@ import {
   StickyNote,
   Bell,
   Trash2,
-  MessageCircle
+  MessageCircle,
+  Settings
 } from 'lucide-react'
+
+// Import AI Toggle Control
+import AIToggleControl from './AIToggleControl'
 
 // Import configuration components
 import LeadTriggerConfig from './config/LeadTriggerConfig'
@@ -760,7 +764,18 @@ export default function EnhancedWorkflowBuilder({ organizationId, workflowId, on
               className="text-lg font-semibold bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-2 py-1"
               placeholder="Workflow Name"
             />
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-3">
+              {/* AI Chatbot Toggle Control */}
+              <AIToggleControl
+                organizationId={organizationId}
+                workflowId={workflowId}
+                size="small"
+                className="border border-gray-200"
+                onToggle={(enabled, reason) => {
+                  console.log('AI toggle changed:', { enabled, reason })
+                }}
+              />
+              
               <button
                 onClick={() => setShowAIAssistant(!showAIAssistant)}
                 className="px-3 py-1.5 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 flex items-center"

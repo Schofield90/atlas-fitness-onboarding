@@ -199,6 +199,79 @@ For assistance, please contact our support team.`
         break
         
       default:
+        // Check if AI should respond for this conversation
+        const { data: shouldRespond } = await adminSupabase.rpc('should_ai_respond', {
+          p_organization_id: organizationId,
+          p_phone_number: cleanedFrom,
+          p_channel: channel
+        })
+        
+        console.log('AI response check:', { shouldRespond, organizationId, cleanedFrom, channel })
+        
+        if (!shouldRespond) {
+          console.log('AI disabled for this conversation, using fallback message')
+          
+          // Get organization's fallback message
+          const { data: orgSettings } = await adminSupabase
+            .from('organizations')
+            .select('ai_chatbot_settings')
+            .eq('id', organizationId)
+            .single()
+          
+          const fallbackMessage = orgSettings?.ai_chatbot_settings?.fallback_message || 
+            "Thanks for your message! Our team will get back to you shortly."
+          
+          responseMessage = fallbackMessage
+          
+          // Log that message was handled by fallback
+          await adminSupabase.from('ai_chatbot_logs').insert({
+            organization_id: organizationId,
+            action_type: 'fallback_to_human',
+            triggered_by: 'system',
+            trigger_reason: 'AI disabled for conversation',
+            phone_number: cleanedFrom
+          })
+          
+          break
+        }
+
+        // Check for auto-handoff keywords
+        const { data: orgData } = await adminSupabase
+          .from('organizations')
+          .select('ai_chatbot_settings')
+          .eq('id', organizationId)
+          .single()
+        
+        const autoHandoffKeywords = orgData?.ai_chatbot_settings?.auto_handoff_keywords || []
+        const messageContainsHandoffKeyword = autoHandoffKeywords.some(keyword => 
+          lowerBody.includes(keyword.toLowerCase())
+        )
+        
+        if (messageContainsHandoffKeyword) {
+          console.log('Auto-handoff keyword detected:', lowerBody)
+          
+          // Disable AI for this conversation
+          await adminSupabase.rpc('toggle_conversation_ai', {
+            p_organization_id: organizationId,
+            p_phone_number: cleanedFrom,
+            p_channel: channel,
+            p_ai_enabled: false,
+            p_handoff_reason: 'Auto-handoff keyword detected'
+          })
+          
+          responseMessage = "I'll connect you with one of our team members who can help you with that. They'll be in touch shortly!"
+          
+          await adminSupabase.from('ai_chatbot_logs').insert({
+            organization_id: organizationId,
+            action_type: 'disabled',
+            triggered_by: 'system',
+            trigger_reason: `Auto-handoff keyword detected: "${lowerBody}"`,
+            phone_number: cleanedFrom
+          })
+          
+          break
+        }
+
         // Use AI to generate response with conversation context
         try {
           // Get conversation history
@@ -212,6 +285,31 @@ For assistance, please contact our support team.`
             messageCount: conversationContext?.length || 0,
             lastMessages: conversationContext?.slice(-3) || []
           })
+          
+          // Check message count limit
+          const maxMessages = orgData?.ai_chatbot_settings?.max_ai_messages_per_conversation || 50
+          const aiMessageCount = conversationContext?.filter(msg => msg.role === 'assistant').length || 0
+          
+          if (aiMessageCount >= maxMessages) {
+            console.log('AI message limit reached, handing off to human')
+            
+            await adminSupabase.rpc('toggle_conversation_ai', {
+              p_organization_id: organizationId,
+              p_phone_number: cleanedFrom,
+              p_channel: channel,
+              p_ai_enabled: false,
+              p_handoff_reason: 'AI message limit reached'
+            })
+            
+            responseMessage = "I've helped as much as I can via chat. One of our team members will continue the conversation with you shortly!"
+            break
+          }
+          
+          // Add response delay if configured
+          const responseDelay = orgData?.ai_chatbot_settings?.response_delay_seconds || 0
+          if (responseDelay > 0) {
+            await new Promise(resolve => setTimeout(resolve, responseDelay * 1000))
+          }
           
           // Fetch relevant knowledge
           const knowledge = await fetchRelevantKnowledge(messageData.body)
@@ -241,6 +339,15 @@ For assistance, please contact our support team.`
             p_message: aiContextMessage
           })
           
+          // Log successful AI response
+          await adminSupabase.from('ai_chatbot_logs').insert({
+            organization_id: organizationId,
+            action_type: 'enabled',
+            triggered_by: 'system',
+            trigger_reason: 'AI generated response',
+            phone_number: cleanedFrom
+          })
+          
           // Log any extracted information
           if (aiResponse.extractedInfo) {
             console.log('AI extracted information:', aiResponse.extractedInfo)
@@ -254,7 +361,20 @@ For assistance, please contact our support team.`
           
         } catch (error) {
           console.error('AI response generation failed:', error)
-          responseMessage = "Thanks for your message! Our team will get back to you shortly."
+          
+          // Get fallback message from settings
+          const fallbackMessage = orgData?.ai_chatbot_settings?.fallback_message || 
+            "Thanks for your message! Our team will get back to you shortly."
+          
+          responseMessage = fallbackMessage
+          
+          await adminSupabase.from('ai_chatbot_logs').insert({
+            organization_id: organizationId,
+            action_type: 'fallback_to_human',
+            triggered_by: 'system',
+            trigger_reason: `AI error: ${error.message}`,
+            phone_number: cleanedFrom
+          })
         }
         break
     }

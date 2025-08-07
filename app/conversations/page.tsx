@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/app/lib/supabase/client'
 import DashboardLayout from '@/app/components/DashboardLayout'
-import { MessageSquare, Mail, Phone, Clock, User, Search } from 'lucide-react'
+import { MessageSquare, Mail, Phone, Clock, User, Search, Bot } from 'lucide-react'
 import { formatBritishDateTime } from '@/app/lib/utils/british-format'
+import AIToggleControl from '@/app/components/automation/AIToggleControl'
 
 interface Conversation {
   id: string
@@ -24,6 +25,7 @@ export default function ConversationsPage() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [organizationId, setOrganizationId] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
@@ -46,6 +48,8 @@ export default function ConversationsPage() {
         .single()
 
       if (!userOrg) return
+
+      setOrganizationId(userOrg.organization_id)
 
       // Fetch all recent messages grouped by customer
       // First get all customers
