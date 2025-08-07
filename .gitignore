@@ -94,6 +94,7 @@ analyze/
 ghl_call_recordings/
 audio_files/
 .env*.local
+.env.supabase
 
 # Docker
 .dockerignore

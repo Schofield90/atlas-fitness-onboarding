@@ -4,8 +4,14 @@
 
 echo "🔍 Pulling database schema from Supabase..."
 
-# Use the direct database URL
-DATABASE_URL="postgresql://postgres:OGFYlxSChyYLgQxn@db.lzlrojoaxrqvmhempnkn.supabase.co:5432/postgres" \
+# Check if DATABASE_URL is set
+if [ -z "$DATABASE_URL" ]; then
+    echo "❌ Error: DATABASE_URL environment variable is not set"
+    echo "Please set it with your Supabase database connection string"
+    exit 1
+fi
+
+# Use the DATABASE_URL from environment
 npx prisma db pull
 
 if [ $? -eq 0 ]; then
@@ -19,7 +25,5 @@ if [ $? -eq 0 ]; then
     echo "✅ Prisma Client generated at lib/generated/prisma"
 else
     echo "❌ Failed to pull schema"
-    echo "Try alternative connection strings:"
-    echo "1. With SSL: postgresql://postgres:OGFYlxSChyYLgQxn@db.lzlrojoaxrqvmhempnkn.supabase.co:5432/postgres?sslmode=require"
-    echo "2. Pooled: postgresql://postgres.lzlrojoaxrqvmhempnkn:OGFYlxSChyYLgQxn@aws-0-eu-west-2.pooler.supabase.com:6543/postgres?pgbouncer=true"
+    echo "Please check your DATABASE_URL environment variable"
 fi
