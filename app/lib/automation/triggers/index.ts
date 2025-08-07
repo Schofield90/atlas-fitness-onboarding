@@ -542,6 +542,16 @@ export class ChurnRiskTrigger extends BaseTrigger {
   }
 }
 
+// Import booking triggers
+import { 
+  MissedSessionTrigger,
+  FirstSessionTrigger,
+  BookingConfirmedTrigger,
+  ClassFullTrigger,
+  BookingCancelledTrigger,
+  WaitlistJoinedTrigger
+} from './booking-triggers'
+
 // Trigger Factory
 export class TriggerFactory {
   private static triggers: Map<string, any> = new Map()
@@ -555,6 +565,14 @@ export class TriggerFactory {
     this.triggers.set('scheduled', ScheduleTrigger)
     this.triggers.set('webhook', WebhookTrigger)
     this.triggers.set('ai_churn_risk', ChurnRiskTrigger)
+    
+    // Booking triggers
+    this.triggers.set('missed_session', MissedSessionTrigger)
+    this.triggers.set('first_session', FirstSessionTrigger)
+    this.triggers.set('booking_confirmed', BookingConfirmedTrigger)
+    this.triggers.set('class_full', ClassFullTrigger)
+    this.triggers.set('booking_cancelled', BookingCancelledTrigger)
+    this.triggers.set('waitlist_joined', WaitlistJoinedTrigger)
   }
   
   static create(type: string, config: Record<string, any>): BaseTrigger {

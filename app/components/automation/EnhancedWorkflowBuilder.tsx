@@ -47,7 +47,9 @@ import {
   Bell,
   Trash2,
   MessageCircle,
-  Settings
+  Settings,
+  XCircle,
+  CheckCircle
 } from 'lucide-react'
 
 // Import AI Toggle Control
@@ -73,6 +75,7 @@ import SurveySubmittedTriggerConfig from './config/SurveySubmittedTriggerConfig'
 import FormSubmittedTriggerConfig from './config/FormSubmittedTriggerConfig'
 import NoteAddedTriggerConfig from './config/NoteAddedTriggerConfig'
 import TaskReminderTriggerConfig from './config/TaskReminderTriggerConfig'
+import BookingTriggerConfig from './config/BookingTriggerConfig'
 import { safeAlert } from '@/app/lib/utils/safe-alert'
 
 // Import unified config panel for enhanced actions
@@ -371,6 +374,55 @@ const nodeTemplates = [
     label: 'Task Reminder',
     description: 'Task due date reminders',
     icon: Bell,
+    category: 'Triggers'
+  },
+  // Booking System Triggers
+  {
+    type: 'trigger',
+    subtype: 'missed_session',
+    label: 'Missed Session',
+    description: 'When client misses a booked session',
+    icon: XCircle,
+    category: 'Triggers'
+  },
+  {
+    type: 'trigger',
+    subtype: 'first_session',
+    label: 'First Session',
+    description: 'When client attends first session',
+    icon: Sparkles,
+    category: 'Triggers'
+  },
+  {
+    type: 'trigger',
+    subtype: 'booking_confirmed',
+    label: 'Booking Confirmed',
+    description: 'When booking is confirmed',
+    icon: CheckCircle,
+    category: 'Triggers'
+  },
+  {
+    type: 'trigger',
+    subtype: 'class_full',
+    label: 'Class Full',
+    description: 'When class reaches capacity',
+    icon: Users,
+    category: 'Triggers'
+  },
+  {
+    type: 'trigger',
+    subtype: 'booking_cancelled',
+    label: 'Booking Cancelled',
+    description: 'When client cancels booking',
+    icon: XCircle,
+    category: 'Triggers'
+  },
+  {
+    type: 'trigger',
+    subtype: 'waitlist_joined',
+    label: 'Waitlist Joined',
+    description: 'When client joins waitlist',
+    icon: Clock,
     category: 'Triggers'
   },
   {
@@ -703,6 +755,14 @@ export default function EnhancedWorkflowBuilder({ organizationId, workflowId, on
           return <NoteAddedTriggerConfig {...commonProps} />
         case 'task_reminder':
           return <TaskReminderTriggerConfig {...commonProps} />
+        // Booking System Triggers
+        case 'missed_session':
+        case 'first_session':
+        case 'booking_confirmed':
+        case 'class_full':
+        case 'booking_cancelled':
+        case 'waitlist_joined':
+          return <BookingTriggerConfig {...commonProps} triggerType={subtype} />
         default:
           return <LeadTriggerConfig {...commonProps} />
       }
