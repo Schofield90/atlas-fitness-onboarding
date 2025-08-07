@@ -16,6 +16,7 @@ import ReactFlow, {
   NodeProps,
   MiniMap
 } from 'reactflow'
+import { WorkflowNode } from '@/app/lib/types/automation'
 import { 
   Sparkles, 
   Save, 
@@ -640,7 +641,7 @@ export default function EnhancedWorkflowBuilder({ organizationId, workflowId, on
     if (isEnhancedAction) {
       return (
         <UnifiedNodeConfigPanel
-          node={selectedNode}
+          node={selectedNode as WorkflowNode}
           onClose={() => {
             setShowConfigPanel(false)
             setSelectedNode(null)
