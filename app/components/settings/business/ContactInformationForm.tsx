@@ -21,15 +21,24 @@ export default function ContactInformationForm({ settings, onUpdate }: ContactIn
     }
   })
   const [saving, setSaving] = useState(false)
+  const [errors, setErrors] = useState<any>({})
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setErrors({})
     setSaving(true)
     
-    const result = await onUpdate(formData)
-    
-    if (result.success) {
-      // Show success message
+    try {
+      const result = await onUpdate(formData)
+      
+      if (result.success) {
+        alert('Contact information saved successfully!')
+      } else {
+        setErrors({ general: 'Failed to save. Please try again.' })
+      }
+    } catch (error) {
+      console.error('Form submission error:', error)
+      setErrors({ general: 'An error occurred. Please try again.' })
     }
     
     setSaving(false)
@@ -51,6 +60,12 @@ export default function ContactInformationForm({ settings, onUpdate }: ContactIn
         <MapPin className="h-5 w-5 text-gray-400" />
         <h2 className="text-lg font-semibold text-white">Contact Information</h2>
       </div>
+
+      {errors.general && (
+        <div className="bg-red-900/20 border border-red-900/50 rounded-lg p-3 mb-4">
+          <p className="text-red-400 text-sm">{errors.general}</p>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
