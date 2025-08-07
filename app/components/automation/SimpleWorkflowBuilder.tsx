@@ -324,7 +324,7 @@ export default function SimpleWorkflowBuilder() {
             }
           }
 
-          setNodes((nds) => nds.concat(newNode))
+          setNodes((nds) => nds.concat(newNode as any))
           setNodeIdCounter((c) => c + 1)
           
         } catch (error) {
@@ -339,7 +339,7 @@ export default function SimpleWorkflowBuilder() {
               description: template.description 
             } as any
           }
-          setNodes((nds) => nds.concat(simpleNode))
+          setNodes((nds) => nds.concat(simpleNode as any))
           setNodeIdCounter((c) => c + 1)
         }
       }
@@ -363,9 +363,9 @@ export default function SimpleWorkflowBuilder() {
       const upgradedNode = await nodeFactory.createAdvancedNode(
         targetType,
         {
-          label: nodeToUpgrade.data.label,
-          description: nodeToUpgrade.data.description,
-          config: nodeToUpgrade.data.config || {}
+          label: (nodeToUpgrade.data as any).label,
+          description: (nodeToUpgrade.data as any).description,
+          config: (nodeToUpgrade.data as any).config || {}
         },
         {
           workflowType: 'upgrade_migration',
@@ -425,7 +425,7 @@ export default function SimpleWorkflowBuilder() {
         edges,
         metadata: {
           lastModified: new Date().toISOString(),
-          aiEnhanced: nodes.some(n => n.data.aiAssistance?.configSuggestions?.enabled),
+          aiEnhanced: nodes.some(n => (n.data as any).aiAssistance?.configSuggestions?.enabled),
           subAgentOptimized: true
         }
       }
@@ -604,7 +604,7 @@ export default function SimpleWorkflowBuilder() {
               
               try {
                 // Enhanced workflow saving with AI metadata
-                const aiEnhancedNodes = nodes.filter(n => n.data.aiAssistance?.configSuggestions?.enabled)
+                const aiEnhancedNodes = nodes.filter(n => (n.data as any).aiAssistance?.configSuggestions?.enabled)
                 const systemStatus = subAgentSystem.getSystemStatus()
                 
                 const workflowData = {
@@ -614,8 +614,8 @@ export default function SimpleWorkflowBuilder() {
                     ...node,
                     // Include advanced configuration
                     metadata: {
-                      isAIEnhanced: node.data.aiAssistance?.configSuggestions?.enabled || false,
-                      hasAdvancedConfig: node.data.uiConfig?.configPanel?.sections?.length > 0,
+                      isAIEnhanced: (node.data as any).aiAssistance?.configSuggestions?.enabled || false,
+                      hasAdvancedConfig: (node.data as any).uiConfig?.configPanel?.sections?.length > 0,
                       optimizationHints: node.optimizationHints?.length || 0
                     }
                   })),
