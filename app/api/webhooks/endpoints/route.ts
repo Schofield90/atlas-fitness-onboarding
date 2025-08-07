@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     const { user } = req
     const body = await request.json()
     
-    const { data: validatedData, error: validationError } = validateRequestBody(
+    const { data: validatedData, error: validationError } = await validateRequestBody(
       body,
       webhookEndpointSchema
     )
@@ -124,7 +124,7 @@ export async function PUT(request: NextRequest) {
       throw new Error('Webhook endpoint ID is required')
     }
 
-    const { data: validatedData, error: validationError } = validateRequestBody(
+    const { data: validatedData, error: validationError } = await validateRequestBody(
       updateData,
       webhookUpdateSchema
     )

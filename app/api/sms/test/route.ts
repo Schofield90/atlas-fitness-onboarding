@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     // If organizationId is provided, get settings from database
     let smsSettings = settings
     if (organizationId && !settings) {
-      const supabase = createClient()
+      const supabase = await createClient()
       const { data, error } = await supabase
         .from('organization_settings')
         .select('sms_config')

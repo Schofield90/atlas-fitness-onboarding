@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { ChevronDown, Plus, X, MessageSquare, Mail, Phone, MessageCircle, Clock, User, Hash } from 'lucide-react'
 
 interface CustomerRepliedTriggerConfigProps {

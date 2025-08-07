@@ -49,8 +49,8 @@ export async function GET(request: NextRequest) {
     const transformedForms = forms?.map(form => ({
       id: form.facebook_form_id,
       name: form.form_name,
-      pageId: Array.isArray(form.facebook_pages) ? form.facebook_pages[0]?.facebook_page_id : form.facebook_pages?.facebook_page_id,
-      pageName: Array.isArray(form.facebook_pages) ? form.facebook_pages[0]?.page_name : form.facebook_pages?.page_name,
+      pageId: Array.isArray(form.facebook_pages) ? (form.facebook_pages[0] as any)?.facebook_page_id : (form.facebook_pages as any)?.facebook_page_id,
+      pageName: Array.isArray(form.facebook_pages) ? (form.facebook_pages[0] as any)?.page_name : (form.facebook_pages as any)?.page_name,
       questions: form.form_questions || [],
       leadCount: form.lead_count || 0,
       lastSync: form.last_sync_at

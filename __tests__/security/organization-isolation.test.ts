@@ -233,7 +233,7 @@ describe('Organization Isolation Security Tests', () => {
       const response = await fetch('/api/leads?id=' + testLeadOrg2.id, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${supabase1.auth.session()?.access_token}`
+          'Authorization': `Bearer ${supabaseClient1.auth.session()?.access_token}`
         }
       })
       
@@ -255,7 +255,7 @@ describe('Organization Isolation Security Tests', () => {
       const response = await fetch('/api/leads', {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${supabase1.auth.session()?.access_token}`,
+          'Authorization': `Bearer ${supabaseClient1.auth.session()?.access_token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -276,7 +276,7 @@ describe('SQL Injection Prevention Tests', () => {
     const response = await fetch(`/api/leads/${maliciousId}`, {
       method: 'DELETE',
       headers: {
-        'Authorization': `Bearer ${supabase1.auth.session()?.access_token}`
+        'Authorization': `Bearer ${supabaseClient1.auth.session()?.access_token}`
       }
     })
     
@@ -290,7 +290,7 @@ describe('SQL Injection Prevention Tests', () => {
     const response = await fetch('/api/leads', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${supabase1.auth.session()?.access_token}`,
+        'Authorization': `Bearer ${supabaseClient1.auth.session()?.access_token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({

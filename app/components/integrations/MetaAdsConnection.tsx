@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Button } from '@/app/components/ui/Button'
+import Button from '@/app/components/ui/Button'
 import { Card } from '@/app/components/ui/Card'
 
 interface MetaIntegrationStatus {

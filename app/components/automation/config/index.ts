@@ -35,7 +35,7 @@ export { default as WaitActionConfig } from './WaitActionConfig'
 
 // Advanced Configuration Components
 export { DeepNodeConfigPanel } from './DeepNodeConfigPanel'
-export { default as ConditionBuilder } from './ConditionBuilder'
+export { ConditionBuilder } from './ConditionBuilder'
 
 // Re-export action definitions and helper functions
 export {
@@ -46,7 +46,7 @@ export {
   getEnhancedCommunicationAction,
   getEnhancedCommunicationActionIds,
   enhancedCommunicationNodePaletteItems
-} from '../../lib/automation/communication-actions'
+} from '@/app/lib/automation/communication-actions'
 
 // Type definitions for enhanced communication actions
 export interface EnhancedCommunicationActionConfig {

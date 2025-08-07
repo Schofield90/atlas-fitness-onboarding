@@ -1,4 +1,5 @@
 import { createClient } from '@/app/lib/supabase/client'
+import { getCurrentUserOrganization } from '@/app/lib/organization-service'
 
 export interface MembershipPlan {
   id: string

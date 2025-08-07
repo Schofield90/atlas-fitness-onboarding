@@ -642,6 +642,7 @@ export type AgentCapability =
   | 'alerting'
 
 export interface SubAgentConfig {
+  id?: string
   priority: number
   resources: ResourceAllocation
   schedule: AgentSchedule

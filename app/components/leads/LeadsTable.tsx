@@ -406,7 +406,7 @@ export function LeadsTable({ statusFilter = 'all' }: LeadsTableProps) {
       </div>
 
       {/* Pagination */}
-      {filteredLeads.length > 0 && (
+      {processedLeads.length > 0 && (
         <div className="flex justify-between items-center mt-6">
           <p className="text-sm text-gray-400">
             Showing {processedLeads.length} of {leads.length} leads

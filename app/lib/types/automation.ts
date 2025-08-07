@@ -49,7 +49,29 @@ export interface WorkflowStats {
 }
 
 // Node Types
-export type NodeType = 'trigger' | 'action' | 'condition' | 'wait' | 'loop' | 'transform' | 'filter'
+export type NodeType = 
+  | 'trigger' 
+  | 'action' 
+  | 'condition' 
+  | 'wait' 
+  | 'loop' 
+  | 'transform' 
+  | 'filter'
+  | 'ai_trigger' 
+  | 'smart_condition' 
+  | 'ai_action' 
+  | 'enrichment_action'
+  | 'multi_channel_action'
+  | 'ai_decision'
+  | 'dynamic_wait'
+  | 'ai_optimizer'
+  | 'data_transformer'
+  | 'loop_controller'
+  | 'parallel_processor'
+  | 'merge_controller'
+  | 'sub_workflow'
+  | 'webhook_advanced'
+  | 'api_advanced'
 
 export interface WorkflowNode extends Node {
   type: NodeType
