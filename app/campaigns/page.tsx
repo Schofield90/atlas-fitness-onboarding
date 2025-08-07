@@ -6,7 +6,7 @@ import {
   PlusIcon,
   FacebookIcon,
   InstagramIcon,
-  EmailIcon,
+  MailIcon,
   TrendingUpIcon,
   EyeIcon,
   TargetIcon,

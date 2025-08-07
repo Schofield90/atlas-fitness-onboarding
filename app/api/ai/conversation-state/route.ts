@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 })
     }
 
-    const supabase = createClient()
+    const supabase = await createClient()
     
     const { data, error } = await supabase
       .from('conversation_ai_state')

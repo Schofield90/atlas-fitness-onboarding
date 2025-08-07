@@ -20,7 +20,8 @@ import {
   Globe,
   Database,
   ArrowLeft,
-  MapPin
+  MapPin,
+  Bot
 } from 'lucide-react'
 
 const settingsNavigation = [
@@ -49,6 +50,7 @@ const settingsNavigation = [
     category: "AUTOMATION",
     items: [
       { name: "Workflows", href: "/settings/workflows", icon: Zap },
+      { name: "AI Chatbot", href: "/settings/ai-chatbot", icon: Bot },
       { name: "Email Templates", href: "/settings/templates", icon: FileText },
     ]
   },

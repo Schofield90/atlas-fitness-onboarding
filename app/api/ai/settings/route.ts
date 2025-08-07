@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Organization ID required' }, { status: 400 })
     }
 
-    const supabase = createClient()
+    const supabase = await createClient()
     
     const { data, error } = await supabase
       .from('organizations')
@@ -42,7 +42,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Organization ID required' }, { status: 400 })
     }
 
-    const supabase = createClient()
+    const supabase = await createClient()
     const adminSupabase = createAdminClient()
     
     const updateData: any = {}

@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Organization ID required' }, { status: 400 })
     }
 
-    const supabase = createClient()
+    const supabase = await createClient()
     
     // Get all conversation states for the organization
     const { data: conversationStates, error } = await supabase
