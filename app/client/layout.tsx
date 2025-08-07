@@ -1,6 +1,6 @@
 'use client'
 
-import { Calendar, Home, User, CreditCard, Activity, LogOut, Menu, X } from 'lucide-react'
+import { Calendar, Home, User, CreditCard, Activity, LogOut, Menu, X, Apple } from 'lucide-react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
@@ -53,6 +53,7 @@ export default function ClientLayout({
     { name: 'Home', icon: Home, href: '/client' },
     { name: 'Schedule', icon: Calendar, href: '/client/schedule' },
     { name: 'My Classes', icon: Activity, href: '/client/bookings' },
+    { name: 'Nutrition', icon: Apple, href: '/client/nutrition' },
     { name: 'Membership', icon: CreditCard, href: '/client/membership' },
     { name: 'Profile', icon: User, href: '/client/profile' },
   ]
