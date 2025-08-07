@@ -141,7 +141,7 @@ CREATE TABLE IF NOT EXISTS public.nutrition_meals (
     INDEX idx_nutrition_meals_org (organization_id),
     INDEX idx_nutrition_meals_plan (meal_plan_id),
     INDEX idx_nutrition_meals_day_type (day_number, meal_type),
-    UNIQUE idx_nutrition_meals_unique_plan_day_type_order (meal_plan_id, day_number, meal_type, meal_order)
+    CONSTRAINT idx_nutrition_meals_unique_plan_day_type_order UNIQUE (meal_plan_id, day_number, meal_type, meal_order)
 );
 
 -- ========================================
@@ -338,7 +338,7 @@ CREATE TABLE IF NOT EXISTS public.nutrition_body_metrics (
     INDEX idx_nutrition_body_metrics_org (organization_id),
     INDEX idx_nutrition_body_metrics_profile (profile_id),
     INDEX idx_nutrition_body_metrics_date (measurement_date DESC),
-    UNIQUE idx_nutrition_body_metrics_unique_profile_date (profile_id, measurement_date)
+    CONSTRAINT idx_nutrition_body_metrics_unique_profile_date UNIQUE (profile_id, measurement_date)
 );
 
 -- ========================================

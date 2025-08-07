@@ -131,17 +131,17 @@ function ClassesPageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-900">
       <div className="p-8">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Class Types</h1>
-            <p className="text-gray-600 mt-2">Manage your class types and schedules</p>
+            <h1 className="text-3xl font-bold text-white">Class Types</h1>
+            <p className="text-gray-400 mt-2">Manage your class types and schedules</p>
           </div>
           <div className="flex gap-4">
             <button
               onClick={forceRefresh}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-4 py-2 text-sm font-medium text-gray-300 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 transition-colors"
             >
               🔄 Force Refresh
             </button>
@@ -165,13 +165,13 @@ function ClassesPageContent() {
         {loading ? (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <p className="mt-2 text-gray-600">Loading class types...</p>
+            <p className="mt-2 text-gray-400">Loading class types...</p>
           </div>
         ) : classTypes.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg shadow">
+          <div className="text-center py-12 bg-gray-800 rounded-lg shadow">
             <Activity className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-lg font-medium text-gray-900">No class types</h3>
-            <p className="mt-1 text-gray-500">Get started by creating a new class type.</p>
+            <h3 className="mt-2 text-lg font-medium text-white">No class types</h3>
+            <p className="mt-1 text-gray-400">Get started by creating a new class type.</p>
             <button
               onClick={() => setShowAddModal(true)}
               className="mt-4 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
@@ -180,64 +180,64 @@ function ClassesPageContent() {
             </button>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+          <div className="bg-gray-800 rounded-lg shadow overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-700">
+              <thead className="bg-gray-900">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Class Type
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Category
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Visibility
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Sessions
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Default Capacity
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-gray-800 divide-y divide-gray-700">
                 {classTypes.map((classType) => (
-                  <tr key={classType.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/classes/${classType.id}`)}>
+                  <tr key={classType.id} className="hover:bg-gray-700 cursor-pointer" onClick={() => router.push(`/classes/${classType.id}`)}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <div className="text-sm font-medium text-gray-900 hover:text-blue-600">{classType.name}</div>
+                        <div className="text-sm font-medium text-white hover:text-blue-400">{classType.name}</div>
                         {classType.description && (
-                          <div className="text-sm text-gray-500">{classType.description}</div>
+                          <div className="text-sm text-gray-400">{classType.description}</div>
                         )}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-900">
+                      <span className="text-sm text-gray-300">
                         No category
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-900 text-green-300">
                         everyone
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                       {classType.sessions_count || 0} sessions
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                       Not set
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button className="text-indigo-600 hover:text-indigo-900 mr-4">
+                      <button className="text-blue-400 hover:text-blue-300 mr-4">
                         <Edit className="h-4 w-4" />
                       </button>
                       <button 
                         onClick={() => handleDeleteClassType(classType.id)}
-                        className="text-red-600 hover:text-red-900"
+                        className="text-red-400 hover:text-red-300"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -252,18 +252,18 @@ function ClassesPageContent() {
         {/* Delete All Confirmation Modal */}
         {showDeleteAllModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md">
+            <div className="bg-gray-800 rounded-lg p-6 max-w-md border border-gray-700">
               <div className="flex items-center gap-3 mb-4">
-                <AlertTriangle className="h-6 w-6 text-red-600" />
-                <h3 className="text-lg font-semibold">Delete All Class Types?</h3>
+                <AlertTriangle className="h-6 w-6 text-red-500" />
+                <h3 className="text-lg font-semibold text-white">Delete All Class Types?</h3>
               </div>
-              <p className="text-gray-600 mb-6">
+              <p className="text-gray-300 mb-6">
                 This will permanently delete all class types and their associated sessions. This action cannot be undone.
               </p>
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setShowDeleteAllModal(false)}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  className="px-4 py-2 text-gray-300 bg-gray-700 rounded-lg hover:bg-gray-600"
                   disabled={deletingAll}
                 >
                   Cancel
