@@ -74,6 +74,11 @@ build/
 .vercel/
 *.log
 
+# Deployment debug logs
+build.log
+typescript.log
+dependencies.log
+
 # Development
 .turbo
 analyze/

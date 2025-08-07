@@ -13,6 +13,7 @@
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
+    "type-check": "tsc --noEmit",
     "typecheck": "tsc --noEmit --incremental --tsBuildInfoFile .tsbuildinfo",
     "test:api": "node scripts/quick-test.js",
     "vercel:dev": "vercel dev",
@@ -27,7 +28,10 @@
     "vercel:link": "vercel link",
     "workflow": "node scripts/dev-workflow.js",
     "clean": "rm -rf .next node_modules/.cache",
-    "clean:all": "rm -rf .next node_modules package-lock.json && npm install"
+    "clean:all": "rm -rf .next node_modules package-lock.json && npm install",
+    "pre-deploy": "bash scripts/pre-deploy.sh",
+    "debug-deploy": "bash scripts/debug-deploy.sh",
+    "validate-env": "node scripts/validate-env.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.57.0",
