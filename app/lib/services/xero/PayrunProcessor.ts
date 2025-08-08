@@ -463,6 +463,9 @@ export class PayrunProcessor {
       employeeTimesheets.get(empId).push(timesheet);
     });
 
+    // Get default earnings rate ID once for all timesheets
+    const defaultEarningsRateId = await this.getDefaultEarningsRateId();
+
     // Sync each employee's timesheet to Xero
     for (const [xeroEmployeeId, timesheets] of employeeTimesheets) {
       try {
@@ -473,7 +476,7 @@ export class PayrunProcessor {
           status: 'APPROVED',
           timesheetLines: timesheets.map((ts: any) => ({
             date: ts.date,
-            earningsRateID: await this.getDefaultEarningsRateId(),
+            earningsRateID: defaultEarningsRateId,
             numberOfUnits: ts.hours_worked,
           })),
         };
