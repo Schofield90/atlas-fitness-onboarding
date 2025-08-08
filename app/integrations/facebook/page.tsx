@@ -44,6 +44,31 @@ export default function FacebookIntegrationPage() {
   )
   const { leads, loading: leadsLoading, error: leadsError, refetch: refetchLeads } = useFacebookLeads(undefined, selectedPageId, facebookConnection.connected && !!selectedPageId)
 
+  // Auto-sync pages on first connection
+  useEffect(() => {
+    const syncPagesIfNeeded = async () => {
+      if (facebookConnection.connected && pages.length === 0 && !pagesLoading && !pagesError) {
+        console.log('Connected but no pages found, syncing from Facebook...')
+        try {
+          const syncRes = await fetch('/api/integrations/meta/sync-pages', {
+            method: 'POST'
+          })
+          
+          if (syncRes.ok) {
+            const result = await syncRes.json()
+            console.log('Initial sync completed:', result)
+            // Refresh pages after sync
+            await refetchPages()
+          }
+        } catch (error) {
+          console.error('Initial sync error:', error)
+        }
+      }
+    }
+    
+    syncPagesIfNeeded()
+  }, [facebookConnection.connected, pages.length, pagesLoading, pagesError])
+
   const handleConnect = () => {
     setConnecting(true)
     setError('')
@@ -190,11 +215,33 @@ export default function FacebookIntegrationPage() {
                   <p className="text-gray-400 text-sm">Select the page that contains your lead forms</p>
                 </div>
                 <button 
-                  onClick={refetchPages}
+                  onClick={async () => {
+                    try {
+                      // First sync pages from Facebook API
+                      const syncRes = await fetch('/api/integrations/meta/sync-pages', {
+                        method: 'POST'
+                      })
+                      
+                      if (!syncRes.ok) {
+                        const error = await syncRes.json()
+                        console.error('Sync error:', error)
+                        throw new Error(error.error || 'Failed to sync pages')
+                      }
+                      
+                      const syncResult = await syncRes.json()
+                      console.log('Sync result:', syncResult)
+                      
+                      // Then refresh the local data
+                      await refetchPages()
+                    } catch (error) {
+                      console.error('Error syncing pages:', error)
+                      alert(`Error: ${error.message}`)
+                    }
+                  }}
                   disabled={pagesLoading}
                   className="bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white py-2 px-3 rounded text-sm transition-colors"
                 >
-                  {pagesLoading ? 'Loading...' : 'Refresh'}
+                  {pagesLoading ? 'Syncing...' : 'Refresh'}
                 </button>
               </div>
 
