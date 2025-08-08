@@ -709,9 +709,11 @@ VALUES ('00000000-0000-0000-0000-000000000001', 'demo-gym', 'Demo Fitness Center
 ON CONFLICT DO NOTHING;
 
 -- Create system user for automation
-INSERT INTO users (id, email, full_name)
-VALUES ('00000000-0000-0000-0000-000000000000', 'system@atlas-fitness.com', 'System')
-ON CONFLICT DO NOTHING;
+-- NOTE: Commented out as it causes issues with auth.users foreign key
+-- The system user should be created after auth is set up
+-- INSERT INTO users (id, email, full_name)
+-- VALUES ('00000000-0000-0000-0000-000000000000', 'system@atlas-fitness.com', 'System')
+-- ON CONFLICT DO NOTHING;
 
 -- =============================================
 -- 15. PERMISSIONS
