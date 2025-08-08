@@ -1,7 +1,7 @@
-import { OpenAI } from 'openai'
 import { AIMemorySystem } from './memory'
 import { AttentionSystem } from './attention'
 import { createClient } from '@/app/lib/supabase/server'
+import { aiClient } from '../providers/openai-client'
 
 export interface ReasoningStep {
   step: number
@@ -20,14 +20,10 @@ export interface ReasoningResult {
 }
 
 export class ReasoningEngine {
-  private openai: OpenAI
   private memory: AIMemorySystem
   private attention: AttentionSystem
   
   constructor() {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    })
     this.memory = new AIMemorySystem()
     this.attention = new AttentionSystem()
   }
@@ -167,13 +163,12 @@ export class ReasoningEngine {
       Return as JSON array of steps.
     `
     
-    const response = await this.openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+    const response = await aiClient.createChatCompletion({
       messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' }
+      responseFormat: { type: 'json_object' }
     })
     
-    const plan = JSON.parse(response.choices[0].message.content || '{}')
+    const plan = JSON.parse(response.content || '{}')
     return plan.steps || []
   }
   
@@ -233,13 +228,12 @@ export class ReasoningEngine {
       Return as structured JSON.
     `
     
-    const response = await this.openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+    const response = await aiClient.createChatCompletion({
       messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' }
+      responseFormat: { type: 'json_object' }
     })
     
-    return JSON.parse(response.choices[0].message.content || '{}')
+    return JSON.parse(response.content || '{}')
   }
   
   private async gatherRelevantData(organizationId: string, understanding: any): Promise<any> {
@@ -288,13 +282,12 @@ export class ReasoningEngine {
       Return patterns with confidence scores.
     `
     
-    const response = await this.openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+    const response = await aiClient.createChatCompletion({
       messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' }
+      responseFormat: { type: 'json_object' }
     })
     
-    return JSON.parse(response.choices[0].message.content || '{}')
+    return JSON.parse(response.content || '{}')
   }
   
   private async formHypothesis(patterns: any, understanding: any): Promise<any> {
@@ -311,13 +304,12 @@ export class ReasoningEngine {
       5. Confidence level
     `
     
-    const response = await this.openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+    const response = await aiClient.createChatCompletion({
       messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' }
+      responseFormat: { type: 'json_object' }
     })
     
-    return JSON.parse(response.choices[0].message.content || '{}')
+    return JSON.parse(response.content || '{}')
   }
   
   private async validateHypothesis(hypothesis: any, data: any): Promise<any> {

@@ -3,7 +3,7 @@ import { RealtimeChannel } from '@supabase/supabase-js'
 import { AIMemorySystem } from '../consciousness/memory'
 import { AttentionSystem } from '../consciousness/attention'
 import { LearningSystem } from '../consciousness/learning'
-import { OpenAI } from 'openai'
+import { aiClient } from '../providers/openai-client'
 
 export interface ProcessedEvent {
   eventType: string
@@ -19,16 +19,12 @@ export class RealTimeProcessor {
   private memory: AIMemorySystem
   private attention: AttentionSystem
   private learning: LearningSystem
-  private openai: OpenAI
   private channels: Map<string, RealtimeChannel> = new Map()
   
   constructor() {
     this.memory = new AIMemorySystem()
     this.attention = new AttentionSystem()
     this.learning = new LearningSystem()
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    })
   }
   
   async initialize(organizationId: string): Promise<void> {
@@ -126,12 +122,7 @@ export class RealTimeProcessor {
     const eventText = this.createEventText(event)
     
     try {
-      const response = await this.openai.embeddings.create({
-        model: 'text-embedding-3-small',
-        input: eventText
-      })
-      
-      return response.data[0].embedding
+      return await aiClient.createEmbedding(eventText)
     } catch (error) {
       console.error('Error generating embedding:', error)
       return []

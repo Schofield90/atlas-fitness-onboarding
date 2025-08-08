@@ -42,16 +42,26 @@ interface AIDashboardProps {
   organizationId: string
 }
 
+interface ModelStatus {
+  currentModel: string
+  gpt5: {
+    available: boolean
+    message: string
+  }
+}
+
 export function AIDashboard({ organizationId }: AIDashboardProps) {
   const [insights, setInsights] = useState<Insight[]>([])
   const [metrics, setMetrics] = useState<Metric[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedInsight, setSelectedInsight] = useState<Insight | null>(null)
   const [showAssistant, setShowAssistant] = useState(false)
+  const [modelStatus, setModelStatus] = useState<ModelStatus | null>(null)
   
   useEffect(() => {
     loadInsights()
     loadMetrics()
+    loadModelStatus()
   }, [organizationId])
   
   const loadInsights = async () => {
@@ -104,6 +114,18 @@ export function AIDashboard({ organizationId }: AIDashboardProps) {
     }
   }
   
+  const loadModelStatus = async () => {
+    try {
+      const response = await fetch('/api/ai/model-status')
+      if (!response.ok) throw new Error('Failed to load model status')
+      
+      const data = await response.json()
+      setModelStatus(data)
+    } catch (error) {
+      console.error('Error loading model status:', error)
+    }
+  }
+  
   const getInsightType = (insight: any): Insight['type'] => {
     if (insight.answer.includes('⚠️') || insight.answer.includes('risk')) return 'urgent'
     if (insight.answer.includes('💡') || insight.answer.includes('opportunity')) return 'opportunity'
@@ -147,6 +169,11 @@ export function AIDashboard({ organizationId }: AIDashboardProps) {
             <p className="text-gray-600 dark:text-gray-400">
               Real-time insights powered by your unified AI brain
             </p>
+            {modelStatus && (
+              <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
+                Using {modelStatus.currentModel} • {modelStatus.gpt5.message}
+              </p>
+            )}
           </div>
         </div>
         <button

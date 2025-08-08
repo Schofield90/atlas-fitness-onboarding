@@ -3,7 +3,7 @@ import { AttentionSystem } from './attention'
 import { ReasoningEngine } from './reasoning'
 import { LearningSystem } from './learning'
 import { ContextBuilder } from './context-builder'
-import { OpenAI } from 'openai'
+import { aiClient } from '../providers/openai-client'
 
 export interface AIResponse {
   answer: string
@@ -21,7 +21,6 @@ export class SuperAIBrain {
   private reasoning: ReasoningEngine
   private learning: LearningSystem
   private contextBuilder: ContextBuilder
-  private openai: OpenAI
   
   constructor() {
     this.memory = new AIMemorySystem()
@@ -29,9 +28,6 @@ export class SuperAIBrain {
     this.reasoning = new ReasoningEngine()
     this.learning = new LearningSystem()
     this.contextBuilder = new ContextBuilder()
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    })
   }
   
   async process(query: string, organizationId: string): Promise<AIResponse> {
@@ -208,8 +204,7 @@ export class SuperAIBrain {
       Format the response in a conversational but professional tone.
     `
     
-    const response = await this.openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+    const response = await aiClient.createChatCompletion({
       messages: [
         {
           role: 'system',
@@ -218,10 +213,10 @@ export class SuperAIBrain {
         { role: 'user', content: prompt }
       ],
       temperature: 0.7,
-      max_tokens: 1000
+      maxTokens: 1000
     })
     
-    const answer = response.choices[0].message.content || ''
+    const answer = response.content
     
     return {
       answer,

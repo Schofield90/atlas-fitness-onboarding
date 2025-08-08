@@ -1,5 +1,5 @@
 import { createClient } from '@/app/lib/supabase/server'
-import { OpenAI } from 'openai'
+import { aiClient } from '../providers/openai-client'
 
 export interface Memory {
   id: string
@@ -23,12 +23,8 @@ export interface MemorySearchResult {
 }
 
 export class AIMemorySystem {
-  private openai: OpenAI
-  
   constructor() {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    })
+    // AI client is now managed centrally
   }
   
   async storeMemory(
@@ -166,12 +162,7 @@ export class AIMemorySystem {
   
   private async generateEmbedding(text: string): Promise<number[]> {
     try {
-      const response = await this.openai.embeddings.create({
-        model: 'text-embedding-3-small',
-        input: text
-      })
-      
-      return response.data[0].embedding
+      return await aiClient.createEmbedding(text)
     } catch (error) {
       console.error('Error generating embedding:', error)
       throw error
