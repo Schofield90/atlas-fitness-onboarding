@@ -304,6 +304,43 @@ export default function SessionDetailModal({ isOpen, onClose, session, onUpdate 
       alert(`Failed to remove attendee: ${error.message || 'Unknown error'}`);
     }
   };
+
+  const sendMagicLink = async (attendee: Attendee) => {
+    try {
+      setShowOptionsMenu(null);
+      
+      // Show loading state
+      alert('Sending login link...');
+      
+      // Send magic link via email and SMS
+      const response = await fetch('/api/auth/send-magic-link', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: attendee.email,
+          name: attendee.name,
+          clientId: attendee.id,
+          sendEmail: true,
+          sendSMS: true
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to send login link');
+      }
+      
+      // Show success message
+      alert(`Login link sent to ${attendee.name} via email and SMS!`);
+      
+    } catch (error: any) {
+      console.error('Error sending magic link:', error);
+      alert(`Failed to send login link: ${error.message || 'Unknown error'}`);
+    }
+  };
   
   if (!isOpen || !session) return null;
   
@@ -568,7 +605,14 @@ export default function SessionDetailModal({ isOpen, onClose, session, onUpdate 
                         
                         {/* Dropdown Menu */}
                         {showOptionsMenu === attendee.id && (
-                          <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1 min-w-[160px]">
+                          <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1 min-w-[200px]">
+                            <button
+                              onClick={() => sendMagicLink(attendee)}
+                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                            >
+                              <Mail className="w-4 h-4" />
+                              Send Login Link
+                            </button>
                             <button
                               onClick={() => removeAttendee(attendee.id)}
                               className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
