@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/app/lib/supabase/client'
 import { Loader2 } from 'lucide-react'
 
-export default function MagicLinkPage() {
+function MagicLinkContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [status, setStatus] = useState<'validating' | 'success' | 'error'>('validating')
@@ -112,5 +112,20 @@ export default function MagicLinkPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function MagicLinkPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+        <div className="bg-gray-800 rounded-lg p-8 max-w-md w-full text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-orange-600 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-white mb-2">Loading...</h2>
+        </div>
+      </div>
+    }>
+      <MagicLinkContent />
+    </Suspense>
   )
 }
