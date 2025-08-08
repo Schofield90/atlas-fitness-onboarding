@@ -1,0 +1,89 @@
+{
+  "expo": {
+    "name": "Atlas Fitness",
+    "slug": "atlas-fitness",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "scheme": "atlasfitness",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1a1a1a"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.atlasfitness.mobile",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses the camera to scan QR codes for gym check-in.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to upload profile pictures.",
+        "NSPhotoLibraryAddUsageDescription": "This app needs permission to save photos to your photo library."
+      },
+      "usesAppleSignIn": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1a1a1a"
+      },
+      "package": "com.atlasfitness.mobile",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "NOTIFICATIONS"
+      ],
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "@stripe/stripe-react-native",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Atlas Fitness to access your camera to scan QR codes."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Atlas Fitness to access your photos.",
+          "savePhotosPermission": "Allow Atlas Fitness to save photos.",
+          "isAccessMediaLocationEnabled": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#ffffff"
+        }
+      ],
+      [
+        "expo-barcode-scanner",
+        {
+          "cameraPermission": "Allow Atlas Fitness to access camera for QR code scanning."
+        }
+      ],
+      "@sentry/react-native/expo",
+      "expo-apple-authentication",
+      "expo-secure-store",
+      "expo-updates"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id"
+      }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/your-project-id"
+    }
+  }
+}
