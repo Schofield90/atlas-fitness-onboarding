@@ -44,12 +44,21 @@ export async function POST(request: NextRequest) {
     const lastTotal = lastRevenue?.reduce((sum, p) => sum + p.amount_pennies, 0) || 0
     const revenueChange = lastTotal > 0 ? ((currentTotal - lastTotal) / lastTotal) * 100 : 0
     
-    // Active members
+    // Active members - current vs last month
     const { count: activeMembers } = await supabase
-      .from('leads')
+      .from('clients')
       .select('*', { count: 'exact', head: true })
       .eq('organization_id', organizationId)
-      .eq('status', 'active')
+    
+    const { count: lastMonthMembers } = await supabase
+      .from('clients')
+      .select('*', { count: 'exact', head: true })
+      .eq('organization_id', organizationId)
+      .lt('created_at', thisMonth.toISOString())
+    
+    const memberChange = lastMonthMembers && lastMonthMembers > 0 
+      ? ((activeMembers - lastMonthMembers) / lastMonthMembers) * 100 
+      : 0
     
     // Attendance rate
     const { data: recentBookings } = await supabase
@@ -58,21 +67,48 @@ export async function POST(request: NextRequest) {
       .eq('organization_id', organizationId)
       .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
     
-    const attendanceRate = recentBookings
+    const attendanceRate = recentBookings && recentBookings.length > 0
       ? (recentBookings.filter(b => b.status === 'attended').length / recentBookings.length) * 100
       : 0
+      
+    // Previous month attendance for comparison
+    const { data: previousBookings } = await supabase
+      .from('bookings')
+      .select('status')
+      .eq('organization_id', organizationId)
+      .gte('created_at', lastMonth.toISOString())
+      .lt('created_at', thisMonth.toISOString())
     
-    // New leads this month
+    const previousAttendanceRate = previousBookings && previousBookings.length > 0
+      ? (previousBookings.filter(b => b.status === 'attended').length / previousBookings.length) * 100
+      : 0
+      
+    const attendanceChange = previousAttendanceRate > 0 
+      ? attendanceRate - previousAttendanceRate 
+      : 0
+    
+    // New leads this month vs last month
     const { count: newLeads } = await supabase
       .from('leads')
       .select('*', { count: 'exact', head: true })
       .eq('organization_id', organizationId)
       .gte('created_at', thisMonth.toISOString())
+      
+    const { count: lastMonthLeads } = await supabase
+      .from('leads')
+      .select('*', { count: 'exact', head: true })
+      .eq('organization_id', organizationId)
+      .gte('created_at', lastMonth.toISOString())
+      .lt('created_at', thisMonth.toISOString())
+      
+    const leadChange = lastMonthLeads && lastMonthLeads > 0 
+      ? ((newLeads - lastMonthLeads) / lastMonthLeads) * 100 
+      : 0
     
     const metrics = [
       {
         label: 'Monthly Revenue',
-        value: `£${(currentTotal / 100).toLocaleString()}`,
+        value: currentTotal > 0 ? `£${(currentTotal / 100).toLocaleString()}` : '£0',
         change: Math.round(revenueChange),
         trend: revenueChange > 0 ? 'up' : revenueChange < 0 ? 'down' : 'stable',
         insight: revenueChange > 10 ? 'Strong growth' : revenueChange < -10 ? 'Needs attention' : 'Steady performance'
@@ -80,23 +116,23 @@ export async function POST(request: NextRequest) {
       {
         label: 'Active Members',
         value: activeMembers?.toString() || '0',
-        change: 5, // Would calculate from historical data
-        trend: 'up',
-        insight: 'Membership growing steadily'
+        change: Math.round(memberChange),
+        trend: memberChange > 0 ? 'up' : memberChange < 0 ? 'down' : 'stable',
+        insight: memberChange > 0 ? 'Membership growing' : memberChange < 0 ? 'Member retention needs focus' : 'Stable membership'
       },
       {
         label: 'Attendance Rate',
-        value: `${Math.round(attendanceRate)}%`,
-        change: -2,
-        trend: 'down',
-        insight: 'Slight dip in attendance'
+        value: attendanceRate > 0 ? `${Math.round(attendanceRate)}%` : '0%',
+        change: Math.round(attendanceChange),
+        trend: attendanceChange > 0 ? 'up' : attendanceChange < 0 ? 'down' : 'stable',
+        insight: attendanceChange > 0 ? 'Attendance improving' : attendanceChange < -5 ? 'Attendance declining' : 'Steady attendance'
       },
       {
         label: 'New Leads',
         value: newLeads?.toString() || '0',
-        change: 15,
-        trend: 'up',
-        insight: 'Lead generation improving'
+        change: Math.round(leadChange),
+        trend: leadChange > 0 ? 'up' : leadChange < 0 ? 'down' : 'stable',
+        insight: leadChange > 10 ? 'Lead generation improving' : leadChange < -10 ? 'Lead generation needs boost' : 'Consistent lead flow'
       }
     ]
     

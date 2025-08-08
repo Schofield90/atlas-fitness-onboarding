@@ -146,10 +146,10 @@ export function AIDashboard({ organizationId }: AIDashboardProps) {
   const getInsightColor = (insight: any) => {
     const type = getInsightType(insight)
     switch (type) {
-      case 'urgent': return 'text-red-600 bg-red-50 dark:bg-red-900/20'
-      case 'opportunity': return 'text-green-600 bg-green-50 dark:bg-green-900/20'
-      case 'trend': return 'text-blue-600 bg-blue-50 dark:bg-blue-900/20'
-      default: return 'text-purple-600 bg-purple-50 dark:bg-purple-900/20'
+      case 'urgent': return 'text-red-400 bg-red-900/20 border border-red-800/50'
+      case 'opportunity': return 'text-green-400 bg-green-900/20 border border-green-800/50'
+      case 'trend': return 'text-blue-400 bg-blue-900/20 border border-blue-800/50'
+      default: return 'text-purple-400 bg-purple-900/20 border border-purple-800/50'
     }
   }
   
@@ -166,11 +166,11 @@ export function AIDashboard({ organizationId }: AIDashboardProps) {
           <Brain className="h-8 w-8 text-orange-600" />
           <div>
             <h2 className="text-2xl font-bold">AI Intelligence Dashboard</h2>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-gray-400">
               Real-time insights powered by your unified AI brain
             </p>
             {modelStatus && (
-              <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
+              <p className="text-sm text-gray-500 mt-1">
                 Using {modelStatus.currentModel} • {modelStatus.gpt5.message}
               </p>
             )}
@@ -190,10 +190,10 @@ export function AIDashboard({ organizationId }: AIDashboardProps) {
         {metrics.map((metric, index) => (
           <div
             key={index}
-            className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm"
+            className="bg-gray-800 rounded-lg p-4 border border-gray-700"
           >
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-gray-600 dark:text-gray-400">{metric.label}</p>
+              <p className="text-sm text-gray-400">{metric.label}</p>
               {metric.trend === 'up' ? (
                 <TrendingUp className="h-4 w-4 text-green-600" />
               ) : metric.trend === 'down' ? (
@@ -212,7 +212,7 @@ export function AIDashboard({ organizationId }: AIDashboardProps) {
               </span>
             </div>
             {metric.insight && (
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              <p className="text-xs text-gray-400 mt-2">
                 {metric.insight}
               </p>
             )}
@@ -221,13 +221,13 @@ export function AIDashboard({ organizationId }: AIDashboardProps) {
       </div>
       
       {/* Proactive Insights */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-        <div className="p-6 border-b dark:border-gray-700">
+      <div className="bg-gray-800 rounded-lg border border-gray-700">
+        <div className="p-6 border-b border-gray-700">
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <Zap className="h-5 w-5 text-yellow-600" />
             Proactive Insights
           </h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+          <p className="text-sm text-gray-400 mt-1">
             AI-detected patterns and opportunities requiring your attention
           </p>
         </div>
@@ -246,11 +246,11 @@ export function AIDashboard({ organizationId }: AIDashboardProps) {
             </p>
           </div>
         ) : (
-          <div className="divide-y dark:divide-gray-700">
+          <div className="divide-y divide-gray-700">
             {insights.map((insight) => (
               <div
                 key={insight.id}
-                className="p-6 hover:bg-gray-50 dark:hover:bg-gray-750 cursor-pointer"
+                className="p-6 hover:bg-gray-700/50 cursor-pointer transition-colors"
                 onClick={() => setSelectedInsight(insight)}
               >
                 <div className="flex items-start gap-4">
@@ -263,7 +263,7 @@ export function AIDashboard({ organizationId }: AIDashboardProps) {
                   
                   <div className="flex-1">
                     <h4 className="font-medium mb-1">{insight.title}</h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                    <p className="text-sm text-gray-400 line-clamp-2">
                       {insight.description}
                     </p>
                     
@@ -275,7 +275,7 @@ export function AIDashboard({ organizationId }: AIDashboardProps) {
                     
                     <div className="flex items-center gap-4 mt-3">
                       <div className="flex items-center gap-1">
-                        <div className="w-20 bg-gray-200 dark:bg-gray-700 rounded-full h-1">
+                        <div className="w-20 bg-gray-700 rounded-full h-1">
                           <div
                             className="bg-green-600 h-1 rounded-full"
                             style={{ width: `${insight.confidence * 100}%` }}
@@ -309,8 +309,8 @@ export function AIDashboard({ organizationId }: AIDashboardProps) {
       {/* Insight Detail Modal */}
       {selectedInsight && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden">
-            <div className="p-6 border-b dark:border-gray-700 flex items-center justify-between">
+          <div className="bg-gray-800 rounded-lg max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden border border-gray-700">
+            <div className="p-6 border-b border-gray-700 flex items-center justify-between">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <selectedInsight.icon className="h-5 w-5" />
                 {selectedInsight.title}
@@ -324,16 +324,16 @@ export function AIDashboard({ organizationId }: AIDashboardProps) {
             </div>
             
             <div className="p-6 overflow-y-auto">
-              <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap mb-4">
+              <p className="text-gray-300 whitespace-pre-wrap mb-4">
                 {selectedInsight.description}
               </p>
               
               {selectedInsight.impact && (
-                <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4 mb-4">
-                  <p className="text-sm font-medium text-orange-900 dark:text-orange-100">
+                <div className="bg-orange-900/20 rounded-lg p-4 mb-4 border border-orange-800/50">
+                  <p className="text-sm font-medium text-orange-300">
                     Estimated Impact
                   </p>
-                  <p className="text-sm text-orange-800 dark:text-orange-200 mt-1">
+                  <p className="text-sm text-orange-400 mt-1">
                     {selectedInsight.impact}
                   </p>
                 </div>
@@ -347,7 +347,7 @@ export function AIDashboard({ organizationId }: AIDashboardProps) {
                       <button
                         key={index}
                         onClick={() => handleInsightAction(selectedInsight, action)}
-                        className="w-full text-left p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600"
+                        className="w-full text-left p-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors border border-gray-600"
                       >
                         <p className="text-sm">{action}</p>
                       </button>
@@ -363,7 +363,7 @@ export function AIDashboard({ organizationId }: AIDashboardProps) {
       {/* AI Assistant Modal */}
       {showAssistant && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-3xl h-[80vh] mx-4">
+          <div className="bg-gray-800 rounded-lg w-full max-w-3xl h-[80vh] mx-4 border border-gray-700">
             <AIAssistant
               organizationId={organizationId}
               className="h-full"
