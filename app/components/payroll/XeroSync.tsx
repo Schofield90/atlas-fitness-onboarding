@@ -13,7 +13,7 @@ import {
   ExternalLink,
   Zap,
   ArrowRight,
-  Sync,
+  RefreshCcw as Sync,
   Eye,
   CheckSquare,
   X

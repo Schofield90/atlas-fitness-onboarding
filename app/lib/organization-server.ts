@@ -60,3 +60,27 @@ export async function requireAuth() {
   
   return { organizationId }
 }
+
+// Alias function for compatibility
+export async function getOrganization() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) {
+    throw new Error('Not authenticated')
+  }
+  
+  const { organizationId, error } = await getCurrentUserOrganization()
+  
+  if (error || !organizationId) {
+    throw new Error(error || 'No organization found')
+  }
+  
+  const { data: organization } = await supabase
+    .from('organizations')
+    .select('*')
+    .eq('id', organizationId)
+    .single()
+    
+  return { organization, user }
+}
