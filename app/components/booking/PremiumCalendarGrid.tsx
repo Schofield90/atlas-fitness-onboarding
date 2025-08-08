@@ -250,23 +250,30 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({
                     key={timeIndex}
                     className="h-16 border-b border-gray-700 relative"
                   >
-                    {dayClasses.slice(0, 1).map((cls) => (
-                      <div
-                        key={cls.id}
-                        className="absolute inset-x-1 pointer-events-none"
-                        style={{ 
-                          top: '2px',
-                          width: 'calc(100% - 8px)'
-                        }}
-                      >
-                        <div className="pointer-events-auto">
-                          <ClassBlock
-                            {...cls}
-                            onSelect={() => handleClassClick(cls)}
-                          />
+                    {dayClasses.slice(0, 1).map((cls) => {
+                      // Calculate how many 30-minute slots this class spans
+                      const durationSlots = Math.ceil(cls.duration / 30);
+                      const heightInPixels = durationSlots * 64; // 64px per slot (h-16)
+                      
+                      return (
+                        <div
+                          key={cls.id}
+                          className="absolute inset-x-1 pointer-events-none z-10"
+                          style={{ 
+                            top: '2px',
+                            width: 'calc(100% - 8px)',
+                            height: `${heightInPixels - 4}px` // Subtract 4px for spacing
+                          }}
+                        >
+                          <div className="pointer-events-auto h-full">
+                            <ClassBlock
+                              {...cls}
+                              onSelect={() => handleClassClick(cls)}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 );
               })}
@@ -375,23 +382,30 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({
                   className="h-16 border-b border-gray-700 relative"
                 >
                   {/* Classes in this time slot - only show the first (most recent) one */}
-                  {getClassesForDayAndTime(dayIndex, timeIndex).slice(0, 1).map((cls, classIndex) => (
-                    <div
-                      key={cls.id}
-                      className="absolute inset-x-1 pointer-events-none"
-                      style={{ 
-                        top: '2px',
-                        width: 'calc(100% - 8px)'
-                      }}
-                    >
-                      <div className="pointer-events-auto">
-                        <ClassBlock
-                          {...cls}
-                          onSelect={() => handleClassClick(cls)}
-                        />
+                  {getClassesForDayAndTime(dayIndex, timeIndex).slice(0, 1).map((cls, classIndex) => {
+                    // Calculate how many 30-minute slots this class spans
+                    const durationSlots = Math.ceil(cls.duration / 30);
+                    const heightInPixels = durationSlots * 64; // 64px per slot (h-16)
+                    
+                    return (
+                      <div
+                        key={cls.id}
+                        className="absolute inset-x-1 pointer-events-none z-10"
+                        style={{ 
+                          top: '2px',
+                          width: 'calc(100% - 8px)',
+                          height: `${heightInPixels - 4}px` // Subtract 4px for spacing
+                        }}
+                      >
+                        <div className="pointer-events-auto h-full">
+                          <ClassBlock
+                            {...cls}
+                            onSelect={() => handleClassClick(cls)}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ))}
               
