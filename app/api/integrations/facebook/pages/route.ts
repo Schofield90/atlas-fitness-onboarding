@@ -18,7 +18,7 @@ export async function GET() {
         id,
         facebook_page_id,
         page_name,
-        page_access_token,
+        access_token,
         is_active,
         is_primary,
         lead_forms:facebook_lead_forms(
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
       integration_id: integrationId,
       facebook_page_id: page.id,
       page_name: page.name,
-      page_access_token: page.access_token,
+      access_token: page.access_token,
       is_active: true,
       is_primary: page.is_primary || false
     }))

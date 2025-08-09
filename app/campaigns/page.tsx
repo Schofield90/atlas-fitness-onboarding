@@ -76,10 +76,73 @@ export default function CampaignsPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'create' | 'analytics'>('overview')
   const [selectedCampaignType, setSelectedCampaignType] = useState<'facebook' | 'instagram' | 'email'>('facebook')
   const [campaigns, setCampaigns] = useState(mockCampaigns)
+  const [campaignForm, setCampaignForm] = useState({
+    name: '',
+    type: 'facebook',
+    budget: '',
+    duration: '1 week',
+    targetAudience: '',
+    template: '',
+    sendSchedule: 'immediately',
+    sendDate: ''
+  })
 
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  const handleCreateCampaign = () => {
+    // Validate form
+    if (!campaignForm.name) {
+      alert('Please enter a campaign name')
+      return
+    }
+
+    // Create new campaign
+    const newCampaign = {
+      id: campaigns.length + 1,
+      name: campaignForm.name,
+      type: selectedCampaignType === 'facebook' ? 'Facebook Ads' : selectedCampaignType === 'email' ? 'Email' : 'Instagram',
+      status: 'active',
+      budget: parseFloat(campaignForm.budget) || 0,
+      spent: 0,
+      impressions: 0,
+      clicks: 0,
+      leads: 0,
+      conversions: 0,
+      ctr: 0,
+      cpc: 0,
+      costPerLead: 0,
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      recipients: selectedCampaignType === 'email' ? 1000 : undefined,
+      opened: 0,
+      clicked: 0,
+      openRate: 0,
+      clickRate: 0
+    }
+
+    // Add to campaigns list
+    setCampaigns([...campaigns, newCampaign])
+    
+    // Reset form
+    setCampaignForm({
+      name: '',
+      type: 'facebook',
+      budget: '',
+      duration: '1 week',
+      targetAudience: '',
+      template: '',
+      sendSchedule: 'immediately',
+      sendDate: ''
+    })
+    
+    // Go back to overview
+    setActiveTab('overview')
+    
+    // Show success message
+    alert('Campaign created successfully!')
+  }
 
   if (!mounted) {
     return (
@@ -361,6 +424,8 @@ export default function CampaignsPage() {
               <label className="block text-sm font-medium text-gray-400 mb-2">Campaign Name</label>
               <input
                 type="text"
+                value={campaignForm.name}
+                onChange={(e) => setCampaignForm({ ...campaignForm, name: e.target.value })}
                 placeholder="e.g., Summer Membership Drive"
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
               />
@@ -371,6 +436,8 @@ export default function CampaignsPage() {
                 <label className="block text-sm font-medium text-gray-400 mb-2">Daily Budget (£)</label>
                 <input
                   type="number"
+                  value={campaignForm.budget}
+                  onChange={(e) => setCampaignForm({ ...campaignForm, budget: e.target.value })}
                   placeholder="25.00"
                   className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
                 />
@@ -414,6 +481,8 @@ export default function CampaignsPage() {
               <label className="block text-sm font-medium text-gray-400 mb-2">Campaign Name</label>
               <input
                 type="text"
+                value={campaignForm.name}
+                onChange={(e) => setCampaignForm({ ...campaignForm, name: e.target.value })}
                 placeholder="e.g., New Year Motivation Email"
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
               />
@@ -517,7 +586,10 @@ export default function CampaignsPage() {
         )}
 
         <div className="flex gap-4 pt-6">
-          <button className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg">
+          <button 
+            onClick={handleCreateCampaign}
+            className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg"
+          >
             Create Campaign
           </button>
           <button 

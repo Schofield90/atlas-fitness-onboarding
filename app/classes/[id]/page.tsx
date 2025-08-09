@@ -11,12 +11,18 @@ import AddSingleSessionModal from './AddSingleSessionModal'
 import SessionsListModal from './SessionsListModal'
 import EditDetailsModal from './EditDetailsModal'
 import EditDatesModal from './EditDatesModal'
+import ClassSettingsTab from './ClassSettingsTab'
 
 interface ClassType {
   id: string
   name: string
   description?: string
+  category?: string
   is_active: boolean
+  price_pennies?: number
+  duration_minutes?: number
+  max_participants?: number
+  color?: string
 }
 
 interface ClassSession {
@@ -166,9 +172,9 @@ export default function ClassDetailPage() {
   if (loading || !classType) {
     return (
       <DashboardLayout>
-        <div className="min-h-screen bg-gray-50 p-8">
+        <div className="min-h-screen bg-gray-900 p-8">
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
           </div>
         </div>
       </DashboardLayout>
@@ -177,54 +183,54 @@ export default function ClassDetailPage() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-900">
         {/* Header Navigation */}
-        <div className="bg-white border-b">
+        <div className="bg-gray-800 border-b border-gray-700">
           <div className="px-8 py-4">
             <nav className="flex items-center gap-2 text-sm">
-              <Link href="/dashboard" className="text-blue-600 hover:underline">Dashboard</Link>
-              <span className="text-gray-400">/</span>
-              <Link href="/classes" className="text-blue-600 hover:underline">Class Types</Link>
-              <span className="text-gray-400">/</span>
-              <span className="text-gray-900">{classType.name}</span>
-              <span className="text-gray-400">/</span>
-              <span className="text-gray-600">Schedule</span>
+              <Link href="/dashboard" className="text-orange-600 hover:underline">Dashboard</Link>
+              <span className="text-gray-500">/</span>
+              <Link href="/classes" className="text-orange-600 hover:underline">Class Types</Link>
+              <span className="text-gray-500">/</span>
+              <span className="text-white">{classType.name}</span>
+              <span className="text-gray-500">/</span>
+              <span className="text-gray-400">Schedule</span>
             </nav>
           </div>
         </div>
 
         {/* Class Header */}
-        <div className="bg-white border-b">
+        <div className="bg-gray-800 border-b border-gray-700">
           <div className="px-8 py-6">
             <div className="flex justify-between items-start">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                <h1 className="text-2xl font-bold text-white mb-2">
                   {classType.name} | Classes
                 </h1>
-                <p className="text-gray-600">
-                  Visible to: everyone • <span className="text-blue-600">{sessions.length} sessions</span>
+                <p className="text-gray-400">
+                  Visible to: everyone • <span className="text-orange-600">{sessions.length} sessions</span>
                 </p>
-                <p className="text-gray-600 mt-1">
+                <p className="text-gray-400 mt-1">
                   {classType.description || 'No description provided'}
                 </p>
               </div>
-              <button className="p-2 hover:bg-gray-100 rounded">
-                <Settings className="h-5 w-5" />
+              <button className="p-2 hover:bg-gray-700 rounded transition-colors">
+                <Settings className="h-5 w-5 text-gray-400" />
               </button>
             </div>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="bg-white border-b">
+        <div className="bg-gray-800 border-b border-gray-700">
           <div className="px-8">
             <div className="flex gap-6">
               <button
                 onClick={() => setActiveTab('schedule')}
-                className={`py-3 px-4 border-b-2 flex items-center gap-2 ${
+                className={`py-3 px-4 border-b-2 flex items-center gap-2 transition-colors ${
                   activeTab === 'schedule' 
-                    ? 'border-blue-600 text-blue-600' 
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                    ? 'border-orange-600 text-orange-600' 
+                    : 'border-transparent text-gray-400 hover:text-white'
                 }`}
               >
                 <Calendar className="h-4 w-4" />
@@ -232,10 +238,10 @@ export default function ClassDetailPage() {
               </button>
               <button
                 onClick={() => setActiveTab('sessions')}
-                className={`py-3 px-4 border-b-2 flex items-center gap-2 ${
+                className={`py-3 px-4 border-b-2 flex items-center gap-2 transition-colors ${
                   activeTab === 'sessions' 
-                    ? 'border-blue-600 text-blue-600' 
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                    ? 'border-orange-600 text-orange-600' 
+                    : 'border-transparent text-gray-400 hover:text-white'
                 }`}
               >
                 <List className="h-4 w-4" />
@@ -243,10 +249,10 @@ export default function ClassDetailPage() {
               </button>
               <button
                 onClick={() => setActiveTab('settings')}
-                className={`py-3 px-4 border-b-2 flex items-center gap-2 ${
+                className={`py-3 px-4 border-b-2 flex items-center gap-2 transition-colors ${
                   activeTab === 'settings' 
-                    ? 'border-blue-600 text-blue-600' 
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                    ? 'border-orange-600 text-orange-600' 
+                    : 'border-transparent text-gray-400 hover:text-white'
                 }`}
               >
                 <Settings className="h-4 w-4" />
@@ -264,19 +270,19 @@ export default function ClassDetailPage() {
               <div className="flex justify-end gap-3 mb-6">
                 <button 
                   onClick={() => setShowAddRepeatingModal(true)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
+                  className="px-4 py-2 border border-gray-600 rounded-lg hover:bg-gray-700 flex items-center gap-2 text-gray-300 hover:text-white transition-colors"
                 >
                   <Repeat className="h-4 w-4" />
                   Add repeating time slots
                 </button>
                 <button 
                   onClick={() => setShowAddSingleModal(true)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
+                  className="px-4 py-2 border border-gray-600 rounded-lg hover:bg-gray-700 flex items-center gap-2 text-gray-300 hover:text-white transition-colors"
                 >
                   <Plus className="h-4 w-4" />
                   Add single session
                 </button>
-                <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
+                <button className="px-4 py-2 border border-gray-600 rounded-lg hover:bg-gray-700 flex items-center gap-2 text-gray-300 hover:text-white transition-colors">
                   <List className="h-4 w-4" />
                   Bulk Edit
                 </button>
@@ -290,7 +296,7 @@ export default function ClassDetailPage() {
 
                   return (
                     <div key={day}>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">{day}</h3>
+                      <h3 className="text-lg font-semibold text-white mb-4">{day}</h3>
                       <div className="space-y-3">
                         {Object.values(dayPatterns).map(pattern => {
                           const startTime = new Date(pattern.start_time)
@@ -316,26 +322,26 @@ export default function ClassDetailPage() {
                           const dropdownKey = `${day}-${pattern.start_time}-${pattern.instructor_name}`
                           
                           return (
-                            <div key={dropdownKey} className="bg-white border rounded-lg p-4">
+                            <div key={dropdownKey} className="bg-gray-800 border border-gray-700 rounded-lg p-4">
                               <div className="flex justify-between items-center">
                                 <div>
-                                  <p className="text-gray-900 font-medium">
+                                  <p className="text-white font-medium">
                                     {timeDisplay} @ {pattern.location}
                                   </p>
-                                  <p className="text-gray-600">
+                                  <p className="text-gray-400">
                                     Limit: {pattern.capacity} • {pattern.instructor_name}
                                   </p>
                                 </div>
                                 <div className="relative">
                                   <button 
                                     onClick={() => setOpenDropdown(openDropdown === dropdownKey ? null : dropdownKey)}
-                                    className="p-2 hover:bg-gray-100 rounded"
+                                    className="p-2 hover:bg-gray-700 rounded transition-colors"
                                   >
-                                    <Settings className="h-4 w-4 text-gray-600" />
+                                    <Settings className="h-4 w-4 text-gray-400" />
                                   </button>
                                   
                                   {openDropdown === dropdownKey && (
-                                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg border border-gray-200 z-10">
+                                    <div className="absolute right-0 mt-2 w-56 bg-gray-800 rounded-md shadow-lg border border-gray-600 z-10">
                                       <div className="py-1">
                                         <button 
                                           onClick={(e) => {
@@ -344,7 +350,7 @@ export default function ClassDetailPage() {
                                             setShowSessionsModal(true)
                                             setOpenDropdown(null)
                                           }}
-                                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                          className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors"
                                         >
                                           <div className="font-medium">Sessions</div>
                                           <div className="text-gray-500 text-xs">at this time slot</div>
@@ -356,7 +362,7 @@ export default function ClassDetailPage() {
                                             setShowEditDetailsModal(true)
                                             setOpenDropdown(null)
                                           }}
-                                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                          className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors"
                                         >
                                           <div className="font-medium">Edit Details</div>
                                           <div className="text-gray-500 text-xs">venue, instructors, time</div>
@@ -368,7 +374,7 @@ export default function ClassDetailPage() {
                                             setShowEditDatesModal(true)
                                             setOpenDropdown(null)
                                           }}
-                                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                          className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors"
                                         >
                                           <div className="font-medium">Edit Dates</div>
                                           <div className="text-gray-500 text-xs">start, end, alignment</div>
@@ -378,7 +384,7 @@ export default function ClassDetailPage() {
                                             e.stopPropagation()
                                             handleCancelTimeSlot(pattern)
                                           }}
-                                          className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                                          className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-700 transition-colors"
                                         >
                                           <div className="font-medium">Cancel</div>
                                           <div className="text-gray-500 text-xs">remove time slot</div>
@@ -397,13 +403,13 @@ export default function ClassDetailPage() {
                 })}
 
                 {sessions.length === 0 && (
-                  <div className="text-center py-12 bg-white rounded-lg border">
-                    <CalendarDays className="mx-auto h-12 w-12 text-gray-400 mb-3" />
-                    <p className="text-gray-900 font-medium mb-1">No scheduled sessions</p>
-                    <p className="text-gray-600 mb-4">Add time slots to start scheduling classes</p>
+                  <div className="text-center py-12 bg-gray-800 rounded-lg border border-gray-700">
+                    <CalendarDays className="mx-auto h-12 w-12 text-gray-500 mb-3" />
+                    <p className="text-white font-medium mb-1">No scheduled sessions</p>
+                    <p className="text-gray-400 mb-4">Add time slots to start scheduling classes</p>
                     <button 
                       onClick={() => setShowAddRepeatingModal(true)}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                      className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
                     >
                       Add repeating time slots
                     </button>
@@ -414,15 +420,17 @@ export default function ClassDetailPage() {
           )}
 
           {activeTab === 'sessions' && (
-            <div className="bg-white rounded-lg border p-6">
-              <p className="text-gray-600">Sessions view coming soon...</p>
+            <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
+              <p className="text-gray-400">Sessions view coming soon...</p>
             </div>
           )}
 
-          {activeTab === 'settings' && (
-            <div className="bg-white rounded-lg border p-6">
-              <p className="text-gray-600">Settings & Pricing coming soon...</p>
-            </div>
+          {activeTab === 'settings' && classType && (
+            <ClassSettingsTab 
+              programId={params.id as string}
+              classType={classType}
+              onUpdate={loadClassType}
+            />
           )}
         </div>
 

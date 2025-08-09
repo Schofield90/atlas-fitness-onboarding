@@ -121,8 +121,14 @@ export class MetaAdsClient {
   }
 
   async getPages(): Promise<any[]> {
-    const response = await this.request<any>('/me/accounts?fields=id,name,username,category,access_token');
-    return Array.isArray(response) ? response : response.data || [];
+    const response = await this.request<any>('/me/accounts?fields=id,name,username,category,access_token,tasks');
+    console.log('Meta API /me/accounts response:', JSON.stringify(response, null, 2));
+    
+    // Handle both direct array response and data wrapper
+    const pages = Array.isArray(response) ? response : response.data || [];
+    console.log(`Found ${pages.length} pages from Meta API`);
+    
+    return pages;
   }
 
   // Lead Forms Management

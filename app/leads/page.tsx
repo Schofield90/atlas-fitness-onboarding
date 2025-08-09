@@ -4,12 +4,14 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { LeadsTable } from '@/app/components/leads/LeadsTable'
 import { AddLeadModal } from '@/app/components/leads/AddLeadModal'
+import BulkImportModal from '@/app/components/leads/BulkImportModal'
 import DashboardLayout from '@/app/components/DashboardLayout'
 
 export default function LeadsPage() {
   const [activeTab, setActiveTab] = useState('all')
   const [userData, setUserData] = useState<any>(null)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
@@ -25,6 +27,15 @@ export default function LeadsPage() {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Leads & Contacts</h1>
           <div className="flex gap-3">
+            <button 
+              onClick={() => setShowImportModal(true)}
+              className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg flex items-center gap-2 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              Import
+            </button>
             <button className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg flex items-center gap-2 transition-colors">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -96,6 +107,17 @@ export default function LeadsPage() {
             setRefreshKey(prev => prev + 1)
             setShowAddModal(false)
           }}
+        />
+
+        {/* Bulk Import Modal */}
+        <BulkImportModal
+          open={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          onImportComplete={() => {
+            setRefreshKey(prev => prev + 1)
+            setShowImportModal(false)
+          }}
+          organizationId="63589490-8f55-4157-bd3a-e141594b748e"
         />
       </div>
     </DashboardLayout>
