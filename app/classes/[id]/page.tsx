@@ -11,12 +11,18 @@ import AddSingleSessionModal from './AddSingleSessionModal'
 import SessionsListModal from './SessionsListModal'
 import EditDetailsModal from './EditDetailsModal'
 import EditDatesModal from './EditDatesModal'
+import ClassSettingsTab from './ClassSettingsTab'
 
 interface ClassType {
   id: string
   name: string
   description?: string
+  category?: string
   is_active: boolean
+  price_pennies?: number
+  duration_minutes?: number
+  max_participants?: number
+  color?: string
 }
 
 interface ClassSession {
@@ -419,10 +425,12 @@ export default function ClassDetailPage() {
             </div>
           )}
 
-          {activeTab === 'settings' && (
-            <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-              <p className="text-gray-400">Settings & Pricing coming soon...</p>
-            </div>
+          {activeTab === 'settings' && classType && (
+            <ClassSettingsTab 
+              programId={params.id as string}
+              classType={classType}
+              onUpdate={loadClassType}
+            />
           )}
         </div>
 
