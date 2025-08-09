@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import DashboardLayout from '@/app/components/DashboardLayout'
+import OpportunitiesPage from './OpportunitiesPage'
 import { 
   PlusIcon,
   EyeIcon,
