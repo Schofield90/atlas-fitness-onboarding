@@ -33,9 +33,24 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch pages from Meta API
-    const pages = await metaClient.getPages()
+    console.log('🔄 Fetching pages from Meta API...')
+    let pages = []
+    
+    try {
+      pages = await metaClient.getPages()
+      console.log(`✅ Meta API returned ${pages?.length || 0} pages`)
+    } catch (apiError: any) {
+      console.error('❌ Meta API error:', apiError)
+      return NextResponse.json({ 
+        error: 'Failed to fetch pages from Facebook',
+        details: apiError.message,
+        code: apiError.code || 'UNKNOWN',
+        type: apiError.type
+      }, { status: 500 })
+    }
     
     if (!pages || pages.length === 0) {
+      console.log('⚠️ No pages found - user may not have page admin permissions')
       return NextResponse.json({ 
         message: 'No pages found or user has no page access permissions',
         pages: []
