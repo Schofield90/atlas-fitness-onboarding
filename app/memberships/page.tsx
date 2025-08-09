@@ -5,12 +5,14 @@ import { useState, useEffect } from 'react'
 import NewMembershipPlanModal from '../components/memberships/NewMembershipPlanModal'
 import { formatBritishCurrency, formatBritishDate } from '@/app/lib/utils/british-format'
 import { getMembershipPlans, type MembershipPlan } from '@/app/lib/services/membership-service'
+import { Settings, MoreVertical, Edit, Users, Copy, Trash } from 'lucide-react'
 
 export default function MembershipsPage() {
   const [activeTab, setActiveTab] = useState('plans')
   const [showNewPlanModal, setShowNewPlanModal] = useState(false)
   const [membershipPlans, setMembershipPlans] = useState<MembershipPlan[]>([])
   const [loading, setLoading] = useState(true)
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null)
 
   const handleNewPlan = () => {
     setShowNewPlanModal(true)
@@ -39,6 +41,18 @@ export default function MembershipsPage() {
   useEffect(() => {
     fetchMembershipPlans()
   }, [])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (openDropdown && !(event.target as Element).closest('.relative')) {
+        setOpenDropdown(null)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [openDropdown])
 
   const handleModalClose = () => {
     setShowNewPlanModal(false)
@@ -115,9 +129,93 @@ export default function MembershipsPage() {
                     <div key={plan.id} className="bg-gray-800 rounded-lg p-6 hover:bg-gray-750 transition-colors">
                       <div className="flex justify-between items-start mb-4">
                         <h3 className="text-xl font-semibold">{plan.name}</h3>
-                        <span className={`px-2 py-1 text-xs rounded ${plan.is_active ? 'bg-green-600' : 'bg-gray-600'}`}>
-                          {plan.is_active ? 'Active' : 'Inactive'}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-1 text-xs rounded ${plan.is_active ? 'bg-green-600' : 'bg-gray-600'}`}>
+                            {plan.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                          <div className="relative">
+                            <button 
+                              onClick={() => setOpenDropdown(openDropdown === plan.id ? null : plan.id)}
+                              className="p-1 hover:bg-gray-700 rounded transition-colors"
+                            >
+                              <MoreVertical className="h-4 w-4 text-gray-400" />
+                            </button>
+                            
+                            {openDropdown === plan.id && (
+                              <div className="absolute right-0 mt-2 w-56 bg-gray-800 rounded-md shadow-lg border border-gray-600 z-10">
+                                <div className="py-1">
+                                  <button 
+                                    onClick={() => {
+                                      setOpenDropdown(null)
+                                      // Handle edit details
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors flex items-center gap-2"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                    <div>
+                                      <div className="font-medium">Edit Details</div>
+                                      <div className="text-gray-500 text-xs">name, price, features</div>
+                                    </div>
+                                  </button>
+                                  <button 
+                                    onClick={() => {
+                                      setOpenDropdown(null)
+                                      // Handle view members
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors flex items-center gap-2"
+                                  >
+                                    <Users className="h-4 w-4" />
+                                    <div>
+                                      <div className="font-medium">View Members</div>
+                                      <div className="text-gray-500 text-xs">see who's on this plan</div>
+                                    </div>
+                                  </button>
+                                  <button 
+                                    onClick={() => {
+                                      setOpenDropdown(null)
+                                      // Handle duplicate
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors flex items-center gap-2"
+                                  >
+                                    <Copy className="h-4 w-4" />
+                                    <div>
+                                      <div className="font-medium">Duplicate Plan</div>
+                                      <div className="text-gray-500 text-xs">create a copy</div>
+                                    </div>
+                                  </button>
+                                  <button 
+                                    onClick={() => {
+                                      setOpenDropdown(null)
+                                      // Handle settings
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors flex items-center gap-2"
+                                  >
+                                    <Settings className="h-4 w-4" />
+                                    <div>
+                                      <div className="font-medium">Plan Settings</div>
+                                      <div className="text-gray-500 text-xs">availability, limits</div>
+                                    </div>
+                                  </button>
+                                  <button 
+                                    onClick={() => {
+                                      setOpenDropdown(null)
+                                      if (confirm(`Are you sure you want to delete the "${plan.name}" plan?`)) {
+                                        // Handle delete
+                                      }
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-700 transition-colors flex items-center gap-2"
+                                  >
+                                    <Trash className="h-4 w-4" />
+                                    <div>
+                                      <div className="font-medium">Delete Plan</div>
+                                      <div className="text-gray-500 text-xs">permanently remove</div>
+                                    </div>
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                       
                       <p className="text-gray-400 text-sm mb-4">{plan.description}</p>
@@ -149,11 +247,11 @@ export default function MembershipsPage() {
                       
                       <div className="flex justify-between items-center pt-4 border-t border-gray-700">
                         <span className="text-sm text-gray-400">
-                          Active Plan
+                          0 active members
                         </span>
-                        <button className="text-sm text-orange-500 hover:text-orange-400 transition-colors">
-                          Edit Plan
-                        </button>
+                        <span className={`text-sm ${plan.is_active ? 'text-green-400' : 'text-gray-500'}`}>
+                          {plan.is_active ? '● Active' : '● Inactive'}
+                        </span>
                       </div>
                     </div>
                   ))}
