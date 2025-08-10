@@ -137,7 +137,15 @@ export default function AppointmentTypesManager() {
         .from('appointment_types')
         .insert({
           ...formData,
-          organization_id: organizationId
+          organization_id: organizationId,
+          buffer_before_minutes: 0,
+          color: '#3b82f6',
+          location_type: 'in_person',
+          location_details: '',
+          requires_confirmation: false,
+          max_advance_days: 30,
+          min_advance_hours: 2,
+          metadata: {}
         })
         .select()
         .single()

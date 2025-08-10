@@ -58,6 +58,20 @@ export default function ClassSettingsTab({ programId, classType, onUpdate }: Cla
     loadCategories()
   }, [])
 
+  // Update form data when classType prop changes
+  useEffect(() => {
+    setFormData({
+      name: classType.name || '',
+      description: classType.description || '',
+      category: classType.category || '',
+      is_active: classType.is_active ?? true,
+      price_pennies: classType.price_pennies || 0,
+      duration_minutes: classType.duration_minutes || 60,
+      max_participants: classType.max_participants || 20,
+      color: classType.color || '#F97316'
+    })
+  }, [classType])
+
   const loadCategories = () => {
     // Load categories from localStorage (in production, this would be from database)
     const savedCategories = localStorage.getItem('class_categories')

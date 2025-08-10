@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import DashboardLayout from '../components/DashboardLayout'
 import { Card } from '@/app/components/ui/Card'
 import { Button } from '@/app/components/ui/Button'
 import { SOPList } from '@/app/components/sops/SOPList'
@@ -111,13 +112,14 @@ export default function SOPsPage() {
   const canEdit = true // For now, assume all users can edit
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <DashboardLayout>
+      <div className="min-h-screen bg-gray-900 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Global Assistant Toggle */}
         <div className="fixed bottom-6 right-6 z-50">
           <Button
             onClick={() => setShowAssistant(!showAssistant)}
-            className="rounded-full w-14 h-14 bg-blue-600 hover:bg-blue-700 shadow-lg"
+            className="rounded-full w-14 h-14 bg-orange-600 hover:bg-orange-700 shadow-lg"
             title="SOP Assistant"
           >
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -129,9 +131,9 @@ export default function SOPsPage() {
         {/* Assistant Modal */}
         {showAssistant && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg w-full max-w-2xl h-[600px] flex flex-col">
-              <div className="flex justify-between items-center p-4 border-b">
-                <h2 className="text-xl font-semibold">SOP Assistant</h2>
+            <div className="bg-gray-800 rounded-lg w-full max-w-2xl h-[600px] flex flex-col border border-gray-700">
+              <div className="flex justify-between items-center p-4 border-b border-gray-700">
+                <h2 className="text-xl font-semibold text-white">SOP Assistant</h2>
                 <Button
                   variant="outline"
                   size="sm"
@@ -181,14 +183,14 @@ export default function SOPsPage() {
             {viewMode === 'view' && selectedSOP && (
               <div className="space-y-6">
                 {/* Tab Navigation */}
-                <div className="border-b border-gray-200">
+                <div className="border-b border-gray-700">
                   <nav className="-mb-px flex gap-8">
                     <button
                       onClick={() => setActiveTab('content')}
                       className={`py-2 px-1 border-b-2 font-medium text-sm ${
                         activeTab === 'content'
-                          ? 'border-blue-500 text-blue-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                          ? 'border-orange-500 text-orange-500'
+                          : 'border-transparent text-gray-400 hover:text-white hover:border-gray-600'
                       }`}
                     >
                       Content
@@ -197,21 +199,21 @@ export default function SOPsPage() {
                       onClick={() => setActiveTab('analysis')}
                       className={`py-2 px-1 border-b-2 font-medium text-sm ${
                         activeTab === 'analysis'
-                          ? 'border-blue-500 text-blue-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                          ? 'border-orange-500 text-orange-500'
+                          : 'border-transparent text-gray-400 hover:text-white hover:border-gray-600'
                       }`}
                     >
                       AI Analysis
                       {selectedSOP.ai_summary && (
-                        <span className="ml-1 inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
+                        <span className="ml-1 inline-block w-2 h-2 bg-orange-500 rounded-full"></span>
                       )}
                     </button>
                     <button
                       onClick={() => setActiveTab('assistant')}
                       className={`py-2 px-1 border-b-2 font-medium text-sm ${
                         activeTab === 'assistant'
-                          ? 'border-blue-500 text-blue-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                          ? 'border-orange-500 text-orange-500'
+                          : 'border-transparent text-gray-400 hover:text-white hover:border-gray-600'
                       }`}
                     >
                       Ask Assistant
@@ -258,7 +260,7 @@ export default function SOPsPage() {
           )}
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   )
 }
 
@@ -288,24 +290,24 @@ function QuickStats() {
   }
 
   return (
-    <Card className="p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Stats</h3>
+    <Card className="p-6 bg-gray-800 border-gray-700">
+      <h3 className="text-lg font-semibold text-white mb-4">Quick Stats</h3>
       <div className="space-y-3">
         <div className="flex justify-between items-center">
-          <span className="text-gray-600">Total SOPs</span>
-          <span className="font-semibold text-gray-900">{stats.total}</span>
+          <span className="text-gray-400">Total SOPs</span>
+          <span className="font-semibold text-white">{stats.total}</span>
         </div>
         <div className="flex justify-between items-center">
-          <span className="text-gray-600">Approved</span>
-          <span className="font-semibold text-green-600">{stats.approved}</span>
+          <span className="text-gray-400">Approved</span>
+          <span className="font-semibold text-green-400">{stats.approved}</span>
         </div>
         <div className="flex justify-between items-center">
-          <span className="text-gray-600">Drafts</span>
-          <span className="font-semibold text-yellow-600">{stats.draft}</span>
+          <span className="text-gray-400">Drafts</span>
+          <span className="font-semibold text-yellow-400">{stats.draft}</span>
         </div>
         <div className="flex justify-between items-center">
-          <span className="text-gray-600">Require Training</span>
-          <span className="font-semibold text-purple-600">{stats.training_required}</span>
+          <span className="text-gray-400">Require Training</span>
+          <span className="font-semibold text-purple-400">{stats.training_required}</span>
         </div>
       </div>
     </Card>
@@ -315,28 +317,28 @@ function QuickStats() {
 // Recent Activity Component
 function RecentActivity() {
   return (
-    <Card className="p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
+    <Card className="p-6 bg-gray-800 border-gray-700">
+      <h3 className="text-lg font-semibold text-white mb-4">Recent Activity</h3>
       <div className="space-y-3 text-sm">
         <div className="flex items-start gap-3">
-          <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+          <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 flex-shrink-0"></div>
           <div>
-            <p className="text-gray-900">New SOP created</p>
-            <p className="text-gray-500 text-xs">Emergency Procedures - 2 hours ago</p>
+            <p className="text-white">New SOP created</p>
+            <p className="text-gray-400 text-xs">Emergency Procedures - 2 hours ago</p>
           </div>
         </div>
         <div className="flex items-start gap-3">
-          <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
+          <div className="w-2 h-2 bg-green-400 rounded-full mt-2 flex-shrink-0"></div>
           <div>
-            <p className="text-gray-900">Training completed</p>
-            <p className="text-gray-500 text-xs">Equipment Maintenance - 4 hours ago</p>
+            <p className="text-white">Training completed</p>
+            <p className="text-gray-400 text-xs">Equipment Maintenance - 4 hours ago</p>
           </div>
         </div>
         <div className="flex items-start gap-3">
-          <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 flex-shrink-0"></div>
+          <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 flex-shrink-0"></div>
           <div>
-            <p className="text-gray-900">SOP updated</p>
-            <p className="text-gray-500 text-xs">Customer Service Standards - 1 day ago</p>
+            <p className="text-white">SOP updated</p>
+            <p className="text-gray-400 text-xs">Customer Service Standards - 1 day ago</p>
           </div>
         </div>
       </div>
@@ -347,35 +349,35 @@ function RecentActivity() {
 // Training Overview Component
 function TrainingOverview() {
   return (
-    <Card className="p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Training Overview</h3>
+    <Card className="p-6 bg-gray-800 border-gray-700">
+      <h3 className="text-lg font-semibold text-white mb-4">Training Overview</h3>
       <div className="space-y-4">
         <div>
           <div className="flex justify-between text-sm mb-1">
-            <span className="text-gray-600">Completion Rate</span>
-            <span className="font-medium">87%</span>
+            <span className="text-gray-400">Completion Rate</span>
+            <span className="font-medium text-white">87%</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div className="bg-green-500 h-2 rounded-full" style={{ width: '87%' }}></div>
+          <div className="w-full bg-gray-700 rounded-full h-2">
+            <div className="bg-green-400 h-2 rounded-full" style={{ width: '87%' }}></div>
           </div>
         </div>
         
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-gray-600">Pending</span>
-            <span className="font-medium text-yellow-600">12</span>
+            <span className="text-gray-400">Pending</span>
+            <span className="font-medium text-yellow-400">12</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">Overdue</span>
-            <span className="font-medium text-red-600">3</span>
+            <span className="text-gray-400">Overdue</span>
+            <span className="font-medium text-red-400">3</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">Completed</span>
-            <span className="font-medium text-green-600">45</span>
+            <span className="text-gray-400">Completed</span>
+            <span className="font-medium text-green-400">45</span>
           </div>
         </div>
         
-        <Button variant="outline" size="sm" className="w-full">
+        <Button variant="outline" size="sm" className="w-full text-white border-gray-600 hover:border-gray-500">
           View Training Dashboard
         </Button>
       </div>
