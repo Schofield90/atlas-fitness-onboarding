@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import DashboardLayout from '@/app/components/DashboardLayout'
 import AppointmentTypesManager from '@/app/components/booking/AppointmentTypesManager'
+import AvailabilityRules from '@/app/components/booking/AvailabilityRules'
+import GeneralBookingSettings from '@/app/components/booking/GeneralBookingSettings'
 import { Calendar, Clock, Users, Settings as SettingsIcon } from 'lucide-react'
 
 export default function BookingSettingsPage() {
@@ -64,43 +66,11 @@ export default function BookingSettingsPage() {
             )}
 
             {activeTab === 'availability' && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-bold text-white mb-2">Availability Rules</h3>
-                  <p className="text-sm text-gray-400 mb-4">
-                    Set your default working hours and availability
-                  </p>
-                </div>
-                <div className="bg-gray-700 rounded-lg p-8 text-center">
-                  <Calendar className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-                  <p className="text-gray-400">
-                    Availability rules allow you to set your working hours and time off.
-                  </p>
-                  <p className="text-sm text-gray-500 mt-2">
-                    This feature is coming soon.
-                  </p>
-                </div>
-              </div>
+              <AvailabilityRules />
             )}
 
             {activeTab === 'general' && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-bold text-white mb-2">General Settings</h3>
-                  <p className="text-sm text-gray-400 mb-4">
-                    Configure general booking system preferences
-                  </p>
-                </div>
-                <div className="bg-gray-700 rounded-lg p-8 text-center">
-                  <SettingsIcon className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-                  <p className="text-gray-400">
-                    Configure time zones, booking policies, and more.
-                  </p>
-                  <p className="text-sm text-gray-500 mt-2">
-                    This feature is coming soon.
-                  </p>
-                </div>
-              </div>
+              <GeneralBookingSettings />
             )}
           </div>
 
