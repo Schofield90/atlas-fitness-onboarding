@@ -259,6 +259,7 @@ export default function SOPsPage() {
             </div>
           )}
         </div>
+        </div>
       </div>
     </DashboardLayout>
   )
