@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
-import { Save, AlertCircle } from 'lucide-react'
+import { Save, AlertCircle, Plus, X } from 'lucide-react'
 
 interface ClassSettingsTabProps {
   programId: string
@@ -19,30 +19,6 @@ interface ClassSettingsTabProps {
   }
   onUpdate: () => void
 }
-
-const CLASS_CATEGORIES = [
-  'Strength Training',
-  'Cardio',
-  'HIIT',
-  'Yoga',
-  'Pilates',
-  'Dance',
-  'Martial Arts',
-  'Cycling',
-  'Swimming',
-  'Flexibility',
-  'Mind & Body',
-  'Bootcamp',
-  'CrossFit',
-  'Functional Training',
-  'Sports Specific',
-  'Recovery',
-  'Kids Classes',
-  'Senior Classes',
-  'Beginner Friendly',
-  'Advanced',
-  'Other'
-]
 
 const CLASS_COLORS = [
   { name: 'Orange', value: '#F97316' },
@@ -68,15 +44,59 @@ export default function ClassSettingsTab({ programId, classType, onUpdate }: Cla
     max_participants: classType.max_participants || 20,
     color: classType.color || '#F97316'
   })
+  
+  const [categories, setCategories] = useState<string[]>([])
+  const [showAddCategory, setShowAddCategory] = useState(false)
+  const [newCategory, setNewCategory] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  
   const supabase = createClient()
+
+  useEffect(() => {
+    loadCategories()
+  }, [])
+
+  const loadCategories = () => {
+    // Load categories from localStorage (in production, this would be from database)
+    const savedCategories = localStorage.getItem('class_categories')
+    if (savedCategories) {
+      setCategories(JSON.parse(savedCategories))
+    } else {
+      // Initialize with some default categories if none exist
+      const defaultCategories = ['General Fitness', 'Personal Training', 'Group Classes']
+      setCategories(defaultCategories)
+      localStorage.setItem('class_categories', JSON.stringify(defaultCategories))
+    }
+  }
+
+  const handleAddCategory = () => {
+    if (newCategory.trim() && !categories.includes(newCategory.trim())) {
+      const updatedCategories = [...categories, newCategory.trim()].sort()
+      setCategories(updatedCategories)
+      localStorage.setItem('class_categories', JSON.stringify(updatedCategories))
+      handleChange('category', newCategory.trim())
+      setNewCategory('')
+      setShowAddCategory(false)
+    }
+  }
+
+  const handleRemoveCategory = (categoryToRemove: string) => {
+    if (confirm(`Remove category "${categoryToRemove}"? This won't affect existing classes using this category.`)) {
+      const updatedCategories = categories.filter(cat => cat !== categoryToRemove)
+      setCategories(updatedCategories)
+      localStorage.setItem('class_categories', JSON.stringify(updatedCategories))
+      
+      // If the current category was removed, clear it
+      if (formData.category === categoryToRemove) {
+        handleChange('category', '')
+      }
+    }
+  }
 
   const handleChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
-    setError(null)
-    setSuccess(false)
   }
 
   const handleSave = async () => {
@@ -151,16 +171,74 @@ export default function ClassSettingsTab({ programId, classType, onUpdate }: Cla
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Category
             </label>
-            <select
-              value={formData.category}
-              onChange={(e) => handleChange('category', e.target.value)}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
-            >
-              <option value="">Select a category</option>
-              {CLASS_CATEGORIES.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
+            {!showAddCategory ? (
+              <div className="flex gap-2">
+                <select
+                  value={formData.category}
+                  onChange={(e) => handleChange('category', e.target.value)}
+                  className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                >
+                  <option value="">Select a category</option>
+                  {categories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => setShowAddCategory(true)}
+                  className="px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors flex items-center gap-1"
+                  title="Add new category"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleAddCategory()}
+                  className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  placeholder="Enter new category name"
+                  autoFocus
+                />
+                <button
+                  onClick={handleAddCategory}
+                  disabled={!newCategory.trim()}
+                  className="px-3 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => {
+                    setShowAddCategory(false)
+                    setNewCategory('')
+                  }}
+                  className="px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+            
+            {/* Category Management */}
+            {categories.length > 0 && !showAddCategory && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {categories.map(cat => (
+                  <div key={cat} className="flex items-center gap-1 px-2 py-1 bg-gray-700 rounded text-xs text-gray-300">
+                    <span>{cat}</span>
+                    <button
+                      onClick={() => handleRemoveCategory(cat)}
+                      className="text-gray-500 hover:text-red-500 transition-colors"
+                      title="Remove category"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div>
@@ -287,39 +365,29 @@ export default function ClassSettingsTab({ programId, classType, onUpdate }: Cla
         </div>
       </div>
 
-      {/* Error/Success Messages */}
-      {error && (
-        <div className="bg-red-900/50 border border-red-600 rounded-lg p-4 flex items-center gap-3">
-          <AlertCircle className="h-5 w-5 text-red-400" />
-          <p className="text-red-300">{error}</p>
-        </div>
-      )}
-
-      {success && (
-        <div className="bg-green-900/50 border border-green-600 rounded-lg p-4 flex items-center gap-3">
-          <Save className="h-5 w-5 text-green-400" />
-          <p className="text-green-300">Settings saved successfully!</p>
-        </div>
-      )}
-
       {/* Save Button */}
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between">
+        <div>
+          {error && (
+            <div className="flex items-center gap-2 text-red-400 text-sm">
+              <AlertCircle className="w-4 h-4" />
+              <span>{error}</span>
+            </div>
+          )}
+          {success && (
+            <div className="text-green-400 text-sm">
+              Settings saved successfully!
+            </div>
+          )}
+        </div>
+        
         <button
           onClick={handleSave}
-          disabled={loading}
-          className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          disabled={loading || !formData.name}
+          className="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
         >
-          {loading ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4" />
-              Save Settings
-            </>
-          )}
+          <Save className="w-4 h-4" />
+          {loading ? 'Saving...' : 'Save Settings'}
         </button>
       </div>
     </div>
