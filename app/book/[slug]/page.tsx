@@ -224,7 +224,7 @@ export default function PublicBookingPage() {
         {/* Booking Form */}
         {showBookingForm && selectedSlot && (
           <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-lg font-semibold mb-4">Your Information</h2>
+            <h2 className="text-lg font-semibold mb-4">Enter Your Details</h2>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
