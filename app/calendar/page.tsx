@@ -8,6 +8,7 @@ import { CalendarSettings } from '@/app/components/calendar/CalendarSettings'
 import { BookingModal } from '@/app/components/calendar/BookingModal'
 import { EventDetailsModal } from '@/app/components/calendar/EventDetailsModal'
 import { EditEventModal } from '@/app/components/calendar/EditEventModal'
+import BookingLinksManager from '@/app/components/booking/BookingLinksManager'
 import { Calendar as CalendarIcon, Settings, Link, Plus, LayoutGrid, CalendarDays } from 'lucide-react'
 import type { CalendarEvent, TimeSlot } from '@/app/lib/types/calendar'
 
@@ -391,27 +392,7 @@ export default function CalendarPage() {
       )}
 
       {activeTab === 'booking-links' && (
-        <div className="space-y-4">
-          <div className="bg-gray-800 rounded-lg p-6">
-            <h3 className="text-lg font-bold mb-2 text-white">Booking Links</h3>
-            <p className="text-white opacity-70 text-sm mb-4">
-              Create shareable links for people to book time with you
-            </p>
-            
-            <div className="flex justify-between items-center mb-4">
-              <p className="text-sm text-white opacity-60">
-                No booking links created yet
-              </p>
-              <button 
-                onClick={() => alert('Booking links feature coming soon! This will allow you to create shareable links for clients to book appointments.')}
-                className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors flex items-center gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                Create Booking Link
-              </button>
-            </div>
-          </div>
-        </div>
+        <BookingLinksManager />
       )}
 
       {/* Booking Modal */}
