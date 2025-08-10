@@ -16,8 +16,8 @@ export default function BookingSettingsPage() {
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2">Booking Settings</h1>
-            <p className="text-gray-400">Configure your booking system settings and appointment types</p>
+            <h1 className="text-3xl font-bold text-white mb-2">Call Booking Settings</h1>
+            <p className="text-gray-400">Configure your appointment types and availability for sales calls and consultations</p>
           </div>
 
           {/* Tabs */}

@@ -232,9 +232,9 @@ export default function BookingLinksManager() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-bold text-white">Booking Links</h3>
+          <h3 className="text-lg font-bold text-white">Call Booking Links</h3>
           <p className="text-sm text-gray-400 mt-1">
-            Create shareable links for clients to book appointments
+            Create shareable links for prospects to book sales calls and consultations
           </p>
         </div>
         <Button

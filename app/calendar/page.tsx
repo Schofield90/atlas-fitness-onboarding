@@ -241,6 +241,12 @@ export default function CalendarPage() {
       <div className="p-6">
         <div className="max-w-7xl mx-auto">
 
+          {/* Page Title */}
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-white">Call Calendar</h1>
+            <p className="text-gray-400 mt-1">Schedule and manage your sales calls, consultations, and appointments</p>
+          </div>
+
       {/* Tabs */}
       <div className="border-b border-gray-700 mb-6">
         <nav className="-mb-px flex space-x-8">
