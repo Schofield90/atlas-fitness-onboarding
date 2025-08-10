@@ -2,11 +2,11 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/app/components/ui/dialog';
-import { Button } from '@/app/components/ui/button';
+import Button from '@/app/components/ui/Button';
 import { Alert, AlertDescription } from '@/app/components/ui/alert';
 import { Progress } from '@/app/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/app/components/ui/radio-group';
-import { Label } from '@/app/components/ui/label';
+import Label from '@/app/components/ui/label';
 import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
