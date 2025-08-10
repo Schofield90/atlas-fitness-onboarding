@@ -42,3 +42,4 @@ const CardTitle: React.FC<{ className?: string; children: React.ReactNode }> = (
 };
 
 export { Card, CardHeader, CardContent, CardTitle };
+export default Card;
