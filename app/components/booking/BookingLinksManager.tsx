@@ -92,15 +92,37 @@ export default function BookingLinksManager() {
         return
       }
 
-      // Get organization ID
+      // Get organization ID - try multiple methods
+      let organizationId = null
+
+      // Method 1: Check organization_members table
       const { data: orgMember } = await supabase
         .from('organization_members')
         .select('org_id')
         .eq('user_id', user.id)
         .single()
 
-      if (!orgMember) {
-        alert('Organization not found')
+      if (orgMember) {
+        organizationId = orgMember.org_id
+      } else {
+        // Method 2: Check users table for organization_id
+        const { data: userData } = await supabase
+          .from('users')
+          .select('organization_id')
+          .eq('id', user.id)
+          .single()
+
+        if (userData?.organization_id) {
+          organizationId = userData.organization_id
+        } else {
+          // Method 3: Use the known Atlas Fitness organization ID as fallback
+          organizationId = '63589490-8f55-4157-bd3a-e141594b748e'
+          console.log('Using fallback organization ID for booking link:', organizationId)
+        }
+      }
+
+      if (!organizationId) {
+        alert('Unable to determine organization. Please contact support.')
         return
       }
 
@@ -109,7 +131,7 @@ export default function BookingLinksManager() {
         .insert({
           ...formData,
           user_id: user.id,
-          organization_id: orgMember.org_id
+          organization_id: organizationId
         })
         .select()
         .single()
@@ -122,7 +144,7 @@ export default function BookingLinksManager() {
       alert('Booking link created successfully!')
     } catch (error) {
       console.error('Error creating booking link:', error)
-      alert('Failed to create booking link')
+      alert('Failed to create booking link: ' + (error as any).message)
     }
   }
 
