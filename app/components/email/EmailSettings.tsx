@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Button } from '@/app/components/ui/button';
-import { Input } from '@/app/components/ui/input';
-import { Label } from '@/app/components/ui/label';
+import Button from '@/app/components/ui/Button';
+import Input from '@/app/components/ui/input';
+import Label from '@/app/components/ui/label';
 import { Alert, AlertDescription } from '@/app/components/ui/alert';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
+import Card from '@/app/components/ui/Card';
 import { Switch } from '@/app/components/ui/switch';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Mail, Send, CheckCircle, XCircle, AlertCircle, Settings, TestTube } from 'lucide-react';
@@ -86,16 +86,16 @@ export default function EmailSettings() {
     <div className="space-y-6">
       {/* Configuration Status */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+        <div className="p-6 border-b border-gray-700">
+          <h3 className="flex items-center gap-2 text-lg font-semibold">
             <Settings className="h-5 w-5" />
             Email Configuration Status
-          </CardTitle>
-          <CardDescription>
+          </h3>
+          <p className="text-sm text-gray-400 mt-1">
             Current email service configuration and status
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+        </div>
+        <div className="p-6">
           {configStatus && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -157,21 +157,21 @@ export default function EmailSettings() {
               )}
             </div>
           )}
-        </CardContent>
+        </div>
       </Card>
 
       {/* Test Email Form */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+        <div className="p-6 border-b border-gray-700">
+          <h3 className="flex items-center gap-2 text-lg font-semibold">
             <Mail className="h-5 w-5" />
             Send Test Email
-          </CardTitle>
-          <CardDescription>
+          </h3>
+          <p className="text-sm text-gray-400 mt-1">
             Test your email configuration by sending a test email
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+        </div>
+        <div className="p-6">
           <div className="space-y-4">
             <div>
               <Label htmlFor="testEmail">Recipient Email</Label>
@@ -243,16 +243,16 @@ export default function EmailSettings() {
               </Alert>
             )}
           </div>
-        </CardContent>
+        </div>
       </Card>
 
       {/* Email Statistics */}
       {stats && (
         <Card>
-          <CardHeader>
-            <CardTitle>Email Statistics (Last 30 Days)</CardTitle>
-          </CardHeader>
-          <CardContent>
+          <div className="p-6 border-b border-gray-700">
+            <h3 className="text-lg font-semibold">Email Statistics (Last 30 Days)</h3>
+          </div>
+          <div className="p-6">
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div>
                 <div className="text-2xl font-bold">{stats.total || 0}</div>
@@ -275,7 +275,7 @@ export default function EmailSettings() {
                 <div className="text-sm text-muted-foreground">Bounced</div>
               </div>
             </div>
-          </CardContent>
+          </div>
         </Card>
       )}
     </div>
