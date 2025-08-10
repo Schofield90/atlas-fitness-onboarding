@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card'
-import { Button } from '@/app/components/ui/button'
+import Card from '@/app/components/ui/Card'
+import Button from '@/app/components/ui/Button'
 import { Calendar, Clock, MapPin, Users } from 'lucide-react'
 
 interface ClassSession {
@@ -137,11 +137,11 @@ export default function YorkBookingPage() {
             
             return (
               <Card key={session.id} className={isFullyBooked ? 'opacity-75' : ''}>
-                <CardHeader>
-                  <CardTitle className="text-xl">{session.name}</CardTitle>
+                <div className="p-6">
+                  <h3 className="text-xl font-semibold">{session.name}</h3>
                   <p className="text-sm text-gray-600">with {session.instructor}</p>
-                </CardHeader>
-                <CardContent>
+                </div>
+                <div className="px-6 pb-6">
                   <div className="space-y-3">
                     <div className="flex items-center text-sm text-gray-600">
                       <Calendar className="h-4 w-4 mr-2" />
@@ -179,7 +179,7 @@ export default function YorkBookingPage() {
                   >
                     {isFullyBooked ? 'Join Waitlist' : 'Book Now'}
                   </Button>
-                </CardContent>
+                </div>
               </Card>
             )
           })}
@@ -187,10 +187,10 @@ export default function YorkBookingPage() {
 
         {sessions.length === 0 && (
           <Card className="text-center py-12">
-            <CardContent>
+            <div className="p-6">
               <p className="text-gray-600">No classes available at the moment.</p>
               <p className="text-sm text-gray-500 mt-2">Please check back later or contact us for more information.</p>
-            </CardContent>
+            </div>
           </Card>
         )}
       </div>

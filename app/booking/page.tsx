@@ -1,8 +1,8 @@
 'use client'
 
 import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card'
-import { Button } from '@/app/components/ui/button'
+import Card from '@/app/components/ui/Card'
+import Button from '@/app/components/ui/Button'
 import { MapPin, Clock, Calendar, Users } from 'lucide-react'
 import Link from 'next/link'
 
@@ -39,10 +39,10 @@ export default function BookingLandingPage() {
         <div className="grid md:grid-cols-2 gap-8 mb-12">
           {locations.map((location) => (
             <Card key={location.city} className="hover:shadow-xl transition-shadow">
-              <CardHeader>
-                <CardTitle className="text-2xl">Atlas Fitness {location.city}</CardTitle>
-              </CardHeader>
-              <CardContent>
+              <div className="p-6">
+                <h3 className="text-2xl font-semibold mb-4">Atlas Fitness {location.city}</h3>
+              </div>
+              <div className="px-6 pb-6">
                 <div className="space-y-4">
                   <div className="flex items-start">
                     <MapPin className="h-5 w-5 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
@@ -72,13 +72,13 @@ export default function BookingLandingPage() {
                     </Button>
                   </Link>
                 </div>
-              </CardContent>
+              </div>
             </Card>
           ))}
         </div>
 
         <Card className="bg-blue-50 border-blue-200">
-          <CardContent className="py-8">
+          <div className="py-8 px-6">
             <div className="text-center">
               <h3 className="text-xl font-semibold mb-3">New to Atlas Fitness?</h3>
               <p className="text-gray-600 mb-6">
@@ -93,7 +93,7 @@ export default function BookingLandingPage() {
                 </Button>
               </div>
             </div>
-          </CardContent>
+          </div>
         </Card>
 
         <div className="mt-12 text-center">
