@@ -27,6 +27,8 @@ export default function FacebookIntegrationPage() {
   const [userData, setUserData] = useState<any>(null)
   const [timeFilter, setTimeFilter] = useState('last_30_days')
   const [webhookStatus, setWebhookStatus] = useState<Record<string, boolean>>({})
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [syncMessage, setSyncMessage] = useState('')
   
   useEffect(() => {
     const storedData = localStorage.getItem('gymleadhub_trial_data')
