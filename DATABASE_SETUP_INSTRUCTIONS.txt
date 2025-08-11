@@ -1,0 +1,21 @@
+🎯 NEXT STEPS TO COMPLETE DATABASE SETUP:
+
+1. Open Supabase SQL Editor:
+   https://supabase.com/dashboard/project/lzlrojoaxrqvmhempnkn/sql
+
+2. Copy the contents of: APPLY_MIGRATIONS_MANUAL.sql
+
+3. Paste and run in the SQL editor
+
+4. Check the results - you should see:
+   - ✅ RLS enabled on critical tables
+   - ✅ Helper functions created
+   - ✅ AI and error logging tables created
+
+5. Verify by running this query:
+   SELECT tablename, rowsecurity 
+   FROM pg_tables 
+   WHERE schemaname = 'public' 
+   AND rowsecurity = true;
+
+The migrations are ready to apply manually\!
