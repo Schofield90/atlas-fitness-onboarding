@@ -12,25 +12,51 @@ const publicRoutes = [
   '/client-portal/login',
   '/client-portal/claim',
   '/client-access',
-  '/test-client',
+  '/onboarding',
   '/api/auth',
   '/api/client-portal',
   '/api/client-access',
-  '/api/webhooks',
-  '/api/test',
-  '/test-login',
-  '/bypass-login',
-  '/direct-dashboard',
-  '/quick-add-class',
-  '/api/quick-add-class',
-  '/api/debug',
-  '/quick-login',
-  '/auth-debug'
+  '/api/webhooks'
 ]
 
 // Client-only routes
 const clientRoutes = [
   '/client'
+]
+
+// Debug and test routes - these should be blocked in production
+const debugRoutes = [
+  '/bypass-login',
+  '/test-login',
+  '/quick-login',
+  '/direct-dashboard',
+  '/auth-debug',
+  '/auth-check',
+  '/whatsapp-debug',
+  '/membership-debug',
+  '/memberships-debug',
+  '/booking-debug',
+  '/classes-debug',
+  '/facebook-debug',
+  '/test-analytics',
+  '/call-test',
+  '/auth-test',
+  '/membership-create-test',
+  '/test-memberships',
+  '/test-client',
+  '/test-whatsapp-ai',
+  '/create-test-classes',
+  '/test-workflows',
+  '/test-styles',
+  '/workflow-test',
+  '/nutrition-test',
+  '/quick-add-class',
+  '/sql-check',
+  '/classes',
+  '/seed-knowledge',
+  '/fix-messages',
+  '/get-started',
+  '/emergency'
 ]
 
 // Admin routes that require organization
@@ -53,8 +79,28 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const res = NextResponse.next()
   
-  // TEMPORARY: Disable all authentication
-  return res;
+  // Block debug routes in production or if not explicitly enabled
+  const isDebugRoute = debugRoutes.some(route => 
+    pathname === route || pathname.startsWith(route + '/')
+  )
+  
+  // Also block debug API routes
+  const isDebugApiRoute = pathname.startsWith('/api/debug/') || 
+                         pathname.startsWith('/api/test/') ||
+                         pathname.startsWith('/api/quick-add-class')
+  
+  if (isDebugRoute || isDebugApiRoute) {
+    // Only allow debug routes in development or if ENABLE_DEBUG_ROUTES=true
+    const isDevelopment = process.env.NODE_ENV === 'development'
+    const debugEnabled = process.env.ENABLE_DEBUG_ROUTES === 'true'
+    
+    if (!isDevelopment && !debugEnabled) {
+      if (isDebugApiRoute) {
+        return NextResponse.json({ error: 'Debug API routes are disabled in production' }, { status: 403 })
+      }
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+  }
   
   // Check if route is public
   const isPublicRoute = publicRoutes.some(route => 
