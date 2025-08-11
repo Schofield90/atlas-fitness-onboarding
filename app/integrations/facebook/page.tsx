@@ -310,9 +310,51 @@ export default function FacebookIntegrationPage() {
                     </div>
                   ))}
                 </div>
+              ) : isSyncing ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mr-3"></div>
+                  <span className="text-gray-300">Syncing pages from Facebook API...</span>
+                </div>
               ) : (
-                <div className="text-center py-8 text-gray-400">
-                  <p>No Facebook pages found. Make sure you have admin access to at least one page.</p>
+                <div className="text-center py-8">
+                  <div className="text-gray-400 mb-4">
+                    <p className="mb-2">No Facebook pages found.</p>
+                    <p className="text-sm">This could mean:</p>
+                    <ul className="text-sm mt-2 space-y-1">
+                      <li>• You don't have admin access to any Facebook pages</li>
+                      <li>• The pages haven't been synced from Facebook yet</li>
+                      <li>• There was an issue with permissions</li>
+                    </ul>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setIsSyncing(true)
+                      setSyncMessage('Syncing pages from Facebook...')
+                      try {
+                        const syncRes = await fetch('/api/integrations/meta/sync-pages', {
+                          method: 'POST'
+                        })
+                        
+                        if (syncRes.ok) {
+                          const result = await syncRes.json()
+                          setSyncMessage(result.message || 'Pages synced successfully')
+                          await refetchPages()
+                        } else {
+                          const error = await syncRes.json()
+                          setSyncMessage(`Failed: ${error.error || 'Unknown error'}`)
+                        }
+                      } catch (error) {
+                        setSyncMessage('Failed to sync pages')
+                      } finally {
+                        setIsSyncing(false)
+                        setTimeout(() => setSyncMessage(''), 5000)
+                      }
+                    }}
+                    disabled={isSyncing}
+                    className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-2 px-4 rounded transition-colors"
+                  >
+                    {isSyncing ? 'Syncing...' : 'Sync Pages from Facebook'}
+                  </button>
                 </div>
               )}
             </div>
