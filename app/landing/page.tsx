@@ -33,13 +33,22 @@ export default function LandingPage() {
               <a href="#pricing" className="hover:text-orange-400 transition-colors">Pricing</a>
               <a href="#contact" className="hover:text-orange-400 transition-colors">Contact</a>
             </div>
-            <Link 
-              href="/login"
-              className="bg-gray-800 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg text-sm transition-colors border border-gray-600"
-              data-track="header-sign-in"
-            >
-              Sign In
-            </Link>
+            <div className="flex items-center space-x-4">
+              <Link 
+                href="/login"
+                className="bg-gray-800 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg text-sm transition-colors border border-gray-600"
+                data-track="header-sign-in"
+              >
+                Sign In
+              </Link>
+              <Link 
+                href="/get-started"
+                className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors"
+                data-track="header-get-started"
+              >
+                Start Free Trial
+              </Link>
+            </div>
           </nav>
         </div>
       </header>
