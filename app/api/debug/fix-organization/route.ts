@@ -29,24 +29,52 @@ export async function GET() {
       })
     }
 
-    // Check if user owns any organization
-    const { data: ownedOrg } = await supabase
-      .from('organizations')
-      .select('*')
-      .eq('owner_id', user.id)
+    // Check if user owns any organization via user_organizations
+    const { data: ownershipCheck } = await supabase
+      .from('user_organizations')
+      .select('organization_id, organizations(id, name)')
+      .eq('user_id', user.id)
+      .eq('role', 'owner')
       .single()
 
-    if (ownedOrg) {
-      // Create user_organizations entry
+    if (ownershipCheck?.organization_id) {
+      return NextResponse.json({
+        status: 'already_owner',
+        message: 'User already owns an organization',
+        user_id: user.id,
+        organization_id: ownershipCheck.organization_id
+      })
+    }
+
+    // Check if there's a known organization to join
+    const knownOrgId = '63589490-8f55-4157-bd3a-e141594b748e'
+    const { data: knownOrg } = await supabase
+      .from('organizations')
+      .select('*')
+      .eq('id', knownOrgId)
+      .single()
+
+    if (knownOrg) {
+      // Create user_organizations entry for existing org
       const { error: insertError } = await supabase
         .from('user_organizations')
         .insert({
           user_id: user.id,
-          organization_id: ownedOrg.id,
-          role: 'owner'
+          organization_id: knownOrg.id,
+          role: 'member'
         })
 
       if (insertError) {
+        // Check if already exists
+        if (insertError.code === '23505') {
+          return NextResponse.json({
+            status: 'already_member',
+            message: 'User is already a member of the organization',
+            user_id: user.id,
+            organization_id: knownOrg.id
+          })
+        }
+        
         return NextResponse.json({ 
           error: 'Failed to create user_organizations entry',
           details: insertError 
@@ -54,10 +82,11 @@ export async function GET() {
       }
 
       return NextResponse.json({
-        status: 'fixed',
-        message: 'Created user_organizations entry for existing org',
+        status: 'joined',
+        message: 'Joined existing Atlas Fitness organization',
         user_id: user.id,
-        organization_id: ownedOrg.id
+        organization_id: knownOrg.id,
+        organization_name: knownOrg.name
       })
     }
 
@@ -66,7 +95,9 @@ export async function GET() {
       .from('organizations')
       .insert({
         name: 'Atlas Fitness',
-        owner_id: user.id,
+        subdomain: 'atlas-fitness-' + Date.now(),
+        plan: 'starter',
+        status: 'active',
         settings: {}
       })
       .select()
