@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/app/lib/supabase/client'
 import Button from '@/app/components/ui/Button'
 import { Card } from '@/app/components/ui/Card'
-import { Building2, Users, CreditCard, Check, Loader2 } from 'lucide-react'
+import { Building2, Users, CreditCard, Check, Loader2, Dumbbell } from 'lucide-react'
 
 interface OnboardingStep {
   id: string
@@ -255,18 +255,22 @@ export default function OnboardingPage() {
   
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-600" />
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
       </div>
     )
   }
   
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-900">
       <div className="max-w-4xl mx-auto px-4 py-16">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold mb-4">Welcome to Atlas Fitness Platform</h1>
-          <p className="text-xl text-gray-600">Let's get your gym set up in just a few steps</p>
+          <div className="flex items-center justify-center mb-8">
+            <Dumbbell className="h-12 w-12 text-orange-500 mr-3" />
+            <h1 className="text-5xl font-bold text-orange-500">GymLeadHub</h1>
+          </div>
+          <h2 className="text-3xl font-bold mb-4 text-white">Welcome to Your All-in-One Fitness CRM</h2>
+          <p className="text-xl text-gray-400">Let's get your gym set up in just a few steps</p>
         </div>
         
         {/* Progress Steps */}
@@ -280,13 +284,13 @@ export default function OnboardingPage() {
               <div key={step.id} className="flex items-center flex-1">
                 <div className="flex items-center">
                   <div className={`
-                    w-12 h-12 rounded-full flex items-center justify-center
-                    ${isCompleted ? 'bg-green-500 text-white' : isActive ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-500'}
+                    w-12 h-12 rounded-full flex items-center justify-center transition-all
+                    ${isCompleted ? 'bg-green-500 text-white' : isActive ? 'bg-orange-500 text-white' : 'bg-gray-700 text-gray-400'}
                   `}>
                     {isCompleted ? <Check className="h-6 w-6" /> : <Icon className="h-6 w-6" />}
                   </div>
                   <div className="ml-4">
-                    <p className={`font-semibold ${isActive ? 'text-gray-900' : 'text-gray-500'}`}>
+                    <p className={`font-semibold ${isActive ? 'text-white' : 'text-gray-400'}`}>
                       {step.title}
                     </p>
                     <p className="text-sm text-gray-500">{step.description}</p>
@@ -294,7 +298,7 @@ export default function OnboardingPage() {
                 </div>
                 {index < steps.length - 1 && (
                   <div className={`flex-1 h-0.5 mx-4 ${
-                    isCompleted ? 'bg-green-500' : 'bg-gray-200'
+                    isCompleted ? 'bg-green-500' : 'bg-gray-700'
                   }`} />
                 )}
               </div>
@@ -303,38 +307,38 @@ export default function OnboardingPage() {
         </div>
         
         {/* Step Content */}
-        <Card className="p-8">
+        <Card className="p-8 bg-gray-800 border-gray-700">
           {currentStep === 0 && (
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold mb-6">Tell us about your gym</h2>
+              <h2 className="text-2xl font-bold mb-6 text-white">Tell us about your gym</h2>
               
               <div>
-                <label className="block text-sm font-medium mb-2">Organization Name</label>
+                <label className="block text-sm font-medium mb-2 text-gray-300">Organization Name</label>
                 <input
                   type="text"
-                  className="w-full px-4 py-2 border rounded-lg"
-                  placeholder="Atlas Fitness Harrogate"
+                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+                  placeholder="GymLeadHub Harrogate"
                   value={organizationData.name}
                   onChange={(e) => setOrganizationData({...organizationData, name: e.target.value})}
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium mb-2">Contact Email</label>
+                <label className="block text-sm font-medium mb-2 text-gray-300">Contact Email</label>
                 <input
                   type="email"
-                  className="w-full px-4 py-2 border rounded-lg"
-                  placeholder="hello@atlasfitness.com"
+                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+                  placeholder="hello@gymleadhub.com"
                   value={organizationData.email}
                   onChange={(e) => setOrganizationData({...organizationData, email: e.target.value})}
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium mb-2">Phone Number</label>
+                <label className="block text-sm font-medium mb-2 text-gray-300">Phone Number</label>
                 <input
                   type="tel"
-                  className="w-full px-4 py-2 border rounded-lg"
+                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
                   placeholder="+44 1234 567890"
                   value={organizationData.phone}
                   onChange={(e) => setOrganizationData({...organizationData, phone: e.target.value})}
@@ -342,9 +346,9 @@ export default function OnboardingPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium mb-2">Address</label>
+                <label className="block text-sm font-medium mb-2 text-gray-300">Address</label>
                 <textarea
-                  className="w-full px-4 py-2 border rounded-lg"
+                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
                   rows={3}
                   placeholder="123 Fitness Street\nHarrogate\nHG1 2AB"
                   value={organizationData.address}
@@ -353,38 +357,39 @@ export default function OnboardingPage() {
               </div>
               
               <div className="flex justify-end">
-                <Button
+                <button
                   onClick={handleOrganizationSubmit}
                   disabled={!organizationData.name || !organizationData.email}
+                  className="px-6 py-3 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Continue
-                </Button>
+                </button>
               </div>
             </div>
           )}
           
           {currentStep === 1 && (
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold mb-6">Choose your plan</h2>
-              <p className="text-gray-600 mb-8">Start with a 14-day free trial. No credit card required.</p>
+              <h2 className="text-2xl font-bold mb-6 text-white">Choose your plan</h2>
+              <p className="text-gray-400 mb-8">Start with a 14-day free trial. No credit card required.</p>
               
               <div className="grid md:grid-cols-3 gap-6">
                 {plans.map((plan) => (
                   <div
                     key={plan.id}
-                    className={`border rounded-lg p-6 cursor-pointer transition-all ${
+                    className={`border-2 rounded-lg p-6 cursor-pointer transition-all ${
                       selectedPlan === plan.slug
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-orange-500 bg-orange-500/10'
+                        : 'border-gray-600 hover:border-gray-500 bg-gray-800/50'
                     }`}
                     onClick={() => setSelectedPlan(plan.slug)}
                   >
-                    <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
-                    <p className="text-3xl font-bold mb-4">
+                    <h3 className="text-xl font-bold mb-2 text-white">{plan.name}</h3>
+                    <p className="text-3xl font-bold mb-4 text-white">
                       £{(plan.price_monthly / 100).toFixed(0)}
-                      <span className="text-sm font-normal text-gray-600">/month</span>
+                      <span className="text-sm font-normal text-gray-400">/month</span>
                     </p>
-                    <ul className="space-y-2 text-sm">
+                    <ul className="space-y-2 text-sm text-gray-300">
                       <li>✓ {plan.features.staff_accounts === -1 ? 'Unlimited' : plan.features.staff_accounts} staff accounts</li>
                       <li>✓ {plan.features.monthly_bookings === -1 ? 'Unlimited' : plan.features.monthly_bookings} bookings/month</li>
                       <li>✓ {plan.features.sms_credits} SMS credits</li>
@@ -397,16 +402,25 @@ export default function OnboardingPage() {
               </div>
               
               <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setCurrentStep(0)}>
+                <button
+                  onClick={() => setCurrentStep(0)}
+                  className="px-6 py-3 border border-gray-600 text-gray-300 font-semibold rounded-lg hover:bg-gray-700 transition-colors"
+                >
                   Back
-                </Button>
+                </button>
                 <div className="space-x-4">
-                  <Button variant="outline" onClick={skipToApp}>
+                  <button
+                    onClick={skipToApp}
+                    className="px-6 py-3 border border-gray-600 text-gray-300 font-semibold rounded-lg hover:bg-gray-700 transition-colors"
+                  >
                     Skip for now
-                  </Button>
-                  <Button onClick={handlePlanSelection}>
+                  </button>
+                  <button
+                    onClick={handlePlanSelection}
+                    className="px-6 py-3 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition-colors"
+                  >
                     Start Free Trial
-                  </Button>
+                  </button>
                 </div>
               </div>
             </div>
@@ -414,21 +428,21 @@ export default function OnboardingPage() {
           
           {currentStep === 2 && (
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold mb-6">Invite your team</h2>
-              <p className="text-gray-600 mb-8">Add staff members to help manage your gym. You can always do this later.</p>
+              <h2 className="text-2xl font-bold mb-6 text-white">Invite your team</h2>
+              <p className="text-gray-400 mb-8">Add staff members to help manage your gym. You can always do this later.</p>
               
               <div className="space-y-4">
                 <div className="flex gap-4">
                   <input
                     type="email"
-                    className="flex-1 px-4 py-2 border rounded-lg"
+                    className="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
                     placeholder="team@example.com"
                     value={newMemberEmail}
                     onChange={(e) => setNewMemberEmail(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && addTeamMember()}
                   />
                   <select 
-                    className="px-4 py-2 border rounded-lg"
+                    className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
                     value={newMemberRole}
                     onChange={(e) => setNewMemberRole(e.target.value as 'admin' | 'staff' | 'viewer')}
                   >
@@ -436,22 +450,27 @@ export default function OnboardingPage() {
                     <option value="staff">Staff</option>
                     <option value="viewer">Viewer</option>
                   </select>
-                  <Button variant="outline" onClick={addTeamMember}>Add</Button>
+                  <button
+                    onClick={addTeamMember}
+                    className="px-6 py-2 border border-gray-600 text-gray-300 font-semibold rounded-lg hover:bg-gray-700 transition-colors"
+                  >
+                    Add
+                  </button>
                 </div>
                 
                 {/* Team member list */}
                 {teamMembers.length > 0 && (
                   <div className="mt-6 space-y-2">
-                    <h3 className="font-medium text-sm text-gray-700">Team members to invite:</h3>
+                    <h3 className="font-medium text-sm text-gray-300">Team members to invite:</h3>
                     {teamMembers.map((member) => (
-                      <div key={member.email} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div key={member.email} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
                         <div>
-                          <p className="font-medium">{member.email}</p>
-                          <p className="text-sm text-gray-500 capitalize">{member.role}</p>
+                          <p className="font-medium text-white">{member.email}</p>
+                          <p className="text-sm text-gray-400 capitalize">{member.role}</p>
                         </div>
                         <button
                           onClick={() => removeTeamMember(member.email)}
-                          className="text-red-600 hover:text-red-800 text-sm"
+                          className="text-red-400 hover:text-red-300 text-sm transition-colors"
                         >
                           Remove
                         </button>
@@ -461,27 +480,34 @@ export default function OnboardingPage() {
                 )}
                 
                 {/* Role descriptions */}
-                <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                  <h4 className="font-medium text-sm mb-2">Role Permissions:</h4>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    <li><strong>Admin:</strong> Full access to all features and settings</li>
-                    <li><strong>Staff:</strong> Manage members, bookings, and messages</li>
-                    <li><strong>Viewer:</strong> Read-only access to reports and data</li>
+                <div className="mt-6 p-4 bg-gray-700/30 rounded-lg border border-gray-600">
+                  <h4 className="font-medium text-sm mb-2 text-white">Role Permissions:</h4>
+                  <ul className="text-sm text-gray-300 space-y-1">
+                    <li><strong className="text-orange-400">Admin:</strong> Full access to all features and settings</li>
+                    <li><strong className="text-orange-400">Staff:</strong> Manage members, bookings, and messages</li>
+                    <li><strong className="text-orange-400">Viewer:</strong> Read-only access to reports and data</li>
                   </ul>
                 </div>
               </div>
               
               <div className="flex justify-between mt-8">
-                <Button variant="outline" onClick={() => setCurrentStep(1)}>
+                <button
+                  onClick={() => setCurrentStep(1)}
+                  className="px-6 py-3 border border-gray-600 text-gray-300 font-semibold rounded-lg hover:bg-gray-700 transition-colors"
+                >
                   Back
-                </Button>
+                </button>
                 <div className="space-x-4">
-                  <Button variant="outline" onClick={skipToApp}>
+                  <button
+                    onClick={skipToApp}
+                    className="px-6 py-3 border border-gray-600 text-gray-300 font-semibold rounded-lg hover:bg-gray-700 transition-colors"
+                  >
                     Skip for now
-                  </Button>
-                  <Button 
+                  </button>
+                  <button 
                     onClick={inviteTeamMembers}
                     disabled={loading}
+                    className="px-6 py-3 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
                   >
                     {loading ? (
                       <>
@@ -493,7 +519,7 @@ export default function OnboardingPage() {
                         ? `Send ${teamMembers.length} invitation${teamMembers.length > 1 ? 's' : ''}`
                         : 'Continue to Dashboard'
                     )}
-                  </Button>
+                  </button>
                 </div>
               </div>
             </div>
