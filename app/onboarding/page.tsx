@@ -77,9 +77,10 @@ export default function OnboardingPage() {
       
       // Check if user already has an organization
       const { data: userOrg } = await supabase
-        .from('user_organizations')
+        .from('organization_members')
         .select('organization_id')
         .eq('user_id', user.id)
+        .eq('is_active', true)
         .single()
       
       if (userOrg) {
@@ -116,14 +117,19 @@ export default function OnboardingPage() {
       if (!user) throw new Error('No user found')
       
       // Create organization
+      // Generate a slug from the organization name
+      const slug = organizationData.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
+      
       const { data: org, error: orgError } = await supabase
         .from('organizations')
         .insert({
           name: organizationData.name,
-          type: organizationData.type,
+          slug: slug,
+          type: organizationData.type || 'gym',
           phone: organizationData.phone,
           email: organizationData.email,
-          address: organizationData.address
+          address: organizationData.address,
+          settings: {}
         })
         .select()
         .single()
@@ -132,7 +138,7 @@ export default function OnboardingPage() {
       
       // Add user as owner
       const { error: userOrgError } = await supabase
-        .from('user_organizations')
+        .from('organization_members')
         .insert({
           user_id: user.id,
           organization_id: org.id,
@@ -140,23 +146,16 @@ export default function OnboardingPage() {
           is_active: true
         })
       
-      if (userOrgError) throw userOrgError
+      if (userOrgError) {
+        console.error('Error adding user to organization:', userOrgError)
+        throw userOrgError
+      }
       
-      // Create organization settings
-      const { error: settingsError } = await supabase
-        .from('organization_settings')
-        .insert({
-          organization_id: org.id,
-          support_email: organizationData.email,
-          support_phone: organizationData.phone
-        })
-      
-      if (settingsError) throw settingsError
-      
+      // Successfully created organization, move to next step
       setCurrentStep(1)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating organization:', error)
-      alert('Failed to create organization. Please try again.')
+      alert(`Failed to create organization: ${error.message || 'Please try again.'}`)
     } finally {
       setLoading(false)
     }
