@@ -172,110 +172,23 @@ export async function GET(request: NextRequest) {
       })
     }
     
-    // Fall back to demo data
-    console.log('⚠️ Using demo ad accounts data')
+    // Return empty array when no token is available
+    console.log('⚠️ No Facebook token available, returning empty ad accounts')
     
-    const demoAdAccounts = [
-      {
-        id: 'act_123456789',
-        name: 'Atlas Fitness Marketing',
-        account_status: 1, // 1 = ACTIVE
-        currency: 'GBP',
-        timezone_name: 'Europe/London',
-        amount_spent: '2847.32',
-        balance: '500.00',
-        spend_cap: '5000.00',
-        created_time: '2023-01-15T10:30:00Z',
-        funding_source_details: {
-          type: 'CREDIT_CARD',
-          display_string: 'Visa ****1234'
-        }
-      },
-      {
-        id: 'act_987654321',
-        name: 'Atlas Fitness - Downtown Campaign',
-        account_status: 1,
-        currency: 'GBP', 
-        timezone_name: 'Europe/London',
-        amount_spent: '1523.45',
-        balance: '750.00',
-        spend_cap: '3000.00',
-        created_time: '2023-03-20T14:15:00Z',
-        funding_source_details: {
-          type: 'CREDIT_CARD',
-          display_string: 'Visa ****5678'
-        }
-      },
-      {
-        id: 'act_456789123',
-        name: 'Atlas Nutrition Ads',
-        account_status: 2, // 2 = DISABLED
-        currency: 'GBP',
-        timezone_name: 'Europe/London', 
-        amount_spent: '345.67',
-        balance: '0.00',
-        spend_cap: '1000.00',
-        created_time: '2023-06-10T09:45:00Z',
-        funding_source_details: {
-          type: 'CREDIT_CARD',
-          display_string: 'Visa ****9012'
-        }
-      }
-    ]
-
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 800))
-
-    const getAccountStatusText = (status: number) => {
-      switch (status) {
-        case 1: return 'Active'
-        case 2: return 'Disabled'
-        case 3: return 'Unsettled'
-        case 7: return 'Pending Review'
-        case 9: return 'In Grace Period'
-        case 101: return 'Pending Closure'
-        case 201: return 'Closed'
-        default: return 'Unknown'
-      }
-    }
-
-    const getAccountStatusColor = (status: number) => {
-      switch (status) {
-        case 1: return 'green'
-        case 2: return 'red'
-        case 3: return 'yellow'
-        case 7: return 'orange'
-        default: return 'gray'
-      }
-    }
-
     return NextResponse.json({
       success: true,
-      ad_accounts: demoAdAccounts.map(account => ({
-        id: account.id,
-        name: account.name,
-        status: getAccountStatusText(account.account_status),
-        status_code: account.account_status,
-        status_color: getAccountStatusColor(account.account_status),
-        currency: account.currency,
-        timezone: account.timezone_name,
-        amount_spent: parseFloat(account.amount_spent),
-        balance: parseFloat(account.balance),
-        spend_cap: parseFloat(account.spend_cap),
-        created_time: account.created_time,
-        funding_source: account.funding_source_details.display_string,
-        is_active: account.account_status === 1
-      })),
+      ad_accounts: [],
       summary: {
-        total_accounts: demoAdAccounts.length,
-        active_accounts: demoAdAccounts.filter(acc => acc.account_status === 1).length,
-        total_spent: demoAdAccounts.reduce((sum, acc) => sum + parseFloat(acc.amount_spent), 0),
-        total_balance: demoAdAccounts.reduce((sum, acc) => sum + parseFloat(acc.balance), 0)
+        total_accounts: 0,
+        active_accounts: 0,
+        total_spent: 0,
+        total_balance: 0
       },
       debug: {
         api_call: 'GET /me/adaccounts',
         permissions_required: ['ads_management', 'ads_read'],
-        note: 'Demo data - replace with real Facebook Graph API call'
+        note: 'No Facebook token available',
+        timestamp: new Date().toISOString()
       }
     })
 
