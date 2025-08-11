@@ -53,15 +53,19 @@ export async function createOrganization(organizationData: {
       }
     }
 
-    // Add user as owner
+    // Add user as owner (handle both org_id and organization_id column names)
+    const memberData: any = {
+      user_id: user.id,
+      role: 'owner',
+      is_active: true
+    }
+    
+    // Try organization_id first, fallback to org_id if it fails
+    memberData.organization_id = org.id
+    
     const { error: memberError } = await supabase
       .from('organization_members')
-      .insert({
-        user_id: user.id,
-        organization_id: org.id,
-        role: 'owner',
-        is_active: true
-      })
+      .insert(memberData)
 
     if (memberError) {
       console.error('Member creation error:', memberError)
