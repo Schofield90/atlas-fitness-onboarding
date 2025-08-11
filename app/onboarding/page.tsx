@@ -113,42 +113,15 @@ export default function OnboardingPage() {
   const handleOrganizationSubmit = async () => {
     try {
       setLoading(true)
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('No user found')
       
-      // Create organization
-      // Generate a slug from the organization name
-      const slug = organizationData.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
+      // Import the server action
+      const { createOrganization } = await import('@/app/actions/organization')
       
-      const { data: org, error: orgError } = await supabase
-        .from('organizations')
-        .insert({
-          name: organizationData.name,
-          slug: slug,
-          type: organizationData.type || 'gym',
-          phone: organizationData.phone,
-          email: organizationData.email,
-          address: organizationData.address,
-          settings: {}
-        })
-        .select()
-        .single()
+      // Call the server action
+      const result = await createOrganization(organizationData)
       
-      if (orgError) throw orgError
-      
-      // Add user as owner
-      const { error: userOrgError } = await supabase
-        .from('organization_members')
-        .insert({
-          user_id: user.id,
-          organization_id: org.id,
-          role: 'owner',
-          is_active: true
-        })
-      
-      if (userOrgError) {
-        console.error('Error adding user to organization:', userOrgError)
-        throw userOrgError
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create organization')
       }
       
       // Successfully created organization, move to next step
