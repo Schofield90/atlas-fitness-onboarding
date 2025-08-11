@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUserOrganization } from '@/app/lib/organization-server'
+import { requireAuth, createErrorResponse } from '@/app/lib/api/auth-check'
 import { UniversalDataProcessor } from '@/app/lib/ai/processing/universal-processor'
 import { RealTimeProcessor } from '@/app/lib/ai/processing/real-time-processor'
 
@@ -9,18 +9,11 @@ const processors = new Map<string, RealTimeProcessor>()
 
 export async function POST(request: NextRequest) {
   try {
-    // Get authenticated user's organization
-    const { organizationId: userOrgId, error: authError } = await getCurrentUserOrganization()
-    if (authError || !userOrgId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // SECURITY: Get authenticated user's organization - NEVER accept from request body
+    const user = await requireAuth()
+    const organizationId = user.organizationId
     
-    const { organizationId, processHistorical = false } = await request.json()
-    
-    // Verify user has access to this organization
-    if (organizationId !== userOrgId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const { processHistorical = false } = await request.json()
     
     // Check if already initialized
     if (initializedOrgs.has(organizationId)) {
@@ -64,17 +57,16 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('AI initialization error:', error)
-    return NextResponse.json(
-      { error: 'Failed to initialize AI' },
-      { status: 500 }
-    )
+    return createErrorResponse(error)
   }
 }
 
 // Cleanup endpoint
 export async function DELETE(request: NextRequest) {
   try {
-    const { organizationId } = await request.json()
+    // SECURITY: Get authenticated user's organization - NEVER accept from request body
+    const user = await requireAuth()
+    const organizationId = user.organizationId
     
     // Shutdown real-time processor
     const processor = processors.get(organizationId)
@@ -92,9 +84,6 @@ export async function DELETE(request: NextRequest) {
     })
   } catch (error) {
     console.error('AI shutdown error:', error)
-    return NextResponse.json(
-      { error: 'Failed to shutdown AI' },
-      { status: 500 }
-    )
+    return createErrorResponse(error)
   }
 }

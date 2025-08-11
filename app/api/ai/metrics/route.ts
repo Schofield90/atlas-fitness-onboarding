@@ -1,21 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/app/lib/supabase/server'
-import { getCurrentUserOrganization } from '@/app/lib/organization-server'
+import { requireAuth, createErrorResponse } from '@/app/lib/api/auth-check'
 
 export async function POST(request: NextRequest) {
   try {
-    // Get authenticated user's organization
-    const { organizationId: userOrgId, error: authError } = await getCurrentUserOrganization()
-    if (authError || !userOrgId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    
-    const { organizationId } = await request.json()
-    
-    // Verify user has access to this organization
-    if (organizationId !== userOrgId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // SECURITY: Get authenticated user's organization - NEVER accept from request body
+    const user = await requireAuth()
+    const organizationId = user.organizationId
     
     const supabase = await createClient()
     
@@ -56,7 +47,7 @@ export async function POST(request: NextRequest) {
       .eq('organization_id', organizationId)
       .lt('created_at', thisMonth.toISOString())
     
-    const memberChange = lastMonthMembers && lastMonthMembers > 0 
+    const memberChange = lastMonthMembers && lastMonthMembers > 0 && activeMembers !== null
       ? ((activeMembers - lastMonthMembers) / lastMonthMembers) * 100 
       : 0
     
@@ -101,7 +92,7 @@ export async function POST(request: NextRequest) {
       .gte('created_at', lastMonth.toISOString())
       .lt('created_at', thisMonth.toISOString())
       
-    const leadChange = lastMonthLeads && lastMonthLeads > 0 
+    const leadChange = lastMonthLeads && lastMonthLeads > 0 && newLeads !== null
       ? ((newLeads - lastMonthLeads) / lastMonthLeads) * 100 
       : 0
     
@@ -139,9 +130,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ metrics })
   } catch (error) {
     console.error('AI metrics error:', error)
-    return NextResponse.json(
-      { error: 'Failed to get metrics' },
-      { status: 500 }
-    )
+    return createErrorResponse(error)
   }
 }

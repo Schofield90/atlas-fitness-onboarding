@@ -53,8 +53,8 @@ export async function POST(request: NextRequest) {
       temporaryPassword: 'temporary-' + token.substring(0, 8)
     })
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Validate magic link error:', error)
-    return NextResponse.json({ error: error.message || 'Internal error' }, { status: 500 })
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Unknown error" || 'Internal error' }, { status: 500 })
   }
 }

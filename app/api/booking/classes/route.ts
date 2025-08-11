@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/app/lib/supabase/server';
+import { requireAuth, createErrorResponse } from '@/app/lib/api/auth-check';
 
 export async function GET(request: NextRequest) {
   try {
+    // SECURITY: Get authenticated user's organization - NEVER accept from query params
+    const user = await requireAuth();
+    const organizationId = user.organizationId;
+    
     const supabase = await createClient();
     const searchParams = request.nextUrl.searchParams;
-    const organizationId = searchParams.get('organizationId');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
-    
-    if (!organizationId) {
-      return NextResponse.json({ error: 'Organization ID required' }, { status: 400 });
-    }
 
     // Use provided dates or default to next 7 days
     const start = startDate ? new Date(startDate) : new Date();
@@ -65,17 +65,20 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ classes });
   } catch (error) {
     console.error('Error in GET /api/booking/classes:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return createErrorResponse(error);
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Get authenticated user's organization - NEVER accept from request body
+    const user = await requireAuth();
+    const organizationId = user.organizationId;
+    
     const supabase = await createClient();
     const body = await request.json();
     
     const {
-      organizationId,
       programId,
       title,
       instructor,
@@ -87,10 +90,6 @@ export async function POST(request: NextRequest) {
       description,
       type
     } = body;
-
-    if (!organizationId) {
-      return NextResponse.json({ error: 'Organization ID required' }, { status: 400 });
-    }
 
     // First, create or get the program
     let actualProgramId = programId;
@@ -144,12 +143,15 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error in POST /api/booking/classes:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return createErrorResponse(error);
   }
 }
 
 export async function PUT(request: NextRequest) {
   try {
+    // SECURITY: Get authenticated user's organization 
+    const user = await requireAuth();
+    
     const supabase = await createClient();
     const body = await request.json();
     const { classId, ...updateData } = body;
@@ -158,6 +160,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Class ID required' }, { status: 400 });
     }
 
+    // SECURITY: Update only if class belongs to user's organization
     const { data, error } = await supabase
       .from('class_sessions')
       .update({
@@ -168,6 +171,7 @@ export async function PUT(request: NextRequest) {
         location: updateData.room,
       })
       .eq('id', classId)
+      .eq('organization_id', user.organizationId) // SECURITY: Ensure organization ownership
       .select()
       .single();
 
@@ -182,12 +186,15 @@ export async function PUT(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error in PUT /api/booking/classes:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return createErrorResponse(error);
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
+    // SECURITY: Get authenticated user's organization
+    const user = await requireAuth();
+    
     const supabase = await createClient();
     const searchParams = request.nextUrl.searchParams;
     const classId = searchParams.get('classId');
@@ -196,11 +203,12 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Class ID required' }, { status: 400 });
     }
 
-    // Soft delete by setting is_active to false
+    // SECURITY: Soft delete only if class belongs to user's organization
     const { error } = await supabase
       .from('class_sessions')
       .update({ is_active: false })
-      .eq('id', classId);
+      .eq('id', classId)
+      .eq('organization_id', user.organizationId); // SECURITY: Ensure organization ownership
 
     if (error) {
       console.error('Error deleting class:', error);
@@ -210,6 +218,6 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ message: 'Class deleted successfully' });
   } catch (error) {
     console.error('Error in DELETE /api/booking/classes:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return createErrorResponse(error);
   }
 }

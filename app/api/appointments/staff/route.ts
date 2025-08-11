@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Get upcoming appointments/sessions for this staff member
-      let upcomingAppointments = []
+      let upcomingAppointments: any[] = []
       if (include_availability) {
         const { data: appointments } = await supabaseAdmin
           .from('class_sessions')

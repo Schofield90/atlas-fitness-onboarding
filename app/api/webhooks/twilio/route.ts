@@ -5,6 +5,8 @@ import { createClient } from '@/app/lib/supabase/server'
 import { generateAIResponse, formatKnowledgeContext } from '@/app/lib/ai/anthropic'
 import { fetchRelevantKnowledge } from '@/app/lib/knowledge'
 import { createAdminClient } from '@/app/lib/supabase/admin'
+import { realTimeProcessor } from '@/app/lib/ai/real-time-processor'
+import { backgroundProcessor } from '@/app/lib/ai/background-processor'
 
 // Twilio webhook signature validation
 const validateTwilioSignature = async (request: NextRequest, bodyParams: Record<string, any>) => {
@@ -167,6 +169,14 @@ export async function POST(request: NextRequest) {
     })
     
     console.log('Saved to conversation context:', contextResult)
+    
+    // Process message with enhanced AI in real-time (async, don't block response)
+    if (messageData.body && messageData.body.trim()) {
+      processMessageWithEnhancedAI(organizationId, cleanedFrom, messageData.body, channel, lead?.id)
+        .catch(error => {
+          console.error('Enhanced AI processing failed (non-blocking):', error)
+        })
+    }
     
     // Handle specific keywords or commands
     const lowerBody = messageData.body.toLowerCase().trim()
@@ -445,4 +455,166 @@ async function handleResubscribe(phoneNumber: string) {
     .from('contacts')
     .update({ subscribed: true })
     .eq('phone', phoneNumber)
+}
+
+// Enhanced AI processing function (runs async to not block webhook response)
+async function processMessageWithEnhancedAI(
+  organizationId: string,
+  phoneNumber: string,
+  messageContent: string,
+  channel: 'sms' | 'whatsapp',
+  leadId?: string
+): Promise<void> {
+  try {
+    console.log('Starting enhanced AI processing for message:', {
+      organizationId,
+      phoneNumber,
+      channel,
+      hasLeadId: !!leadId,
+      messageLength: messageContent.length
+    })
+
+    // Process message in real-time
+    const processingResult = await realTimeProcessor.processMessage({
+      leadId,
+      organizationId,
+      phoneNumber,
+      messageContent,
+      messageType: channel,
+      direction: 'inbound',
+      timestamp: new Date().toISOString()
+    })
+
+    console.log('Enhanced AI processing completed:', {
+      leadId: processingResult.leadId,
+      processingTimeMs: processingResult.processingTimeMs,
+      urgencyLevel: processingResult.urgencyAlert?.level,
+      sentimentChange: processingResult.sentimentChange ? 
+        `${processingResult.sentimentChange.from} → ${processingResult.sentimentChange.to}` : null,
+      staffNotificationPriority: processingResult.staffNotification?.priority
+    })
+
+    // Handle urgent notifications
+    if (processingResult.staffNotification && processingResult.staffNotification.priority === 'urgent') {
+      await sendUrgentStaffNotification(organizationId, phoneNumber, processingResult.staffNotification)
+    }
+
+    // Handle high-priority notifications
+    if (processingResult.staffNotification && 
+        ['high', 'urgent'].includes(processingResult.staffNotification.priority)) {
+      await createStaffTask(organizationId, processingResult.leadId, processingResult.staffNotification)
+    }
+
+    // Queue background processing for deeper analysis if needed
+    if (processingResult.leadId && processingResult.urgencyAlert?.level >= 7) {
+      await backgroundProcessor.queueLeadProcessing(
+        organizationId, 
+        processingResult.leadId, 
+        { priority: 'high', delayMs: 60000 } // Process in 1 minute for deeper insights
+      )
+    }
+
+  } catch (error) {
+    console.error('Enhanced AI processing error:', error)
+    
+    // Log the error but don't throw - this shouldn't break the webhook flow
+    const adminSupabase = createAdminClient()
+    await adminSupabase
+      .from('ai_processing_errors')
+      .insert({
+        organization_id: organizationId,
+        phone_number: phoneNumber,
+        error_type: 'real_time_processing',
+        error_message: error.message,
+        message_content: messageContent.substring(0, 1000), // Limit content length
+        created_at: new Date().toISOString()
+      })
+      .catch(logError => {
+        console.error('Failed to log AI processing error:', logError)
+      })
+  }
+}
+
+// Send urgent notifications to staff
+async function sendUrgentStaffNotification(
+  organizationId: string,
+  phoneNumber: string,
+  notification: any
+): Promise<void> {
+  const adminSupabase = createAdminClient()
+  
+  try {
+    // Get organization staff members
+    const { data: staffMembers } = await adminSupabase
+      .from('users')
+      .select('id, email, phone')
+      .eq('organization_id', organizationId)
+      .eq('role', 'admin') // or whatever role should get notifications
+
+    if (!staffMembers || staffMembers.length === 0) {
+      console.log('No staff members found for urgent notification')
+      return
+    }
+
+    // Create urgent notification record
+    await adminSupabase
+      .from('staff_notifications')
+      .insert({
+        organization_id: organizationId,
+        notification_type: 'urgent_lead_alert',
+        priority: 'urgent',
+        title: `🚨 Urgent Lead Alert: ${phoneNumber}`,
+        message: notification.message,
+        data: {
+          phoneNumber,
+          suggestedActions: notification.suggestedActions,
+          timestamp: new Date().toISOString()
+        },
+        created_at: new Date().toISOString()
+      })
+
+    console.log(`Urgent notification sent for ${phoneNumber} to ${staffMembers.length} staff members`)
+
+    // Here you could also integrate with external notification services:
+    // - Send SMS to staff
+    // - Send Slack/Teams notifications
+    // - Send email alerts
+    // - Push notifications to mobile app
+
+  } catch (error) {
+    console.error('Failed to send urgent staff notification:', error)
+  }
+}
+
+// Create staff tasks for follow-up
+async function createStaffTask(
+  organizationId: string,
+  leadId: string,
+  notification: any
+): Promise<void> {
+  const adminSupabase = createAdminClient()
+  
+  try {
+    await adminSupabase
+      .from('tasks')
+      .insert({
+        organization_id: organizationId,
+        lead_id: leadId,
+        type: 'ai_generated',
+        priority: notification.priority === 'urgent' ? 'high' : 'medium',
+        title: `AI Alert: Follow up required`,
+        description: notification.message,
+        suggested_actions: notification.suggestedActions,
+        due_date: new Date(Date.now() + (notification.priority === 'urgent' ? 30 * 60 * 1000 : 2 * 60 * 60 * 1000)).toISOString(), // 30 min or 2 hours
+        status: 'pending',
+        created_at: new Date().toISOString(),
+        ai_generated: true,
+        ai_confidence: 0.8
+      })
+
+    console.log(`Created AI task for lead ${leadId} with priority ${notification.priority}`)
+
+  } catch (error) {
+    console.error('Failed to create staff task:', error)
+  }
 }

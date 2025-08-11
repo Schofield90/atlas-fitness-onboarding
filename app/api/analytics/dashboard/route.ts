@@ -1,32 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SupabaseAnalyticsStorage } from '@/app/lib/analytics/supabase-storage';
-
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'atlas2024';
-
-function verifyPassword(password: string): boolean {
-  return password === ADMIN_PASSWORD;
-}
+import { requireAuth, createErrorResponse } from '@/app/lib/api/auth-check';
 
 export async function GET(request: NextRequest) {
   try {
-    // Check authorization
-    const authHeader = request.headers.get('authorization');
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: 'Authorization required' },
-        { status: 401 }
-      );
-    }
-    
-    const token = authHeader.split(' ')[1];
-    
-    if (!verifyPassword(token)) {
-      return NextResponse.json(
-        { error: 'Invalid password' },
-        { status: 401 }
-      );
-    }
+    // SECURITY: Get authenticated user's organization - NO MORE HARDCODED PASSWORDS!
+    const user = await requireAuth();
+    const organizationId = user.organizationId;
     
     // Get date range from query params
     const url = new URL(request.url);
@@ -53,11 +33,11 @@ export async function GET(request: NextRequest) {
         startDate.setDate(startDate.getDate() - 7);
     }
     
-    // Get analytics data from Supabase
-    const analyticsData = await SupabaseAnalyticsStorage.getAnalytics(startDate, endDate);
+    // SECURITY: Get analytics data filtered by organization
+    const analyticsData = await SupabaseAnalyticsStorage.getAnalytics(startDate, endDate, organizationId);
     
-    // Get realtime data
-    const realtimeData = await SupabaseAnalyticsStorage.getRealtimeAnalytics();
+    // SECURITY: Get realtime data filtered by organization
+    const realtimeData = await SupabaseAnalyticsStorage.getRealtimeAnalytics(organizationId);
     
     return NextResponse.json({
       ...analyticsData,
@@ -66,9 +46,6 @@ export async function GET(request: NextRequest) {
     
   } catch (error) {
     console.error('Dashboard API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return createErrorResponse(error);
   }
 }

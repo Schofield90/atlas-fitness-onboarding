@@ -338,7 +338,7 @@ class LeadService {
 
     // Tag-based scoring
     const highValueTags = ['hot', 'urgent', 'decision-maker', 'budget-approved'];
-    const matchingTags = lead.tags?.filter(tag => highValueTags.includes(tag)) || [];
+    const matchingTags = lead.tags?.filter((tag: string) => highValueTags.includes(tag)) || [];
     score += matchingTags.length * 10;
 
     // Engagement scoring (would connect to email/SMS tracking)

@@ -1,0 +1,181 @@
+import { Redis } from 'ioredis';
+import { logger } from '@/app/lib/logger/logger';
+
+// Redis client configuration for both regular Redis and Upstash
+class RedisClient {
+  private static instance: RedisClient;
+  private redis: Redis | null = null;
+  private connected = false;
+  private connectionAttempts = 0;
+  private maxConnectionAttempts = 3;
+
+  private constructor() {
+    this.initializeConnection();
+  }
+
+  public static getInstance(): RedisClient {
+    if (!RedisClient.instance) {
+      RedisClient.instance = new RedisClient();
+    }
+    return RedisClient.instance;
+  }
+
+  private initializeConnection(): void {
+    try {
+      // Support both standard Redis and Upstash Redis
+      if (process.env.REDIS_URL) {
+        // Standard Redis connection
+        this.redis = new Redis(process.env.REDIS_URL, {
+          maxRetriesPerRequest: 3,
+          retryDelayOnFailover: 100,
+          enableReadyCheck: false,
+          lazyConnect: true,
+        });
+      } else if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+        // Upstash Redis REST API connection
+        this.redis = new Redis({
+          host: process.env.UPSTASH_REDIS_REST_URL.replace('https://', '').replace('http://', ''),
+          port: 6379,
+          password: process.env.UPSTASH_REDIS_REST_TOKEN,
+          tls: {},
+          maxRetriesPerRequest: 3,
+          retryDelayOnFailover: 100,
+          enableReadyCheck: false,
+          lazyConnect: true,
+        });
+      } else {
+        logger.warn('No Redis configuration found. Running without cache.');
+        return;
+      }
+
+      this.setupEventListeners();
+      
+    } catch (error) {
+      logger.error('Failed to initialize Redis connection:', error);
+      this.redis = null;
+    }
+  }
+
+  private setupEventListeners(): void {
+    if (!this.redis) return;
+
+    this.redis.on('connect', () => {
+      this.connected = true;
+      this.connectionAttempts = 0;
+      logger.info('Redis connected successfully');
+    });
+
+    this.redis.on('ready', () => {
+      this.connected = true;
+      logger.info('Redis ready for commands');
+    });
+
+    this.redis.on('error', (error) => {
+      this.connected = false;
+      logger.error('Redis connection error:', error);
+      
+      // Attempt to reconnect with exponential backoff
+      if (this.connectionAttempts < this.maxConnectionAttempts) {
+        this.connectionAttempts++;
+        const delay = Math.pow(2, this.connectionAttempts) * 1000;
+        setTimeout(() => this.initializeConnection(), delay);
+      }
+    });
+
+    this.redis.on('close', () => {
+      this.connected = false;
+      logger.warn('Redis connection closed');
+    });
+
+    this.redis.on('reconnecting', () => {
+      logger.info('Redis reconnecting...');
+    });
+  }
+
+  public async isConnected(): Promise<boolean> {
+    if (!this.redis) return false;
+    
+    try {
+      await this.redis.ping();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  public getClient(): Redis | null {
+    return this.redis;
+  }
+
+  public async disconnect(): Promise<void> {
+    if (this.redis) {
+      await this.redis.quit();
+      this.redis = null;
+      this.connected = false;
+    }
+  }
+
+  // Health check method for monitoring
+  public async healthCheck(): Promise<{
+    connected: boolean;
+    latency: number | null;
+    memory?: any;
+  }> {
+    if (!this.redis) {
+      return { connected: false, latency: null };
+    }
+
+    try {
+      const startTime = Date.now();
+      await this.redis.ping();
+      const latency = Date.now() - startTime;
+
+      // Get memory info if available
+      let memory;
+      try {
+        const info = await this.redis.info('memory');
+        memory = this.parseRedisInfo(info);
+      } catch {
+        // Ignore memory info errors (might not be available in some Redis setups)
+      }
+
+      return {
+        connected: true,
+        latency,
+        memory
+      };
+    } catch (error) {
+      logger.error('Redis health check failed:', error);
+      return { connected: false, latency: null };
+    }
+  }
+
+  private parseRedisInfo(info: string): any {
+    const lines = info.split('\r\n');
+    const memory: any = {};
+    
+    lines.forEach(line => {
+      if (line.includes(':')) {
+        const [key, value] = line.split(':');
+        if (key.startsWith('used_memory')) {
+          memory[key] = parseInt(value) || value;
+        }
+      }
+    });
+    
+    return memory;
+  }
+}
+
+// Export singleton instance
+export const redisClient = RedisClient.getInstance();
+
+// Export Redis instance for backward compatibility
+export const getRedisClient = (): Redis | null => {
+  return redisClient.getClient();
+};
+
+// Connection health check function
+export const checkRedisHealth = async () => {
+  return await redisClient.healthCheck();
+};

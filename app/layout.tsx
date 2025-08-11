@@ -4,6 +4,7 @@ import './globals.css'
 import '@/app/lib/polyfills'
 import { AnalyticsProvider } from '@/app/components/analytics/provider'
 import { OrganizationProvider } from '@/app/hooks/useOrganization'
+import { ErrorBoundaryProvider } from '@/app/components/errors'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -20,11 +21,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <AnalyticsProvider>
-          <OrganizationProvider>
-            {children}
-          </OrganizationProvider>
-        </AnalyticsProvider>
+        <ErrorBoundaryProvider>
+          <AnalyticsProvider>
+            <OrganizationProvider>
+              {children}
+            </OrganizationProvider>
+          </AnalyticsProvider>
+        </ErrorBoundaryProvider>
       </body>
     </html>
   )

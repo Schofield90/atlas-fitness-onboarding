@@ -1,43 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { headers } from 'next/headers'
-import { requireAuth, createOrgScopedClient } from '@/lib/auth-middleware'
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { createClient } from '@/app/lib/supabase/server'
+import { requireAuth, createErrorResponse } from '@/app/lib/api/auth-check'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  // Authentication check
-  const auth = await requireAuth(request)
-  if (auth instanceof NextResponse) return auth
-  
-  // Create organization-scoped Supabase client
-  const supabase = createOrgScopedClient(auth.organizationId)
-  
   try {
+    // SECURITY: Get authenticated user's organization
+    const user = await requireAuth()
+    const supabase = await createClient()
+    
     const { id: customerId } = await params
     
-    // Get customer basic info
-    const { data: customer, error } = await supabaseAdmin
+    // SECURITY: Get customer info filtered by organization
+    const { data: customer, error } = await supabase
       .from('leads')
       .select('*')
       .eq('id', customerId)
+      .eq('organization_id', user.organizationId) // SECURITY: Ensure organization ownership
       .single()
 
-    if (error) throw error
+    if (error || !customer) {
+      return NextResponse.json({ error: 'Customer not found or unauthorized' }, { status: 404 })
+    }
 
     return NextResponse.json({ customer })
   } catch (error) {
     console.error('Error fetching customer:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch customer' },
-      { status: 500 }
-    )
+    return createErrorResponse(error)
   }
 }
 
@@ -45,39 +36,36 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  // Authentication check
-  const auth = await requireAuth(request)
-  if (auth instanceof NextResponse) return auth
-  
-  // Create organization-scoped Supabase client
-  const supabase = createOrgScopedClient(auth.organizationId)
-  
   try {
+    // SECURITY: Get authenticated user's organization
+    const user = await requireAuth()
+    const supabase = await createClient()
+    
     const { id: customerId } = await params
     const updates = await request.json()
 
-    const { data, error } = await supabaseAdmin
+    // Remove fields that shouldn't be updated
+    const { organization_id, created_by, id, ...cleanUpdates } = updates
+
+    // SECURITY: Update only if customer belongs to user's organization
+    const { data, error } = await supabase
       .from('leads')
-      .update(updates)
+      .update({
+        ...cleanUpdates,
+        updated_at: new Date().toISOString()
+      })
       .eq('id', customerId)
+      .eq('organization_id', user.organizationId) // SECURITY: Ensure organization ownership
       .select()
       .single()
 
-    if (error) throw error
-
-    // Log activity
-    await supabaseAdmin.rpc('log_customer_activity', {
-      p_customer_id: customerId,
-      p_activity_type: 'profile_updated',
-      p_activity_data: { updated_fields: Object.keys(updates) }
-    })
+    if (error || !data) {
+      return NextResponse.json({ error: 'Customer not found or unauthorized' }, { status: 404 })
+    }
 
     return NextResponse.json({ customer: data })
   } catch (error) {
     console.error('Error updating customer:', error)
-    return NextResponse.json(
-      { error: 'Failed to update customer' },
-      { status: 500 }
-    )
+    return createErrorResponse(error)
   }
 }

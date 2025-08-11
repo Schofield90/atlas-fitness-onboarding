@@ -105,7 +105,7 @@ describe('Organization Isolation Tests', () => {
         .eq('id', lead.id)
         .single()
       
-      expect(data.name).toBe('Test Lead')
+      expect(data?.name).toBe('Test Lead')
     })
     
     it('should prevent deleting data from another organization', async () => {

@@ -8,7 +8,7 @@
     ],
     "allowJs": true,
     "skipLibCheck": true,
-    "strict": false,
+    "strict": true,
     "noEmit": true,
     "incremental": true,
     "module": "esnext",
@@ -34,6 +34,7 @@
   ],
   "exclude": [
     "node_modules",
-    "gym-coach-platform"
+    "gym-coach-platform",
+    ".next/types"
   ]
 }

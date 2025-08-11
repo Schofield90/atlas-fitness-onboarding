@@ -58,11 +58,11 @@ export async function GET() {
       role
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching organization:', error)
     return NextResponse.json({ 
       error: 'Failed to fetch organization',
-      details: error.message 
+      details: error instanceof Error ? error.message : "Unknown error" 
     }, { status: 500 })
   }
 }

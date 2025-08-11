@@ -45,9 +45,9 @@ export async function getCurrentUserOrganization() {
     }
 
     return { organizationId: userOrg.organization_id, error: null }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error getting organization:', error)
-    return { organizationId: null, error: error.message }
+    return { organizationId: null, error: error instanceof Error ? error.message : "Unknown error" }
   }
 }
 

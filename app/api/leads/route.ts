@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/app/lib/supabase/server'
-import { requireAuth, createErrorResponse } from '@/app/lib/api/auth-check'
+import { requireAuth } from '@/app/lib/api/auth-check'
+import { 
+  handleApiError, 
+  ValidationError, 
+  DatabaseError,
+  withApiErrorBoundary 
+} from '@/app/lib/errors'
 
-export async function GET(request: NextRequest) {
-  try {
-    // Check authentication and get organization
-    const userWithOrg = await requireAuth()
+async function getLeads(request: NextRequest) {
+  // Check authentication and get organization
+  const userWithOrg = await requireAuth()
     
     // Create Supabase client
     const supabase = await createClient()
@@ -53,37 +58,47 @@ export async function GET(request: NextRequest) {
     const { data: leads, error } = await query
     
     if (error) {
-      console.error('Error fetching leads:', error)
-      return NextResponse.json({ error: 'Failed to fetch leads' }, { status: 500 })
+      throw DatabaseError.queryError('leads', 'select', {
+        filters: { status, source, assignedTo, createdBy },
+        organizationId: userWithOrg.organizationId,
+        originalError: error.message,
+        code: error.code
+      })
     }
     
-    return NextResponse.json({
-      success: true,
-      leads: leads || [],
-      total: leads?.length || 0,
-      organizationId: userWithOrg.organizationId
-    })
-    
-  } catch (error) {
-    // Use the error response helper
-    return createErrorResponse(error)
-  }
+  return NextResponse.json({
+    success: true,
+    leads: leads || [],
+    total: leads?.length || 0,
+    organizationId: userWithOrg.organizationId
+  })
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    // Check authentication and get organization
-    const userWithOrg = await requireAuth()
+// Wrap with error boundary
+export const GET = withApiErrorBoundary(getLeads)
+
+async function createLead(request: NextRequest) {
+  // Check authentication and get organization
+  const userWithOrg = await requireAuth()
     
     const supabase = await createClient()
     const body = await request.json()
     
     // Validate required fields
-    if (!body.name || !body.email || !body.phone) {
-      return NextResponse.json({
-        error: 'Missing required fields',
-        required: ['name', 'email', 'phone']
-      }, { status: 400 })
+    if (!body.name) {
+      throw ValidationError.required('name', { body })
+    }
+    if (!body.email) {
+      throw ValidationError.required('email', { body })
+    }
+    if (!body.phone) {
+      throw ValidationError.required('phone', { body })
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(body.email)) {
+      throw ValidationError.invalid('email', body.email, 'valid email address')
     }
     
     // Log the data we're trying to insert
@@ -117,13 +132,13 @@ export async function POST(request: NextRequest) {
       .single()
     
     if (error) {
-      console.error('Error creating lead:', error)
-      return NextResponse.json({ 
-        error: 'Failed to create lead',
-        details: error.message,
+      throw DatabaseError.queryError('leads', 'insert', {
+        organizationId: userWithOrg.organizationId,
+        insertData,
+        originalError: error.message,
         code: error.code,
         hint: error.hint
-      }, { status: 500 })
+      })
     }
     
     // Trigger workflow for new lead
@@ -145,15 +160,14 @@ export async function POST(request: NextRequest) {
       // Don't fail the lead creation if webhook fails
     }
     
-    return NextResponse.json({
-      success: true,
-      lead
-    })
-    
-  } catch (error) {
-    return createErrorResponse(error)
-  }
+  return NextResponse.json({
+    success: true,
+    lead
+  })
 }
+
+// Wrap with error boundary
+export const POST = withApiErrorBoundary(createLead)
 
 export async function PATCH(request: NextRequest) {
   try {

@@ -102,7 +102,7 @@ class UnifiedEmailService {
       });
 
       return result;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Email send error:', error);
       
       // Log failed attempt
@@ -110,13 +110,13 @@ class UnifiedEmailService {
         to: options.to,
         subject: options.subject,
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error.message : "Unknown error",
         organizationId: options.organizationId,
       });
 
       return {
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error.message : "Unknown error",
         provider: 'fallback'
       };
     }
@@ -146,11 +146,11 @@ class UnifiedEmailService {
         messageId: response.data?.id,
         provider: 'resend'
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Resend error:', error);
       return {
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error.message : "Unknown error",
         provider: 'resend'
       };
     }
@@ -246,10 +246,10 @@ class UnifiedEmailService {
           ? 'Email service configured successfully'
           : `Email service error: ${result.error}`
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        message: `Connection test failed: ${error.message}`
+        message: `Connection test failed: ${error instanceof Error ? error.message : "Unknown error"}`
       };
     }
   }

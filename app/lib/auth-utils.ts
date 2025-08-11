@@ -57,9 +57,9 @@ export async function getOrganizationAndUser() {
     }
 
     return { organization, user, error: null };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error getting organization and user:', error);
-    return { organization: null, user: null, error: error.message };
+    return { organization: null, user: null, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
 

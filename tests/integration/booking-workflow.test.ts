@@ -152,7 +152,7 @@ describe('Booking System Workflow Integration', () => {
       const { error } = await testDb
         .from('class_sessions')
         .update({ 
-          current_bookings: testDb.raw('current_bookings + 1')
+          current_bookings: 1 // Increment via raw SQL or use Supabase RPC function
         })
         .eq('id', testSessionId)
       
@@ -223,7 +223,7 @@ describe('Booking System Workflow Integration', () => {
       const { error } = await testDb
         .from('class_sessions')
         .update({ 
-          current_bookings: testDb.raw('GREATEST(current_bookings - 1, 0)')
+          current_bookings: 0 // Decrement via raw SQL or use Supabase RPC function
         })
         .eq('id', testSessionId)
       

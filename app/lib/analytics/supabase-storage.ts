@@ -64,22 +64,24 @@ export class SupabaseAnalyticsStorage {
     }
   }
 
-  static async getAnalytics(startDate: Date, endDate: Date): Promise<any> {
+  static async getAnalytics(startDate: Date, endDate: Date, organizationId: string): Promise<any> {
     try {
-      // Get raw events for detailed analysis
+      // SECURITY: Get raw events filtered by organization
       const { data: events, error: eventsError } = await supabase
         .from('analytics_events')
         .select('*')
+        .eq('organization_id', organizationId) // SECURITY: Filter by organization
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString())
         .order('created_at', { ascending: false });
 
       if (eventsError) throw eventsError;
 
-      // Get aggregated data for performance
+      // SECURITY: Get aggregated data filtered by organization
       const { data: aggregates, error: aggregatesError } = await supabase
         .from('analytics_aggregates')
         .select('*')
+        .eq('organization_id', organizationId) // SECURITY: Filter by organization
         .gte('date', startDate.toISOString().split('T')[0])
         .lte('date', endDate.toISOString().split('T')[0]);
 
@@ -93,13 +95,15 @@ export class SupabaseAnalyticsStorage {
     }
   }
 
-  static async getRealtimeAnalytics(): Promise<any> {
+  static async getRealtimeAnalytics(organizationId: string): Promise<any> {
     try {
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
       
+      // SECURITY: Get realtime events filtered by organization
       const { data: recentEvents, error } = await supabase
         .from('analytics_events')
         .select('*')
+        .eq('organization_id', organizationId) // SECURITY: Filter by organization
         .gte('created_at', fiveMinutesAgo.toISOString())
         .order('created_at', { ascending: false })
         .limit(100);

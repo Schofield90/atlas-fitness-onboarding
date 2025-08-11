@@ -31,7 +31,7 @@ describe('Auth Middleware Tests', () => {
           })
         }
       }
-      createClient.mockReturnValue(mockSupabase)
+      ;(createClient as jest.MockedFunction<typeof createClient>).mockReturnValue(mockSupabase as any)
       
       const result = await requireAuth(mockRequest)
       
@@ -60,7 +60,7 @@ describe('Auth Middleware Tests', () => {
           })
         })
       }
-      createClient.mockReturnValue(mockSupabase)
+      ;(createClient as jest.MockedFunction<typeof createClient>).mockReturnValue(mockSupabase as any)
       
       const result = await requireAuth(mockRequest)
       
@@ -92,7 +92,7 @@ describe('Auth Middleware Tests', () => {
           })
         })
       }
-      createClient.mockReturnValue(mockSupabase)
+      ;(createClient as jest.MockedFunction<typeof createClient>).mockReturnValue(mockSupabase as any)
       
       const result = await requireAuth(mockRequest)
       
@@ -121,7 +121,7 @@ describe('Auth Middleware Tests', () => {
           eq: mockEq
         })
       }
-      createClient.mockReturnValue(baseMockSupabase)
+      ;(createClient as jest.MockedFunction<typeof createClient>).mockReturnValue(baseMockSupabase as any)
       
       const scopedClient = createOrgScopedClient(organizationId)
       
@@ -150,11 +150,11 @@ describe('Auth Middleware Tests', () => {
       const mockInsert = jest.fn().mockReturnThis()
       
       const { createClient } = require('@/app/lib/supabase/server')
-      createClient.mockReturnValue({
+      ;(createClient as jest.MockedFunction<typeof createClient>).mockReturnValue({
         from: jest.fn().mockReturnValue({
           insert: mockInsert
         })
-      })
+      } as any)
       
       const scopedClient = createOrgScopedClient(organizationId)
       

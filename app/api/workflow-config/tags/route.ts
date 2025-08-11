@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/app/lib/supabase/client';
+import { createClient } from '@/app/lib/supabase/server';
+import { requireAuth, createErrorResponse } from '@/app/lib/api/auth-check';
 
 export async function GET() {
   try {
-    const supabase = createClient();
+    // SECURITY: Get authenticated user's organization - NO MORE HARDCODED IDs!
+    const user = await requireAuth();
+    const organizationId = user.organizationId;
     
-    // Get the organization ID (using hardcoded for now due to auth issues)
-    const organizationId = '63589490-8f55-4157-bd3a-e141594b748e';
+    const supabase = await createClient();
     
     // Get all unique tags from leads
     const { data: leads, error } = await supabase
@@ -86,20 +88,21 @@ export async function GET() {
 
   } catch (error) {
     console.error('Error in workflow config tags:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch tags', details: error.message },
-      { status: 500 }
-    );
+    return createErrorResponse(error);
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const { tag, organizationId } = await request.json();
+    // SECURITY: Get authenticated user's organization - NEVER accept from request body
+    const user = await requireAuth();
+    const organizationId = user.organizationId;
     
-    if (!tag || !organizationId) {
+    const { tag } = await request.json();
+    
+    if (!tag) {
       return NextResponse.json(
-        { error: 'Tag and organization ID required' },
+        { error: 'Tag is required' },
         { status: 400 }
       );
     }
@@ -120,9 +123,6 @@ export async function POST(request: Request) {
 
   } catch (error) {
     console.error('Error creating tag:', error);
-    return NextResponse.json(
-      { error: 'Failed to create tag' },
-      { status: 500 }
-    );
+    return createErrorResponse(error);
   }
 }
