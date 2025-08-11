@@ -37,6 +37,9 @@ export default function FacebookIntegrationPage() {
     }
   }, [])
   
+  // Track if we've attempted initial sync
+  const [hasAttemptedSync, setHasAttemptedSync] = useState(false)
+  
   const facebookConnection = useFacebookConnection()
   const { pages, loading: pagesLoading, error: pagesError, refetch: refetchPages } = useFacebookPages(facebookConnection.connected)
   const { adAccounts, loading: adAccountsLoading, error: adAccountsError, refetch: refetchAdAccounts } = useFacebookAdAccounts(facebookConnection.connected, timeFilter)
@@ -49,8 +52,11 @@ export default function FacebookIntegrationPage() {
   // Auto-sync pages on first connection
   useEffect(() => {
     const syncPagesIfNeeded = async () => {
-      if (facebookConnection.connected && pages.length === 0 && !pagesLoading && !pagesError) {
-        console.log('Connected but no pages found, syncing from Facebook...')
+      if (facebookConnection.connected && !hasAttemptedSync && !pagesLoading && !isSyncing) {
+        console.log('Facebook connected, attempting initial sync...')
+        setHasAttemptedSync(true)
+        setIsSyncing(true)
+        setSyncMessage('Syncing pages from Facebook...')
         try {
           const syncRes = await fetch('/api/integrations/meta/sync-pages', {
             method: 'POST'
@@ -59,17 +65,26 @@ export default function FacebookIntegrationPage() {
           if (syncRes.ok) {
             const result = await syncRes.json()
             console.log('Initial sync completed:', result)
+            setSyncMessage(result.message || 'Pages synced successfully')
             // Refresh pages after sync
             await refetchPages()
+          } else {
+            const error = await syncRes.json()
+            setSyncMessage(`Failed to sync: ${error.error || 'Unknown error'}`)
           }
         } catch (error) {
           console.error('Initial sync error:', error)
+          setSyncMessage('Failed to sync pages from Facebook')
+        } finally {
+          setIsSyncing(false)
+          // Clear message after 5 seconds
+          setTimeout(() => setSyncMessage(''), 5000)
         }
       }
     }
     
     syncPagesIfNeeded()
-  }, [facebookConnection.connected, pages.length, pagesLoading, pagesError])
+  }, [facebookConnection.connected, hasAttemptedSync, pagesLoading, isSyncing, refetchPages])
 
   const handleConnect = () => {
     setConnecting(true)
