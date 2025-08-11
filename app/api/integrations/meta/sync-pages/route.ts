@@ -9,7 +9,18 @@ export async function POST(request: NextRequest) {
     const { organizationId } = await getCurrentUserOrganization()
     
     if (!organizationId) {
-      return NextResponse.json({ error: 'No organization found' }, { status: 400 })
+      // Try to get the user and provide more helpful error
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+      }
+      
+      return NextResponse.json({ 
+        error: 'No organization found', 
+        details: 'Your user account is not associated with an organization. Please visit /fix-organization to resolve this.',
+        user_id: user.id
+      }, { status: 400 })
     }
 
     // Get Meta client for this organization
