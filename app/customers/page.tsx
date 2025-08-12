@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
 import DashboardLayout from '@/app/components/DashboardLayout'
-import { Plus, Search, Download, Filter, ChevronDown, User, AlertCircle } from 'lucide-react'
+import { Plus, Search, Download, Filter, ChevronDown, User, AlertCircle, Upload } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
@@ -35,6 +35,10 @@ export default function CustomersPage() {
   const [showOnlySlipping, setShowOnlySlipping] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(25)
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importPreview, setImportPreview] = useState<any[]>([])
+  const [importLoading, setImportLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -217,25 +221,263 @@ export default function CustomersPage() {
     return colors[index]
   }
 
-  const exportCustomers = () => {
-    const csv = [
-      ['Name', 'Email', 'Phone', 'Status', 'Membership', 'Created Date'].join(','),
-      ...filteredCustomers.map(c => [
-        `${c.first_name} ${c.last_name}`,
-        c.email,
-        c.phone,
-        c.status,
-        c.membership_name || 'None',
-        new Date(c.created_at).toLocaleDateString()
-      ].join(','))
-    ].join('\n')
+  const exportCustomers = async () => {
+    try {
+      // Fetch comprehensive customer data for export
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
 
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `customers-${new Date().toISOString().split('T')[0]}.csv`
-    a.click()
+      const { data: orgMember } = await supabase
+        .from('organization_members')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single()
+
+      if (!orgMember) return
+
+      // Get detailed client data with related information
+      const { data: detailedClients } = await supabase
+        .from('clients')
+        .select(`
+          *,
+          memberships (
+            membership_type,
+            status,
+            start_date,
+            end_date
+          ),
+          emergency_contacts (
+            first_name,
+            last_name,
+            relationship,
+            phone_primary,
+            email
+          ),
+          customer_medical_info (
+            medical_conditions,
+            medications,
+            allergies
+          )
+        `)
+        .eq('organization_id', orgMember.organization_id)
+
+      // Get lead data as well
+      const { data: detailedLeads } = await supabase
+        .from('leads')
+        .select('*')
+        .eq('organization_id', orgMember.organization_id)
+
+      // Combine and format all data
+      const allDetailedCustomers = [
+        ...(detailedClients || []).map(client => ({
+          name: `${client.first_name || ''} ${client.last_name || ''}`.trim(),
+          email: client.email,
+          phone: client.phone,
+          status: client.status,
+          date_of_birth: client.date_of_birth,
+          address: `${client.address_line_1 || ''} ${client.city || ''}`.trim(),
+          membership: client.memberships?.[0]?.membership_type || 'None',
+          membership_status: client.memberships?.[0]?.status || 'None',
+          emergency_contact: client.emergency_contacts?.[0] ? 
+            `${client.emergency_contacts[0].first_name} ${client.emergency_contacts[0].last_name} (${client.emergency_contacts[0].phone_primary})` : '',
+          medical_conditions: client.customer_medical_info?.medical_conditions ? 
+            JSON.stringify(client.customer_medical_info.medical_conditions) : '',
+          created_date: new Date(client.created_at).toLocaleDateString(),
+          type: 'Client'
+        })),
+        ...(detailedLeads || []).map(lead => ({
+          name: lead.name,
+          email: lead.email,
+          phone: lead.phone,
+          status: lead.status,
+          date_of_birth: lead.date_of_birth || '',
+          address: `${lead.address_line_1 || ''} ${lead.city || ''}`.trim(),
+          membership: 'None',
+          membership_status: 'None',
+          emergency_contact: '',
+          medical_conditions: '',
+          created_date: new Date(lead.created_at).toLocaleDateString(),
+          type: 'Lead'
+        }))
+      ]
+
+      // Filter by current filters
+      const exportData = allDetailedCustomers.filter(customer => {
+        if (searchTerm) {
+          const searchLower = searchTerm.toLowerCase()
+          if (!customer.name.toLowerCase().includes(searchLower) && 
+              !customer.email.toLowerCase().includes(searchLower)) {
+            return false
+          }
+        }
+
+        if (statusFilter && statusFilter !== 'All') {
+          if (statusFilter === 'Active Customers' && customer.status !== 'active') return false
+          if (statusFilter === 'Inactive Customers' && customer.status !== 'inactive') return false
+          if (statusFilter === 'Leads' && customer.type !== 'Lead') return false
+        }
+
+        return true
+      })
+
+      // Create comprehensive CSV
+      const headers = [
+        'Name', 'Email', 'Phone', 'Status', 'Type', 'Date of Birth', 
+        'Address', 'Membership', 'Membership Status', 'Emergency Contact', 
+        'Medical Conditions', 'Created Date'
+      ]
+
+      const csvRows = [
+        headers.join(','),
+        ...exportData.map(customer => [
+          `"${customer.name}"`,
+          `"${customer.email}"`,
+          `"${customer.phone || ''}"`,
+          `"${customer.status}"`,
+          `"${customer.type}"`,
+          `"${customer.date_of_birth || ''}"`,
+          `"${customer.address}"`,
+          `"${customer.membership}"`,
+          `"${customer.membership_status}"`,
+          `"${customer.emergency_contact}"`,
+          `"${customer.medical_conditions}"`,
+          `"${customer.created_date}"`
+        ].join(','))
+      ]
+
+      const csv = csvRows.join('\n')
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `customers-comprehensive-${new Date().toISOString().split('T')[0]}.csv`
+      a.click()
+      window.URL.revokeObjectURL(url)
+
+    } catch (error) {
+      console.error('Error exporting customers:', error)
+      alert('Failed to export customers')
+    }
+  }
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file && file.type === 'text/csv') {
+      setImportFile(file)
+      parseCSVPreview(file)
+    } else {
+      alert('Please upload a CSV file')
+    }
+  }
+
+  const parseCSVPreview = (file: File) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const csv = e.target?.result as string
+      const lines = csv.split('\n').slice(0, 6) // Preview first 5 rows + header
+      const preview = lines.map(line => {
+        // Simple CSV parsing (doesn't handle quoted commas perfectly)
+        return line.split(',').map(cell => cell.replace(/"/g, '').trim())
+      })
+      setImportPreview(preview)
+    }
+    reader.readAsText(file)
+  }
+
+  const processImport = async () => {
+    if (!importFile) return
+
+    setImportLoading(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        alert('You must be logged in to import customers')
+        return
+      }
+
+      const { data: orgMember } = await supabase
+        .from('organization_members')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single()
+
+      if (!orgMember) {
+        alert('No organization found')
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onload = async (e) => {
+        const csv = e.target?.result as string
+        const lines = csv.split('\n').filter(line => line.trim())
+        const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase())
+        
+        const customers = lines.slice(1).map(line => {
+          const values = line.split(',').map(v => v.replace(/"/g, '').trim())
+          const customer: any = {}
+          
+          headers.forEach((header, index) => {
+            customer[header] = values[index] || ''
+          })
+          
+          return customer
+        }).filter(customer => customer.email) // Only import rows with email
+
+        let successCount = 0
+        let errorCount = 0
+
+        for (const customer of customers) {
+          try {
+            // Determine if this should be a client or lead
+            const isClient = customer.type?.toLowerCase() === 'client' || customer.membership !== 'None'
+            
+            if (isClient) {
+              // Import as client
+              const nameParts = customer.name?.split(' ') || []
+              await supabase.from('clients').insert({
+                organization_id: orgMember.organization_id,
+                first_name: nameParts[0] || '',
+                last_name: nameParts.slice(1).join(' ') || '',
+                email: customer.email,
+                phone: customer.phone,
+                status: customer.status || 'active',
+                date_of_birth: customer['date_of_birth'] || customer.dob || null,
+                address_line_1: customer.address || customer['address_line_1'] || null,
+                city: customer.city || null,
+                postal_code: customer['postal_code'] || customer.postcode || null
+              })
+            } else {
+              // Import as lead
+              await supabase.from('leads').insert({
+                organization_id: orgMember.organization_id,
+                name: customer.name,
+                email: customer.email,
+                phone: customer.phone,
+                status: customer.status || 'new',
+                source: 'import'
+              })
+            }
+            successCount++
+          } catch (error) {
+            console.error('Error importing customer:', customer.email, error)
+            errorCount++
+          }
+        }
+
+        alert(`Import complete: ${successCount} customers imported successfully, ${errorCount} errors`)
+        setShowImportModal(false)
+        setImportFile(null)
+        setImportPreview([])
+        fetchCustomers()
+      }
+      
+      reader.readAsText(importFile)
+    } catch (error) {
+      console.error('Import error:', error)
+      alert('Failed to import customers')
+    } finally {
+      setImportLoading(false)
+    }
   }
 
   // Pagination
@@ -350,13 +592,22 @@ export default function CustomersPage() {
 
         {/* Export and Pagination */}
         <div className="flex justify-between items-center mb-4">
-          <button
-            onClick={exportCustomers}
-            className="text-gray-600 hover:text-gray-800 font-medium flex items-center gap-2"
-          >
-            <Download className="w-4 h-4" />
-            Export Filtered List ({filteredCustomers.length} customers)
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={exportCustomers}
+              className="text-gray-600 hover:text-gray-800 font-medium flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              Export Filtered List ({filteredCustomers.length} customers)
+            </button>
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-2"
+            >
+              <Upload className="w-4 h-4" />
+              Import Customers
+            </button>
+          </div>
 
           <div className="flex items-center gap-4">
             <div className="flex gap-2">
@@ -477,6 +728,113 @@ export default function CustomersPage() {
             >
               Next
             </button>
+          </div>
+        )}
+
+        {/* Import Modal */}
+        {showImportModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-gray-800 rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <h3 className="text-xl font-bold text-white mb-4">Import Customers</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Upload CSV File
+                  </label>
+                  <div className="border-2 border-dashed border-gray-600 rounded-lg p-4 text-center">
+                    <Upload className="h-8 w-8 text-gray-500 mx-auto mb-2" />
+                    <p className="text-gray-400 text-sm">Click to upload or drag and drop CSV file</p>
+                    <p className="text-gray-500 text-xs mt-1">
+                      Required columns: Name, Email. Optional: Phone, Status, Type, Address, etc.
+                    </p>
+                    <input 
+                      type="file" 
+                      accept=".csv"
+                      onChange={handleFileUpload}
+                      className="hidden" 
+                      id="csv-upload"
+                    />
+                    <label 
+                      htmlFor="csv-upload"
+                      className="mt-2 inline-block px-4 py-2 bg-blue-600 text-white rounded-lg cursor-pointer hover:bg-blue-700"
+                    >
+                      Choose File
+                    </label>
+                  </div>
+                </div>
+
+                {importFile && (
+                  <div>
+                    <p className="text-white font-medium mb-2">
+                      Selected file: {importFile.name}
+                    </p>
+                  </div>
+                )}
+
+                {importPreview.length > 0 && (
+                  <div>
+                    <h4 className="text-white font-medium mb-2">Preview (first 5 rows):</h4>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full bg-gray-700 rounded-lg">
+                        <thead>
+                          <tr className="bg-gray-600">
+                            {importPreview[0]?.map((header: string, index: number) => (
+                              <th key={index} className="px-3 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                {header}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {importPreview.slice(1).map((row: string[], index: number) => (
+                            <tr key={index} className="border-t border-gray-600">
+                              {row.map((cell: string, cellIndex: number) => (
+                                <td key={cellIndex} className="px-3 py-2 text-sm text-gray-300">
+                                  {cell}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-gray-700 rounded-lg p-4">
+                  <h4 className="text-white font-medium mb-2">Import Instructions:</h4>
+                  <ul className="text-sm text-gray-400 space-y-1">
+                    <li>• CSV must include 'Name' and 'Email' columns</li>
+                    <li>• Optional columns: Phone, Status, Type, Date of Birth, Address, City, Postal Code</li>
+                    <li>• Type should be 'Client' or 'Lead' (defaults to Lead if not specified)</li>
+                    <li>• Status can be 'active', 'inactive' for clients or 'new', 'contacted', 'qualified' for leads</li>
+                    <li>• Duplicate emails will be skipped</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowImportModal(false)
+                    setImportFile(null)
+                    setImportPreview([])
+                  }}
+                  className="flex-1 px-4 py-2 text-gray-400 hover:text-white"
+                  disabled={importLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={processImport}
+                  disabled={!importFile || importLoading}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {importLoading ? 'Importing...' : 'Import Customers'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

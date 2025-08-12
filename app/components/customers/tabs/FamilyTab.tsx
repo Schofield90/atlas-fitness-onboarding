@@ -31,30 +31,42 @@ export default function FamilyTab({ customerId, organizationId }: FamilyTabProps
         .from('customer_family_members')
         .select(`
           *,
-          family_member:leads!customer_family_members_family_member_id_fkey(*)
+          family_member_client:clients!customer_family_members_family_member_client_id_fkey(id, first_name, last_name, email)
         `)
-        .eq('primary_customer_id', customerId)
+        .eq('primary_client_id', customerId)
 
       // Fetch where this customer is a family member
       const { data: memberData } = await supabase
         .from('customer_family_members')
         .select(`
           *,
-          primary_customer:leads!customer_family_members_primary_customer_id_fkey(*)
+          primary_client:clients!customer_family_members_primary_client_id_fkey(id, first_name, last_name, email)
         `)
-        .eq('family_member_id', customerId)
+        .eq('family_member_client_id', customerId)
 
       const allFamily = [
         ...(primaryData || []).map(item => ({
           ...item,
-          member: item.family_member,
+          member: item.family_member_client ? {
+            ...item.family_member_client,
+            name: `${item.family_member_client.first_name} ${item.family_member_client.last_name}`.trim()
+          } : {
+            id: null,
+            name: `${item.first_name || ''} ${item.last_name || ''}`.trim(),
+            email: item.email,
+            first_name: item.first_name,
+            last_name: item.last_name
+          },
           relation_type: 'primary'
         })),
         ...(memberData || []).map(item => ({
           ...item,
-          member: item.primary_customer,
+          member: item.primary_client ? {
+            ...item.primary_client,
+            name: `${item.primary_client.first_name} ${item.primary_client.last_name}`.trim()
+          } : null,
           relation_type: 'member',
-          relationship: getInverseRelationship(item.relationship)
+          relationship_type: getInverseRelationship(item.relationship_type)
         }))
       ]
 
@@ -69,13 +81,19 @@ export default function FamilyTab({ customerId, organizationId }: FamilyTabProps
   const fetchAllCustomers = async () => {
     try {
       const { data } = await supabase
-        .from('leads')
-        .select('id, name, email')
+        .from('clients')
+        .select('id, first_name, last_name, email')
         .eq('organization_id', organizationId)
         .neq('id', customerId)
-        .order('name')
+        .order('first_name')
 
-      setAllCustomers(data || [])
+      const formattedData = (data || []).map(client => ({
+        id: client.id,
+        name: `${client.first_name} ${client.last_name}`.trim(),
+        email: client.email
+      }))
+
+      setAllCustomers(formattedData)
     } catch (error) {
       console.error('Error fetching customers:', error)
     }
@@ -101,11 +119,12 @@ export default function FamilyTab({ customerId, organizationId }: FamilyTabProps
         .from('customer_family_members')
         .insert({
           organization_id: organizationId,
-          primary_customer_id: customerId,
-          family_member_id: selectedCustomer,
-          relationship: relationship,
-          is_primary_guardian: relationship === 'parent',
-          can_pickup: true
+          primary_client_id: customerId,
+          family_member_client_id: selectedCustomer,
+          relationship_type: relationship,
+          is_authorized_pickup: true,
+          can_modify_bookings: relationship === 'spouse' || relationship === 'parent',
+          can_view_billing: relationship === 'spouse' || relationship === 'parent'
         })
 
       if (error) throw error
@@ -185,17 +204,22 @@ export default function FamilyTab({ customerId, organizationId }: FamilyTabProps
                     <Users className="h-6 w-6 text-gray-400" />
                   </div>
                   <div>
-                    <h4 className="font-medium text-white">{family.member.name}</h4>
+                    <h4 className="font-medium text-white">{family.member?.name || 'Unknown'}</h4>
                     <p className="text-sm text-gray-400 capitalize">
-                      {family.relationship}
-                      {family.is_primary_guardian && (
-                        <span className="ml-2 text-xs bg-green-600 text-white px-2 py-0.5 rounded">
-                          Primary Guardian
-                        </span>
-                      )}
-                      {family.can_pickup && (
+                      {family.relationship_type}
+                      {family.is_authorized_pickup && (
                         <span className="ml-2 text-xs bg-blue-600 text-white px-2 py-0.5 rounded">
                           Can Pickup
+                        </span>
+                      )}
+                      {family.can_modify_bookings && (
+                        <span className="ml-2 text-xs bg-green-600 text-white px-2 py-0.5 rounded">
+                          Can Modify Bookings
+                        </span>
+                      )}
+                      {family.can_view_billing && (
+                        <span className="ml-2 text-xs bg-purple-600 text-white px-2 py-0.5 rounded">
+                          Can View Billing
                         </span>
                       )}
                     </p>

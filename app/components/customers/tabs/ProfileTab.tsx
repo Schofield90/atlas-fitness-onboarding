@@ -30,9 +30,9 @@ export default function ProfileTab({ customer, onUpdate }: ProfileTabProps) {
     try {
       // Fetch emergency contacts
       const { data: contactsData } = await supabase
-        .from('customer_emergency_contacts')
+        .from('emergency_contacts')
         .select('*')
-        .eq('customer_id', customer.id)
+        .eq('client_id', customer.id)
         .order('is_primary', { ascending: false })
 
       if (contactsData) setEmergencyContacts(contactsData)
@@ -41,37 +41,22 @@ export default function ProfileTab({ customer, onUpdate }: ProfileTabProps) {
       const { data: medicalData } = await supabase
         .from('customer_medical_info')
         .select('*')
-        .eq('customer_id', customer.id)
+        .eq('client_id', customer.id)
         .single()
 
       if (medicalData) setMedicalInfo(medicalData)
 
-      // Fetch preferences
-      const { data: prefsData } = await supabase
-        .from('customer_preferences')
-        .select('*')
-        .eq('customer_id', customer.id)
-        .single()
+      // For now, skip preferences and notes since we don't have these tables in our migration
+      // In production, you would create these tables as needed
 
-      if (prefsData) setPreferences(prefsData)
-
-      // Fetch notes
-      const { data: notesData } = await supabase
-        .from('customer_notes')
-        .select('*, staff:auth.users(email)')
-        .eq('customer_id', customer.id)
-        .order('created_at', { ascending: false })
-
-      if (notesData) setNotes(notesData)
-
-      // Fetch photos
-      const { data: photosData } = await supabase
-        .from('customer_photos')
-        .select('*')
-        .eq('customer_id', customer.id)
-        .order('is_primary', { ascending: false })
-
-      if (photosData) setPhotos(photosData)
+      // Fetch photos - we'll use a profile_image_url field instead for now
+      if (customer.profile_image_url) {
+        setPhotos([{
+          id: 'profile',
+          url: customer.profile_image_url,
+          is_primary: true
+        }])
+      }
     } catch (error) {
       console.error('Error fetching profile data:', error)
     }
@@ -81,35 +66,41 @@ export default function ProfileTab({ customer, onUpdate }: ProfileTabProps) {
     try {
       setLoading(true)
 
+      const tableName = customer.is_lead ? 'leads' : 'clients'
+      const updateData = customer.is_lead ? {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        date_of_birth: formData.date_of_birth,
+        gender: formData.gender,
+        address_line_1: formData.address_line_1,
+        address_line_2: formData.address_line_2,
+        city: formData.city,
+        postal_code: formData.postal_code,
+        country: formData.country,
+        occupation: formData.occupation,
+        company: formData.company,
+      } : {
+        first_name: formData.name?.split(' ')[0] || '',
+        last_name: formData.name?.split(' ').slice(1).join(' ') || '',
+        email: formData.email,
+        phone: formData.phone,
+        date_of_birth: formData.date_of_birth,
+        gender: formData.gender,
+        address_line_1: formData.address_line_1,
+        address_line_2: formData.address_line_2,
+        city: formData.city,
+        postal_code: formData.postal_code,
+        country: formData.country,
+      }
+
       // Update customer basic info
       const { error } = await supabase
-        .from('leads')
-        .update({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          date_of_birth: formData.date_of_birth,
-          gender: formData.gender,
-          address_line_1: formData.address_line_1,
-          address_line_2: formData.address_line_2,
-          city: formData.city,
-          postal_code: formData.postal_code,
-          country: formData.country,
-          occupation: formData.occupation,
-          company: formData.company,
-          referral_source: formData.referral_source,
-          referral_name: formData.referral_name,
-        })
+        .from(tableName)
+        .update(updateData)
         .eq('id', customer.id)
 
       if (error) throw error
-
-      // Log activity
-      await supabase.rpc('log_customer_activity', {
-        p_customer_id: customer.id,
-        p_activity_type: 'profile_updated',
-        p_activity_data: { updated_fields: Object.keys(formData) }
-      })
 
       onUpdate()
       setEditing(false)
@@ -170,13 +161,14 @@ export default function ProfileTab({ customer, onUpdate }: ProfileTabProps) {
   const addEmergencyContact = async () => {
     try {
       const { error } = await supabase
-        .from('customer_emergency_contacts')
+        .from('emergency_contacts')
         .insert({
-          customer_id: customer.id,
+          client_id: customer.id,
           organization_id: customer.organization_id,
-          name: 'New Contact',
+          first_name: 'New',
+          last_name: 'Contact',
           relationship: 'Other',
-          phone: '',
+          phone_primary: '',
           is_primary: emergencyContacts.length === 0
         })
 
@@ -447,19 +439,25 @@ export default function ProfileTab({ customer, onUpdate }: ProfileTabProps) {
               <div key={contact.id} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
                 <div>
                   <p className="text-white font-medium">
-                    {contact.name}
+                    {contact.first_name} {contact.last_name}
                     {contact.is_primary && (
                       <span className="ml-2 text-xs bg-blue-600 text-white px-2 py-0.5 rounded">
                         Primary
                       </span>
                     )}
                   </p>
-                  <p className="text-sm text-gray-400">{contact.relationship}</p>
+                  <p className="text-sm text-gray-400 capitalize">{contact.relationship}</p>
                   <div className="flex items-center gap-4 mt-1">
                     <span className="flex items-center gap-1 text-sm text-gray-400">
                       <Phone className="h-3 w-3" />
-                      {contact.phone}
+                      {contact.phone_primary}
                     </span>
+                    {contact.phone_secondary && (
+                      <span className="flex items-center gap-1 text-sm text-gray-400">
+                        <Phone className="h-3 w-3" />
+                        {contact.phone_secondary} (Alt)
+                      </span>
+                    )}
                     {contact.email && (
                       <span className="flex items-center gap-1 text-sm text-gray-400">
                         <Mail className="h-3 w-3" />

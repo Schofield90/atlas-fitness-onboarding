@@ -60,7 +60,43 @@ export default function CustomerDetailPage() {
   const fetchCustomer = async () => {
     try {
       setLoading(true)
-      const { data, error } = await supabase
+      
+      // First try to get from clients table
+      const { data: clientData, error: clientError } = await supabase
+        .from('clients')
+        .select(`
+          *,
+          memberships (
+            id,
+            membership_type,
+            status,
+            start_date,
+            end_date
+          ),
+          emergency_contacts (*),
+          customer_medical_info (*),
+          customer_family_members (
+            *,
+            family_member_client:clients!customer_family_members_family_member_client_id_fkey(id, first_name, last_name, email)
+          )
+        `)
+        .eq('id', customerId)
+        .single()
+
+      if (clientData) {
+        // Transform client data to expected format
+        const customerData = {
+          ...clientData,
+          name: `${clientData.first_name || ''} ${clientData.last_name || ''}`.trim() || clientData.name,
+          is_lead: false,
+          lead_tags: []
+        }
+        setCustomer(customerData)
+        return
+      }
+
+      // If not found in clients, try leads table
+      const { data: leadData, error: leadError } = await supabase
         .from('leads')
         .select(`
           *,
@@ -76,8 +112,20 @@ export default function CustomerDetailPage() {
         .eq('id', customerId)
         .single()
 
-      if (error) throw error
-      setCustomer(data)
+      if (leadError && clientError) {
+        throw new Error('Customer not found')
+      }
+
+      if (leadData) {
+        // Transform lead data
+        const customerData = {
+          ...leadData,
+          first_name: leadData.first_name || leadData.name?.split(' ')[0] || '',
+          last_name: leadData.last_name || leadData.name?.split(' ').slice(1).join(' ') || '',
+          is_lead: true
+        }
+        setCustomer(customerData)
+      }
     } catch (error) {
       console.error('Error fetching customer:', error)
       setError('Failed to load customer details')
