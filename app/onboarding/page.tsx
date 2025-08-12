@@ -167,7 +167,7 @@ export default function OnboardingPage() {
   }
   
   const skipToApp = () => {
-    router.push('/dashboard')
+    router.push('/dashboard/overview')
   }
   
   const addTeamMember = () => {
@@ -211,7 +211,7 @@ export default function OnboardingPage() {
       }
       
       // Continue to dashboard
-      router.push('/dashboard?onboarding=complete')
+      router.push('/dashboard/overview?onboarding=complete')
     } catch (error) {
       console.error('Error inviting team:', error)
       // Continue anyway
