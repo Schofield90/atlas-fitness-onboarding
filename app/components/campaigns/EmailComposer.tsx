@@ -72,7 +72,7 @@ Atlas Fitness Team`
     {
       id: 'reminder',
       name: 'Class Reminder',
-      subject: 'Don't forget your class tomorrow!',
+      subject: "Don't forget your class tomorrow!",
       body: `Hi {firstName},
 
 Just a friendly reminder that you're booked for:
@@ -86,7 +86,7 @@ Remember to bring:
 • Towel
 • Your energy and enthusiasm!
 
-Can't make it? Please cancel at least 24 hours in advance to avoid charges.
+Can\\'t make it? Please cancel at least 24 hours in advance to avoid charges.
 
 See you there!
 Atlas Fitness Team`
