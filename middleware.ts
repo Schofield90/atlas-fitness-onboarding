@@ -155,9 +155,10 @@ export async function middleware(request: NextRequest) {
   if (isAdminRoute) {
     // Check if user has an organization
     const { data: userOrg } = await supabase
-      .from('user_organizations')
+      .from('organization_members')
       .select('organization_id, role')
       .eq('user_id', session.user.id)
+      .eq('is_active', true)
       .single()
 
     if (!userOrg) {

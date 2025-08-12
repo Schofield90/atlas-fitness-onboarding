@@ -85,7 +85,7 @@ export default function OnboardingPage() {
       
       if (userOrg) {
         // User already has an organization, redirect to dashboard
-        router.push('/dashboard')
+        router.push('/dashboard/overview')
         return
       }
       
