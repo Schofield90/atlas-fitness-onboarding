@@ -9,6 +9,8 @@ function CallbackContent() {
   const searchParams = useSearchParams()
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [message, setMessage] = useState('')
+  const [syncMessage, setSyncMessage] = useState('')
+  const [isSyncing, setIsSyncing] = useState(false)
 
   useEffect(() => {
     const error = searchParams.get('error')
@@ -49,15 +51,68 @@ function CallbackContent() {
         oldValue: null
       }))
       
-      // Redirect to Facebook integrations page after 3 seconds
-      setTimeout(() => {
-        router.push('/integrations/facebook')
-      }, 3000)
+      // Sync Facebook pages and ad accounts
+      syncFacebookData()
+      
+      // Redirect to Facebook integrations page after sync completes
+      // Will be handled in syncFacebookData function
     } else {
       setStatus('error')
       setMessage('OAuth callback completed but no success confirmation received')
     }
   }, [searchParams, router])
+
+  const syncFacebookData = async () => {
+    setIsSyncing(true)
+    setSyncMessage('Syncing Facebook pages...')
+    
+    try {
+      // First sync pages
+      const pagesResponse = await fetch('/api/integrations/meta/sync-pages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      const pagesData = await pagesResponse.json()
+      
+      if (pagesResponse.ok) {
+        const pageCount = pagesData.summary?.successful || 0
+        setSyncMessage(`Synced ${pageCount} pages. Now syncing ad accounts...`)
+        
+        // Then sync ad accounts
+        const adAccountsResponse = await fetch('/api/integrations/meta/sync-ad-accounts', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        const adAccountsData = await adAccountsResponse.json()
+        
+        if (adAccountsResponse.ok) {
+          const adAccountCount = adAccountsData.summary?.successful || 0
+          setSyncMessage(`Successfully synced ${pageCount} pages and ${adAccountCount} ad accounts!`)
+        } else {
+          console.error('Failed to sync ad accounts:', adAccountsData)
+          setSyncMessage(`Synced ${pageCount} pages. Ad accounts sync failed.`)
+        }
+      } else {
+        console.error('Failed to sync pages:', pagesData)
+        setSyncMessage(`Sync failed: ${pagesData.error || pagesData.details || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error syncing Facebook data:', error)
+      setSyncMessage('Failed to sync Facebook data')
+    } finally {
+      setIsSyncing(false)
+      // Redirect after a short delay
+      setTimeout(() => {
+        router.push('/integrations/facebook')
+      }, 2000)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
@@ -81,7 +136,24 @@ function CallbackContent() {
             </div>
             <h2 className="text-xl font-bold mb-2 text-green-400">Connection Successful!</h2>
             <p className="text-gray-300 mb-4">{message}</p>
-            <p className="text-gray-400 text-sm">Redirecting to your dashboard...</p>
+            
+            {isSyncing && (
+              <div className="mt-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
+                <p className="text-blue-400 text-sm">{syncMessage}</p>
+              </div>
+            )}
+            
+            {!isSyncing && syncMessage && (
+              <div className="mt-4">
+                <p className="text-blue-400 text-sm mb-2">{syncMessage}</p>
+                <p className="text-gray-400 text-sm">Redirecting to your dashboard...</p>
+              </div>
+            )}
+            
+            {!isSyncing && !syncMessage && (
+              <p className="text-gray-400 text-sm">Preparing to sync your Facebook data...</p>
+            )}
           </div>
         )}
 
