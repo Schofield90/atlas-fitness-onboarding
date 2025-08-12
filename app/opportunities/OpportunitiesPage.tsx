@@ -22,7 +22,8 @@ import {
   SettingsIcon,
   UploadIcon,
   FolderPlusIcon,
-  GripVerticalIcon
+  GripVerticalIcon,
+  X as XIcon
 } from 'lucide-react'
 
 // Mock pipelines data
@@ -190,6 +191,9 @@ export default function OpportunitiesPage({ userData }: OpportunitiesPageProps) 
   const [showCreatePipeline, setShowCreatePipeline] = useState(false)
   const [newPipelineName, setNewPipelineName] = useState('')
   const [draggedOpportunity, setDraggedOpportunity] = useState<any>(null)
+  const [showPipelineSettings, setShowPipelineSettings] = useState(false)
+  const [editingPipeline, setEditingPipeline] = useState<any>(null)
+  const [customStages, setCustomStages] = useState<string[]>([])
 
   useEffect(() => {
     setMounted(true)
@@ -325,6 +329,12 @@ export default function OpportunitiesPage({ userData }: OpportunitiesPageProps) 
                     <span className="text-gray-300">Create New Pipeline</span>
                   </button>
                   <button
+                    onClick={() => {
+                      setEditingPipeline(selectedPipeline)
+                      setCustomStages([...selectedPipeline.stages])
+                      setShowPipelineSettings(true)
+                      setShowPipelineDropdown(false)
+                    }}
                     className="w-full text-left px-3 py-2 rounded hover:bg-gray-700 transition-colors flex items-center gap-2"
                   >
                     <SettingsIcon className="h-4 w-4 text-gray-400" />
@@ -353,6 +363,224 @@ export default function OpportunitiesPage({ userData }: OpportunitiesPageProps) 
           </button>
         </div>
       </div>
+
+      {/* Pipeline Settings Modal */}
+      {showPipelineSettings && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-white">Pipeline Settings: {editingPipeline?.name}</h3>
+              <button
+                onClick={() => {
+                  setShowPipelineSettings(false)
+                  setEditingPipeline(null)
+                  setCustomStages([])
+                }}
+                className="text-gray-400 hover:text-white"
+              >
+                <XCircleIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Pipeline Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Pipeline Name</label>
+                <input
+                  type="text"
+                  value={editingPipeline?.name || ''}
+                  onChange={(e) => setEditingPipeline({ ...editingPipeline, name: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                />
+              </div>
+
+              {/* Pipeline Stages */}
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Pipeline Stages</label>
+                <p className="text-xs text-gray-500 mb-4">Drag to reorder, click X to remove, or add new stages below</p>
+                
+                <div className="space-y-2 mb-4">
+                  {customStages.map((stage, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <GripVerticalIcon className="h-5 w-5 text-gray-500 cursor-move" />
+                      <input
+                        type="text"
+                        value={stageNames[stage] || stage}
+                        onChange={(e) => {
+                          const newStages = [...customStages]
+                          const newStageName = e.target.value.toLowerCase().replace(/\s+/g, '_')
+                          newStages[index] = newStageName
+                          setCustomStages(newStages)
+                          // Update stage name mapping
+                          stageNames[newStageName] = e.target.value
+                        }}
+                        className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                        placeholder="Stage name"
+                      />
+                      <div className={`w-8 h-8 rounded ${stageColors[stage] || 'bg-gray-500'}`}></div>
+                      <button
+                        onClick={() => {
+                          const newStages = customStages.filter((_, i) => i !== index)
+                          setCustomStages(newStages)
+                        }}
+                        className="text-red-400 hover:text-red-300"
+                      >
+                        <XCircleIcon className="h-5 w-5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => {
+                    const newStage = `stage_${customStages.length + 1}`
+                    setCustomStages([...customStages, newStage])
+                  }}
+                  className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                >
+                  <PlusIcon className="h-4 w-4" />
+                  Add Stage
+                </button>
+              </div>
+
+              {/* Stage Colors */}
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Stage Colors</label>
+                <div className="grid grid-cols-2 gap-4">
+                  {customStages.map((stage, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <span className="text-gray-300 flex-1">{stageNames[stage] || stage}</span>
+                      <select
+                        value={stageColors[stage] || 'bg-gray-500'}
+                        onChange={(e) => {
+                          stageColors[stage] = e.target.value
+                          // Force re-render
+                          setCustomStages([...customStages])
+                        }}
+                        className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+                      >
+                        <option value="bg-blue-500">Blue</option>
+                        <option value="bg-green-500">Green</option>
+                        <option value="bg-yellow-500">Yellow</option>
+                        <option value="bg-orange-500">Orange</option>
+                        <option value="bg-red-500">Red</option>
+                        <option value="bg-purple-500">Purple</option>
+                        <option value="bg-pink-500">Pink</option>
+                        <option value="bg-indigo-500">Indigo</option>
+                        <option value="bg-gray-500">Gray</option>
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Win/Loss Conditions */}
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Win/Loss Stages</label>
+                <p className="text-xs text-gray-500 mb-2">Select which stages represent won or lost opportunities</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Won Stages</label>
+                    <div className="space-y-1">
+                      {customStages.map(stage => (
+                        <label key={stage} className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={['closed_won', 'converted', 'signed'].includes(stage)}
+                            onChange={(e) => {
+                              // Update stage color to green if won
+                              if (e.target.checked) {
+                                stageColors[stage] = 'bg-green-500'
+                              }
+                              setCustomStages([...customStages])
+                            }}
+                            className="rounded"
+                          />
+                          <span className="text-sm text-gray-300">{stageNames[stage] || stage}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Lost Stages</label>
+                    <div className="space-y-1">
+                      {customStages.map(stage => (
+                        <label key={stage} className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={['closed_lost', 'cancelled', 'declined'].includes(stage)}
+                            onChange={(e) => {
+                              // Update stage color to red if lost
+                              if (e.target.checked) {
+                                stageColors[stage] = 'bg-red-500'
+                              }
+                              setCustomStages([...customStages])
+                            }}
+                            className="rounded"
+                          />
+                          <span className="text-sm text-gray-300">{stageNames[stage] || stage}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Delete Pipeline */}
+              <div className="border-t border-gray-700 pt-4">
+                <button
+                  onClick={() => {
+                    if (confirm(`Are you sure you want to delete the ${editingPipeline?.name} pipeline?`)) {
+                      const newPipelines = pipelines.filter(p => p.id !== editingPipeline?.id)
+                      setPipelines(newPipelines)
+                      if (newPipelines.length > 0) {
+                        setSelectedPipeline(newPipelines[0])
+                      }
+                      setShowPipelineSettings(false)
+                      setEditingPipeline(null)
+                    }
+                  }}
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                >
+                  <TrashIcon className="h-4 w-4" />
+                  Delete Pipeline
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6 pt-6 border-t border-gray-700">
+              <button
+                onClick={() => {
+                  // Save pipeline changes
+                  const updatedPipeline = {
+                    ...editingPipeline,
+                    stages: customStages
+                  }
+                  setPipelines(pipelines.map(p => 
+                    p.id === editingPipeline?.id ? updatedPipeline : p
+                  ))
+                  setSelectedPipeline(updatedPipeline)
+                  setShowPipelineSettings(false)
+                  setEditingPipeline(null)
+                }}
+                className="flex-1 bg-orange-600 hover:bg-orange-700 text-white py-2 rounded-lg"
+              >
+                Save Changes
+              </button>
+              <button
+                onClick={() => {
+                  setShowPipelineSettings(false)
+                  setEditingPipeline(null)
+                  setCustomStages([])
+                }}
+                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 rounded-lg"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create Pipeline Modal */}
       {showCreatePipeline && (
@@ -457,7 +685,14 @@ export default function OpportunitiesPage({ userData }: OpportunitiesPageProps) 
       <div className="bg-gray-800 rounded-lg p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-white">Pipeline Stages</h2>
-          <button className="text-gray-400 hover:text-white">
+          <button 
+            onClick={() => {
+              setEditingPipeline(selectedPipeline)
+              setCustomStages([...selectedPipeline.stages])
+              setShowPipelineSettings(true)
+            }}
+            className="text-gray-400 hover:text-white"
+          >
             <SettingsIcon className="h-5 w-5" />
           </button>
         </div>
