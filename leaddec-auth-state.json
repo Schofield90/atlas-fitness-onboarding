@@ -1,0 +1,73 @@
+{
+  "cookies": [
+    {
+      "name": "__cf_bm",
+      "value": "97wAoap8I0hS.YApjDfoQty6dLCUvw2kpagqkuG8mKY-1754997911-1.0.1.1-7_q6OohS5i1ZUeHUGbtc6wTOVPkCDtWe7Ne7cYMAUNYlFI0DzJh.nJ5G75SOfTvlG3UR5ZUrYGrBVaCcp7iR2vP1TMtjgZ5yId7wWno8HMw",
+      "domain": ".freshchat.com",
+      "path": "/",
+      "expires": 1754999711.551806,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_ga",
+      "value": "GA1.2.1184244663.1754997912",
+      "domain": ".leaddec.com",
+      "path": "/",
+      "expires": 1789557911.561338,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_gid",
+      "value": "GA1.2.218533526.1754997912",
+      "domain": ".leaddec.com",
+      "path": "/",
+      "expires": 1755084311,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_gat",
+      "value": "1",
+      "domain": ".leaddec.com",
+      "path": "/",
+      "expires": 1754997971,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_ga_MX6Z1X7L8K",
+      "value": "GS2.2.s1754997911$o1$g1$t1754997912$j59$l0$h0",
+      "domain": ".leaddec.com",
+      "path": "/",
+      "expires": 1789557912.035171,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "https://login.leaddec.com",
+      "localStorage": [
+        {
+          "name": "proxyLoginCount",
+          "value": "0"
+        },
+        {
+          "name": "debug_sentry",
+          "value": "true"
+        },
+        {
+          "name": "locale",
+          "value": "en-US"
+        }
+      ]
+    }
+  ]
+}

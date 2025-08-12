@@ -1,0 +1,93 @@
+[
+  {
+    "text": "Any Condition",
+    "hasIcon": false,
+    "iconClass": "",
+    "elementClass": "filter-option",
+    "innerHTML": "<div class=\"filter-option-inner\"><div class=\"filter-option-inner-inner\">Any Condition</div></div> "
+  },
+  {
+    "text": "Any Action",
+    "hasIcon": false,
+    "iconClass": "",
+    "elementClass": "filter-option",
+    "innerHTML": "<div class=\"filter-option-inner\"><div class=\"filter-option-inner-inner\">Any Action</div></div> "
+  },
+  {
+    "text": "Atlas Fitness",
+    "hasIcon": false,
+    "iconClass": "",
+    "elementClass": "multiselect__option multiselect__option--highlight",
+    "innerHTML": "<span>Atlas Fitness</span>"
+  },
+  {
+    "text": "Fitterbody Ladies",
+    "hasIcon": false,
+    "iconClass": "",
+    "elementClass": "multiselect__option",
+    "innerHTML": "<span>Fitterbody Ladies</span>"
+  },
+  {
+    "text": "jamie's Account",
+    "hasIcon": false,
+    "iconClass": "",
+    "elementClass": "multiselect__option",
+    "innerHTML": "<span>jamie's Account</span>"
+  },
+  {
+    "text": "Liverpool Strength",
+    "hasIcon": false,
+    "iconClass": "",
+    "elementClass": "multiselect__option",
+    "innerHTML": "<span>Liverpool Strength </span>"
+  },
+  {
+    "text": "Lizzie Griffin's Account",
+    "hasIcon": false,
+    "iconClass": "",
+    "elementClass": "multiselect__option",
+    "innerHTML": "<span>Lizzie Griffin's Account</span>"
+  },
+  {
+    "text": "Metabolic London",
+    "hasIcon": false,
+    "iconClass": "",
+    "elementClass": "multiselect__option",
+    "innerHTML": "<span>Metabolic London</span>"
+  },
+  {
+    "text": "Paul Armstrong Fitness",
+    "hasIcon": false,
+    "iconClass": "",
+    "elementClass": "multiselect__option",
+    "innerHTML": "<span>Paul Armstrong Fitness</span>"
+  },
+  {
+    "text": "Phoenix Fitness Edinburgh",
+    "hasIcon": false,
+    "iconClass": "",
+    "elementClass": "multiselect__option",
+    "innerHTML": "<span>Phoenix Fitness Edinburgh</span>"
+  },
+  {
+    "text": "PT100K Club Snapshot",
+    "hasIcon": false,
+    "iconClass": "",
+    "elementClass": "multiselect__option",
+    "innerHTML": "<span>PT100K Club Snapshot</span>"
+  },
+  {
+    "text": "Oops! No elements found. Consider changing the search query.",
+    "hasIcon": false,
+    "iconClass": "",
+    "elementClass": "multiselect__option",
+    "innerHTML": "Oops! No elements found. Consider changing the search query."
+  },
+  {
+    "text": "List is empty.",
+    "hasIcon": false,
+    "iconClass": "",
+    "elementClass": "multiselect__option",
+    "innerHTML": "List is empty."
+  }
+]

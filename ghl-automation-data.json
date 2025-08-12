@@ -1,0 +1,28 @@
+{
+  "workflows": [],
+  "buttons": [],
+  "triggers": [],
+  "actions": [],
+  "navigationLinks": [
+    {
+      "text": "Automation",
+      "href": "/v2/location/0JDEcweQeuHSXBKrdgb0/automation/workflows"
+    },
+    {
+      "text": "Workflows",
+      "href": "/v2/location/0JDEcweQeuHSXBKrdgb0/automation/workflows"
+    },
+    {
+      "text": "Campaign",
+      "href": "/v2/location/0JDEcweQeuHSXBKrdgb0/automation/campaigns"
+    },
+    {
+      "text": "Triggers",
+      "href": "/v2/location/0JDEcweQeuHSXBKrdgb0/automation/triggers"
+    },
+    {
+      "text": "Global Workflow Settings",
+      "href": "/v2/location/0JDEcweQeuHSXBKrdgb0/settings/automation/"
+    }
+  ]
+}

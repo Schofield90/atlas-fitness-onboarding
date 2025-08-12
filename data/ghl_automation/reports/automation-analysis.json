@@ -1,0 +1,56 @@
+{
+  "generatedAt": "2025-08-12T12:15:13.169Z",
+  "summary": {
+    "totalWorkflows": 0,
+    "totalTriggers": 0,
+    "totalActions": 0,
+    "triggerCategories": [],
+    "actionCategories": []
+  },
+  "workflows": [],
+  "triggers": [],
+  "actions": [],
+  "insights": [
+    {
+      "category": "Triggers",
+      "finding": "GoHighLevel offers 0 different triggers across 0 types",
+      "details": "Most common categories: [object Object]"
+    },
+    {
+      "category": "Actions",
+      "finding": "0 actions available for workflow automation",
+      "details": "Key categories include: "
+    },
+    {
+      "category": "Workflow Complexity",
+      "finding": "Average workflow contains 0.0 nodes",
+      "details": "This indicates the typical complexity level of automations in the system"
+    }
+  ],
+  "recommendations": [
+    {
+      "area": "Trigger Enhancement",
+      "suggestion": "Implement webhook triggers for real-time external system integration",
+      "priority": "High",
+      "reasoning": "Webhook triggers enable instant responses to external events"
+    },
+    {
+      "area": "Action Library",
+      "suggestion": "Add conditional logic actions (if/then/else) for complex workflows",
+      "priority": "High",
+      "reasoning": "Conditional logic greatly increases automation flexibility"
+    },
+    {
+      "area": "Workflow Builder UI",
+      "suggestion": "Implement workflow templates for common automation patterns",
+      "priority": "Medium",
+      "reasoning": "Templates reduce setup time and ensure best practices"
+    },
+    {
+      "area": "Third-party Integrations",
+      "suggestion": "Add native integrations with popular fitness/gym management tools",
+      "priority": "High",
+      "reasoning": "Direct integrations reduce friction and increase adoption"
+    }
+  ]
+}

@@ -1,0 +1,137 @@
+[
+  {
+    "text": "Triggers are no longer maintained. To ensure a smooth transition, kindly convert your existing Triggers into Workflows. Dismiss",
+    "className": "hl_error hl_alert_campaigns_triggers text-white warning",
+    "innerHTML": "<h6 data-v-47b147ea=\"\" class=\"hl_error_text text-center\"> Triggers are no longer maintained. To ensure a smooth transition, kindly convert your existing Triggers into Workflows. </h6><div data-v-47b14"
+  },
+  {
+    "text": "Dismiss",
+    "className": "campaigns_triggers-bar-actions",
+    "innerHTML": "<div data-v-47b147ea=\"\" class=\"campaigns_triggers-bar-action btn btn-light\">Dismiss</div>"
+  },
+  {
+    "text": "Dismiss",
+    "className": "campaigns_triggers-bar-action btn btn-light",
+    "innerHTML": "Dismiss"
+  },
+  {
+    "text": "1. Form Submitted >>> Add to Initial Nurture >>> Add to New Lead Stage >>> Send Notification Email Draft Activate Edit DuplicateDeleteRemove From folder",
+    "className": "hl_triggers--item w-100 hl_triggers--item",
+    "innerHTML": "<div class=\"triggers_name d-flex\"><a href=\"/location/0JDEcweQeuHSXBKrdgb0/triggers/4pxEBVtHvQSf7gSadyHM\" class=\"\"><h4>1. Form Submitted &gt;&gt;&gt; Add to Initial Nurture &gt;&gt;&gt; Add to New Lead"
+  },
+  {
+    "text": "1. Form Submitted >>> Add to Initial Nurture >>> Add to New Lead Stage >>> Send Notification Email",
+    "className": "triggers_name d-flex",
+    "innerHTML": "<a href=\"/location/0JDEcweQeuHSXBKrdgb0/triggers/4pxEBVtHvQSf7gSadyHM\" class=\"\"><h4>1. Form Submitted &gt;&gt;&gt; Add to Initial Nurture &gt;&gt;&gt; Add to New Lead Stage &gt;&gt;&gt; Send Notificat"
+  },
+  {
+    "text": "Draft Activate Edit DuplicateDeleteRemove From folder",
+    "className": "triggers_actions",
+    "innerHTML": "<div class=\"dropdown\"><button type=\"button\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"false\" class=\"btn btn-light4 dropdown-toggle\"> Draft </button><div class=\"dropdown-menu dropdown-"
+  },
+  {
+    "text": "2. Responsive Lead >>> Move to Hot Lead Stage Draft Activate Edit DuplicateDeleteRemove From folder",
+    "className": "hl_triggers--item w-100 hl_triggers--item",
+    "innerHTML": "<div class=\"triggers_name d-flex\"><a href=\"/location/0JDEcweQeuHSXBKrdgb0/triggers/HGM2Ap2fUL3R6PhgrP3t\" class=\"\"><h4>2. Responsive Lead &gt;&gt;&gt; Move to Hot Lead Stage</h4></a></div><div class=\"t"
+  },
+  {
+    "text": "2. Responsive Lead >>> Move to Hot Lead Stage",
+    "className": "triggers_name d-flex",
+    "innerHTML": "<a href=\"/location/0JDEcweQeuHSXBKrdgb0/triggers/HGM2Ap2fUL3R6PhgrP3t\" class=\"\"><h4>2. Responsive Lead &gt;&gt;&gt; Move to Hot Lead Stage</h4></a>"
+  },
+  {
+    "text": "Draft Activate Edit DuplicateDeleteRemove From folder",
+    "className": "triggers_actions",
+    "innerHTML": "<div class=\"dropdown\"><button type=\"button\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"false\" class=\"btn btn-light4 dropdown-toggle\"> Draft </button><div class=\"dropdown-menu dropdown-"
+  },
+  {
+    "text": "3. Appointment Booked >>> Remove From All Camps >>> Move to Appt Booked Stage >>> Add to Appt Reminder Camp Draft Activate Edit DuplicateDeleteRemove From folder",
+    "className": "hl_triggers--item w-100 hl_triggers--item",
+    "innerHTML": "<div class=\"triggers_name d-flex\"><a href=\"/location/0JDEcweQeuHSXBKrdgb0/triggers/fyPUpiA5jGxh1a7jhEgF\" class=\"\"><h4>3. Appointment Booked &gt;&gt;&gt; Remove From All Camps &gt;&gt;&gt; Move to Appt"
+  },
+  {
+    "text": "3. Appointment Booked >>> Remove From All Camps >>> Move to Appt Booked Stage >>> Add to Appt Reminder Camp",
+    "className": "triggers_name d-flex",
+    "innerHTML": "<a href=\"/location/0JDEcweQeuHSXBKrdgb0/triggers/fyPUpiA5jGxh1a7jhEgF\" class=\"\"><h4>3. Appointment Booked &gt;&gt;&gt; Remove From All Camps &gt;&gt;&gt; Move to Appt Booked Stage &gt;&gt;&gt; Add to "
+  },
+  {
+    "text": "Draft Activate Edit DuplicateDeleteRemove From folder",
+    "className": "triggers_actions",
+    "innerHTML": "<div class=\"dropdown\"><button type=\"button\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"false\" class=\"btn btn-light4 dropdown-toggle\"> Draft </button><div class=\"dropdown-menu dropdown-"
+  },
+  {
+    "text": "4. No Show Stage >>> Add to No Show Camp Draft Activate Edit DuplicateDeleteRemove From folder",
+    "className": "hl_triggers--item w-100 hl_triggers--item",
+    "innerHTML": "<div class=\"triggers_name d-flex\"><a href=\"/location/0JDEcweQeuHSXBKrdgb0/triggers/bbFnNgkHKG5NDGrkK8Vh\" class=\"\"><h4>4. No Show Stage &gt;&gt;&gt; Add to No Show Camp</h4></a></div><div class=\"trigge"
+  },
+  {
+    "text": "4. No Show Stage >>> Add to No Show Camp",
+    "className": "triggers_name d-flex",
+    "innerHTML": "<a href=\"/location/0JDEcweQeuHSXBKrdgb0/triggers/bbFnNgkHKG5NDGrkK8Vh\" class=\"\"><h4>4. No Show Stage &gt;&gt;&gt; Add to No Show Camp</h4></a>"
+  },
+  {
+    "text": "Draft Activate Edit DuplicateDeleteRemove From folder",
+    "className": "triggers_actions",
+    "innerHTML": "<div class=\"dropdown\"><button type=\"button\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"false\" class=\"btn btn-light4 dropdown-toggle\"> Draft </button><div class=\"dropdown-menu dropdown-"
+  },
+  {
+    "text": "5. Follow Up to Close Stage >>> Add to Follow Up Camp Draft Activate Edit DuplicateDeleteRemove From folder",
+    "className": "hl_triggers--item w-100 hl_triggers--item",
+    "innerHTML": "<div class=\"triggers_name d-flex\"><a href=\"/location/0JDEcweQeuHSXBKrdgb0/triggers/ZfjaE618qp4xn9rjoILh\" class=\"\"><h4>5. Follow Up to Close Stage &gt;&gt;&gt; Add to Follow Up Camp</h4></a></div><div "
+  },
+  {
+    "text": "5. Follow Up to Close Stage >>> Add to Follow Up Camp",
+    "className": "triggers_name d-flex",
+    "innerHTML": "<a href=\"/location/0JDEcweQeuHSXBKrdgb0/triggers/ZfjaE618qp4xn9rjoILh\" class=\"\"><h4>5. Follow Up to Close Stage &gt;&gt;&gt; Add to Follow Up Camp</h4></a>"
+  },
+  {
+    "text": "Draft Activate Edit DuplicateDeleteRemove From folder",
+    "className": "triggers_actions",
+    "innerHTML": "<div class=\"dropdown\"><button type=\"button\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"false\" class=\"btn btn-light4 dropdown-toggle\"> Draft </button><div class=\"dropdown-menu dropdown-"
+  },
+  {
+    "text": "6. Changed Status to Won >>> Add to Review Request - Part 1 Draft Activate Edit DuplicateDeleteRemove From folder",
+    "className": "hl_triggers--item w-100 hl_triggers--item",
+    "innerHTML": "<div class=\"triggers_name d-flex\"><a href=\"/location/0JDEcweQeuHSXBKrdgb0/triggers/t3KMqM6dZJVV1MQnyFAy\" class=\"\"><h4>6. Changed Status to Won &gt;&gt;&gt; Add to Review Request - Part 1</h4></a></div"
+  },
+  {
+    "text": "6. Changed Status to Won >>> Add to Review Request - Part 1",
+    "className": "triggers_name d-flex",
+    "innerHTML": "<a href=\"/location/0JDEcweQeuHSXBKrdgb0/triggers/t3KMqM6dZJVV1MQnyFAy\" class=\"\"><h4>6. Changed Status to Won &gt;&gt;&gt; Add to Review Request - Part 1</h4></a>"
+  },
+  {
+    "text": "Draft Activate Edit DuplicateDeleteRemove From folder",
+    "className": "triggers_actions",
+    "innerHTML": "<div class=\"dropdown\"><button type=\"button\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"false\" class=\"btn btn-light4 dropdown-toggle\"> Draft </button><div class=\"dropdown-menu dropdown-"
+  },
+  {
+    "text": "6.1 Review Request - Positive >>> Add to Positive Camp Draft Activate Edit DuplicateDeleteRemove From folder",
+    "className": "hl_triggers--item w-100 hl_triggers--item",
+    "innerHTML": "<div class=\"triggers_name d-flex\"><a href=\"/location/0JDEcweQeuHSXBKrdgb0/triggers/V1vjKXQvsNfA32IbBqQX\" class=\"\"><h4>6.1 Review Request - Positive &gt;&gt;&gt; Add to Positive Camp</h4></a></div><div"
+  },
+  {
+    "text": "6.1 Review Request - Positive >>> Add to Positive Camp",
+    "className": "triggers_name d-flex",
+    "innerHTML": "<a href=\"/location/0JDEcweQeuHSXBKrdgb0/triggers/V1vjKXQvsNfA32IbBqQX\" class=\"\"><h4>6.1 Review Request - Positive &gt;&gt;&gt; Add to Positive Camp</h4></a>"
+  },
+  {
+    "text": "Draft Activate Edit DuplicateDeleteRemove From folder",
+    "className": "triggers_actions",
+    "innerHTML": "<div class=\"dropdown\"><button type=\"button\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"false\" class=\"btn btn-light4 dropdown-toggle\"> Draft </button><div class=\"dropdown-menu dropdown-"
+  },
+  {
+    "text": "6.2 Review Request - Negative >>> Add to Negative Camp Draft Activate Edit DuplicateDeleteRemove From folder",
+    "className": "hl_triggers--item w-100 hl_triggers--item",
+    "innerHTML": "<div class=\"triggers_name d-flex\"><a href=\"/location/0JDEcweQeuHSXBKrdgb0/triggers/3w5PGiL7AVolwoMFG5gU\" class=\"\"><h4>6.2 Review Request - Negative &gt;&gt;&gt; Add to Negative Camp</h4></a></div><div"
+  },
+  {
+    "text": "6.2 Review Request - Negative >>> Add to Negative Camp",
+    "className": "triggers_name d-flex",
+    "innerHTML": "<a href=\"/location/0JDEcweQeuHSXBKrdgb0/triggers/3w5PGiL7AVolwoMFG5gU\" class=\"\"><h4>6.2 Review Request - Negative &gt;&gt;&gt; Add to Negative Camp</h4></a>"
+  },
+  {
+    "text": "Draft Activate Edit DuplicateDeleteRemove From folder",
+    "className": "triggers_actions",
+    "innerHTML": "<div class=\"dropdown\"><button type=\"button\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"false\" class=\"btn btn-light4 dropdown-toggle\"> Draft </button><div class=\"dropdown-menu dropdown-"
+  }
+]
