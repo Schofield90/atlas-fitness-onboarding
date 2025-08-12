@@ -8,6 +8,7 @@ export default function FacebookDiagnosticPanel() {
   const [tokenTest, setTokenTest] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [syncResult, setSyncResult] = useState<any>(null)
+  const [setupResult, setSetupResult] = useState<any>(null)
 
   const runDiagnostics = async () => {
     setLoading(true)
@@ -48,6 +49,30 @@ export default function FacebookDiagnosticPanel() {
     } catch (error) {
       console.error('Sync error:', error)
       setSyncResult({ error: 'Failed to sync pages' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const forceSetup = async () => {
+    setLoading(true)
+    setSetupResult(null)
+    
+    try {
+      const setupRes = await fetch('/api/facebook/force-setup', {
+        method: 'POST'
+      })
+      
+      const setupData = await setupRes.json()
+      setSetupResult(setupData)
+      
+      if (setupData.success) {
+        // Re-run diagnostics after setup
+        setTimeout(() => runDiagnostics(), 2000)
+      }
+    } catch (error) {
+      console.error('Setup error:', error)
+      setSetupResult({ error: 'Failed to setup integration' })
     } finally {
       setLoading(false)
     }
@@ -170,6 +195,27 @@ export default function FacebookDiagnosticPanel() {
                   <li key={idx}>• {rec}</li>
                 ))}
               </ul>
+              
+              {/* Force Setup Button - Show when no integration exists */}
+              {!diagnostics.facebook_integration?.exists && (
+                <button
+                  onClick={forceSetup}
+                  disabled={loading}
+                  className="mt-3 w-full bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 text-white py-2 rounded font-medium flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <Loader className="w-4 h-4 animate-spin" />
+                      Setting up...
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="w-4 h-4" />
+                      Fix Database & Reconnect
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           )}
 
@@ -200,6 +246,41 @@ export default function FacebookDiagnosticPanel() {
                 </>
               )}
             </button>
+          )}
+        </div>
+      )}
+
+      {/* Setup Result */}
+      {setupResult && (
+        <div className={`rounded p-3 ${setupResult.error ? 'bg-red-900/30 border border-red-600' : 'bg-green-900/30 border border-green-600'}`}>
+          {setupResult.error ? (
+            <div className="text-red-400">
+              <div className="font-medium mb-1">Setup Failed:</div>
+              <div className="text-sm">{setupResult.error}</div>
+              {setupResult.solution && (
+                <div className="text-yellow-400 text-sm mt-2">
+                  Solution: {setupResult.solution}
+                </div>
+              )}
+              {setupResult.migration && (
+                <div className="text-blue-400 text-xs mt-2">
+                  Run this migration: {setupResult.migration}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-green-400">
+              <div className="font-medium mb-1">Setup Successful!</div>
+              <div className="text-sm">{setupResult.message}</div>
+              {setupResult.next_steps && (
+                <div className="mt-2 text-xs">
+                  <div className="text-gray-400 mb-1">Next steps:</div>
+                  {setupResult.next_steps.map((step: string, idx: number) => (
+                    <div key={idx} className="text-gray-300">{step}</div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
