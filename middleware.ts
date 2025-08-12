@@ -52,7 +52,6 @@ const debugRoutes = [
   '/nutrition-test',
   '/quick-add-class',
   '/sql-check',
-  '/classes',
   '/seed-knowledge',
   '/fix-messages',
   '/get-started',
@@ -72,7 +71,9 @@ const adminRoutes = [
   '/settings',
   '/billing',
   '/memberships',
-  '/ai-config'
+  '/ai-config',
+  '/classes',
+  '/customers'
 ]
 
 export async function middleware(request: NextRequest) {
