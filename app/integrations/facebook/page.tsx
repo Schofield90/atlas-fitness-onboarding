@@ -58,7 +58,7 @@ export default function FacebookIntegrationPage() {
         setIsSyncing(true)
         setSyncMessage('Syncing pages from Facebook...')
         try {
-          const syncRes = await fetch('/api/integrations/meta/sync-pages', {
+          const syncRes = await fetch('/api/integrations/meta/sync-pages-fix', {
             method: 'POST'
           })
           
@@ -70,7 +70,22 @@ export default function FacebookIntegrationPage() {
             await refetchPages()
           } else {
             const error = await syncRes.json()
-            setSyncMessage(`Failed to sync: ${error.error || 'Unknown error'}`)
+            if (error.fixed) {
+              // Retry if configuration was fixed
+              const retryRes = await fetch('/api/integrations/meta/sync-pages-fix', {
+                method: 'POST'
+              })
+              if (retryRes.ok) {
+                const retryResult = await retryRes.json()
+                setSyncMessage(retryResult.message || 'Pages synced successfully')
+                await refetchPages()
+              } else {
+                const retryError = await retryRes.json()
+                setSyncMessage(`Failed to sync: ${retryError.error || 'Unknown error'}`)
+              }
+            } else {
+              setSyncMessage(`Failed to sync: ${error.error || 'Unknown error'}`)
+            }
           }
         } catch (error) {
           console.error('Initial sync error:', error)
@@ -370,7 +385,8 @@ export default function FacebookIntegrationPage() {
                       setIsSyncing(true)
                       setSyncMessage('Syncing pages from Facebook...')
                       try {
-                        const syncRes = await fetch('/api/integrations/meta/sync-pages', {
+                        // Try the fixed endpoint first
+                        const syncRes = await fetch('/api/integrations/meta/sync-pages-fix', {
                           method: 'POST'
                         })
                         
@@ -380,7 +396,24 @@ export default function FacebookIntegrationPage() {
                           await refetchPages()
                         } else {
                           const error = await syncRes.json()
-                          setSyncMessage(`Failed: ${error.error || 'Unknown error'}`)
+                          
+                          // If it was a configuration issue that got fixed, retry
+                          if (error.fixed) {
+                            setSyncMessage('Fixed configuration issue. Retrying...')
+                            const retryRes = await fetch('/api/integrations/meta/sync-pages-fix', {
+                              method: 'POST'
+                            })
+                            if (retryRes.ok) {
+                              const retryResult = await retryRes.json()
+                              setSyncMessage(retryResult.message || 'Pages synced successfully')
+                              await refetchPages()
+                            } else {
+                              const retryError = await retryRes.json()
+                              setSyncMessage(`Failed: ${retryError.error || 'Unknown error'}`)
+                            }
+                          } else {
+                            setSyncMessage(`Failed: ${error.error || 'Unknown error'}`)
+                          }
                         }
                       } catch (error) {
                         setSyncMessage('Failed to sync pages')
