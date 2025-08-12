@@ -9,6 +9,7 @@ export default function FacebookDiagnosticPanel() {
   const [loading, setLoading] = useState(false)
   const [syncResult, setSyncResult] = useState<any>(null)
   const [setupResult, setSetupResult] = useState<any>(null)
+  const [fixResult, setFixResult] = useState<any>(null)
 
   const runDiagnostics = async () => {
     setLoading(true)
@@ -73,6 +74,36 @@ export default function FacebookDiagnosticPanel() {
     } catch (error) {
       console.error('Setup error:', error)
       setSetupResult({ error: 'Failed to setup integration' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fixConnection = async () => {
+    setLoading(true)
+    setFixResult(null)
+    
+    try {
+      // First, clear the broken connection
+      const fixRes = await fetch('/api/integrations/meta/fix-connection', {
+        method: 'POST'
+      })
+      
+      const fixData = await fixRes.json()
+      setFixResult(fixData)
+      
+      if (fixData.success) {
+        // Clear local storage
+        localStorage.removeItem('fb_connected')
+        localStorage.removeItem('fb_pages_synced')
+        localStorage.removeItem('fb_integration_status')
+        
+        // Re-run diagnostics after fix
+        setTimeout(() => runDiagnostics(), 2000)
+      }
+    } catch (error) {
+      console.error('Fix error:', error)
+      setFixResult({ error: 'Failed to fix connection' })
     } finally {
       setLoading(false)
     }
@@ -196,26 +227,24 @@ export default function FacebookDiagnosticPanel() {
                 ))}
               </ul>
               
-              {/* Force Setup Button - Show when no integration exists */}
-              {!diagnostics.facebook_integration?.exists && (
-                <button
-                  onClick={forceSetup}
-                  disabled={loading}
-                  className="mt-3 w-full bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 text-white py-2 rounded font-medium flex items-center justify-center gap-2"
-                >
-                  {loading ? (
-                    <>
-                      <Loader className="w-4 h-4 animate-spin" />
-                      Setting up...
-                    </>
-                  ) : (
-                    <>
-                      <AlertCircle className="w-4 h-4" />
-                      Fix Database & Reconnect
-                    </>
-                  )}
-                </button>
-              )}
+              {/* Fix Connection Button - Show when integration is broken */}
+              <button
+                onClick={fixConnection}
+                disabled={loading}
+                className="mt-3 w-full bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 text-white py-2 rounded font-medium flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <Loader className="w-4 h-4 animate-spin" />
+                    Fixing Connection...
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="w-4 h-4" />
+                    Fix Database & Reconnect
+                  </>
+                )}
+              </button>
             </div>
           )}
 
@@ -246,6 +275,34 @@ export default function FacebookDiagnosticPanel() {
                 </>
               )}
             </button>
+          )}
+        </div>
+      )}
+
+      {/* Fix Result */}
+      {fixResult && (
+        <div className={`rounded p-3 ${fixResult.error ? 'bg-red-900/30 border border-red-600' : 'bg-green-900/30 border border-green-600'}`}>
+          {fixResult.error ? (
+            <div className="text-red-400">
+              <div className="font-medium mb-1">Fix Failed:</div>
+              <div className="text-sm">{fixResult.error}</div>
+            </div>
+          ) : (
+            <div className="text-green-400">
+              <div className="font-medium mb-1">Connection Reset Successfully!</div>
+              <div className="text-sm">{fixResult.message}</div>
+              {fixResult.actions && (
+                <div className="mt-2 text-xs">
+                  <div className="text-gray-400 mb-1">Actions completed:</div>
+                  {fixResult.actions.map((action: string, idx: number) => (
+                    <div key={idx} className="text-gray-300">✓ {action}</div>
+                  ))}
+                </div>
+              )}
+              <div className="mt-3 text-yellow-400 text-sm">
+                Please reconnect your Facebook account now.
+              </div>
+            </div>
           )}
         </div>
       )}
