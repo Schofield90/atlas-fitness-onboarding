@@ -60,29 +60,42 @@ export default function CustomersPage() {
 
       if (!orgMember) return
 
-      // Fetch clients with memberships
-      const { data: clientsData, error } = await supabase
-        .from('clients')
-        .select(`
-          *,
-          memberships (
-            id,
-            membership_type,
-            status,
-            start_date,
-            end_date
-          )
-        `)
-        .eq('organization_id', orgMember.organization_id)
-        .order('created_at', { ascending: false })
+      // Fetch both clients and leads
+      const [clientsResult, leadsResult] = await Promise.all([
+        // Fetch clients with memberships
+        supabase
+          .from('clients')
+          .select(`
+            *,
+            memberships (
+              id,
+              membership_type,
+              status,
+              start_date,
+              end_date
+            )
+          `)
+          .eq('organization_id', orgMember.organization_id)
+          .order('created_at', { ascending: false }),
+        
+        // Fetch leads
+        supabase
+          .from('leads')
+          .select('*')
+          .eq('organization_id', orgMember.organization_id)
+          .order('created_at', { ascending: false })
+      ])
 
-      if (error) {
-        console.error('Error fetching customers:', error)
-        return
+      if (clientsResult.error) {
+        console.error('Error fetching clients:', clientsResult.error)
+      }
+      
+      if (leadsResult.error) {
+        console.error('Error fetching leads:', leadsResult.error)
       }
 
-      // Transform to customer format
-      const transformedCustomers = (clientsData || []).map(client => ({
+      // Transform clients to customer format
+      const clientCustomers = (clientsResult.data || []).map(client => ({
         id: client.id,
         first_name: client.first_name || '',
         last_name: client.last_name || '',
@@ -95,11 +108,37 @@ export default function CustomersPage() {
         created_at: client.created_at,
         last_visit: client.last_visit,
         total_spent: client.total_spent || 0,
-        is_lead: client.is_lead || false,
+        is_lead: false,
         notes: client.notes
       }))
 
-      setCustomers(transformedCustomers)
+      // Transform leads to customer format
+      const leadCustomers = (leadsResult.data || []).map(lead => ({
+        id: lead.id,
+        first_name: lead.first_name || lead.name?.split(' ')[0] || '',
+        last_name: lead.last_name || lead.name?.split(' ')[1] || '',
+        email: lead.email || '',
+        phone: lead.phone || '',
+        status: lead.status === 'converted' ? 'active' : 'inactive',
+        membership_status: 'Lead',
+        membership_name: undefined,
+        tags: lead.tags || [],
+        created_at: lead.created_at,
+        last_visit: undefined,
+        total_spent: 0,
+        is_lead: true,
+        notes: lead.notes
+      }))
+
+      // Combine and deduplicate by email
+      const allCustomers = [...clientCustomers]
+      leadCustomers.forEach(lead => {
+        if (!allCustomers.find(c => c.email === lead.email)) {
+          allCustomers.push(lead)
+        }
+      })
+
+      setCustomers(allCustomers)
     } catch (error) {
       console.error('Error:', error)
     } finally {
@@ -220,8 +259,8 @@ export default function CustomersPage() {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-2">
-            <h1 className="text-3xl font-bold">Customer List</h1>
-            <div className="bg-blue-100 text-blue-800 rounded-full p-1">
+            <h1 className="text-3xl font-bold text-white">Customer List</h1>
+            <div className="bg-blue-500/20 text-blue-400 rounded-full p-1">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -237,28 +276,28 @@ export default function CustomersPage() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div className="bg-gray-800 rounded-lg p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             {/* Search */}
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
+              <label className="block text-sm font-medium text-gray-300 mb-1">Search</label>
               <input
                 type="text"
                 placeholder="Enter customer's name or email"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                className="w-full px-4 py-2 pl-10 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               />
               <Search className="absolute left-3 top-9 w-5 h-5 text-gray-400" />
             </div>
 
             {/* Status Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <label className="block text-sm font-medium text-gray-300 mb-1">Status</label>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               >
                 <option>Active Customers</option>
                 <option>Inactive Customers</option>
@@ -269,11 +308,11 @@ export default function CustomersPage() {
 
             {/* Membership Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Membership</label>
+              <label className="block text-sm font-medium text-gray-300 mb-1">Membership</label>
               <select
                 value={membershipFilter}
                 onChange={(e) => setMembershipFilter(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               >
                 <option value="">All Memberships</option>
                 <option value="Monthly">Monthly</option>
@@ -285,13 +324,13 @@ export default function CustomersPage() {
 
           {/* Show Only Options */}
           <div className="flex items-center gap-4">
-            <span className="text-sm font-medium text-gray-700">Show only:</span>
+            <span className="text-sm font-medium text-gray-300">Show only:</span>
             <button
               onClick={() => setShowOnlyNew(!showOnlyNew)}
               className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                 showOnlyNew 
-                  ? 'bg-blue-100 text-blue-700 border-2 border-blue-500' 
-                  : 'bg-gray-100 text-gray-700 border-2 border-gray-300'
+                  ? 'bg-blue-500/20 text-blue-400 border-2 border-blue-500' 
+                  : 'bg-gray-700 text-gray-400 border-2 border-gray-600'
               }`}
             >
               New
@@ -300,8 +339,8 @@ export default function CustomersPage() {
               onClick={() => setShowOnlySlipping(!showOnlySlipping)}
               className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                 showOnlySlipping
-                  ? 'bg-orange-100 text-orange-700 border-2 border-orange-500'
-                  : 'bg-gray-100 text-gray-700 border-2 border-gray-300'
+                  ? 'bg-orange-500/20 text-orange-400 border-2 border-orange-500'
+                  : 'bg-gray-700 text-gray-400 border-2 border-gray-600'
               }`}
             >
               Slipping Away
@@ -347,19 +386,19 @@ export default function CustomersPage() {
         </div>
 
         {/* Customer List */}
-        <div className="bg-white rounded-lg shadow-sm">
+        <div className="bg-gray-800 rounded-lg">
           {paginatedCustomers.length === 0 ? (
             <div className="p-12 text-center">
               <User className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No customers found</p>
+              <p className="text-gray-400">No customers found</p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-200">
+            <div className="divide-y divide-gray-700">
               {paginatedCustomers.map((customer) => (
                 <Link
                   key={customer.id}
                   href={`/customers/${customer.id}`}
-                  className="block hover:bg-gray-50 transition-colors"
+                  className="block hover:bg-gray-700/50 transition-colors"
                 >
                   <div className="p-6 flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -371,19 +410,19 @@ export default function CustomersPage() {
                       {/* Customer Info */}
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="text-lg font-semibold text-gray-900">
+                          <h3 className="text-lg font-semibold text-white">
                             {customer.first_name} {customer.last_name}
                           </h3>
                           {customer.notes && (
-                            <div className="flex items-center gap-1 text-red-600">
+                            <div className="flex items-center gap-1 text-red-400">
                               <span className="text-2xl">•</span>
                               <span className="text-sm">{customer.notes}</span>
                             </div>
                           )}
                         </div>
-                        <p className="text-gray-600">{customer.email}</p>
+                        <p className="text-gray-400">{customer.email}</p>
                         {customer.membership_name && (
-                          <p className="text-sm text-blue-600 mt-1">{customer.membership_name}</p>
+                          <p className="text-sm text-blue-400 mt-1">{customer.membership_name}</p>
                         )}
                       </div>
                     </div>
@@ -391,22 +430,22 @@ export default function CustomersPage() {
                     {/* Status Badges */}
                     <div className="flex items-center gap-2">
                       {customer.status === 'active' && (
-                        <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+                        <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-sm font-medium">
                           ACTIVE
                         </span>
                       )}
                       {customer.status === 'slipping_away' && (
-                        <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium">
+                        <span className="px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-sm font-medium">
                           SLIPPING AWAY
                         </span>
                       )}
                       {customer.status === 'inactive' && (
-                        <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">
+                        <span className="px-3 py-1 bg-gray-600 text-gray-300 rounded-full text-sm font-medium">
                           INACTIVE
                         </span>
                       )}
                       {showOnlyNew && (
-                        <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                        <span className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm font-medium">
                           NEW
                         </span>
                       )}
