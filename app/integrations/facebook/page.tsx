@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useFacebookConnection } from '@/app/hooks/useFacebookConnection'
 import { useFacebookPages, useFacebookAdAccounts, useFacebookLeadForms, useFacebookLeads } from '@/app/hooks/useFacebookData'
 import DashboardLayout from '@/app/components/DashboardLayout'
+import FacebookDiagnosticPanel from '@/app/components/facebook/DiagnosticPanel'
 
 interface SelectedItems {
   pages: string[]
@@ -239,6 +240,13 @@ export default function FacebookIntegrationPage() {
         {/* Facebook Data Sections - Only show when connected */}
         {facebookConnection.connected && (
           <>
+            {/* Diagnostic Panel - Show when there's an error or no pages */}
+            {(pagesError || (pages.length === 0 && !pagesLoading)) && (
+              <div className="mb-6">
+                <FacebookDiagnosticPanel />
+              </div>
+            )}
+
             {/* Facebook Pages Section */}
             <div className="bg-gray-800 rounded-lg p-6 mb-6">
               <div className="flex justify-between items-center mb-4">
