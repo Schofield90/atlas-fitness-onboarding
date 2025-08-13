@@ -7,6 +7,8 @@ export default function FacebookDebugPage() {
   const [diagnostics, setDiagnostics] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [fixing, setFixing] = useState(false)
+  const [validating, setValidating] = useState(false)
+  const [tokenStatus, setTokenStatus] = useState<any>(null)
 
   useEffect(() => {
     runDiagnostics()
@@ -51,6 +53,29 @@ export default function FacebookDebugPage() {
       alert('Failed to fix connection')
     } finally {
       setFixing(false)
+    }
+  }
+
+  const validateToken = async () => {
+    setValidating(true)
+    setTokenStatus(null)
+    try {
+      const response = await fetch('/api/integrations/facebook/validate-token', {
+        method: 'POST'
+      })
+      const data = await response.json()
+      setTokenStatus(data)
+      
+      if (!data.success && data.should_reconnect) {
+        alert('Token is invalid or expired. Please reconnect Facebook.')
+      } else if (data.success) {
+        alert('Token is valid and working!')
+      }
+    } catch (error) {
+      console.error('Validation error:', error)
+      setTokenStatus({ error: 'Failed to validate token' })
+    } finally {
+      setValidating(false)
     }
   }
 
@@ -204,6 +229,61 @@ export default function FacebookDebugPage() {
                 </div>
               </div>
 
+              {/* Token Status */}
+              {tokenStatus && (
+                <div className={`bg-gray-700 rounded-lg p-6 ${tokenStatus.success ? 'border-2 border-green-500' : 'border-2 border-red-500'}`}>
+                  <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                    <Key className="w-5 h-5" />
+                    Token Validation Result
+                  </h2>
+                  {tokenStatus.success ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-green-400">
+                        <CheckCircle className="w-5 h-5" />
+                        <span className="font-semibold">Token is valid and working!</span>
+                      </div>
+                      {tokenStatus.token_info && (
+                        <>
+                          <div className="text-sm text-gray-300">
+                            <strong>Expires:</strong> {tokenStatus.token_info.expires_at ? new Date(tokenStatus.token_info.expires_at).toLocaleString() : 'Never'}
+                          </div>
+                          <div className="text-sm text-gray-300">
+                            <strong>Scopes:</strong> {tokenStatus.token_info.scopes?.join(', ') || 'None'}
+                          </div>
+                        </>
+                      )}
+                      {tokenStatus.user_info && (
+                        <div className="text-sm text-gray-300">
+                          <strong>Connected as:</strong> {tokenStatus.user_info.name} ({tokenStatus.user_info.email})
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-red-400">
+                        <AlertCircle className="w-5 h-5" />
+                        <span className="font-semibold">{tokenStatus.error || 'Token validation failed'}</span>
+                      </div>
+                      {tokenStatus.reason && (
+                        <div className="text-sm text-gray-300">
+                          <strong>Reason:</strong> {tokenStatus.reason}
+                        </div>
+                      )}
+                      {tokenStatus.fb_error && (
+                        <div className="text-sm text-gray-300">
+                          <strong>Facebook Error:</strong> {JSON.stringify(tokenStatus.fb_error)}
+                        </div>
+                      )}
+                      {tokenStatus.should_reconnect && (
+                        <div className="mt-3 p-3 bg-yellow-900/30 border border-yellow-600 rounded">
+                          <p className="text-yellow-400">You need to reconnect your Facebook account.</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Actions */}
               <div className="flex gap-4">
                 <button
@@ -213,6 +293,24 @@ export default function FacebookDebugPage() {
                 >
                   <RefreshCw className="w-5 h-5" />
                   Re-run Diagnostics
+                </button>
+
+                <button
+                  onClick={validateToken}
+                  disabled={validating}
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white py-3 px-6 rounded-lg flex items-center justify-center gap-2"
+                >
+                  {validating ? (
+                    <>
+                      <RefreshCw className="w-5 h-5 animate-spin" />
+                      Validating...
+                    </>
+                  ) : (
+                    <>
+                      <Key className="w-5 h-5" />
+                      Validate Token
+                    </>
+                  )}
                 </button>
                 
                 <button
@@ -228,12 +326,12 @@ export default function FacebookDebugPage() {
                   ) : (
                     <>
                       <Settings className="w-5 h-5" />
-                      Reset Facebook Integration
+                      Reset & Clear
                     </>
                   )}
                 </button>
 
-                {diagnostics.environment?.app_secret_configured && (
+                {diagnostics?.environment?.app_secret_configured && (
                   <button
                     onClick={connectFacebook}
                     className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-lg flex items-center justify-center gap-2"
