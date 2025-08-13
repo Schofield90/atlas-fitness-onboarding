@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 
-export default function FacebookCallbackPage() {
+function FacebookCallbackContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
@@ -126,5 +126,24 @@ export default function FacebookCallbackPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function FacebookCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+        <div className="bg-gray-800 rounded-lg shadow-xl p-8 max-w-md w-full">
+          <div className="flex justify-center mb-6">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+          </div>
+          <h1 className="text-xl font-bold text-white text-center">
+            Loading...
+          </h1>
+        </div>
+      </div>
+    }>
+      <FacebookCallbackContent />
+    </Suspense>
   )
 }
