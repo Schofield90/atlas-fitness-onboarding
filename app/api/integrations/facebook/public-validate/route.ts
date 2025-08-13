@@ -6,6 +6,43 @@ export async function POST(request: NextRequest) {
     // This is a public endpoint - no auth required
     const supabase = await createClient()
     
+    // First, let's check ALL integrations, active or not
+    const { data: allIntegrations, error: allError } = await supabase
+      .from('facebook_integrations')
+      .select('*')
+      .order('created_at', { ascending: false })
+    
+    console.log('Found integrations:', allIntegrations?.length || 0)
+    
+    if (allIntegrations && allIntegrations.length > 0) {
+      // We have integrations, let's analyze them
+      const activeOnes = allIntegrations.filter(i => i.is_active)
+      const withTokens = allIntegrations.filter(i => i.access_token)
+      
+      // Return detailed information about what we found
+      return NextResponse.json({
+        success: false,
+        error: 'Found integrations but none are working',
+        total_integrations: allIntegrations.length,
+        active_count: activeOnes.length,
+        with_token_count: withTokens.length,
+        integrations: allIntegrations.map(i => ({
+          facebook_user: i.facebook_user_name,
+          is_active: i.is_active,
+          has_token: !!i.access_token,
+          created_at: i.created_at,
+          last_sync: i.last_sync_at,
+          token_expires: i.token_expires_at,
+          organization_id: i.organization_id
+        })),
+        details: activeOnes.length === 0 
+          ? 'All integrations are inactive - they were likely disabled'
+          : withTokens.length === 0 
+          ? 'Tokens were cleared - need to reconnect'
+          : 'Integrations exist but may have expired tokens'
+      })
+    }
+    
     // Get the most recent Facebook integration
     const { data: integration, error: intError } = await supabase
       .from('facebook_integrations')
@@ -16,28 +53,12 @@ export async function POST(request: NextRequest) {
       .single()
     
     if (intError || !integration) {
-      // Try to get any integration, even inactive
-      const { data: anyIntegration } = await supabase
-        .from('facebook_integrations')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single()
-      
-      if (anyIntegration) {
-        return NextResponse.json({
-          success: false,
-          error: 'Integration exists but is not active',
-          details: `Last active: ${anyIntegration.last_sync_at || 'Never'}`,
-          is_active: false,
-          facebook_user: anyIntegration.facebook_user_name
-        })
-      }
-      
       return NextResponse.json({
         success: false,
         error: 'No Facebook integration found in database',
-        details: 'You need to connect Facebook first'
+        details: 'You need to connect Facebook first',
+        checked_table: 'facebook_integrations',
+        total_found: 0
       })
     }
     

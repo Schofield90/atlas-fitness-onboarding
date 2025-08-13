@@ -170,12 +170,47 @@ export default function PublicFacebookDebugPage() {
                       {tokenStatus.message}
                     </div>
                   ) : (
-                    <div className="text-red-400">
-                      <AlertCircle className="w-6 h-6 inline mr-2" />
-                      {tokenStatus.error || 'Token validation failed'}
+                    <div>
+                      <div className="text-red-400 mb-3">
+                        <AlertCircle className="w-6 h-6 inline mr-2" />
+                        {tokenStatus.error || 'Token validation failed'}
+                      </div>
                       {tokenStatus.details && (
-                        <div className="mt-2 text-sm text-gray-400">
+                        <div className="text-sm text-gray-400 mb-3">
                           {tokenStatus.details}
+                        </div>
+                      )}
+                      
+                      {/* Show found integrations if any */}
+                      {tokenStatus.integrations && tokenStatus.integrations.length > 0 && (
+                        <div className="mt-4 p-3 bg-gray-800 rounded">
+                          <p className="text-white font-semibold mb-2">Found {tokenStatus.total_integrations} integration(s):</p>
+                          {tokenStatus.integrations.map((int: any, idx: number) => (
+                            <div key={idx} className="mb-3 p-2 bg-gray-900 rounded text-xs">
+                              <div className="text-gray-300">
+                                <div><strong>User:</strong> {int.facebook_user || 'Unknown'}</div>
+                                <div><strong>Active:</strong> {int.is_active ? 'Yes' : 'No'}</div>
+                                <div><strong>Has Token:</strong> {int.has_token ? 'Yes' : 'No'}</div>
+                                <div><strong>Created:</strong> {int.created_at ? new Date(int.created_at).toLocaleDateString() : 'Unknown'}</div>
+                                <div><strong>Last Sync:</strong> {int.last_sync || 'Never'}</div>
+                                {int.token_expires && (
+                                  <div><strong>Token Expires:</strong> {new Date(int.token_expires).toLocaleDateString()}</div>
+                                )}
+                                <div className="mt-1 text-xs text-gray-500">
+                                  <strong>Org ID:</strong> {int.organization_id}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          <div className="mt-3 p-2 bg-yellow-900/30 border border-yellow-600 rounded">
+                            <p className="text-yellow-400 text-sm">
+                              {tokenStatus.with_token_count === 0 
+                                ? 'All tokens have been cleared. You need to reconnect.'
+                                : tokenStatus.active_count === 0
+                                ? 'All integrations are inactive. Try reconnecting.'
+                                : 'Integration exists but may need to be refreshed.'}
+                            </p>
+                          </div>
                         </div>
                       )}
                     </div>

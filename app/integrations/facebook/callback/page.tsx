@@ -1,198 +1,130 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import Link from 'next/link'
+import { useEffect, useState } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
+import { CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 
-function CallbackContent() {
-  const router = useRouter()
+export default function FacebookCallbackPage() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [message, setMessage] = useState('')
-  const [syncMessage, setSyncMessage] = useState('')
-  const [isSyncing, setIsSyncing] = useState(false)
+  const [details, setDetails] = useState('')
 
   useEffect(() => {
+    // Check URL parameters
+    const success = searchParams.get('success')
     const error = searchParams.get('error')
     const errorDescription = searchParams.get('error_description')
-    const success = searchParams.get('success')
-    const userId = searchParams.get('user_id')
     const userName = searchParams.get('user_name')
-    const state = searchParams.get('state')
-
-    if (error) {
-      setStatus('error')
-      setMessage(`Facebook OAuth error: ${errorDescription || error}`)
-      return
-    }
-
+    const storageWarning = searchParams.get('storage_warning')
+    
     if (success === 'true') {
-      // Store connection status and user info in localStorage
-      const connectionTime = new Date().toISOString()
-      localStorage.setItem('facebook_connected', 'true')
-      localStorage.setItem('facebook_connected_at', connectionTime)
-      localStorage.setItem('facebook_user_id', userId || '')
-      localStorage.setItem('facebook_user_name', userName || '')
-      
-      console.log('✅ Facebook connection successful:', {
-        connected: true,
-        connectedAt: connectionTime,
-        userId: userId,
-        userName: userName
-      })
-      
       setStatus('success')
-      setMessage(`Successfully connected to Facebook as ${userName}!`)
+      setMessage(`Successfully connected Facebook${userName ? ` as ${userName}` : ''}!`)
+      if (storageWarning) {
+        setDetails('Note: Some database tables may be missing. Contact support if issues persist.')
+      } else {
+        setDetails('You can now sync Facebook pages and leads.')
+      }
       
-      // Trigger a storage event to notify other tabs/components
-      window.dispatchEvent(new StorageEvent('storage', {
-        key: 'facebook_connected',
-        newValue: 'true',
-        oldValue: null
-      }))
-      
-      // Sync Facebook pages and ad accounts
-      syncFacebookData()
-      
-      // Redirect to Facebook integrations page after sync completes
-      // Will be handled in syncFacebookData function
-    } else {
+      // Redirect to settings after 3 seconds
+      setTimeout(() => {
+        router.push('/settings')
+      }, 3000)
+    } else if (error) {
       setStatus('error')
-      setMessage('OAuth callback completed but no success confirmation received')
+      setMessage('Failed to connect Facebook')
+      
+      // Provide user-friendly error messages
+      switch(error) {
+        case 'access_denied':
+          setDetails('You denied the permission request. Please try again and approve all permissions.')
+          break
+        case 'invalid_state':
+          setDetails('Security verification failed. Please try connecting again.')
+          break
+        case 'no_code':
+          setDetails('No authorization code received. Please try again.')
+          break
+        case 'configuration_error':
+          setDetails('App configuration error. Please contact support.')
+          break
+        case 'authentication_required':
+          setDetails('You need to be logged in. Please log in and try again.')
+          break
+        default:
+          setDetails(errorDescription || `Error: ${error}`)
+      }
+    } else {
+      // No parameters, something went wrong
+      setStatus('error')
+      setMessage('Invalid callback')
+      setDetails('No response parameters received from Facebook.')
     }
   }, [searchParams, router])
 
-  const syncFacebookData = async () => {
-    setIsSyncing(true)
-    setSyncMessage('Syncing Facebook pages...')
-    
-    try {
-      // First sync pages
-      const pagesResponse = await fetch('/api/integrations/meta/sync-pages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-      
-      const pagesData = await pagesResponse.json()
-      
-      if (pagesResponse.ok) {
-        const pageCount = pagesData.summary?.successful || 0
-        setSyncMessage(`Synced ${pageCount} pages. Now syncing ad accounts...`)
-        
-        // Then sync ad accounts
-        const adAccountsResponse = await fetch('/api/integrations/meta/sync-ad-accounts', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        })
-        
-        const adAccountsData = await adAccountsResponse.json()
-        
-        if (adAccountsResponse.ok) {
-          const adAccountCount = adAccountsData.summary?.successful || 0
-          setSyncMessage(`Successfully synced ${pageCount} pages and ${adAccountCount} ad accounts!`)
-        } else {
-          console.error('Failed to sync ad accounts:', adAccountsData)
-          setSyncMessage(`Synced ${pageCount} pages. Ad accounts sync failed.`)
-        }
-      } else {
-        console.error('Failed to sync pages:', pagesData)
-        setSyncMessage(`Sync failed: ${pagesData.error || pagesData.details || 'Unknown error'}`)
-      }
-    } catch (error) {
-      console.error('Error syncing Facebook data:', error)
-      setSyncMessage('Failed to sync Facebook data')
-    } finally {
-      setIsSyncing(false)
-      // Redirect after a short delay
-      setTimeout(() => {
-        router.push('/integrations/facebook')
-      }, 2000)
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-      <div className="max-w-md w-full text-center p-6">
-        <Link href="/" className="text-2xl font-bold text-orange-500 mb-8 block">
-          Atlas Fitness
-        </Link>
-
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+      <div className="bg-gray-800 rounded-lg shadow-xl p-8 max-w-md w-full">
         {status === 'loading' && (
-          <div>
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <h2 className="text-xl font-bold mb-2">Connecting to Facebook...</h2>
-            <p className="text-gray-300">Please wait while we set up your integration.</p>
-          </div>
+          <>
+            <div className="flex justify-center mb-6">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+            </div>
+            <h1 className="text-xl font-bold text-white text-center">
+              Processing Facebook connection...
+            </h1>
+          </>
         )}
-
+        
         {status === 'success' && (
-          <div>
-            <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-white text-xl">✓</span>
+          <>
+            <div className="flex justify-center mb-6">
+              <CheckCircle className="w-16 h-16 text-green-500" />
             </div>
-            <h2 className="text-xl font-bold mb-2 text-green-400">Connection Successful!</h2>
-            <p className="text-gray-300 mb-4">{message}</p>
-            
-            {isSyncing && (
-              <div className="mt-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
-                <p className="text-blue-400 text-sm">{syncMessage}</p>
-              </div>
-            )}
-            
-            {!isSyncing && syncMessage && (
-              <div className="mt-4">
-                <p className="text-blue-400 text-sm mb-2">{syncMessage}</p>
-                <p className="text-gray-400 text-sm">Redirecting to your dashboard...</p>
-              </div>
-            )}
-            
-            {!isSyncing && !syncMessage && (
-              <p className="text-gray-400 text-sm">Preparing to sync your Facebook data...</p>
-            )}
-          </div>
+            <h1 className="text-2xl font-bold text-white text-center mb-4">
+              {message}
+            </h1>
+            <p className="text-gray-400 text-center mb-6">
+              {details}
+            </p>
+            <div className="text-center">
+              <p className="text-sm text-gray-500">Redirecting to settings...</p>
+            </div>
+          </>
         )}
-
+        
         {status === 'error' && (
-          <div>
-            <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-white text-xl">✗</span>
+          <>
+            <div className="flex justify-center mb-6">
+              <XCircle className="w-16 h-16 text-red-500" />
             </div>
-            <h2 className="text-xl font-bold mb-2 text-red-400">Connection Failed</h2>
-            <p className="text-gray-300 mb-6">{message}</p>
+            <h1 className="text-2xl font-bold text-white text-center mb-4">
+              {message}
+            </h1>
+            <div className="mb-6 p-4 bg-red-900/30 border border-red-600 rounded-lg">
+              <p className="text-red-400">
+                {details}
+              </p>
+            </div>
             <div className="space-y-3">
-              <Link 
-                href="/integrations/facebook"
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors block"
+              <button
+                onClick={() => router.push('/connect-facebook')}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-lg flex items-center justify-center gap-2"
               >
                 Try Again
-              </Link>
-              <Link 
-                href="/dashboard"
-                className="text-gray-400 hover:text-white transition-colors block"
+              </button>
+              <button
+                onClick={() => router.push('/settings')}
+                className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 px-6 rounded-lg"
               >
-                Back to Dashboard
-              </Link>
+                Go to Settings
+              </button>
             </div>
-          </div>
+          </>
         )}
       </div>
     </div>
-  )
-}
-
-export default function FacebookCallbackPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-      </div>
-    }>
-      <CallbackContent />
-    </Suspense>
   )
 }
