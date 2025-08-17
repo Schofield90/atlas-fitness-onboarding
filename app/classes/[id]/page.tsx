@@ -1,511 +1,657 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { createClient } from '@/app/lib/supabase/client'
-import { Calendar, Clock, Users, MapPin, Plus, Settings, List, ArrowLeft, Repeat, CalendarDays } from 'lucide-react'
-import DashboardLayout from '../../components/DashboardLayout'
-import Link from 'next/link'
-import AddRepeatingTimeSlotsModal from './AddRepeatingTimeSlotsModal'
-import AddSingleSessionModal from './AddSingleSessionModal'
-import SessionsListModal from './SessionsListModal'
-import EditDetailsModal from './EditDetailsModal'
-import EditDatesModal from './EditDatesModal'
-import ClassSettingsTab from './ClassSettingsTab'
-
-interface ClassType {
-  id: string
-  name: string
-  description?: string
-  category?: string
-  is_active: boolean
-  price_pennies?: number
-  duration_minutes?: number
-  max_participants?: number
-  color?: string
-}
-
-interface ClassSession {
-  id: string
-  start_time: string
-  end_time: string
-  duration_minutes: number
-  capacity: number
-  location: string
-  instructor_name: string
-  bookings_count?: number
-}
+import React, { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { ArrowLeft, Save, Calendar, Clock, Users, DollarSign, MapPin, Activity, Trash2, Repeat, List } from 'lucide-react';
+import DashboardLayout from '@/app/components/DashboardLayout';
+import { createClient } from '@/app/lib/supabase/client';
+import { useOrganization } from '@/app/hooks/useOrganization';
+import RecurrenceModal from '@/app/components/classes/RecurrenceModal';
+import WaitlistManager from '@/app/components/classes/WaitlistManager';
 
 export default function ClassDetailPage() {
-  const params = useParams()
-  const router = useRouter()
-  const [classType, setClassType] = useState<ClassType | null>(null)
-  const [sessions, setSessions] = useState<ClassSession[]>([])
-  const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'schedule' | 'sessions' | 'settings'>('schedule')
-  const [showAddRepeatingModal, setShowAddRepeatingModal] = useState(false)
-  const [showAddSingleModal, setShowAddSingleModal] = useState(false)
-  const [openDropdown, setOpenDropdown] = useState<string | null>(null)
-  const [selectedPattern, setSelectedPattern] = useState<any>(null)
-  const [showSessionsModal, setShowSessionsModal] = useState(false)
-  const [showEditDetailsModal, setShowEditDetailsModal] = useState(false)
-  const [showEditDatesModal, setShowEditDatesModal] = useState(false)
-  const supabase = createClient()
+  const params = useParams();
+  const router = useRouter();
+  const classId = params.id as string;
+  const { organizationId } = useOrganization();
+  const supabase = createClient();
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [classType, setClassType] = useState<any>(null);
+  const [classSessions, setClassSessions] = useState<any[]>([]);
+  const [showRecurrenceModal, setShowRecurrenceModal] = useState(false);
+  const [selectedSession, setSelectedSession] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<'details' | 'sessions' | 'waitlist'>('details');
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    price_pennies: 0,
+    duration_minutes: 60,
+    capacity: 20,
+    location: '',
+    instructor_types: [] as string[],
+    category: '',
+    color: '#3B82F6',
+    metadata: {}
+  });
 
   useEffect(() => {
-    loadClassType()
-    loadSessions()
-  }, [params.id])
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (openDropdown && !(event.target as Element).closest('.relative')) {
-        setOpenDropdown(null)
-      }
+    if (classId && organizationId) {
+      loadClassType();
+      loadClassSessions();
     }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [openDropdown])
+  }, [classId, organizationId]);
 
   const loadClassType = async () => {
+    setLoading(true);
     try {
       const { data, error } = await supabase
         .from('programs')
         .select('*')
-        .eq('id', params.id)
-        .single()
+        .eq('id', classId)
+        .eq('organization_id', organizationId)
+        .single();
 
-      if (error) throw error
-      setClassType(data)
+      if (error) throw error;
+
+      if (data) {
+        setClassType(data);
+        setFormData({
+          name: data.name || '',
+          description: data.description || '',
+          price_pennies: data.price_pennies || 0,
+          duration_minutes: data.duration_minutes || 60,
+          capacity: data.default_capacity || 20,
+          location: data.location || '',
+          instructor_types: data.instructor_types || [],
+          category: data.metadata?.category || '',
+          color: data.color || '#3B82F6',
+          metadata: data.metadata || {}
+        });
+      }
     } catch (error) {
-      console.error('Error loading class type:', error)
+      console.error('Error loading class type:', error);
+      alert('Failed to load class type');
+      router.push('/classes');
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
-  const loadSessions = async () => {
+  const loadClassSessions = async () => {
     try {
       const { data, error } = await supabase
         .from('class_sessions')
         .select(`
           *,
-          bookings(count)
+          programs:program_id (
+            name,
+            program_type
+          ),
+          staff:trainer_id (
+            name,
+            email
+          )
         `)
-        .eq('program_id', params.id)
-        .order('start_time', { ascending: true })
+        .eq('program_id', classId)
+        .eq('organization_id', organizationId)
+        .order('start_time', { ascending: true });
 
-      if (error) throw error
-
-      const transformedData = data?.map(session => ({
-        ...session,
-        bookings_count: session.bookings?.[0]?.count || 0
-      })) || []
-
-      setSessions(transformedData)
+      if (error) throw error;
+      setClassSessions(data || []);
     } catch (error) {
-      console.error('Error loading sessions:', error)
-    } finally {
-      setLoading(false)
+      console.error('Error loading class sessions:', error);
     }
-  }
+  };
 
-  const handleCancelTimeSlot = async (pattern: ClassSession & { occurrences: number }) => {
-    if (!confirm(`Are you sure you want to cancel all ${pattern.occurrences} sessions at this time slot?`)) {
-      return
+  const handleCreateRecurringClasses = async (recurrenceData: any) => {
+    if (!selectedSession) return;
+
+    try {
+      const response = await fetch('/api/classes/recurring', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          classSessionId: selectedSession.id,
+          recurrenceRule: recurrenceData.rrule,
+          endDate: recurrenceData.endDate,
+          maxOccurrences: recurrenceData.occurrences
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert(`Successfully created ${data.instances} recurring class instances`);
+        await loadClassSessions();
+        setShowRecurrenceModal(false);
+        setSelectedSession(null);
+      } else {
+        alert('Failed to create recurring classes: ' + data.error);
+      }
+    } catch (error) {
+      console.error('Error creating recurring classes:', error);
+      alert('Failed to create recurring classes');
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('programs')
+        .update({
+          name: formData.name,
+          description: formData.description,
+          price_pennies: formData.price_pennies,
+          duration_minutes: formData.duration_minutes,
+          default_capacity: formData.capacity,
+          location: formData.location,
+          instructor_types: formData.instructor_types,
+          color: formData.color,
+          metadata: {
+            ...formData.metadata,
+            category: formData.category
+          },
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', classId)
+        .eq('organization_id', organizationId);
+
+      if (error) throw error;
+
+      alert('Class type updated successfully');
+      router.push('/classes');
+    } catch (error: any) {
+      console.error('Error saving class type:', error);
+      alert('Failed to save changes: ' + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this class type? This will also delete all associated class sessions.')) {
+      return;
     }
 
     try {
-      // Find all sessions matching this pattern
-      const matchingSessions = sessions.filter(session => {
-        const sessionDate = new Date(session.start_time)
-        const sessionDayName = sessionDate.toLocaleDateString('en-GB', { weekday: 'long' })
-        const sessionTime = sessionDate.toTimeString().slice(0, 5)
-        const patternDate = new Date(pattern.start_time)
-        const patternTime = patternDate.toTimeString().slice(0, 5)
-        
-        return sessionDayName === sessionDate.toLocaleDateString('en-GB', { weekday: 'long' }) &&
-               sessionTime === patternTime &&
-               session.instructor_name === pattern.instructor_name &&
-               session.location === pattern.location &&
-               session.capacity === pattern.capacity
-      })
-
-      // Delete all matching sessions
-      const { error } = await supabase
+      // First delete all class sessions
+      await supabase
         .from('class_sessions')
         .delete()
-        .in('id', matchingSessions.map(s => s.id))
+        .eq('program_id', classId);
 
-      if (error) throw error
+      // Then delete the program
+      const { error } = await supabase
+        .from('programs')
+        .delete()
+        .eq('id', classId)
+        .eq('organization_id', organizationId);
 
-      alert(`Successfully cancelled ${matchingSessions.length} sessions`)
-      setOpenDropdown(null)
-      loadSessions()
+      if (error) throw error;
+
+      alert('Class type deleted successfully');
+      router.push('/classes');
     } catch (error: any) {
-      console.error('Error cancelling time slot:', error)
-      alert('Failed to cancel time slot: ' + error.message)
+      console.error('Error deleting class type:', error);
+      alert('Failed to delete class type: ' + error.message);
     }
-  }
+  };
 
-  // Group sessions by recurring pattern (day of week + time)
-  const recurringPatterns = sessions.reduce((acc, session) => {
-    const date = new Date(session.start_time)
-    const dayName = date.toLocaleDateString('en-GB', { weekday: 'long' })
-    const timeKey = date.toTimeString().slice(0, 5) // HH:MM format
-    const patternKey = `${dayName}-${timeKey}-${session.duration_minutes}-${session.instructor_name}-${session.location}-${session.capacity}`
-    
-    if (!acc[dayName]) acc[dayName] = {}
-    if (!acc[dayName][patternKey]) {
-      acc[dayName][patternKey] = {
-        ...session,
-        occurrences: 1
-      }
-    } else {
-      acc[dayName][patternKey].occurrences++
-    }
-    return acc
-  }, {} as Record<string, Record<string, ClassSession & { occurrences: number }>>)
-
-  const daysOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-
-  if (loading || !classType) {
+  if (loading) {
     return (
-      <DashboardLayout>
-        <div className="min-h-screen bg-gray-900 p-8">
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+      <DashboardLayout userData={null}>
+        <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+            <p className="text-gray-400">Loading class type...</p>
           </div>
         </div>
       </DashboardLayout>
-    )
+    );
   }
 
   return (
-    <DashboardLayout>
+    <DashboardLayout userData={null}>
       <div className="min-h-screen bg-gray-900">
-        {/* Header Navigation */}
-        <div className="bg-gray-800 border-b border-gray-700">
-          <div className="px-8 py-4">
-            <nav className="flex items-center gap-2 text-sm">
-              <Link href="/dashboard" className="text-orange-600 hover:underline">Dashboard</Link>
-              <span className="text-gray-500">/</span>
-              <Link href="/classes" className="text-orange-600 hover:underline">Class Types</Link>
-              <span className="text-gray-500">/</span>
-              <span className="text-white">{classType.name}</span>
-              <span className="text-gray-500">/</span>
-              <span className="text-gray-400">Schedule</span>
-            </nav>
-          </div>
-        </div>
-
-        {/* Class Header */}
-        <div className="bg-gray-800 border-b border-gray-700">
-          <div className="px-8 py-6">
-            <div className="flex justify-between items-start">
+        <div className="container mx-auto px-6 py-8">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => router.push('/classes')}
+                className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5 text-gray-400" />
+              </button>
               <div>
-                <h1 className="text-2xl font-bold text-white mb-2">
-                  {classType.name} | Classes
-                </h1>
-                <p className="text-gray-400">
-                  Visible to: everyone • <span className="text-orange-600">{sessions.length} sessions</span>
-                </p>
-                <p className="text-gray-400 mt-1">
-                  {classType.description || 'No description provided'}
-                </p>
+                <h1 className="text-3xl font-bold text-white">Edit Class Type</h1>
+                <p className="text-gray-400 mt-1">Modify class type details and settings</p>
               </div>
-              <button className="p-2 hover:bg-gray-700 rounded transition-colors">
-                <Settings className="h-5 w-5 text-gray-400" />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={handleDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                <Save className="w-4 h-4" />
+                {saving ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>
-        </div>
 
-        {/* Tabs */}
-        <div className="bg-gray-800 border-b border-gray-700">
-          <div className="px-8">
-            <div className="flex gap-6">
+          {/* Tabs */}
+          <div className="flex space-x-1 bg-gray-800 p-1 rounded-lg mb-6">
+            {[
+              { key: 'details', label: 'Class Details', icon: Activity },
+              { key: 'sessions', label: 'Sessions & Scheduling', icon: Calendar },
+              { key: 'waitlist', label: 'Waitlist Management', icon: List }
+            ].map(({ key, label, icon: Icon }) => (
               <button
-                onClick={() => setActiveTab('schedule')}
-                className={`py-3 px-4 border-b-2 flex items-center gap-2 transition-colors ${
-                  activeTab === 'schedule' 
-                    ? 'border-orange-600 text-orange-600' 
-                    : 'border-transparent text-gray-400 hover:text-white'
+                key={key}
+                onClick={() => setActiveTab(key as any)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                  activeTab === key
+                    ? 'bg-orange-600 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-700'
                 }`}
               >
-                <Calendar className="h-4 w-4" />
-                Schedule
+                <Icon className="w-4 h-4" />
+                {label}
               </button>
-              <button
-                onClick={() => setActiveTab('sessions')}
-                className={`py-3 px-4 border-b-2 flex items-center gap-2 transition-colors ${
-                  activeTab === 'sessions' 
-                    ? 'border-orange-600 text-orange-600' 
-                    : 'border-transparent text-gray-400 hover:text-white'
-                }`}
-              >
-                <List className="h-4 w-4" />
-                Sessions
-              </button>
-              <button
-                onClick={() => setActiveTab('settings')}
-                className={`py-3 px-4 border-b-2 flex items-center gap-2 transition-colors ${
-                  activeTab === 'settings' 
-                    ? 'border-orange-600 text-orange-600' 
-                    : 'border-transparent text-gray-400 hover:text-white'
-                }`}
-              >
-                <Settings className="h-4 w-4" />
-                Settings & Pricing
-              </button>
-            </div>
+            ))}
           </div>
-        </div>
 
-        {/* Content */}
-        <div className="p-8">
-          {activeTab === 'schedule' && (
-            <div>
-              {/* Action Buttons */}
-              <div className="flex justify-end gap-3 mb-6">
-                <button 
-                  onClick={() => setShowAddRepeatingModal(true)}
-                  className="px-4 py-2 border border-gray-600 rounded-lg hover:bg-gray-700 flex items-center gap-2 text-gray-300 hover:text-white transition-colors"
-                >
-                  <Repeat className="h-4 w-4" />
-                  Add repeating time slots
-                </button>
-                <button 
-                  onClick={() => setShowAddSingleModal(true)}
-                  className="px-4 py-2 border border-gray-600 rounded-lg hover:bg-gray-700 flex items-center gap-2 text-gray-300 hover:text-white transition-colors"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add single session
-                </button>
-                <button className="px-4 py-2 border border-gray-600 rounded-lg hover:bg-gray-700 flex items-center gap-2 text-gray-300 hover:text-white transition-colors">
-                  <List className="h-4 w-4" />
-                  Bulk Edit
-                </button>
+          {/* Tab Content */}
+          {activeTab === 'details' && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Basic Information */}
+            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <Activity className="w-5 h-5 text-blue-400" />
+                Basic Information
+              </h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Class Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    placeholder="e.g., HIIT Training"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    rows={3}
+                    placeholder="Brief description of the class..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Category
+                  </label>
+                  <select
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  >
+                    <option value="">No Category</option>
+                    <option value="strength">Strength Training</option>
+                    <option value="cardio">Cardio</option>
+                    <option value="yoga">Yoga</option>
+                    <option value="pilates">Pilates</option>
+                    <option value="dance">Dance</option>
+                    <option value="martial-arts">Martial Arts</option>
+                    <option value="swimming">Swimming</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Color Theme
+                  </label>
+                  <input
+                    type="color"
+                    value={formData.color}
+                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                    className="w-full h-10 bg-gray-700 border border-gray-600 rounded-lg cursor-pointer"
+                  />
+                </div>
               </div>
+            </div>
 
-              {/* Schedule by Day */}
-              <div className="space-y-8">
-                {daysOrder.map(day => {
-                  const dayPatterns = recurringPatterns[day]
-                  if (!dayPatterns || Object.keys(dayPatterns).length === 0) return null
+            {/* Class Settings */}
+            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-green-400" />
+                Class Settings
+              </h2>
+              
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
+                      <Clock className="w-4 h-4 inline mr-1" />
+                      Duration (minutes)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.duration_minutes}
+                      onChange={(e) => setFormData({ ...formData, duration_minutes: parseInt(e.target.value) })}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      min="15"
+                      max="240"
+                      step="15"
+                    />
+                  </div>
 
-                  return (
-                    <div key={day}>
-                      <h3 className="text-lg font-semibold text-white mb-4">{day}</h3>
-                      <div className="space-y-3">
-                        {Object.values(dayPatterns).map(pattern => {
-                          const startTime = new Date(pattern.start_time)
-                          const endTime = new Date(pattern.end_time)
-                          
-                          // Calculate if it's exactly 1 hour
-                          const durationMinutes = pattern.duration_minutes
-                          const isOneHour = durationMinutes === 60
-                          
-                          const timeDisplay = isOneHour 
-                            ? `${startTime.toLocaleTimeString('en-GB', { 
-                                hour: 'numeric', 
-                                minute: '2-digit' 
-                              })} • 1 hour`
-                            : `${startTime.toLocaleTimeString('en-GB', { 
-                                hour: 'numeric', 
-                                minute: '2-digit' 
-                              })}–${endTime.toLocaleTimeString('en-GB', { 
-                                hour: 'numeric', 
-                                minute: '2-digit' 
-                              })}`
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
+                      <Users className="w-4 h-4 inline mr-1" />
+                      Default Capacity
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.capacity}
+                      onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) })}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      min="1"
+                      max="100"
+                    />
+                  </div>
+                </div>
 
-                          const dropdownKey = `${day}-${pattern.start_time}-${pattern.instructor_name}`
-                          
-                          return (
-                            <div key={dropdownKey} className="bg-gray-800 border border-gray-700 rounded-lg p-4">
-                              <div className="flex justify-between items-center">
-                                <div>
-                                  <p className="text-white font-medium">
-                                    {timeDisplay} @ {pattern.location}
-                                  </p>
-                                  <p className="text-gray-400">
-                                    Limit: {pattern.capacity} • {pattern.instructor_name}
-                                  </p>
-                                </div>
-                                <div className="relative">
-                                  <button 
-                                    onClick={() => setOpenDropdown(openDropdown === dropdownKey ? null : dropdownKey)}
-                                    className="p-2 hover:bg-gray-700 rounded transition-colors"
-                                  >
-                                    <Settings className="h-4 w-4 text-gray-400" />
-                                  </button>
-                                  
-                                  {openDropdown === dropdownKey && (
-                                    <div className="absolute right-0 mt-2 w-56 bg-gray-800 rounded-md shadow-lg border border-gray-600 z-10">
-                                      <div className="py-1">
-                                        <button 
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            setSelectedPattern(pattern)
-                                            setShowSessionsModal(true)
-                                            setOpenDropdown(null)
-                                          }}
-                                          className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors"
-                                        >
-                                          <div className="font-medium">Sessions</div>
-                                          <div className="text-gray-500 text-xs">at this time slot</div>
-                                        </button>
-                                        <button 
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            setSelectedPattern(pattern)
-                                            setShowEditDetailsModal(true)
-                                            setOpenDropdown(null)
-                                          }}
-                                          className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors"
-                                        >
-                                          <div className="font-medium">Edit Details</div>
-                                          <div className="text-gray-500 text-xs">venue, instructors, time</div>
-                                        </button>
-                                        <button 
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            setSelectedPattern(pattern)
-                                            setShowEditDatesModal(true)
-                                            setOpenDropdown(null)
-                                          }}
-                                          className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors"
-                                        >
-                                          <div className="font-medium">Edit Dates</div>
-                                          <div className="text-gray-500 text-xs">start, end, alignment</div>
-                                        </button>
-                                        <button 
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            handleCancelTimeSlot(pattern)
-                                          }}
-                                          className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-700 transition-colors"
-                                        >
-                                          <div className="font-medium">Cancel</div>
-                                          <div className="text-gray-500 text-xs">remove time slot</div>
-                                        </button>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    <DollarSign className="w-4 h-4 inline mr-1" />
+                    Price (£)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.price_pennies / 100}
+                    onChange={(e) => setFormData({ ...formData, price_pennies: Math.round(parseFloat(e.target.value) * 100) })}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    <MapPin className="w-4 h-4 inline mr-1" />
+                    Default Location
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.location}
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    placeholder="e.g., Studio A, Main Gym Floor"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Instructor Types
+                  </label>
+                  <div className="space-y-2">
+                    {['Personal Trainer', 'Group Instructor', 'Yoga Teacher', 'Specialist'].map((type) => (
+                      <label key={type} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={formData.instructor_types.includes(type)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData({ 
+                                ...formData, 
+                                instructor_types: [...formData.instructor_types, type] 
+                              });
+                            } else {
+                              setFormData({ 
+                                ...formData, 
+                                instructor_types: formData.instructor_types.filter(t => t !== type) 
+                              });
+                            }
+                          }}
+                          className="mr-2 rounded border-gray-600 bg-gray-700 text-orange-500 focus:ring-orange-500"
+                        />
+                        <span className="text-sm text-gray-300">{type}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Eligibility & Rules */}
+            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+              <h2 className="text-lg font-semibold text-white mb-4">Eligibility & Rules</h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Membership Plans
+                  </label>
+                  <p className="text-sm text-gray-500 mb-2">Select which membership plans can access this class</p>
+                  <div className="space-y-2">
+                    <label className="flex items-center">
+                      <input type="checkbox" className="mr-2 rounded border-gray-600 bg-gray-700 text-orange-500" defaultChecked />
+                      <span className="text-sm text-gray-300">All Memberships</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input type="checkbox" className="mr-2 rounded border-gray-600 bg-gray-700 text-orange-500" />
+                      <span className="text-sm text-gray-300">Pay-per-class</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input type="checkbox" className="mr-2 rounded border-gray-600 bg-gray-700 text-orange-500" />
+                      <span className="text-sm text-gray-300">Trial Members</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Cancellation Policy
+                  </label>
+                  <select className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500">
+                    <option>2 hours before class</option>
+                    <option>4 hours before class</option>
+                    <option>12 hours before class</option>
+                    <option>24 hours before class</option>
+                    <option>No cancellation allowed</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Statistics */}
+            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+              <h2 className="text-lg font-semibold text-white mb-4">Statistics</h2>
+              
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-400">Total Sessions</span>
+                  <span className="text-sm text-white font-medium">
+                    {classType?.sessions_count || 0}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-400">Average Attendance</span>
+                  <span className="text-sm text-white font-medium">85%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-400">Revenue This Month</span>
+                  <span className="text-sm text-green-400 font-medium">£1,250</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-400">Created</span>
+                  <span className="text-sm text-white font-medium">
+                    {classType?.created_at ? new Date(classType.created_at).toLocaleDateString('en-GB') : 'Unknown'}
+                  </span>
+                </div>
+              </div>
+            </div>
+            </div>
+          )}
+
+          {/* Sessions Tab */}
+          {activeTab === 'sessions' && (
+            <div className="space-y-6">
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-white">Class Sessions</h2>
+                  <button
+                    onClick={() => {
+                      setSelectedSession(classSessions[0] || null);
+                      setShowRecurrenceModal(true);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                  >
+                    <Repeat className="w-4 h-4" />
+                    Create Recurring
+                  </button>
+                </div>
+
+                {classSessions.length === 0 ? (
+                  <div className="text-center py-8 text-gray-400">
+                    <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>No sessions scheduled for this class type</p>
+                    <p className="text-sm mt-1">Create sessions from the main classes page</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {classSessions.map((session) => (
+                      <div
+                        key={session.id}
+                        className="flex items-center justify-between p-4 bg-gray-700 rounded-lg border border-gray-600"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="flex flex-col">
+                            <span className="text-white font-medium">
+                              {session.name || classType?.name}
+                            </span>
+                            <div className="flex items-center gap-4 text-sm text-gray-400">
+                              <div className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                {new Date(session.start_time).toLocaleDateString('en-GB')}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {new Date(session.start_time).toLocaleTimeString('en-GB', { 
+                                  hour: '2-digit', 
+                                  minute: '2-digit' 
+                                })}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Users className="w-3 h-3" />
+                                {session.current_bookings}/{session.max_capacity}
                               </div>
                             </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )
-                })}
+                          </div>
+                        </div>
 
-                {sessions.length === 0 && (
-                  <div className="text-center py-12 bg-gray-800 rounded-lg border border-gray-700">
-                    <CalendarDays className="mx-auto h-12 w-12 text-gray-500 mb-3" />
-                    <p className="text-white font-medium mb-1">No scheduled sessions</p>
-                    <p className="text-gray-400 mb-4">Add time slots to start scheduling classes</p>
-                    <button 
-                      onClick={() => setShowAddRepeatingModal(true)}
-                      className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-                    >
-                      Add repeating time slots
-                    </button>
+                        <div className="flex items-center gap-2">
+                          {session.is_recurring && (
+                            <span className="bg-blue-900/30 text-blue-400 px-2 py-1 rounded text-xs">
+                              Recurring
+                            </span>
+                          )}
+                          <button
+                            onClick={() => {
+                              setSelectedSession(session);
+                              setShowRecurrenceModal(true);
+                            }}
+                            className="p-2 text-orange-400 hover:bg-orange-900/20 rounded transition-colors"
+                            title="Create recurring instances"
+                          >
+                            <Repeat className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          {activeTab === 'sessions' && (
-            <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-              <p className="text-gray-400">Sessions view coming soon...</p>
+          {/* Waitlist Tab */}
+          {activeTab === 'waitlist' && classSessions.length > 0 && (
+            <div className="space-y-6">
+              {classSessions.map((session) => (
+                <div key={session.id}>
+                  <div className="mb-4">
+                    <h3 className="text-lg font-semibold text-white">
+                      {session.name || classType?.name}
+                    </h3>
+                    <p className="text-gray-400 text-sm">
+                      {new Date(session.start_time).toLocaleDateString('en-GB')} at{' '}
+                      {new Date(session.start_time).toLocaleTimeString('en-GB', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}
+                    </p>
+                  </div>
+                  <WaitlistManager
+                    classSessionId={session.id}
+                    organizationId={organizationId!}
+                    onWaitlistChange={() => loadClassSessions()}
+                  />
+                </div>
+              ))}
             </div>
           )}
 
-          {activeTab === 'settings' && classType && (
-            <ClassSettingsTab 
-              programId={params.id as string}
-              classType={classType}
-              onUpdate={loadClassType}
-            />
+          {activeTab === 'waitlist' && classSessions.length === 0 && (
+            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+              <div className="text-center py-8 text-gray-400">
+                <List className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>No sessions available for waitlist management</p>
+                <p className="text-sm mt-1">Create class sessions first</p>
+              </div>
+            </div>
           )}
         </div>
-
-        {/* Add Repeating Time Slots Modal */}
-        {showAddRepeatingModal && params.id && (
-          <AddRepeatingTimeSlotsModal
-            onClose={() => setShowAddRepeatingModal(false)}
-            onSuccess={() => {
-              setShowAddRepeatingModal(false)
-              loadSessions() // Reload sessions after adding new ones
-            }}
-            programId={params.id as string}
-          />
-        )}
-
-        {/* Add Single Session Modal */}
-        {showAddSingleModal && params.id && (
-          <AddSingleSessionModal
-            onClose={() => setShowAddSingleModal(false)}
-            onSuccess={() => {
-              setShowAddSingleModal(false)
-              loadSessions() // Reload sessions after adding new one
-            }}
-            programId={params.id as string}
-          />
-        )}
-
-        {/* Sessions List Modal */}
-        {showSessionsModal && selectedPattern && params.id && (
-          <SessionsListModal
-            onClose={() => setShowSessionsModal(false)}
-            programId={params.id as string}
-            dayOfWeek={new Date(selectedPattern.start_time).toLocaleDateString('en-GB', { weekday: 'long' })}
-            timeSlot={new Date(selectedPattern.start_time).toTimeString().slice(0, 5)}
-            instructor={selectedPattern.instructor_name}
-            location={selectedPattern.location}
-            capacity={selectedPattern.capacity}
-          />
-        )}
-
-        {/* Edit Details Modal */}
-        {showEditDetailsModal && selectedPattern && params.id && (
-          <EditDetailsModal
-            onClose={() => setShowEditDetailsModal(false)}
-            onSuccess={() => {
-              setShowEditDetailsModal(false)
-              loadSessions()
-            }}
-            programId={params.id as string}
-            dayOfWeek={new Date(selectedPattern.start_time).toLocaleDateString('en-GB', { weekday: 'long' })}
-            currentTime={new Date(selectedPattern.start_time).toTimeString().slice(0, 5)}
-            currentInstructor={selectedPattern.instructor_name}
-            currentLocation={selectedPattern.location}
-            currentCapacity={selectedPattern.capacity}
-            currentDuration={selectedPattern.duration_minutes}
-          />
-        )}
-
-        {/* Edit Dates Modal */}
-        {showEditDatesModal && selectedPattern && params.id && (
-          <EditDatesModal
-            onClose={() => setShowEditDatesModal(false)}
-            onSuccess={() => {
-              setShowEditDatesModal(false)
-              loadSessions()
-            }}
-            programId={params.id as string}
-            dayOfWeek={new Date(selectedPattern.start_time).toLocaleDateString('en-GB', { weekday: 'long' })}
-            timeSlot={new Date(selectedPattern.start_time).toTimeString().slice(0, 5)}
-            instructor={selectedPattern.instructor_name}
-            location={selectedPattern.location}
-            capacity={selectedPattern.capacity}
-          />
-        )}
       </div>
+
+      {/* Modals */}
+      <RecurrenceModal
+        isOpen={showRecurrenceModal}
+        onClose={() => {
+          setShowRecurrenceModal(false);
+          setSelectedSession(null);
+        }}
+        onSave={handleCreateRecurringClasses}
+        classSession={selectedSession}
+      />
     </DashboardLayout>
-  )
+  );
 }

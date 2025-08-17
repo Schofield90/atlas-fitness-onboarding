@@ -206,10 +206,15 @@ function ClassesPageContent() {
               </thead>
               <tbody className="bg-gray-800 divide-y divide-gray-700">
                 {classTypes.map((classType) => (
-                  <tr key={classType.id} className="hover:bg-gray-700 cursor-pointer" onClick={() => router.push(`/classes/${classType.id}`)}>
+                  <tr key={classType.id} className="hover:bg-gray-700">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <div className="text-sm font-medium text-white hover:text-blue-400">{classType.name}</div>
+                        <div 
+                          className="text-sm font-medium text-white hover:text-blue-400 cursor-pointer"
+                          onClick={() => router.push(`/classes/${classType.id}`)}
+                        >
+                          {classType.name}
+                        </div>
                         {classType.description && (
                           <div className="text-sm text-gray-400">{classType.description}</div>
                         )}
@@ -217,7 +222,7 @@ function ClassesPageContent() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm text-gray-300">
-                        No category
+                        {classType.metadata?.category || 'No category'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -229,14 +234,23 @@ function ClassesPageContent() {
                       {classType.sessions_count || 0} sessions
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                      Not set
+                      {classType.default_capacity || 'Not set'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button className="text-blue-400 hover:text-blue-300 mr-4">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/classes/${classType.id}`);
+                        }}
+                        className="text-blue-400 hover:text-blue-300 mr-4"
+                      >
                         <Edit className="h-4 w-4" />
                       </button>
                       <button 
-                        onClick={() => handleDeleteClassType(classType.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteClassType(classType.id);
+                        }}
                         className="text-red-400 hover:text-red-300"
                       >
                         <Trash2 className="h-4 w-4" />
