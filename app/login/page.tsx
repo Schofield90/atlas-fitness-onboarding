@@ -37,7 +37,23 @@ export default function LoginPage() {
 
       if (data?.user) {
         console.log('User authenticated:', data.user.id)
-        // Check if user has organization
+        
+        // First, fix organization membership
+        try {
+          const fixResponse = await fetch('/api/auth/fix-organization', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          const fixResult = await fixResponse.json();
+          console.log('Organization fix result:', fixResult);
+        } catch (fixError) {
+          console.error('Error fixing organization:', fixError);
+        }
+        
+        // Now check if user has organization
         const { data: userOrg } = await supabase
           .from('user_organizations')
           .select('organization_id')
@@ -48,8 +64,20 @@ export default function LoginPage() {
           // Has organization, go to dashboard
           router.push('/dashboard')
         } else {
-          // No organization, might need onboarding
-          router.push('/onboarding')
+          // Still no organization, check organization_members as fallback
+          const { data: orgMember } = await supabase
+            .from('organization_members')
+            .select('organization_id')
+            .eq('user_id', data.user.id)
+            .eq('is_active', true)
+            .single()
+          
+          if (orgMember?.organization_id) {
+            router.push('/dashboard')
+          } else {
+            // No organization found, go to onboarding
+            router.push('/onboarding')
+          }
         }
         router.refresh()
       }
