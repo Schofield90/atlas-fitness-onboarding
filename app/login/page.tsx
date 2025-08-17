@@ -38,47 +38,29 @@ export default function LoginPage() {
       if (data?.user) {
         console.log('User authenticated:', data.user.id)
         
-        // First, fix organization membership
+        // Check membership status (this will auto-add existing users to Atlas Fitness)
         try {
-          const fixResponse = await fetch('/api/auth/fix-organization', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          });
+          const membershipResponse = await fetch('/api/auth/check-membership');
+          const membershipResult = await membershipResponse.json();
           
-          const fixResult = await fixResponse.json();
-          console.log('Organization fix result:', fixResult);
-        } catch (fixError) {
-          console.error('Error fixing organization:', fixError);
-        }
-        
-        // Now check if user has organization
-        const { data: userOrg } = await supabase
-          .from('user_organizations')
-          .select('organization_id')
-          .eq('user_id', data.user.id)
-          .single()
-        
-        if (userOrg?.organization_id) {
-          // Has organization, go to dashboard
-          router.push('/dashboard')
-        } else {
-          // Still no organization, check organization_members as fallback
-          const { data: orgMember } = await supabase
-            .from('organization_members')
-            .select('organization_id')
-            .eq('user_id', data.user.id)
-            .eq('is_active', true)
-            .single()
+          console.log('Membership check result:', membershipResult);
           
-          if (orgMember?.organization_id) {
+          if (membershipResult.hasOrganization) {
+            // User has organization, go to dashboard
             router.push('/dashboard')
-          } else {
-            // No organization found, go to onboarding
+          } else if (membershipResult.needsOnboarding) {
+            // New user needs onboarding
             router.push('/onboarding')
+          } else {
+            // Fallback to dashboard
+            router.push('/dashboard')
           }
+        } catch (error) {
+          console.error('Error checking membership:', error);
+          // On error, try to go to dashboard
+          router.push('/dashboard')
         }
+        
         router.refresh()
       }
     } catch (err: any) {

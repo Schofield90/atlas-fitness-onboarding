@@ -71,28 +71,34 @@ export default function OnboardingPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        router.push('/auth/login')
+        router.push('/login')
         return
       }
       
-      // Check if user already has an organization
-      const { data: userOrg } = await supabase
-        .from('organization_members')
-        .select('organization_id')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .single()
+      // Use the check-membership API which handles existing users properly
+      const response = await fetch('/api/auth/check-membership')
+      const result = await response.json()
       
-      if (userOrg) {
-        // User already has an organization, redirect to dashboard
-        router.push('/dashboard/overview')
+      console.log('Onboarding page - membership check:', result)
+      
+      if (result.hasOrganization) {
+        // User has an organization (including auto-added existing users)
+        router.push('/dashboard')
         return
       }
       
+      if (!result.needsOnboarding) {
+        // Shouldn't be on this page
+        router.push('/dashboard')
+        return
+      }
+      
+      // Only new users who actually need onboarding continue
       setLoading(false)
     } catch (error) {
       console.error('Error checking organization:', error)
-      setLoading(false)
+      // On error, assume they have access and redirect to dashboard
+      router.push('/dashboard')
     }
   }
   
