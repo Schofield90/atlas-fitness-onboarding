@@ -42,16 +42,22 @@ export async function GET(request: NextRequest) {
         }
       }
       
-      // Also ensure user_organizations exists
-      const { error: upsertError } = await supabase
-        .from('user_organizations')
-        .upsert({
-          user_id: user.id,
-          organization_id: defaultOrgId,
-          role: 'owner'
-        }, {
-          onConflict: 'user_id'
-        })
+      // Also ensure user_organizations exists (handle duplicate gracefully)
+      try {
+        await supabase
+          .from('user_organizations')
+          .upsert({
+            user_id: user.id,
+            organization_id: defaultOrgId,
+            role: 'owner'
+          }, {
+            onConflict: 'user_id',
+            ignoreDuplicates: true
+          })
+      } catch (e) {
+        // Ignore duplicate errors
+        console.log('user_organizations may already exist, continuing...')
+      }
       
       return NextResponse.json({
         success: true,
