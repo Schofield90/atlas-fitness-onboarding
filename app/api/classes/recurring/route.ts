@@ -1,371 +1,239 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/app/lib/supabase/server';
-import { getUserAndOrganization } from '@/app/lib/auth-utils';
-import { RRule } from 'rrule';
+import { createAdminClient } from '@/app/lib/supabase/admin';
 
 interface RecurringClassRequest {
   classSessionId: string;
-  recurrenceRule: string; // RRULE string
+  frequency: 'daily' | 'weekly' | 'monthly';
+  interval: number;
+  daysOfWeek?: number[]; // 0=Sunday, 6=Saturday
   endDate?: string;
   maxOccurrences?: number;
 }
 
-interface RecurringClassInstance {
-  original_session_id: string;
-  start_time: string;
-  end_time: string;
-  occurrence_date: string;
-  program_id: string;
-  trainer_id?: string;
-  name?: string;
-  description?: string;
-  max_capacity: number;
-  room_location?: string;
-  organization_id: string;
-}
+// Simple recurrence generator without external dependencies
+function generateRecurrences(
+  startDate: Date,
+  frequency: 'daily' | 'weekly' | 'monthly',
+  interval: number,
+  endDate: Date,
+  maxOccurrences: number,
+  daysOfWeek?: number[]
+): Date[] {
+  const occurrences: Date[] = [];
+  let currentDate = new Date(startDate);
+  let count = 0;
 
-export async function POST(request: NextRequest) {
-  try {
-    const supabase = await createServerSupabaseClient();
-    const { user, organization } = await getUserAndOrganization(supabase);
-
-    if (!user || !organization) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const body: RecurringClassRequest = await request.json();
-    const { classSessionId, recurrenceRule, endDate, maxOccurrences } = body;
-
-    // Get the original class session
-    const { data: originalSession, error: sessionError } = await supabase
-      .from('class_sessions')
-      .select('*')
-      .eq('id', classSessionId)
-      .eq('organization_id', organization.id)
-      .single();
-
-    if (sessionError || !originalSession) {
-      return NextResponse.json({ error: 'Class session not found' }, { status: 404 });
-    }
-
-    // Parse the RRULE
-    const rule = RRule.fromString(recurrenceRule);
-    const startDate = new Date(originalSession.start_time);
-    const sessionDuration = new Date(originalSession.end_time).getTime() - new Date(originalSession.start_time).getTime();
-
-    // Generate occurrences
-    const until = endDate ? new Date(endDate) : undefined;
-    const occurrences = rule.between(startDate, until || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), true);
-
-    // Limit occurrences if specified
-    const limitedOccurrences = maxOccurrences 
-      ? occurrences.slice(0, maxOccurrences)
-      : occurrences;
-
-    // Update original session with recurrence info
-    const { error: updateError } = await supabase
-      .from('class_sessions')
-      .update({
-        is_recurring: true,
-        recurrence_rule: recurrenceRule,
-        recurrence_end_date: endDate || null,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', classSessionId);
-
-    if (updateError) {
-      return NextResponse.json({ error: 'Failed to update original session' }, { status: 500 });
-    }
-
-    // Create recurring instances (skip the first one as it's the original)
-    const instances: RecurringClassInstance[] = limitedOccurrences.slice(1).map(occurrence => {
-      const newStartTime = new Date(occurrence);
-      const newEndTime = new Date(occurrence.getTime() + sessionDuration);
-
-      return {
-        original_session_id: classSessionId,
-        start_time: newStartTime.toISOString(),
-        end_time: newEndTime.toISOString(),
-        occurrence_date: occurrence.toISOString().split('T')[0],
-        program_id: originalSession.program_id,
-        trainer_id: originalSession.trainer_id,
-        name: originalSession.name,
-        description: originalSession.description,
-        max_capacity: originalSession.max_capacity,
-        room_location: originalSession.room_location,
-        organization_id: organization.id
-      };
-    });
-
-    // Insert all instances in a batch
-    if (instances.length > 0) {
-      const { error: insertError } = await supabase
-        .from('class_sessions')
-        .insert(instances.map(instance => ({
-          ...instance,
-          parent_session_id: classSessionId,
-          is_recurring: false, // These are instances, not the main recurring session
-          session_status: 'scheduled',
-          current_bookings: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })));
-
-      if (insertError) {
-        console.error('Error creating recurring instances:', insertError);
-        return NextResponse.json({ error: 'Failed to create recurring instances' }, { status: 500 });
+  while (currentDate <= endDate && count < maxOccurrences) {
+    if (frequency === 'daily') {
+      occurrences.push(new Date(currentDate));
+      currentDate.setDate(currentDate.getDate() + interval);
+      count++;
+    } else if (frequency === 'weekly') {
+      if (daysOfWeek && daysOfWeek.length > 0) {
+        // Generate for specific days of week
+        for (let i = 0; i < 7 * interval; i++) {
+          if (daysOfWeek.includes(currentDate.getDay())) {
+            occurrences.push(new Date(currentDate));
+            count++;
+            if (count >= maxOccurrences) break;
+          }
+          currentDate.setDate(currentDate.getDate() + 1);
+          if (currentDate > endDate) break;
+        }
+      } else {
+        // Simple weekly recurrence
+        occurrences.push(new Date(currentDate));
+        currentDate.setDate(currentDate.getDate() + (7 * interval));
+        count++;
       }
+    } else if (frequency === 'monthly') {
+      occurrences.push(new Date(currentDate));
+      currentDate.setMonth(currentDate.getMonth() + interval);
+      count++;
     }
-
-    return NextResponse.json({
-      success: true,
-      message: `Created ${instances.length} recurring instances`,
-      occurrences: limitedOccurrences.length,
-      instances: instances.length
-    });
-
-  } catch (error) {
-    console.error('Error creating recurring classes:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
+
+  return occurrences;
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const { user, organization } = await getUserAndOrganization(supabase);
+    const supabase = await createAdminClient();
+    const searchParams = request.nextUrl.searchParams;
+    const sessionId = searchParams.get('sessionId');
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
 
-    if (!user || !organization) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Get recurring sessions
+    let query = supabase
+      .from('class_sessions')
+      .select('*')
+      .eq('is_recurring', true);
+
+    if (sessionId) {
+      query = query.eq('parent_session_id', sessionId);
     }
 
-    const url = new URL(request.url);
-    const classSessionId = url.searchParams.get('classSessionId');
-    const fromDate = url.searchParams.get('from');
-    const toDate = url.searchParams.get('to');
-
-    if (classSessionId) {
-      // Get specific recurring class and its instances
-      const { data: recurringSession, error: sessionError } = await supabase
-        .from('class_sessions')
-        .select('*')
-        .eq('id', classSessionId)
-        .eq('organization_id', organization.id)
-        .eq('is_recurring', true)
-        .single();
-
-      if (sessionError || !recurringSession) {
-        return NextResponse.json({ error: 'Recurring class not found' }, { status: 404 });
-      }
-
-      const { data: instances, error: instancesError } = await supabase
-        .from('class_sessions')
-        .select(`
-          *,
-          programs:program_id (
-            name,
-            program_type
-          ),
-          staff:trainer_id (
-            name,
-            email
-          )
-        `)
-        .eq('parent_session_id', classSessionId)
-        .eq('organization_id', organization.id)
-        .order('start_time', { ascending: true });
-
-      if (instancesError) {
-        return NextResponse.json({ error: 'Failed to fetch instances' }, { status: 500 });
-      }
-
-      return NextResponse.json({
-        recurringSession,
-        instances: instances || [],
-        total: (instances || []).length
-      });
-    } else {
-      // Get all recurring classes
-      let query = supabase
-        .from('class_sessions')
-        .select(`
-          *,
-          programs:program_id (
-            name,
-            program_type
-          ),
-          staff:trainer_id (
-            name,
-            email
-          )
-        `)
-        .eq('organization_id', organization.id)
-        .eq('is_recurring', true);
-
-      if (fromDate) {
-        query = query.gte('start_time', fromDate);
-      }
-
-      if (toDate) {
-        query = query.lte('start_time', toDate);
-      }
-
-      const { data: recurringClasses, error } = await query.order('start_time', { ascending: true });
-
-      if (error) {
-        return NextResponse.json({ error: 'Failed to fetch recurring classes' }, { status: 500 });
-      }
-
-      return NextResponse.json({
-        recurringClasses: recurringClasses || [],
-        total: (recurringClasses || []).length
-      });
+    if (startDate && endDate) {
+      query = query
+        .gte('start_time', startDate)
+        .lte('start_time', endDate);
     }
 
-  } catch (error) {
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    return NextResponse.json({ sessions: data });
+  } catch (error: any) {
     console.error('Error fetching recurring classes:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createAdminClient();
+    const body: RecurringClassRequest = await request.json();
+    
+    const {
+      classSessionId,
+      frequency,
+      interval = 1,
+      daysOfWeek,
+      endDate,
+      maxOccurrences = 52
+    } = body;
+
+    // Get the original session
+    const { data: originalSession, error: sessionError } = await supabase
+      .from('class_sessions')
+      .select('*')
+      .eq('id', classSessionId)
+      .single();
+
+    if (sessionError || !originalSession) {
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+    }
+
+    // Generate occurrences
+    const startDate = new Date(originalSession.start_time);
+    const endDateTime = endDate ? new Date(endDate) : new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 year default
+    
+    const occurrences = generateRecurrences(
+      startDate,
+      frequency,
+      interval,
+      endDateTime,
+      maxOccurrences,
+      daysOfWeek
+    );
+
+    // Calculate duration
+    const duration = new Date(originalSession.end_time).getTime() - new Date(originalSession.start_time).getTime();
+
+    // Create recurring sessions
+    const sessions = occurrences.slice(1).map(date => ({ // Skip first as it's the original
+      ...originalSession,
+      id: undefined, // Let DB generate new ID
+      parent_session_id: classSessionId,
+      is_recurring: true,
+      start_time: date.toISOString(),
+      end_time: new Date(date.getTime() + duration).toISOString(),
+      occurrence_date: date.toISOString().split('T')[0],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }));
+
+    // Insert all sessions
+    const { data: createdSessions, error: insertError } = await supabase
+      .from('class_sessions')
+      .insert(sessions)
+      .select();
+
+    if (insertError) throw insertError;
+
+    // Update original session
+    await supabase
+      .from('class_sessions')
+      .update({
+        is_recurring: true,
+        recurrence_rule: `${frequency.toUpperCase()};INTERVAL=${interval}`,
+        recurrence_end_date: endDateTime.toISOString()
+      })
+      .eq('id', classSessionId);
+
+    return NextResponse.json({
+      message: 'Recurring classes created successfully',
+      count: createdSessions?.length || 0,
+      sessions: createdSessions
+    });
+  } catch (error: any) {
+    console.error('Error creating recurring classes:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const { user, organization } = await getUserAndOrganization(supabase);
+    const supabase = await createAdminClient();
+    const { sessionId, updates, updateSeries } = await request.json();
 
-    if (!user || !organization) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const { classSessionId, updateType, ...updates } = body;
-
-    if (updateType === 'single') {
-      // Update only this instance
+    if (updateSeries) {
+      // Update all sessions in the series
       const { error } = await supabase
         .from('class_sessions')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', classSessionId)
-        .eq('organization_id', organization.id);
+        .update(updates)
+        .or(`id.eq.${sessionId},parent_session_id.eq.${sessionId}`);
 
-      if (error) {
-        return NextResponse.json({ error: 'Failed to update class instance' }, { status: 500 });
-      }
+      if (error) throw error;
 
-      return NextResponse.json({ success: true, message: 'Class instance updated' });
-
-    } else if (updateType === 'all') {
-      // Update the recurring session and all future instances
-      const { data: recurringSession } = await supabase
+      return NextResponse.json({ message: 'Series updated successfully' });
+    } else {
+      // Update single occurrence
+      const { error } = await supabase
         .from('class_sessions')
-        .select('*')
-        .eq('id', classSessionId)
-        .single();
+        .update(updates)
+        .eq('id', sessionId);
 
-      if (!recurringSession) {
-        return NextResponse.json({ error: 'Recurring session not found' }, { status: 404 });
-      }
+      if (error) throw error;
 
-      // Update the main recurring session
-      const { error: updateRecurringError } = await supabase
-        .from('class_sessions')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', classSessionId);
-
-      if (updateRecurringError) {
-        return NextResponse.json({ error: 'Failed to update recurring session' }, { status: 500 });
-      }
-
-      // Update all future instances
-      const { error: updateInstancesError } = await supabase
-        .from('class_sessions')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString()
-        })
-        .eq('parent_session_id', classSessionId)
-        .gte('start_time', new Date().toISOString());
-
-      if (updateInstancesError) {
-        return NextResponse.json({ error: 'Failed to update future instances' }, { status: 500 });
-      }
-
-      return NextResponse.json({ success: true, message: 'Recurring series updated' });
+      return NextResponse.json({ message: 'Session updated successfully' });
     }
-
-    return NextResponse.json({ error: 'Invalid update type' }, { status: 400 });
-
-  } catch (error) {
-    console.error('Error updating recurring classes:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Error updating recurring class:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const { user, organization } = await getUserAndOrganization(supabase);
+    const supabase = await createAdminClient();
+    const { sessionId, deleteSeries } = await request.json();
 
-    if (!user || !organization) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const url = new URL(request.url);
-    const classSessionId = url.searchParams.get('classSessionId');
-    const deleteType = url.searchParams.get('deleteType') || 'single';
-
-    if (!classSessionId) {
-      return NextResponse.json({ error: 'Missing classSessionId' }, { status: 400 });
-    }
-
-    if (deleteType === 'single') {
-      // Delete only this instance
+    if (deleteSeries) {
+      // Delete all sessions in the series
       const { error } = await supabase
         .from('class_sessions')
         .delete()
-        .eq('id', classSessionId)
-        .eq('organization_id', organization.id);
+        .or(`id.eq.${sessionId},parent_session_id.eq.${sessionId}`);
 
-      if (error) {
-        return NextResponse.json({ error: 'Failed to delete class instance' }, { status: 500 });
-      }
+      if (error) throw error;
 
-      return NextResponse.json({ success: true, message: 'Class instance deleted' });
-
-    } else if (deleteType === 'all') {
-      // Delete the recurring session and all instances
-      const { error: deleteInstancesError } = await supabase
+      return NextResponse.json({ message: 'Series deleted successfully' });
+    } else {
+      // Delete single occurrence
+      const { error } = await supabase
         .from('class_sessions')
         .delete()
-        .eq('parent_session_id', classSessionId);
+        .eq('id', sessionId);
 
-      if (deleteInstancesError) {
-        return NextResponse.json({ error: 'Failed to delete recurring instances' }, { status: 500 });
-      }
+      if (error) throw error;
 
-      const { error: deleteRecurringError } = await supabase
-        .from('class_sessions')
-        .delete()
-        .eq('id', classSessionId)
-        .eq('organization_id', organization.id);
-
-      if (deleteRecurringError) {
-        return NextResponse.json({ error: 'Failed to delete recurring session' }, { status: 500 });
-      }
-
-      return NextResponse.json({ success: true, message: 'Recurring series deleted' });
+      return NextResponse.json({ message: 'Session deleted successfully' });
     }
-
-    return NextResponse.json({ error: 'Invalid delete type' }, { status: 400 });
-
-  } catch (error) {
-    console.error('Error deleting recurring classes:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Error deleting recurring class:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
