@@ -38,8 +38,8 @@ export default function LoginPage() {
       if (data?.user) {
         console.log('User authenticated:', data.user.id)
         
-        // Simply redirect to dashboard - the dashboard will handle organization checks
-        router.push('/dashboard/overview')
+        // Redirect to simplified dashboard to avoid loading issues
+        router.push('/dashboard-direct')
         router.refresh()
       }
     } catch (err: any) {
