@@ -35,13 +35,31 @@ export default function DashboardOverview() {
   useEffect(() => {
     const initializeDashboard = async () => {
       try {
-        const { organizationId: orgId } = await getCurrentUserOrganization();
-        if (orgId) {
+        // First check membership and auto-add if needed
+        const membershipResponse = await fetch('/api/auth/check-membership');
+        const membershipResult = await membershipResponse.json();
+        
+        console.log('Dashboard - membership check:', membershipResult);
+        
+        if (membershipResult.hasOrganization) {
+          // Use the organization ID from the membership check
+          const orgId = membershipResult.organizationId || '63589490-8f55-4157-bd3a-e141594b748e';
           setOrganizationId(orgId);
           await fetchDashboardData(orgId);
+        } else {
+          // No organization, use default Atlas Fitness
+          const defaultOrgId = '63589490-8f55-4157-bd3a-e141594b748e';
+          setOrganizationId(defaultOrgId);
+          await fetchDashboardData(defaultOrgId);
         }
       } catch (error) {
         console.error('Error initializing dashboard:', error);
+        // On error, use default organization
+        const defaultOrgId = '63589490-8f55-4157-bd3a-e141594b748e';
+        setOrganizationId(defaultOrgId);
+        await fetchDashboardData(defaultOrgId);
+      } finally {
+        setLoading(false);
       }
     };
     
@@ -49,7 +67,6 @@ export default function DashboardOverview() {
   }, []);
 
   const fetchDashboardData = async (orgId: string) => {
-    setLoading(true);
     try {
       // Fetch dashboard metrics from API - using fixed endpoint with hardcoded org ID
       const response = await fetch('/api/dashboard/metrics-fixed');
@@ -86,8 +103,6 @@ export default function DashboardOverview() {
       });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
-    } finally {
-      setLoading(false);
     }
   };
 

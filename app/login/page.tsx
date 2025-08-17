@@ -38,29 +38,8 @@ export default function LoginPage() {
       if (data?.user) {
         console.log('User authenticated:', data.user.id)
         
-        // Check membership status (this will auto-add existing users to Atlas Fitness)
-        try {
-          const membershipResponse = await fetch('/api/auth/check-membership');
-          const membershipResult = await membershipResponse.json();
-          
-          console.log('Membership check result:', membershipResult);
-          
-          if (membershipResult.hasOrganization) {
-            // User has organization, go to dashboard
-            router.push('/dashboard')
-          } else if (membershipResult.needsOnboarding) {
-            // New user needs onboarding
-            router.push('/onboarding')
-          } else {
-            // Fallback to dashboard
-            router.push('/dashboard')
-          }
-        } catch (error) {
-          console.error('Error checking membership:', error);
-          // On error, try to go to dashboard
-          router.push('/dashboard')
-        }
-        
+        // Simply redirect to dashboard - the dashboard will handle organization checks
+        router.push('/dashboard/overview')
         router.refresh()
       }
     } catch (err: any) {
