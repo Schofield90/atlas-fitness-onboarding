@@ -1,0 +1,745 @@
+'use client'
+
+import { useState, useEffect, useRef } from 'react'
+import { createClient } from '@/app/lib/supabase/client'
+import { 
+  MessageSquare, 
+  Mail, 
+  Phone, 
+  Clock, 
+  User, 
+  Search, 
+  Bot, 
+  Send, 
+  Paperclip, 
+  Smile,
+  MoreVertical,
+  Calendar,
+  MapPin,
+  Star,
+  Tag,
+  Archive,
+  Trash2,
+  Filter,
+  SortAsc,
+  Zap,
+  Sparkles,
+  BookOpen,
+  Camera
+} from 'lucide-react'
+import { formatBritishDateTime } from '@/app/lib/utils/british-format'
+
+interface Conversation {
+  id: string
+  customer_id: string
+  customer_name: string
+  customer_email: string
+  customer_phone: string
+  last_message: string
+  last_message_type: 'email' | 'sms' | 'whatsapp' | 'call'
+  last_message_time: string
+  unread_count: number
+  total_messages: number
+  tags?: string[]
+  priority?: 'high' | 'medium' | 'low'
+  status?: 'active' | 'waiting' | 'resolved'
+}
+
+interface Message {
+  id: string
+  content: string
+  type: 'email' | 'sms' | 'whatsapp' | 'call'
+  direction: 'inbound' | 'outbound'
+  timestamp: string
+  read: boolean
+  ai_generated?: boolean
+  attachments?: any[]
+}
+
+interface Contact {
+  id: string
+  name: string
+  email: string
+  phone: string
+  avatar?: string
+  membership_status?: string
+  last_visit?: string
+  total_visits?: number
+  tags?: string[]
+  notes?: string
+  emergency_contact?: {
+    name: string
+    phone: string
+  }
+  preferences?: {
+    contact_method: string
+    communication_frequency: string
+  }
+}
+
+interface AIResponse {
+  suggestions: string[]
+  summary: string
+  next_actions: string[]
+  sentiment: 'positive' | 'neutral' | 'negative'
+  urgency: 'high' | 'medium' | 'low'
+}
+
+export default function EnhancedChatInterface() {
+  const [conversations, setConversations] = useState<Conversation[]>([])
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
+  const [messages, setMessages] = useState<Message[]>([])
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [newMessage, setNewMessage] = useState('')
+  const [messageType, setMessageType] = useState<'sms' | 'email' | 'whatsapp'>('sms')
+  const [aiSuggestions, setAiSuggestions] = useState<AIResponse | null>(null)
+  const [showAISuggestions, setShowAISuggestions] = useState(false)
+  const [isTyping, setIsTyping] = useState(false)
+  const [organizationId, setOrganizationId] = useState<string | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const supabase = createClient()
+
+  useEffect(() => {
+    fetchConversations()
+  }, [])
+
+  useEffect(() => {
+    if (selectedConversation) {
+      fetchMessages(selectedConversation.id)
+      fetchContact(selectedConversation.customer_id)
+      generateAIInsights(selectedConversation)
+    }
+  }, [selectedConversation])
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const fetchConversations = async () => {
+    try {
+      setLoading(true)
+      
+      // Get current user's organization
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: userOrg } = await supabase
+        .from('user_organizations')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single()
+
+      if (!userOrg) return
+
+      setOrganizationId(userOrg.organization_id)
+
+      // Mock conversation data for now - replace with actual API call
+      const mockConversations: Conversation[] = [
+        {
+          id: '1',
+          customer_id: '1',
+          customer_name: 'Sarah Johnson',
+          customer_email: 'sarah@example.com',
+          customer_phone: '+447123456789',
+          last_message: 'Hi! I\'d like to book a class for tomorrow',
+          last_message_type: 'whatsapp',
+          last_message_time: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+          unread_count: 2,
+          total_messages: 8,
+          tags: ['new-member', 'interested'],
+          priority: 'high',
+          status: 'active'
+        },
+        {
+          id: '2',
+          customer_id: '2',
+          customer_name: 'Mike Wilson',
+          customer_email: 'mike@example.com',
+          customer_phone: '+447987654321',
+          last_message: 'Thanks for the membership info!',
+          last_message_type: 'sms',
+          last_message_time: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+          unread_count: 0,
+          total_messages: 12,
+          tags: ['member'],
+          priority: 'medium',
+          status: 'resolved'
+        }
+      ]
+
+      setConversations(mockConversations)
+    } catch (error) {
+      console.error('Error fetching conversations:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchMessages = async (conversationId: string) => {
+    try {
+      // Mock message data - replace with actual API call
+      const mockMessages: Message[] = [
+        {
+          id: '1',
+          content: 'Hi! I\'m interested in joining your gym. What membership plans do you have?',
+          type: 'whatsapp',
+          direction: 'inbound',
+          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+          read: true
+        },
+        {
+          id: '2',
+          content: 'Hi Sarah! Great to hear from you. We have several membership options including monthly, 6-month, and annual plans. Would you like me to send you our current pricing?',
+          type: 'whatsapp',
+          direction: 'outbound',
+          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000 + 5 * 60 * 1000).toISOString(),
+          read: true,
+          ai_generated: false
+        },
+        {
+          id: '3',
+          content: 'Yes please! Also, do you offer trial sessions?',
+          type: 'whatsapp',
+          direction: 'inbound',
+          timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+          read: true
+        },
+        {
+          id: '4',
+          content: 'Absolutely! We offer a complimentary trial session for all new members. I can book you in for tomorrow if you\'d like?',
+          type: 'whatsapp',
+          direction: 'outbound',
+          timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000 + 3 * 60 * 1000).toISOString(),
+          read: true,
+          ai_generated: true
+        }
+      ]
+
+      setMessages(mockMessages)
+    } catch (error) {
+      console.error('Error fetching messages:', error)
+    }
+  }
+
+  const fetchContact = async (contactId: string) => {
+    try {
+      // Mock contact data - replace with actual API call
+      const mockContact: Contact = {
+        id: contactId,
+        name: 'Sarah Johnson',
+        email: 'sarah@example.com',
+        phone: '+447123456789',
+        avatar: undefined,
+        membership_status: 'Prospective Member',
+        last_visit: null,
+        total_visits: 0,
+        tags: ['new-member', 'interested', 'trial-booked'],
+        notes: 'Interested in personal training. Prefers morning sessions.',
+        emergency_contact: {
+          name: 'John Johnson',
+          phone: '+447123456790'
+        },
+        preferences: {
+          contact_method: 'whatsapp',
+          communication_frequency: 'weekly'
+        }
+      }
+
+      setSelectedContact(mockContact)
+    } catch (error) {
+      console.error('Error fetching contact:', error)
+    }
+  }
+
+  const generateAIInsights = async (conversation: Conversation) => {
+    try {
+      // Mock AI insights - replace with actual API call
+      const mockAI: AIResponse = {
+        suggestions: [
+          'Would you like me to book your trial session for tomorrow at 10am?',
+          'I can also arrange a tour of our facilities if you\'d like to see everything we offer.',
+          'Our personal trainer Emma would be perfect for your fitness goals - shall I introduce you?'
+        ],
+        summary: 'Sarah is a prospective member interested in joining. She\'s asked about membership plans and trial sessions. She seems enthusiastic and ready to book.',
+        next_actions: [
+          'Book trial session',
+          'Send membership pricing',
+          'Schedule facility tour',
+          'Assign to personal trainer'
+        ],
+        sentiment: 'positive',
+        urgency: 'medium'
+      }
+
+      setAiSuggestions(mockAI)
+    } catch (error) {
+      console.error('Error generating AI insights:', error)
+    }
+  }
+
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !selectedConversation) return
+
+    try {
+      setIsTyping(true)
+
+      // Add message optimistically
+      const newMsg: Message = {
+        id: Date.now().toString(),
+        content: newMessage.trim(),
+        type: messageType,
+        direction: 'outbound',
+        timestamp: new Date().toISOString(),
+        read: false
+      }
+
+      setMessages(prev => [...prev, newMsg])
+      setNewMessage('')
+
+      // Here you would send the message via your API
+      // await sendMessageAPI(newMsg)
+
+    } catch (error) {
+      console.error('Error sending message:', error)
+    } finally {
+      setIsTyping(false)
+    }
+  }
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      sendMessage()
+    }
+  }
+
+  const getMessageIcon = (type: string) => {
+    switch (type) {
+      case 'email':
+        return <Mail className="h-4 w-4" />
+      case 'sms':
+      case 'whatsapp':
+        return <MessageSquare className="h-4 w-4" />
+      case 'call':
+        return <Phone className="h-4 w-4" />
+      default:
+        return <MessageSquare className="h-4 w-4" />
+    }
+  }
+
+  const getMessageColor = (type: string) => {
+    switch (type) {
+      case 'email':
+        return 'text-blue-400'
+      case 'sms':
+        return 'text-green-400'
+      case 'whatsapp':
+        return 'text-green-500'
+      case 'call':
+        return 'text-purple-400'
+      default:
+        return 'text-gray-400'
+    }
+  }
+
+  const getPriorityColor = (priority?: string) => {
+    switch (priority) {
+      case 'high':
+        return 'bg-red-500'
+      case 'medium':
+        return 'bg-yellow-500'
+      case 'low':
+        return 'bg-green-500'
+      default:
+        return 'bg-gray-500'
+    }
+  }
+
+  const filteredConversations = conversations.filter(conv => {
+    const search = searchTerm.toLowerCase()
+    return conv.customer_name.toLowerCase().includes(search) ||
+           conv.customer_email.toLowerCase().includes(search) ||
+           conv.customer_phone.includes(search) ||
+           conv.last_message.toLowerCase().includes(search)
+  })
+
+  return (
+    <div className="flex h-screen bg-gray-900">
+      {/* Left Panel - Conversations List */}
+      <div className="w-80 bg-gray-800 border-r border-gray-700 flex flex-col">
+        {/* Header */}
+        <div className="p-4 border-b border-gray-700">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-white">Conversations</h2>
+            <div className="flex gap-2">
+              <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg">
+                <Filter className="h-4 w-4" />
+              </button>
+              <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg">
+                <SortAsc className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search conversations..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        {/* Conversations List */}
+        <div className="flex-1 overflow-y-auto">
+          {loading ? (
+            <div className="p-4">
+              <div className="text-center text-gray-400">Loading conversations...</div>
+            </div>
+          ) : filteredConversations.length === 0 ? (
+            <div className="p-4">
+              <div className="text-center text-gray-400">
+                {searchTerm ? 'No conversations found' : 'No conversations yet'}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-1 p-2">
+              {filteredConversations.map((conversation) => (
+                <div
+                  key={conversation.id}
+                  onClick={() => setSelectedConversation(conversation)}
+                  className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                    selectedConversation?.id === conversation.id
+                      ? 'bg-blue-600'
+                      : 'hover:bg-gray-700'
+                  }`}
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <div className="bg-gray-600 rounded-full p-2">
+                          <User className="h-5 w-5 text-gray-400" />
+                        </div>
+                        {conversation.priority && (
+                          <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full ${getPriorityColor(conversation.priority)}`} />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-white truncate">
+                          {conversation.customer_name}
+                        </h3>
+                        <div className="flex items-center gap-1 text-xs text-gray-400">
+                          <div className={getMessageColor(conversation.last_message_type)}>
+                            {getMessageIcon(conversation.last_message_type)}
+                          </div>
+                          <span>{formatBritishDateTime(conversation.last_message_time)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {conversation.unread_count > 0 && (
+                      <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
+                        {conversation.unread_count}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-300 truncate mb-2">
+                    {conversation.last_message}
+                  </p>
+                  {conversation.tags && conversation.tags.length > 0 && (
+                    <div className="flex gap-1">
+                      {conversation.tags.slice(0, 2).map((tag, index) => (
+                        <span key={index} className="text-xs bg-gray-600 px-2 py-1 rounded text-gray-300">
+                          {tag}
+                        </span>
+                      ))}
+                      {conversation.tags.length > 2 && (
+                        <span className="text-xs text-gray-400">+{conversation.tags.length - 2}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Center Panel - Messages */}
+      <div className="flex-1 flex flex-col">
+        {selectedConversation ? (
+          <>
+            {/* Message Header */}
+            <div className="p-4 bg-gray-800 border-b border-gray-700">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-gray-600 rounded-full p-2">
+                    <User className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-white">{selectedConversation.customer_name}</h3>
+                    <div className="flex items-center gap-2 text-sm text-gray-400">
+                      <span>{selectedConversation.customer_email}</span>
+                      <span>•</span>
+                      <span>{selectedConversation.customer_phone}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg">
+                    <Phone className="h-4 w-4" />
+                  </button>
+                  <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg">
+                    <Calendar className="h-4 w-4" />
+                  </button>
+                  <button 
+                    onClick={() => setShowAISuggestions(!showAISuggestions)}
+                    className={`p-2 rounded-lg transition-colors ${
+                      showAISuggestions 
+                        ? 'bg-purple-600 text-white' 
+                        : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                    }`}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                  </button>
+                  <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg">
+                    <MoreVertical className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* AI Suggestions Panel */}
+            {showAISuggestions && aiSuggestions && (
+              <div className="p-4 bg-purple-900 border-b border-purple-700">
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="h-4 w-4 text-purple-400" />
+                  <span className="text-sm font-medium text-purple-400">AI Suggestions</span>
+                </div>
+                <div className="space-y-2">
+                  {aiSuggestions.suggestions.map((suggestion, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setNewMessage(suggestion)}
+                      className="w-full text-left p-2 bg-purple-800 hover:bg-purple-700 rounded text-sm text-white transition-colors"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-3 p-2 bg-purple-800 rounded">
+                  <p className="text-xs text-purple-200">
+                    <strong>Summary:</strong> {aiSuggestions.summary}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Messages Area */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex ${message.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div className={`max-w-xs lg:max-w-md ${
+                    message.direction === 'outbound'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-700 text-white'
+                  } rounded-lg p-3`}>
+                    <div className="flex items-start gap-2 mb-1">
+                      <div className={getMessageColor(message.type)}>
+                        {getMessageIcon(message.type)}
+                      </div>
+                      {message.ai_generated && (
+                        <Bot className="h-4 w-4 text-purple-400" />
+                      )}
+                    </div>
+                    <p className="text-sm">{message.content}</p>
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-xs opacity-75">
+                        {formatBritishDateTime(message.timestamp)}
+                      </span>
+                      {message.direction === 'outbound' && (
+                        <span className="text-xs opacity-75">
+                          {message.read ? '✓✓' : '✓'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Message Input */}
+            <div className="p-4 bg-gray-800 border-t border-gray-700">
+              <div className="flex items-center gap-2 mb-2">
+                <select
+                  value={messageType}
+                  onChange={(e) => setMessageType(e.target.value as 'sms' | 'email' | 'whatsapp')}
+                  className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+                >
+                  <option value="sms">SMS</option>
+                  <option value="whatsapp">WhatsApp</option>
+                  <option value="email">Email</option>
+                </select>
+              </div>
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <textarea
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder={`Type your ${messageType} message...`}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none resize-none"
+                    rows={1}
+                    style={{ minHeight: '38px', maxHeight: '150px' }}
+                  />
+                </div>
+                <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg">
+                  <Paperclip className="h-4 w-4" />
+                </button>
+                <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg">
+                  <Camera className="h-4 w-4" />
+                </button>
+                <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg">
+                  <Smile className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={sendMessage}
+                  disabled={!newMessage.trim() || isTyping}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg flex items-center gap-2"
+                >
+                  <Send className="h-4 w-4" />
+                  Send
+                </button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center bg-gray-800">
+            <div className="text-center">
+              <MessageSquare className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-400 mb-2">Select a conversation</h3>
+              <p className="text-gray-500">Choose a conversation from the left to start messaging</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Right Panel - Contact Card */}
+      {selectedContact && (
+        <div className="w-80 bg-gray-800 border-l border-gray-700 overflow-y-auto">
+          <div className="p-4">
+            {/* Contact Header */}
+            <div className="text-center mb-6">
+              <div className="bg-gray-600 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
+                <User className="h-8 w-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-white">{selectedContact.name}</h3>
+              <p className="text-sm text-gray-400">{selectedContact.membership_status}</p>
+            </div>
+
+            {/* Contact Details */}
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-sm font-medium text-gray-400 mb-2">Contact Information</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Mail className="h-4 w-4 text-gray-400" />
+                    <span className="text-white">{selectedContact.email}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Phone className="h-4 w-4 text-gray-400" />
+                    <span className="text-white">{selectedContact.phone}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Membership Info */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-400 mb-2">Membership</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Status:</span>
+                    <span className="text-white">{selectedContact.membership_status}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Total Visits:</span>
+                    <span className="text-white">{selectedContact.total_visits || 0}</span>
+                  </div>
+                  {selectedContact.last_visit && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Last Visit:</span>
+                      <span className="text-white">{formatBritishDateTime(selectedContact.last_visit)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Tags */}
+              {selectedContact.tags && selectedContact.tags.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium text-gray-400 mb-2">Tags</h4>
+                  <div className="flex flex-wrap gap-1">
+                    {selectedContact.tags.map((tag, index) => (
+                      <span key={index} className="bg-gray-600 px-2 py-1 rounded text-xs text-gray-300">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Notes */}
+              {selectedContact.notes && (
+                <div>
+                  <h4 className="text-sm font-medium text-gray-400 mb-2">Notes</h4>
+                  <p className="text-sm text-gray-300 bg-gray-700 p-3 rounded">
+                    {selectedContact.notes}
+                  </p>
+                </div>
+              )}
+
+              {/* Emergency Contact */}
+              {selectedContact.emergency_contact && (
+                <div>
+                  <h4 className="text-sm font-medium text-gray-400 mb-2">Emergency Contact</h4>
+                  <div className="space-y-1 text-sm">
+                    <div className="text-white">{selectedContact.emergency_contact.name}</div>
+                    <div className="text-gray-300">{selectedContact.emergency_contact.phone}</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Quick Actions */}
+              <div className="space-y-2 pt-4 border-t border-gray-700">
+                <button className="w-full flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm">
+                  <Calendar className="h-4 w-4" />
+                  Book Class
+                </button>
+                <button className="w-full flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white text-sm">
+                  <BookOpen className="h-4 w-4" />
+                  View Profile
+                </button>
+                <button className="w-full flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white text-sm">
+                  <Tag className="h-4 w-4" />
+                  Add Tag
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

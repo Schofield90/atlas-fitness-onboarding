@@ -71,9 +71,20 @@ export default function EmailIntegrationPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
+      const { data: userOrg } = await supabase
+        .from('user_organizations')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single()
+
+      if (!userOrg) {
+        console.error('No organization found for user')
+        return
+      }
+
       if (settings.id) {
         // Update existing settings
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('integration_settings')
           .update({
             enabled: settings.enabled,
@@ -81,21 +92,41 @@ export default function EmailIntegrationPage() {
             updated_at: new Date().toISOString()
           })
           .eq('id', settings.id)
+          .select()
+          .single()
 
-        if (error) throw error
+        if (error) {
+          console.error('Error updating settings:', error)
+          throw error
+        }
+
+        setSettings(data)
       } else {
         // Create new settings
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('integration_settings')
-          .insert(settings)
+          .insert({
+            organization_id: userOrg.organization_id,
+            integration_type: 'email',
+            enabled: settings.enabled,
+            config: settings.config
+          })
+          .select()
+          .single()
 
-        if (error) throw error
+        if (error) {
+          console.error('Error creating settings:', error)
+          throw error
+        }
         
-        // Refetch to get the created record with ID
-        await fetchSettings()
+        setSettings(data)
       }
+
+      // Show success message
+      alert('Email settings saved successfully!')
     } catch (error) {
       console.error('Error saving email settings:', error)
+      alert('Failed to save email settings. Please try again.')
     } finally {
       setSaving(false)
     }

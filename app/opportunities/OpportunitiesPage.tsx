@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import DashboardLayout from '@/app/components/DashboardLayout'
+import { createClient } from '@/app/lib/supabase/client'
 import { 
   PlusIcon,
   EyeIcon,
@@ -26,105 +27,11 @@ import {
   X as XIcon
 } from 'lucide-react'
 
-// Mock pipelines data
-const mockPipelines = [
+// Default pipeline data for initial state
+const defaultPipelines = [
   { id: 'sales', name: 'Sales Pipeline', stages: ['discovery', 'qualification', 'proposal', 'negotiation', 'closed_won', 'closed_lost'] },
   { id: 'onboarding', name: 'Member Onboarding', stages: ['contacted', 'tour_scheduled', 'tour_completed', 'trial_started', 'converted', 'cancelled'] },
   { id: 'pt', name: 'PT Sales', stages: ['initial_contact', 'assessment', 'package_presented', 'follow_up', 'signed', 'declined'] }
-]
-
-// Mock data for opportunities
-const mockOpportunities = [
-  {
-    id: 1,
-    title: 'Premium Membership Upgrade',
-    contactName: 'Sarah Johnson',
-    contactEmail: 'sarah.johnson@email.com',
-    contactPhone: '+447123456789',
-    value: 2400,
-    stage: 'qualification',
-    probability: 60,
-    expectedCloseDate: '2025-02-15',
-    source: 'Website',
-    assignedTo: 'John Smith',
-    lastActivity: '2025-01-05',
-    activities: 3,
-    type: 'upgrade',
-    priority: 'high',
-    pipelineId: 'sales'
-  },
-  {
-    id: 2,
-    title: 'Personal Training Package',
-    contactName: 'Mike Wilson',
-    contactEmail: 'mike.wilson@email.com',
-    contactPhone: '+447987654321',
-    value: 1200,
-    stage: 'proposal',
-    probability: 75,
-    expectedCloseDate: '2025-02-01',
-    source: 'Referral',
-    assignedTo: 'Emma Davis',
-    lastActivity: '2025-01-04',
-    activities: 5,
-    type: 'personal_training',
-    priority: 'high',
-    pipelineId: 'sales'
-  },
-  {
-    id: 3,
-    title: 'Corporate Membership',
-    contactName: 'Tech Solutions Ltd',
-    contactEmail: 'hr@techsolutions.com',
-    contactPhone: '+447555123456',
-    value: 15000,
-    stage: 'negotiation',
-    probability: 45,
-    expectedCloseDate: '2025-03-01',
-    source: 'Cold Call',
-    assignedTo: 'David Brown',
-    lastActivity: '2025-01-03',
-    activities: 8,
-    type: 'corporate',
-    priority: 'medium',
-    pipelineId: 'sales'
-  },
-  {
-    id: 4,
-    title: 'New Member Onboarding',
-    contactName: 'Emily Chen',
-    contactEmail: 'emily.chen@email.com',
-    contactPhone: '+447333456789',
-    value: 99,
-    stage: 'tour_scheduled',
-    probability: 40,
-    expectedCloseDate: '2025-01-25',
-    source: 'Facebook Ads',
-    assignedTo: 'Lisa Green',
-    lastActivity: '2025-01-06',
-    activities: 2,
-    type: 'new_member',
-    priority: 'medium',
-    pipelineId: 'onboarding'
-  },
-  {
-    id: 5,
-    title: 'PT Assessment - James',
-    contactName: 'James Anderson',
-    contactEmail: 'james.anderson@email.com',
-    contactPhone: '+447333789012',
-    value: 800,
-    stage: 'package_presented',
-    probability: 70,
-    expectedCloseDate: '2025-01-20',
-    source: 'Existing Member',
-    assignedTo: 'Emma Davis',
-    lastActivity: '2025-01-02',
-    activities: 4,
-    type: 'coaching',
-    priority: 'medium',
-    pipelineId: 'pt'
-  }
 ]
 
 const stageColors: { [key: string]: string } = {
@@ -181,12 +88,13 @@ interface OpportunitiesPageProps {
 
 export default function OpportunitiesPage({ userData }: OpportunitiesPageProps) {
   const [mounted, setMounted] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'pipeline' | 'list' | 'create' | 'analytics' | 'import'>('pipeline')
-  const [opportunities, setOpportunities] = useState(mockOpportunities)
+  const [opportunities, setOpportunities] = useState<any[]>([])
   const [selectedOpportunity, setSelectedOpportunity] = useState<any>(null)
   const [showFilters, setShowFilters] = useState(false)
-  const [pipelines, setPipelines] = useState(mockPipelines)
-  const [selectedPipeline, setSelectedPipeline] = useState(mockPipelines[0])
+  const [pipelines, setPipelines] = useState<any[]>(defaultPipelines)
+  const [selectedPipeline, setSelectedPipeline] = useState(defaultPipelines[0])
   const [showPipelineDropdown, setShowPipelineDropdown] = useState(false)
   const [showCreatePipeline, setShowCreatePipeline] = useState(false)
   const [newPipelineName, setNewPipelineName] = useState('')
@@ -194,10 +102,39 @@ export default function OpportunitiesPage({ userData }: OpportunitiesPageProps) 
   const [showPipelineSettings, setShowPipelineSettings] = useState(false)
   const [editingPipeline, setEditingPipeline] = useState<any>(null)
   const [customStages, setCustomStages] = useState<string[]>([])
+  const supabase = createClient()
 
   useEffect(() => {
     setMounted(true)
+    fetchPipelinesAndOpportunities()
   }, [])
+
+  const fetchPipelinesAndOpportunities = async () => {
+    try {
+      setLoading(true)
+      
+      // Fetch pipelines
+      const pipelineResponse = await fetch('/api/opportunities/pipelines')
+      if (pipelineResponse.ok) {
+        const pipelineData = await pipelineResponse.json()
+        if (pipelineData.pipelines && pipelineData.pipelines.length > 0) {
+          setPipelines(pipelineData.pipelines)
+          setSelectedPipeline(pipelineData.pipelines[0])
+        }
+      }
+      
+      // Fetch opportunities
+      const oppResponse = await fetch('/api/opportunities')
+      if (oppResponse.ok) {
+        const oppData = await oppResponse.json()
+        setOpportunities(oppData.opportunities || [])
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -225,21 +162,21 @@ export default function OpportunitiesPage({ userData }: OpportunitiesPageProps) 
 
   const getStageOpportunities = (stage: string) => {
     return opportunities.filter(opp => 
-      opp.pipelineId === selectedPipeline.id && opp.stage === stage
+      opp.pipeline_id === selectedPipeline.id && opp.stage === stage
     )
   }
 
   const getTotalValue = (stage?: string) => {
     const opps = stage 
       ? getStageOpportunities(stage) 
-      : opportunities.filter(opp => opp.pipelineId === selectedPipeline.id)
-    return opps.reduce((sum, opp) => sum + opp.value, 0)
+      : opportunities.filter(opp => opp.pipeline_id === selectedPipeline.id)
+    return opps.reduce((sum, opp) => sum + (opp.value || opp.estimated_value || 0), 0)
   }
 
   const getWeightedValue = () => {
     return opportunities
-      .filter(opp => opp.pipelineId === selectedPipeline.id && !['closed_won', 'closed_lost', 'converted', 'cancelled', 'signed', 'declined'].includes(opp.stage))
-      .reduce((sum, opp) => sum + (opp.value * opp.probability / 100), 0)
+      .filter(opp => opp.pipeline_id === selectedPipeline.id && !['closed_won', 'closed_lost', 'converted', 'cancelled', 'signed', 'declined'].includes(opp.stage))
+      .reduce((sum, opp) => sum + ((opp.value || opp.estimated_value || 0) * (opp.probability || opp.probability_percentage || 50) / 100), 0)
   }
 
   const getPriorityIcon = (priority: string) => {
@@ -261,27 +198,75 @@ export default function OpportunitiesPage({ userData }: OpportunitiesPageProps) 
     e.dataTransfer.dropEffect = 'move'
   }
 
-  const handleDrop = (e: React.DragEvent, newStage: string) => {
+  const handleDrop = async (e: React.DragEvent, newStage: string) => {
     e.preventDefault()
-    if (draggedOpportunity) {
-      setOpportunities(prev => prev.map(opp => 
-        opp.id === draggedOpportunity.id 
-          ? { ...opp, stage: newStage }
-          : opp
-      ))
+    if (draggedOpportunity && newStage !== draggedOpportunity.stage) {
+      try {
+        // Optimistic update
+        setOpportunities(prev => prev.map(opp => 
+          opp.id === draggedOpportunity.id 
+            ? { ...opp, stage: newStage }
+            : opp
+        ))
+        
+        // Update via API
+        const response = await fetch(`/api/opportunities/${draggedOpportunity.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ stage: newStage }),
+        })
+
+        if (!response.ok) {
+          // Revert on failure
+          setOpportunities(prev => prev.map(opp => 
+            opp.id === draggedOpportunity.id 
+              ? { ...opp, stage: draggedOpportunity.stage }
+              : opp
+          ))
+          console.error('Failed to update opportunity stage')
+        }
+      } catch (error) {
+        console.error('Error updating opportunity:', error)
+        // Revert on error
+        setOpportunities(prev => prev.map(opp => 
+          opp.id === draggedOpportunity.id 
+            ? { ...opp, stage: draggedOpportunity.stage }
+            : opp
+        ))
+      }
       setDraggedOpportunity(null)
     }
   }
 
-  const createNewPipeline = () => {
+  const createNewPipeline = async () => {
     if (newPipelineName.trim()) {
-      const newPipeline = {
-        id: newPipelineName.toLowerCase().replace(/\s+/g, '_'),
-        name: newPipelineName,
-        stages: ['stage_1', 'stage_2', 'stage_3', 'stage_4', 'completed', 'cancelled']
+      try {
+        const response = await fetch('/api/opportunities/pipelines', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: newPipelineName,
+            description: `Custom pipeline: ${newPipelineName}`,
+            type: 'custom',
+            stages: ['stage_1', 'stage_2', 'stage_3', 'stage_4', 'completed', 'cancelled']
+          }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          const newPipeline = data.pipeline
+          setPipelines([...pipelines, newPipeline])
+          setSelectedPipeline(newPipeline)
+        } else {
+          console.error('Failed to create pipeline')
+        }
+      } catch (error) {
+        console.error('Error creating pipeline:', error)
       }
-      setPipelines([...pipelines, newPipeline])
-      setSelectedPipeline(newPipeline)
       setNewPipelineName('')
       setShowCreatePipeline(false)
     }
@@ -648,8 +633,9 @@ export default function OpportunitiesPage({ userData }: OpportunitiesPageProps) 
               <p className="text-sm font-medium text-gray-400">Active Opps</p>
               <p className="text-2xl font-bold text-white">
                 {opportunities.filter(opp => 
-                  opp.pipelineId === selectedPipeline.id && 
-                  !['closed_won', 'closed_lost', 'converted', 'cancelled', 'signed', 'declined'].includes(opp.stage)
+                  opp.pipeline_id === selectedPipeline.id && 
+                  !['closed_won', 'closed_lost', 'converted', 'cancelled', 'signed', 'declined', 'won', 'lost'].includes(opp.stage) &&
+                  opp.status !== 'won' && opp.status !== 'lost'
                 ).length}
               </p>
             </div>
@@ -665,13 +651,14 @@ export default function OpportunitiesPage({ userData }: OpportunitiesPageProps) 
               <p className="text-sm font-medium text-gray-400">Win Rate</p>
               <p className="text-2xl font-bold text-white">
                 {Math.round((opportunities.filter(opp => 
-                  opp.pipelineId === selectedPipeline.id && 
-                  ['closed_won', 'converted', 'signed'].includes(opp.stage)
+                  opp.pipeline_id === selectedPipeline.id && 
+                  (['closed_won', 'converted', 'signed'].includes(opp.stage) || opp.status === 'won')
                 ).length / 
-                  opportunities.filter(opp => 
-                    opp.pipelineId === selectedPipeline.id &&
-                    ['closed_won', 'closed_lost', 'converted', 'cancelled', 'signed', 'declined'].includes(opp.stage)
-                  ).length) * 100) || 0}%
+                  Math.max(1, opportunities.filter(opp => 
+                    opp.pipeline_id === selectedPipeline.id &&
+                    (['closed_won', 'closed_lost', 'converted', 'cancelled', 'signed', 'declined'].includes(opp.stage) ||
+                     ['won', 'lost'].includes(opp.status))
+                  ).length)) * 100) || 0}%
               </p>
             </div>
             <div className="p-3 bg-orange-500 rounded-lg">
@@ -731,16 +718,16 @@ export default function OpportunitiesPage({ userData }: OpportunitiesPageProps) 
                         <div className="flex items-center gap-1 mb-1">
                           <GripVerticalIcon className="h-3 w-3 text-gray-400" />
                           <h4 className="font-medium text-white text-sm flex-1">{opp.title}</h4>
-                          {getPriorityIcon(opp.priority)}
+                          {getPriorityIcon(opp.priority_score > 0.7 ? 'high' : opp.priority_score > 0.4 ? 'medium' : 'low')}
                         </div>
-                        <div className="text-sm text-gray-300 mb-2">{opp.contactName}</div>
+                        <div className="text-sm text-gray-300 mb-2">{opp.contact?.name || 'Unknown Contact'}</div>
                         <div className="flex items-center justify-between">
-                          <span className="font-semibold text-green-400">£{opp.value.toLocaleString()}</span>
-                          <span className="text-xs text-gray-400">{opp.probability}%</span>
+                          <span className="font-semibold text-green-400">£{(opp.value || opp.estimated_value || 0).toLocaleString()}</span>
+                          <span className="text-xs text-gray-400">{opp.probability || opp.probability_percentage || 50}%</span>
                         </div>
                         <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
                           <UserIcon className="h-3 w-3" />
-                          <span>{opp.assignedTo}</span>
+                          <span>{opp.assigned_to?.name || 'Unassigned'}</span>
                         </div>
                       </div>
                     ))}
@@ -876,7 +863,7 @@ export default function OpportunitiesPage({ userData }: OpportunitiesPageProps) 
                 <tr key={opp.id} className="border-b border-gray-700 hover:bg-gray-700">
                   <td className="py-4 px-4">
                     <div className="flex items-center gap-2">
-                      {getPriorityIcon(opp.priority)}
+                      {getPriorityIcon(opp.priority_score > 0.7 ? 'high' : opp.priority_score > 0.4 ? 'medium' : 'low')}
                       <div>
                         <div className="font-medium text-white">{opp.title}</div>
                         <div className="text-sm text-gray-400">{opp.source}</div>
@@ -885,12 +872,12 @@ export default function OpportunitiesPage({ userData }: OpportunitiesPageProps) 
                   </td>
                   <td className="py-4 px-4">
                     <div>
-                      <div className="font-medium text-white">{opp.contactName}</div>
-                      <div className="text-sm text-gray-400">{opp.contactEmail}</div>
+                      <div className="font-medium text-white">{opp.contact?.name || 'Unknown Contact'}</div>
+                      <div className="text-sm text-gray-400">{opp.contact?.email || ''}</div>
                     </div>
                   </td>
                   <td className="py-4 px-4">
-                    <div className="font-semibold text-green-400">£{opp.value.toLocaleString()}</div>
+                    <div className="font-semibold text-green-400">£{(opp.value || opp.estimated_value || 0).toLocaleString()}</div>
                   </td>
                   <td className="py-4 px-4">
                     <span className={`px-2 py-1 rounded-full text-xs text-white ${stageColors[opp.stage] || 'bg-gray-500'}`}>
@@ -899,16 +886,16 @@ export default function OpportunitiesPage({ userData }: OpportunitiesPageProps) 
                   </td>
                   <td className="py-4 px-4">
                     <div className="text-gray-300">
-                      {pipelines.find(p => p.id === opp.pipelineId)?.name}
+                      {pipelines.find(p => p.id === opp.pipeline_id)?.name}
                     </div>
                   </td>
                   <td className="py-4 px-4">
                     <div className="text-gray-300">
-                      {new Date(opp.expectedCloseDate).toLocaleDateString()}
+                      {opp.expected_close_date ? new Date(opp.expected_close_date).toLocaleDateString() : 'Not set'}
                     </div>
                   </td>
                   <td className="py-4 px-4">
-                    <div className="text-gray-300">{opp.assignedTo}</div>
+                    <div className="text-gray-300">{opp.assigned_to?.name || 'Unassigned'}</div>
                   </td>
                   <td className="py-4 px-4">
                     <div className="flex gap-2">
@@ -1121,11 +1108,11 @@ export default function OpportunitiesPage({ userData }: OpportunitiesPageProps) 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-400">Contact</p>
-                    <p className="text-white">{selectedOpportunity.contactName}</p>
+                    <p className="text-white">{selectedOpportunity.contact?.name || 'Unknown Contact'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-400">Value</p>
-                    <p className="text-green-400 font-semibold">£{selectedOpportunity.value.toLocaleString()}</p>
+                    <p className="text-green-400 font-semibold">£{(selectedOpportunity.value || selectedOpportunity.estimated_value || 0).toLocaleString()}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-400">Stage</p>
@@ -1135,7 +1122,7 @@ export default function OpportunitiesPage({ userData }: OpportunitiesPageProps) 
                   </div>
                   <div>
                     <p className="text-sm text-gray-400">Probability</p>
-                    <p className="text-white">{selectedOpportunity.probability}%</p>
+                    <p className="text-white">{selectedOpportunity.probability || selectedOpportunity.probability_percentage || 50}%</p>
                   </div>
                 </div>
                 
@@ -1144,11 +1131,11 @@ export default function OpportunitiesPage({ userData }: OpportunitiesPageProps) 
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <MailIcon className="h-4 w-4 text-gray-400" />
-                      <span className="text-white">{selectedOpportunity.contactEmail}</span>
+                      <span className="text-white">{selectedOpportunity.contact?.email || 'No email'}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <PhoneIcon className="h-4 w-4 text-gray-400" />
-                      <span className="text-white">{selectedOpportunity.contactPhone}</span>
+                      <span className="text-white">{selectedOpportunity.contact?.phone || 'No phone'}</span>
                     </div>
                   </div>
                 </div>

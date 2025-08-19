@@ -76,7 +76,9 @@ export function createOrgScopedClient(organizationId: string) {
         'email_logs', 'sms_logs', 'whatsapp_logs', 'workflows',
         'class_sessions', 'bookings', 'programs', 'memberships',
         'facebook_integrations', 'facebook_pages', 'facebook_lead_forms',
-        'facebook_leads', 'workflows', 'workflow_triggers', 'workflow_actions'
+        'facebook_leads', 'workflows', 'workflow_triggers', 'workflow_actions',
+        'google_calendar_tokens', 'organization_settings', 'staff_profiles',
+        'tags', 'message_templates', 'locations', 'membership_plans'
       ]
       
       // Auto-add organization filter for relevant tables

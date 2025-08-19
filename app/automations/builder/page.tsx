@@ -31,7 +31,7 @@ export default function WorkflowBuilderPage() {
 
   if (!organizationId) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-gray-500">Loading...</div>
       </div>
     )
@@ -54,7 +54,7 @@ export default function WorkflowBuilderPage() {
   }
 
   return (
-    <div className="h-screen bg-gray-50">
+    <div className="h-screen bg-gray-900">
       <EnhancedWorkflowBuilderWrapper 
         organizationId={organizationId}
         onSave={handleSave}

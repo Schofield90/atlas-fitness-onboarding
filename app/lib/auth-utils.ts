@@ -122,3 +122,8 @@ export async function hasPermission(permission: string) {
   
   return permissions.includes('*') || permissions.includes(permission);
 }
+
+// Alias for backward compatibility with existing code
+export async function getUserAndOrganization(supabase: any) {
+  return await getOrganizationAndUser();
+}

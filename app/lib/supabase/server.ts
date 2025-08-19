@@ -43,5 +43,6 @@ export async function getAuthenticatedClient() {
   return { supabase, user }
 }
 
-// Export alias for backwards compatibility
+// Export aliases for backwards compatibility
 export { createClient as createServerClient }
+export { createClient as createServerSupabaseClient }

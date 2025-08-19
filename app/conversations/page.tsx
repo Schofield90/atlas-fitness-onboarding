@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/app/lib/supabase/client'
 import DashboardLayout from '@/app/components/DashboardLayout'
+import EnhancedChatInterface from '@/app/components/chat/EnhancedChatInterface'
 import { MessageSquare, Mail, Phone, Clock, User, Search, Bot } from 'lucide-react'
 import { formatBritishDateTime } from '@/app/lib/utils/british-format'
 import AIToggleControl from '@/app/components/automation/AIToggleControl'
@@ -22,6 +23,17 @@ interface Conversation {
 }
 
 export default function ConversationsPage() {
+  const [useEnhanced, setUseEnhanced] = useState(true)
+
+  if (useEnhanced) {
+    return (
+      <DashboardLayout>
+        <EnhancedChatInterface />
+      </DashboardLayout>
+    )
+  }
+
+  // Keep the old implementation as fallback
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -201,9 +213,17 @@ export default function ConversationsPage() {
   return (
     <DashboardLayout>
       <div className="max-w-7xl mx-auto p-6">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Conversations</h1>
-          <p className="text-gray-400">Recent messages with your customers</p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Conversations</h1>
+            <p className="text-gray-400">Recent messages with your customers</p>
+          </div>
+          <button
+            onClick={() => setUseEnhanced(!useEnhanced)}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+          >
+            Switch to {useEnhanced ? 'Classic' : 'Enhanced'} View
+          </button>
         </div>
 
         {/* Search */}

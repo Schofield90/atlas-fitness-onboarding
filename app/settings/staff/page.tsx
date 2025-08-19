@@ -66,40 +66,34 @@ export default function StaffManagementPage() {
 
   const fetchStaff = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      // Use the API endpoint we created
+      const response = await fetch('/api/staff')
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch staff: ${response.statusText}`)
+      }
 
-      // Get organization
-      const { data: userOrg } = await supabase
-        .from('user_organizations')
-        .select('organization_id')
-        .eq('user_id', user.id)
-        .single()
-
-      if (!userOrg) return
-
-      // Fetch staff members
-      const { data: staffData } = await supabase
-        .from('users')
-        .select('*, organization_members!inner(*)')
-        .eq('organization_members.organization_id', userOrg.organization_id)
-
-      if (staffData) {
-        const formattedStaff = staffData.map(member => ({
+      const data = await response.json()
+      
+      if (data.success && data.data) {
+        const formattedStaff = data.data.map((member: any) => ({
           id: member.id,
-          full_name: member.full_name || member.email,
+          full_name: `${member.first_name} ${member.last_name}`,
           email: member.email,
-          phone: member.phone,
-          role: member.organization_members[0]?.role || 'coach',
-          availability: member.organization_members[0]?.availability || defaultAvailability,
+          phone: member.phone_number,
+          role: member.role || 'coach',
+          availability: defaultAvailability, // Use default for now
           created_at: member.created_at,
-          status: 'active' as const
+          status: member.status === 'active' ? 'active' : 'inactive'
         }))
         setStaff(formattedStaff)
+      } else {
+        console.log('No staff data returned or API call failed:', data)
+        setStaff([])
       }
     } catch (error) {
-      setLoading(false)
       console.error('Error fetching staff:', error)
+      setStaff([])
     } finally {
       setLoading(false)
     }
@@ -112,58 +106,60 @@ export default function StaffManagementPage() {
     }
 
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      const nameParts = newStaff.full_name.split(' ')
+      const firstName = nameParts[0]
+      const lastName = nameParts.slice(1).join(' ') || nameParts[0]
 
-      // Get organization
-      const { data: userOrg } = await supabase
-        .from('user_organizations')
-        .select('organization_id')
-        .eq('user_id', user.id)
-        .single()
-
-      if (!userOrg) return
-
-      // Send invitation (simplified for now)
-      const { data, error } = await supabase
-        .from('staff_invitations')
-        .insert({
-          organization_id: userOrg.organization_id,
+      const response = await fetch('/api/staff', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          first_name: firstName,
+          last_name: lastName,
           email: newStaff.email,
-          full_name: newStaff.full_name,
-          phone: newStaff.phone,
-          role: newStaff.role,
-          invited_by: user.id,
-          status: 'pending'
+          phone_number: newStaff.phone || null,
+          position: newStaff.role === 'admin' ? 'Manager' : 'Coach',
+          hire_date: new Date().toISOString().split('T')[0],
+          employment_type: 'full_time',
+          status: 'active'
         })
-        .select()
-        .single()
-
-      if (error) throw error
-
-      // Add to local state as invited
-      setStaff([...staff, {
-        id: data.id,
-        ...newStaff,
-        availability: defaultAvailability,
-        created_at: new Date().toISOString(),
-        status: 'invited'
-      }])
-
-      // Reset form
-      setNewStaff({
-        full_name: '',
-        email: '',
-        phone: '',
-        role: 'coach'
       })
-      setShowAddModal(false)
 
-      alert(`Invitation sent to ${newStaff.email}`)
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create staff member')
+      }
+
+      if (data.success && data.data) {
+        // Add to local state
+        setStaff([...staff, {
+          id: data.data.id,
+          full_name: `${data.data.first_name} ${data.data.last_name}`,
+          email: data.data.email,
+          phone: data.data.phone_number,
+          role: newStaff.role,
+          availability: defaultAvailability,
+          created_at: data.data.created_at,
+          status: 'active'
+        }])
+
+        // Reset form
+        setNewStaff({
+          full_name: '',
+          email: '',
+          phone: '',
+          role: 'coach'
+        })
+        setShowAddModal(false)
+
+        alert(`Staff member ${newStaff.full_name} added successfully!`)
+      }
     } catch (error) {
-      setLoading(false)
-      console.error('Error inviting staff:', error)
-      alert('Failed to send invitation. Please try again.')
+      console.error('Error adding staff:', error)
+      alert(error instanceof Error ? error.message : 'Failed to add staff member. Please try again.')
     }
   }
 
