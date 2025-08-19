@@ -17,20 +17,35 @@ function FacebookCallbackContent() {
     const error = searchParams.get('error')
     const errorDescription = searchParams.get('error_description')
     const userName = searchParams.get('user_name')
+    const userId = searchParams.get('user_id')
     const storageWarning = searchParams.get('storage_warning')
     
     if (success === 'true') {
       setStatus('success')
       setMessage(`Successfully connected Facebook${userName ? ` as ${userName}` : ''}!`)
+      
+      // IMPORTANT: Set localStorage values to sync frontend state
+      localStorage.setItem('facebook_connected', 'true')
+      localStorage.setItem('facebook_connected_at', new Date().toISOString())
+      if (userId) localStorage.setItem('facebook_user_id', userId)
+      if (userName) localStorage.setItem('facebook_user_name', userName)
+      
+      // Dispatch storage event to notify other components
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'facebook_connected',
+        newValue: 'true',
+        oldValue: null
+      }))
+      
       if (storageWarning) {
         setDetails('Note: Some database tables may be missing. Contact support if issues persist.')
       } else {
         setDetails('You can now sync Facebook pages and leads.')
       }
       
-      // Redirect to settings after 3 seconds
+      // Redirect to Facebook integration management page after 3 seconds
       setTimeout(() => {
-        router.push('/settings')
+        router.push('/integrations/facebook')
       }, 3000)
     } else if (error) {
       setStatus('error')

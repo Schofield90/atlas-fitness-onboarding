@@ -30,28 +30,90 @@ export function useFacebookConnection(): FacebookConnectionStatus & {
     }
   })
 
-  const checkConnection = () => {
+  const checkConnection = async () => {
     try {
-      const connected = localStorage.getItem('facebook_connected')
-      const connectedAt = localStorage.getItem('facebook_connected_at')
+      // First check localStorage for quick response
+      const localConnected = localStorage.getItem('facebook_connected') === 'true'
+      const localConnectedAt = localStorage.getItem('facebook_connected_at')
       
-      console.log('🔍 Facebook Connection Check:', {
-        connected,
-        connectedAt,
+      console.log('🔍 Facebook Connection Check (localStorage):', {
+        connected: localConnected,
+        connectedAt: localConnectedAt,
         timestamp: new Date().toISOString()
       })
 
+      // Set initial state from localStorage
       setStatus({
-        connected: connected === 'true',
-        connectedAt,
-        loading: false,
+        connected: localConnected,
+        connectedAt: localConnectedAt,
+        loading: true, // Still loading until we check server
         error: null,
         debug: {
-          storageMethod: 'localStorage (demo)',
+          storageMethod: 'localStorage + API',
           lastChecked: new Date().toISOString(),
-          rawValue: connected
+          rawValue: localStorage.getItem('facebook_connected')
         }
       })
+
+      // Then verify with server to ensure sync
+      try {
+        const response = await fetch('/api/integrations/facebook/status')
+        if (response.ok) {
+          const serverStatus = await response.json()
+          
+          console.log('🔍 Facebook Connection Check (server):', serverStatus)
+
+          // If server says connected but localStorage doesn't, update localStorage
+          if (serverStatus.connected && !localConnected && serverStatus.integration) {
+            localStorage.setItem('facebook_connected', 'true')
+            localStorage.setItem('facebook_connected_at', serverStatus.integration.connected_at)
+            localStorage.setItem('facebook_user_name', serverStatus.integration.facebook_user_name || '')
+            localStorage.setItem('facebook_user_id', serverStatus.integration.facebook_user_id || '')
+            
+            console.log('✅ Synced localStorage with server status')
+          }
+          
+          // If localStorage says connected but server doesn't, clear localStorage
+          if (!serverStatus.connected && localConnected) {
+            localStorage.removeItem('facebook_connected')
+            localStorage.removeItem('facebook_connected_at')
+            localStorage.removeItem('facebook_user_name')
+            localStorage.removeItem('facebook_user_id')
+            
+            console.log('🧹 Cleared localStorage - server says not connected')
+          }
+
+          // Update state with server response
+          setStatus({
+            connected: serverStatus.connected,
+            connectedAt: serverStatus.integration?.connected_at || localConnectedAt,
+            loading: false,
+            error: null,
+            debug: {
+              storageMethod: 'localStorage + API verified',
+              lastChecked: new Date().toISOString(),
+              rawValue: localStorage.getItem('facebook_connected'),
+              serverResponse: serverStatus
+            }
+          })
+        } else {
+          // Server error - fall back to localStorage only
+          console.warn('⚠️ Server status check failed, using localStorage only')
+          setStatus(prev => ({
+            ...prev,
+            loading: false,
+            error: `Server check failed: ${response.status}`
+          }))
+        }
+      } catch (serverError) {
+        // Network error - fall back to localStorage only  
+        console.warn('⚠️ Server status check failed, using localStorage only:', serverError)
+        setStatus(prev => ({
+          ...prev,
+          loading: false,
+          error: `Server unreachable: ${serverError instanceof Error ? serverError.message : 'Unknown error'}`
+        }))
+      }
     } catch (error) {
       console.error('❌ Error checking Facebook connection:', error)
       setStatus(prev => ({
@@ -66,18 +128,42 @@ export function useFacebookConnection(): FacebookConnectionStatus & {
     try {
       console.log('🔌 Disconnecting Facebook integration')
       
-      // Call API to clear server-side token
-      await fetch('/api/integrations/facebook/disconnect', {
+      // Call API to clear server-side data
+      const response = await fetch('/api/integrations/facebook/disconnect', {
         method: 'POST'
       })
       
+      if (response.ok) {
+        // Clear localStorage
+        localStorage.removeItem('facebook_connected')
+        localStorage.removeItem('facebook_connected_at')
+        localStorage.removeItem('facebook_user_id')
+        localStorage.removeItem('facebook_user_name')
+        
+        // Dispatch storage event to notify other components
+        window.dispatchEvent(new StorageEvent('storage', {
+          key: 'facebook_connected',
+          newValue: null,
+          oldValue: 'true'
+        }))
+        
+        console.log('✅ Facebook integration disconnected successfully')
+      } else {
+        const error = await response.json()
+        console.error('❌ Server error disconnecting:', error)
+        throw new Error(error.error || 'Failed to disconnect')
+      }
+      
+      // Refresh status from server
+      checkConnection()
+    } catch (error) {
+      console.error('❌ Error disconnecting Facebook:', error)
+      // Still try to clear localStorage even if server call fails
       localStorage.removeItem('facebook_connected')
       localStorage.removeItem('facebook_connected_at')
       localStorage.removeItem('facebook_user_id')
       localStorage.removeItem('facebook_user_name')
-      checkConnection() // Refresh status
-    } catch (error) {
-      console.error('❌ Error disconnecting Facebook:', error)
+      checkConnection()
     }
   }
 

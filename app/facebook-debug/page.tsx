@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { AlertCircle, CheckCircle, RefreshCw, Settings, Database, Key } from 'lucide-react'
+import { AlertCircle, CheckCircle, RefreshCw, Settings, Database, Key, Link } from 'lucide-react'
+import { useFacebookConnection } from '@/app/hooks/useFacebookConnection'
 
 export default function FacebookDebugPage() {
   const [diagnostics, setDiagnostics] = useState<any>(null)
@@ -9,9 +10,13 @@ export default function FacebookDebugPage() {
   const [fixing, setFixing] = useState(false)
   const [validating, setValidating] = useState(false)
   const [tokenStatus, setTokenStatus] = useState<any>(null)
+  const [statusCheck, setStatusCheck] = useState<any>(null)
+  
+  const facebookConnection = useFacebookConnection()
 
   useEffect(() => {
     runDiagnostics()
+    checkConnectionStatus()
   }, [])
 
   const runDiagnostics = async () => {
@@ -25,6 +30,17 @@ export default function FacebookDebugPage() {
       setDiagnostics({ error: 'Failed to run diagnostics' })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const checkConnectionStatus = async () => {
+    try {
+      const response = await fetch('/api/integrations/facebook/status')
+      const data = await response.json()
+      setStatusCheck(data)
+    } catch (error) {
+      console.error('Status check error:', error)
+      setStatusCheck({ error: 'Failed to check status' })
     }
   }
 
@@ -191,6 +207,107 @@ export default function FacebookDebugPage() {
                 )}
               </div>
 
+              {/* Connection Status Check */}
+              <div className="bg-gray-700 rounded-lg p-6">
+                <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                  <Link className="w-5 h-5" />
+                  Connection State Check
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Frontend State */}
+                  <div>
+                    <h3 className="text-lg font-medium text-white mb-3">Frontend (useFacebookConnection)</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-300">Connected:</span>
+                        <span className={facebookConnection.connected ? 'text-green-400' : 'text-red-400'}>
+                          {facebookConnection.connected ? 'Yes' : 'No'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-300">Loading:</span>
+                        <span className="text-gray-400">{facebookConnection.loading ? 'Yes' : 'No'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-300">Connected At:</span>
+                        <span className="text-gray-400 text-xs">
+                          {facebookConnection.connectedAt ? new Date(facebookConnection.connectedAt).toLocaleString() : 'Never'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-300">Error:</span>
+                        <span className="text-red-400 text-xs">{facebookConnection.error || 'None'}</span>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        <strong>Debug:</strong> {facebookConnection.debug.storageMethod} | 
+                        <strong> Last Check:</strong> {facebookConnection.debug.lastChecked ? new Date(facebookConnection.debug.lastChecked).toLocaleTimeString() : 'Never'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Server State */}
+                  <div>
+                    <h3 className="text-lg font-medium text-white mb-3">Server (/api/integrations/facebook/status)</h3>
+                    {statusCheck ? (
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-300">Connected:</span>
+                          <span className={statusCheck.connected ? 'text-green-400' : 'text-red-400'}>
+                            {statusCheck.connected ? 'Yes' : 'No'}
+                          </span>
+                        </div>
+                        {statusCheck.integration && (
+                          <>
+                            <div className="flex justify-between">
+                              <span className="text-gray-300">FB User:</span>
+                              <span className="text-gray-400 text-xs">{statusCheck.integration.facebook_user_name}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-300">FB User ID:</span>
+                              <span className="text-gray-400 text-xs">{statusCheck.integration.facebook_user_id}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-300">Token Expires:</span>
+                              <span className="text-gray-400 text-xs">
+                                {statusCheck.integration.token_expires_at ? new Date(statusCheck.integration.token_expires_at).toLocaleString() : 'Never'}
+                              </span>
+                            </div>
+                          </>
+                        )}
+                        <div className="flex justify-between">
+                          <span className="text-gray-300">Error:</span>
+                          <span className="text-red-400 text-xs">{statusCheck.error || 'None'}</span>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-500">
+                          <strong>Method:</strong> {statusCheck.connection_method} | 
+                          <strong> Last Check:</strong> {statusCheck.last_check ? new Date(statusCheck.last_check).toLocaleTimeString() : 'Never'}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-gray-400 text-sm">Loading server status...</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* State Sync Issues */}
+                {statusCheck && (
+                  <div className="mt-4">
+                    {facebookConnection.connected !== statusCheck.connected && (
+                      <div className="bg-yellow-900/30 border border-yellow-600 rounded p-3">
+                        <div className="flex items-center gap-2 text-yellow-400">
+                          <AlertCircle className="w-4 h-4" />
+                          <span className="font-semibold">State Mismatch Detected!</span>
+                        </div>
+                        <p className="text-yellow-300 text-sm mt-1">
+                          Frontend says {facebookConnection.connected ? 'connected' : 'disconnected'}, but server says {statusCheck.connected ? 'connected' : 'disconnected'}.
+                          This is exactly the bug we're fixing!
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* Database Check */}
               <div className="bg-gray-700 rounded-lg p-6">
                 <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
@@ -287,12 +404,16 @@ export default function FacebookDebugPage() {
               {/* Actions */}
               <div className="flex gap-4">
                 <button
-                  onClick={runDiagnostics}
+                  onClick={() => {
+                    runDiagnostics()
+                    checkConnectionStatus()
+                    facebookConnection.refresh()
+                  }}
                   disabled={loading}
                   className="flex-1 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white py-3 px-6 rounded-lg flex items-center justify-center gap-2"
                 >
                   <RefreshCw className="w-5 h-5" />
-                  Re-run Diagnostics
+                  Refresh All
                 </button>
 
                 <button

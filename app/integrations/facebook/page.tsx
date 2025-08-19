@@ -42,6 +42,17 @@ export default function FacebookIntegrationPage() {
   const [hasAttemptedSync, setHasAttemptedSync] = useState(false)
   
   const facebookConnection = useFacebookConnection()
+  
+  // If not connected, redirect to connect flow
+  useEffect(() => {
+    if (!facebookConnection.loading && !facebookConnection.connected) {
+      // Give a small delay to show the page briefly before redirecting
+      const timer = setTimeout(() => {
+        router.push('/connect-facebook')
+      }, 500)
+      return () => clearTimeout(timer)
+    }
+  }, [facebookConnection.loading, facebookConnection.connected, router])
   const { pages, loading: pagesLoading, error: pagesError, refetch: refetchPages } = useFacebookPages(facebookConnection.connected)
   const { adAccounts, loading: adAccountsLoading, error: adAccountsError, refetch: refetchAdAccounts } = useFacebookAdAccounts(facebookConnection.connected, timeFilter)
   const { leadForms, loading: leadFormsLoading, error: leadFormsError, refetch: refetchLeadForms } = useFacebookLeadForms(
