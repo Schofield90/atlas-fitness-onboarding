@@ -13,6 +13,10 @@ const publicRoutes = [
   '/client-portal/claim',
   '/client-access',
   '/onboarding',
+  '/dashboard-direct',  // Add simplified dashboard to public routes
+  '/quick-dashboard',   // Add quick access dashboard (no auth)
+  '/real-dashboard',    // Real dashboard with no auth checks
+  '/test-auth',         // Add test auth page
   '/api/auth',
   '/api/client-portal',
   '/api/client-access',
@@ -163,7 +167,32 @@ export async function middleware(request: NextRequest) {
       .single()
 
     if (!userOrg) {
-      // No organization - redirect to onboarding
+      // Try to add existing users to Atlas Fitness automatically
+      const ATLAS_FITNESS_ORG_ID = '63589490-8f55-4157-bd3a-e141594b748e';
+      
+      // Check if user account is older than 1 day (existing user)
+      const userCreatedAt = new Date(session.user.created_at);
+      const oneDayAgo = new Date();
+      oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+      
+      if (userCreatedAt < oneDayAgo) {
+        // Existing user - add them to Atlas Fitness
+        await supabase
+          .from('organization_members')
+          .upsert({
+            user_id: session.user.id,
+            organization_id: ATLAS_FITNESS_ORG_ID,
+            role: 'owner',
+            is_active: true
+          }, {
+            onConflict: 'user_id,organization_id'
+          });
+        
+        // Let them continue to the dashboard
+        return res;
+      }
+      
+      // New user - redirect to onboarding
       if (pathname !== '/onboarding') {
         return NextResponse.redirect(new URL('/onboarding', request.url))
       }

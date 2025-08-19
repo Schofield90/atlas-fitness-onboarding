@@ -490,12 +490,110 @@ export default function CampaignsPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-2">Email Template</label>
-              <select className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
-                <option>Select a template</option>
+              <select 
+                value={campaignForm.template}
+                onChange={(e) => setCampaignForm({ ...campaignForm, template: e.target.value })}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+              >
+                <option value="">Select a template</option>
                 {emailTemplates.map((template) => (
                   <option key={template.id} value={template.id}>{template.name}</option>
                 ))}
+                <option value="custom">Create Custom Email</option>
               </select>
+            </div>
+
+            {/* Email Content Editor */}
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-2">Email Subject</label>
+              <input
+                type="text"
+                placeholder="e.g., New Year Special - 50% Off Membership!"
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-2">Email Content</label>
+              <div className="space-y-4">
+                {/* Email Editor Toolbar */}
+                <div className="flex gap-2 p-2 bg-gray-700 rounded-lg">
+                  <button className="p-2 hover:bg-gray-600 rounded" title="Bold">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 4h8a4 4 0 014 4 4 4 0 01-4 4H6z"></path>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 12h9a4 4 0 014 4 4 4 0 01-4 4H6z"></path>
+                    </svg>
+                  </button>
+                  <button className="p-2 hover:bg-gray-600 rounded" title="Italic">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 4h4m0 0l-4 16m4-16h4m-8 16h4m0 0h4"></path>
+                    </svg>
+                  </button>
+                  <button className="p-2 hover:bg-gray-600 rounded" title="Underline">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v7a5 5 0 0010 0V4M5 21h14"></path>
+                    </svg>
+                  </button>
+                  <div className="w-px bg-gray-600"></div>
+                  <button className="p-2 hover:bg-gray-600 rounded" title="Link">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+                    </svg>
+                  </button>
+                  <button className="p-2 hover:bg-gray-600 rounded" title="Image">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                  </button>
+                  <div className="w-px bg-gray-600"></div>
+                  <button className="p-2 hover:bg-gray-600 rounded" title="Add Button">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2z"></path>
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Email Content Area */}
+                <div className="bg-gray-700 rounded-lg p-4" style={{ minHeight: '400px' }}>
+                  <textarea
+                    placeholder="Start writing your email content here...
+
+Hi [FirstName],
+
+We're excited to announce our New Year special offer! 
+
+For a limited time, get 50% off your first month of membership when you join Atlas Fitness.
+
+[Add Button: Claim Your Discount]
+
+Why join Atlas Fitness?
+• State-of-the-art equipment
+• Expert personal trainers
+• Group fitness classes
+• Flexible membership options
+
+Don't miss out on this amazing opportunity to start your fitness journey!
+
+Best regards,
+The Atlas Fitness Team"
+                    className="w-full h-96 px-3 py-2 bg-transparent border-none outline-none text-white resize-none"
+                  />
+                </div>
+
+                {/* Email Preview Toggle */}
+                <div className="flex justify-between items-center">
+                  <button className="text-orange-500 hover:text-orange-400 flex items-center gap-2">
+                    <EyeIcon className="h-4 w-4" />
+                    Preview Email
+                  </button>
+                  <button className="text-blue-500 hover:text-blue-400 flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V2"></path>
+                    </svg>
+                    Save as Template
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div>

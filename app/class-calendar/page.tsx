@@ -11,6 +11,7 @@ import CalendarViewToggle from '@/app/components/booking/CalendarViewToggle';
 import PremiumCalendarGrid from '@/app/components/booking/PremiumCalendarGrid';
 import SelectedClassDetails from '@/app/components/booking/SelectedClassDetails';
 import AddClassModal from '@/app/components/booking/AddClassModal';
+import DashboardLayout from '@/app/components/DashboardLayout';
 import { getCurrentUserOrganization } from '@/app/lib/organization-service';
 
 export const dynamic = 'force-dynamic';
@@ -230,9 +231,10 @@ export default function ClassCalendarPage() {
   };
   
   return (
-    <div className="min-h-screen bg-gray-900">
-      {/* Top Action Bar */}
-      <div className="border-b border-gray-700 bg-gray-800 sticky top-0 z-50">
+    <DashboardLayout userData={null}>
+      <div className="min-h-screen bg-gray-900">
+        {/* Top Action Bar */}
+        <div className="border-b border-gray-700 bg-gray-800 sticky top-0 z-50">
         <div className="flex items-center justify-between px-6 py-4">
           <div>
             <h1 className="text-2xl font-bold text-white">Class Schedule</h1>
@@ -378,12 +380,13 @@ export default function ClassCalendarPage() {
         </div>
       </div>
       
-      {/* Add Class Modal */}
-      <AddClassModal
-        isOpen={showAddClass}
-        onClose={() => setShowAddClass(false)}
-        onAdd={handleAddClass}
-      />
-    </div>
+        {/* Add Class Modal */}
+        <AddClassModal
+          isOpen={showAddClass}
+          onClose={() => setShowAddClass(false)}
+          onAdd={handleAddClass}
+        />
+      </div>
+    </DashboardLayout>
   );
 }

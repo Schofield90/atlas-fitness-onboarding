@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Mail, Phone, MapPin } from 'lucide-react'
+import { Mail, Phone, MapPin, Clock, CreditCard } from 'lucide-react'
 
 interface ContactInformationFormProps {
   settings: any
@@ -18,7 +18,10 @@ export default function ContactInformationForm({ settings, onUpdate }: ContactIn
       state: '',
       postal_code: '',
       country: 'GB'
-    }
+    },
+    timezone: settings?.timezone || 'Europe/London',
+    currency: settings?.currency || 'GBP',
+    date_format: settings?.date_format || 'DD/MM/YYYY'
   })
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<any>({})
@@ -140,6 +143,68 @@ export default function ContactInformationForm({ settings, onUpdate }: ContactIn
             <option value="CA">Canada</option>
             <option value="AU">Australia</option>
           </select>
+        </div>
+
+        <div className="border-t border-gray-700 pt-4 mt-4">
+          <h3 className="text-sm font-semibold text-gray-300 mb-3">Regional Settings</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">
+                Timezone
+              </label>
+              <div className="relative">
+                <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                <select
+                  value={formData.timezone}
+                  onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
+                  className="w-full pl-10 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="Europe/London">London (GMT/BST)</option>
+                  <option value="Europe/Dublin">Dublin</option>
+                  <option value="Europe/Paris">Paris</option>
+                  <option value="America/New_York">New York (EST)</option>
+                  <option value="America/Los_Angeles">Los Angeles (PST)</option>
+                  <option value="Australia/Sydney">Sydney</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">
+                Currency
+              </label>
+              <div className="relative">
+                <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                <select
+                  value={formData.currency}
+                  onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                  className="w-full pl-10 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="GBP">£ GBP (British Pound)</option>
+                  <option value="EUR">€ EUR (Euro)</option>
+                  <option value="USD">$ USD (US Dollar)</option>
+                  <option value="AUD">$ AUD (Australian Dollar)</option>
+                  <option value="CAD">$ CAD (Canadian Dollar)</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">
+                Date Format
+              </label>
+              <select
+                value={formData.date_format}
+                onChange={(e) => setFormData({ ...formData, date_format: e.target.value })}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="DD/MM/YYYY">DD/MM/YYYY (UK)</option>
+                <option value="MM/DD/YYYY">MM/DD/YYYY (US)</option>
+                <option value="YYYY-MM-DD">YYYY-MM-DD (ISO)</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         <button

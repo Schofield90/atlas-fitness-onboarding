@@ -19,11 +19,18 @@ export default function DirectDashboardPage() {
     // Check if user is logged in
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) {
-        router.push('/login')
+        // Only redirect if we're not already on the login page
+        const currentPath = window.location.pathname;
+        if (currentPath !== '/login') {
+          router.push('/login')
+        }
       } else {
         setUser(user)
         setLoading(false)
       }
+    }).catch((error) => {
+      console.error('Auth check error:', error)
+      setLoading(false)
     })
   }, [])
 

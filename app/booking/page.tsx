@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import DashboardLayout from '../components/DashboardLayout'
 import { Calendar, Clock, Users, Plus, Link, Settings, Video, Phone, Coffee } from 'lucide-react'
 import Button from '@/app/components/ui/Button'
 import { createClient } from '@/app/lib/supabase/client'
@@ -94,9 +93,8 @@ export default function BookingPage() {
   }
 
   return (
-    <DashboardLayout>
-      <div className="min-h-screen bg-gray-900 text-white">
-        <div className="p-6">
+    <div className="min-h-screen bg-gray-900 text-white">
+      <div className="p-6">
           {/* Header */}
           <div className="flex justify-between items-center mb-8">
             <div>
@@ -333,6 +331,6 @@ export default function BookingPage() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </div>
   )
 }
