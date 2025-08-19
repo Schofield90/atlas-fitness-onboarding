@@ -154,7 +154,7 @@ export default function BookingWidget({ slug, embedded = false, className = '' }
 
   const fetchBookingDetails = async () => {
     try {
-      const response = await fetch(`/api/booking-links/${slug}/details`)
+      const response = await fetch(`/api/booking-by-slug/details?slug=${slug}`)
       if (!response.ok) throw new Error('Booking link not found')
       
       const data = await response.json()
@@ -186,7 +186,7 @@ export default function BookingWidget({ slug, embedded = false, className = '' }
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
       })
       
-      const response = await fetch(`/api/booking-links/${slug}/availability?${params}`)
+      const response = await fetch(`/api/booking-by-slug/availability?slug=${slug}&${params}`)
       if (response.ok) {
         const data = await response.json()
         setAvailability(data.availability || [])
@@ -203,7 +203,7 @@ export default function BookingWidget({ slug, embedded = false, className = '' }
 
     setSubmitting(true)
     try {
-      const response = await fetch(`/api/booking-links/${slug}/book`, {
+      const response = await fetch(`/api/booking-by-slug/book?slug=${slug}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

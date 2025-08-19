@@ -2,29 +2,31 @@ import { NextRequest, NextResponse } from 'next/server'
 import { bookingLinkService } from '@/app/lib/services/booking-link'
 import { addDays, startOfDay, endOfDay } from 'date-fns'
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { slug: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
+    const slug = searchParams.get('slug')
     const startDateParam = searchParams.get('start_date')
     const endDateParam = searchParams.get('end_date')
     const timezone = searchParams.get('timezone') || 'Europe/London'
+    
+    if (!slug) {
+      return NextResponse.json({ error: 'Slug is required' }, { status: 400 })
+    }
 
     // Default to next 30 days if no dates provided
     const startDate = startDateParam ? new Date(startDateParam) : startOfDay(new Date())
     const endDate = endDateParam ? new Date(endDateParam) : endOfDay(addDays(new Date(), 30))
 
     // Track page view for analytics
-    await bookingLinkService.trackEvent(params.slug, 'page_view', {
+    await bookingLinkService.trackEvent(slug, 'page_view', {
       user_agent: request.headers.get('user-agent'),
       referrer: request.headers.get('referer'),
       ip: request.ip || request.headers.get('x-forwarded-for')
     })
 
     const availableSlots = await bookingLinkService.getAvailableSlots(
-      params.slug,
+      slug,
       startDate,
       endDate,
       timezone

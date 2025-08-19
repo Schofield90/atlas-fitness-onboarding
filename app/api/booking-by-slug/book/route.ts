@@ -2,12 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { bookingLinkService, BookingRequest } from '@/app/lib/services/booking-link'
 import { parseISO, addMinutes } from 'date-fns'
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { slug: string } }
-) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    const { searchParams } = new URL(request.url)
+    const slug = searchParams.get('slug')
     const {
       appointment_type_id,
       start_time,
@@ -19,6 +18,10 @@ export async function POST(
       notes,
       timezone = 'Europe/London'
     } = body
+    
+    if (!slug) {
+      return NextResponse.json({ error: 'Slug is required' }, { status: 400 })
+    }
 
     // Validate required fields
     if (!appointment_type_id || !start_time || !attendee_name || !attendee_email) {
@@ -29,7 +32,7 @@ export async function POST(
     }
 
     // Get the booking link
-    const bookingLink = await bookingLinkService.getBookingLink(params.slug)
+    const bookingLink = await bookingLinkService.getBookingLink(slug)
     if (!bookingLink) {
       return NextResponse.json({ error: 'Booking link not found' }, { status: 404 })
     }
@@ -39,7 +42,7 @@ export async function POST(
     }
 
     // Track form start for analytics
-    await bookingLinkService.trackEvent(params.slug, 'form_started', {
+    await bookingLinkService.trackEvent(slug, 'form_started', {
       appointment_type_id,
       user_agent: request.headers.get('user-agent'),
       ip: request.ip || request.headers.get('x-forwarded-for')
@@ -106,7 +109,7 @@ export async function POST(
     const booking = await bookingLinkService.createBooking(bookingRequest)
 
     // Track successful booking for analytics
-    await bookingLinkService.trackEvent(params.slug, 'booking_completed', {
+    await bookingLinkService.trackEvent(slug, 'booking_completed', {
       booking_id: booking.id,
       appointment_type_id,
       staff_id: assignedStaffId
@@ -130,7 +133,7 @@ export async function POST(
     
     // Track failed booking attempt
     try {
-      await bookingLinkService.trackEvent(params.slug, 'booking_cancelled', {
+      await bookingLinkService.trackEvent(slug, 'booking_cancelled', {
         error: error instanceof Error ? error.message : 'Unknown error'
       })
     } catch (trackError) {

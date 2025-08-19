@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { bookingLinkService } from '@/app/lib/services/booking-link'
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { slug: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
     // This endpoint is public to allow embedding booking widgets
+    const { searchParams } = new URL(request.url)
+    const slug = searchParams.get('slug')
     
-    const bookingLink = await bookingLinkService.getBookingLink(params.slug)
+    if (!slug) {
+      return NextResponse.json({ error: 'Slug is required' }, { status: 400 })
+    }
+    
+    const bookingLink = await bookingLinkService.getBookingLink(slug)
     if (!bookingLink) {
       return NextResponse.json({ error: 'Booking link not found' }, { status: 404 })
     }

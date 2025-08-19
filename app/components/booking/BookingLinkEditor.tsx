@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
-  Settings, Calendar, Form, Bell, Palette, 
+  Settings, Calendar, FileText, Bell, Palette, 
   Save, Eye, ArrowLeft, Copy, Check, Plus, 
   Trash2, Clock, Users, MapPin, CreditCard,
   Zap, Shield, Target
@@ -356,13 +356,13 @@ export default function BookingLinkEditor({ bookingLinkId, onSave, onCancel }: B
 // TAB COMPONENTS
 // =============================================
 
-function DetailsTab({ formData, setFormData, appointmentTypes, staffMembers, generateSlug }: {
+const DetailsTab = ({ formData, setFormData, appointmentTypes, staffMembers, generateSlug }: {
   formData: Partial<BookingLink>
   setFormData: (data: Partial<BookingLink>) => void
   appointmentTypes: AppointmentType[]
   staffMembers: StaffMember[]
   generateSlug: (name: string) => string
-}) {
+}) => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -431,10 +431,10 @@ function DetailsTab({ formData, setFormData, appointmentTypes, staffMembers, gen
               value={formData.meeting_title_template || ''}
               onChange={(e) => setFormData({ ...formData, meeting_title_template: e.target.value })}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
-              placeholder="{{contact.name}} - {{service}}"
+              placeholder="{contact.name} - {service}"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Use variables: {{contact.name}}, {{service}}, {{date}}, {{time}}
+              Use variables: {'{'}contact.name{'}'}, {'{'}service{'}'}, {'{'}date{'}'}, {'{'}time{'}'}
             </p>
           </div>
         </div>
@@ -721,11 +721,11 @@ function DetailsTab({ formData, setFormData, appointmentTypes, staffMembers, gen
   )
 }
 
-function AvailabilityTab({ formData, setFormData, staffMembers }: {
+const AvailabilityTab = ({ formData, setFormData, staffMembers }: {
   formData: Partial<BookingLink>
   setFormData: (data: Partial<BookingLink>) => void
   staffMembers: StaffMember[]
-}) {
+}) => {
   const [selectedStaff, setSelectedStaff] = useState<string>('')
 
   return (
@@ -799,10 +799,10 @@ function AvailabilityTab({ formData, setFormData, staffMembers }: {
   )
 }
 
-function FormTab({ formData, setFormData }: {
+const FormTab = ({ formData, setFormData }: {
   formData: Partial<BookingLink>
   setFormData: (data: Partial<BookingLink>) => void
-}) {
+}) => {
   const [customFields, setCustomFields] = useState(formData.form_configuration?.fields || [])
 
   const addCustomField = () => {
@@ -828,7 +828,7 @@ function FormTab({ formData, setFormData }: {
   return (
     <div className="space-y-6">
       <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-        <Form className="w-5 h-5" />
+        <FileText className="w-5 h-5" />
         Form Configuration
       </h3>
 
@@ -1045,10 +1045,10 @@ function FormTab({ formData, setFormData }: {
   )
 }
 
-function NotificationsTab({ formData, setFormData }: {
+const NotificationsTab = ({ formData, setFormData }: {
   formData: Partial<BookingLink>
   setFormData: (data: Partial<BookingLink>) => void
-}) {
+}) => {
   const reminderOptions = [
     { value: '1 week', label: '1 week before' },
     { value: '3 days', label: '3 days before' },
@@ -1210,10 +1210,10 @@ function NotificationsTab({ formData, setFormData }: {
   )
 }
 
-function CustomizationTab({ formData, setFormData }: {
+const CustomizationTab = ({ formData, setFormData }: {
   formData: Partial<BookingLink>
   setFormData: (data: Partial<BookingLink>) => void
-}) {
+}) => {
   return (
     <div className="space-y-6">
       <h3 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -1440,5 +1440,3 @@ function CustomizationTab({ formData, setFormData }: {
     </div>
   )
 }
-
-export { BookingLinkEditor }
