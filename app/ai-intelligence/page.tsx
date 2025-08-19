@@ -7,7 +7,7 @@ import {
   RefreshCw, Zap, Eye, Settings, ChevronRight 
 } from 'lucide-react';
 import DashboardLayout from '@/app/components/DashboardLayout';
-import { useOrganization } from '@/app/hooks/useOrganization';
+import { createClient } from '@/app/lib/supabase/client';
 
 interface AIInsights {
   lead_scoring: {
@@ -52,7 +52,7 @@ interface ChatMessage {
 type TabType = 'overview' | 'insights' | 'chat' | 'settings';
 
 export default function AIIntelligencePage() {
-  const { organizationId } = useOrganization();
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -61,12 +61,45 @@ export default function AIIntelligencePage() {
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const supabase = createClient();
+
+  useEffect(() => {
+    fetchOrganization();
+  }, []);
 
   useEffect(() => {
     if (organizationId) {
       loadAIInsights();
     }
   }, [organizationId]);
+
+  const fetchOrganization = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setError('Not authenticated');
+        setLoading(false);
+        return;
+      }
+
+      const { data: userOrg } = await supabase
+        .from('user_organizations')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (userOrg) {
+        setOrganizationId(userOrg.organization_id);
+      } else {
+        setError('No organization found');
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error('Error fetching organization:', err);
+      setError('Failed to get organization');
+      setLoading(false);
+    }
+  };
 
   const loadAIInsights = async () => {
     try {
