@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import DashboardLayout from '@/app/components/DashboardLayout'
@@ -8,7 +8,7 @@ import { Card } from '@/app/components/ui/Card'
 import Button from '@/app/components/ui/Button'
 import { CreditCard, Building2, CheckCircle, XCircle, AlertCircle, ExternalLink } from 'lucide-react'
 
-export default function PaymentIntegrationsPage() {
+function PaymentIntegrationsContent() {
   const [loading, setLoading] = useState(true)
   const [stripeStatus, setStripeStatus] = useState<'not_connected' | 'pending' | 'active'>('not_connected')
   const [goCardlessStatus, setGoCardlessStatus] = useState<'not_connected' | 'pending' | 'active'>('not_connected')
@@ -329,5 +329,19 @@ export default function PaymentIntegrationsPage() {
         </div>
       </div>
     </DashboardLayout>
+  )
+}
+
+export default function PaymentIntegrationsPage() {
+  return (
+    <Suspense fallback={
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-gray-500">Loading payment integrations...</div>
+        </div>
+      </DashboardLayout>
+    }>
+      <PaymentIntegrationsContent />
+    </Suspense>
   )
 }

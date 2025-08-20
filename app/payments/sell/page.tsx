@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
 import { useSearchParams } from 'next/navigation'
 import DashboardLayout from '@/app/components/DashboardLayout'
@@ -21,7 +21,7 @@ interface Product {
   active: boolean
 }
 
-export default function SellPage() {
+function SellPageContent() {
   const [products, setProducts] = useState<Product[]>([])
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [clientEmail, setClientEmail] = useState('')
@@ -309,5 +309,19 @@ export default function SellPage() {
         </div>
       </div>
     </DashboardLayout>
+  )
+}
+
+export default function SellPage() {
+  return (
+    <Suspense fallback={
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-gray-500">Loading payment links...</div>
+        </div>
+      </DashboardLayout>
+    }>
+      <SellPageContent />
+    </Suspense>
   )
 }
