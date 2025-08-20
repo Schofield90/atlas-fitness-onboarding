@@ -73,7 +73,7 @@ export async function DELETE(request: NextRequest) {
     }
     
     // Clear GoCardless connection data
-    const { error } = await supabase
+    const { error: updateError } = await supabase
       .from('connected_accounts')
       .update({
         gc_organization_id: null,
@@ -87,8 +87,8 @@ export async function DELETE(request: NextRequest) {
       })
       .eq('organization_id', organizationId)
     
-    if (error) {
-      throw error
+    if (updateError) {
+      throw updateError
     }
     
     return NextResponse.json({
