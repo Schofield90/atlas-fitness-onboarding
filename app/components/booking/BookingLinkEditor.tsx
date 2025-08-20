@@ -223,7 +223,7 @@ export default function BookingLinkEditor({ bookingLinkId, onSave, onCancel }: B
   const tabs = [
     { id: 'details', label: 'Meeting Details', icon: Settings },
     { id: 'availability', label: 'Availability', icon: Calendar },
-    { id: 'form', label: 'Form & Confirmation', icon: Form },
+    { id: 'form', label: 'Form & Confirmation', icon: FileText },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'customization', label: 'Customization', icon: Palette }
   ] as const
