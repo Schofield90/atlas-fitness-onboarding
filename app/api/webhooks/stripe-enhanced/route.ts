@@ -8,9 +8,20 @@ import Stripe from 'stripe'
 import { createClient } from '@/app/lib/supabase/server'
 import { headers } from 'next/headers'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-11-20.acacia'
-})
+// Initialize Stripe only when the handler is called
+let stripe: Stripe | null = null
+
+function getStripe(): Stripe {
+  if (!stripe && process.env.STRIPE_SECRET_KEY) {
+    stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2024-11-20.acacia'
+    })
+  }
+  if (!stripe) {
+    throw new Error('Stripe is not configured. Please set STRIPE_SECRET_KEY environment variable.')
+  }
+  return stripe
+}
 
 // Event handlers map
 const eventHandlers: Record<string, (event: Stripe.Event) => Promise<void>> = {
@@ -52,7 +63,7 @@ export async function POST(request: NextRequest) {
       ? process.env.STRIPE_CONNECT_WEBHOOK_SECRET!
       : process.env.STRIPE_WEBHOOK_SECRET!
     
-    event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
+    event = getStripe().webhooks.constructEvent(body, signature, webhookSecret)
   } catch (err) {
     console.error('Webhook signature verification failed:', err)
     return NextResponse.json(

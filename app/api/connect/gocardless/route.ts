@@ -6,20 +6,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/app/lib/supabase/server'
 import { goCardlessService } from '@/app/lib/gocardless-server'
-import { checkAuthAndOrganization } from '@/app/lib/api/auth-check-org'
+import { getOrganizationAndUser } from '@/app/lib/auth-utils'
 
 export async function GET(request: NextRequest) {
   try {
     // Check authentication
-    const authResult = await checkAuthAndOrganization(request)
-    if (!authResult.success) {
+    const { organization, user, error } = await getOrganizationAndUser()
+    if (error || !organization || !user) {
       return NextResponse.json(
-        { error: authResult.error },
+        { error: error || 'Not authenticated' },
         { status: 401 }
       )
     }
     
-    const { organizationId } = authResult
+    const organizationId = organization.id
     
     // Get redirect URI from environment or request
     const redirectUri = process.env.GOCARDLESS_REDIRECT_URI || 
@@ -47,15 +47,15 @@ export async function GET(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     // Check authentication
-    const authResult = await checkAuthAndOrganization(request)
-    if (!authResult.success) {
+    const { organization, user, error } = await getOrganizationAndUser()
+    if (error || !organization || !user) {
       return NextResponse.json(
-        { error: authResult.error },
+        { error: error || 'Not authenticated' },
         { status: 401 }
       )
     }
     
-    const { organizationId } = authResult
+    const organizationId = organization.id
     const supabase = await createClient()
     
     // Get connected account
