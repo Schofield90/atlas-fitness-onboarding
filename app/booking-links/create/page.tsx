@@ -1,6 +1,6 @@
 'use client'
 
-import { BookingLinkEditor } from '@/app/components/booking/BookingLinkEditor'
+import BookingLinkEditor from '@/app/components/booking/BookingLinkEditor'
 import { useRouter } from 'next/navigation'
 
 export default function CreateBookingLinkPage() {
