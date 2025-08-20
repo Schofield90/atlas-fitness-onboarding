@@ -72,23 +72,15 @@ export function useFacebookConnection(): FacebookConnectionStatus & {
       } else {
         // Server error - show error state
         console.error('❌ Failed to check server status:', response.status)
-          console.warn('⚠️ Server status check failed, using localStorage only')
-          setStatus(prev => ({
-            ...prev,
-            loading: false,
-            error: `Server check failed: ${response.status}`
-          }))
-        }
-      } catch (serverError) {
-        // Network error - fall back to localStorage only  
-        console.warn('⚠️ Server status check failed, using localStorage only:', serverError)
+        console.warn('⚠️ Server status check failed, using localStorage only')
         setStatus(prev => ({
           ...prev,
           loading: false,
-          error: `Server unreachable: ${serverError instanceof Error ? serverError.message : 'Unknown error'}`
+          error: `Server check failed: ${response.status}`
         }))
       }
     } catch (error) {
+      // Network or other error
       console.error('❌ Error checking Facebook connection:', error)
       setStatus(prev => ({
         ...prev,

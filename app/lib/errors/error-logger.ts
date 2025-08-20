@@ -289,24 +289,28 @@ export class ErrorLogger {
    * Log to file system (in development or when specified)
    */
   private async logToFile(entry: LogEntry): Promise<void> {
-    if (this.environment === 'production') return
+    // Skip file logging in production or on client-side
+    if (this.environment === 'production' || typeof window !== 'undefined') return
 
     try {
-      const fs = await import('fs/promises')
-      const path = await import('path')
+      // Only attempt to use fs on server-side
+      if (typeof window === 'undefined') {
+        const fs = await import('fs/promises')
+        const path = await import('path')
       
-      const logDir = path.join(process.cwd(), 'logs')
-      const logFile = path.join(logDir, `errors-${new Date().toISOString().split('T')[0]}.log`)
-      
-      // Ensure logs directory exists
-      try {
-        await fs.access(logDir)
-      } catch {
-        await fs.mkdir(logDir, { recursive: true })
+        const logDir = path.join(process.cwd(), 'logs')
+        const logFile = path.join(logDir, `errors-${new Date().toISOString().split('T')[0]}.log`)
+        
+        // Ensure logs directory exists
+        try {
+          await fs.access(logDir)
+        } catch {
+          await fs.mkdir(logDir, { recursive: true })
+        }
+        
+        const logLine = JSON.stringify(entry) + '\n'
+        await fs.appendFile(logFile, logLine)
       }
-      
-      const logLine = JSON.stringify(entry) + '\n'
-      await fs.appendFile(logFile, logLine)
     } catch (error) {
       console.error('Failed to log to file:', error)
     }
