@@ -1,7 +1,7 @@
 import { Resend } from 'resend';
 import { createAdminClient } from './supabase/admin';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 interface SendEmailOptions {
   to: string;
@@ -14,6 +14,12 @@ interface SendEmailOptions {
 export async function sendEmail(options: SendEmailOptions) {
   try {
     const { to, subject, html, organizationId } = options;
+    
+    // Check if Resend is configured
+    if (!resend) {
+      console.warn('Resend API key not configured, skipping email send');
+      return { success: false, error: 'Email service not configured' };
+    }
     
     // Send email via Resend
     const { data, error } = await resend.emails.send({

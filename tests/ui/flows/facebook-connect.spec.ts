@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test'
-import { createClient } from '@supabase/supabase-js'
+import AxeBuilder from '@axe-core/playwright'
+import * as fs from 'fs/promises'
+import * as path from 'path'
 
 // Test configuration
 const TEST_ORG_ID = '63589490-8f55-4157-bd3a-e141594b748e' // Atlas Fitness default
