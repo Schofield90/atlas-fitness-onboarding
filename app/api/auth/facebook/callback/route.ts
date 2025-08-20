@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createClient } from '@/app/lib/supabase/server'
 import { getCurrentUserOrganization } from '@/app/lib/organization-server'
+import { handleFacebookCallback, validateFacebookEnv } from '@/app/lib/facebook/callback-handler'
 
 export const runtime = 'nodejs' // Force Node.js runtime for better env var support
 
@@ -27,9 +28,10 @@ export async function GET(request: NextRequest) {
 
   // Verify state parameter for security
   if (state !== 'atlas_fitness_oauth') {
-    console.error('Invalid OAuth state parameter')
+    console.error('❌ Invalid OAuth state parameter:', state)
     const callbackUrl = new URL('/integrations/facebook/callback', request.url)
     callbackUrl.searchParams.set('error', 'invalid_state')
+    callbackUrl.searchParams.set('error_description', 'OAuth state mismatch')
     
     return NextResponse.redirect(callbackUrl)
   }
@@ -44,76 +46,19 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    console.log('Facebook OAuth code received:', code.substring(0, 10) + '...')
+    console.log('🔄 Facebook OAuth code received:', code.substring(0, 10) + '...')
     
-    // Exchange authorization code for access token
-    const fbAppId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || '715100284200848'
-    const fbAppSecret = process.env.FACEBOOK_APP_SECRET
-    const redirectUri = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://atlas-fitness-onboarding.vercel.app'}/api/auth/facebook/callback`
-    
-    if (!fbAppSecret) {
-      console.error('❌ Facebook App Secret not configured')
+    // Validate environment first
+    const envCheck = validateFacebookEnv()
+    if (!envCheck.valid) {
+      console.error('❌ Environment validation failed:', envCheck.error)
       const callbackUrl = new URL('/integrations/facebook/callback', request.url)
       callbackUrl.searchParams.set('error', 'configuration_error')
-      callbackUrl.searchParams.set('error_description', 'Please add FACEBOOK_APP_SECRET to your environment variables')
+      callbackUrl.searchParams.set('error_description', envCheck.error || 'Missing required environment variables')
       return NextResponse.redirect(callbackUrl)
     }
 
-    // Step 1: Exchange code for short-lived access token
-    const tokenResponse = await fetch('https://graph.facebook.com/v18.0/oauth/access_token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        client_id: fbAppId,
-        client_secret: fbAppSecret,
-        redirect_uri: redirectUri,
-        code: code,
-      }),
-    })
-
-    const tokenData = await tokenResponse.json()
-    
-    if (tokenData.error) {
-      console.error('❌ Facebook token exchange error:', tokenData.error)
-      const callbackUrl = new URL('/integrations/facebook/callback', request.url)
-      callbackUrl.searchParams.set('error', tokenData.error.message || 'token_exchange_failed')
-      return NextResponse.redirect(callbackUrl)
-    }
-
-    console.log('✅ Facebook access token obtained')
-
-    // Step 2: Exchange short-lived token for long-lived token (60 days)
-    const longLivedUrl = `https://graph.facebook.com/v18.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${fbAppId}&client_secret=${fbAppSecret}&fb_exchange_token=${tokenData.access_token}`
-    
-    console.log('🔄 Exchanging for long-lived token...')
-    const longLivedResponse = await fetch(longLivedUrl)
-    const longLivedData = await longLivedResponse.json()
-    
-    if (longLivedData.error) {
-      console.error('❌ Long-lived token exchange error:', longLivedData.error)
-    }
-
-    const finalAccessToken = longLivedData.access_token || tokenData.access_token
-    const expiresIn = longLivedData.expires_in || tokenData.expires_in || 3600
-
-    console.log('✅ Long-lived token obtained, expires in:', expiresIn, 'seconds')
-
-    // Step 3: Get user info to verify the token
-    const userResponse = await fetch(`https://graph.facebook.com/v18.0/me?fields=id,name,email&access_token=${finalAccessToken}`)
-    const userData = await userResponse.json()
-
-    if (userData.error) {
-      console.error('❌ Facebook user data error:', userData.error)
-      const callbackUrl = new URL('/integrations/facebook/callback', request.url)
-      callbackUrl.searchParams.set('error', 'user_data_failed')
-      return NextResponse.redirect(callbackUrl)
-    }
-
-    console.log('✅ Facebook user verified:', userData.name, userData.email)
-
-    // Step 4: Get current user and organization
+    // Get current user and organization
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
@@ -127,68 +72,65 @@ export async function GET(request: NextRequest) {
     let { organizationId, error: orgError } = await getCurrentUserOrganization()
     
     if (orgError || !organizationId) {
-      console.error('⚠️ No organization found during OAuth callback, using default')
-      // Use the default Atlas Fitness organization as fallback
-      organizationId = '63589490-8f55-4157-bd3a-e141594b748e'
+      console.error('⚠️ No organization found during OAuth callback, checking fallback')
       
-      // Try to create the user_organizations entry
-      try {
-        await supabase
-          .from('user_organizations')
-          .insert({
-            user_id: user.id,
-            organization_id: organizationId,
-            role: 'member'
-          })
-        console.log('✅ Created user_organizations entry with default org')
-      } catch (e) {
-        console.log('⚠️ Could not create user_organizations entry, continuing anyway')
+      // Try to get organization from user_organizations table
+      const { data: userOrg } = await supabase
+        .from('user_organizations')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .single()
+      
+      if (userOrg?.organization_id) {
+        organizationId = userOrg.organization_id
+        console.log('✅ Found organization from user_organizations:', organizationId)
+      } else {
+        // Use the default Atlas Fitness organization as last resort
+        organizationId = '63589490-8f55-4157-bd3a-e141594b748e'
+        console.log('⚠️ Using default organization:', organizationId)
+        
+        // Try to create the user_organizations entry
+        try {
+          await supabase
+            .from('user_organizations')
+            .insert({
+              user_id: user.id,
+              organization_id: organizationId,
+              role: 'member',
+              is_active: true
+            })
+          console.log('✅ Created user_organizations entry with default org')
+        } catch (e) {
+          console.log('⚠️ Could not create user_organizations entry:', e)
+        }
       }
     }
 
-    // Step 5: Store integration data in database
-    const tokenExpiresAt = new Date(Date.now() + (expiresIn * 1000))
-    
-    const { error: insertError } = await supabase
-      .from('facebook_integrations')
-      .upsert({
-        organization_id: organizationId,
-        user_id: user.id,
-        facebook_user_id: userData.id,
-        facebook_user_name: userData.name,
-        facebook_user_email: userData.email,
-        access_token: finalAccessToken,
-        token_expires_at: tokenExpiresAt.toISOString(),
-        granted_scopes: [], // We'll update this from token info
-        is_active: true,
-        last_sync_at: new Date().toISOString(),
-        settings: {}
-      }, {
-        onConflict: 'organization_id,facebook_user_id'
-      })
+    // Use our new handler function
+    const result = await handleFacebookCallback({
+      code,
+      state: state || '',
+      organizationId,
+      userId: user.id
+    })
 
-    if (insertError) {
-      console.error('❌ Failed to store Facebook integration:', insertError)
-      console.log('📝 Storage failed, but OAuth was successful. User can still use Facebook integration with limited functionality.')
-      
-      // Instead of failing, redirect to success with a warning
+    if (!result.success) {
+      console.error('❌ Callback handler failed:', result.error)
       const callbackUrl = new URL('/integrations/facebook/callback', request.url)
-      callbackUrl.searchParams.set('success', 'true')
-      callbackUrl.searchParams.set('user_id', userData.id)
-      callbackUrl.searchParams.set('user_name', userData.name)
-      callbackUrl.searchParams.set('storage_warning', 'database_tables_missing')
-      callbackUrl.searchParams.set('state', state)
-      
+      callbackUrl.searchParams.set('error', 'processing_failed')
+      callbackUrl.searchParams.set('error_description', result.error || 'Failed to complete OAuth flow')
       return NextResponse.redirect(callbackUrl)
     }
 
-    console.log('💾 Stored Facebook integration in database for user:', userData.id, userData.name)
+    console.log('✅ Facebook integration completed successfully')
 
+    // Success - redirect with user data
     const callbackUrl = new URL('/integrations/facebook/callback', request.url)
     callbackUrl.searchParams.set('success', 'true')
-    callbackUrl.searchParams.set('user_id', userData.id)
-    callbackUrl.searchParams.set('user_name', userData.name)
-    callbackUrl.searchParams.set('state', state)
+    callbackUrl.searchParams.set('user_id', result.data.facebook_user_id)
+    callbackUrl.searchParams.set('user_name', result.data.facebook_user_name || '')
+    callbackUrl.searchParams.set('state', state || '')
     
     return NextResponse.redirect(callbackUrl)
     

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/app/lib/supabase/server'
 import { getCurrentUserOrganization } from '@/app/lib/organization-server'
+import { checkFacebookStatus } from '@/app/lib/facebook/status-checker'
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,58 +19,49 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const { organizationId, error: orgError } = await getCurrentUserOrganization()
+    let { organizationId, error: orgError } = await getCurrentUserOrganization()
     
     if (orgError || !organizationId) {
-      return NextResponse.json(
-        { 
-          connected: false,
-          error: 'No organization found',
-          last_check: new Date().toISOString()
-        }, 
-        { status: 400 }
-      )
+      // Try fallback to user_organizations table
+      const { data: userOrg } = await supabase
+        .from('user_organizations')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .single()
+      
+      if (userOrg?.organization_id) {
+        organizationId = userOrg.organization_id
+      } else {
+        return NextResponse.json(
+          { 
+            connected: false,
+            error: 'No organization found',
+            last_check: new Date().toISOString()
+          }, 
+          { status: 400 }
+        )
+      }
     }
 
-    // Check for active Facebook integration
-    const { data: integration, error: dbError } = await supabase
-      .from('facebook_integrations')
-      .select('*')
-      .eq('organization_id', organizationId)
-      .eq('is_active', true)
-      .single()
+    // Use our new status checker
+    const statusResult = await checkFacebookStatus({
+      organizationId,
+      userId: user.id
+    })
 
-    if (dbError && dbError.code !== 'PGRST116') { // PGRST116 = no rows returned
-      console.error('Database error checking Facebook integration:', dbError)
-      return NextResponse.json(
-        { 
-          connected: false,
-          error: 'Database error',
-          details: dbError.message,
-          last_check: new Date().toISOString()
-        }, 
-        { status: 500 }
-      )
-    }
-
-    const connected = !!integration
-    const status = {
-      connected,
+    // Format response consistently
+    const response = {
+      connected: statusResult.connected,
       connection_method: 'database_check',
       last_check: new Date().toISOString(),
       user_id: user.id,
       organization_id: organizationId,
-      integration: connected ? {
-        facebook_user_id: integration.facebook_user_id,
-        facebook_user_name: integration.facebook_user_name,
-        facebook_user_email: integration.facebook_user_email,
-        connected_at: integration.created_at,
-        last_sync_at: integration.last_sync_at,
-        token_expires_at: integration.token_expires_at
-      } : null
+      integration: statusResult.integration || null,
+      error: statusResult.error
     }
 
-    return NextResponse.json(status, { status: 200 })
+    return NextResponse.json(response, { status: 200 })
   } catch (error) {
     console.error('Status check error:', error)
     return NextResponse.json(
