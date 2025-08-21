@@ -50,9 +50,10 @@ async function exchangeCodeForToken(code: string): Promise<{
   expires_in: number
   error?: string 
 }> {
-  const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || '715100284200848'
-  const appSecret = process.env.FACEBOOK_APP_SECRET
-  const redirectUri = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/auth/facebook/callback`
+  const { getFacebookAppId, getFacebookAppSecret, getFacebookRedirectUri } = await import('./config')
+  const appId = getFacebookAppId()
+  const appSecret = getFacebookAppSecret()
+  const redirectUri = getFacebookRedirectUri()
 
   const tokenUrl = new URL('https://graph.facebook.com/v19.0/oauth/access_token')
   tokenUrl.searchParams.append('client_id', appId)
