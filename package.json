@@ -30,7 +30,7 @@
     "test:e2e": "playwright test",
     "test:e2e:flows": "playwright test tests/ui/flows/",
     "test:a11y": "playwright test tests/ui/accessibility/",
-    "check:nextjs": "tsx scripts/check-nextjs-rules.ts",
+    "check:nextjs": "npx tsx scripts/check-nextjs-rules.ts",
     "test:security": "jest tests/security",
     "test:api": "jest tests/api",
     "test:db": "jest tests/database",
@@ -171,7 +171,8 @@
     "zustand": "^5.0.2"
   },
   "devDependencies": {
-    "@playwright/test": "^1.49.1",
+    "@axe-core/playwright": "^4.10.2",
+    "@playwright/test": "^1.55.0",
     "@prisma/client": "^5.22.0",
     "@storybook/addon-essentials": "^8.5.2",
     "@storybook/addon-interactions": "^8.5.2",
@@ -221,7 +222,7 @@
     "storybook": "^8.5.2",
     "tailwindcss": "^3.4.16",
     "ts-jest": "^29.2.6",
-    "tsx": "^4.19.2",
+    "tsx": "^4.20.4",
     "typescript": "^5.7.2"
   },
   "lint-staged": {
