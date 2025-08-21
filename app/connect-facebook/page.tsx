@@ -1,12 +1,34 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function ConnectFacebookPage() {
+  const router = useRouter()
+  const [checking, setChecking] = useState(true)
+  
   useEffect(() => {
-    // Immediately redirect to Facebook OAuth
-    const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || '715100284200848'
-    const redirectUri = `${window.location.origin}/api/auth/facebook/callback`
+    // First check if already connected
+    const checkConnection = async () => {
+      try {
+        const response = await fetch('/api/integrations/facebook/status')
+        if (response.ok) {
+          const data = await response.json()
+          if (data.connected) {
+            console.log('Already connected, redirecting to integration page')
+            router.push('/integrations/facebook')
+            return
+          }
+        }
+      } catch (error) {
+        console.error('Error checking connection:', error)
+      }
+      
+      setChecking(false)
+      
+      // Not connected, proceed with OAuth
+      const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || '715100284200848'
+      const redirectUri = `${window.location.origin}/api/auth/facebook/callback`
     
     const permissions = [
       'pages_show_list',
@@ -31,15 +53,18 @@ export default function ConnectFacebookPage() {
       `response_type=code&` +
       `auth_type=rerequest` // Force re-authorization
 
-    console.log('Redirecting to Facebook OAuth...')
-    console.log('App ID:', appId)
-    console.log('Redirect URI:', redirectUri)
+      console.log('Redirecting to Facebook OAuth...')
+      console.log('App ID:', appId)
+      console.log('Redirect URI:', redirectUri)
+      
+      // Small delay to show the page briefly
+      setTimeout(() => {
+        window.location.href = oauthUrl
+      }, 1000)
+    }
     
-    // Small delay to show the page briefly
-    setTimeout(() => {
-      window.location.href = oauthUrl
-    }, 1000)
-  }, [])
+    checkConnection()
+  }, [router])
 
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -53,11 +78,13 @@ export default function ConnectFacebookPage() {
         </div>
         
         <h1 className="text-2xl font-bold text-white text-center mb-4">
-          Connecting to Facebook...
+          {checking ? 'Checking connection...' : 'Connecting to Facebook...'}
         </h1>
         
         <p className="text-gray-400 text-center mb-6">
-          You will be redirected to Facebook to authorize the connection.
+          {checking 
+            ? 'Verifying your Facebook connection status...'
+            : 'You will be redirected to Facebook to authorize the connection.'}
         </p>
         
         <div className="flex justify-center">
