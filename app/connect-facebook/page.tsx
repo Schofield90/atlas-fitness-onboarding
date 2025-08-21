@@ -8,8 +8,21 @@ export default function ConnectFacebookPage() {
   const [checking, setChecking] = useState(true)
   
   useEffect(() => {
+    // Check if we were just redirected here from the integration page
+    const referrer = document.referrer
+    const fromIntegrationPage = referrer.includes('/integrations/facebook')
+    
     // First check if already connected
     const checkConnection = async () => {
+      // If we just came from the integration page, skip the connection check
+      // to avoid redirect loop
+      if (fromIntegrationPage) {
+        console.log('Coming from integration page, proceeding with OAuth')
+        setChecking(false)
+        proceedWithOAuth()
+        return
+      }
+      
       try {
         const response = await fetch('/api/integrations/facebook/status')
         if (response.ok) {
@@ -25,33 +38,36 @@ export default function ConnectFacebookPage() {
       }
       
       setChecking(false)
-      
+      proceedWithOAuth()
+    }
+    
+    const proceedWithOAuth = () => {
       // Not connected, proceed with OAuth
       const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || '715100284200848'
       const redirectUri = `${window.location.origin}/api/auth/facebook/callback`
     
-    const permissions = [
-      'pages_show_list',
-      'pages_read_engagement', 
-      'pages_manage_metadata',
-      'leads_retrieval',
-      'ads_read',
-      'ads_management',
-      'business_management',
-      'email',
-      'public_profile'
-    ]
+      const permissions = [
+        'pages_show_list',
+        'pages_read_engagement', 
+        'pages_manage_metadata',
+        'leads_retrieval',
+        'ads_read',
+        'ads_management',
+        'business_management',
+        'email',
+        'public_profile'
+      ]
 
-    const scope = permissions.join(',')
-    const state = 'atlas_fitness_oauth'
-    
-    const oauthUrl = `https://www.facebook.com/v18.0/dialog/oauth?` +
-      `client_id=${appId}&` +
-      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-      `scope=${encodeURIComponent(scope)}&` +
-      `state=${state}&` +
-      `response_type=code&` +
-      `auth_type=rerequest` // Force re-authorization
+      const scope = permissions.join(',')
+      const state = 'atlas_fitness_oauth'
+      
+      const oauthUrl = `https://www.facebook.com/v18.0/dialog/oauth?` +
+        `client_id=${appId}&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+        `scope=${encodeURIComponent(scope)}&` +
+        `state=${state}&` +
+        `response_type=code&` +
+        `auth_type=rerequest` // Force re-authorization
 
       console.log('Redirecting to Facebook OAuth...')
       console.log('App ID:', appId)

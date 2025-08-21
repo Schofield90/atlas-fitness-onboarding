@@ -43,10 +43,11 @@ function FacebookCallbackContent() {
         setDetails('You can now sync Facebook pages and leads.')
       }
       
-      // Redirect to Facebook integration management page after 3 seconds
+      // Redirect to Facebook integration management page after 2 seconds
+      // This gives time for the database to be updated
       setTimeout(() => {
         router.push('/integrations/facebook?just_connected=true')
-      }, 3000)
+      }, 2000)
     } else if (error) {
       setStatus('error')
       setMessage('Failed to connect Facebook')

@@ -50,24 +50,37 @@ export default function FacebookIntegrationPage() {
     const justConnected = urlParams.get('just_connected') === 'true'
     
     if (justConnected) {
-      // If we just connected, force a refresh of the connection status
-      console.log('Just connected, forcing refresh...')
+      // If we just connected, trust the parameter and don't redirect
+      console.log('Just connected, skipping redirect check')
+      // Remove the parameter from URL to prevent issues on refresh
+      const newUrl = new URL(window.location.href)
+      newUrl.searchParams.delete('just_connected')
+      window.history.replaceState({}, '', newUrl.toString())
+      
+      // Force a refresh to get latest status
       facebookConnection.refresh()
       return
     }
     
-    if (!facebookConnection.loading && !facebookConnection.connected) {
-      // Give a longer delay to allow database to update
-      const timer = setTimeout(() => {
-        // Double-check one more time before redirecting
+    // Check localStorage for recent connection (within last 10 seconds)
+    const connectedAt = localStorage.getItem('facebook_connected_at')
+    if (connectedAt) {
+      const connectedTime = new Date(connectedAt).getTime()
+      const now = new Date().getTime()
+      const timeSinceConnection = now - connectedTime
+      
+      // If connected within last 10 seconds, don't redirect
+      if (timeSinceConnection < 10000) {
+        console.log('Recently connected, skipping redirect')
         facebookConnection.refresh()
-        setTimeout(() => {
-          if (!facebookConnection.connected) {
-            router.push('/connect-facebook')
-          }
-        }, 1000)
-      }, 2000)
-      return () => clearTimeout(timer)
+        return
+      }
+    }
+    
+    if (!facebookConnection.loading && !facebookConnection.connected) {
+      // Only redirect if we're sure they're not connected
+      console.log('Not connected, redirecting to connect flow')
+      router.push('/connect-facebook')
     }
   }, [facebookConnection.loading, facebookConnection.connected, router, facebookConnection.refresh])
   const { pages, loading: pagesLoading, error: pagesError, refetch: refetchPages } = useFacebookPages(facebookConnection.connected)
