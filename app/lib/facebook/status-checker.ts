@@ -35,7 +35,7 @@ export async function checkFacebookStatus(params: StatusCheckParams): Promise<St
   try {
     const supabase = await createClient()
 
-    // Query for active integration
+    // Query for active integration for this specific user
     const { data: integration, error } = await supabase
       .from('facebook_integrations')
       .select(`
@@ -48,6 +48,7 @@ export async function checkFacebookStatus(params: StatusCheckParams): Promise<St
         last_sync_at
       `)
       .eq('organization_id', organizationId)
+      .eq('user_id', userId)
       .eq('is_active', true)
       .single()
 
@@ -83,28 +84,30 @@ export async function checkFacebookStatus(params: StatusCheckParams): Promise<St
       }
     }
 
-    // Check if token is expired
-    const tokenExpiry = new Date(integration.token_expires_at)
-    const now = new Date()
+    // Check if token is expired (if expiry date is set)
+    if (integration.token_expires_at) {
+      const tokenExpiry = new Date(integration.token_expires_at)
+      const now = new Date()
 
-    if (tokenExpiry < now) {
-      console.log('⏰ Token has expired:', tokenExpiry)
-      return {
-        connected: false,
-        integration,
-        error: 'Token expired. Please reconnect your Facebook account.'
+      if (tokenExpiry < now) {
+        console.log('⏰ Token has expired:', tokenExpiry)
+        return {
+          connected: false,
+          integration,
+          error: 'Token expired. Please reconnect your Facebook account.'
+        }
       }
-    }
 
-    // Check if token is expiring soon (within 7 days)
-    const expiryWarning = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
-    if (tokenExpiry < expiryWarning) {
-      console.log('⚠️ Token expiring soon:', tokenExpiry)
-      // Still connected but warn about upcoming expiry
-      return {
-        connected: true,
-        integration,
-        error: `Token expires on ${tokenExpiry.toLocaleDateString()}. Consider reconnecting soon.`
+      // Check if token is expiring soon (within 7 days)
+      const expiryWarning = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+      if (tokenExpiry < expiryWarning) {
+        console.log('⚠️ Token expiring soon:', tokenExpiry)
+        // Still connected but warn about upcoming expiry
+        return {
+          connected: true,
+          integration,
+          error: `Token expires on ${tokenExpiry.toLocaleDateString()}. Consider reconnecting soon.`
+        }
       }
     }
 
