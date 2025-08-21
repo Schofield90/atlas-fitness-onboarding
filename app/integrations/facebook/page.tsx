@@ -45,14 +45,31 @@ export default function FacebookIntegrationPage() {
   
   // If not connected, redirect to connect flow
   useEffect(() => {
+    // Check if we just came from a successful callback
+    const urlParams = new URLSearchParams(window.location.search)
+    const justConnected = urlParams.get('just_connected') === 'true'
+    
+    if (justConnected) {
+      // If we just connected, force a refresh of the connection status
+      console.log('Just connected, forcing refresh...')
+      facebookConnection.refresh()
+      return
+    }
+    
     if (!facebookConnection.loading && !facebookConnection.connected) {
-      // Give a small delay to show the page briefly before redirecting
+      // Give a longer delay to allow database to update
       const timer = setTimeout(() => {
-        router.push('/connect-facebook')
-      }, 500)
+        // Double-check one more time before redirecting
+        facebookConnection.refresh()
+        setTimeout(() => {
+          if (!facebookConnection.connected) {
+            router.push('/connect-facebook')
+          }
+        }, 1000)
+      }, 2000)
       return () => clearTimeout(timer)
     }
-  }, [facebookConnection.loading, facebookConnection.connected, router])
+  }, [facebookConnection.loading, facebookConnection.connected, router, facebookConnection.refresh])
   const { pages, loading: pagesLoading, error: pagesError, refetch: refetchPages } = useFacebookPages(facebookConnection.connected)
   const { adAccounts, loading: adAccountsLoading, error: adAccountsError, refetch: refetchAdAccounts } = useFacebookAdAccounts(facebookConnection.connected, timeFilter)
   const { leadForms, loading: leadFormsLoading, error: leadFormsError, refetch: refetchLeadForms } = useFacebookLeadForms(

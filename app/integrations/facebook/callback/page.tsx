@@ -45,7 +45,7 @@ function FacebookCallbackContent() {
       
       // Redirect to Facebook integration management page after 3 seconds
       setTimeout(() => {
-        router.push('/integrations/facebook')
+        router.push('/integrations/facebook?just_connected=true')
       }, 3000)
     } else if (error) {
       setStatus('error')
