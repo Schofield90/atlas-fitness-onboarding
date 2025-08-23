@@ -207,23 +207,30 @@ export async function POST(request: NextRequest) {
     if (adAccountsData.data && adAccountsData.data.length > 0) {
       console.log(`✅ Found ${adAccountsData.data.length} ad accounts`)
       
-      // Store ad accounts (you may need to create this table)
+      // Store ad accounts
       for (const account of adAccountsData.data) {
-        await supabase
-          .from('facebook_ad_accounts')
-          .upsert({
-            integration_id: integration.id,
-            organization_id: organizationId,
-            facebook_account_id: account.id,
-            account_name: account.name,
-            account_status: account.account_status,
-            currency: account.currency,
-            timezone: account.timezone_name,
-            is_active: account.account_status === 1
-          }, {
-            onConflict: 'organization_id,facebook_account_id'
-          })
-          .catch(err => console.log('Ad account sync skipped:', err.message))
+        try {
+          const { error: adAccountError } = await supabase
+            .from('facebook_ad_accounts')
+            .upsert({
+              integration_id: integration.id,
+              organization_id: organizationId,
+              facebook_account_id: account.id,
+              account_name: account.name,
+              account_status: account.account_status,
+              currency: account.currency,
+              timezone: account.timezone_name,
+              is_active: account.account_status === 1
+            }, {
+              onConflict: 'organization_id,facebook_account_id'
+            })
+          
+          if (adAccountError) {
+            console.log('Ad account sync error:', adAccountError.message)
+          }
+        } catch (err: any) {
+          console.log('Ad account sync skipped:', err.message)
+        }
       }
     }
 

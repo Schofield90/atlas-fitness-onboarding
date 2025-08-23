@@ -7,6 +7,7 @@ import { useFacebookConnection } from '@/app/hooks/useFacebookConnection'
 import { useFacebookPages, useFacebookAdAccounts, useFacebookLeadForms, useFacebookLeads } from '@/app/hooks/useFacebookData'
 import DashboardLayout from '@/app/components/DashboardLayout'
 import FacebookDiagnosticPanel from '@/app/components/facebook/DiagnosticPanel'
+import { ErrorBoundary } from '@/app/components/ErrorBoundary'
 
 interface SelectedItems {
   pages: string[]
@@ -14,7 +15,7 @@ interface SelectedItems {
   leadForms: string[]
 }
 
-export default function FacebookIntegrationPage() {
+function FacebookIntegrationContent() {
   const router = useRouter()
   const [connecting, setConnecting] = useState(false)
   const [error, setError] = useState('')
@@ -165,7 +166,6 @@ export default function FacebookIntegrationPage() {
   }, [selectedItems.pages, pages])
 
   return (
-    <DashboardLayout userData={userData}>
       <div className="container mx-auto px-6 py-8 max-w-4xl">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold mb-4">🔗 Connect Facebook Ads</h1>
@@ -1400,6 +1400,24 @@ export default function FacebookIntegrationPage() {
           </div>
         </div>
       </div>
+  )
+}
+
+export default function FacebookIntegrationPage() {
+  const [userData, setUserData] = useState<any>(null)
+  
+  useEffect(() => {
+    const storedData = localStorage.getItem('gymleadhub_trial_data')
+    if (storedData) {
+      setUserData(JSON.parse(storedData))
+    }
+  }, [])
+  
+  return (
+    <DashboardLayout userData={userData}>
+      <ErrorBoundary componentName="Facebook Integration">
+        <FacebookIntegrationContent />
+      </ErrorBoundary>
     </DashboardLayout>
   )
 }

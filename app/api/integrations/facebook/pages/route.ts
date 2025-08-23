@@ -35,6 +35,7 @@ export async function GET() {
     }
 
     // Fetch Facebook pages for the organization
+    // Note: Removing the lead_forms join as it causes schema cache errors
     const { data: pages, error } = await supabase
       .from('facebook_pages')
       .select(`
@@ -43,19 +44,39 @@ export async function GET() {
         page_name,
         access_token,
         is_active,
-        is_primary,
-        lead_forms:facebook_lead_forms(
-          id,
-          facebook_form_id,
-          form_name,
-          is_active,
-          last_sync_at
-        )
+        is_primary
       `)
       .eq('organization_id', organizationId)
       .eq('is_active', true)
       .order('is_primary', { ascending: false })
       .order('page_name')
+    
+    // Fetch lead forms separately if pages exist
+    let leadFormsMap: Record<string, any[]> = {}
+    if (pages && pages.length > 0) {
+      const pageIds = pages.map(p => p.facebook_page_id)
+      const { data: leadForms } = await supabase
+        .from('facebook_lead_forms')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .in('facebook_page_id', pageIds)
+        .eq('is_active', true)
+      
+      if (leadForms) {
+        leadForms.forEach(form => {
+          if (!leadFormsMap[form.facebook_page_id]) {
+            leadFormsMap[form.facebook_page_id] = []
+          }
+          leadFormsMap[form.facebook_page_id].push({
+            id: form.id,
+            facebook_form_id: form.facebook_form_id,
+            form_name: form.form_name,
+            is_active: form.is_active,
+            last_sync_at: form.last_sync_at
+          })
+        })
+      }
+    }
 
     if (error) {
       console.error('Error fetching Facebook pages:', error)
@@ -66,7 +87,7 @@ export async function GET() {
     const transformedPages = pages?.map(page => ({
       id: page.facebook_page_id,
       name: page.page_name,
-      forms: page.lead_forms?.filter((form: any) => form.is_active) || []
+      forms: leadFormsMap[page.facebook_page_id] || []
     })) || []
 
     return NextResponse.json({
