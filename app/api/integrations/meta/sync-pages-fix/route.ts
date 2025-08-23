@@ -12,8 +12,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    // Use the hardcoded organization ID that we know exists
-    const organizationId = '63589490-8f55-4157-bd3a-e141594b748e'
+    // Get the user's organization ID dynamically
+    let organizationId: string
+    
+    const { data: userOrg } = await supabase
+      .from('user_organizations')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .single()
+    
+    if (!userOrg?.organization_id) {
+      // Fallback to default organization if needed
+      organizationId = '63589490-8f55-4157-bd3a-e141594b748e'
+      
+      // Create user_organizations entry
+      await supabase
+        .from('user_organizations')
+        .insert({
+          user_id: user.id,
+          organization_id: organizationId,
+          role: 'owner'
+        })
+        .select()
+    } else {
+      organizationId = userOrg.organization_id
+    }
     
     // Check if we have a Facebook integration record
     const { data: integration, error: intError } = await supabase

@@ -5,10 +5,33 @@ import { getCurrentUserOrganization } from '@/app/lib/organization-server'
 export async function GET() {
   try {
     const supabase = await createClient()
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    }
+    
     const { organizationId, error: orgError } = await getCurrentUserOrganization()
     
     if (orgError || !organizationId) {
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
+    }
+
+    // First check if we have a Facebook integration
+    const { data: integration } = await supabase
+      .from('facebook_integrations')
+      .select('id')
+      .eq('organization_id', organizationId)
+      .eq('is_active', true)
+      .single()
+
+    if (!integration) {
+      // No integration found, return empty pages
+      return NextResponse.json({
+        pages: [],
+        hasConnection: false,
+        message: 'No Facebook integration found. Please connect your Facebook account first.'
+      })
     }
 
     // Fetch Facebook pages for the organization
@@ -36,7 +59,7 @@ export async function GET() {
 
     if (error) {
       console.error('Error fetching Facebook pages:', error)
-      return NextResponse.json({ error: 'Failed to fetch pages' }, { status: 500 })
+      return NextResponse.json({ error: `Failed to fetch pages: ${error.message}` }, { status: 500 })
     }
 
     // Transform data for the frontend
