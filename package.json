@@ -216,6 +216,7 @@
     "jest-environment-jsdom": "^29.7.0",
     "lint-staged": "^15.2.11",
     "node-polyfill-webpack-plugin": "^4.0.0",
+    "playwright": "^1.55.0",
     "postcss": "^8.4.49",
     "prettier": "^3.4.1",
     "prettier-plugin-tailwindcss": "^0.6.9",

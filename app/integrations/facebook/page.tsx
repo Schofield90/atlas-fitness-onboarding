@@ -43,15 +43,14 @@ export default function FacebookIntegrationPage() {
   
   const facebookConnection = useFacebookConnection()
   
-  // If not connected, redirect to connect flow
+  // Handle connection state - NO AUTOMATIC REDIRECTS
   useEffect(() => {
     // Check if we just came from a successful callback
     const urlParams = new URLSearchParams(window.location.search)
     const justConnected = urlParams.get('just_connected') === 'true'
     
     if (justConnected) {
-      // If we just connected, trust the parameter and don't redirect
-      console.log('Just connected, skipping redirect check')
+      console.log('Just connected via OAuth callback')
       // Remove the parameter from URL to prevent issues on refresh
       const newUrl = new URL(window.location.href)
       newUrl.searchParams.delete('just_connected')
@@ -59,30 +58,11 @@ export default function FacebookIntegrationPage() {
       
       // Force a refresh to get latest status
       facebookConnection.refresh()
-      return
     }
     
-    // Check localStorage for recent connection (within last 10 seconds)
-    const connectedAt = localStorage.getItem('facebook_connected_at')
-    if (connectedAt) {
-      const connectedTime = new Date(connectedAt).getTime()
-      const now = new Date().getTime()
-      const timeSinceConnection = now - connectedTime
-      
-      // If connected within last 10 seconds, don't redirect
-      if (timeSinceConnection < 10000) {
-        console.log('Recently connected, skipping redirect')
-        facebookConnection.refresh()
-        return
-      }
-    }
-    
-    if (!facebookConnection.loading && !facebookConnection.connected) {
-      // Only redirect if we're sure they're not connected
-      console.log('Not connected, redirecting to connect flow')
-      router.push('/connect-facebook')
-    }
-  }, [facebookConnection.loading, facebookConnection.connected, router, facebookConnection.refresh])
+    // REMOVED: Automatic redirect to /connect-facebook
+    // Users should manually click "Connect Facebook" button if not connected
+  }, [facebookConnection.refresh])
   const { pages, loading: pagesLoading, error: pagesError, refetch: refetchPages } = useFacebookPages(facebookConnection.connected)
   const { adAccounts, loading: adAccountsLoading, error: adAccountsError, refetch: refetchAdAccounts } = useFacebookAdAccounts(facebookConnection.connected, timeFilter)
   const { leadForms, loading: leadFormsLoading, error: leadFormsError, refetch: refetchLeadForms } = useFacebookLeadForms(
