@@ -63,27 +63,8 @@ export default function OrganizationSwitcher() {
         }
       }
 
-      // Also check if user owns any organizations
-      const { data: ownedOrgs, error: ownedError } = await supabase
-        .from('organizations')
-        .select('id, name')
-        .eq('owner_id', user.id)
-
-      if (!ownedError && ownedOrgs) {
-        // Add owned organizations that aren't already in the list
-        ownedOrgs.forEach(org => {
-          if (!organizations.find(o => o.id === org.id)) {
-            const newOrg = { id: org.id, name: org.name, role: 'owner' }
-            setOrganizations(prev => [...prev, newOrg])
-            
-            // If no current org, set this as current
-            if (!currentOrg) {
-              setCurrentOrg(newOrg)
-              localStorage.setItem('current_organization_id', newOrg.id)
-            }
-          }
-        })
-      }
+      // No need to check for owned organizations separately
+      // All user's organizations are already fetched via user_organizations table
     } catch (error) {
       console.error('Error fetching organizations:', error)
     } finally {
