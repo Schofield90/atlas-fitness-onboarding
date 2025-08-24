@@ -207,9 +207,20 @@ export async function POST(request: NextRequest) {
     if (adAccountsData.data && adAccountsData.data.length > 0) {
       console.log(`✅ Found ${adAccountsData.data.length} ad accounts`)
       
-      // Store ad accounts
+      // Store ad accounts - wrap in try-catch in case table doesn't exist
       for (const account of adAccountsData.data) {
         try {
+          // Check if table exists first
+          const { error: checkError } = await supabase
+            .from('facebook_ad_accounts')
+            .select('id')
+            .limit(0)
+          
+          if (checkError && checkError.message?.includes('does not exist')) {
+            console.log('facebook_ad_accounts table does not exist yet - skipping ad account sync')
+            break
+          }
+          
           const { error: adAccountError } = await supabase
             .from('facebook_ad_accounts')
             .upsert({

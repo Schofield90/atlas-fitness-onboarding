@@ -52,29 +52,38 @@ export async function GET() {
       .order('page_name')
     
     // Fetch lead forms separately if pages exist
+    // Wrap in try-catch in case table doesn't exist yet
     let leadFormsMap: Record<string, any[]> = {}
     if (pages && pages.length > 0) {
-      const pageIds = pages.map(p => p.facebook_page_id)
-      const { data: leadForms } = await supabase
-        .from('facebook_lead_forms')
-        .select('*')
-        .eq('organization_id', organizationId)
-        .in('facebook_page_id', pageIds)
-        .eq('is_active', true)
-      
-      if (leadForms) {
-        leadForms.forEach(form => {
-          if (!leadFormsMap[form.facebook_page_id]) {
-            leadFormsMap[form.facebook_page_id] = []
-          }
-          leadFormsMap[form.facebook_page_id].push({
-            id: form.id,
-            facebook_form_id: form.facebook_form_id,
-            form_name: form.form_name,
-            is_active: form.is_active,
-            last_sync_at: form.last_sync_at
+      try {
+        const pageIds = pages.map(p => p.facebook_page_id)
+        const { data: leadForms, error: leadFormsError } = await supabase
+          .from('facebook_lead_forms')
+          .select('*')
+          .eq('organization_id', organizationId)
+          .in('facebook_page_id', pageIds)
+          .eq('is_active', true)
+        
+        if (leadFormsError) {
+          // Table might not exist yet - that's ok
+          console.log('Lead forms table not available:', leadFormsError.message)
+        } else if (leadForms) {
+          leadForms.forEach(form => {
+            if (!leadFormsMap[form.facebook_page_id]) {
+              leadFormsMap[form.facebook_page_id] = []
+            }
+            leadFormsMap[form.facebook_page_id].push({
+              id: form.id,
+              facebook_form_id: form.facebook_form_id,
+              form_name: form.form_name,
+              is_active: form.is_active,
+              last_sync_at: form.last_sync_at
+            })
           })
-        })
+        }
+      } catch (err) {
+        // Silently handle if lead forms table doesn't exist
+        console.log('Lead forms query skipped:', err)
       }
     }
 
