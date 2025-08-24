@@ -94,9 +94,9 @@ export async function GET() {
 
     // Transform data for the frontend
     const transformedPages = pages?.map(page => ({
-      id: page.facebook_page_id,
+      id: page.facebook_page_id || page.id,  // Handle both column names
       name: page.page_name,
-      forms: leadFormsMap[page.facebook_page_id] || []
+      forms: leadFormsMap[page.facebook_page_id || page.id] || []
     })) || []
 
     return NextResponse.json({
