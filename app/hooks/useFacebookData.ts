@@ -247,8 +247,11 @@ export function useFacebookLeadForms(pageId: string | null, enabled: boolean = t
         throw new Error(result.error)
       }
 
-      console.log('✅ Facebook Lead Forms loaded:', result.forms.length)
-      setData(result.forms)
+      // Handle the response - check if forms exist
+      const forms = result.forms || []
+      console.log('✅ Facebook Lead Forms loaded:', forms.length)
+      console.log('Lead Forms Response:', result)
+      setData(forms)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load lead forms'
       console.error('❌ Error loading Facebook Lead Forms:', errorMessage)

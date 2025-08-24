@@ -66,8 +66,13 @@ function FacebookIntegrationContent() {
   }, [facebookConnection.refresh])
   const { pages, loading: pagesLoading, error: pagesError, refetch: refetchPages } = useFacebookPages(facebookConnection.connected)
   const { adAccounts, loading: adAccountsLoading, error: adAccountsError, refetch: refetchAdAccounts } = useFacebookAdAccounts(facebookConnection.connected, timeFilter)
+  // Debug logging for lead forms
+  const pageIdsForLeadForms = selectedItems.pages.length > 0 ? selectedItems.pages.join(',') : null
+  console.log('📋 Lead Forms Hook - Page IDs:', pageIdsForLeadForms)
+  console.log('📋 Lead Forms Hook - Enabled:', facebookConnection.connected && selectedItems.pages.length > 0)
+  
   const { leadForms, loading: leadFormsLoading, error: leadFormsError, refetch: refetchLeadForms } = useFacebookLeadForms(
-    selectedItems.pages.length > 0 ? selectedItems.pages.join(',') : null, 
+    pageIdsForLeadForms, 
     facebookConnection.connected && selectedItems.pages.length > 0
   )
   const { leads, loading: leadsLoading, error: leadsError, refetch: refetchLeads } = useFacebookLeads(undefined, selectedPageId, facebookConnection.connected && !!selectedPageId)
@@ -356,6 +361,7 @@ function FacebookIntegrationContent() {
                           id={`page-${page.id}`}
                           checked={selectedItems.pages.includes(page.id)}
                           onChange={(e) => {
+                            console.log('Page selected/deselected:', page.id, page.name)
                             if (e.target.checked) {
                               setSelectedItems(prev => ({
                                 ...prev,
