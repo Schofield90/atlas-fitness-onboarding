@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { createClient } from '@/app/lib/supabase/server'
+import { getCurrentUserOrganization } from '@/app/lib/organization-server'
 
 export const runtime = 'nodejs'
 
@@ -19,32 +21,55 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Retrieve the stored access token from secure cookie
-    const cookieStore = await cookies()
-    const tokenCookie = cookieStore.get('fb_token_data')
+    // Get access token from database instead of cookies
+    const supabase = await createClient()
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
     
-    let storedAccessToken = null
-    let facebookUserId = null
-    
-    if (tokenCookie?.value) {
-      try {
-        const tokenData = JSON.parse(tokenCookie.value)
-        storedAccessToken = tokenData.access_token
-        facebookUserId = tokenData.user_id
-        console.log('🔑 Retrieved Facebook token for lead forms')
-      } catch (e) {
-        console.error('Failed to parse token cookie:', e)
-      }
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
     
-    if (!storedAccessToken) {
+    const { organizationId, error: orgError } = await getCurrentUserOrganization()
+    
+    if (orgError || !organizationId) {
+      return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
+    }
+    
+    // Get Facebook integration from database
+    const { data: integration, error: intError } = await supabase
+      .from('facebook_integrations')
+      .select('access_token, facebook_user_id')
+      .eq('organization_id', organizationId)
+      .eq('is_active', true)
+      .single()
+    
+    if (intError || !integration || !integration.access_token) {
+      console.log('⚠️ No active Facebook integration found')
       return NextResponse.json(
         { error: 'Facebook not connected' }, 
         { status: 401 }
       )
     }
+    
+    let storedAccessToken = integration.access_token
+    let facebookUserId = integration.facebook_user_id
+    console.log('🔑 Retrieved Facebook token from database for lead forms')
 
     console.log(`📋 Fetching REAL Lead Forms for Facebook Pages: ${pagesToFetch.join(', ')}`)
+    
+    // Get page access tokens from database
+    const { data: dbPages } = await supabase
+      .from('facebook_pages')
+      .select('facebook_page_id, page_name, access_token')
+      .eq('organization_id', organizationId)
+      .in('facebook_page_id', pagesToFetch)
+    
+    const pageTokenMap = new Map()
+    if (dbPages) {
+      dbPages.forEach(page => {
+        pageTokenMap.set(page.facebook_page_id, page.access_token)
+      })
+    }
     
     const allForms = []
     const errors = []
@@ -54,20 +79,9 @@ export async function GET(request: NextRequest) {
       try {
         console.log(`\n--- Fetching forms for page: ${pageId} ---`)
         
-        // First, try to get page details to ensure access and get page token
-        const pageUrl = `https://graph.facebook.com/v18.0/${pageId}?fields=id,name,access_token&access_token=${storedAccessToken}`
-        const pageResponse = await fetch(pageUrl)
-        const pageData = await pageResponse.json()
-        
-        if (pageData.error) {
-          console.error('❌ Page access error:', pageData.error)
-          errors.push({ pageId, error: `Page access error: ${pageData.error.message}` })
-          continue
-        }
-        
-        // Use page access token if available, otherwise use user token
-        const pageAccessToken = pageData.access_token || storedAccessToken
-        console.log('🔐 Using token type:', pageData.access_token ? 'Page Access Token' : 'User Access Token')
+        // Use page access token from database, fallback to user token
+        const pageAccessToken = pageTokenMap.get(pageId) || storedAccessToken
+        console.log('🔐 Using token type:', pageTokenMap.has(pageId) ? 'Page Access Token (from DB)' : 'User Access Token')
         
         // First get the forms list
         const formsResponse = await fetch(

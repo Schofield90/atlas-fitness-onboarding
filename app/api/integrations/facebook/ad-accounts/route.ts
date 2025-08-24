@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { createClient } from '@/app/lib/supabase/server'
+import { getCurrentUserOrganization } from '@/app/lib/organization-server'
 
 export const runtime = 'nodejs'
 
@@ -33,23 +35,41 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const timeFilter = searchParams.get('time_filter') || 'last_30_days'
     
-    // Retrieve the stored access token from secure cookie
-    const cookieStore = await cookies()
-    const tokenCookie = cookieStore.get('fb_token_data')
+    // Get access token from database instead of cookies
+    const supabase = await createClient()
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
     
-    let storedAccessToken = null
-    let facebookUserId = null
-    
-    if (tokenCookie?.value) {
-      try {
-        const tokenData = JSON.parse(tokenCookie.value)
-        storedAccessToken = tokenData.access_token
-        facebookUserId = tokenData.user_id
-        console.log('🔑 Retrieved Facebook token from cookie for user:', facebookUserId)
-      } catch (e) {
-        console.error('Failed to parse token cookie:', e)
-      }
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
+    
+    const { organizationId, error: orgError } = await getCurrentUserOrganization()
+    
+    if (orgError || !organizationId) {
+      return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
+    }
+    
+    // Get Facebook integration from database
+    const { data: integration, error: intError } = await supabase
+      .from('facebook_integrations')
+      .select('access_token, facebook_user_id')
+      .eq('organization_id', organizationId)
+      .eq('is_active', true)
+      .single()
+    
+    if (intError || !integration || !integration.access_token) {
+      console.log('⚠️ No active Facebook integration found')
+      return NextResponse.json({
+        success: true,
+        ad_accounts: [],
+        message: 'No Facebook integration found. Please connect your Facebook account first.'
+      })
+    }
+    
+    let storedAccessToken = integration.access_token
+    let facebookUserId = integration.facebook_user_id
+    
+    console.log('🔑 Retrieved Facebook token from database for user:', facebookUserId)
 
     console.log('💰 Fetching Facebook Ad Accounts with time filter:', timeFilter)
     
