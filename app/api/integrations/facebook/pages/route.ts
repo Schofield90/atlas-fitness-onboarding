@@ -41,10 +41,15 @@ export async function GET() {
       .select(`
         id,
         facebook_page_id,
+        page_id,
         page_name,
         access_token,
         is_active,
-        is_primary
+        is_primary,
+        page_username,
+        page_category,
+        page_info,
+        permissions
       `)
       .eq('organization_id', organizationId)
       .eq('is_active', true)
@@ -94,9 +99,15 @@ export async function GET() {
 
     // Transform data for the frontend
     const transformedPages = pages?.map(page => ({
-      id: page.facebook_page_id || page.id,  // Handle both column names
+      id: page.facebook_page_id || page.page_id || page.id,  // Handle all column names
       name: page.page_name,
-      forms: leadFormsMap[page.facebook_page_id || page.id] || []
+      access_token: page.access_token,
+      cover: page.page_info?.cover?.source || null,
+      category: page.page_category || 'Business',
+      hasLeadAccess: page.permissions?.includes('MANAGE') || false,
+      followers_count: page.page_info?.followers_count || 0,
+      website: page.page_info?.website || null,
+      forms: leadFormsMap[page.facebook_page_id || page.page_id || page.id] || []
     })) || []
 
     return NextResponse.json({

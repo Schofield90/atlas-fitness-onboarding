@@ -8,9 +8,9 @@ export interface FacebookPage {
   name: string
   access_token: string
   cover?: string
-  category: string
-  hasLeadAccess: boolean
-  followers_count: number
+  category?: string
+  hasLeadAccess?: boolean
+  followers_count?: number
   website?: string
 }
 

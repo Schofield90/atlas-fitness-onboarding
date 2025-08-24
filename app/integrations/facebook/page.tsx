@@ -380,9 +380,13 @@ function FacebookIntegrationContent() {
                           )}
                           <div className="flex-1">
                             <h4 className="font-semibold text-white">{page.name}</h4>
-                            <p className="text-gray-400 text-sm">{page.category}</p>
+                            {page.category && (
+                              <p className="text-gray-400 text-sm">{page.category}</p>
+                            )}
                             <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
-                              <span>{page.followers_count.toLocaleString()} followers</span>
+                              {page.followers_count !== undefined && page.followers_count !== null && (
+                                <span>{page.followers_count.toLocaleString()} followers</span>
+                              )}
                               <span className={`px-2 py-1 rounded ${page.hasLeadAccess ? 'bg-green-800 text-green-200' : 'bg-gray-700 text-gray-400'}`}>
                                 {page.hasLeadAccess ? 'Lead Access ✓' : 'No Lead Access'}
                               </span>

@@ -56,6 +56,7 @@ async function syncFacebookPages() {
           .upsert({
             organization_id: integration.organization_id,
             integration_id: integration.id,
+            page_id: page.id,  // Add page_id field
             facebook_page_id: page.id,
             page_name: page.name,
             access_token: page.access_token,

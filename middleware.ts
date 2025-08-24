@@ -77,7 +77,8 @@ const adminRoutes = [
   '/memberships',
   '/ai-config',
   '/classes',
-  '/customers'
+  '/customers',
+  '/integrations'  // Add integrations to admin routes
 ]
 
 export async function middleware(request: NextRequest) {
