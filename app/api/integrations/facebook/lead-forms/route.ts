@@ -79,13 +79,17 @@ export async function GET(request: NextRequest) {
       try {
         console.log(`\n--- Fetching forms for page: ${pageId} ---`)
         
+        // Get page name from database
+        const dbPage = dbPages?.find(p => p.facebook_page_id === pageId)
+        const pageName = dbPage?.page_name || 'Unknown Page'
+        
         // Use page access token from database, fallback to user token
         const pageAccessToken = pageTokenMap.get(pageId) || storedAccessToken
         console.log('🔐 Using token type:', pageTokenMap.has(pageId) ? 'Page Access Token (from DB)' : 'User Access Token')
         
-        // First get the forms list
+        // First get the forms list - simplified without deprecated fields
         const formsResponse = await fetch(
-          `https://graph.facebook.com/v18.0/${pageId}/leadgen_forms?access_token=${pageAccessToken}`
+          `https://graph.facebook.com/v18.0/${pageId}/leadgen_forms?fields=id,name,status&access_token=${pageAccessToken}`
         )
         
         const formsData = await formsResponse.json()
@@ -94,14 +98,14 @@ export async function GET(request: NextRequest) {
           console.error(`❌ Forms API Error:`, formsData.error)
           errors.push({ 
             pageId, 
-            pageName: pageData.name,
+            pageName,
             error: formsData.error.message 
           })
           continue
         }
         
         if (formsData.data && formsData.data.length > 0) {
-          console.log(`✅ Found ${formsData.data.length} forms for page ${pageData.name}`)
+          console.log(`✅ Found ${formsData.data.length} forms for page ${pageName}`)
           
           // For each form, fetch detailed information
           for (const form of formsData.data) {
@@ -118,7 +122,7 @@ export async function GET(request: NextRequest) {
                 allForms.push({
                   ...form,
                   pageId,
-                  pageName: pageData.name,
+                  pageName,
                   error: 'Could not fetch full details',
                   questions_count: 0,
                   leads_count: 0,
@@ -207,7 +211,7 @@ export async function GET(request: NextRequest) {
                 questions: formDetails.questions || [],
                 questions_count: formDetails.questions?.length || 0,
                 pageId,
-                pageName: pageData.name,
+                pageName,
                 context_card: formDetails.context_card || {
                   title: formDetails.name || 'Lead Form',
                   description: 'Fill out this form to get started',
@@ -239,7 +243,7 @@ export async function GET(request: NextRequest) {
               allForms.push({
                 ...form,
                 pageId,
-                pageName: pageData.name,
+                pageName,
                 error: 'Could not fetch full details',
                 questions_count: 0,
                 leads_count: 0,
@@ -249,10 +253,10 @@ export async function GET(request: NextRequest) {
             }
           }
         } else {
-          console.log('⚠️ No forms found for page', pageData.name)
+          console.log('⚠️ No forms found for page', pageName)
           errors.push({ 
             pageId, 
-            pageName: pageData.name,
+            pageName,
             error: 'No lead forms found. Create forms in Facebook Ads Manager first.' 
           })
         }
