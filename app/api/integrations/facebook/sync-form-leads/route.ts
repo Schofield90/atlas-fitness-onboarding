@@ -180,9 +180,9 @@ export async function POST(request: NextRequest) {
               status: 'new',
               facebook_lead_id: lead.facebook_lead_id,
               facebook_form_id: lead.form_id,
-              facebook_page_id: pageId || null,
               metadata: {
                 form_name: lead.form_name,
+                page_id: pageId || null,
                 campaign_id: lead.campaign_id,
                 campaign_name: lead.campaign_name,
                 ad_id: lead.ad_id,

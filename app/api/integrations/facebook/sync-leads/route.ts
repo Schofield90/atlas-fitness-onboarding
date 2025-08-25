@@ -235,10 +235,10 @@ export async function POST(request: NextRequest) {
               status: 'new',
               facebook_lead_id: lead.facebook_lead_id,
               facebook_form_id: lead.form_id,
-              facebook_page_id: lead.page_id,
               metadata: {
                 form_name: lead.form_name,
                 page_name: lead.page_name,
+                page_id: lead.page_id,
                 field_data: lead.field_data,
                 synced_at: new Date().toISOString()
               },
