@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     // Get user's organization
     const { data: orgMember, error: orgError } = await supabase
       .from('organization_members')
-      .select('org_id')
+      .select('organization_id')
       .eq('user_id', user.id)
       .single()
 
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
           title
         )
       `)
-      .eq('org_id', orgMember.org_id)
+      .eq('organization_id', orgMember.organization_id)
 
     if (staffError) {
       throw new Error(`Failed to fetch staff members: ${staffError.message}`)

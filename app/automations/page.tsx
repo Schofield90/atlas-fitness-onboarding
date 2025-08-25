@@ -180,7 +180,7 @@ export default function AutomationsPage() {
               Templates
             </button>
             <button 
-              onClick={() => router.push('/automations/builder')}
+              onClick={() => router.push('/automations/builder/new')}
               className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors"
             >
               <Plus className="h-4 w-4" />
@@ -267,7 +267,7 @@ export default function AutomationsPage() {
               <h3 className="text-lg font-medium text-white mb-2">No workflows yet</h3>
               <p className="text-gray-400 mb-6">Create your first automation to streamline your gym operations</p>
               <button 
-                onClick={() => router.push('/automations/builder')}
+                onClick={() => router.push('/automations/builder/new')}
                 className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg transition-colors"
               >
                 Create Your First Workflow
@@ -361,7 +361,7 @@ export default function AutomationsPage() {
                 <h4 className="font-medium text-white mb-2">2. Build Custom Flow</h4>
                 <p className="text-gray-400 text-sm mb-3">Create workflows tailored to your specific needs</p>
                 <button 
-                  onClick={() => router.push('/automations/builder')}
+                  onClick={() => router.push('/automations/builder/new')}
                   className="text-orange-400 hover:text-orange-300 text-sm font-medium"
                 >
                   Start Building →

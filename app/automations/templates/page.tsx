@@ -176,7 +176,7 @@ export default function WorkflowTemplatesPage() {
   const handleUseTemplate = (template: WorkflowTemplate) => {
     // In a real implementation, this would create a new workflow from the template
     alert(`Creating workflow from template: ${template.name}\n\nThis will open the workflow builder with pre-configured nodes and settings.`)
-    router.push(`/automations/builder?template=${template.id}`)
+    router.push(`/automations/builder/new?template=${template.id}`)
   }
 
   if (!userData) {
@@ -207,7 +207,7 @@ export default function WorkflowTemplatesPage() {
               <p className="text-gray-300">Start with proven automation templates designed for gyms and fitness businesses</p>
             </div>
             <button 
-              onClick={() => router.push('/automations/builder')}
+              onClick={() => router.push('/automations/builder/new')}
               className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors"
             >
               <Zap className="h-4 w-4" />
@@ -332,7 +332,7 @@ export default function WorkflowTemplatesPage() {
           </p>
           <div className="flex justify-center gap-4">
             <button 
-              onClick={() => router.push('/automations/builder')}
+              onClick={() => router.push('/automations/builder/new')}
               className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg transition-colors"
             >
               Build Custom Workflow

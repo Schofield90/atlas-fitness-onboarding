@@ -185,26 +185,11 @@ export default function EditWorkflowPage() {
 
   return (
     <DashboardLayout userData={userData}>
-      <div className="h-full flex flex-col">
-        <div className="bg-gray-800 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-white">Edit Workflow</h1>
-              <p className="text-gray-400">{workflow.name}</p>
-            </div>
-            <button
-              onClick={() => router.push('/automations')}
-              className="text-gray-400 hover:text-white"
-            >
-              ← Back to Automations
-            </button>
-          </div>
-        </div>
-        
-        <div className="flex-1">
-          <DynamicWorkflowBuilder />
-        </div>
-      </div>
+      <DynamicWorkflowBuilder 
+        workflow={workflow}
+        onSave={handleSave}
+        onCancel={() => router.push('/automations')}
+      />
     </DashboardLayout>
   )
 }

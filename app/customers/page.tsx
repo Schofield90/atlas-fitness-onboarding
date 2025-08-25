@@ -64,41 +64,27 @@ export default function CustomersPage() {
 
       if (!orgMember) return
 
-      // Fetch both clients and leads
-      const [clientsResult, leadsResult] = await Promise.all([
-        // Fetch clients with memberships
-        supabase
-          .from('clients')
-          .select(`
-            *,
-            memberships (
-              id,
-              membership_type,
-              status,
-              start_date,
-              end_date
-            )
-          `)
-          .eq('organization_id', orgMember.organization_id)
-          .order('created_at', { ascending: false }),
-        
-        // Fetch leads
-        supabase
-          .from('leads')
-          .select('*')
-          .eq('organization_id', orgMember.organization_id)
-          .order('created_at', { ascending: false })
-      ])
+      // Fetch only clients (actual customers, not leads)
+      const clientsResult = await supabase
+        .from('clients')
+        .select(`
+          *,
+          memberships (
+            id,
+            membership_type,
+            status,
+            start_date,
+            end_date
+          )
+        `)
+        .eq('organization_id', orgMember.organization_id)
+        .order('created_at', { ascending: false })
 
       if (clientsResult.error) {
         console.error('Error fetching clients:', clientsResult.error)
       }
-      
-      if (leadsResult.error) {
-        console.error('Error fetching leads:', leadsResult.error)
-      }
 
-      // Transform clients to customer format
+      // Transform clients to customer format (ONLY actual customers, not leads)
       const clientCustomers = (clientsResult.data || []).map(client => ({
         id: client.id,
         first_name: client.first_name || '',
@@ -116,33 +102,7 @@ export default function CustomersPage() {
         notes: client.notes
       }))
 
-      // Transform leads to customer format
-      const leadCustomers = (leadsResult.data || []).map(lead => ({
-        id: lead.id,
-        first_name: lead.first_name || lead.name?.split(' ')[0] || '',
-        last_name: lead.last_name || lead.name?.split(' ')[1] || '',
-        email: lead.email || '',
-        phone: lead.phone || '',
-        status: lead.status === 'converted' ? 'active' : 'inactive',
-        membership_status: 'Lead',
-        membership_name: undefined,
-        tags: lead.tags || [],
-        created_at: lead.created_at,
-        last_visit: undefined,
-        total_spent: 0,
-        is_lead: true,
-        notes: lead.notes
-      }))
-
-      // Combine and deduplicate by email
-      const allCustomers = [...clientCustomers]
-      leadCustomers.forEach(lead => {
-        if (!allCustomers.find(c => c.email === lead.email)) {
-          allCustomers.push(lead)
-        }
-      })
-
-      setCustomers(allCustomers)
+      setCustomers(clientCustomers)
     } catch (error) {
       console.error('Error:', error)
     } finally {
@@ -180,8 +140,8 @@ export default function CustomersPage() {
         filtered = filtered.filter(c => c.status === 'active')
       } else if (statusFilter === 'Inactive Customers') {
         filtered = filtered.filter(c => c.status === 'inactive')
-      } else if (statusFilter === 'Leads') {
-        filtered = filtered.filter(c => c.is_lead)
+      } else if (statusFilter === 'Slipping Away') {
+        filtered = filtered.filter(c => c.status === 'slipping_away')
       }
     }
 
@@ -261,15 +221,10 @@ export default function CustomersPage() {
         `)
         .eq('organization_id', orgMember.organization_id)
 
-      // Get lead data as well
-      const { data: detailedLeads } = await supabase
-        .from('leads')
-        .select('*')
-        .eq('organization_id', orgMember.organization_id)
+      // Only export customer data, not leads
 
-      // Combine and format all data
-      const allDetailedCustomers = [
-        ...(detailedClients || []).map(client => ({
+      // Format customer data for export
+      const allDetailedCustomers = (detailedClients || []).map(client => ({
           name: `${client.first_name || ''} ${client.last_name || ''}`.trim(),
           email: client.email,
           phone: client.phone,
@@ -283,23 +238,8 @@ export default function CustomersPage() {
           medical_conditions: client.customer_medical_info?.medical_conditions ? 
             JSON.stringify(client.customer_medical_info.medical_conditions) : '',
           created_date: new Date(client.created_at).toLocaleDateString(),
-          type: 'Client'
-        })),
-        ...(detailedLeads || []).map(lead => ({
-          name: lead.name,
-          email: lead.email,
-          phone: lead.phone,
-          status: lead.status,
-          date_of_birth: lead.date_of_birth || '',
-          address: `${lead.address_line_1 || ''} ${lead.city || ''}`.trim(),
-          membership: 'None',
-          membership_status: 'None',
-          emergency_contact: '',
-          medical_conditions: '',
-          created_date: new Date(lead.created_at).toLocaleDateString(),
-          type: 'Lead'
+          type: 'Customer'
         }))
-      ]
 
       // Filter by current filters
       const exportData = allDetailedCustomers.filter(customer => {
@@ -314,7 +254,7 @@ export default function CustomersPage() {
         if (statusFilter && statusFilter !== 'All') {
           if (statusFilter === 'Active Customers' && customer.status !== 'active') return false
           if (statusFilter === 'Inactive Customers' && customer.status !== 'inactive') return false
-          if (statusFilter === 'Leads' && customer.type !== 'Lead') return false
+          if (statusFilter === 'Slipping Away' && customer.status !== 'slipping_away') return false
         }
 
         return true
@@ -543,7 +483,7 @@ export default function CustomersPage() {
               >
                 <option>Active Customers</option>
                 <option>Inactive Customers</option>
-                <option>Leads</option>
+                <option>Slipping Away</option>
                 <option>All</option>
               </select>
             </div>

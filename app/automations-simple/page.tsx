@@ -73,7 +73,7 @@ export default function SimpleAutomationsPage() {
         
         <div className="grid gap-4">
           <button
-            onClick={() => router.push('/automations/builder')}
+            onClick={() => router.push('/automations/builder/new')}
             className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-4 px-6 rounded-lg text-left"
           >
             <h2 className="text-xl mb-2">Create New Workflow</h2>

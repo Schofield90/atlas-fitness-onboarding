@@ -89,9 +89,12 @@ export default function DashboardPage() {
             Your 14-day free trial expires on {mounted ? trialEnds.toLocaleDateString('en-GB') : '...'}. 
             That's {daysLeft} days to experience the power of Atlas Fitness.
           </p>
-          <button className="bg-white text-orange-500 font-bold py-2 px-4 rounded hover:bg-gray-100 transition-colors">
+          <Link 
+            href="/billing" 
+            className="inline-block bg-white text-orange-500 font-bold py-2 px-4 rounded hover:bg-gray-100 transition-colors"
+          >
             Upgrade to Pro
-          </button>
+          </Link>
         </div>
 
         <div className="grid md:grid-cols-4 gap-6 mb-8">

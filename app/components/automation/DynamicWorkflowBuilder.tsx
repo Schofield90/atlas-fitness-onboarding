@@ -2,6 +2,14 @@
 
 import dynamic from 'next/dynamic'
 import { Suspense } from 'react'
+import type { Workflow } from '@/app/lib/types/automation'
+
+interface DynamicWorkflowBuilderProps {
+  simple?: boolean
+  workflow?: Workflow
+  onSave?: (workflow: Workflow) => void | Promise<void>
+  onCancel?: () => void
+}
 
 // Loading component
 const WorkflowBuilderLoading = () => (
@@ -33,10 +41,23 @@ const SimpleWorkflowBuilder = dynamic(
 export { WorkflowBuilder, SimpleWorkflowBuilder }
 
 // Wrapper component that ensures client-side only rendering
-export default function DynamicWorkflowBuilder({ simple = false }: { simple?: boolean }) {
+export default function DynamicWorkflowBuilder({ 
+  simple = false, 
+  workflow,
+  onSave,
+  onCancel
+}: DynamicWorkflowBuilderProps) {
   return (
     <Suspense fallback={<WorkflowBuilderLoading />}>
-      {simple ? <SimpleWorkflowBuilder /> : <WorkflowBuilder />}
+      {simple ? (
+        <SimpleWorkflowBuilder />
+      ) : (
+        <WorkflowBuilder 
+          workflow={workflow}
+          onSave={onSave}
+          onCancel={onCancel}
+        />
+      )}
     </Suspense>
   )
 }

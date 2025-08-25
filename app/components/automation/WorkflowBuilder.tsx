@@ -67,7 +67,7 @@ import WaitNode from './nodes/WaitNode'
 import LoopNode from './nodes/LoopNode'
 import TransformNode from './nodes/TransformNode'
 import FilterNode from './nodes/FilterNode'
-import NodeConfigPanel from './NodeConfigPanel'
+import DynamicConfigPanel from './config/DynamicConfigPanel'
 
 // Node types mapping
 const nodeTypes = {
@@ -225,14 +225,26 @@ function PaletteItem({ item }: { item: NodePaletteItem }) {
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
+    end: (draggedItem, monitor) => {
+      const dropResult = monitor.getDropResult<{ nodeId?: string; success?: boolean }>()
+      if (dropResult?.success) {
+        console.log('Node created successfully:', { 
+          draggedItem: draggedItem.name, 
+          nodeId: dropResult.nodeId 
+        })
+      } else if (monitor.didDrop()) {
+        console.warn('Drop failed:', draggedItem.name)
+      }
+    },
   }))
 
   return (
     <div
       ref={drag as any}
       className={`p-3 bg-gray-700 rounded-lg cursor-move transition-all hover:bg-gray-600 ${
-        isDragging ? 'opacity-50' : ''
+        isDragging ? 'opacity-50 scale-95' : ''
       }`}
+      onMouseDown={() => console.log('Starting drag for:', item.name)}
     >
       <div className="flex items-center gap-2 mb-1">
         <Zap className="h-4 w-4 text-orange-500" />
@@ -246,15 +258,18 @@ function PaletteItem({ item }: { item: NodePaletteItem }) {
 // Main workflow builder component
 interface WorkflowBuilderProps {
   workflow?: Workflow
-  onSave?: (workflow: Workflow) => void
+  onSave?: (workflow: Workflow) => void | Promise<void>
   onTest?: (workflow: Workflow) => void
+  onCancel?: () => void
 }
 
-function WorkflowBuilderInner({ workflow, onSave, onTest }: WorkflowBuilderProps) {
+function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBuilderProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
   const [nodes, setNodes, onNodesChange] = useNodesState(workflow?.workflowData.nodes || [])
   const [edges, setEdges, onEdgesChange] = useEdgesState(workflow?.workflowData.edges || [])
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [selectedNode, setSelectedNode] = useState<string | null>(null)
   const [showTestPanel, setShowTestPanel] = useState(false)
   const [isTestMode, setIsTestMode] = useState(false)
@@ -264,20 +279,35 @@ function WorkflowBuilderInner({ workflow, onSave, onTest }: WorkflowBuilderProps
   const [showConfigPanel, setShowConfigPanel] = useState(false)
   const [configNode, setConfigNode] = useState<WorkflowNode | null>(null)
 
-  const { getNode, getEdges, getNodes } = useReactFlow()
-
   // Drop handler for the canvas
-  const [, drop] = useDrop(() => ({
+  const [{ isOver }, drop] = useDrop(() => ({
     accept: 'node',
     drop: (item: NodePaletteItem, monitor) => {
       const reactFlowBounds = reactFlowWrapper.current?.getBoundingClientRect()
       const clientOffset = monitor.getClientOffset()
       
-      if (reactFlowInstance && reactFlowBounds && clientOffset) {
-        const position = reactFlowInstance.project({
-          x: clientOffset.x - reactFlowBounds.left,
-          y: clientOffset.y - reactFlowBounds.top,
-        })
+      console.log('Drop triggered:', { item, reactFlowBounds, clientOffset, hasInstance: !!reactFlowInstance })
+      
+      if (reactFlowBounds && clientOffset) {
+        let position
+        
+        // If ReactFlow instance is available, use it for projection
+        if (reactFlowInstance) {
+          const projected = reactFlowInstance.project({
+            x: clientOffset.x - reactFlowBounds.left,
+            y: clientOffset.y - reactFlowBounds.top,
+          })
+          position = {
+            x: projected.x + (Math.random() - 0.5) * 10,
+            y: projected.y + (Math.random() - 0.5) * 10,
+          }
+        } else {
+          // Fallback: use direct coordinates if instance not ready
+          position = {
+            x: clientOffset.x - reactFlowBounds.left + (Math.random() - 0.5) * 10,
+            y: clientOffset.y - reactFlowBounds.top + (Math.random() - 0.5) * 10,
+          }
+        }
 
         const newNode: WorkflowNode = {
           id: uuidv4(),
@@ -293,10 +323,26 @@ function WorkflowBuilderInner({ workflow, onSave, onTest }: WorkflowBuilderProps
           },
         }
 
-        setNodes((nds) => nds.concat(newNode))
+        console.log('Creating new node:', newNode)
+        console.log('Node ID:', newNode.id)
+        setNodes((nds) => {
+          console.log('Current nodes before adding:', nds.length, nds.map(n => n.id))
+          const updated = [...nds, newNode]
+          console.log('Updated nodes array:', updated.length, updated.map(n => n.id))
+          return updated
+        })
+        
+        // Return drop result to complete the drag operation
+        return { nodeId: newNode.id, success: true }
       }
+      
+      // Return failure result if drop conditions not met
+      return { success: false }
     },
-  }))
+    collect: (monitor) => ({
+      isOver: monitor.isOver(),
+    }),
+  }), [reactFlowInstance, setNodes])
 
   // Combine refs
   const combinedRef = useCallback((node: HTMLDivElement | null) => {
@@ -323,12 +369,11 @@ function WorkflowBuilderInner({ workflow, onSave, onTest }: WorkflowBuilderProps
 
   // Node selection handler
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
+    event.stopPropagation() // Prevent event from bubbling
     setSelectedNode(node.id)
-    // Open config panel on double click
-    if (event.detail === 2) {
-      setConfigNode(node as WorkflowNode)
-      setShowConfigPanel(true)
-    }
+    // Open config panel on single click for better UX
+    setConfigNode(node as WorkflowNode)
+    setShowConfigPanel(true)
   }, [])
 
   // Delete selected elements
@@ -382,26 +427,101 @@ function WorkflowBuilderInner({ workflow, onSave, onTest }: WorkflowBuilderProps
   }, [deleteSelected])
 
   // Save workflow
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (onSave && workflow) {
-      const updatedWorkflow: Workflow = {
-        ...workflow,
-        workflowData: {
-          nodes: nodes as WorkflowNode[],
-          edges,
-          variables: workflow.workflowData.variables || [],
-          viewport: reactFlowInstance?.getViewport(),
-        },
+      setIsSaving(true)
+      setSaveMessage(null)
+      
+      try {
+        const updatedWorkflow: Workflow = {
+          ...workflow,
+          workflowData: {
+            nodes: nodes as WorkflowNode[],
+            edges,
+            variables: workflow.workflowData.variables || [],
+            viewport: reactFlowInstance?.getViewport(),
+          },
+        }
+        await onSave(updatedWorkflow)
+        setSaveMessage({ type: 'success', text: 'Workflow saved successfully!' })
+        setTimeout(() => setSaveMessage(null), 3000)
+      } catch (error) {
+        console.error('Failed to save workflow:', error)
+        setSaveMessage({ type: 'error', text: 'Failed to save workflow. Please try again.' })
+      } finally {
+        setIsSaving(false)
       }
-      onSave(updatedWorkflow)
     }
   }, [workflow, nodes, edges, reactFlowInstance, onSave])
 
   // Test workflow
   const handleTest = useCallback(() => {
+    setIsTestMode(true)
+    setShowTestPanel(true)
+    setExecutionSteps([])
+    
+    // Find trigger nodes
+    const triggerNodes = nodes.filter(n => n.type === 'trigger')
+    
+    if (triggerNodes.length === 0) {
+      setSaveMessage({ type: 'error', text: 'No trigger nodes found. Add a trigger to test the workflow.' })
+      setTimeout(() => setSaveMessage(null), 3000)
+      return
+    }
+    
+    // Create execution steps
+    const steps: ExecutionStep[] = []
+    const visited = new Set<string>()
+    
+    const traverseWorkflow = (nodeId: string, depth: number = 0) => {
+      if (visited.has(nodeId) || depth > 20) return // Prevent infinite loops
+      visited.add(nodeId)
+      
+      const node = nodes.find(n => n.id === nodeId)
+      if (!node) return
+      
+      steps.push({
+        id: uuidv4(),
+        nodeId,
+        status: 'pending',
+        timestamp: new Date().toISOString(),
+      })
+      
+      // Find connected nodes
+      const outgoingEdges = edges.filter(e => e.source === nodeId)
+      outgoingEdges.forEach(edge => {
+        traverseWorkflow(edge.target!, depth + 1)
+      })
+    }
+    
+    // Start from trigger nodes
+    triggerNodes.forEach(trigger => traverseWorkflow(trigger.id))
+    
+    setExecutionSteps(steps)
+    
+    // Simulate execution
+    steps.forEach((step, index) => {
+      setTimeout(() => {
+        setExecutionSteps(prev => 
+          prev.map(s => {
+            if (s.id === step.id) {
+              return {
+                ...s,
+                status: index === 0 ? 'running' : 'completed',
+                outputData: { 
+                  result: 'Success', 
+                  message: `Node executed successfully`,
+                  timestamp: new Date().toISOString() 
+                }
+              }
+            }
+            return s
+          })
+        )
+      }, (index + 1) * 500)
+    })
+    
     if (onTest && workflow) {
-      setIsTestMode(true)
-      setShowTestPanel(true)
       const updatedWorkflow: Workflow = {
         ...workflow,
         workflowData: {
@@ -413,6 +533,36 @@ function WorkflowBuilderInner({ workflow, onSave, onTest }: WorkflowBuilderProps
       onTest(updatedWorkflow)
     }
   }, [workflow, nodes, edges, onTest])
+  
+  // Toggle workflow active state
+  const handleToggleActive = useCallback(async () => {
+    if (!workflow) return
+    
+    const newStatus = workflow.status === 'active' ? 'inactive' : 'active'
+    
+    // Update locally
+    const updatedWorkflow = {
+      ...workflow,
+      status: newStatus
+    }
+    
+    // Save if handler provided
+    if (onSave) {
+      setIsSaving(true)
+      try {
+        await onSave(updatedWorkflow)
+        setSaveMessage({ 
+          type: 'success', 
+          text: `Workflow ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully` 
+        })
+      } catch (error) {
+        setSaveMessage({ type: 'error', text: 'Failed to update workflow status' })
+      } finally {
+        setIsSaving(false)
+        setTimeout(() => setSaveMessage(null), 3000)
+      }
+    }
+  }, [workflow, onSave])
 
   // Toggle category expansion
   const toggleCategory = (category: string) => {
@@ -507,37 +657,34 @@ function WorkflowBuilderInner({ workflow, onSave, onTest }: WorkflowBuilderProps
         {/* Toolbar */}
         <div className="bg-gray-800 border-b border-gray-700 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <h2 className="text-xl font-bold">{workflow?.name || 'New Workflow'}</h2>
+            {onCancel && (
+              <button
+                onClick={onCancel}
+                className="text-gray-400 hover:text-white transition-colors"
+                title="Back to Automations"
+              >
+                ← Back
+              </button>
+            )}
             <div className="flex items-center gap-2">
-              <button
-                onClick={handleSave}
-                className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-                title="Save (Cmd+S)"
-              >
-                <Save className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => {/* TODO: Implement undo */}}
-                className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-                title="Undo (Cmd+Z)"
-              >
-                <RotateCcw className="h-4 w-4" />
-              </button>
-              <button
-                onClick={deleteSelected}
-                className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-                title="Delete (Delete)"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+              <h2 className="text-xl font-bold">{workflow?.name || 'New Workflow'}</h2>
+              {workflow?.description && (
+                <span className="text-sm text-gray-400">- {workflow.description}</span>
+              )}
             </div>
           </div>
-          
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setShowTestPanel(!showTestPanel)}
+              onClick={() => {
+                const newTestMode = !isTestMode
+                setIsTestMode(newTestMode)
+                setShowTestPanel(newTestMode)
+                if (!newTestMode) {
+                  setExecutionSteps([])
+                }
+              }}
               className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
-                showTestPanel ? 'bg-orange-600 hover:bg-orange-700' : 'bg-gray-700 hover:bg-gray-600'
+                isTestMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-700 hover:bg-gray-600'
               }`}
             >
               <Bug className="h-4 w-4" />
@@ -551,11 +698,13 @@ function WorkflowBuilderInner({ workflow, onSave, onTest }: WorkflowBuilderProps
               Run Test
             </button>
             <button
+              onClick={handleToggleActive}
+              disabled={isSaving}
               className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
                 workflow?.status === 'active'
                   ? 'bg-orange-600 hover:bg-orange-700'
                   : 'bg-gray-700 hover:bg-gray-600'
-              }`}
+              } ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {workflow?.status === 'active' ? (
                 <>
@@ -573,7 +722,10 @@ function WorkflowBuilderInner({ workflow, onSave, onTest }: WorkflowBuilderProps
         </div>
 
         {/* React Flow Canvas */}
-        <div className="flex-1" ref={combinedRef}>
+        <div 
+          className={`flex-1 relative ${isOver ? 'ring-2 ring-orange-500 ring-opacity-50' : ''}`} 
+          ref={combinedRef}
+        >
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -620,7 +772,7 @@ function WorkflowBuilderInner({ workflow, onSave, onTest }: WorkflowBuilderProps
                   <button
                     className="p-1 hover:bg-gray-700 rounded"
                     onClick={() => {
-                      const node = getNode(selectedNode)
+                      const node = nodes.find(n => n.id === selectedNode)
                       if (node) {
                         setConfigNode(node as WorkflowNode)
                         setShowConfigPanel(true)
@@ -711,9 +863,10 @@ function WorkflowBuilderInner({ workflow, onSave, onTest }: WorkflowBuilderProps
       )}
       
       {/* Node Configuration Panel */}
-      {showConfigPanel && (
-        <NodeConfigPanel
+      {showConfigPanel && configNode && (
+        <DynamicConfigPanel
           node={configNode}
+          organizationId={workflow?.organizationId || ''}
           onClose={() => {
             setShowConfigPanel(false)
             setConfigNode(null)

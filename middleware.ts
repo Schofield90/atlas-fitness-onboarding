@@ -17,10 +17,12 @@ const publicRoutes = [
   '/quick-dashboard',   // Add quick access dashboard (no auth)
   '/real-dashboard',    // Real dashboard with no auth checks
   '/test-auth',         // Add test auth page
+  '/book/public',       // Public booking pages for customers
   '/api/auth',
   '/api/client-portal',
   '/api/client-access',
-  '/api/webhooks'
+  '/api/webhooks',
+  '/api/public-api'     // Public API endpoints
 ]
 
 // Client-only routes

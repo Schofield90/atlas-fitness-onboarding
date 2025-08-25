@@ -55,7 +55,7 @@ export default function AuthCheckPage() {
   }
 
   const handleGoToAutomations = () => {
-    router.push('/automations/builder')
+    router.push('/automations/builder/new')
   }
 
   if (loading) {

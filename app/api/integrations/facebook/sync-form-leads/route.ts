@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
             .from('leads')
             .select('id')
             .eq('organization_id', organizationId)
-            .eq('facebook_lead_id', lead.facebook_lead_id)
+            .contains('metadata', { facebook_lead_id: lead.facebook_lead_id })
             .single()
           
           if (existingLead) {
@@ -178,9 +178,9 @@ export async function POST(request: NextRequest) {
               phone: lead.phone,
               source: 'facebook',
               status: 'new',
-              facebook_lead_id: lead.facebook_lead_id,
-              facebook_form_id: lead.form_id,
               metadata: {
+                facebook_lead_id: lead.facebook_lead_id,
+                facebook_form_id: lead.form_id,
                 form_name: lead.form_name,
                 page_id: pageId || null,
                 campaign_id: lead.campaign_id,

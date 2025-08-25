@@ -167,7 +167,7 @@ export default function WorkflowTestPage() {
             
             {authInfo.summary?.authenticated && (
               <button
-                onClick={() => router.push('/automations/builder')}
+                onClick={() => router.push('/automations/builder/new')}
                 className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded"
               >
                 Go to Workflow Builder
