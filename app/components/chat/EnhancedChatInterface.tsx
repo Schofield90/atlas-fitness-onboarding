@@ -25,7 +25,9 @@ import {
   Zap,
   Sparkles,
   BookOpen,
-  Camera
+  Camera,
+  Plus,
+  Users
 } from 'lucide-react'
 import { formatBritishDateTime } from '@/app/lib/utils/british-format'
 
@@ -98,6 +100,8 @@ export default function EnhancedChatInterface() {
   const [showAISuggestions, setShowAISuggestions] = useState(false)
   const [isTyping, setIsTyping] = useState(false)
   const [organizationId, setOrganizationId] = useState<string | null>(null)
+  const [showNewConversationModal, setShowNewConversationModal] = useState(false)
+  const [availableContacts, setAvailableContacts] = useState<any[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
 
@@ -119,6 +123,54 @@ export default function EnhancedChatInterface() {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const handleNewConversation = async () => {
+    try {
+      // Fetch available leads and customers
+      const { data: leads } = await supabase
+        .from('leads')
+        .select('id, name, email, phone')
+        .eq('organization_id', organizationId)
+        .limit(20)
+
+      const { data: customers } = await supabase
+        .from('clients')
+        .select('id, name, email, phone')
+        .eq('organization_id', organizationId)
+        .limit(20)
+
+      const contacts = [
+        ...(leads || []).map(l => ({ ...l, type: 'lead' })),
+        ...(customers || []).map(c => ({ ...c, type: 'customer' }))
+      ]
+
+      setAvailableContacts(contacts)
+      setShowNewConversationModal(true)
+    } catch (error) {
+      console.error('Error fetching contacts:', error)
+    }
+  }
+
+  const startNewConversation = (contact: any) => {
+    const newConv: Conversation = {
+      id: Date.now().toString(),
+      customer_id: contact.id,
+      customer_name: contact.name,
+      customer_email: contact.email,
+      customer_phone: contact.phone,
+      last_message: 'Start conversation...',
+      last_message_type: 'sms',
+      last_message_time: new Date().toISOString(),
+      unread_count: 0,
+      total_messages: 0,
+      status: 'active'
+    }
+
+    setConversations([newConv, ...conversations])
+    setSelectedConversation(newConv)
+    setShowNewConversationModal(false)
+    setMessages([])
   }
 
   const fetchConversations = async () => {
@@ -378,6 +430,13 @@ export default function EnhancedChatInterface() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-white">Conversations</h2>
             <div className="flex gap-2">
+              <button 
+                onClick={() => handleNewConversation()}
+                className="px-3 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg flex items-center gap-2 transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+                New
+              </button>
               <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg">
                 <Filter className="h-4 w-4" />
               </button>
@@ -406,9 +465,21 @@ export default function EnhancedChatInterface() {
               <div className="text-center text-gray-400">Loading conversations...</div>
             </div>
           ) : filteredConversations.length === 0 ? (
-            <div className="p-4">
-              <div className="text-center text-gray-400">
-                {searchTerm ? 'No conversations found' : 'No conversations yet'}
+            <div className="p-8 flex flex-col items-center justify-center">
+              <MessageSquare className="h-12 w-12 text-gray-600 mb-4" />
+              <div className="text-center">
+                <p className="text-gray-400 mb-4">
+                  {searchTerm ? 'No conversations found' : 'No conversations yet'}
+                </p>
+                {!searchTerm && (
+                  <button
+                    onClick={() => handleNewConversation()}
+                    className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg flex items-center gap-2 mx-auto transition-colors"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Start New Conversation
+                  </button>
+                )}
               </div>
             </div>
           ) : (
@@ -736,6 +807,59 @@ export default function EnhancedChatInterface() {
                   Add Tag
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* New Conversation Modal */}
+      {showNewConversationModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full max-h-[80vh] overflow-hidden">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-semibold text-white">Start New Conversation</h3>
+              <button
+                onClick={() => setShowNewConversationModal(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <p className="text-gray-400 mb-4">Select a contact to start a conversation with:</p>
+            
+            <div className="overflow-y-auto max-h-[50vh]">
+              {availableContacts.length === 0 ? (
+                <div className="text-center py-8">
+                  <Users className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-400">No contacts available</p>
+                  <p className="text-gray-500 text-sm mt-2">Add leads or customers first</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {availableContacts.map((contact) => (
+                    <button
+                      key={contact.id}
+                      onClick={() => startNewConversation(contact)}
+                      className="w-full p-3 bg-gray-700 hover:bg-gray-600 rounded-lg text-left transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-white font-medium">{contact.name}</p>
+                          <p className="text-gray-400 text-sm">{contact.email || contact.phone}</p>
+                        </div>
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          contact.type === 'lead' 
+                            ? 'bg-blue-600 text-blue-100' 
+                            : 'bg-green-600 text-green-100'
+                        }`}>
+                          {contact.type}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

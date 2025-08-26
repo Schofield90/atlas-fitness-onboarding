@@ -1,3 +1,11 @@
+/**
+ * @deprecated This component is deprecated and no longer maintained.
+ * Please use the main WorkflowBuilder component at ./WorkflowBuilder.tsx instead.
+ * This file is kept for backward compatibility but will be removed in future versions.
+ * 
+ * Migration: Replace all imports of AdvancedWorkflowBuilder with WorkflowBuilder
+ */
+
 'use client'
 
 import { useCallback, useState, useRef, useEffect } from 'react'

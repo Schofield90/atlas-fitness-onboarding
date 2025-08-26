@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       .select(`
         user_id,
         role,
-        users:user_id (
+        users!user_id (
           id,
           full_name,
           email,

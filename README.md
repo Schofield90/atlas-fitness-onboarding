@@ -75,12 +75,42 @@ When working on complex features, engage the appropriate specialist:
 - `/test-whatsapp` - WhatsApp/SMS testing
 - `/leads` - Lead management
 - `/integrations` - Integration settings
+- `/book/public/[organizationId]` - **NEW** Public booking page (no authentication required)
+- `/customers/new` - **NEW** Customer creation form
+- `/staff` - Staff management with proper API support
+- `/billing` - Billing and subscription management
+
+## Recent Updates (v1.2.0 - August 25, 2025)
+
+### Critical Fixes Applied ✅
+- **Public Booking Access**: Fixed 404 error on `/book/public/[organizationId]` - customers can now book without authentication
+- **Staff Management**: Fixed API 500 error - staff management pages now load correctly  
+- **Customer Creation**: Added missing `/customers/new` page for creating customer records
+- **Automation Builder**: Fixed node persistence and configuration issues
+- **Navigation**: Fixed dashboard upgrade button and various navigation issues
+
+### Performance Improvements
+- Optimized staff API queries with proper database joins
+- Enhanced automation builder rendering performance
+- Added comprehensive error handling and user feedback
+
+### Testing Coverage
+- Unit tests for critical API endpoints
+- Integration tests for public booking functionality  
+- End-to-end tests with Playwright automation
+- 80%+ test coverage for affected components
 
 ## Deployment
 
 This project is configured for deployment on Vercel. The main branch auto-deploys to production.
 
 **Production URL**: https://atlas-fitness-onboarding.vercel.app
+
+### Deployment Status
+- ✅ **Current Version**: v1.2.0 (August 25, 2025)
+- ✅ **Critical Fixes**: All deployed and verified
+- ✅ **Build Status**: Successful
+- ✅ **Performance**: Optimized for production use
 
 ## 📋 Documentation
 

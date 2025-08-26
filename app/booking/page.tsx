@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Calendar, Clock, Users, Plus, Link, Settings, Video, Phone, Coffee } from 'lucide-react'
 import Button from '@/app/components/ui/Button'
 import { createClient } from '@/app/lib/supabase/client'
+import toast from '@/app/lib/toast'
 
 interface Booking {
   id: string
@@ -40,7 +41,10 @@ export default function BookingPage() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       
-      if (!user) return
+      if (!user) {
+        toast.error('You must be logged in to view bookings')
+        return
+      }
 
       let query = supabase
         .from('bookings')
@@ -66,7 +70,10 @@ export default function BookingPage() {
 
       const { data, error } = await query
 
-      if (error) throw error
+      if (error) {
+        toast.error('Failed to load bookings. Please try again.')
+        throw error
+      }
       setBookings(data || [])
     } catch (error) {
       console.error('Error fetching bookings:', error)
@@ -98,7 +105,7 @@ export default function BookingPage() {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Call Bookings</h1>
+            <h1 className="text-3xl font-bold">Sales Calls & Consultations</h1>
             <p className="text-gray-400 mt-1">Manage your sales calls, consultations, and appointments</p>
           </div>
           <div className="flex gap-3">

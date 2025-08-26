@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import DashboardLayout from '@/app/components/DashboardLayout'
+import { isFeatureEnabled } from '@/app/lib/feature-flags'
+import ComingSoon from '@/app/components/ComingSoon'
+import { toast } from 'react-hot-toast'
 import { 
   PlusIcon,
   EyeIcon,
@@ -254,13 +257,40 @@ export default function SurveyPage() {
                       >
                         <EyeIcon className="h-4 w-4" />
                       </button>
-                      <button className="text-gray-400 hover:text-white">
+                      <button 
+                        onClick={() => {
+                          if (!isFeatureEnabled('surveysActions')) {
+                            toast.error('Survey editing coming soon!')
+                            return
+                          }
+                        }}
+                        className="text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={!isFeatureEnabled('surveysActions')}
+                      >
                         <EditIcon className="h-4 w-4" />
                       </button>
-                      <button className="text-red-400 hover:text-red-300">
+                      <button 
+                        onClick={() => {
+                          if (!isFeatureEnabled('surveysActions')) {
+                            toast.error('Survey deletion coming soon!')
+                            return
+                          }
+                        }}
+                        className="text-red-400 hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={!isFeatureEnabled('surveysActions')}
+                      >
                         <TrashIcon className="h-4 w-4" />
                       </button>
-                      <button className="text-green-400 hover:text-green-300">
+                      <button 
+                        onClick={() => {
+                          if (!isFeatureEnabled('surveysActions')) {
+                            toast.error('Survey sending coming soon!')
+                            return
+                          }
+                        }}
+                        className="text-green-400 hover:text-green-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={!isFeatureEnabled('surveysActions')}
+                      >
                         <SendIcon className="h-4 w-4" />
                       </button>
                     </div>
@@ -274,7 +304,20 @@ export default function SurveyPage() {
     </div>
   )
 
-  const renderCreateSurvey = () => (
+  const renderCreateSurvey = () => {
+    if (!isFeatureEnabled('surveysCreate')) {
+      return (
+        <div className="bg-gray-800 rounded-lg p-6">
+          <ComingSoon
+            feature="Survey Creation"
+            description="Build custom surveys with multiple question types, templates, and advanced logic to gather valuable member feedback."
+            estimatedDate="Q2 2025"
+          />
+        </div>
+      )
+    }
+    
+    return (
     <div className="space-y-6">
       <div className="bg-gray-800 rounded-lg p-6">
         <h2 className="text-xl font-bold text-white mb-6">Create New Survey</h2>
@@ -392,6 +435,7 @@ export default function SurveyPage() {
       </div>
     </div>
   )
+  }
 
   const renderResponses = () => (
     <div className="space-y-6">
@@ -471,6 +515,13 @@ export default function SurveyPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Surveys & Feedback</h1>
           <p className="text-gray-400">Create and manage member surveys to gather valuable feedback</p>
+          {!isFeatureEnabled('surveysActions') && (
+            <ComingSoon 
+              variant="banner" 
+              feature="Surveys & Feedback"
+              description="This module is currently in development. You can view mock data but survey creation and management features are coming soon."
+            />
+          )}
         </div>
 
         {/* Tab Navigation */}

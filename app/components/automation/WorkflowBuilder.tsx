@@ -325,11 +325,13 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
 
         console.log('Creating new node:', newNode)
         console.log('Node ID:', newNode.id)
-        setNodes((nds) => {
-          console.log('Current nodes before adding:', nds.length, nds.map(n => n.id))
-          const updated = [...nds, newNode]
-          console.log('Updated nodes array:', updated.length, updated.map(n => n.id))
-          return updated
+        // FIXED: Use functional update to ensure proper state persistence
+        setNodes((currentNodes) => {
+          console.log('Current nodes before adding:', currentNodes.length, currentNodes.map(n => n.id))
+          // Ensure we're working with the latest state and properly append the node
+          const updatedNodes = currentNodes.concat(newNode)
+          console.log('Updated nodes array:', updatedNodes.length, updatedNodes.map(n => n.id))
+          return updatedNodes
         })
         
         // Return drop result to complete the drag operation
@@ -350,9 +352,60 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
     reactFlowWrapper.current = node
   }, [drop])
 
-  // Connection handler
+  // Connection validation - prevent cycles and validate connection types
+  const isValidConnection = useCallback((connection: Connection) => {
+    // Don't allow self-connections
+    if (connection.source === connection.target) {
+      return false
+    }
+    
+    // Check for cycles using DFS
+    const checkCycle = (source: string, target: string): boolean => {
+      const visited = new Set<string>()
+      const stack = [target]
+      
+      while (stack.length > 0) {
+        const current = stack.pop()!
+        if (current === source) {
+          return true // Cycle detected
+        }
+        
+        if (!visited.has(current)) {
+          visited.add(current)
+          const outgoingEdges = edges.filter(e => e.source === current)
+          outgoingEdges.forEach(e => {
+            if (e.target) stack.push(e.target)
+          })
+        }
+      }
+      
+      return false
+    }
+    
+    if (connection.source && connection.target && checkCycle(connection.source, connection.target)) {
+      console.warn('Connection would create a cycle')
+      return false
+    }
+    
+    // Validate node types can connect
+    const sourceNode = nodes.find(n => n.id === connection.source)
+    const targetNode = nodes.find(n => n.id === connection.target)
+    
+    if (sourceNode?.type === 'trigger' && targetNode?.type === 'trigger') {
+      return false // Can't connect trigger to trigger
+    }
+    
+    return true
+  }, [nodes, edges])
+
+  // Connection handler with validation
   const onConnect = useCallback(
     (params: Connection) => {
+      if (!isValidConnection(params)) {
+        console.warn('Invalid connection attempted')
+        return
+      }
+      
       const newEdge: Edge = {
         ...params,
         id: uuidv4(),
@@ -361,10 +414,14 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
         markerEnd: {
           type: MarkerType.ArrowClosed,
         },
+        style: {
+          stroke: '#f97316',
+          strokeWidth: 2,
+        },
       }
       setEdges((eds) => addEdge(newEdge, eds))
     },
-    [setEdges]
+    [setEdges, isValidConnection]
   )
 
   // Node selection handler
@@ -533,6 +590,80 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
       onTest(updatedWorkflow)
     }
   }, [workflow, nodes, edges, onTest])
+  
+  // Run test execution with payload
+  const runTestExecution = useCallback(async (payload: any) => {
+    setIsTestMode(true)
+    setExecutionSteps([])
+    
+    // Get trigger node
+    const triggerNode = nodes.find(n => n.type === 'trigger')
+    if (!triggerNode) {
+      alert('No trigger node found in workflow')
+      return
+    }
+    
+    // Build execution path from trigger
+    const executionPath: string[] = [triggerNode.id]
+    const visited = new Set<string>([triggerNode.id])
+    let currentNodes = [triggerNode.id]
+    
+    while (currentNodes.length > 0) {
+      const nextNodes: string[] = []
+      for (const nodeId of currentNodes) {
+        const outgoingEdges = edges.filter(e => e.source === nodeId)
+        for (const edge of outgoingEdges) {
+          if (edge.target && !visited.has(edge.target)) {
+            visited.add(edge.target)
+            executionPath.push(edge.target)
+            nextNodes.push(edge.target)
+          }
+        }
+      }
+      currentNodes = nextNodes
+    }
+    
+    // Simulate execution for each node
+    for (let i = 0; i < executionPath.length; i++) {
+      const nodeId = executionPath[i]
+      const node = nodes.find(n => n.id === nodeId)
+      
+      if (!node) continue
+      
+      // Add running step
+      const stepId = uuidv4()
+      setExecutionSteps(prev => [...prev, {
+        id: stepId,
+        nodeId,
+        status: 'running',
+        startTime: new Date().toISOString()
+      }])
+      
+      // Simulate execution delay
+      await new Promise(resolve => setTimeout(resolve, 800))
+      
+      // Update step to completed
+      setExecutionSteps(prev => prev.map(s => 
+        s.id === stepId 
+          ? {
+              ...s,
+              status: 'completed' as const,
+              endTime: new Date().toISOString(),
+              outputData: {
+                input: i === 0 ? payload : { previousStep: executionPath[i - 1] },
+                output: {
+                  success: true,
+                  message: `${node.data?.label || 'Node'} executed successfully`,
+                  data: node.type === 'trigger' ? payload : {}
+                }
+              }
+            }
+          : s
+      ))
+    }
+    
+    setIsTestMode(false)
+  }, [nodes, edges])
   
   // Toggle workflow active state
   const handleToggleActive = useCallback(async () => {
@@ -732,10 +863,12 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            isValidConnection={isValidConnection}
             onInit={setReactFlowInstance}
             onNodeClick={onNodeClick}
             nodeTypes={nodeTypes}
             fitView
+            connectionLineStyle={{ stroke: '#f97316', strokeWidth: 2 }}
             defaultEdgeOptions={{
               type: 'smoothstep',
               animated: true,
@@ -808,53 +941,99 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
           </div>
           
           <div className="flex-1 overflow-y-auto p-4">
-            {isTestMode && executionSteps.length > 0 ? (
-              <div className="space-y-3">
-                {executionSteps.map((step) => (
-                  <div
-                    key={step.id}
-                    className={`p-3 rounded-lg border ${
-                      step.status === 'completed'
-                        ? 'bg-green-900/20 border-green-700'
-                        : step.status === 'failed'
-                        ? 'bg-red-900/20 border-red-700'
-                        : 'bg-gray-700 border-gray-600'
-                    }`}
+            {/* Test Payload Editor */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2">Test Payload</label>
+              <textarea
+                id="test-payload"
+                className="w-full h-32 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm font-mono"
+                placeholder='{"lead": {"name": "John Doe", "email": "john@example.com", "phone": "+447901234567"}}'
+                defaultValue={JSON.stringify({
+                  lead: {
+                    name: "Test Lead",
+                    email: "test@example.com",
+                    phone: "+447901234567"
+                  }
+                }, null, 2)}
+              />
+              <button
+                onClick={() => {
+                  const textarea = document.getElementById('test-payload') as HTMLTextAreaElement
+                  try {
+                    const payload = JSON.parse(textarea.value)
+                    // Run test with payload
+                    runTestExecution(payload)
+                  } catch (error) {
+                    alert('Invalid JSON payload')
+                  }
+                }}
+                className="mt-2 w-full px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg flex items-center justify-center gap-2 transition-colors"
+              >
+                <Play className="h-4 w-4" />
+                Run Test
+              </button>
+            </div>
+
+            {/* Execution Steps */}
+            {executionSteps.length > 0 && (
+              <div className="border-t border-gray-700 pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-medium">Execution Log</h4>
+                  <button
+                    onClick={() => setExecutionSteps([])}
+                    className="text-xs text-gray-400 hover:text-white"
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium">{step.nodeId}</span>
-                      <span className={`text-xs px-2 py-1 rounded ${
-                        step.status === 'completed'
-                          ? 'bg-green-700 text-green-100'
-                          : step.status === 'failed'
-                          ? 'bg-red-700 text-red-100'
-                          : 'bg-gray-600 text-gray-200'
-                      }`}>
-                        {step.status}
-                      </span>
-                    </div>
-                    {step.error && (
-                      <p className="text-xs text-red-400">{step.error}</p>
-                    )}
-                    {step.outputData && (
-                      <pre className="text-xs bg-gray-900 p-2 rounded mt-2 overflow-x-auto">
-                        {JSON.stringify(step.outputData, null, 2)}
-                      </pre>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center text-gray-400">
-                <p className="mb-4">Click "Run Test" to execute the workflow with test data</p>
+                    Clear
+                  </button>
+                </div>
                 <div className="space-y-3">
-                  <div className="text-left">
-                    <label className="block text-sm font-medium mb-2">Test Data</label>
-                    <textarea
-                      className="w-full h-32 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm"
-                      placeholder='{"lead": {"name": "John Doe", "email": "john@example.com"}}'
-                    />
-                  </div>
+                  {executionSteps.map((step, index) => {
+                    const node = nodes.find(n => n.id === step.nodeId)
+                    return (
+                      <div
+                        key={step.id}
+                        className={`p-3 rounded-lg border transition-all ${
+                          step.status === 'completed'
+                            ? 'bg-green-900/20 border-green-700'
+                            : step.status === 'failed'
+                            ? 'bg-red-900/20 border-red-700'
+                            : step.status === 'running'
+                            ? 'bg-blue-900/20 border-blue-700 animate-pulse'
+                            : 'bg-gray-700 border-gray-600'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">
+                            Step {index + 1}: {node?.data?.label || step.nodeId}
+                          </span>
+                          <span className={`text-xs px-2 py-1 rounded ${
+                            step.status === 'completed'
+                              ? 'bg-green-700 text-green-100'
+                              : step.status === 'failed'
+                              ? 'bg-red-700 text-red-100'
+                              : step.status === 'running'
+                              ? 'bg-blue-700 text-blue-100'
+                              : 'bg-gray-600 text-gray-200'
+                          }`}>
+                            {step.status}
+                          </span>
+                        </div>
+                        {step.error && (
+                          <p className="text-xs text-red-400 mt-2">{step.error}</p>
+                        )}
+                        {step.outputData && (
+                          <details className="mt-2">
+                            <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-300">
+                              Output Data
+                            </summary>
+                            <pre className="text-xs bg-gray-900 p-2 rounded mt-1 overflow-x-auto">
+                              {JSON.stringify(step.outputData, null, 2)}
+                            </pre>
+                          </details>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}

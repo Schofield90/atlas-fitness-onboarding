@@ -5,6 +5,7 @@ import '@/app/lib/polyfills'
 import { AnalyticsProvider } from '@/app/components/analytics/provider'
 import { OrganizationProvider } from '@/app/hooks/useOrganization'
 import { ErrorBoundaryProvider } from '@/app/components/errors'
+// import { ToastProvider } from '@/app/components/providers/toast-provider'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -24,6 +25,7 @@ export default function RootLayout({
         <ErrorBoundaryProvider>
           <AnalyticsProvider>
             <OrganizationProvider>
+              {/* <ToastProvider /> */}
               {children}
             </OrganizationProvider>
           </AnalyticsProvider>

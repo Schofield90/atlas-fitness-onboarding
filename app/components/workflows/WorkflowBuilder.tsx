@@ -1,3 +1,11 @@
+/**
+ * @deprecated This component is deprecated and no longer maintained.
+ * Please use the main WorkflowBuilder component at /app/components/automation/WorkflowBuilder.tsx instead.
+ * This file is kept for backward compatibility but will be removed in future versions.
+ * 
+ * Migration: Replace all imports from /app/components/workflows/WorkflowBuilder with /app/components/automation/WorkflowBuilder
+ */
+
 'use client';
 
 import React, { useState } from 'react';

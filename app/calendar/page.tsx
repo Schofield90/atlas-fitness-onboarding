@@ -11,6 +11,7 @@ import { EditEventModal } from '@/app/components/calendar/EditEventModal'
 import BookingLinksManager from '@/app/components/booking/BookingLinksManager'
 import { Calendar as CalendarIcon, Settings, Link, Plus, LayoutGrid, CalendarDays } from 'lucide-react'
 import type { CalendarEvent, TimeSlot } from '@/app/lib/types/calendar'
+import toast from '@/app/lib/toast'
 
 export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
@@ -33,11 +34,11 @@ export default function CalendarPage() {
     const error = urlParams.get('error')
     
     if (success === 'google_connected') {
-      alert('Google Calendar connected successfully!')
+      toast.success('Google Calendar connected successfully!')
       // Clear the URL params
       window.history.replaceState({}, document.title, window.location.pathname)
     } else if (error) {
-      alert(getErrorMessage(error))
+      toast.error(getErrorMessage(error))
       window.history.replaceState({}, document.title, window.location.pathname)
     }
     
@@ -138,7 +139,7 @@ export default function CalendarPage() {
       ))
     } catch (error) {
       console.error('Error fetching events:', error)
-      alert('Failed to load calendar events')
+      toast.error('Failed to load calendar events. Please refresh the page.')
     } finally {
       setLoadingEvents(false)
     }
@@ -183,10 +184,10 @@ export default function CalendarPage() {
       }
 
       await fetchEvents()
-      alert('Event updated successfully')
+      toast.success('Event updated successfully')
     } catch (error) {
       console.error('Error updating event:', error)
-      alert('Failed to update event')
+      toast.error('Failed to update event. Please try again.')
     }
   }
 
@@ -201,10 +202,10 @@ export default function CalendarPage() {
       }
 
       await fetchEvents()
-      alert('Event deleted successfully')
+      toast.success('Event deleted successfully')
     } catch (error) {
       console.error('Error deleting event:', error)
-      alert('Failed to delete event')
+      toast.error('Failed to delete event. Please try again.')
     }
   }
 
@@ -243,8 +244,8 @@ export default function CalendarPage() {
 
           {/* Page Title */}
           <div className="mb-6">
-            <h1 className="text-2xl font-bold text-white">Call Calendar</h1>
-            <p className="text-gray-400 mt-1">Schedule and manage your sales calls, consultations, and appointments</p>
+            <h1 className="text-2xl font-bold text-white">Calendar & Booking Links</h1>
+            <p className="text-gray-400 mt-1">View calendar events and manage your booking links for customers</p>
           </div>
 
       {/* Tabs */}

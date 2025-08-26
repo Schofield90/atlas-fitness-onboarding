@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import DashboardLayout from '@/app/components/DashboardLayout'
+import { isFeatureEnabled } from '@/app/lib/feature-flags'
+import ComingSoon from '@/app/components/ComingSoon'
+import { toast } from 'react-hot-toast'
 import { 
   PlusIcon,
   FacebookIcon,
@@ -92,9 +95,15 @@ export default function CampaignsPage() {
   }, [])
 
   const handleCreateCampaign = () => {
+    // Check if feature is enabled
+    if (!isFeatureEnabled('campaignsCreate')) {
+      toast.error('Campaign creation is coming soon!')
+      return
+    }
+    
     // Validate form
     if (!campaignForm.name) {
-      alert('Please enter a campaign name')
+      toast.error('Please enter a campaign name')
       return
     }
 
@@ -141,7 +150,7 @@ export default function CampaignsPage() {
     setActiveTab('overview')
     
     // Show success message
-    alert('Campaign created successfully!')
+    toast.success('Campaign created successfully!')
   }
 
   if (!mounted) {
@@ -330,10 +339,28 @@ export default function CampaignsPage() {
                   </td>
                   <td className="py-4 px-4">
                     <div className="flex gap-2">
-                      <button className="text-blue-400 hover:text-blue-300">
+                      <button 
+                        onClick={() => {
+                          if (!isFeatureEnabled('campaignsActions')) {
+                            toast.error('Campaign viewing coming soon!')
+                            return
+                          }
+                        }}
+                        className="text-blue-400 hover:text-blue-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={!isFeatureEnabled('campaignsActions')}
+                      >
                         <EyeIcon className="h-4 w-4" />
                       </button>
-                      <button className="text-gray-400 hover:text-white">
+                      <button 
+                        onClick={() => {
+                          if (!isFeatureEnabled('campaignsActions')) {
+                            toast.error('Campaign editing coming soon!')
+                            return
+                          }
+                        }}
+                        className="text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={!isFeatureEnabled('campaignsActions')}
+                      >
                         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
@@ -727,6 +754,13 @@ The Atlas Fitness Team"
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Marketing & Campaigns</h1>
           <p className="text-gray-400">Manage your Facebook, Instagram, and email marketing campaigns</p>
+          {!isFeatureEnabled('campaignsActions') && (
+            <ComingSoon 
+              variant="banner" 
+              feature="Marketing Campaigns"
+              description="This module is currently in development. You can view mock data but creation and editing features are coming soon."
+            />
+          )}
         </div>
 
         {/* Tab Navigation */}
