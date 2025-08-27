@@ -429,6 +429,9 @@ importers:
       node-polyfill-webpack-plugin:
         specifier: ^4.0.0
         version: 4.1.0(webpack@5.101.0(esbuild@0.25.8))
+      playwright:
+        specifier: ^1.55.0
+        version: 1.55.0
       postcss:
         specifier: ^8.4.49
         version: 8.5.6
