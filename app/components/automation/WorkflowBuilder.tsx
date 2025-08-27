@@ -86,18 +86,50 @@ const nodePalette: Record<string, NodePaletteItem[]> = {
     {
       type: 'trigger',
       category: 'triggers',
-      name: 'New Lead',
-      description: 'Triggers when a new lead is created',
+      name: 'Facebook Lead Form',
+      description: 'Triggers when a lead submits a Facebook lead form',
       icon: 'UserPlus',
-      actionType: 'new_lead',
+      actionType: 'facebook_lead_form',
     },
     {
       type: 'trigger',
       category: 'triggers',
-      name: 'Form Submitted',
-      description: 'Triggers when a form is submitted',
+      name: 'Website Opt-in Form',
+      description: 'Triggers when someone fills out a form on your website',
       icon: 'FileText',
-      actionType: 'form_submitted',
+      actionType: 'website_form',
+    },
+    {
+      type: 'trigger',
+      category: 'triggers',
+      name: 'Instagram Message',
+      description: 'Triggers when you receive a new Instagram DM',
+      icon: 'MessageCircle',
+      actionType: 'instagram_message',
+    },
+    {
+      type: 'trigger',
+      category: 'triggers',
+      name: 'Facebook Message',
+      description: 'Triggers when you receive a new Facebook Messenger message',
+      icon: 'MessageSquare',
+      actionType: 'facebook_message',
+    },
+    {
+      type: 'trigger',
+      category: 'triggers',
+      name: 'WhatsApp Message',
+      description: 'Triggers when you receive a new WhatsApp message',
+      icon: 'Phone',
+      actionType: 'whatsapp_message',
+    },
+    {
+      type: 'trigger',
+      category: 'triggers',
+      name: 'Manual Entry',
+      description: 'Triggers when a lead is manually added',
+      icon: 'UserPlus',
+      actionType: 'manual_lead',
     },
     {
       type: 'trigger',
@@ -427,22 +459,38 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
   // Node selection handler
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
     event.stopPropagation() // Prevent event from bubbling
+    event.preventDefault() // Prevent any default behavior
+    
+    // Don't select the node for deletion, just for configuration
     setSelectedNode(node.id)
+    
     // Open config panel on single click for better UX
     setConfigNode(node as WorkflowNode)
     setShowConfigPanel(true)
-  }, [])
+    
+    // Ensure the node isn't marked as selected for deletion
+    setNodes((nds) => 
+      nds.map((n) => ({
+        ...n,
+        selected: n.id === node.id ? false : n.selected
+      }))
+    )
+  }, [setNodes])
 
-  // Delete selected elements
+  // Delete selected elements (only when explicitly triggered)
   const deleteSelected = useCallback(() => {
+    // Only delete if Delete key is pressed or delete button clicked
+    // Don't delete on node click
     const selectedNodes = nodes.filter((node) => node.selected)
     const selectedEdges = edges.filter((edge) => edge.selected)
     
     if (selectedNodes.length > 0) {
+      console.log('Deleting selected nodes:', selectedNodes.map(n => n.id))
       setNodes((nds) => nds.filter((node) => !node.selected))
     }
     
     if (selectedEdges.length > 0) {
+      console.log('Deleting selected edges:', selectedEdges.map(e => e.id))
       setEdges((eds) => eds.filter((edge) => !edge.selected))
     }
   }, [nodes, edges, setNodes, setEdges])

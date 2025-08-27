@@ -6,6 +6,12 @@ import { Zap, Settings } from 'lucide-react'
 import type { CustomNodeProps } from '@/app/lib/types/automation'
 
 const TriggerNode = ({ data, selected }: CustomNodeProps) => {
+  const handleSettingsClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    // This will be handled by the parent component through node selection
+    // The settings button is just visual feedback
+  }
+
   return (
     <div className={`bg-gray-800 rounded-lg border-2 transition-all ${
       selected ? 'border-orange-500 shadow-lg shadow-orange-500/20' : 'border-orange-600'
@@ -16,7 +22,10 @@ const TriggerNode = ({ data, selected }: CustomNodeProps) => {
             <Zap className="h-4 w-4" />
             <span className="font-medium text-sm">Trigger</span>
           </div>
-          <button className="hover:bg-orange-700 p-1 rounded transition-colors">
+          <button 
+            className="hover:bg-orange-700 p-1 rounded transition-colors"
+            onClick={handleSettingsClick}
+          >
             <Settings className="h-3 w-3" />
           </button>
         </div>

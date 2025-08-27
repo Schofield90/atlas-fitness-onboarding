@@ -31,6 +31,7 @@ function FacebookIntegrationContent() {
   const [webhookStatus, setWebhookStatus] = useState<Record<string, boolean>>({})
   const [isSyncing, setIsSyncing] = useState(false)
   const [syncMessage, setSyncMessage] = useState('')
+  const [configLoaded, setConfigLoaded] = useState(false)
   
   useEffect(() => {
     const storedData = localStorage.getItem('gymleadhub_trial_data')
@@ -43,6 +44,106 @@ function FacebookIntegrationContent() {
   const [hasAttemptedSync, setHasAttemptedSync] = useState(false)
   
   const facebookConnection = useFacebookConnection()
+  
+  // Load saved configuration when connected
+  useEffect(() => {
+    const loadSavedConfig = async () => {
+      if (facebookConnection.connected && !configLoaded) {
+        try {
+          console.log('Loading saved Facebook configuration...')
+          
+          // Try to load from API first
+          const res = await fetch('/api/integrations/facebook/get-config')
+          
+          if (res.ok) {
+            const data = await res.json()
+            
+            if (data.config) {
+              console.log('Found saved configuration from database:', data.config)
+              setSelectedItems({
+                pages: data.config.selectedPages || [],
+                adAccounts: data.config.selectedAdAccounts || [],
+                leadForms: data.config.selectedForms || []
+              })
+              
+              // Set first selected page as the selectedPageId for leads
+              if (data.config.selectedPages?.length > 0) {
+                setSelectedPageId(data.config.selectedPages[0])
+              }
+            } else {
+              // Try localStorage as fallback
+              const localConfig = localStorage.getItem('facebook_saved_config')
+              if (localConfig) {
+                try {
+                  const parsedConfig = JSON.parse(localConfig)
+                  console.log('Found saved configuration from localStorage:', parsedConfig)
+                  setSelectedItems({
+                    pages: parsedConfig.selectedPages || [],
+                    adAccounts: parsedConfig.selectedAdAccounts || [],
+                    leadForms: parsedConfig.selectedForms || []
+                  })
+                  
+                  if (parsedConfig.selectedPages?.length > 0) {
+                    setSelectedPageId(parsedConfig.selectedPages[0])
+                  }
+                } catch (e) {
+                  console.error('Failed to parse localStorage config:', e)
+                }
+              } else {
+                console.log('No saved configuration found')
+              }
+            }
+          } else {
+            console.error('Failed to load configuration from API, trying localStorage')
+            // Try localStorage as fallback
+            const localConfig = localStorage.getItem('facebook_saved_config')
+            if (localConfig) {
+              try {
+                const parsedConfig = JSON.parse(localConfig)
+                console.log('Found saved configuration from localStorage:', parsedConfig)
+                setSelectedItems({
+                  pages: parsedConfig.selectedPages || [],
+                  adAccounts: parsedConfig.selectedAdAccounts || [],
+                  leadForms: parsedConfig.selectedForms || []
+                })
+                
+                if (parsedConfig.selectedPages?.length > 0) {
+                  setSelectedPageId(parsedConfig.selectedPages[0])
+                }
+              } catch (e) {
+                console.error('Failed to parse localStorage config:', e)
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error loading saved configuration:', error)
+          
+          // Try localStorage as last resort
+          const localConfig = localStorage.getItem('facebook_saved_config')
+          if (localConfig) {
+            try {
+              const parsedConfig = JSON.parse(localConfig)
+              setSelectedItems({
+                pages: parsedConfig.selectedPages || [],
+                adAccounts: parsedConfig.selectedAdAccounts || [],
+                leadForms: parsedConfig.selectedForms || []
+              })
+              
+              if (parsedConfig.selectedPages?.length > 0) {
+                setSelectedPageId(parsedConfig.selectedPages[0])
+              }
+            } catch (e) {
+              console.error('Failed to parse localStorage config:', e)
+            }
+          }
+        } finally {
+          setConfigLoaded(true)
+        }
+      }
+    }
+    
+    loadSavedConfig()
+  }, [facebookConnection.connected, configLoaded])
   
   // Handle connection state - NO AUTOMATIC REDIRECTS
   useEffect(() => {
@@ -270,6 +371,20 @@ function FacebookIntegrationContent() {
             {(pagesError || (pages.length === 0 && !pagesLoading)) && (
               <div className="mb-6">
                 <FacebookDiagnosticPanel />
+              </div>
+            )}
+
+            {/* Saved Configuration Notice */}
+            {configLoaded && (selectedItems.pages.length > 0 || selectedItems.adAccounts.length > 0) && (
+              <div className="bg-blue-900/20 border border-blue-600 rounded-lg p-4 mb-6">
+                <div className="flex items-center">
+                  <svg className="w-5 h-5 text-blue-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-blue-300 text-sm">
+                    Loaded your saved configuration: {selectedItems.pages.length} page(s), {selectedItems.adAccounts.length} ad account(s), {selectedItems.leadForms.length} form(s)
+                  </p>
+                </div>
               </div>
             )}
 
@@ -1244,14 +1359,19 @@ function FacebookIntegrationContent() {
                         setError('')
                         
                         try {
+                          const configToSave = {
+                            selectedPages: selectedItems.pages,
+                            selectedAdAccounts: selectedItems.adAccounts,
+                            selectedForms: selectedItems.leadForms
+                          }
+                          
+                          // Save to localStorage as backup
+                          localStorage.setItem('facebook_saved_config', JSON.stringify(configToSave))
+                          
                           const res = await fetch('/api/integrations/facebook/save-config', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              selectedPages: selectedItems.pages,
-                              selectedAdAccounts: selectedItems.adAccounts,
-                              selectedForms: selectedItems.leadForms
-                            })
+                            body: JSON.stringify(configToSave)
                           })
                           
                           if (res.ok) {
@@ -1339,7 +1459,8 @@ function FacebookIntegrationContent() {
                             }
                           }
                           
-                          alert('Leads synced successfully! Check the Leads page to view them.')
+                          alert('Leads synced successfully! Check the Contacts page to view them.')
+                          router.push('/contacts')
                           
                         } catch (err) {
                           console.error('Sync error:', err)
