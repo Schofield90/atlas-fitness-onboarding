@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import DashboardLayout from '@/app/components/DashboardLayout'
 import { isFeatureEnabled } from '@/app/lib/feature-flags'
 import ComingSoon from '@/app/components/ComingSoon'
-import { toast } from 'react-hot-toast'
+import { useToast } from '@/app/lib/hooks/useToast'
 import { 
   PlusIcon,
   FacebookIcon,
@@ -94,6 +94,8 @@ export default function CampaignsPage() {
     setMounted(true)
   }, [])
 
+  const toast = useToast()
+  
   const handleCreateCampaign = () => {
     // Check if feature is enabled
     if (!isFeatureEnabled('campaignsCreate')) {
