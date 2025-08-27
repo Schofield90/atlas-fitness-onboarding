@@ -3,6 +3,7 @@
 import DashboardLayout from '../components/DashboardLayout'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 
 interface Form {
   id: string
@@ -24,6 +25,12 @@ export default function FormsDocumentsPage() {
   const [generatedForm, setGeneratedForm] = useState<any>(null)
   const [showFormPreview, setShowFormPreview] = useState(false)
   const [editingForm, setEditingForm] = useState(false)
+  const [expandedCategories, setExpandedCategories] = useState<{ [key: string]: boolean }>({
+    waivers: false,
+    contracts: false,
+    health: false,
+    policies: false
+  })
   const supabase = createClient()
   
   useEffect(() => {
@@ -313,35 +320,100 @@ export default function FormsDocumentsPage() {
             <p className="text-gray-400 mb-6">Manage legal documents, waivers, and contracts for existing members</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-gray-800 rounded-lg p-6 text-center hover:bg-gray-750 transition-colors cursor-pointer">
+            <div 
+              onClick={() => setExpandedCategories(prev => ({ ...prev, waivers: !prev.waivers }))}
+              className="bg-gray-800 rounded-lg p-6 text-center hover:bg-gray-750 transition-colors cursor-pointer">
               <svg className="w-12 h-12 mx-auto mb-3 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               <h3 className="font-semibold mb-1">Waivers</h3>
               <p className="text-sm text-gray-400">{getFormCountByType('waiver')} forms</p>
+              <div className="mt-2 flex justify-center">
+                {expandedCategories.waivers ? <ChevronUp className="h-4 w-4 text-gray-500" /> : <ChevronDown className="h-4 w-4 text-gray-500" />}
+              </div>
             </div>
-            <div className="bg-gray-800 rounded-lg p-6 text-center hover:bg-gray-750 transition-colors cursor-pointer">
+            <div 
+              onClick={() => setExpandedCategories(prev => ({ ...prev, contracts: !prev.contracts }))}
+              className="bg-gray-800 rounded-lg p-6 text-center hover:bg-gray-750 transition-colors cursor-pointer">
               <svg className="w-12 h-12 mx-auto mb-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
               </svg>
               <h3 className="font-semibold mb-1">Contracts</h3>
               <p className="text-sm text-gray-400">{getFormCountByType('contract')} forms</p>
+              <div className="mt-2 flex justify-center">
+                {expandedCategories.contracts ? <ChevronUp className="h-4 w-4 text-gray-500" /> : <ChevronDown className="h-4 w-4 text-gray-500" />}
+              </div>
             </div>
-            <div className="bg-gray-800 rounded-lg p-6 text-center hover:bg-gray-750 transition-colors cursor-pointer">
+            <div 
+              onClick={() => setExpandedCategories(prev => ({ ...prev, health: !prev.health }))}
+              className="bg-gray-800 rounded-lg p-6 text-center hover:bg-gray-750 transition-colors cursor-pointer">
               <svg className="w-12 h-12 mx-auto mb-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
               <h3 className="font-semibold mb-1">Health Forms</h3>
               <p className="text-sm text-gray-400">{getFormCountByType('health')} forms</p>
+              <div className="mt-2 flex justify-center">
+                {expandedCategories.health ? <ChevronUp className="h-4 w-4 text-gray-500" /> : <ChevronDown className="h-4 w-4 text-gray-500" />}
+              </div>
             </div>
-            <div className="bg-gray-800 rounded-lg p-6 text-center hover:bg-gray-750 transition-colors cursor-pointer">
+            <div 
+              onClick={() => setExpandedCategories(prev => ({ ...prev, policies: !prev.policies }))}
+              className="bg-gray-800 rounded-lg p-6 text-center hover:bg-gray-750 transition-colors cursor-pointer">
               <svg className="w-12 h-12 mx-auto mb-3 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
               </svg>
               <h3 className="font-semibold mb-1">Policies</h3>
               <p className="text-sm text-gray-400">{getFormCountByType('policy')} forms</p>
+              <div className="mt-2 flex justify-center">
+                {expandedCategories.policies ? <ChevronUp className="h-4 w-4 text-gray-500" /> : <ChevronDown className="h-4 w-4 text-gray-500" />}
+              </div>
             </div>
           </div>
+
+          {/* Expanded Category Content */}
+          {Object.entries(expandedCategories).map(([category, isExpanded]) => 
+            isExpanded && (
+              <div key={category} className="mb-8 bg-gray-800 rounded-lg p-6">
+                <h3 className="text-lg font-semibold mb-4 capitalize">{category} Documents</h3>
+                <div className="grid gap-4">
+                  {forms.filter(f => f.type === category.slice(0, -1)).length > 0 ? (
+                    forms.filter(f => f.type === category.slice(0, -1)).map(form => (
+                      <div key={form.id} className="flex justify-between items-center p-3 bg-gray-700 rounded-lg">
+                        <div>
+                          <h4 className="font-medium">{form.title}</h4>
+                          <p className="text-sm text-gray-400">{form.description}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => viewForm(form)}
+                            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+                          >
+                            View
+                          </button>
+                          <button 
+                            onClick={() => editForm(form)}
+                            className="px-3 py-1 bg-gray-600 hover:bg-gray-700 rounded text-sm"
+                          >
+                            Edit
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-gray-400">
+                      <p>No {category.toLowerCase()} forms created yet</p>
+                      <button 
+                        onClick={() => setShowFormBuilder(true)}
+                        className="mt-4 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-white"
+                      >
+                        Create {category.slice(0, -1)} Form with AI
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          )}
 
           {/* Recent Forms & Documents */}
           <div className="bg-gray-800 rounded-lg p-6">

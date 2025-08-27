@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.2] - 2025-08-27
+
+### Security
+- **[CRITICAL]** Fixed multi-tenancy security issue - removed hard-coded organization ID from leads import, now uses dynamic user context
+
+### Fixed
+- **[HIGH]** Fixed Billing page error handling - added friendly loading states and retry functionality instead of raw error messages
+- **[HIGH]** Fixed Staff Management error display - replaced technical errors with user-friendly messages
+- **[HIGH]** Fixed Conversations page - added "New Conversation" button that switches to enhanced chat interface
+- **[HIGH]** Fixed Forms page category expansion - all category cards now expandable with chevron indicators
+- **[MEDIUM]** Enhanced lead export with toast notifications for success/failure feedback
+- **[MEDIUM]** Fixed Call Bookings routing - "Create Booking Link" and "Manage Links" now navigate to correct pages
+- **[MEDIUM]** Added proper Suspense boundaries and error states across all async components
+- **[LOW]** Added feature flag for Surveys analytics tab when functionality not available
+
+### Added
+- Comprehensive test suite with 67 tests (50 unit + 17 E2E) covering all fixes
+- User-friendly error states with retry options across all modules
+- Toast notifications for user feedback on async operations
+- Expandable category sections in Forms page with smooth animations
+
+### Changed
+- Lead import now properly uses authenticated user's organization context
+- Booking page navigation simplified to use direct routing instead of modal parameters
+- All error messages standardized to be user-friendly and actionable
+
+## [1.3.1] - 2025-08-27
+
+### Fixed
+- **[HIGH]** Fixed Contacts page export functionality - now downloads CSV with complete lead data including contact information, sources, and metadata
+- **[HIGH]** Fixed Booking Links navigation routing - corrected links from incorrect `/calendar?tab=booking-links` to proper `/booking-links` page
+- **[HIGH]** Fixed Campaigns page view/edit button functionality - removed feature flag restrictions allowing full campaign management
+- **[HIGH]** Fixed Survey page edit/delete button functionality - removed feature flag restrictions enabling complete survey operations
+- **[MEDIUM]** Fixed Forms page button responsiveness - improved mobile layout with responsive flex classes for better cross-device experience
+- **[MEDIUM]** Fixed Facebook integration settings persistence - enhanced configuration storage and retrieval
+- **[MEDIUM]** Fixed Facebook leads sync routing - now properly routes synced leads to contacts page
+- **[MEDIUM]** Fixed automation builder node click behavior - single clicks open configuration panel instead of deleting nodes
+- **[LOW]** Added hover states and improved visual feedback to action buttons across all pages
+- **[LOW]** Fixed SSR issues in surveys and campaigns pages with react-hot-toast implementation
+
+### Added
+- Enhanced Facebook integration configuration API with `/api/integrations/facebook/get-config/` endpoint
+- Specific lead source triggers in automation builder for better workflow targeting
+- Improved error handling and user feedback for Facebook lead synchronization
+- Database migration for Facebook sync configuration storage (`20250827_add_sync_config_to_facebook.sql`)
+- Responsive design improvements for mobile and tablet interfaces
+
+### Changed
+- Export functionality in Contacts page now provides comprehensive CSV data export
+- Campaign and Survey management interfaces now fully functional without feature flag limitations
+- Forms page layout optimized for better mobile experience with responsive button arrangements
+- Automation builder UX improved with clearer node interaction patterns
+
+### Performance
+- Enhanced Facebook integration API response times through better caching
+- Improved page load performance by resolving SSR hydration issues
+- Optimized button rendering and hover states for better user experience
+
+### Security
+- Maintained proper organization isolation in all fixed endpoints
+- Enhanced Facebook integration security with improved token validation
+- Preserved authentication requirements while fixing functionality issues
+
 ## [1.3.0] - 2025-08-26
 
 ### Fixed
@@ -130,7 +193,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Redis caching layer for performance optimization
 - British localization (£, DD/MM/YYYY, Europe/London timezone)
 
-[Unreleased]: https://github.com/Schofield90/atlas-fitness-onboarding/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/Schofield90/atlas-fitness-onboarding/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/Schofield90/atlas-fitness-onboarding/compare/v1.3.0...v1.3.1
+[1.3.0]: https://github.com/Schofield90/atlas-fitness-onboarding/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/Schofield90/atlas-fitness-onboarding/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Schofield90/atlas-fitness-onboarding/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Schofield90/atlas-fitness-onboarding/releases/tag/v1.0.0

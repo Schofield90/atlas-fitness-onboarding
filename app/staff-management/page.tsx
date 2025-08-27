@@ -56,7 +56,17 @@ export default function StaffManagementPage() {
       
     } catch (err: any) {
       console.error('Error fetching staff:', err)
-      setError(err.message || 'Failed to fetch staff')
+      setError('Unable to load staff data. Please try refreshing the page.')
+      
+      // Show toast notification
+      const toast = document.createElement('div')
+      toast.className = 'fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg bg-red-600 text-white'
+      toast.textContent = 'Staff data temporarily unavailable'
+      document.body.appendChild(toast)
+      setTimeout(() => {
+        toast.style.opacity = '0'
+        setTimeout(() => toast.remove(), 300)
+      }, 3000)
     } finally {
       setLoading(false)
     }

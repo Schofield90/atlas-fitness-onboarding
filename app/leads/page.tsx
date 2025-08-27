@@ -6,6 +6,7 @@ import { LeadsTable } from '@/app/components/leads/LeadsTable'
 import { AddLeadModal } from '@/app/components/leads/AddLeadModal'
 import BulkImportModal from '@/app/components/leads/BulkImportModal'
 import DashboardLayout from '@/app/components/DashboardLayout'
+import { createClient } from '@/app/lib/supabase/client'
 
 export default function LeadsPage() {
   const [activeTab, setActiveTab] = useState('all')
@@ -14,24 +15,63 @@ export default function LeadsPage() {
   const [showImportModal, setShowImportModal] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const [exporting, setExporting] = useState(false)
+  const [organizationId, setOrganizationId] = useState<string | null>(null)
+  const supabase = createClient()
 
   useEffect(() => {
     const storedData = localStorage.getItem('gymleadhub_trial_data')
     if (storedData) {
       setUserData(JSON.parse(storedData))
     }
+    fetchOrganization()
   }, [])
+
+  const fetchOrganization = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: userOrg } = await supabase
+        .from('user_organizations')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single()
+
+      if (userOrg) {
+        setOrganizationId(userOrg.organization_id)
+      }
+    } catch (error) {
+      console.error('Error fetching organization:', error)
+    }
+  }
 
   const handleExport = async () => {
     setExporting(true)
+    
+    // Create a simple toast notification function
+    const showToast = (message: string, type: 'success' | 'error' | 'info') => {
+      const toast = document.createElement('div')
+      toast.className = `fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg transition-all duration-300 ${
+        type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-blue-600'
+      } text-white`
+      toast.textContent = message
+      document.body.appendChild(toast)
+      setTimeout(() => {
+        toast.style.opacity = '0'
+        setTimeout(() => toast.remove(), 300)
+      }, 3000)
+    }
+    
     try {
+      showToast('Preparing export...', 'info')
+      
       // Fetch all leads data
       const response = await fetch('/api/leads')
       const data = await response.json()
       const leads = data.leads || []
 
       if (leads.length === 0) {
-        alert('No leads to export')
+        showToast('No leads to export', 'info')
         return
       }
 
@@ -79,9 +119,11 @@ export default function LeadsPage() {
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
+      
+      showToast('Export completed successfully', 'success')
     } catch (error) {
       console.error('Error exporting leads:', error)
-      alert('Failed to export leads. Please try again.')
+      showToast('Export failed. Please try again.', 'error')
     } finally {
       setExporting(false)
     }
@@ -180,15 +222,17 @@ export default function LeadsPage() {
         />
 
         {/* Bulk Import Modal */}
-        <BulkImportModal
-          open={showImportModal}
-          onClose={() => setShowImportModal(false)}
-          onImportComplete={() => {
-            setRefreshKey(prev => prev + 1)
-            setShowImportModal(false)
-          }}
-          organizationId="63589490-8f55-4157-bd3a-e141594b748e"
-        />
+        {organizationId && (
+          <BulkImportModal
+            open={showImportModal}
+            onClose={() => setShowImportModal(false)}
+            onImportComplete={() => {
+              setRefreshKey(prev => prev + 1)
+              setShowImportModal(false)
+            }}
+            organizationId={organizationId}
+          />
+        )}
       </div>
     </DashboardLayout>
   )

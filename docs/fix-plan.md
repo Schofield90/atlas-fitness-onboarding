@@ -1,425 +1,499 @@
-# Atlas Fitness CRM - Surgical Fix Plan
+# Atlas Fitness CRM - Non-Automation Module Fix Plan
 
 ## Executive Summary
-This plan addresses 7 critical issues with minimal, surgical patches grouped into 5 PRs.
-Each PR is independently deployable with rollback capability.
+
+This document outlines targeted, minimal fixes for identified issues across non-automation modules based on the comprehensive module inventory. Each fix is designed to be a surgical patch that resolves the specific problem without requiring extensive refactoring.
+
+## Priority Classification
+
+- **P0 (Critical)**: Breaking multi-tenancy, security issues, or complete feature failure
+- **P1 (High)**: User-facing errors, broken core functionality  
+- **P2 (Medium)**: Poor UX, incomplete features that work partially
+- **P3 (Low)**: Nice-to-have improvements, cosmetic issues
 
 ---
 
-## PR-1: Critical Production Fixes (URGENT)
-**Risk**: High | **Impact**: Production Breaking | **Time**: 2 hours
+## P0 - Critical Security & Breaking Issues
 
-### 1.1 Fix Public Booking 404
-- [ ] **File**: Create `/app/book/public/[organizationId]/page.tsx`
-  - Copy from `/app/(authenticated)/book/public/[organizationId]/page.tsx`
-  - Remove auth wrapper, keep public access
-- [ ] **Test**: Manual booking flow for org `63589490-8f55-4157-bd3a-e141594b748e`
-- [ ] **Jam**: Record successful booking through public URL
-- [ ] **Rollback**: Delete file, revert to 404
+### 1. Hard-coded Organization ID (Leads Module)
+**Location**: `/app/leads/page.tsx:190`
+**Issue**: Organization ID is hard-coded as `63589490-8f55-4157-bd3a-e141594b748e`, breaking multi-tenancy
+**Root Cause**: Developer testing shortcut left in production code
 
-### 1.2 Fix Staff API 500 Error
-- [ ] **File**: `/app/api/staff/route.ts`
-  ```typescript
-  // Line 45-50: Fix join syntax
-  - .leftJoin('timesheets', 'timesheets.staff_id', '=', 'staff.id')
-  + .leftJoin('timesheets', 'staff.id', 'timesheets.staff_id')
-  ```
-- [ ] **Test**: `curl -X GET /api/staff` with auth headers
-- [ ] **Jam**: Record staff list loading
-- [ ] **Rollback**: Revert join syntax
+**Minimal Fix**:
+```typescript
+// Replace line 190:
+// organizationId="63589490-8f55-4157-bd3a-e141594b748e"
 
-**Verification**: 
-```bash
-# Test endpoints
-curl https://atlas-fitness-onboarding.vercel.app/api/public-api/booking-data/63589490-8f55-4157-bd3a-e141594b748e
-curl -H "Authorization: Bearer $TOKEN" https://atlas-fitness-onboarding.vercel.app/api/staff
+// With:
+organizationId={organizationId}
 ```
 
----
+**Additional Context Required** (lines 40-65):
+```typescript
+// Add after line 39:
+const [organizationId, setOrganizationId] = useState<string | null>(null)
 
-## PR-2: Automation Builder Consolidation
-**Risk**: Medium | **Impact**: Data Loss Prevention | **Time**: 3 hours
+// Add in useEffect after line 51:
+const { data: userOrg } = await supabase
+  .from('user_organizations')
+  .select('organization_id')
+  .eq('user_id', user.id)
+  .single()
 
-### 2.1 Create Canonical Automation Builder
-- [ ] **File**: `/app/components/automation/AutomationBuilder.tsx`
-  - Use version from `/app/(authenticated)/dashboard/automations/builder/page.tsx`
-  - Add state persistence to localStorage
-  - Add auto-save every 30 seconds
-  
-### 2.2 Replace All Duplicates with Redirect
-- [ ] **Files to Update** (7 total):
-  ```
-  /app/(authenticated)/automations/builder/page.tsx
-  /app/(authenticated)/dashboard/automations/[id]/page.tsx
-  /app/(authenticated)/dashboard/automations/new/page.tsx
-  /app/(authenticated)/dashboard/builder/page.tsx
-  /app/(authenticated)/settings/automations/builder/page.tsx
-  /app/automations/builder/page.tsx
-  /builder/page.tsx
-  ```
-  - Replace content with:
-  ```typescript
-  import { redirect } from 'next/navigation'
-  export default function Page() {
-    redirect('/dashboard/automations/builder')
-  }
-  ```
+if (userOrg) {
+  setOrganizationId(userOrg.organization_id)
+}
+```
 
-### 2.3 Add State Recovery
-- [ ] **File**: `/app/lib/services/automation-recovery.ts`
-  ```typescript
-  export const saveAutomationState = (state: any) => {
-    localStorage.setItem('automation_draft', JSON.stringify({
-      ...state,
-      timestamp: Date.now()
-    }))
-  }
-  
-  export const recoverAutomationState = () => {
-    const saved = localStorage.getItem('automation_draft')
-    if (saved) {
-      const { timestamp, ...state } = JSON.parse(saved)
-      // Only recover if less than 24 hours old
-      if (Date.now() - timestamp < 86400000) {
-        return state
-      }
-    }
-    return null
-  }
-  ```
-
-- [ ] **Test**: Create automation, force close browser, recover on return
-- [ ] **Jam**: Record state recovery after browser crash
-- [ ] **Rollback**: Remove redirects, restore individual files
+**Test**: Verify leads import works for different organizations
+**Effort**: 5 minutes
 
 ---
 
-## PR-3: Add Missing UI Elements
-**Risk**: Low | **Impact**: UX Improvement | **Time**: 1 hour
+## P1 - High Priority Fixes
 
-### 3.1 Add "New Conversation" Button
-- [ ] **File**: `/app/(authenticated)/dashboard/conversations/page.tsx`
-  ```typescript
-  // Line 180 (after search bar)
-  + <Button
-  +   onClick={() => setShowNewConversationModal(true)}
-  +   className="bg-blue-600 hover:bg-blue-700"
-  + >
-  +   <Plus className="w-4 h-4 mr-2" />
-  +   New Conversation
-  + </Button>
-  ```
+### 2. Suspense Boundary Issues (Billing & Booking)
 
-### 3.2 Add New Conversation Modal
-- [ ] **File**: `/app/components/conversations/NewConversationModal.tsx`
-  ```typescript
-  export function NewConversationModal({ 
-    isOpen, 
-    onClose, 
-    onSuccess 
-  }: Props) {
-    // Minimal modal with:
-    // - Contact selector
-    // - Channel selector (SMS/WhatsApp)
-    // - Initial message input
-    // - Send button
-  }
-  ```
+#### 2a. Billing Page SSR Issue
+**Location**: `/app/billing/page.tsx`
+**Issue**: useSearchParams without Suspense boundary causes SSR/hydration errors
 
-- [ ] **Test**: Click button, create conversation, verify in list
-- [ ] **Jam**: Record new conversation creation flow
-- [ ] **Rollback**: Remove button and modal
+**Minimal Fix**:
+```typescript
+// At top of file add:
+import { Suspense } from 'react'
 
----
+// Wrap entire component export at bottom of file:
+export default function BillingPage() {
+  return (
+    <Suspense fallback={
+      <DashboardLayout userData={null}>
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-700 rounded w-48 mb-4"></div>
+        </div>
+      </DashboardLayout>
+    }>
+      <BillingContent />
+    </Suspense>
+  )
+}
+```
 
-## PR-4: Feature Flags for Incomplete Features
-**Risk**: Low | **Impact**: Hide Broken Features | **Time**: 2 hours
+**Test**: Page loads without hydration errors
+**Effort**: 5 minutes
 
-### 4.1 Create Feature Flag System
-- [ ] **File**: `/app/lib/feature-flags.ts`
-  ```typescript
-  export const FEATURE_FLAGS = {
-    MARKETING_CAMPAIGNS: process.env.NEXT_PUBLIC_FF_MARKETING === 'true',
-    SURVEY_BUILDER: process.env.NEXT_PUBLIC_FF_SURVEYS === 'true',
-    AI_FORM_BUILDER: process.env.NEXT_PUBLIC_FF_AI_FORMS === 'true',
-    ADVANCED_ANALYTICS: false, // Always off until ready
-  }
-  
-  export const isFeatureEnabled = (feature: keyof typeof FEATURE_FLAGS) => {
-    return FEATURE_FLAGS[feature] || false
-  }
-  ```
+#### 2b. Booking Page Check
+Apply same Suspense wrapper pattern if useSearchParams is used without Suspense.
 
-### 4.2 Hide Marketing Campaigns
-- [ ] **File**: `/app/(authenticated)/dashboard/marketing/campaigns/page.tsx`
-  ```typescript
-  // Line 1
-  + import { isFeatureEnabled } from '@/app/lib/feature-flags'
-  + import { redirect } from 'next/navigation'
-  
-  // Line 10
-  + if (!isFeatureEnabled('MARKETING_CAMPAIGNS')) {
-  +   redirect('/dashboard/marketing')
-  + }
-  ```
+### 3. Missing Error Boundaries Across All Pages
 
-### 4.3 Hide Survey Builder
-- [ ] **File**: `/app/(authenticated)/dashboard/surveys/page.tsx`
-  ```typescript
-  // Similar pattern as above
-  + if (!isFeatureEnabled('SURVEY_BUILDER')) {
-  +   return <ComingSoonBanner feature="Survey Builder" />
-  + }
-  ```
+**Global Solution**: Create a wrapper HOC that can be applied to all pages
 
-### 4.4 Add Toggle for AI Forms
-- [ ] **File**: `/app/(authenticated)/dashboard/forms/builder/page.tsx`
-  ```typescript
-  // Wrap AI generation in feature flag
-  + {isFeatureEnabled('AI_FORM_BUILDER') && (
-      <Button onClick={generateWithAI}>Generate with AI</Button>
-  + )}
-  ```
+**New File**: `/app/lib/utils/withErrorBoundary.tsx`
+```typescript
+'use client'
 
-### 4.5 Update Navigation
-- [ ] **File**: `/app/components/navigation/Sidebar.tsx`
-  ```typescript
-  // Filter menu items based on feature flags
-  const menuItems = getMenuItems().filter(item => {
-    if (item.href === '/dashboard/marketing/campaigns') {
-      return isFeatureEnabled('MARKETING_CAMPAIGNS')
-    }
-    if (item.href === '/dashboard/surveys') {
-      return isFeatureEnabled('SURVEY_BUILDER')
-    }
-    return true
-  })
-  ```
+import { ErrorBoundary } from '@/app/components/ErrorBoundary'
 
-- [ ] **Test**: Verify features hidden when flags off
-- [ ] **Jam**: Record navigation with features disabled
-- [ ] **Rollback**: Remove feature flag checks
-
----
-
-## PR-5: Error Handling Standardization
-**Risk**: Low | **Impact**: Better Debugging | **Time**: 2 hours
-
-### 5.1 Create Error Boundary Component
-- [ ] **File**: `/app/components/ErrorBoundary.tsx`
-  ```typescript
-  export class ErrorBoundary extends Component {
-    state = { hasError: false, error: null }
-    
-    static getDerivedStateFromError(error: Error) {
-      return { hasError: true, error }
-    }
-    
-    componentDidCatch(error: Error, info: ErrorInfo) {
-      console.error('Error boundary caught:', error, info)
-      // Send to monitoring service
-    }
-    
-    render() {
-      if (this.state.hasError) {
-        return <ErrorFallback error={this.state.error} />
-      }
-      return this.props.children
-    }
-  }
-  ```
-
-### 5.2 Wrap High-Risk Components
-- [ ] **Files to Update**:
-  - `/app/(authenticated)/dashboard/automations/builder/page.tsx`
-  - `/app/(authenticated)/dashboard/forms/builder/page.tsx`
-  - `/app/(authenticated)/dashboard/conversations/page.tsx`
-  
-  ```typescript
-  // Wrap component in ErrorBoundary
-  + <ErrorBoundary>
-      <ExistingComponent />
-  + </ErrorBoundary>
-  ```
-
-### 5.3 Add API Error Handler
-- [ ] **File**: `/app/lib/api/error-handler.ts`
-  ```typescript
-  export function handleApiError(error: unknown): Response {
-    console.error('API Error:', error)
-    
-    if (error instanceof Error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 500 }
-      )
-    }
-    
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+export function withErrorBoundary<P extends object>(
+  Component: React.ComponentType<P>,
+  componentName: string
+) {
+  return function WrappedComponent(props: P) {
+    return (
+      <ErrorBoundary componentName={componentName}>
+        <Component {...props} />
+      </ErrorBoundary>
     )
   }
-  ```
+}
+```
 
-- [ ] **Test**: Trigger errors, verify graceful handling
-- [ ] **Jam**: Record error recovery flows
-- [ ] **Rollback**: Remove error boundaries
+**Application** (for each page component):
+```typescript
+// At bottom of each page file, wrap export:
+import { withErrorBoundary } from '@/app/lib/utils/withErrorBoundary'
+
+// Change from:
+export default PageComponent
+
+// To:
+export default withErrorBoundary(PageComponent, 'PageName')
+```
+
+**Pages to Apply To**:
+- /app/leads/page.tsx
+- /app/billing/page.tsx
+- /app/booking/page.tsx
+- /app/conversations/page.tsx
+- /app/staff-management/page.tsx
+- /app/campaigns/page.tsx
+- /app/surveys/page.tsx
+- /app/forms/page.tsx
+
+**Test**: Throw test error in component, verify error boundary catches it
+**Effort**: 15 minutes total
 
 ---
 
-## Testing Strategy
+## P2 - Medium Priority Fixes
 
-### Unit Tests Required
+### 4. Conversations - Missing "New Conversation" Button
+
+**Location**: `/app/conversations/page.tsx`
+**Issue**: No way to start new conversation in the UI
+
+**Minimal Fix** (Add button in fallback UI):
 ```typescript
-// /app/__tests__/booking-public.test.ts
-describe('Public Booking', () => {
-  it('loads without auth')
-  it('fetches organization data')
-  it('creates booking without login')
-})
+// Add imports at top:
+import Button from '@/app/components/ui/Button'
+import toast from '@/app/lib/toast'
 
-// /app/__tests__/staff-api.test.ts
-describe('Staff API', () => {
-  it('returns staff list with timesheets')
-  it('handles missing timesheets gracefully')
-})
+// Add after line 40 in fallback implementation:
+const handleNewConversation = () => {
+  toast.info('Select a contact from the leads page to start a conversation')
+  // Future: open modal to select contact
+}
 
-// /app/__tests__/automation-state.test.ts
-describe('Automation State', () => {
-  it('saves draft to localStorage')
-  it('recovers draft after reload')
-  it('expires old drafts')
-})
+// Add button in UI header (find the header section and add):
+<div className="flex justify-between items-center mb-6">
+  <h1 className="text-2xl font-bold">Conversations</h1>
+  <Button onClick={handleNewConversation}>
+    <MessageSquare className="w-4 h-4 mr-2" />
+    New Conversation
+  </Button>
+</div>
 ```
 
-### Integration Tests
-```bash
-# Create test script
-npm run test:integration
+**Test**: Button appears and shows info message
+**Effort**: 10 minutes
 
-# Tests:
-# 1. Public booking end-to-end
-# 2. Staff API with database
-# 3. Automation builder state persistence
-# 4. Feature flag toggling
+### 5. Staff Management - API Error Display
+
+**Location**: `/app/staff-management/page.tsx:59`
+**Issue**: Raw error objects shown to user
+
+**Minimal Fix**:
+```typescript
+// Add import at top:
+import toast from '@/app/lib/toast'
+
+// Replace line 59:
+// setError(err.message || 'Failed to fetch staff')
+
+// With user-friendly handling:
+console.error('Error fetching staff:', err)
+setError('Unable to load staff data. Please try refreshing the page.')
+toast.error('Staff data temporarily unavailable')
+```
+
+**Test**: Trigger API error (disconnect network), verify friendly message
+**Effort**: 5 minutes
+
+### 6. Call Bookings - Incorrect Modal/Routing
+
+**Location**: `/app/booking/page.tsx`
+**Issue**: "Create Booking Link" and "Manage Links" buttons may have incorrect routing
+
+**Minimal Fix**:
+```typescript
+// Find buttons for booking links and ensure they route correctly:
+// For "Create Booking Link" button:
+<Button onClick={() => router.push('/booking-links/create')}>
+  Create Booking Link
+</Button>
+
+// For "Manage Booking Links":
+<Button onClick={() => router.push('/booking-links')}>
+  Manage Links
+</Button>
+```
+
+**Test**: Buttons navigate to correct pages
+**Effort**: 10 minutes
+
+### 7. Lead Export - Missing User Feedback
+
+**Location**: `/app/components/leads/LeadsTable.tsx` (referenced from /app/leads/page.tsx)
+**Issue**: CSV export has no user feedback on success/failure
+
+**Minimal Fix** (in handleExport function):
+```typescript
+// Add import:
+import toast from '@/app/lib/toast'
+
+// Wrap export logic:
+const handleExport = async () => {
+  try {
+    toast.info('Preparing export...')
+    
+    // existing export logic here
+    
+    toast.success('Export completed successfully')
+  } catch (error) {
+    console.error('Export error:', error)
+    toast.error('Export failed. Please try again.')
+  }
+}
+```
+
+**Test**: Export shows progress and completion messages
+**Effort**: 5 minutes
+
+---
+
+## P3 - Low Priority (Feature Flag Protection)
+
+### 8. Marketing/Campaigns - Non-functional View/Edit Icons
+
+**Location**: `/app/campaigns/page.tsx`
+**Issue**: View/Edit buttons don't have handlers
+
+**Minimal Fix with Feature Flags**:
+```typescript
+// Already imports isFeatureEnabled
+
+// Find view/edit buttons (around lines 200-250) and update:
+{isFeatureEnabled('campaignsActions') ? (
+  <button onClick={() => handleViewCampaign(campaign.id)}>
+    <EyeIcon className="w-4 h-4" />
+  </button>
+) : (
+  <button 
+    disabled 
+    className="opacity-50 cursor-not-allowed" 
+    title="Coming soon"
+  >
+    <EyeIcon className="w-4 h-4" />
+  </button>
+)}
+```
+
+**Test**: Buttons show disabled state when feature flag is off
+**Effort**: 10 minutes
+
+### 9. Surveys - Empty Analytics Tab
+
+**Location**: `/app/surveys/page.tsx`
+**Issue**: Analytics tab is empty/not implemented
+
+**Minimal Fix**:
+```typescript
+// In analytics tab render (find activeTab === 'analytics'):
+{activeTab === 'analytics' && (
+  !isFeatureEnabled('surveysAnalytics') ? (
+    <div className="flex flex-col items-center justify-center py-12">
+      <BarChartIcon className="w-12 h-12 text-gray-400 mb-4" />
+      <h3 className="text-lg font-medium text-gray-300 mb-2">
+        Analytics Coming Soon
+      </h3>
+      <p className="text-sm text-gray-500 text-center max-w-md">
+        Survey analytics and insights will be available in the next update.
+        Check back soon for response trends and completion metrics.
+      </p>
+    </div>
+  ) : (
+    // existing analytics UI if any
+  )
+)}
+```
+
+**Test**: Tab shows coming soon message
+**Effort**: 5 minutes
+
+### 10. Forms - Non-functional Builder Buttons
+
+**Location**: `/app/forms/page.tsx`
+**Issue**: Multiple builder buttons without proper handlers
+
+**Minimal Fix**:
+```typescript
+// Add handlers for builder buttons:
+const handleAIBuilder = () => {
+  if (formDescription) {
+    setShowFormBuilder(true)
+  } else {
+    toast.info('Please describe the form you want to create')
+  }
+}
+
+const handleDragDropBuilder = () => {
+  toast.info('Drag & Drop builder coming soon')
+}
+
+const handleTemplates = () => {
+  toast.info('Form templates library coming soon')
+}
+
+const handleCategoryExpand = (category: string) => {
+  toast.info(`${category} forms will be available soon`)
+}
+```
+
+**Test**: Each button shows appropriate message
+**Effort**: 10 minutes
+
+---
+
+## Implementation Strategy
+
+### Phase 1: Critical Fixes (30 minutes)
+1. ✅ Fix hard-coded organization ID (P0) - **MUST DO FIRST**
+2. ✅ Add Suspense boundaries (P1)
+3. ✅ Implement global error boundary wrapper (P1)
+
+### Phase 2: User Experience (1 hour)
+4. ✅ Add missing UI buttons and feedback (P2)
+5. ✅ Fix incorrect routing/modals (P2)
+6. ✅ Replace error messages with friendly text (P2)
+7. ✅ Add toast notifications for user feedback
+
+### Phase 3: Feature Flags (30 minutes)
+8. ✅ Wrap incomplete features with feature flags (P3)
+9. ✅ Add "coming soon" messages for unavailable features (P3)
+10. ✅ Ensure feature-flags.ts reflects current state
+
+---
+
+## Testing Checklist
+
+### Critical Path Testing
+- [ ] **Multi-tenant isolation**: Different orgs see only their data
+- [ ] **Page loads**: All pages load without errors
+- [ ] **Error handling**: Errors show friendly messages, not stack traces
+
+### Feature Testing
+- [ ] **Leads**: Import works with correct org ID, export shows feedback
+- [ ] **Conversations**: "New Conversation" button visible and functional
+- [ ] **Bookings**: Booking links route correctly
+- [ ] **Staff**: Error messages are user-friendly
+- [ ] **Billing**: No SSR/hydration errors on page load
+
+### Feature Flag Testing  
+- [ ] **Disabled features**: Show appropriate "coming soon" messaging
+- [ ] **Enabled features**: Work as expected
+- [ ] **Console**: No errors from disabled features
+
+---
+
+## Files to Modify Summary
+
+### New Files to Create:
+1. `/app/lib/utils/withErrorBoundary.tsx` - Error boundary HOC
+
+### Files to Modify:
+
+#### P0 Fixes:
+1. `/app/leads/page.tsx` - Remove hard-coded org ID
+
+#### P1 Fixes:
+2. `/app/billing/page.tsx` - Add Suspense wrapper
+3. All page files - Add error boundary wrapper
+
+#### P2 Fixes:
+4. `/app/conversations/page.tsx` - Add new conversation button
+5. `/app/staff-management/page.tsx` - Friendly error messages
+6. `/app/booking/page.tsx` - Fix button routing
+7. `/app/components/leads/LeadsTable.tsx` - Export feedback
+
+#### P3 Fixes:
+8. `/app/campaigns/page.tsx` - Disable non-functional buttons
+9. `/app/surveys/page.tsx` - Add coming soon message
+10. `/app/forms/page.tsx` - Add toast messages for buttons
+
+---
+
+## Environment Variables Required
+
+Ensure these are set for full functionality:
+```env
+# Core (Required)
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY
+
+# Communications (Optional but recommended)
+TWILIO_ACCOUNT_SID
+TWILIO_AUTH_TOKEN
+USER_PHONE_NUMBER  # Required for call features
+
+# Payments (Optional)
+STRIPE_SECRET_KEY
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 ```
 
 ---
 
 ## Rollback Strategy
 
-### Per-PR Rollback
-Each PR can be reverted independently:
+Each fix is independent and can be rolled back individually:
 
-```bash
-# PR-1: Revert critical fixes
-git revert <pr-1-commit>
-
-# PR-2: Restore individual automation builders
-git revert <pr-2-commit>
-
-# PR-3: Remove UI additions
-git revert <pr-3-commit>
-
-# PR-4: Remove feature flags
-git revert <pr-4-commit>
-
-# PR-5: Remove error handling
-git revert <pr-5-commit>
-```
-
-### Database Rollback
-No database changes required - all fixes are code-only.
-
-### Environment Rollback
-```bash
-# Remove feature flags from .env
-NEXT_PUBLIC_FF_MARKETING=
-NEXT_PUBLIC_FF_SURVEYS=
-NEXT_PUBLIC_FF_AI_FORMS=
-```
+1. **Organization ID fix**: Revert changes to leads page
+2. **Suspense boundaries**: Remove Suspense wrapper
+3. **Error boundaries**: Remove withErrorBoundary wrapper
+4. **UI changes**: Revert individual component changes
+5. **Feature flags**: Already non-breaking by design
 
 ---
 
-## Monitoring & Validation
+## Success Metrics
 
-### Success Metrics
-- [ ] Public booking URL returns 200
-- [ ] Staff API returns data without errors
-- [ ] Automation builder saves state
-- [ ] No duplicate automation builders in navigation
-- [ ] Feature flags hide incomplete features
-- [ ] Error boundaries catch and report errors
+### Immediate (Day 1):
+- Zero multi-tenant data leaks
+- 50% reduction in error pages shown to users
+- All core features accessible (even if limited)
 
-### Monitoring Dashboard
-```javascript
-// Add to monitoring service
-const metrics = {
-  publicBookingSuccess: 0,
-  staffApiErrors: 0,
-  automationStateLoss: 0,
-  featureFlagMisses: 0,
-  uncaughtErrors: 0
-}
-```
+### Week 1:
+- <1% error rate on page loads
+- 80% reduction in support tickets about "broken" features
+- Clear user understanding of available vs upcoming features
+
+### Month 1:
+- Increased user engagement with working features
+- Reduced confusion about feature availability
+- Platform stability confidence restored
 
 ---
 
-## Implementation Order
+## Notes for Implementation
 
-1. **Day 1**: PR-1 (Critical fixes) - Deploy immediately
-2. **Day 2**: PR-3 (UI elements) - Quick win
-3. **Day 3**: PR-4 (Feature flags) - Hide broken features
-4. **Day 4**: PR-2 (Automation consolidation) - Careful testing
-5. **Day 5**: PR-5 (Error handling) - Final safety net
-
----
-
-## Risk Matrix
-
-| PR | Risk | Impact | Mitigation |
-|----|------|--------|------------|
-| PR-1 | High | Fixes production breaks | Immediate rollback capability |
-| PR-2 | Medium | Prevents data loss | LocalStorage backup |
-| PR-3 | Low | Improves UX | Feature flag if issues |
-| PR-4 | Low | Hides incomplete features | Environment variable control |
-| PR-5 | Low | Better error visibility | Can disable if noisy |
+1. **Test each fix in isolation** before combining
+2. **Deploy P0 fixes immediately** (security critical)
+3. **P1 fixes should go out within 24 hours**
+4. **P2/P3 can be bundled in next regular release**
+5. **Update feature-flags.ts** to match actual feature state
+6. **Document any features marked as "coming soon"**
+7. **Consider adding a "What's New" or "Roadmap" page**
 
 ---
 
-## Sign-off Checklist
+## Risk Assessment
 
-### Before Each PR
-- [ ] Code review by senior developer
-- [ ] Manual testing in staging
-- [ ] Jam video recorded
-- [ ] Rollback tested locally
-- [ ] Monitoring alerts configured
+### Low Risk Fixes:
+- Error boundaries (graceful degradation)
+- Toast notifications (UI only)
+- Feature flags (already has fallback)
 
-### After Each PR
-- [ ] Production smoke test
-- [ ] Error rates monitored for 1 hour
-- [ ] User feedback collected
-- [ ] Documentation updated
-- [ ] Team notified in Slack
+### Medium Risk Fixes:
+- Organization ID fix (test thoroughly)
+- Suspense boundaries (SSR behavior)
 
----
-
-## Notes
-
-1. All fixes are surgical - no refactoring
-2. Each PR < 200 lines of code changes
-3. No database migrations required
-4. All changes are reversible
-5. Feature flags use environment variables for instant toggle
-
-**Total Estimated Time**: 10 hours across 5 PRs
-**Risk Level**: Low to Medium (with mitigation)
-**Business Impact**: High (fixes critical user-facing issues)
+### Mitigation:
+- Test in staging environment first
+- Deploy during low-traffic hours
+- Monitor error rates post-deployment
+- Have rollback plan ready
 
 ---
 
-_Last Updated: August 2025_
-_Document Version: 1.0_
-_Author: Atlas Fitness CRM Fixer Agent_
+**Total Estimated Effort**: 2-3 hours for all fixes
+**Recommended Developer**: Someone familiar with React/Next.js patterns
+**Deployment Strategy**: Phased rollout starting with P0 fixes
+
+---
+
+*Document created: January 27, 2025*
+*Based on: Module inventory from comprehensive codebase scan*
+*Platform: Atlas Fitness CRM*
+*Focus: Non-automation modules only*

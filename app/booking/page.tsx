@@ -238,7 +238,7 @@ export default function BookingPage() {
               </p>
               {activeTab === 'upcoming' && (
                 <Button
-                  onClick={() => window.location.href = '/booking-links'}
+                  onClick={() => window.location.href = '/booking-links/create'}
                   className="bg-orange-600 hover:bg-orange-700"
                 >
                   Create Booking Link

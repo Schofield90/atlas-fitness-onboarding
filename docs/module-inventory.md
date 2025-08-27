@@ -1,278 +1,338 @@
-# Atlas Fitness/Gymleadhub Module Inventory
+# Atlas Fitness CRM - Non-Automation Module Inventory
 
-## 📁 Module Structure & Files
+## Repository Scan Results
 
-### 1. **Automations/Builder Module**
-**Status**: ⚠️ Node persistence issues reported
+### 📁 Structure Overview
 
-#### Core Files:
-- `/app/automations/page.tsx` - Main automations list page
-- `/app/automations/builder/page.tsx` - Workflow builder interface
-- `/app/automations/builder/[id]/page.tsx` - Edit existing workflow
-- `/app/automations/templates/page.tsx` - Workflow templates
+**Repository Path**: `/Users/Sam/atlas-fitness-onboarding`
 
-#### Components (Multiple conflicting versions):
-- `/app/components/automation/WorkflowBuilder.tsx` 
-- `/app/components/automation/EnhancedWorkflowBuilder.tsx`
-- `/app/components/automation/EnhancedWorkflowBuilderV2.tsx` 
-- `/app/components/automation/SimpleWorkflowBuilder.tsx`
-- `/app/components/automation/AdvancedWorkflowBuilder.tsx`
-- `/app/components/automation/DynamicWorkflowBuilder.tsx`
-- `/app/components/automation/ResponsiveWorkflowBuilder.tsx`
+**Architecture**: Multi-tenant SaaS platform with Next.js 15 App Router
+- **Frontend**: React Server/Client Components with TypeScript
+- **Backend**: Next.js API routes with Supabase integration
+- **Database**: PostgreSQL with RLS (Supabase)
+- **State Management**: Local state + Supabase real-time subscriptions
+- **Styling**: Tailwind CSS with custom UI components
 
-#### API Endpoints:
-- `/api/automations/workflows/route.ts` - CRUD operations
-- `/api/automations/test-email/route.ts` - Test email sending
-- `/api/automations/test-internal-message/route.ts` - Test messages
-- `/api/automations/scoring-triggers/route.ts` - Lead scoring triggers
-- `/api/workflows/route.ts` - Workflow execution
-- `/api/workflows/v2/route.ts` - Version 2 API
-- `/api/workflows/engine/route.ts` - Execution engine
+### 🗺️ Route Inventory
 
-#### Services:
-- `/app/lib/automation/execution-engine.ts` - Core execution logic
-- `/app/lib/automation/advanced-node-system.ts` - Node definitions
-- `/app/lib/automation/communication-actions.ts` - Message actions
-- `/app/lib/workflow/action-handlers/*.ts` - Action implementations
+#### Page Routes (Non-Automation)
 
----
+##### 1. **Billing & Subscription** (`/billing`)
+- **Main Page**: `/app/billing/page.tsx`
+- **Components**: 
+  - `SaasBillingDashboard`
+  - `StripeConnect`
+- **Features**: Subscription management, revenue tracking, payment settings
 
-### 2. **Dashboard Module**
-**Status**: ✅ Working but performance issues
+##### 2. **Contacts & Leads** (`/leads`)
+- **Main Page**: `/app/leads/page.tsx`
+- **Detail Page**: `/app/leads/[id]/page.tsx`
+- **Components**:
+  - `LeadsTable`
+  - `AddLeadModal`
+  - `BulkImportModal`
+  - `LeadDetailsModal`
+- **Features**: Lead management, import/export, AI scoring
 
-#### Core Files:
-- `/app/dashboard/page.tsx` - Main dashboard
-- `/app/dashboard/overview/page.tsx` - Overview page
-- `/app/dashboard/reports/page.tsx` - Reports section
+##### 3. **Conversations** (`/conversations`)
+- **Main Page**: `/app/conversations/page.tsx`
+- **Components**:
+  - `EnhancedChatInterface`
+  - `MessageComposer`
+  - `MessageHistory`
+- **Features**: Unified messaging, WhatsApp/SMS/Email integration
 
-#### Components:
-- `/app/components/dashboard/DashboardMetrics.tsx`
-- `/app/components/dashboard/MetricCard.tsx`
-- `/app/components/dashboard/ClassDetailModal.tsx`
+##### 4. **Call Bookings** (`/booking`)
+- **Main Page**: `/app/booking/page.tsx`
+- **Public Pages**: `/app/book/[slug]/page.tsx`
+- **Booking Links**: `/app/booking-links/page.tsx`
+- **Components**:
+  - `BookingCalendar`
+  - `BookingWidget`
+  - `BookingLinksManager`
+  - `SessionDetailModal`
 
-#### API Endpoints:
-- `/api/dashboard/metrics/route.ts` - Dashboard metrics
-- `/api/dashboard/metrics-fixed/route.ts` - Fixed metrics endpoint
-- `/api/dashboard/cached/route.ts` - Cached data
-- `/api/dashboard/charts/route.ts` - Chart data
-- `/api/dashboard/activity/route.ts` - Activity feed
-- `/api/dashboard/birthdays/route.ts` - Birthday reminders
+##### 5. **Staff Management** (`/staff-management`)
+- **Main Page**: `/app/staff-management/page.tsx`
+- **Staff Directory**: `/app/staff/page.tsx`
+- **Components**:
+  - `StaffList`
+  - `StaffForm`
+  - `TimesheetTable`
+  - `TimeOffRequests`
+  - `ShiftSchedule`
+  - `ClockInOut`
 
----
+##### 6. **Marketing & Campaigns** (`/campaigns`)
+- **Main Page**: `/app/campaigns/page.tsx`
+- **Components**:
+  - `EmailComposer`
+- **Features**: Facebook/Instagram/Email campaign management
 
-### 3. **Customers/Leads Module**
-**Status**: ✅ Working with AI enhancements
+##### 7. **Surveys & Feedback** (`/surveys`)
+- **Main Page**: `/app/surveys/page.tsx`
+- **Features**: Survey creation, response tracking, analytics
 
-#### Core Files:
-- `/app/customers/page.tsx` - Customer list
-- `/app/customers/[id]/page.tsx` - Customer detail
-- `/app/customers/new/page.tsx` - New customer form
-- `/app/leads/page.tsx` - Leads list
-- `/app/leads/[id]/page.tsx` - Lead detail
+##### 8. **Website & Forms** (`/forms`)
+- **Main Page**: `/app/forms/page.tsx`
+- **Components**:
+  - `DragDropFormBuilder`
+- **Features**: AI-powered form generation, form builder
 
-#### Components:
-- `/app/components/customers/CustomerProfileTabs.tsx`
-- `/app/components/customers/AddMembershipModal.tsx`
-- `/app/components/customers/LoginLinkButton.tsx`
-- `/app/components/leads/LeadsTable.tsx`
-- `/app/components/leads/LeadDetailsModal.tsx`
-- `/app/components/leads/AIInsightsPanel.tsx`
-- `/app/components/leads/LeadScoringBadge.tsx`
+#### API Routes
 
-#### API Endpoints:
-- `/api/customers/[id]/route.ts` - Customer CRUD
-- `/api/customers/churn-prediction/route.ts` - AI churn prediction
-- `/api/leads/route.ts` - Lead management
-- `/api/leads/[id]/route.ts` - Individual lead
-- `/api/leads/scoring/route.ts` - Lead scoring
-- `/api/leads/cached/route.ts` - Cached leads
+##### Billing APIs
+- `/api/billing/stripe-connect/*` - Stripe Connect integration
 
----
+##### Lead Management APIs
+- `/api/leads/route.ts` - Main lead CRUD operations
+- `/api/leads/[id]/route.ts` - Individual lead operations
+- `/api/leads/scoring/route.ts` - AI scoring endpoints
+- `/api/leads/activities/route.ts` - Lead activity tracking
 
-### 4. **Conversations Module**
-**Status**: ⚠️ Missing "New Conversation" button
+##### Communication APIs
+- `/api/messages/send/route.ts` - Send messages
+- `/api/messages/history/*` - Message history
+- `/api/sms/*` - SMS operations
+- `/api/whatsapp/*` - WhatsApp operations
+- `/api/email/send/route.ts` - Email sending
+- `/api/calls/initiate/route.ts` - Voice calls
 
-#### Core Files:
-- `/app/conversations/page.tsx` - Main conversations page
-
-#### Components:
-- `/app/components/chat/EnhancedChatInterface.tsx` - Chat UI
-- `/app/components/messaging/MessageComposer.tsx`
-- `/app/components/messaging/MessageHistory.tsx`
-- `/app/components/messaging/UnifiedTimeline.tsx`
-
-#### API Endpoints:
-- `/api/chat/conversation-summary/route.ts`
-- `/api/chat/ai-suggestions/route.ts`
-- `/api/chatbot/conversation/route.ts`
-- `/api/messages/send/route.ts`
-- `/api/messages/history/[conversationId]/route.ts`
-
----
-
-### 5. **Calendar/Booking Module**
-**Status**: 🔴 Public booking 404, navigation issues
-
-#### Core Files:
-- `/app/calendar/page.tsx` - Calendar view
-- `/app/booking/page.tsx` - Booking management
-- `/app/book/[slug]/page.tsx` - Public booking page (currently used)
-- `/app/book/public/[organizationId]/page.tsx` - MISSING FILE (causes 404)
-
-#### Components:
-- `/app/components/booking/BookingWidget.tsx`
-- `/app/components/booking/BookingCalendar.tsx`
-- `/app/components/booking/SessionCalendar.tsx`
-- `/app/components/booking/ClassBookingModal.tsx`
-- `/app/components/calendar/Calendar.tsx`
-- `/app/components/calendar/GoogleStyleCalendar.tsx`
-
-#### API Endpoints:
-- `/api/booking/book/route.ts` - Create booking
-- `/api/booking/availability/route.ts` - Check availability
-- `/api/booking/classes/route.ts` - Class management
-- `/api/booking-by-slug/book/route.ts` - Slug-based booking
+##### Booking APIs
+- `/api/booking/classes/route.ts` - Class bookings
+- `/api/booking/availability/route.ts` - Availability checking
+- `/api/booking/create/route.ts` - Create bookings
 - `/api/booking-links/route.ts` - Booking link management
-- `/api/public-api/booking-data/[organizationId]/route.ts` - Public data
+- `/api/appointment-types/route.ts` - Appointment type configuration
 
----
+##### Staff APIs
+- `/api/staff/route.ts` - Staff CRUD operations
+- `/api/staff/[id]/route.ts` - Individual staff operations
+- `/api/staff/timesheets/route.ts` - Timesheet management
+- `/api/staff/timesheets/clock-in/route.ts` - Clock in/out
+- `/api/staff/time-off/route.ts` - Time off requests
+- `/api/staff/invite/route.ts` - Staff invitations
 
-### 6. **Opportunities Module**
-**Status**: ✅ Working
+##### Campaign APIs
+- `/api/campaigns/send-test-email/route.ts` - Test email campaigns
+- `/api/integrations/facebook/*` - Facebook integration
+- `/api/integrations/meta/*` - Meta ads integration
 
-#### Core Files:
-- `/app/opportunities/page.tsx` - Opportunities list
-- `/app/opportunities/OpportunitiesPage.tsx` - Main component
-
-#### API Endpoints:
-- `/api/opportunities/route.ts` - CRUD operations
-- `/api/opportunities/[id]/route.ts` - Individual opportunity
-- `/api/opportunities/pipelines/route.ts` - Pipeline management
-
----
-
-### 7. **Staff Management Module**
-**Status**: 🔴 API returning 500 errors
-
-#### Core Files:
-- `/app/staff-management/page.tsx` - Staff management
-- `/app/staff/page.tsx` - Staff list
-
-#### Components:
-- `/app/components/staff/StaffList.tsx`
-- `/app/components/staff/StaffCard.tsx`
-- `/app/components/staff/StaffForm.tsx`
-- `/app/components/staff/StaffProfile.tsx`
-- `/app/components/staff/TimesheetTable.tsx`
-
-#### API Endpoints:
-- `/api/staff/route.ts` - Staff list (500 error - missing users table join)
-- `/api/timesheets/route.ts` - Timesheet management
-- `/api/payroll/dashboard/route.ts` - Payroll dashboard
-
----
-
-### 8. **Marketing/Campaigns Module**
-**Status**: ⚠️ View/Edit non-functional (using mock data)
-
-#### Core Files:
-- `/app/campaigns/page.tsx` - Campaign management (mock data only)
-- `/app/marketing/page.tsx` - Marketing dashboard
-
-#### Components:
-- `/app/components/campaigns/EmailComposer.tsx`
-
-#### API Endpoints:
-- `/api/campaigns/send-test-email/route.ts` - Test email only
-
----
-
-### 9. **Surveys Module**
-**Status**: ⚠️ Actions not working (mock data only)
-
-#### Core Files:
-- `/app/surveys/page.tsx` - Survey management (mock data only)
-
-#### API Endpoints:
-- None found - fully mocked
-
----
-
-### 10. **Forms Module**
-**Status**: ⚠️ Builder not opening correctly
-
-#### Core Files:
-- `/app/forms/page.tsx` - Forms management
-- `/app/lead-forms/page.tsx` - Lead forms
-
-#### Components:
-- `/app/components/forms/DragDropFormBuilder.tsx`
-
-#### API Endpoints:
+##### Form APIs
 - `/api/forms/list/route.ts` - List forms
-- `/api/forms/save/route.ts` - Save form
-- `/api/forms/update/route.ts` - Update form
-- `/api/forms/submit/route.ts` - Form submission
+- `/api/forms/save/route.ts` - Save forms
+- `/api/forms/update/route.ts` - Update forms
+- `/api/forms/submit/route.ts` - Form submissions
 - `/api/ai/generate-form/route.ts` - AI form generation
 
----
+### 📋 Relevant Files by Module
 
-## 🔧 Core Services & Utilities
+#### 1. **Billing & Subscription Module**
 
-### Authentication & Organization
-- `/app/lib/api/auth-check.ts` - Auth validation
-- `/app/lib/api/auth-check-org.ts` - Organization auth
-- `/app/lib/organization-service.ts` - Organization management
-- `/app/lib/supabase/server.ts` - Server-side Supabase client
-- `/app/lib/supabase/client.ts` - Client-side Supabase client
+**Primary Files (Direct Impact)**
+- `/app/billing/page.tsx` - Main billing page with tabs
+- `/app/components/saas/SaasBillingDashboard.tsx` - Subscription dashboard
+- `/app/components/billing/StripeConnect.tsx` - Stripe integration component
+- `/app/api/billing/stripe-connect/*` - Stripe API routes
 
-### Communication Services
-- `/app/lib/services/twilio.ts` - SMS/WhatsApp/Voice
-- `/app/lib/services/email.ts` - Email service
-- `/app/lib/services/unified-email.service.ts` - Unified email
+**Secondary Files (Potential Impact)**
+- `/app/lib/stripe-server.ts` - Stripe server utilities
+- `/app/lib/stripe.ts` - Stripe client utilities
+- `/app/api/payments/*` - Payment processing APIs
 
-### AI Services
-- `/app/lib/ai/anthropic.ts` - Claude integration
-- `/app/lib/ai/enhanced-lead-processor.ts` - Lead AI
-- `/app/lib/ai/real-time-processor.ts` - Real-time AI
+#### 2. **Contacts & Leads Module**
 
-### Caching Layer
-- `/app/lib/cache/redis-client.ts` - Redis connection
-- `/app/lib/cache/cached-lead-service.ts` - Lead caching
-- `/app/lib/cache/cached-booking-service.ts` - Booking caching
-- `/app/lib/cache/cached-organization-service.ts` - Org caching
+**Primary Files (Direct Impact)**
+- `/app/leads/page.tsx` - Main leads page
+- `/app/leads/[id]/page.tsx` - Lead detail page
+- `/app/components/leads/LeadsTable.tsx` - Lead list component
+- `/app/components/leads/AddLeadModal.tsx` - Add lead modal
+- `/app/components/leads/BulkImportModal.tsx` - Import functionality
+- `/app/api/leads/route.ts` - Lead CRUD API
 
-### Queue System
-- `/app/lib/queue/queue-manager.ts` - Queue management
-- `/app/lib/queue/workers.ts` - Worker processes
-- `/app/lib/queue/processors/*.ts` - Job processors
+**Secondary Files (Potential Impact)**
+- `/app/lib/services/lead-scoring.ts` - AI scoring service
+- `/app/lib/cache/cached-lead-service.ts` - Cached lead operations
+- `/app/lib/ai/enhanced-lead-processor.ts` - AI processing
 
-### Integration Services
-- `/app/lib/integrations/meta-ads-client.ts` - Facebook/Meta
-- `/app/lib/google-calendar.ts` - Google Calendar
-- `/app/lib/stripe.ts` - Stripe payments
+#### 3. **Conversations Module**
 
----
+**Primary Files (Direct Impact)**
+- `/app/conversations/page.tsx` - Main conversations page
+- `/app/components/chat/EnhancedChatInterface.tsx` - Chat UI
+- `/app/components/messaging/MessageComposer.tsx` - Message composer
+- `/app/api/messages/send/route.ts` - Message sending API
 
-## 🗄️ Database Tables (Key)
-- `organizations` - Multi-tenant organizations
-- `organization_members` - User-org relationships
-- `users` - User profiles
-- `leads` - Lead management
-- `contacts` - Customer contacts
-- `bookings` - Booking records
-- `class_sessions` - Class schedule
-- `automations` - Workflow definitions
-- `campaigns` - Marketing campaigns (unused)
-- `forms` - Form definitions
-- `surveys` - Survey definitions (unused)
-- `staff` - Staff records (deprecated?)
-- `trainer_specializations` - Staff specializations
+**Secondary Files (Potential Impact)**
+- `/app/lib/services/twilio.ts` - Twilio service
+- `/app/lib/whatsapp.ts` - WhatsApp integration
+- `/app/lib/sms.ts` - SMS utilities
 
----
+#### 4. **Call Bookings Module**
 
-## 🌐 Public Endpoints
-- `/api/public-api/create-lead` - Lead capture
-- `/api/public-api/booking-data/[organizationId]` - Booking data
-- `/book/[slug]` - Public booking page (working)
-- `/book/public/[organizationId]` - Missing route (404)
+**Primary Files (Direct Impact)**
+- `/app/booking/page.tsx` - Main booking page (has issues with tabs)
+- `/app/booking-links/page.tsx` - Booking links management
+- `/app/components/booking/BookingCalendar.tsx` - Calendar component
+- `/app/components/booking/BookingLinksManager.tsx` - Links manager
+- `/app/api/booking/classes/route.ts` - Class booking API
+
+**Secondary Files (Potential Impact)**
+- `/app/lib/services/booking.ts` - Booking service
+- `/app/lib/availability-engine.ts` - Availability calculations
+- `/app/lib/google-calendar.ts` - Google Calendar sync
+
+#### 5. **Staff Management Module**
+
+**Primary Files (Direct Impact)**
+- `/app/staff-management/page.tsx` - Main staff management page
+- `/app/components/staff/StaffList.tsx` - Staff directory
+- `/app/components/staff/TimesheetTable.tsx` - Timesheet management
+- `/app/api/staff/route.ts` - Staff CRUD API
+- `/app/api/staff/timesheets/route.ts` - Timesheet API
+
+**Secondary Files (Potential Impact)**
+- `/app/lib/types/staff.ts` - Staff type definitions
+- `/app/api/payroll/*` - Payroll integration
+
+#### 6. **Marketing & Campaigns Module**
+
+**Primary Files (Direct Impact)**
+- `/app/campaigns/page.tsx` - Main campaigns page (extensive UI)
+- `/app/components/campaigns/EmailComposer.tsx` - Email editor
+- `/app/api/campaigns/send-test-email/route.ts` - Test sending
+
+**Secondary Files (Potential Impact)**
+- `/app/api/integrations/facebook/*` - Facebook integration
+- `/app/lib/integrations/meta-ads-client.ts` - Meta ads client
+
+#### 7. **Surveys & Feedback Module**
+
+**Primary Files (Direct Impact)**
+- `/app/surveys/page.tsx` - Main surveys page
+
+**Secondary Files (Potential Impact)**
+- Survey response APIs (not yet implemented)
+- Survey analytics components (not yet implemented)
+
+#### 8. **Website & Forms Module**
+
+**Primary Files (Direct Impact)**
+- `/app/forms/page.tsx` - Main forms page
+- `/app/components/forms/DragDropFormBuilder.tsx` - Form builder
+- `/app/api/forms/list/route.ts` - List forms API
+- `/app/api/ai/generate-form/route.ts` - AI form generation
+
+### ⚠️ Identified Risks
+
+#### Critical
+
+1. **Hard-coded Organization ID**
+   - **Location**: `/app/leads/page.tsx:191`
+   - **Risk**: Organization ID is hard-coded, breaking multi-tenancy
+   - **Impact**: Data isolation breach, wrong organization data access
+
+2. **Missing Error Boundaries**
+   - **Location**: Most page components
+   - **Risk**: Component crashes can break entire pages
+   - **Impact**: Poor user experience, data loss
+
+3. **Suspense Boundary Issues**
+   - **Location**: `/app/billing/page.tsx`, booking pages
+   - **Risk**: SSR/hydration mismatches
+   - **Impact**: Page loading failures, SEO issues
+
+#### Moderate
+
+1. **Inconsistent State Management**
+   - **Location**: Various components
+   - **Risk**: State synchronization issues
+   - **Impact**: Data inconsistency, UI bugs
+
+2. **Missing Loading States**
+   - **Location**: Several async operations
+   - **Risk**: User confusion during operations
+   - **Impact**: Poor UX, duplicate submissions
+
+3. **Tab Navigation Issues**
+   - **Location**: Booking, Campaigns pages
+   - **Risk**: Navigation state loss
+   - **Impact**: Confusing user experience
+
+4. **API Error Handling**
+   - **Location**: Multiple API routes
+   - **Risk**: Unhandled errors, inconsistent error formats
+   - **Impact**: Silent failures, debugging difficulty
+
+5. **Component Prop Drilling**
+   - **Location**: Deep component hierarchies
+   - **Risk**: Difficult maintenance, prop management
+   - **Impact**: Code complexity, refactoring challenges
+
+### 🔍 Key Observations
+
+1. **Architecture Patterns**
+   - App Router with mixed server/client components
+   - Organization-based multi-tenancy
+   - Supabase for auth and database
+   - Mixed use of fetch and Supabase client
+
+2. **Common Issues**
+   - Inconsistent error handling across modules
+   - Missing or incomplete loading states
+   - Hard-coded values that should be dynamic
+   - Incomplete TypeScript typing
+
+3. **UI/UX Patterns**
+   - Tab-based navigation in most modules
+   - Modal-heavy interactions
+   - Table-based data displays
+   - British localization (£, DD/MM/YYYY)
+
+4. **Integration Points**
+   - Twilio for SMS/WhatsApp/Voice
+   - Stripe for payments
+   - Google Calendar for scheduling
+   - Meta/Facebook for marketing
+   - OpenAI/Anthropic for AI features
+
+5. **Security Concerns**
+   - RLS policies need verification
+   - Organization isolation in API routes
+   - Token/credential management
+   - Public API endpoint security
+
+### 📊 Module Status Summary
+
+| Module | Completeness | Main Issues | Priority |
+|--------|-------------|-------------|----------|
+| Billing | 70% | Suspense boundaries, incomplete revenue tracking | Medium |
+| Leads | 85% | Hard-coded org ID, export functionality | High |
+| Conversations | 75% | Message history, real-time updates | Medium |
+| Bookings | 60% | Tab navigation, modal management | High |
+| Staff | 80% | Timesheet sync, payroll integration | Medium |
+| Campaigns | 65% | Mostly UI mockups, limited functionality | Low |
+| Surveys | 40% | Mostly placeholder, needs implementation | Low |
+| Forms | 70% | AI generation errors, form preview issues | Medium |
+
+### 🔧 Recommended Fixes Priority
+
+1. **Immediate** (Breaking Issues)
+   - Fix hard-coded organization IDs
+   - Add error boundaries to all pages
+   - Fix Suspense/SSR issues
+
+2. **High Priority** (User Impact)
+   - Fix booking page tab navigation
+   - Complete lead export/import
+   - Fix message composer in conversations
+
+3. **Medium Priority** (Enhancement)
+   - Implement proper loading states
+   - Standardize API error responses
+   - Complete staff timesheet features
+
+4. **Low Priority** (Future Development)
+   - Complete survey module
+   - Enhance campaign functionality
+   - Add advanced form features

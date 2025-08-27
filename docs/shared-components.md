@@ -1,214 +1,304 @@
-# Shared Components & Services Inventory
+# Atlas Fitness CRM - Shared Components Inventory
 
-## 🎨 UI Components (Shared Across Modules)
+## Component Architecture Overview
 
-### Layout Components
-- **DashboardLayout** (`/app/components/DashboardLayout.tsx`)
-  - Used by: All authenticated pages
-  - Dependencies: Organization context, user auth
-  - Risk: Changes affect entire app layout
+### Component Organization
+- **Location**: `/app/components/`
+- **Pattern**: Feature-based organization with shared UI components
+- **Stack**: React with TypeScript, Tailwind CSS
+- **State**: Local state + props, some Supabase real-time subscriptions
 
-### Error Boundaries
-- **ErrorBoundary** (`/app/components/ErrorBoundary.tsx`)
-- **GlobalErrorBoundary** (`/app/components/errors/GlobalErrorBoundary.tsx`)
-- **AsyncErrorBoundary** (`/app/components/errors/AsyncErrorBoundary.tsx`)
-  - Used by: All modules for error handling
-  - Risk: Improper error handling can crash entire sections
+## Core Shared Components
 
-### Auth Components
-- **AuthWrapper** (`/app/components/auth/AuthWrapper.tsx`)
-- **RequireOrganization** (`/app/components/auth/RequireOrganization.tsx`)
-  - Used by: All authenticated routes
-  - Risk: Auth failures block all access
+### 1. Layout Components
 
-### Organization Components
-- **OrganizationSwitcher** (`/app/components/OrganizationSwitcher.tsx`)
-- **LocationSwitcher** (`/app/components/LocationSwitcher.tsx`)
-  - Used by: Dashboard, settings, all multi-org features
-  - Risk: Multi-tenant data leakage if broken
+#### DashboardLayout
+- **Path**: `/app/components/DashboardLayout.tsx`
+- **Used By**: All authenticated pages
+- **Dependencies**: OrganizationSwitcher, navigation menu
+- **Issues**: Inconsistent prop passing, missing error handling
 
----
+#### ErrorBoundary
+- **Path**: `/app/components/ErrorBoundary.tsx`
+- **Used By**: Should be used by all pages (many missing)
+- **Issues**: Not consistently implemented
 
-## 🔧 Core Services (Used System-Wide)
+### 2. UI Components (`/app/components/ui/`)
 
-### Supabase Clients
-- **Server Client** (`/app/lib/supabase/server.ts`)
-  - Used by: All server-side API routes
-  - Pattern: `createClient()` for authenticated requests
-  - Risk: Incorrect RLS policies expose data
+#### Button
+- **Path**: `/app/components/ui/Button.tsx`
+- **Variants**: default, ghost, danger, success
+- **Issues**: Inconsistent usage across modules
 
-- **Client-side Client** (`/app/lib/supabase/client.ts`)
-  - Used by: All React components
-  - Pattern: `createClient()` for browser requests
-  - Risk: Client-side auth token exposure
+#### Card
+- **Path**: `/app/components/ui/Card.tsx`
+- **Components**: Card, CardHeader, CardContent, CardTitle
+- **Used By**: Dashboard metrics, settings pages
 
-### Authentication Services
-- **Auth Check** (`/app/lib/api/auth-check.ts`)
-  - Used by: API routes without org context
-  - Returns: User object or error
+#### Toast
+- **Path**: `/app/components/ui/Toast.tsx`
+- **Features**: Success, error, warning, info variants
+- **Issues**: Not integrated with global error handling
 
-- **Auth Check Org** (`/app/lib/api/auth-check-org.ts`)
-  - Used by: Most API routes
-  - Returns: User + organizationId
-  - Critical for multi-tenancy
+#### Dialog/Modal Components
+- **Path**: `/app/components/ui/dialog.tsx`
+- **Used By**: All modal-based interactions
+- **Issues**: Z-index conflicts, backdrop issues
 
-### Organization Service
-- **Organization Service** (`/app/lib/organization-service.ts`)
-  - Used by: All org-related operations
-  - Manages: Org creation, member management, permissions
-  - Risk: Permission bypass if compromised
+#### Form Elements
+- Input: `/app/components/ui/input.tsx`
+- Textarea: `/app/components/ui/textarea.tsx`
+- Label: `/app/components/ui/label.tsx`
+- Switch: `/app/components/ui/switch.tsx`
+- Radio Group: `/app/components/ui/radio-group.tsx`
 
----
+### 3. Authentication Components
 
-## 🗂️ Data Services
+#### OrganizationSwitcher
+- **Path**: `/app/components/OrganizationSwitcher.tsx`
+- **Features**: Switch between multiple organizations
+- **Issues**: Doesn't refresh data properly after switch
 
-### Caching Layer (Redis/Upstash)
-- **Redis Client** (`/app/lib/cache/redis-client.ts`)
-  - Used by: All cached services
-  - Pattern: Key prefix with org ID for isolation
-  - Risk: Cache poisoning, stale data
+#### AuthWrapper
+- **Path**: `/app/components/auth/AuthWrapper.tsx`
+- **Purpose**: Protect routes requiring authentication
+- **Issues**: Inconsistent redirect behavior
 
-- **Cached Services**:
-  - `cached-lead-service.ts` - Lead data caching
-  - `cached-booking-service.ts` - Booking data caching
-  - `cached-organization-service.ts` - Org data caching
-  - `cached-analytics-service.ts` - Analytics caching
+#### RequireOrganization
+- **Path**: `/app/components/auth/RequireOrganization.tsx`
+- **Purpose**: Ensure user has active organization
+- **Issues**: Hard-coded fallback values
 
-### Queue System (BullMQ)
-- **Queue Manager** (`/app/lib/queue/queue-manager.ts`)
-  - Used by: Automations, email campaigns, heavy processing
-  - Requires: Redis running
-  - Risk: Queue backup if Redis down
+### 4. Data Display Components
 
-- **Workers** (`/app/lib/queue/workers.ts`)
-  - Process: Workflow execution, email sending, AI processing
-  - Risk: Job loss if worker crashes
+#### Tables
+- **LeadsTable**: `/app/components/leads/LeadsTable.tsx`
+- **TimesheetTable**: `/app/components/staff/TimesheetTable.tsx`
+- **Common Issues**: Pagination inconsistency, sorting bugs
 
----
+#### Modals
+- **AddLeadModal**: `/app/components/leads/AddLeadModal.tsx`
+- **BulkImportModal**: `/app/components/leads/BulkImportModal.tsx`
+- **AddClassModal**: `/app/components/booking/AddClassModal.tsx`
+- **Common Issues**: Form validation, close behavior
 
-## 📡 Communication Services
+#### Charts/Metrics
+- **DashboardMetrics**: `/app/components/dashboard/DashboardMetrics.tsx`
+- **MetricCard**: `/app/components/dashboard/MetricCard.tsx`
+- **Issues**: Real-time update missing
 
-### Twilio Service
-- **Main Service** (`/app/lib/services/twilio.ts`)
-  - Used by: SMS, WhatsApp, Voice features
-  - Functions: `sendSMS()`, `sendWhatsApp()`, `makeCall()`
-  - Risk: Rate limiting, cost overruns
+### 5. Feature-Specific Components
 
-### Email Services
-- **Unified Email** (`/app/lib/services/unified-email.service.ts`)
-  - Providers: Resend, SendGrid, Mailgun, SMTP
-  - Used by: All email sending features
-  - Risk: Provider failures, deliverability issues
+#### Messaging Components
+- **MessageComposer**: `/app/components/messaging/MessageComposer.tsx`
+  - Used for SMS, WhatsApp, Email composition
+  - Issues: Template selection broken
+  
+- **MessageHistory**: `/app/components/messaging/MessageHistory.tsx`
+  - Displays conversation history
+  - Issues: Pagination, real-time updates
 
----
+- **EnhancedChatInterface**: `/app/components/chat/EnhancedChatInterface.tsx`
+  - Unified messaging interface
+  - Issues: Performance with large conversations
 
-## 🤖 AI Services
+#### Booking Components
+- **BookingCalendar**: `/app/components/booking/BookingCalendar.tsx`
+  - Calendar grid for class selection
+  - Issues: Mobile responsiveness
+  
+- **BookingWidget**: `/app/components/booking/BookingWidget.tsx`
+  - Embeddable booking widget
+  - Issues: Public authentication
 
-### Anthropic/Claude
-- **Server Integration** (`/app/lib/ai/anthropic-server.ts`)
-  - Used by: Lead scoring, content generation, chatbot
-  - Risk: API key exposure, rate limits
+- **SessionDetailModal**: `/app/components/booking/SessionDetailModal.tsx`
+  - Class/session details popup
+  - Issues: Data refresh
 
-### OpenAI
-- **Client** (`/app/lib/ai/providers/openai-client.ts`)
-  - Used by: Form generation, insights
-  - Risk: Cost management, prompt injection
+#### Staff Components
+- **StaffList**: `/app/components/staff/StaffList.tsx`
+  - Staff directory display
+  
+- **StaffForm**: `/app/components/staff/StaffForm.tsx`
+  - Add/edit staff members
+  
+- **ClockInOut**: `/app/components/staff/ClockInOut.tsx`
+  - Time tracking widget
 
-### Lead Processing
-- **Enhanced Processor** (`/app/lib/ai/enhanced-lead-processor.ts`)
-- **Real-time Processor** (`/app/lib/ai/real-time-processor.ts`)
-  - Used by: Lead scoring, insights generation
-  - Risk: Processing delays affect conversions
+#### Campaign Components
+- **EmailComposer**: `/app/components/campaigns/EmailComposer.tsx`
+  - Rich text email editor
+  - Issues: Limited functionality, no preview
 
----
+### 6. Integration Components
 
-## 🎯 Shared Patterns & Conventions
+#### Payment Components
+- **StripeConnect**: `/app/components/billing/StripeConnect.tsx`
+  - Stripe onboarding and management
+  
+- **MembershipPayment**: `/app/components/payments/MembershipPayment.tsx`
+  - Payment processing for memberships
 
-### API Response Format
-```typescript
-// Success
-{ success: true, data: {...} }
+#### Social Media Components
+- **MetaAdsConnection**: `/app/components/integrations/MetaAdsConnection.tsx`
+  - Facebook/Instagram integration
+  
+- **DiagnosticPanel**: `/app/components/facebook/DiagnosticPanel.tsx`
+  - Facebook connection debugging
 
-// Error
-{ error: "Error message", details?: {...} }
+### 7. AI Components
+
+#### AI Assistants
+- **AIAssistant**: `/app/components/ai/AIAssistant.tsx`
+- **EmbeddedAssistant**: `/app/components/ai/EmbeddedAssistant.tsx`
+- **AIDashboard**: `/app/components/ai/AIDashboard.tsx`
+
+#### Lead Intelligence
+- **LeadScoringBadge**: `/app/components/leads/LeadScoringBadge.tsx`
+- **AIInsightsPanel**: `/app/components/leads/AIInsightsPanel.tsx`
+- **AIRecommendationsPanel**: `/app/components/leads/AIRecommendationsPanel.tsx`
+
+## Component Dependencies Map
+
+### High-Level Dependencies
+```
+DashboardLayout
+├── OrganizationSwitcher
+├── Navigation Menu
+├── Toast Provider
+└── Error Boundary
+
+Page Components
+├── DashboardLayout
+├── Feature Components
+│   ├── UI Components
+│   ├── Data Components
+│   └── Integration Components
+└── API Services
 ```
 
-### Organization Scoping Pattern
-```typescript
-// All queries include organization_id
-.eq('organization_id', organizationId)
-```
+### Cross-Component Issues
 
-### Caching Key Pattern
-```typescript
-`org:${organizationId}:${resource}:${id}`
-```
+#### 1. State Management
+- **Problem**: Props drilling through multiple levels
+- **Affected**: Most deeply nested components
+- **Solution Needed**: Context API or state management library
 
-### Error Handling Pattern
-```typescript
-try {
-  // operation
-} catch (error) {
-  console.error('Context:', error)
-  return NextResponse.json({ error: 'User-friendly message' }, { status: 500 })
-}
-```
+#### 2. Error Handling
+- **Problem**: Inconsistent error boundaries
+- **Affected**: All page components
+- **Solution Needed**: Global error boundary implementation
 
----
+#### 3. Loading States
+- **Problem**: Missing or inconsistent loading indicators
+- **Affected**: Async data components
+- **Solution Needed**: Standardized loading component
 
-## ⚠️ Critical Dependencies
+#### 4. Type Safety
+- **Problem**: Incomplete TypeScript interfaces
+- **Affected**: API response handling
+- **Solution Needed**: Generated types from backend
 
-### Environment Variables
-All modules depend on these being set:
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `TWILIO_*` credentials
-- `OPENAI_API_KEY`
-- `ANTHROPIC_API_KEY`
-- `STRIPE_*` keys
+#### 5. Responsive Design
+- **Problem**: Mobile layout issues
+- **Affected**: Tables, modals, complex forms
+- **Solution Needed**: Mobile-first redesign
 
-### Database Tables
-Core tables used by multiple modules:
-- `organizations` - Everything depends on this
-- `organization_members` - User access control
-- `users` - User profiles
-- `contacts` - Shared customer data
+## Reusability Analysis
 
-### Third-party Services
-- **Supabase**: Database, auth, storage
-- **Redis**: Caching, queues
-- **Twilio**: Communications
-- **Stripe**: Payments
-- **Google**: Calendar, OAuth
-- **Meta/Facebook**: Lead forms, ads
+### Highly Reusable (Used 5+ places)
+- Button
+- Card
+- Input/Form elements
+- Toast notifications
+- Modal/Dialog
 
----
+### Moderately Reusable (Used 3-4 places)
+- Data tables
+- Loading spinners
+- Error messages
+- Date pickers
+- Metric cards
 
-## 🔄 Shared Utilities
+### Feature-Specific (Used 1-2 places)
+- Booking calendar
+- Message composer
+- Staff timesheet
+- Campaign editor
+- AI panels
 
-### Date Formatting
-- **British Format** (`/app/lib/utils/british-format.ts`)
-  - Functions: `formatBritishDate()`, `formatBritishDateTime()`
-  - Used by: All date displays
+## Component Quality Metrics
 
-### Safe Alert
-- **Safe Alert** (`/app/lib/utils/safe-alert.ts`)
-  - Wrapper for window.alert to prevent SSR errors
-  - Used by: Client-side error displays
+### Well-Implemented ✅
+- Basic UI components (Button, Card, Input)
+- Authentication flow components
+- Dashboard metrics display
 
-### Type Definitions
-- **Database Types** (`/app/lib/supabase/database.types.ts`)
-  - Generated from Supabase schema
-  - Used by: All database operations
+### Needs Improvement ⚠️
+- Modal management (z-index, backdrop)
+- Table components (pagination, sorting)
+- Form validation
+- Error boundaries
 
----
+### Critical Issues 🔴
+- Organization switcher (data refresh)
+- Message composer (template selection)
+- Booking calendar (mobile view)
+- Hard-coded organization IDs
 
-## 🚨 High-Risk Shared Components
+## Recommended Component Improvements
 
-1. **Organization Context** - Breaking this affects all multi-tenant isolation
-2. **Auth Services** - Failures lock out all users
-3. **Supabase Clients** - Connection issues break everything
-4. **Cache Layer** - Can cause stale data issues across modules
-5. **Queue System** - Backup causes automation failures
-6. **Error Boundaries** - Poor error handling cascades failures
+### 1. Create Missing Components
+- Global error boundary wrapper
+- Standardized loading skeleton
+- Pagination component
+- Data table wrapper with sorting/filtering
+- File upload component
+- Date/time picker
+
+### 2. Refactor Existing Components
+- Extract common modal logic
+- Standardize form validation
+- Implement proper TypeScript generics
+- Add proper accessibility attributes
+- Improve mobile responsiveness
+
+### 3. Documentation Needs
+- Component API documentation
+- Usage examples
+- Props interface documentation
+- Accessibility guidelines
+- Testing patterns
+
+### 4. Testing Requirements
+- Unit tests for utility functions
+- Component rendering tests
+- Integration tests for complex components
+- Accessibility tests
+- Visual regression tests
+
+## Component Migration Path
+
+### Phase 1: Foundation (Immediate)
+1. Implement global error boundary
+2. Fix organization switcher
+3. Standardize loading states
+4. Fix TypeScript interfaces
+
+### Phase 2: Core Components (High Priority)
+1. Refactor table components
+2. Fix modal z-index issues
+3. Improve form validation
+4. Add missing UI components
+
+### Phase 3: Feature Components (Medium Priority)
+1. Enhance message composer
+2. Improve booking calendar
+3. Complete campaign editor
+4. Add missing integrations
+
+### Phase 4: Polish (Low Priority)
+1. Add animations/transitions
+2. Improve accessibility
+3. Enhance mobile experience
+4. Add component documentation

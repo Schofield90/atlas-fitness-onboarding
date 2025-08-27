@@ -218,12 +218,24 @@ export default function ConversationsPage() {
             <h1 className="text-3xl font-bold mb-2">Conversations</h1>
             <p className="text-gray-400">Recent messages with your customers</p>
           </div>
-          <button
-            onClick={() => setUseEnhanced(!useEnhanced)}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
-          >
-            Switch to {useEnhanced ? 'Classic' : 'Enhanced'} View
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                // Toggle to enhanced view which has the new conversation button
+                setUseEnhanced(true)
+              }}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2"
+            >
+              <MessageSquare className="h-4 w-4" />
+              New Conversation
+            </button>
+            <button
+              onClick={() => setUseEnhanced(!useEnhanced)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+            >
+              Switch to {useEnhanced ? 'Classic' : 'Enhanced'} View
+            </button>
+          </div>
         </div>
 
         {/* Search */}
