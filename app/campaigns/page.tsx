@@ -343,25 +343,23 @@ export default function CampaignsPage() {
                     <div className="flex gap-2">
                       <button 
                         onClick={() => {
-                          if (!isFeatureEnabled('campaignsActions')) {
-                            toast.error('Campaign viewing coming soon!')
-                            return
-                          }
+                          // Navigate to campaign analytics/details
+                          setActiveTab('analytics')
+                          console.log('View campaign:', campaign.id)
                         }}
-                        className="text-blue-400 hover:text-blue-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={!isFeatureEnabled('campaignsActions')}
+                        className="text-blue-400 hover:text-blue-300"
+                        title="View Campaign"
                       >
                         <EyeIcon className="h-4 w-4" />
                       </button>
                       <button 
                         onClick={() => {
-                          if (!isFeatureEnabled('campaignsActions')) {
-                            toast.error('Campaign editing coming soon!')
-                            return
-                          }
+                          // Edit campaign
+                          alert('Edit functionality will open campaign editor')
+                          console.log('Edit campaign:', campaign.id)
                         }}
-                        className="text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={!isFeatureEnabled('campaignsActions')}
+                        className="text-gray-400 hover:text-white"
+                        title="Edit Campaign"
                       >
                         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />

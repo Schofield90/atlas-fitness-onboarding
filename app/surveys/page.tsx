@@ -260,25 +260,25 @@ export default function SurveyPage() {
                       </button>
                       <button 
                         onClick={() => {
-                          if (!isFeatureEnabled('surveysActions')) {
-                            toast.error('Survey editing coming soon!')
-                            return
-                          }
+                          // Edit survey
+                          alert(`Edit survey: ${survey.title}`)
+                          console.log('Edit survey:', survey.id)
                         }}
-                        className="text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={!isFeatureEnabled('surveysActions')}
+                        className="text-gray-400 hover:text-white"
+                        title="Edit Survey"
                       >
                         <EditIcon className="h-4 w-4" />
                       </button>
                       <button 
                         onClick={() => {
-                          if (!isFeatureEnabled('surveysActions')) {
-                            toast.error('Survey deletion coming soon!')
-                            return
+                          if (confirm(`Delete survey: ${survey.title}?`)) {
+                            // Delete survey
+                            console.log('Delete survey:', survey.id)
+                            // You could also remove from state here
                           }
                         }}
-                        className="text-red-400 hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={!isFeatureEnabled('surveysActions')}
+                        className="text-red-400 hover:text-red-300"
+                        title="Delete Survey"
                       >
                         <TrashIcon className="h-4 w-4" />
                       </button>

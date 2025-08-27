@@ -359,21 +359,21 @@ export default function FormsDocumentsPage() {
               <div className="space-y-3">
                 {forms.map((form) => (
                   <div key={form.id} className="border border-gray-700 rounded-lg p-4 hover:bg-gray-750 transition-colors">
-                    <div className="flex justify-between items-start">
-                      <div>
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+                      <div className="flex-1">
                         <h4 className="font-medium">{form.title}</h4>
                         <p className="text-sm text-gray-400 mt-1">{form.description}</p>
-                        <div className="flex items-center gap-4 mt-2">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-2">
                           <span className="text-xs bg-gray-700 px-2 py-1 rounded">{form.type}</span>
                           <span className={`text-xs ${form.is_active ? 'text-green-400' : 'text-gray-500'}`}>
                             {form.is_active ? 'Active' : 'Inactive'}
                           </span>
                         </div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 self-start sm:self-auto">
                         <button 
                           onClick={() => viewForm(form)}
-                          className="text-gray-400 hover:text-white p-2"
+                          className="text-gray-400 hover:text-white p-2 rounded-lg hover:bg-gray-700 transition-colors"
                           title="View form"
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -383,7 +383,7 @@ export default function FormsDocumentsPage() {
                         </button>
                         <button 
                           onClick={() => editForm(form)}
-                          className="text-gray-400 hover:text-white p-2"
+                          className="text-gray-400 hover:text-white p-2 rounded-lg hover:bg-gray-700 transition-colors"
                           title="Edit form"
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

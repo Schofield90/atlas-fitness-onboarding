@@ -13,6 +13,7 @@ export default function LeadsPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     const storedData = localStorage.getItem('gymleadhub_trial_data')
@@ -20,6 +21,71 @@ export default function LeadsPage() {
       setUserData(JSON.parse(storedData))
     }
   }, [])
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      // Fetch all leads data
+      const response = await fetch('/api/leads')
+      const data = await response.json()
+      const leads = data.leads || []
+
+      if (leads.length === 0) {
+        alert('No leads to export')
+        return
+      }
+
+      // Convert to CSV format
+      const headers = ['Name', 'Email', 'Phone', 'Source', 'Status', 'Lead Score', 'Temperature', 'Created Date']
+      const rows = leads.map((lead: any) => {
+        const score = lead.lead_score || 0
+        const temperature = score >= 80 ? 'Hot' : score >= 60 ? 'Warm' : score >= 40 ? 'Lukewarm' : 'Cold'
+        const date = new Date(lead.created_at).toLocaleDateString('en-GB')
+        
+        return [
+          lead.name || '',
+          lead.email || '',
+          lead.phone || '',
+          lead.source || '',
+          lead.status || '',
+          score,
+          temperature,
+          date
+        ]
+      })
+
+      // Create CSV content
+      const csvContent = [
+        headers.join(','),
+        ...rows.map((row: any[]) => 
+          row.map(cell => {
+            // Escape commas and quotes in cell content
+            const cellStr = String(cell)
+            if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+              return `"${cellStr.replace(/"/g, '""')}"`
+            }
+            return cellStr
+          }).join(',')
+        )
+      ].join('\n')
+
+      // Create download link
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.setAttribute('href', url)
+      link.setAttribute('download', `leads_export_${new Date().toISOString().split('T')[0]}.csv`)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch (error) {
+      console.error('Error exporting leads:', error)
+      alert('Failed to export leads. Please try again.')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   return (
     <DashboardLayout userData={userData}>
@@ -36,11 +102,15 @@ export default function LeadsPage() {
               </svg>
               Import
             </button>
-            <button className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg flex items-center gap-2 transition-colors">
+            <button 
+              onClick={handleExport}
+              disabled={exporting}
+              className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
-              Export
+              {exporting ? 'Exporting...' : 'Export'}
             </button>
             <button 
               onClick={() => setShowAddModal(true)}

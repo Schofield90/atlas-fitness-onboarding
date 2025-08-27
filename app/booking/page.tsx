@@ -177,7 +177,7 @@ export default function BookingPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-400 text-sm">Booking Links</p>
-                <a href="/calendar?tab=booking-links" className="text-orange-500 hover:text-orange-400 text-sm">
+                <a href="/booking-links" className="text-orange-500 hover:text-orange-400 text-sm">
                   Manage Links →
                 </a>
               </div>
@@ -238,7 +238,7 @@ export default function BookingPage() {
               </p>
               {activeTab === 'upcoming' && (
                 <Button
-                  onClick={() => window.location.href = '/calendar?tab=booking-links'}
+                  onClick={() => window.location.href = '/booking-links'}
                   className="bg-orange-600 hover:bg-orange-700"
                 >
                   Create Booking Link
