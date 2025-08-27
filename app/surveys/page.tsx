@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import DashboardLayout from '@/app/components/DashboardLayout'
 import { isFeatureEnabled } from '@/app/lib/feature-flags'
 import ComingSoon from '@/app/components/ComingSoon'
-import { toast } from 'react-hot-toast'
+import { useToast } from '@/app/lib/hooks/useToast'
 import { 
   PlusIcon,
   EyeIcon,
@@ -81,6 +81,7 @@ export default function SurveyPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'create' | 'responses' | 'analytics'>('overview')
   const [surveys, setSurveys] = useState(mockSurveys)
   const [selectedSurvey, setSelectedSurvey] = useState<any>(null)
+  const toast = useToast()
 
   useEffect(() => {
     setMounted(true)
