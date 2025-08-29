@@ -17,7 +17,7 @@ interface DynamicConfigPanelProps {
 interface FormField {
   key: string
   label: string
-  type: 'text' | 'textarea' | 'select' | 'number' | 'boolean' | 'date' | 'time' | 'email' | 'tel' | 'url' | 'json' | 'array' | 'variable'
+  type: 'text' | 'textarea' | 'select' | 'number' | 'boolean' | 'date' | 'time' | 'datetime-local' | 'email' | 'tel' | 'url' | 'json' | 'array' | 'variable'
   required?: boolean
   placeholder?: string
   description?: string
@@ -181,6 +181,7 @@ const getTriggerFields = (subtype: string, dynamicData?: any): FormField[] => {
           label: 'Lead Form',
           type: 'select' as const,
           required: false,
+          defaultValue: 'all',
           options: loadingFacebookData
             ? [{ value: 'loading', label: 'Loading forms...' }]
             : availableForms.length > 0
@@ -189,12 +190,11 @@ const getTriggerFields = (subtype: string, dynamicData?: any): FormField[] => {
                   ...availableForms
                 ]
               : [
-                  { value: 'all', label: 'All Forms (No specific forms synced yet)' },
-                  { value: '', label: 'Forms will appear here after they are created in Facebook' }
+                  { value: 'all', label: 'All Forms (Monitor all lead forms)' }
                 ],
           description: availableForms.length > 0 
             ? 'Select a specific form or monitor all forms'
-            : 'No forms available yet. Forms will sync automatically when created in Facebook.',
+            : 'Will monitor all lead forms from the selected page. Specific forms will appear here as they are created in Facebook.',
           showWhen: (config: any) => config.pageId && config.pageId !== 'loading' && config.pageId !== '' && !loadingFacebookData
         }
       ]
@@ -497,10 +497,24 @@ const getActionFields = (actionType: string, dynamicData?: any): FormField[] => 
         {
           key: 'to',
           label: 'To',
-          type: 'tel' as const,
+          type: 'text' as const,  // Changed from 'tel' to 'text' to allow variables
           required: true,
           placeholder: '{{phone}} or +447123456789',
-          description: 'Recipient phone number or variable'
+          description: 'Recipient phone number or variable',
+          validation: {
+            custom: (value: string) => {
+              // Allow variables like {{phone}}, {{mobile}}, etc
+              if (value.includes('{{') && value.includes('}}')) {
+                return null // Valid variable syntax
+              }
+              // If not a variable, validate as phone number
+              const phoneRegex = /^\+?[1-9]\d{7,14}$/
+              if (!phoneRegex.test(value.replace(/\s/g, ''))) {
+                return 'Please enter a valid phone number or use a variable like {{phone}}'
+              }
+              return null
+            }
+          }
         },
         {
           key: 'message',
@@ -546,10 +560,24 @@ const getActionFields = (actionType: string, dynamicData?: any): FormField[] => 
         {
           key: 'to',
           label: 'To',
-          type: 'tel' as const,
+          type: 'text' as const,  // Changed from 'tel' to 'text' to allow variables
           required: true,
           placeholder: '{{phone}} or +447123456789',
-          description: 'WhatsApp number with country code'
+          description: 'WhatsApp number with country code',
+          validation: {
+            custom: (value: string) => {
+              // Allow variables like {{phone}}, {{mobile}}, etc
+              if (value.includes('{{') && value.includes('}}')) {
+                return null // Valid variable syntax
+              }
+              // If not a variable, validate as phone number with country code
+              const phoneRegex = /^\+[1-9]\d{7,14}$/
+              if (!phoneRegex.test(value.replace(/\s/g, ''))) {
+                return 'Please enter a valid phone number with country code or use a variable like {{phone}}'
+              }
+              return null
+            }
+          }
         },
         {
           key: 'mode',
@@ -1076,12 +1104,14 @@ export default function DynamicConfigPanel({ node, onClose, onSave, onChange, or
   }
 
   const handleFieldChange = (key: string, value: any) => {
-    const updatedConfig = { ...config, [key]: value }
-    setConfig(updatedConfig)
-    // FIXED: Use updated config instead of stale closure
-    if (onChange) {
-      onChange(updatedConfig)
-    }
+    setConfig(prevConfig => {
+      const updatedConfig = { ...prevConfig, [key]: value }
+      // Call onChange with the updated config
+      if (onChange) {
+        onChange(updatedConfig)
+      }
+      return updatedConfig
+    })
   }
 
   const handleFieldBlur = (key: string, value: any) => {
@@ -1133,7 +1163,7 @@ export default function DynamicConfigPanel({ node, onClose, onSave, onChange, or
         return (
           <input
             type={field.type}
-            value={value}
+            value={value || ''}
             onChange={(e) => handleFieldChange(field.key, e.target.value)}
             onBlur={(e) => handleFieldBlur(field.key, e.target.value)}
             placeholder={field.placeholder}
@@ -1148,7 +1178,7 @@ export default function DynamicConfigPanel({ node, onClose, onSave, onChange, or
       case 'textarea':
         return (
           <textarea
-            value={value}
+            value={value || ''}
             onChange={(e) => handleFieldChange(field.key, e.target.value)}
             onBlur={(e) => handleFieldBlur(field.key, e.target.value)}
             placeholder={field.placeholder}
@@ -1303,6 +1333,21 @@ export default function DynamicConfigPanel({ node, onClose, onSave, onChange, or
           </div>
         )
 
+      case 'datetime-local':
+        return (
+          <input
+            type="datetime-local"
+            value={value || ''}
+            onChange={(e) => handleFieldChange(field.key, e.target.value)}
+            onBlur={(e) => handleFieldBlur(field.key, e.target.value)}
+            className={`w-full px-3 py-2 bg-gray-800 text-gray-100 border rounded-lg focus:outline-none focus:ring-2 ${
+              hasError 
+                ? 'border-red-500 focus:ring-red-400' 
+                : 'border-gray-600 focus:ring-orange-500'
+            }`}
+          />
+        )
+
       default:
         return <div>Unsupported field type: {field.type}</div>
     }
@@ -1310,9 +1355,9 @@ export default function DynamicConfigPanel({ node, onClose, onSave, onChange, or
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-gray-900 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden border border-gray-700">
+      <div className="bg-gray-900 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col border border-gray-700">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-700">
+        <div className="flex items-center justify-between p-6 border-b border-gray-700 flex-shrink-0">
           <div>
             <h2 className="text-xl font-bold text-white">
               Configure {node.data.label}
@@ -1339,7 +1384,7 @@ export default function DynamicConfigPanel({ node, onClose, onSave, onChange, or
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+        <div className="flex-1 p-6 overflow-y-auto">
           {showJsonView ? (
             <div>
               <h3 className="font-medium text-white mb-2 flex items-center">
@@ -1400,8 +1445,8 @@ export default function DynamicConfigPanel({ node, onClose, onSave, onChange, or
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-700 bg-gray-800">
+        {/* Footer - Sticky at bottom */}
+        <div className="flex items-center justify-between p-6 border-t border-gray-700 bg-gray-800 flex-shrink-0">
           <div className="flex items-center space-x-2 text-sm">
             {isValid ? (
               <div className="flex items-center text-green-400">

@@ -279,12 +279,13 @@ function PaletteItem({ item }: { item: NodePaletteItem }) {
         isDragging ? 'opacity-50 scale-95' : ''
       }`}
       onMouseDown={() => console.log('Starting drag for:', item.name)}
+      style={{ touchAction: 'none' }} // Prevent touch scrolling while dragging
     >
-      <div className="flex items-center gap-2 mb-1">
+      <div className="flex items-center gap-2 mb-1 pointer-events-none">
         <Zap className="h-4 w-4 text-orange-500" />
         <span className="text-sm font-medium">{item.name}</span>
       </div>
-      <p className="text-xs text-gray-400">{item.description}</p>
+      <p className="text-xs text-gray-400 pointer-events-none">{item.description}</p>
     </div>
   )
 }
@@ -405,6 +406,17 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
           console.log('Updated nodes array:', updatedNodes.length, updatedNodes.map(n => n.id))
           return updatedNodes
         })
+        
+        // Auto-center the view on the new node
+        if (reactFlowInstance) {
+          setTimeout(() => {
+            reactFlowInstance.fitView({
+              nodes: [{ id: newNode.id }],
+              duration: 800,
+              padding: 0.3,
+            })
+          }, 100) // Small delay to ensure node is rendered
+        }
         
         // Return drop result to complete the drag operation
         return { nodeId: newNode.id, success: true }
@@ -992,6 +1004,8 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
             data: {
               ...node.data,
               config,
+              // Update the label from config if it exists
+              label: config.label || node.data.label,
               isValid: true,
             },
           }
