@@ -1,0 +1,76 @@
+{
+    "mcpServers": {
+        "telegram-mcp-server": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@smithery/cli@latest",
+                "run",
+                "@NexusX-MCP/telegram-mcp-server",
+                "--key",
+                "a34f8cc7-309d-4fa7-b99d-6d261871142d",
+                "--profile",
+                "nice-platypus-5gD1qv"
+            ]
+        },
+        "xero": {
+            "command": "node",
+            "args": [
+                "/Users/Sam/.npm-global/lib/node_modules/@xeroapi/xero-mcp-server/dist/index.js"
+            ],
+            "env": {
+                "XERO_CLIENT_ID": "DB522AC99E12488FA936BD818067D448",
+                "XERO_CLIENT_SECRET": "WDKj0ZjBHZPy3uikPiGK7daNaTpXqMdnFapsg0b5zwNTlNY5"
+            }
+        },
+        "firecrawl-mcp-server": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@smithery/cli@latest",
+                "run",
+                "@Krieg2065/firecrawl-mcp-server",
+                "--key",
+                "a34f8cc7-309d-4fa7-b99d-6d261871142d",
+                "--profile",
+                "nice-platypus-5gD1qv"
+            ]
+        },
+        "playwright-mcp": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@smithery/cli@latest",
+                "run",
+                "@microsoft/playwright-mcp",
+                "--key",
+                "a34f8cc7-309d-4fa7-b99d-6d261871142d",
+                "--profile",
+                "nice-platypus-5gD1qv"
+            ]
+        },
+        "replicate-flux-mcp": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@smithery/cli@latest",
+                "run",
+                "@awkoy/replicate-flux-mcp",
+                "--key",
+                "a34f8cc7-309d-4fa7-b99d-6d261871142d",
+                "--profile",
+                "nice-platypus-5gD1qv"
+            ]
+        },
+        "Jam": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@modelcontextprotocol/server-http",
+                "https://mcp.jam.dev/mcp"
+            ],
+            "transport": "http",
+            "scope": "user"
+        }
+    }
+}

@@ -11,10 +11,14 @@ export default function SQLCheckPage() {
   const runQuery = async (query: string, description: string) => {
     setLoading(true)
     try {
-      const { data, error, count } = await supabase
-        .rpc('execute_sql', { query_text: query })
-      
-      return { description, data, error, count }
+      // SECURITY: Disabled direct SQL execution - this is a critical vulnerability
+      // This page should not exist in production
+      return { 
+        description, 
+        error: 'SQL execution is disabled for security reasons',
+        data: null,
+        count: 0
+      }
     } catch (err) {
       return { description, error: err }
     }

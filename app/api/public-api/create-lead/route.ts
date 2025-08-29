@@ -1,13 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+// Simple in-memory rate limiting (use Redis in production)
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting by IP
+    const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0] || 
+                     request.headers.get('x-real-ip') || 
+                     'unknown';
+    
+    const now = Date.now();
+    const rateLimit = rateLimitMap.get(clientIp);
+    
+    if (rateLimit) {
+      if (now < rateLimit.resetTime) {
+        if (rateLimit.count >= 5) { // Max 5 requests per minute
+          return NextResponse.json({ 
+            error: 'Too many requests. Please try again later.' 
+          }, { status: 429 });
+        }
+        rateLimit.count++;
+      } else {
+        rateLimitMap.set(clientIp, { count: 1, resetTime: now + 60000 });
+      }
+    } else {
+      rateLimitMap.set(clientIp, { count: 1, resetTime: now + 60000 });
+    }
+    
     const { organizationId, name, email, phone } = await request.json();
 
     if (!organizationId || !name || !email || !phone) {
       return NextResponse.json({ 
         error: 'Missing required fields' 
+      }, { status: 400 });
+    }
+    
+    // Basic email validation to prevent injection
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json({ 
+        error: 'Invalid email format' 
       }, { status: 400 });
     }
 

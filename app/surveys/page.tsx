@@ -5,6 +5,7 @@ import DashboardLayout from '@/app/components/DashboardLayout'
 import { isFeatureEnabled } from '@/app/lib/feature-flags'
 import ComingSoon from '@/app/components/ComingSoon'
 import { useToast } from '@/app/lib/hooks/useToast'
+import SurveyAnalytics from '@/app/components/surveys/SurveyAnalytics'
 import { 
   PlusIcon,
   EyeIcon,
@@ -492,21 +493,10 @@ export default function SurveyPage() {
 
   const renderAnalytics = () => (
     <div className="space-y-6">
-      <div className="bg-gray-800 rounded-lg p-6">
-        <h2 className="text-xl font-bold text-white mb-6">Survey Analytics</h2>
-        
-        {/* Coming Soon */}
-        <div className="text-center py-12">
-          <div className="w-16 h-16 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
-            <BarChartIcon className="h-8 w-8 text-white" />
-          </div>
-          <h3 className="text-lg font-semibold text-white mb-2">Advanced Analytics Coming Soon</h3>
-          <p className="text-gray-400 max-w-md mx-auto">
-            Comprehensive analytics including response trends, satisfaction scores, 
-            and automated insights will be available soon.
-          </p>
-        </div>
-      </div>
+      <SurveyAnalytics 
+        surveyId={selectedSurvey?.id} 
+        surveyData={selectedSurvey}
+      />
     </div>
   )
 
@@ -557,18 +547,16 @@ export default function SurveyPage() {
           >
             Responses
           </button>
-          {isFeatureEnabled('surveysAnalytics') && (
-            <button
-              onClick={() => setActiveTab('analytics')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                activeTab === 'analytics' 
-                  ? 'bg-orange-600 text-white' 
-                  : 'text-gray-400 hover:text-white hover:bg-gray-700'
-              }`}
-            >
-              Analytics
-            </button>
-          )}
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'analytics' 
+                ? 'bg-orange-600 text-white' 
+                : 'text-gray-400 hover:text-white hover:bg-gray-700'
+            }`}
+          >
+            Analytics
+          </button>
         </div>
 
         {/* Tab Content */}

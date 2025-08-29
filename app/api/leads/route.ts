@@ -7,19 +7,43 @@ import {
   DatabaseError,
   withApiErrorBoundary 
 } from '@/app/lib/errors'
+import { cacheService, CACHE_TTL } from '@/app/lib/cache/cache-utils'
 
 async function getLeads(request: NextRequest) {
   // Check authentication and get organization
   const userWithOrg = await requireAuth()
-    
-    // Create Supabase client
-    const supabase = await createClient()
     
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
     const source = searchParams.get('source')
     const assignedTo = searchParams.get('assigned_to')
     const createdBy = searchParams.get('created_by')
+    const page = parseInt(searchParams.get('page') || '1')
+    const pageSize = parseInt(searchParams.get('page_size') || '50')
+    
+    // Generate cache key based on filters and pagination
+    const cacheKey = cacheService.getCacheKey(
+      userWithOrg.organizationId,
+      'leads',
+      `list-${page}-${pageSize}`,
+      status || 'all',
+      source || 'all',
+      assignedTo || 'all',
+      createdBy || 'all'
+    )
+    
+    // Try to get from cache first
+    const cached = await cacheService.getFromCache<any>(cacheKey)
+    if (cached) {
+      return NextResponse.json(cached)
+    }
+    
+    // Create Supabase client
+    const supabase = await createClient()
+    
+    // Calculate range for pagination
+    const from = (page - 1) * pageSize
+    const to = from + pageSize - 1
     
     // Build query - filter by organization for shared access
     let query = supabase
@@ -34,9 +58,10 @@ async function getLeads(request: NextRequest) {
             color
           )
         )
-      `)
+      `, { count: 'exact' })
       .eq('organization_id', userWithOrg.organizationId) // Filter by organization
       .order('created_at', { ascending: false })
+      .range(from, to)
     
     // Apply filters
     if (status && status !== 'all') {
@@ -55,7 +80,7 @@ async function getLeads(request: NextRequest) {
       query = query.eq('created_by', createdBy)
     }
     
-    const { data: leads, error } = await query
+    const { data: leads, error, count } = await query
     
     if (error) {
       throw DatabaseError.queryError('leads', 'select', {
@@ -66,12 +91,22 @@ async function getLeads(request: NextRequest) {
       })
     }
     
-  return NextResponse.json({
+  const response = {
     success: true,
     leads: leads || [],
-    total: leads?.length || 0,
+    pagination: {
+      page,
+      pageSize,
+      total: count || 0,
+      totalPages: Math.ceil((count || 0) / pageSize)
+    },
     organizationId: userWithOrg.organizationId
-  })
+  }
+  
+  // Cache the response for 5 minutes
+  await cacheService.setInCache(cacheKey, response, CACHE_TTL.LEAD_LISTS)
+  
+  return NextResponse.json(response)
 }
 
 // Wrap with error boundary
@@ -159,6 +194,9 @@ async function createLead(request: NextRequest) {
       console.error('Error triggering workflow:', webhookError)
       // Don't fail the lead creation if webhook fails
     }
+    
+    // Invalidate leads cache for this organization
+    await cacheService.invalidateOrgCache(userWithOrg.organizationId, 'leads')
     
   return NextResponse.json({
     success: true,

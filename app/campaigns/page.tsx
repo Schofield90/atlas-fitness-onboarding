@@ -5,6 +5,7 @@ import DashboardLayout from '@/app/components/DashboardLayout'
 import { isFeatureEnabled } from '@/app/lib/feature-flags'
 import ComingSoon from '@/app/components/ComingSoon'
 import { useToast } from '@/app/lib/hooks/useToast'
+import CampaignAnalytics from '@/app/components/campaigns/CampaignAnalytics'
 import { 
   PlusIcon,
   FacebookIcon,
@@ -79,6 +80,7 @@ export default function CampaignsPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'create' | 'analytics'>('overview')
   const [selectedCampaignType, setSelectedCampaignType] = useState<'facebook' | 'instagram' | 'email'>('facebook')
   const [campaigns, setCampaigns] = useState(mockCampaigns)
+  const [selectedCampaign, setSelectedCampaign] = useState<any>(null)
   const [campaignForm, setCampaignForm] = useState({
     name: '',
     type: 'facebook',
@@ -343,9 +345,9 @@ export default function CampaignsPage() {
                     <div className="flex gap-2">
                       <button 
                         onClick={() => {
-                          // Navigate to campaign analytics/details
+                          // Set selected campaign and navigate to analytics
+                          setSelectedCampaign(campaign)
                           setActiveTab('analytics')
-                          console.log('View campaign:', campaign.id)
                         }}
                         className="text-blue-400 hover:text-blue-300"
                         title="View Campaign"
@@ -729,23 +731,10 @@ The Atlas Fitness Team"
   )
 
   const renderAnalytics = () => (
-    <div className="space-y-6">
-      <div className="bg-gray-800 rounded-lg p-6">
-        <h2 className="text-xl font-bold text-white mb-6">Marketing Analytics</h2>
-        
-        {/* Coming Soon Notice */}
-        <div className="text-center py-12">
-          <div className="w-16 h-16 bg-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
-            <TrendingUpIcon className="h-8 w-8 text-white" />
-          </div>
-          <h3 className="text-lg font-semibold text-white mb-2">Advanced Analytics Coming Soon</h3>
-          <p className="text-gray-400 max-w-md mx-auto">
-            We're building comprehensive analytics including email open rates, click tracking, 
-            Facebook pixel integration, and detailed ROI reporting.
-          </p>
-        </div>
-      </div>
-    </div>
+    <CampaignAnalytics 
+      campaignId={selectedCampaign?.id}
+      campaignData={selectedCampaign}
+    />
   )
 
   return (

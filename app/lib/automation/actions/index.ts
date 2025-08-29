@@ -657,13 +657,17 @@ export class TransformDataAction extends BaseAction {
     }
     
     try {
-      // Create a safe execution context
-      const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor
-      const transform = new AsyncFunction('data', 'variables', code)
+      // SECURITY: Disabled dynamic code execution - critical vulnerability
+      // This needs to be replaced with a safe sandboxed solution or predefined transformations
+      console.warn('Transform action disabled for security - code execution vulnerability')
       
-      const output = await transform(inputData, this.context.variables)
+      // For now, just pass through the data without transformation
+      return { output: inputData }
       
-      return { output }
+      // Original vulnerable code:
+      // const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor
+      // const transform = new AsyncFunction('data', 'variables', code)
+      // const output = await transform(inputData, this.context.variables)
     } catch (error) {
       throw new Error(`Transformation error: ${error.message}`)
     }

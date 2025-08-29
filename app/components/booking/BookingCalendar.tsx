@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Calendar, momentLocalizer, View, SlotInfo } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
@@ -36,9 +36,9 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
 
   useEffect(() => {
     fetchClasses();
-  }, [organizationId]);
+  }, [fetchClasses]);
 
-  const fetchClasses = async () => {
+  const fetchClasses = useCallback(async () => {
     try {
       const response = await fetch(`/api/booking/classes/${organizationId}`);
       
@@ -57,17 +57,18 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [organizationId]);
 
-  const calendarEvents: ClassEvent[] = classes.map(cls => ({
-    id: cls.id,
-    title: `${cls.program_name} (${cls.spaces_available} spaces)`,
-    start: new Date(cls.start_time),
-    end: new Date(cls.end_time),
-    resource: cls
-  }));
+  const calendarEvents: ClassEvent[] = useMemo(() => 
+    classes.map(cls => ({
+      id: cls.id,
+      title: `${cls.program_name} (${cls.spaces_available} spaces)`,
+      start: new Date(cls.start_time),
+      end: new Date(cls.end_time),
+      resource: cls
+    })), [classes]);
 
-  const eventStyleGetter = (event: ClassEvent) => {
+  const eventStyleGetter = useCallback((event: ClassEvent) => {
     const cls = event.resource;
     let backgroundColor = '#3174ad';
     
@@ -88,13 +89,13 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
         border: '0px'
       }
     };
-  };
+  }, []);
 
-  const handleSelectEvent = (event: ClassEvent) => {
+  const handleSelectEvent = useCallback((event: ClassEvent) => {
     setSelectedClass(event.resource);
-  };
+  }, []);
 
-  const handleBookClass = async (classId: string) => {
+  const handleBookClass = useCallback(async (classId: string) => {
     try {
       const response = await fetch('/api/booking/book', {
         method: 'POST',
@@ -126,7 +127,7 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
       console.error('Booking error:', error);
       alert(error instanceof Error ? error.message : 'Failed to book class');
     }
-  };
+  }, [customerId, onBookClass, fetchClasses]);
 
   if (loading) return <div className="flex justify-center items-center h-96">Loading classes...</div>;
 

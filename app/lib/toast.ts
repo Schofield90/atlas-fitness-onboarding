@@ -15,6 +15,11 @@ class ToastManager {
   private container: HTMLDivElement | null = null
 
   private getContainer(): HTMLDivElement {
+    // Check if we're in a browser environment
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      throw new Error('Toast manager can only be used in browser environment')
+    }
+    
     if (!this.container) {
       this.container = document.createElement('div')
       this.container.id = 'toast-container'
@@ -41,6 +46,12 @@ class ToastManager {
   }
 
   show(options: ToastOptions): void {
+    // Check if we're in a browser environment
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      console.warn('Toast notifications are only available in browser environment')
+      return
+    }
+    
     const { message, type = 'info', duration = 3000 } = options
     
     const container = this.getContainer()
