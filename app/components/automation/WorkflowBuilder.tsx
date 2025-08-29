@@ -958,35 +958,6 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
     setIsTestMode(false)
   }, [nodes, edges, useStrictValidation, validateWorkflow])
   
-  // Toggle workflow active state
-  const handleToggleActive = useCallback(async () => {
-    if (!workflow) return
-    
-    const newStatus = workflow.status === 'active' ? 'inactive' : 'active'
-    
-    // Update locally
-    const updatedWorkflow = {
-      ...workflow,
-      status: newStatus
-    }
-    
-    // Save if handler provided
-    if (onSave) {
-      setIsSaving(true)
-      try {
-        await onSave(updatedWorkflow)
-        setSaveMessage({ 
-          type: 'success', 
-          text: `Workflow ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully` 
-        })
-      } catch (error) {
-        setSaveMessage({ type: 'error', text: 'Failed to update workflow status' })
-      } finally {
-        setIsSaving(false)
-        setTimeout(() => setSaveMessage(null), 3000)
-      }
-    }
-  }, [workflow, onSave])
 
   // Toggle category expansion
   const toggleCategory = (category: string) => {
