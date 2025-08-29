@@ -1,8 +1,8 @@
 # Atlas Fitness CRM - Documentation Index
 
-**Current Version**: 1.2.0  
-**Last Updated**: August 25, 2025  
-**Status**: Production Ready  
+**Current Version**: 1.3.3+ (8 Critical Fixes Applied)  
+**Last Updated**: August 29, 2025  
+**Status**: Production Ready with Enhanced Automation Builder  
 
 ---
 
@@ -11,6 +11,8 @@
 | Document Type | Purpose | Audience |
 |---------------|---------|----------|
 | [CHANGELOG.md](/CHANGELOG.md) | Version history and changes | Developers, Product Managers |
+| **[Automation Builder User Guide](/docs/AUTOMATION_BUILDER_USER_GUIDE.md)** | Complete automation guide with variable syntax ⭐ **NEW** | End Users, Trainers |
+| **[Automation Builder Developer Guide](/docs/AUTOMATION_BUILDER_DEVELOPER_GUIDE.md)** | Technical implementation and architecture ⭐ **NEW** | Developers, Integrators |
 | [Release Notes](/docs/RELEASE_NOTES_CRITICAL_FIXES.md) | Detailed release information | Users, Stakeholders |
 | [API Documentation](/docs/API_DOCUMENTATION_UPDATES.md) | Technical API reference | Developers, Integrators |
 | [User Guide](/docs/USER_GUIDE_CRITICAL_FEATURES.md) | Feature usage instructions | End Users, Trainers |
@@ -18,30 +20,37 @@
 
 ---
 
-## 🔄 Recent Changes (v1.2.0)
+## 🔥 Recent Changes (v1.3.3+ - August 29, 2025)
 
-### Critical Fixes Documentation
-All documentation has been updated to reflect the major fixes deployed on August 25, 2025:
+### Automation Builder - 8 Critical Fixes with Comprehensive Documentation ⭐
+All documentation has been extensively updated to reflect the major automation builder improvements:
 
-✅ **Public Booking System Restored**
-- Customer booking access without authentication
-- Mobile-optimized interface
-- Enhanced error handling
+✅ **[NEW] Automation Builder User Guide** - Complete manual with variable syntax guide
+- Node types and configuration instructions
+- Variable syntax differences ({{var}} vs [var])
+- Drag-and-drop tutorials and common workflows
+- Troubleshooting guide for all 8 fixes
 
-✅ **Staff Management System Fixed**
-- API endpoint functionality restored
-- Improved query performance
-- Better error messages
+✅ **[NEW] Automation Builder Developer Guide** - Technical implementation documentation
+- Architecture changes and implementation details
+- Critical fix explanations with code examples
+- State management patterns and testing approaches
+- Performance optimization strategies
 
-✅ **Customer Creation System Added**
-- Complete customer profile creation
-- Emergency contact management
-- Lead to customer conversion
+✅ **[UPDATED] CHANGELOG.md** - Enhanced with detailed technical descriptions
+- Complete documentation of all 8 critical fixes
+- Performance impact measurements and technical details
+- Implementation explanations and code changes
 
-✅ **Automation Builder Stabilized**
-- Node persistence fixed
-- Configuration panels working
-- Workflow testing enhanced
+### The 8 Critical Fixes Applied:
+1. **Single-Character Input Bug** - Fixed React closure preventing form input
+2. **Node Label Updates** - Canvas labels now update after configuration changes
+3. **DateTime Scheduling** - Added proper datetime-local input support  
+4. **Variable Syntax Support** - Enhanced {{var}} for WhatsApp/Email, [var] for SMS
+5. **Modal Save Button** - Fixed visibility during scrolling with sticky positioning
+6. **Full-Row Dragging** - Enhanced node dragging from anywhere on cards
+7. **Auto-Focus New Nodes** - Automatic viewport centering with smooth animations
+8. **Facebook "All Forms"** - Fixed dropdown to properly handle "All Forms" option
 
 ---
 
@@ -49,17 +58,34 @@ All documentation has been updated to reflect the major fixes deployed on August
 
 ### 1. Core Documentation
 
-#### [CHANGELOG.md](/CHANGELOG.md)
+#### [CHANGELOG.md](/CHANGELOG.md) ⭐ **UPDATED**
 - **Purpose**: Complete version history following Keep a Changelog format
-- **Includes**: All releases from v1.0.0 to current
-- **Format**: Semantic versioning with categorized changes
+- **Includes**: All releases from v1.0.0 to current, with detailed automation builder fix descriptions
+- **Format**: Semantic versioning with categorized changes and technical details
+- **Recent Updates**: Enhanced with 8 critical fixes documentation and performance metrics
 - **Updates**: Real-time with each release
 
-#### [README.md](/README.md) 
+#### [README.md](/README.md) ⭐ **UPDATED** 
 - **Purpose**: Project overview and quick start guide
-- **Includes**: Tech stack, features, agent system, deployment info
-- **Recent Updates**: Added new routes, deployment status, critical fixes summary
+- **Includes**: Tech stack, features, agent system, deployment info, automation builder improvements
+- **Recent Updates**: Added automation builder 8 critical fixes, performance improvements, new documentation links
 - **Target**: Developers, new team members
+
+### 1.1. Automation Builder Documentation ⭐ **NEW SECTION**
+
+#### [Automation Builder User Guide](/docs/AUTOMATION_BUILDER_USER_GUIDE.md) ⭐ **NEW**
+- **Purpose**: Complete user manual for automation builder with all recent fixes
+- **Includes**: Node configuration, variable syntax guide, drag-and-drop tutorials, troubleshooting
+- **Format**: Step-by-step instructions with examples and screenshots
+- **Coverage**: All 8 critical fixes explained from user perspective
+- **Target**: End users, gym owners, staff members
+
+#### [Automation Builder Developer Guide](/docs/AUTOMATION_BUILDER_DEVELOPER_GUIDE.md) ⭐ **NEW**
+- **Purpose**: Technical implementation and architecture documentation
+- **Includes**: Code examples, state management patterns, testing approaches, performance optimizations
+- **Format**: Technical reference with code samples and best practices
+- **Coverage**: Detailed implementation of all 8 critical fixes with code explanations
+- **Target**: Developers, technical team members, integrators
 
 ### 2. Release Documentation
 
