@@ -1,13 +1,16 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { X, Save, AlertCircle, CheckCircle, Info, Code, Eye, EyeOff, Plus, Trash2 } from 'lucide-react'
 import { WorkflowNode } from '@/app/lib/types/automation'
+import { useFeatureFlag } from '@/app/lib/feature-flags'
+import { validateNodeConfig } from './schemas'
 
 interface DynamicConfigPanelProps {
   node: WorkflowNode
   onClose: () => void
   onSave: (nodeId: string, config: any) => void
+  onChange?: (config: any) => void
   organizationId: string
 }
 
@@ -616,11 +619,15 @@ const getSubWorkflowFields = (): FormField[] => [
   }
 ]
 
-export default function DynamicConfigPanel({ node, onClose, onSave, organizationId }: DynamicConfigPanelProps) {
+export default function DynamicConfigPanel({ node, onClose, onSave, onChange, organizationId }: DynamicConfigPanelProps) {
   const [config, setConfig] = useState(node.data.config || {})
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isValid, setIsValid] = useState(false)
   const [showJsonView, setShowJsonView] = useState(false)
+  
+  // Feature flags
+  const useControlledConfig = useFeatureFlag('automationBuilderControlledConfig')
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const formSchema = getNodeConfigSchema(node)
 
@@ -631,50 +638,144 @@ export default function DynamicConfigPanel({ node, onClose, onSave, organization
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
     
-    formSchema.forEach(field => {
-      if (field.showWhen && !field.showWhen(config)) return
+    // Use Zod validation if feature flag is enabled
+    if (useControlledConfig) {
+      const subtype = config.subtype || config.actionType
+      const result = validateNodeConfig(node.type, config, subtype)
       
-      const value = config[field.key]
-      
-      if (field.required && (!value || value === '')) {
-        newErrors[field.key] = `${field.label} is required`
+      if (!result.success) {
+        result.error.errors.forEach(error => {
+          const path = error.path.join('.')
+          newErrors[path] = error.message
+        })
       }
-      
-      if (field.validation && value) {
-        const validation = field.validation
+    } else {
+      // Fallback to original validation
+      formSchema.forEach(field => {
+        if (field.showWhen && !field.showWhen(config)) return
         
-        if (validation.min !== undefined && Number(value) < validation.min) {
-          newErrors[field.key] = `${field.label} must be at least ${validation.min}`
+        const value = config[field.key]
+        
+        if (field.required && (!value || value === '')) {
+          newErrors[field.key] = `${field.label} is required`
         }
         
-        if (validation.max !== undefined && Number(value) > validation.max) {
-          newErrors[field.key] = `${field.label} must be at most ${validation.max}`
-        }
-        
-        if (validation.pattern && !new RegExp(validation.pattern).test(String(value))) {
-          newErrors[field.key] = `${field.label} format is invalid`
-        }
-        
-        if (validation.custom) {
-          const customError = validation.custom(value)
-          if (customError) {
-            newErrors[field.key] = customError
+        if (field.validation && value) {
+          const validation = field.validation
+          
+          if (validation.min !== undefined && Number(value) < validation.min) {
+            newErrors[field.key] = `${field.label} must be at least ${validation.min}`
+          }
+          
+          if (validation.max !== undefined && Number(value) > validation.max) {
+            newErrors[field.key] = `${field.label} must be at most ${validation.max}`
+          }
+          
+          if (validation.pattern && !new RegExp(validation.pattern).test(String(value))) {
+            newErrors[field.key] = `${field.label} format is invalid`
+          }
+          
+          if (validation.custom) {
+            const customError = validation.custom(value)
+            if (customError) {
+              newErrors[field.key] = customError
+            }
           }
         }
-      }
-    })
+      })
+      
+      // ADDED: Action-type specific validation
+      validateActionSpecificFields(newErrors)
+    }
     
     setErrors(newErrors)
     setIsValid(Object.keys(newErrors).length === 0)
   }
 
-  const handleFieldChange = (key: string, value: any) => {
-    setConfig(prev => ({ ...prev, [key]: value }))
+  const validateActionSpecificFields = (errors: Record<string, string>) => {
+    if (node.type !== 'action') return
+    
+    const actionType = config.actionType
+    
+    switch (actionType) {
+      case 'send_email':
+        if (config.mode === 'custom') {
+          if (!config.subject?.trim()) {
+            errors['subject'] = 'Email subject is required for custom emails'
+          }
+          if (!config.body?.trim()) {
+            errors['body'] = 'Email body is required for custom emails'
+          }
+        } else if (config.mode === 'template' && !config.templateId) {
+          errors['templateId'] = 'Email template selection is required'
+        }
+        break
+        
+      case 'send_sms':
+        if (!config.message?.trim()) {
+          errors['message'] = 'SMS message is required'
+        } else if (config.message.length > 160) {
+          errors['message'] = 'SMS message should be under 160 characters'
+        }
+        break
+        
+      case 'send_whatsapp':
+        if (config.mode === 'freeform' && !config.message?.trim()) {
+          errors['message'] = 'WhatsApp message is required'
+        } else if (config.mode === 'template' && !config.templateId) {
+          errors['templateId'] = 'WhatsApp template selection is required'
+        }
+        break
+        
+      case 'create_task':
+        if (!config.taskTitle?.trim()) {
+          errors['taskTitle'] = 'Task title is required'
+        }
+        break
+    }
   }
+
+  const handleFieldChange = (key: string, value: any) => {
+    const updatedConfig = { ...config, [key]: value }
+    setConfig(updatedConfig)
+    // FIXED: Use updated config instead of stale closure
+    if (onChange) {
+      onChange(updatedConfig)
+    }
+  }
+
+  const handleFieldBlur = (key: string, value: any) => {
+    // Auto-save on blur if feature flag is enabled
+    if (useControlledConfig && isValid) {
+      // Clear any existing timeout
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current)
+      }
+      
+      // Set a new timeout for auto-save
+      autoSaveTimeoutRef.current = setTimeout(() => {
+        onSave(node.id, config)
+      }, 500) // Save after 500ms of inactivity
+    }
+  }
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const handleSave = () => {
     if (isValid) {
       onSave(node.id, config)
+      onClose() // Close panel after successful save
+    } else {
+      // Show validation errors
+      const errorCount = Object.keys(errors).length
+      alert(`Please fix ${errorCount} validation error${errorCount > 1 ? 's' : ''} before saving.`)
     }
   }
 
@@ -694,6 +795,7 @@ export default function DynamicConfigPanel({ node, onClose, onSave, organization
             type={field.type}
             value={value}
             onChange={(e) => handleFieldChange(field.key, e.target.value)}
+            onBlur={(e) => handleFieldBlur(field.key, e.target.value)}
             placeholder={field.placeholder}
             className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
               hasError 
@@ -708,6 +810,7 @@ export default function DynamicConfigPanel({ node, onClose, onSave, organization
           <textarea
             value={value}
             onChange={(e) => handleFieldChange(field.key, e.target.value)}
+            onBlur={(e) => handleFieldBlur(field.key, e.target.value)}
             placeholder={field.placeholder}
             rows={3}
             className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
@@ -724,6 +827,7 @@ export default function DynamicConfigPanel({ node, onClose, onSave, organization
             type="number"
             value={value}
             onChange={(e) => handleFieldChange(field.key, Number(e.target.value))}
+            onBlur={(e) => handleFieldBlur(field.key, Number(e.target.value))}
             placeholder={field.placeholder}
             min={field.validation?.min}
             max={field.validation?.max}
@@ -740,6 +844,7 @@ export default function DynamicConfigPanel({ node, onClose, onSave, organization
           <select
             value={value}
             onChange={(e) => handleFieldChange(field.key, e.target.value)}
+            onBlur={(e) => handleFieldBlur(field.key, e.target.value)}
             className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
               hasError 
                 ? 'border-red-500 focus:ring-red-200' 
@@ -907,6 +1012,9 @@ export default function DynamicConfigPanel({ node, onClose, onSave, organization
                   try {
                     const parsed = JSON.parse(e.target.value)
                     setConfig(parsed)
+                    if (onChange) {
+                      onChange(parsed)
+                    }
                   } catch {
                     // Invalid JSON, don't update
                   }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useState, useRef, useEffect } from 'react'
+import { useFeatureFlag } from '@/app/lib/feature-flags'
 import ReactFlow, {
   ReactFlowProvider,
   addEdge,
@@ -47,6 +48,7 @@ import {
 import { DndProvider, useDrag, useDrop } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 import { v4 as uuidv4 } from 'uuid'
+import { nanoid } from 'nanoid'
 
 import type { 
   Workflow, 
@@ -296,6 +298,12 @@ interface WorkflowBuilderProps {
 }
 
 function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBuilderProps) {
+  // Feature flags
+  const useCanvasImproved = useFeatureFlag('automationBuilderCanvasImproved')
+  const useNanoidNodes = useFeatureFlag('automationBuilderNanoidNodes')
+  const useMinimapSafety = useFeatureFlag('automationBuilderMinimapSafety')
+  const useStrictValidation = useFeatureFlag('automationBuilderValidation')
+  
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
   const [nodes, setNodes, onNodesChange] = useNodesState(workflow?.workflowData.nodes || [])
   const [edges, setEdges, onEdgesChange] = useEdgesState(workflow?.workflowData.edges || [])
@@ -329,9 +337,25 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
             x: clientOffset.x - reactFlowBounds.left,
             y: clientOffset.y - reactFlowBounds.top,
           })
+          
+          // FIXED: Avoid minimap area (bottom-right corner, typically 200x150px)
+          const minimapWidth = 200
+          const minimapHeight = 150
+          const canvasWidth = reactFlowBounds.width
+          const canvasHeight = reactFlowBounds.height
+          
+          let adjustedX = projected.x
+          let adjustedY = projected.y
+          
+          // If dropping in minimap area, move to safe zone
+          if (adjustedX > canvasWidth - minimapWidth && adjustedY > canvasHeight - minimapHeight) {
+            adjustedX = Math.max(50, canvasWidth - minimapWidth - 100)
+            adjustedY = Math.max(50, canvasHeight - minimapHeight - 100)
+          }
+          
           position = {
-            x: projected.x + (Math.random() - 0.5) * 10,
-            y: projected.y + (Math.random() - 0.5) * 10,
+            x: adjustedX + (Math.random() - 0.5) * 10,
+            y: adjustedY + (Math.random() - 0.5) * 10,
           }
         } else {
           // Fallback: use direct coordinates if instance not ready
@@ -341,8 +365,22 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
           }
         }
 
+        // FIXED: Ensure truly unique node ID generation with nanoid (shorter, safer IDs)
+        let nodeId: string
+        if (useNanoidNodes) {
+          // Use nanoid for shorter, URL-safe IDs
+          do {
+            nodeId = nanoid(10) // 10 character IDs should be unique enough
+          } while (nodes.some(n => n.id === nodeId))
+        } else {
+          // Fallback to UUID v4
+          do {
+            nodeId = uuidv4()
+          } while (nodes.some(n => n.id === nodeId))
+        }
+        
         const newNode: WorkflowNode = {
-          id: uuidv4(),
+          id: nodeId,
           type: item.type,
           position,
           data: {
@@ -376,7 +414,7 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
     collect: (monitor) => ({
       isOver: monitor.isOver(),
     }),
-  }), [reactFlowInstance, setNodes])
+  }), [reactFlowInstance, setNodes, nodes, useNanoidNodes])
 
   // Combine refs
   const combinedRef = useCallback((node: HTMLDivElement | null) => {
@@ -440,7 +478,7 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
       
       const newEdge: Edge = {
         ...params,
-        id: uuidv4(),
+        id: useNanoidNodes ? nanoid(8) : uuidv4(),
         type: 'smoothstep',
         animated: true,
         markerEnd: {
@@ -531,6 +569,34 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [deleteSelected])
 
+  // Auto-save functionality
+  useEffect(() => {
+    if (!workflow || !onSave) return
+    
+    const autoSaveTimer = setTimeout(async () => {
+      if (nodes.length > 0 || edges.length > 0) {
+        try {
+          const updatedWorkflow: Workflow = {
+            ...workflow,
+            workflowData: {
+              nodes: nodes as WorkflowNode[],
+              edges,
+              variables: workflow.workflowData.variables || [],
+              viewport: reactFlowInstance?.getViewport(),
+            },
+          }
+          await onSave(updatedWorkflow)
+          setSaveMessage({ type: 'success', text: 'Auto-saved successfully' })
+          setTimeout(() => setSaveMessage(null), 2000)
+        } catch (error) {
+          console.error('Auto-save failed:', error)
+        }
+      }
+    }, 2000) // Auto-save every 2 seconds
+    
+    return () => clearTimeout(autoSaveTimer)
+  }, [nodes, edges, workflow, onSave, reactFlowInstance])
+
   // Save workflow
   const handleSave = useCallback(async () => {
     if (onSave && workflow) {
@@ -559,18 +625,69 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
     }
   }, [workflow, nodes, edges, reactFlowInstance, onSave])
 
-  // Test workflow
+  // Test workflow with validation
   const handleTest = useCallback(() => {
     setIsTestMode(true)
     setShowTestPanel(true)
     setExecutionSteps([])
     
-    // Find trigger nodes
+    // ENHANCED: Comprehensive validation before testing
     const triggerNodes = nodes.filter(n => n.type === 'trigger')
+    const actionNodes = nodes.filter(n => n.type === 'action')
+    const invalidNodes = []
     
     if (triggerNodes.length === 0) {
       setSaveMessage({ type: 'error', text: 'No trigger nodes found. Add a trigger to test the workflow.' })
       setTimeout(() => setSaveMessage(null), 3000)
+      return
+    }
+    
+    // Validate each action node has required fields
+    for (const node of actionNodes) {
+      const config = node.data?.config || {}
+      const actionType = config.actionType
+      
+      if (!actionType) {
+        invalidNodes.push(`${node.data?.label || node.id}: Action type not selected`)
+        continue
+      }
+      
+      // Check action-specific required fields
+      switch (actionType) {
+        case 'send_email':
+          if (config.mode === 'custom') {
+            if (!config.subject?.trim()) invalidNodes.push(`${node.data?.label || node.id}: Email subject is required`)
+            if (!config.body?.trim()) invalidNodes.push(`${node.data?.label || node.id}: Email body is required`)
+          } else if (config.mode === 'template' && !config.templateId) {
+            invalidNodes.push(`${node.data?.label || node.id}: Email template must be selected`)
+          }
+          break
+        case 'send_sms':
+          if (!config.message?.trim()) {
+            invalidNodes.push(`${node.data?.label || node.id}: SMS message is required`)
+          }
+          break
+        case 'send_whatsapp':
+          if (config.mode === 'freeform' && !config.message?.trim()) {
+            invalidNodes.push(`${node.data?.label || node.id}: WhatsApp message is required`)
+          } else if (config.mode === 'template' && !config.templateId) {
+            invalidNodes.push(`${node.data?.label || node.id}: WhatsApp template must be selected`)
+          }
+          break
+        case 'create_task':
+          if (!config.taskTitle?.trim()) {
+            invalidNodes.push(`${node.data?.label || node.id}: Task title is required`)
+          }
+          break
+      }
+    }
+    
+    if (invalidNodes.length > 0) {
+      setSaveMessage({ 
+        type: 'error', 
+        text: `Configuration errors found:\n${invalidNodes.slice(0, 3).join('\n')}${invalidNodes.length > 3 ? `\n... and ${invalidNodes.length - 3} more` : ''}` 
+      })
+      setTimeout(() => setSaveMessage(null), 5000)
       return
     }
     
@@ -640,7 +757,131 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
   }, [workflow, nodes, edges, onTest])
   
   // Run test execution with payload
+  // Workflow validation function
+  const validateWorkflow = useCallback(() => {
+    const errors: string[] = []
+    
+    // Check if workflow has nodes
+    if (nodes.length === 0) {
+      errors.push('Workflow must contain at least one node')
+      return { isValid: false, errors }
+    }
+    
+    // Check for at least one trigger node
+    const triggerNodes = nodes.filter(n => n.type === 'trigger')
+    if (triggerNodes.length === 0) {
+      errors.push('Workflow must have at least one trigger node')
+    }
+    
+    // Validate each node has required configuration
+    nodes.forEach(node => {
+      if (!node.data.config || Object.keys(node.data.config).length === 0) {
+        errors.push(`Node "${node.data.label}" is missing configuration`)
+      }
+      
+      // Node-specific validation
+      switch (node.type) {
+        case 'action':
+          if (!node.data.config?.actionType) {
+            errors.push(`Action node "${node.data.label}" is missing action type`)
+          }
+          
+          // Action-specific validation
+          const actionType = node.data.config?.actionType
+          switch (actionType) {
+            case 'send_email':
+              if (node.data.config?.mode === 'custom') {
+                if (!node.data.config?.subject?.trim()) {
+                  errors.push(`Email action "${node.data.label}" is missing subject`)
+                }
+                if (!node.data.config?.body?.trim()) {
+                  errors.push(`Email action "${node.data.label}" is missing body`)
+                }
+              } else if (node.data.config?.mode === 'template') {
+                if (!node.data.config?.templateId) {
+                  errors.push(`Email action "${node.data.label}" is missing template selection`)
+                }
+              }
+              break
+              
+            case 'send_sms':
+              if (!node.data.config?.message?.trim()) {
+                errors.push(`SMS action "${node.data.label}" is missing message`)
+              }
+              break
+              
+            case 'create_task':
+              if (!node.data.config?.taskTitle?.trim()) {
+                errors.push(`Task action "${node.data.label}" is missing task title`)
+              }
+              break
+          }
+          break
+          
+        case 'condition':
+          if (!node.data.config?.conditions || node.data.config.conditions.length === 0) {
+            errors.push(`Condition node "${node.data.label}" has no conditions defined`)
+          }
+          break
+          
+        case 'wait':
+          if (node.data.config?.waitType === 'duration' && (!node.data.config?.duration || node.data.config.duration <= 0)) {
+            errors.push(`Wait node "${node.data.label}" has invalid duration`)
+          }
+          break
+      }
+    })
+    
+    // Check for orphaned nodes (nodes not connected to the workflow)
+    const connectedNodeIds = new Set<string>()
+    
+    // Add all trigger nodes (workflow entry points)
+    triggerNodes.forEach(trigger => {
+      connectedNodeIds.add(trigger.id)
+    })
+    
+    // Traverse the graph from trigger nodes
+    const visited = new Set<string>()
+    const queue = [...triggerNodes.map(n => n.id)]
+    
+    while (queue.length > 0) {
+      const currentNodeId = queue.shift()!
+      if (visited.has(currentNodeId)) continue
+      
+      visited.add(currentNodeId)
+      connectedNodeIds.add(currentNodeId)
+      
+      // Find outgoing edges from current node
+      const outgoingEdges = edges.filter(e => e.source === currentNodeId)
+      outgoingEdges.forEach(edge => {
+        if (edge.target && !visited.has(edge.target)) {
+          queue.push(edge.target)
+        }
+      })
+    }
+    
+    // Check for orphaned nodes
+    const orphanedNodes = nodes.filter(n => !connectedNodeIds.has(n.id))
+    orphanedNodes.forEach(node => {
+      errors.push(`Node "${node.data.label}" is not connected to the workflow`)
+    })
+    
+    return {
+      isValid: errors.length === 0,
+      errors
+    }
+  }, [nodes, edges])
+
   const runTestExecution = useCallback(async (payload: any) => {
+    // Validate workflow before running test if feature flag is enabled
+    if (useStrictValidation) {
+      const validation = validateWorkflow()
+      if (!validation.isValid) {
+        alert(`Cannot run test - workflow has validation errors:\n\n${validation.errors.join('\n')}`)
+        return
+      }
+    }
+    
     setIsTestMode(true)
     setExecutionSteps([])
     
@@ -711,7 +952,7 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
     }
     
     setIsTestMode(false)
-  }, [nodes, edges])
+  }, [nodes, edges, useStrictValidation, validateWorkflow])
   
   // Toggle workflow active state
   const handleToggleActive = useCallback(async () => {
@@ -784,6 +1025,35 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
       })
     )
   }, [setNodes])
+
+  // Prevent minimap navigation clicks
+  useEffect(() => {
+    if (!useMinimapSafety) return
+
+    const handleMinimapClick = (event: Event) => {
+      // Find if the click happened within a minimap element
+      const target = event.target as Element
+      const minimap = target.closest('.react-flow__minimap')
+      
+      if (minimap) {
+        console.log('Minimap click prevented - safety feature enabled')
+        event.preventDefault()
+        event.stopPropagation()
+        return false
+      }
+    }
+
+    // Add event listeners to prevent navigation
+    document.addEventListener('click', handleMinimapClick, true)
+    document.addEventListener('mousedown', handleMinimapClick, true)
+    document.addEventListener('mouseup', handleMinimapClick, true)
+
+    return () => {
+      document.removeEventListener('click', handleMinimapClick, true)
+      document.removeEventListener('mousedown', handleMinimapClick, true)
+      document.removeEventListener('mouseup', handleMinimapClick, true)
+    }
+  }, [useMinimapSafety])
 
   return (
     <div className="flex h-screen bg-gray-900 text-white">
@@ -862,12 +1132,16 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
                   setExecutionSteps([])
                 }
               }}
-              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
-                isTestMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-700 hover:bg-gray-600'
+              className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
+                isTestMode 
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg ring-2 ring-blue-400 ring-opacity-50' 
+                  : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
               }`}
             >
               <Bug className="h-4 w-4" />
-              Test Mode
+              <span className={isTestMode ? 'font-semibold' : ''}>
+                {isTestMode ? 'Test Mode (Active)' : 'Test Mode'}
+              </span>
             </button>
             <button
               onClick={handleTest}
@@ -879,21 +1153,21 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
             <button
               onClick={handleToggleActive}
               disabled={isSaving}
-              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+              className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
                 workflow?.status === 'active'
-                  ? 'bg-orange-600 hover:bg-orange-700'
-                  : 'bg-gray-700 hover:bg-gray-600'
+                  ? 'bg-green-600 hover:bg-green-700 text-white shadow-lg ring-2 ring-green-400 ring-opacity-50'
+                  : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
               } ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {workflow?.status === 'active' ? (
                 <>
-                  <Pause className="h-4 w-4" />
-                  Active
+                  <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                  <span className="font-semibold">Active</span>
                 </>
               ) : (
                 <>
                   <Play className="h-4 w-4" />
-                  Inactive
+                  <span>Inactive</span>
                 </>
               )}
             </button>
@@ -916,6 +1190,13 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
             onNodeClick={onNodeClick}
             nodeTypes={nodeTypes}
             fitView
+            panOnDrag={useCanvasImproved ? true : true}
+            zoomOnScroll={useCanvasImproved ? true : true}
+            zoomOnPinch={useCanvasImproved ? true : true}
+            zoomOnDoubleClick={useCanvasImproved ? true : true}
+            panOnScroll={useCanvasImproved ? false : false}
+            preventScrolling={useCanvasImproved ? true : false}
+            selectNodesOnDrag={useCanvasImproved ? false : true}
             connectionLineStyle={{ stroke: '#f97316', strokeWidth: 2 }}
             defaultEdgeOptions={{
               type: 'smoothstep',
@@ -923,6 +1204,11 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
               markerEnd: {
                 type: MarkerType.ArrowClosed,
               },
+            }}
+            style={{ 
+              ...(useCanvasImproved && { 
+                touchAction: 'none' // Prevent scroll-bleed on touch devices
+              })
             }}
           >
             <Controls />
@@ -936,7 +1222,10 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
                   default: return '#6b7280'
                 }
               }}
-              className="bg-gray-800"
+              className={`bg-gray-800 ${useMinimapSafety ? 'pointer-events-none' : ''}`}
+              maskColor="transparent"
+              pannable={useMinimapSafety ? false : true}
+              zoomable={useMinimapSafety ? false : true}
             />
             <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
             

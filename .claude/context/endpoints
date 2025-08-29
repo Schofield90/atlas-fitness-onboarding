@@ -1,0 +1,176 @@
+# API Endpoints - Automations Module
+
+## Existing Endpoints
+
+### Workflows Management
+**GET /api/automations/workflows**
+- File: /Users/samschofield/atlas-fitness-onboarding/app/api/automations/workflows/route.ts:5-30
+- Purpose: Fetch all workflows for current organization
+- Auth: Organization-scoped via getCurrentUserOrganization()
+- Response: { workflows: Workflow[] }
+- Error handling: 404 for missing org, 500 for DB errors
+
+**POST /api/automations/workflows** 
+- File: /Users/samschofield/atlas-fitness-onboarding/app/api/automations/workflows/route.ts:32-72
+- Purpose: Create new workflow
+- Auth: Organization-scoped
+- Body: { name?, description?, status?, nodes?, edges?, variables?, trigger_type?, trigger_config?, settings? }
+- Response: { workflow: Workflow }
+
+### Workflow Execution
+**POST /api/automations/workflows/[id]/execute**
+- File: /Users/samschofield/atlas-fitness-onboarding/app/api/automations/workflows/[id]/execute/route.ts
+- Purpose: Execute workflow with test payload
+- Status: Exists but implementation needs verification
+
+### Testing Endpoints
+**POST /api/automations/test-email**
+- File: /Users/samschofield/atlas-fitness-onboarding/app/api/automations/test-email/route.ts
+- Purpose: Test email action configuration
+
+**POST /api/automations/test-internal-message**
+- File: /Users/samschofield/atlas-fitness-onboarding/app/api/automations/test-internal-message/route.ts
+- Purpose: Test internal messaging action
+
+### Trigger Management
+**GET /api/automations/scoring-triggers**
+- File: /Users/samschofield/atlas-fitness-onboarding/app/api/automations/scoring-triggers/route.ts
+- Purpose: Manage lead scoring automation triggers
+
+## Missing Endpoints (Critical Gaps)
+
+### Workflow Management
+**PUT /api/automations/workflows/[id]** - MISSING
+- Purpose: Update existing workflow
+- Required for: Builder save functionality
+- Expected body: Same as POST /api/automations/workflows
+- Implementation needed in: /Users/samschofield/atlas-fitness-onboarding/app/api/automations/workflows/[id]/route.ts
+
+**DELETE /api/automations/workflows/[id]** - MISSING  
+- Purpose: Delete workflow
+- Required for: Workflow management UI
+- Auth: Organization ownership validation required
+
+**GET /api/automations/workflows/[id]** - MISSING
+- Purpose: Fetch single workflow by ID
+- Required for: Edit workflow page data loading
+- Current workaround: Mock data in builder page
+
+### Template System
+**GET /api/automations/templates** - MISSING
+- Purpose: Fetch available workflow templates
+- Required for: Template selection UI
+- Current status: Hardcoded in component
+
+**POST /api/automations/templates** - MISSING
+- Purpose: Create template from existing workflow
+- Required for: Template sharing functionality
+
+### Webhook Management
+**POST /api/automations/webhooks** - MISSING
+- Purpose: Register webhook endpoints for triggers
+- Required for: Webhook trigger configuration
+
+**GET /api/automations/webhooks** - MISSING
+- Purpose: List registered webhooks
+- Required for: Webhook management UI
+
+### Execution Management
+**GET /api/automations/executions** - MISSING
+- Purpose: List workflow execution history
+- Required for: Analytics and monitoring
+
+**GET /api/automations/executions/[id]** - MISSING  
+- Purpose: Get execution details and logs
+- Required for: Debugging and analytics
+
+## Database Schema Dependencies
+
+### workflows table
+- Accessed by: workflows CRUD endpoints
+- Schema: organization_id, name, description, status, nodes, edges, variables, trigger_type, trigger_config, settings
+- RLS: Organization-scoped access required
+
+### workflow_executions table (implied)
+- Required for: Execution tracking endpoints
+- Schema: workflow_id, status, trigger_data, started_at, completed_at, error_message
+- RLS: Organization-scoped via workflow relationship
+
+### webhook_triggers table (implied)
+- Required for: Webhook management endpoints  
+- Schema: workflow_id, endpoint_id, secret, is_active, organization_id
+- RLS: Organization-scoped access
+
+## API Integration Patterns
+
+### Error Handling Pattern
+```typescript
+try {
+  const { organizationId, error: orgError } = await getCurrentUserOrganization()
+  if (orgError || !organizationId) {
+    return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
+  }
+  // ... endpoint logic
+} catch (error) {
+  console.error('Error in [endpoint]:', error)
+  return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+}
+```
+
+### Database Access Pattern
+```typescript
+const supabase = await createClient()
+const { data, error } = await supabase
+  .from('workflows')
+  .select('*')
+  .eq('organization_id', organizationId)
+```
+
+## Authentication & Authorization
+
+### Organization Scoping
+- All endpoints use getCurrentUserOrganization() for access control
+- Organization ID filtering required on all database queries
+- RLS policies must be configured at database level
+
+### API Security
+- No public endpoints - all require authentication
+- Organization membership validation required
+- Webhook endpoints need separate authentication mechanism
+
+## Client-Side Integration
+
+### Fetch Pattern in Components
+```typescript
+// From /Users/samschofield/atlas-fitness-onboarding/app/automations/page.tsx:47-66
+const fetchWorkflows = async () => {
+  try {
+    const response = await fetch('/api/automations/workflows')
+    if (response.ok) {
+      const data = await response.json()
+      setWorkflows(data.workflows)
+    }
+  } catch (error) {
+    console.error('Error fetching workflows:', error)
+  }
+}
+```
+
+### Error Handling in UI
+- Network errors fall back to sample/mock data
+- User-friendly error messages needed for failed operations
+- Loading states managed at component level
+
+## Performance Considerations
+
+### Pagination Requirements
+- /api/automations/workflows: No pagination implemented
+- /api/automations/executions: Will need pagination for large datasets
+- Template endpoints: May need filtering/search
+
+### Caching Strategy
+- Workflow data: Should be cached with cache invalidation on updates
+- Template data: Can be cached longer-term
+- Execution data: Real-time updates preferred, minimal caching
+
+Last updated: 2025-08-29T00:00:00Z

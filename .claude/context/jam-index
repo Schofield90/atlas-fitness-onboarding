@@ -1,0 +1,256 @@
+# JAM Index - Automations Module
+
+## Design Documents
+
+### Enhanced Workflow Builder Documentation
+**ID**: enhanced-workflow-001
+**Location**: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/README_ENHANCED_WORKFLOW_BUILDER.md
+**Purpose**: Architecture documentation for enhanced workflow builder system
+**Status**: Active reference document
+**Key Topics**: Component architecture, state management, advanced features
+
+### Automation System README  
+**ID**: automation-readme-001
+**Location**: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/README.md
+**Purpose**: General automation system overview and usage guidelines
+**Status**: Active reference document
+
+## Decision Records
+
+### SimpleWorkflowBuilder Deprecation
+**ID**: DR-2025-001
+**Date**: 2025-08-29 (inferred)
+**Decision**: Consolidate all workflow builder functionality into main WorkflowBuilder
+**Rationale**: Reduce code duplication, improve maintainability
+**Status**: Implemented
+**Reference**: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/DynamicWorkflowBuilder.tsx:34-36
+
+### ReactFlow SSR Disable Decision
+**ID**: DR-2025-002  
+**Decision**: Disable server-side rendering for React Flow components
+**Rationale**: React Flow requires DOM APIs not available during SSR
+**Implementation**: Dynamic imports with ssr: false
+**Status**: Implemented
+**Reference**: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/DynamicWorkflowBuilder.tsx:26-32
+
+### Auto-Save Timing Decision
+**ID**: DR-2025-003
+**Decision**: Implement 2-second auto-save interval
+**Rationale**: Balance between data safety and performance
+**Trade-offs**: May conflict with manual save operations
+**Status**: Implemented with known issues
+**Reference**: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/WorkflowBuilder.tsx:534-560
+
+## External Resources
+
+### React Flow Documentation
+**URL**: https://reactflow.dev/
+**Purpose**: Core canvas and node system documentation
+**Relevance**: Primary dependency for workflow builder UI
+**Integration Points**: Custom node types, connection validation, drag handling
+
+### React DnD Documentation  
+**URL**: https://react-dnd.github.io/react-dnd/
+**Purpose**: Drag and drop functionality documentation
+**Relevance**: Node palette to canvas drag operations
+**Integration Points**: HTML5Backend, TestBackend for testing
+
+### Supabase Documentation
+**URL**: https://supabase.com/docs
+**Purpose**: Database and authentication system documentation  
+**Relevance**: Backend data persistence and organization scoping
+**Integration Points**: RLS policies, client creation, type generation
+
+## Architecture Decision Records
+
+### Multi-Tenant Data Architecture
+**ID**: ADR-2025-001
+**Date**: Pre-existing (inferred from codebase)
+**Decision**: Use organization-scoped data access with RLS
+**Context**: SaaS platform requiring strict data isolation
+**Consequences**: 
+  - ✅ Strong security boundaries
+  - ✅ Simplified client-side logic
+  - ❌ Complex database policy management
+**Status**: Implemented
+**References**: All API endpoints use getCurrentUserOrganization()
+
+### Configuration Panel Schema System
+**ID**: ADR-2025-002
+**Decision**: Dynamic form generation based on node type schemas
+**Context**: Need flexible configuration UI for diverse node types
+**Benefits**: Type-safe forms, consistent validation, extensible
+**Trade-offs**: Complex form generation logic, harder debugging
+**Status**: Implemented
+**Reference**: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/config/DynamicConfigPanel.tsx:34-118
+
+### Node Type System Evolution
+**ID**: ADR-2025-003
+**Decision**: Extend from 7 basic types to 17+ advanced types
+**Context**: Growing complexity of automation requirements
+**Migration Strategy**: Backward compatibility maintained
+**Status**: In progress
+**References**: 
+  - Basic: /Users/samschofield/atlas-fitness-onboarding/app/lib/types/automation.ts:52-74
+  - Enhanced: /Users/samschofield/atlas-fitness-onboarding/typescript_interfaces_enhanced_workflows.ts:95-120
+
+## Technical Specifications
+
+### Database Schema Design
+**ID**: schema-workflows-001
+**Document**: Inferred from API implementations
+**Tables**: workflows, workflow_executions, webhook_triggers (implied)
+**Key Design Decisions**:
+  - JSONB storage for nodes/edges flexibility
+  - Organization-scoped RLS policies
+  - Status-based workflow lifecycle
+
+### API Design Patterns
+**ID**: api-patterns-001
+**Pattern**: RESTful with organization scoping
+**Authentication**: Supabase Auth with organization context
+**Error Handling**: Standardized error responses with fallbacks
+**Status**: Partially implemented (missing UPDATE/DELETE)
+
+## Testing Strategy Documents
+
+### Test Coverage Strategy
+**ID**: testing-strategy-001
+**Location**: Inferred from test file structure
+**Components**: Unit, integration, E2E testing levels
+**Tools**: Jest, React Testing Library, Playwright
+**Gaps**: Performance testing, security testing
+
+### Mock Strategy Documentation
+**ID**: mock-strategy-001
+**Approach**: Mock external dependencies (ReactFlow, APIs)
+**Benefits**: Fast test execution, predictable test environment
+**Challenges**: Drift between mocks and real implementations
+**Reference**: /Users/samschofield/atlas-fitness-onboarding/tests/unit/automation-builder.test.ts:12-50
+
+## User Experience Decisions
+
+### Drag and Drop UX
+**ID**: UX-2025-001
+**Decision**: Node palette drag to canvas creation
+**Alternative Considered**: Click to create, then drag to position
+**Rationale**: More intuitive workflow building experience
+**Implementation**: react-dnd with position projection
+**Known Issues**: ReactFlow instance dependency
+
+### Configuration Panel UX
+**ID**: UX-2025-002  
+**Decision**: Click-to-configure with side panel
+**Alternative Considered**: Modal dialogs
+**Benefits**: Non-blocking, allows comparison with canvas
+**Trade-offs**: Reduced screen space for complex workflows
+
+### Test Mode UX
+**ID**: UX-2025-003
+**Decision**: Inline test panel with execution visualization
+**Features**: JSON payload editor, step-by-step progress
+**Status**: Implemented with mock execution
+**Enhancement Needed**: Real API integration
+
+## Performance Decisions
+
+### Canvas Performance Optimization
+**ID**: PERF-2025-001
+**Decisions**: React Flow default optimizations, MiniMap for navigation
+**Measurements**: Not formally documented
+**Thresholds**: No defined limits for node count
+**Status**: Basic implementation, needs formal benchmarking
+
+### Auto-Save Performance
+**ID**: PERF-2025-002
+**Decision**: 2-second debounced auto-save
+**Rationale**: Balance data safety with API load
+**Issues**: Conflicts with manual saves, no user feedback
+**Improvement Needed**: Smart conflict resolution
+
+## Security Design Decisions
+
+### Data Access Control
+**ID**: SEC-2025-001
+**Decision**: Database-level RLS with API-level organization validation
+**Implementation**: All endpoints verify organization membership
+**Status**: Implemented but needs security audit
+**Reference**: Organization scoping pattern in all API routes
+
+### Configuration Security
+**ID**: SEC-2025-002
+**Decision**: Schema-based validation without code execution
+**Rationale**: Prevent injection attacks through node configuration
+**Status**: Implemented in configuration panel
+**Gap**: Needs comprehensive security testing
+
+## Integration Documentation
+
+### Email System Integration
+**ID**: INT-2025-001
+**Components**: Email actions in workflows
+**Dependencies**: Email service configuration
+**Status**: Basic implementation in action types
+**Reference**: Email action configuration in DynamicConfigPanel
+
+### Webhook System Integration
+**ID**: INT-2025-002
+**Components**: Webhook triggers and actions
+**Security**: Secret-based validation
+**Status**: Defined in types, implementation unclear
+**Reference**: Webhook types in automation.ts
+
+## Deprecated Documentation
+
+### Legacy Simple Builder
+**ID**: deprecated-simple-001
+**Status**: DEPRECATED as of consolidation decision
+**Replacement**: Main WorkflowBuilder handles all complexity
+**Migration**: Automatic via dynamic wrapper component
+
+### Legacy Node System
+**ID**: deprecated-nodes-001
+**Status**: SUPERSEDED by enhanced node type system
+**Migration Path**: Backward compatibility maintained
+**Timeline**: Gradual migration to enhanced types
+
+## Future Architecture Plans
+
+### Advanced Node System
+**ID**: future-nodes-001
+**Proposal**: AI-powered nodes, sub-workflow nodes, advanced logic
+**Status**: Types defined, implementation pending
+**Reference**: Enhanced node types in typescript_interfaces_enhanced_workflows.ts
+
+### Real-time Collaboration
+**ID**: future-collab-001
+**Proposal**: Multi-user workflow editing with conflict resolution
+**Dependencies**: WebSocket system, operational transforms
+**Status**: Not implemented
+
+### Performance Scaling
+**ID**: future-perf-001
+**Proposal**: Virtualization for large workflows, performance monitoring
+**Requirements**: Benchmarking, performance budgets
+**Status**: Performance gaps identified, solutions planned
+
+## External System Dependencies
+
+### Supabase Platform
+**Dependency**: Database, authentication, real-time subscriptions
+**Version**: Latest stable
+**Critical Features**: RLS, JSONB support, organization context
+**Documentation**: https://supabase.com/docs
+
+### Vercel Platform
+**Dependency**: Hosting, serverless functions, edge functions
+**Configuration**: Next.js app with API routes
+**Critical Features**: Organization routing, API deployment
+
+### Third-party Libraries
+**React Flow**: Visual workflow canvas
+**React DnD**: Drag and drop functionality  
+**UUID**: Unique identifier generation
+**Lucide React**: Icon system
+
+Last updated: 2025-08-29T00:00:00Z

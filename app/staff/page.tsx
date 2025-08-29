@@ -6,6 +6,8 @@ import { createClient } from '@/app/lib/supabase/client'
 import { MapPin, UserPlus } from 'lucide-react'
 import StaffLocationModal from './StaffLocationModal'
 import InviteStaffModal from './InviteStaffModal'
+import { useToast } from '@/app/lib/hooks/useToast'
+import { isFeatureEnabled } from '@/app/lib/feature-flags'
 
 interface Staff {
   id: string
@@ -28,8 +30,10 @@ export default function StaffPage() {
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [staff, setStaff] = useState<Staff[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [selectedStaffForLocation, setSelectedStaffForLocation] = useState<{id: string, name: string} | null>(null)
   const supabase = createClient()
+  const toast = useToast()
   
   const [formData, setFormData] = useState({
     name: '',
@@ -45,15 +49,15 @@ export default function StaffPage() {
 
   const fetchStaff = async () => {
     try {
+      setError(false)
+      
       // Get the organization ID from the API which handles auth properly
       const response = await fetch('/api/organization/get-info')
       if (!response.ok) {
-        console.error('Failed to get organization info')
-        return
+        throw new Error('Failed to get organization info')
       }
       
       const { organizationId } = await response.json()
-      console.log('Organization ID:', organizationId)
 
       const { data, error: staffError } = await supabase
         .from('organization_staff')
@@ -61,12 +65,36 @@ export default function StaffPage() {
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false })
 
-      console.log('Staff data:', data)
-      console.log('Staff error:', staffError)
+      if (staffError) {
+        throw staffError
+      }
 
       setStaff(data || [])
     } catch (error) {
       console.error('Error fetching staff:', error)
+      
+      if (isFeatureEnabled('staffFallback')) {
+        // Show placeholder staff list
+        setStaff([
+          {
+            id: 'placeholder-1',
+            user_id: 'placeholder',
+            phone_number: '+44 7123 456789',
+            email: 'demo@example.com',
+            is_available: true,
+            receives_calls: true,
+            receives_sms: true,
+            receives_whatsapp: false,
+            receives_emails: true,
+            routing_priority: 1,
+            role: 'manager',
+            location_access: { all_locations: true }
+          }
+        ])
+        toast.error('Unable to load staff - showing demo data')
+      } else {
+        setError(true)
+      }
     } finally {
       setLoading(false)
     }
@@ -169,13 +197,30 @@ export default function StaffPage() {
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"></div>
                 </div>
+              ) : error ? (
+                <div className="text-center py-8">
+                  <svg className="w-16 h-16 mx-auto mb-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <p className="text-gray-400 mb-2">Unable to load staff</p>
+                  <p className="text-sm text-gray-500 mb-4">There was an issue fetching your staff members</p>
+                  <button 
+                    onClick={() => {
+                      setLoading(true)
+                      fetchStaff()
+                    }}
+                    className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors"
+                  >
+                    Try Again
+                  </button>
+                </div>
               ) : staff.length === 0 ? (
                 <div className="text-center py-8">
                   <svg className="w-16 h-16 mx-auto mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                   </svg>
                   <p className="text-gray-400 mb-2">No staff members yet</p>
-                  <p className="text-sm text-gray-500">Click "Add Staff Member" to get started</p>
+                  <p className="text-sm text-gray-500">Click "Invite Staff" or "Add Manually" to get started</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

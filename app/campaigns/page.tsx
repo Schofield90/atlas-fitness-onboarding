@@ -100,8 +100,13 @@ export default function CampaignsPage() {
   
   const handleCreateCampaign = () => {
     // Check if feature is enabled
-    if (!isFeatureEnabled('campaignsCreate')) {
+    if (!isFeatureEnabled('campaignsCreate') && !selectedCampaign) {
       toast.error('Campaign creation is coming soon!')
+      return
+    }
+    
+    if (!isFeatureEnabled('campaignsActions') && selectedCampaign) {
+      toast.error('Campaign editing is coming soon!')
       return
     }
     
@@ -111,34 +116,51 @@ export default function CampaignsPage() {
       return
     }
 
-    // Create new campaign
-    const newCampaign = {
-      id: campaigns.length + 1,
-      name: campaignForm.name,
-      type: selectedCampaignType === 'facebook' ? 'Facebook Ads' : selectedCampaignType === 'email' ? 'Email' : 'Instagram',
-      status: 'active',
-      budget: parseFloat(campaignForm.budget) || 0,
-      spent: 0,
-      impressions: 0,
-      clicks: 0,
-      leads: 0,
-      conversions: 0,
-      ctr: 0,
-      cpc: 0,
-      costPerLead: 0,
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      recipients: selectedCampaignType === 'email' ? 1000 : undefined,
-      opened: 0,
-      clicked: 0,
-      openRate: 0,
-      clickRate: 0
-    }
+    if (selectedCampaign) {
+      // Update existing campaign
+      const updatedCampaigns = campaigns.map(c => 
+        c.id === selectedCampaign.id 
+          ? { 
+              ...c, 
+              name: campaignForm.name,
+              budget: parseFloat(campaignForm.budget) || c.budget,
+              type: selectedCampaignType === 'facebook' ? 'Facebook Ads' : selectedCampaignType === 'email' ? 'Email' : 'Instagram'
+            }
+          : c
+      )
+      setCampaigns(updatedCampaigns)
+      toast.success('Campaign updated successfully!')
+    } else {
+      // Create new campaign
+      const newCampaign = {
+        id: campaigns.length + 1,
+        name: campaignForm.name,
+        type: selectedCampaignType === 'facebook' ? 'Facebook Ads' : selectedCampaignType === 'email' ? 'Email' : 'Instagram',
+        status: 'active',
+        budget: parseFloat(campaignForm.budget) || 0,
+        spent: 0,
+        impressions: 0,
+        clicks: 0,
+        leads: 0,
+        conversions: 0,
+        ctr: 0,
+        cpc: 0,
+        costPerLead: 0,
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        recipients: selectedCampaignType === 'email' ? 1000 : undefined,
+        opened: 0,
+        clicked: 0,
+        openRate: 0,
+        clickRate: 0
+      }
 
-    // Add to campaigns list
-    setCampaigns([...campaigns, newCampaign])
+      // Add to campaigns list
+      setCampaigns([...campaigns, newCampaign])
+      toast.success('Campaign created successfully!')
+    }
     
-    // Reset form
+    // Reset form and selected campaign
     setCampaignForm({
       name: '',
       type: 'facebook',
@@ -149,12 +171,10 @@ export default function CampaignsPage() {
       sendSchedule: 'immediately',
       sendDate: ''
     })
+    setSelectedCampaign(null)
     
     // Go back to overview
     setActiveTab('overview')
-    
-    // Show success message
-    toast.success('Campaign created successfully!')
   }
 
   if (!mounted) {
@@ -356,9 +376,25 @@ export default function CampaignsPage() {
                       </button>
                       <button 
                         onClick={() => {
-                          // Edit campaign
-                          alert('Edit functionality will open campaign editor')
-                          console.log('Edit campaign:', campaign.id)
+                          if (!isFeatureEnabled('campaignsActions')) {
+                            toast.info('Campaign editing coming soon!')
+                            return
+                          }
+                          
+                          // Pre-fill form with campaign data for editing
+                          setCampaignForm({
+                            name: campaign.name,
+                            type: campaign.type.toLowerCase().replace(' ads', '').replace(' ', '_'),
+                            budget: campaign.budget?.toString() || '',
+                            duration: '1 month',
+                            targetAudience: '',
+                            template: '',
+                            sendSchedule: 'immediately',
+                            sendDate: ''
+                          })
+                          setSelectedCampaign(campaign)
+                          setActiveTab('create')
+                          toast.info(`Editing ${campaign.name}`)
                         }}
                         className="text-gray-400 hover:text-white"
                         title="Edit Campaign"
@@ -381,7 +417,9 @@ export default function CampaignsPage() {
   const renderCreateCampaign = () => (
     <div className="space-y-6">
       <div className="bg-gray-800 rounded-lg p-6">
-        <h2 className="text-xl font-bold text-white mb-6">Create New Campaign</h2>
+        <h2 className="text-xl font-bold text-white mb-6">
+          {selectedCampaign ? `Edit Campaign: ${selectedCampaign.name}` : 'Create New Campaign'}
+        </h2>
         
         {/* Campaign Type Selection */}
         <div className="mb-6">

@@ -6,6 +6,8 @@ import DashboardLayout from '@/app/components/DashboardLayout'
 import { Plus, Search, Download, Filter, ChevronDown, User, AlertCircle, Upload } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useToast } from '@/app/lib/hooks/useToast'
+import { isFeatureEnabled } from '@/app/lib/feature-flags'
 
 interface Customer {
   id: string
@@ -41,6 +43,7 @@ export default function CustomersPage() {
   const [importLoading, setImportLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
+  const toast = useToast()
 
   useEffect(() => {
     fetchCustomers()
@@ -182,10 +185,21 @@ export default function CustomersPage() {
   }
 
   const exportCustomers = async () => {
+    if (!isFeatureEnabled('contactsExportFeedback')) {
+      // Fallback behavior without feature flag
+      alert('Export not available yet - please contact support')
+      return
+    }
+
     try {
+      toast.info('Preparing export...')
+      
       // Fetch comprehensive customer data for export
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) {
+        toast.error('Please log in to export customers')
+        return
+      }
 
       const { data: orgMember } = await supabase
         .from('organization_members')
@@ -193,7 +207,10 @@ export default function CustomersPage() {
         .eq('user_id', user.id)
         .single()
 
-      if (!orgMember) return
+      if (!orgMember) {
+        toast.error('Organization not found')
+        return
+      }
 
       // Get detailed client data with related information
       const { data: detailedClients } = await supabase
@@ -294,9 +311,11 @@ export default function CustomersPage() {
       a.click()
       window.URL.revokeObjectURL(url)
 
+      toast.success(`Successfully exported ${exportData.length} customers`)
+
     } catch (error) {
       console.error('Error exporting customers:', error)
-      alert('Failed to export customers')
+      toast.error('Failed to export customers - please try again')
     }
   }
 

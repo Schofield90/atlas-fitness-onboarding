@@ -1,0 +1,228 @@
+# Glossary - Automations Module
+
+## Core Concepts
+
+### Workflow
+**Definition**: A series of connected nodes that define an automated business process
+**Technical**: JSON structure containing nodes, edges, and metadata
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/lib/types/automation.ts:7-23
+**Database**: workflows table with organization_id scoping
+**Lifecycle**: draft → active → paused/archived
+
+### Node  
+**Definition**: Individual step in a workflow that performs a specific action or decision
+**Types**: trigger, action, condition, wait, loop, transform, filter
+**Technical**: React Flow node with custom data structure
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/lib/types/automation.ts:76-91
+**UI Component**: Custom node components in /app/components/automation/nodes/
+
+### Edge
+**Definition**: Connection between nodes that defines execution flow
+**Technical**: React Flow edge with validation rules
+**Constraints**: No cycles allowed, type-specific connection rules
+**Styling**: Orange animated lines with arrow markers
+
+### Trigger
+**Definition**: Starting point of a workflow that responds to external events
+**Categories**: lead, communication, calendar, webhook, schedule, AI
+**Examples**: "New Lead", "Facebook Message", "Appointment Booked"
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/lib/types/automation.ts:111-127
+
+### Action
+**Definition**: Node that performs an operation like sending a message or updating data
+**Categories**: communication, crm, tasks, calendar, AI, data, integration
+**Examples**: "Send Email", "Update Lead Status", "Create Task"
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/lib/types/automation.ts:129-143
+
+## Technical Terms
+
+### React Flow
+**Definition**: Third-party library providing the visual workflow canvas
+**Purpose**: Drag-and-drop node editor with zoom, pan, and connection features
+**Integration**: Custom node types and connection validation
+**SSR Issue**: Requires client-side only rendering via dynamic imports
+
+### DND (Drag and Drop)
+**Library**: react-dnd with HTML5Backend
+**Implementation**: Draggable palette items to canvas with drop validation
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/WorkflowBuilder.tsx:253-288
+**Backend**: TestBackend for testing, HTML5Backend for production
+
+### Node Palette
+**Definition**: Sidebar containing draggable node types organized by category
+**Categories**: triggers, communication, crm, logic, data
+**Implementation**: Collapsible sections with search functionality
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/WorkflowBuilder.tsx:84-250
+
+### Configuration Panel
+**Definition**: Dynamic form for editing node settings and properties
+**Component**: DynamicConfigPanel with schema-driven form generation
+**Features**: Field validation, conditional visibility, JSON view
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/config/DynamicConfigPanel.tsx
+
+### Execution Context
+**Definition**: Runtime state during workflow execution including variables and current position
+**Structure**: variables, currentNodeId, executionPath, loopIterations
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/lib/types/automation.ts:200-205
+
+## UI/UX Terms
+
+### Test Mode
+**Definition**: Special builder mode for executing workflows with mock data
+**Features**: JSON payload editor, step-by-step execution visualization
+**Toggle**: Button in workflow builder toolbar
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/WorkflowBuilder.tsx:892-910
+
+### Auto-Save
+**Definition**: Automatic workflow persistence every 2 seconds during editing
+**Implementation**: useEffect timer with API call
+**Conflict**: Can interfere with manual save operations
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/WorkflowBuilder.tsx:534-560
+
+### Node Toolbar
+**Definition**: Context menu appearing when a node is selected
+**Actions**: Copy, Settings (config), Delete
+**Appearance**: Floating toolbar above selected node
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/WorkflowBuilder.tsx:984-1014
+
+### MiniMap
+**Definition**: Small overview of entire workflow in bottom-right corner
+**Features**: Node color coding by type, navigation by clicking
+**Configuration**: Transparent mask, custom node colors
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/WorkflowBuilder.tsx:969-981
+
+## Data Structure Terms
+
+### WorkflowData
+**Definition**: Core workflow structure containing nodes, edges, and variables
+**Schema**: nodes[], edges[], variables[], viewport?
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/lib/types/automation.ts:25-30
+
+### NodeData
+**Definition**: Configuration and state data stored within each node
+**Schema**: label, icon, actionType, config, inputs, outputs, description, error, isValid
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/lib/types/automation.ts:81-91
+
+### ExecutionStep
+**Definition**: Record of a single node execution during workflow run
+**Schema**: nodeId, status, inputData, outputData, error, timing information
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/lib/types/automation.ts:207-220
+
+### Template
+**Definition**: Pre-built workflow that can be instantiated as a new workflow
+**Categories**: lead_nurture, client_onboarding, retention, sales, marketing, operations
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/lib/types/automation.ts:234-247
+
+## API Terms
+
+### Organization Scoping
+**Definition**: Multi-tenant data isolation by organization_id
+**Implementation**: getCurrentUserOrganization() in all API endpoints
+**Database**: RLS policies enforce organization-level access control
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/api/automations/workflows/route.ts:7-10
+
+### Supabase Client
+**Definition**: PostgreSQL database client with RLS and auth integration
+**Usage**: createClient() for server-side database operations
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/lib/supabase/server.ts
+
+### RLS (Row Level Security)
+**Definition**: Database-level access control based on user context
+**Purpose**: Ensures users only see data from their organization
+**Implementation**: Supabase policies on workflows and related tables
+
+## Component Architecture Terms
+
+### DynamicWorkflowBuilder
+**Definition**: SSR-safe wrapper for the main WorkflowBuilder component
+**Purpose**: Prevents hydration issues with React Flow
+**Implementation**: Dynamic import with loading fallback
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/DynamicWorkflowBuilder.tsx
+
+### WorkflowBuilder
+**Definition**: Main canvas component with drag-drop, editing, and testing capabilities
+**Dependencies**: React Flow, react-dnd, custom node types
+**State**: useNodesState, useEdgesState, execution tracking
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/WorkflowBuilder.tsx
+
+### NodeTypes Mapping
+**Definition**: Object mapping node type strings to React components
+**Structure**: { trigger: TriggerNode, action: ActionNode, ... }
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/WorkflowBuilder.tsx:72-81
+
+## Testing Terms
+
+### Test Backend
+**Definition**: react-dnd testing backend for unit tests
+**Purpose**: Simulate drag and drop operations in Jest environment
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/tests/unit/automation-builder.test.ts:8
+
+### Mock ReactFlow
+**Definition**: Jest mocked version of ReactFlow components for unit testing
+**Components**: ReactFlowProvider, useReactFlow, useNodesState, useEdgesState
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/tests/unit/automation-builder.test.ts:12-50
+
+### E2E Test Coverage
+**Definition**: End-to-end test scenarios covering critical user journeys
+**Tools**: Playwright for browser automation
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/tests/e2e/automation-builder-critical-fixes.spec.ts
+
+## Performance Terms
+
+### SSR (Server-Side Rendering)
+**Issue**: React Flow cannot render on server due to DOM dependencies
+**Solution**: Dynamic imports with ssr: false configuration
+**Impact**: Client-side hydration for workflow builder components
+
+### Viewport State
+**Definition**: Canvas position and zoom level for workflow display
+**Storage**: Part of workflow data for persistence across sessions
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/lib/types/automation.ts:29
+
+## Error Handling Terms
+
+### Validation Error
+**Definition**: Form field validation failure in node configuration
+**Display**: Red border, error icon, error message below field
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/config/DynamicConfigPanel.tsx:632-670
+
+### Connection Validation
+**Definition**: Rules preventing invalid edge connections between nodes
+**Rules**: No cycles, no trigger-to-trigger connections, type compatibility
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/WorkflowBuilder.tsx:387-431
+
+### Fallback Data
+**Definition**: Sample workflow data used when API calls fail
+**Purpose**: Ensures UI remains functional during backend issues
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/automations/page.tsx:69-113
+
+## Status Terms
+
+### Workflow Status
+**Values**: draft, active, paused, archived
+**Purpose**: Workflow lifecycle management and execution control
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/lib/types/automation.ts:12
+
+### Execution Status  
+**Values**: pending, running, completed, failed, cancelled
+**Purpose**: Track workflow execution state in real-time
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/lib/types/automation.ts:198
+
+### Node Validation Status
+**Property**: isValid boolean in NodeData
+**Purpose**: Indicates if node configuration is complete and valid
+**Impact**: Affects test execution ability and visual indicators
+
+## Deprecated Terms
+
+### SimpleWorkflowBuilder
+**Status**: DEPRECATED
+**Replacement**: Main WorkflowBuilder component handles all complexity levels
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/DynamicWorkflowBuilder.tsx:34-36
+
+### Legacy Node Types
+**Status**: Basic 7 node types superseded by extended 17+ type system
+**Migration**: Enhanced types provide backward compatibility
+**File Reference**: Type definitions show evolution from basic to advanced
+
+Last updated: 2025-08-29T00:00:00Z

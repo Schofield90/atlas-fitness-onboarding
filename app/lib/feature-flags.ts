@@ -17,10 +17,39 @@ export interface FeatureFlags {
   surveysAnalytics: boolean
   surveysActions: boolean // Edit/Delete/Send buttons
   
-  // Other potentially incomplete features
+  // Analytics & Reporting
   advancedAnalytics: boolean
-  aiInsights: boolean
   customReports: boolean
+  betaAnalytics: boolean // Beta dashboard access
+  
+  // AI Features
+  aiInsights: boolean
+  aiIntelligenceFallback: boolean // Show demo option on org fetch fail
+  
+  // Forms & SOPs
+  formsUploadDocument: boolean // Document upload functionality
+  sopsMinimalView: boolean // Show minimal list after create
+  
+  // Staff & Payroll
+  staffFallback: boolean // Show placeholder on fetch fail
+  payrollExplainer: boolean // Show explainer and CTA
+  
+  // Billing & Payments
+  billingMswStub: boolean // Enable MSW stub for dev
+  billingRetryButton: boolean // Show retry functionality
+  
+  // Conversations & Contacts
+  conversationsNewButton: boolean // Enable/disable New button based on contacts
+  contactsExportFeedback: boolean // Show export feedback toasts
+  
+  // Automation Builder Defect Fixes
+  automationBuilderControlledConfig: boolean // PR-1: Controlled config panel inputs with validation
+  automationBuilderCanvasImproved: boolean // PR-2: Pan/zoom controls and scroll-bleed fix
+  automationBuilderNanoidNodes: boolean // PR-3: Use nanoid for unique node IDs
+  automationBuilderMinimapSafety: boolean // PR-4: Prevent minimap navigation clicks
+  automationBuilderValidation: boolean // PR-5: Strict pre-run workflow validation
+  automationBuilderAutoSave: boolean // PR-6: Enhanced save/publish with hydration
+  automationBuilderTemplateModal: boolean // PR-7: Modal template preview and cloning
 }
 
 // Default feature flag values
@@ -39,10 +68,39 @@ const defaultFlags: FeatureFlags = {
   surveysAnalytics: false, // Analytics tab is empty
   surveysActions: false, // Edit/Delete/Send don't work
   
-  // Other features
+  // Analytics & Reporting
   advancedAnalytics: false,
-  aiInsights: true, // This seems to work based on codebase
   customReports: false,
+  betaAnalytics: false, // Keep beta dashboard gated
+  
+  // AI Features
+  aiInsights: true, // This seems to work based on codebase
+  aiIntelligenceFallback: true, // Show demo option on fetch fail
+  
+  // Forms & SOPs
+  formsUploadDocument: false, // Document upload not ready
+  sopsMinimalView: true, // Show list after create
+  
+  // Staff & Payroll
+  staffFallback: true, // Show placeholders on fetch fail
+  payrollExplainer: true, // Show explainer and CTA
+  
+  // Billing & Payments
+  billingMswStub: true, // Enable in dev for fallback
+  billingRetryButton: true, // Always show retry
+  
+  // Conversations & Contacts
+  conversationsNewButton: true, // Gate based on contacts
+  contactsExportFeedback: true, // Show export feedback
+  
+  // Automation Builder Defect Fixes - Enable progressively
+  automationBuilderControlledConfig: false, // PR-1: Start disabled, enable when ready
+  automationBuilderCanvasImproved: false, // PR-2: Start disabled, enable when ready  
+  automationBuilderNanoidNodes: false, // PR-3: Start disabled, enable when ready
+  automationBuilderMinimapSafety: false, // PR-4: Start disabled, enable when ready
+  automationBuilderValidation: false, // PR-5: Start disabled, enable when ready
+  automationBuilderAutoSave: false, // PR-6: Start disabled, enable when ready
+  automationBuilderTemplateModal: false, // PR-7: Start disabled, enable when ready
 }
 
 // Environment-based overrides

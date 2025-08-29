@@ -1,0 +1,283 @@
+# Test Coverage Matrix - Automations Module
+
+## Unit Tests
+
+### WorkflowBuilder Component Tests
+**File**: /Users/samschofield/atlas-fitness-onboarding/tests/unit/automation-builder.test.ts:1-50
+
+**Test Coverage**:
+- ✅ Component rendering with mocked ReactFlow
+- ✅ Drag and drop simulation setup  
+- ✅ Basic state management
+- ❌ Node creation validation
+- ❌ Edge connection validation
+- ❌ Auto-save functionality
+- ❌ Test mode execution
+
+**Mocking Strategy**:
+```typescript
+// ReactFlow mocked components
+jest.mock('reactflow', () => ({
+  ReactFlowProvider: ({ children }) => <div data-testid="reactflow-provider">{children}</div>,
+  useReactFlow: () => ({ project: jest.fn(), getViewport: jest.fn() }),
+  useNodesState: (initial) => [initial, jest.fn(), jest.fn()],
+  // ... additional mocks
+}))
+```
+
+### DynamicConfigPanel Tests
+**File**: /Users/samschofield/atlas-fitness-onboarding/tests/unit/dynamic-config-panel.test.ts
+
+**Test Coverage**:
+- ✅ Form field rendering for different node types
+- ✅ Validation error display
+- ✅ Configuration save functionality
+- ❌ Conditional field visibility
+- ❌ JSON view toggle
+- ❌ Complex validation rules
+
+**Critical Test Scenarios**:
+- Field dependencies (showWhen conditions)
+- Multi-step configuration flows
+- Configuration schema validation
+- Error state recovery
+
+## Integration Tests
+
+### Automation Builder Integration
+**File**: /Users/samschofield/atlas-fitness-onboarding/tests/integration/automation-builder-integration.test.ts
+
+**Test Scenarios**:
+- ✅ Full workflow creation flow
+- ✅ API endpoint integration
+- ❌ Workflow execution testing
+- ❌ Template system integration
+- ❌ Real database operations
+
+**Missing Integration Tests**:
+- Workflow save/load cycle
+- Node configuration persistence
+- Template application workflow
+- Multi-user collaboration scenarios
+
+### API Endpoint Tests
+**Coverage Status**: PARTIAL
+
+**Tested Endpoints**:
+- ✅ GET /api/automations/workflows (basic functionality)
+- ✅ POST /api/automations/workflows (create workflow)
+- ❌ PUT /api/automations/workflows/[id] (not implemented)
+- ❌ DELETE /api/automations/workflows/[id] (not implemented)
+
+**Test Data Requirements**:
+- Organization setup and teardown
+- Sample workflow data
+- Mock user authentication
+- Database state management
+
+## End-to-End Tests
+
+### Critical User Journeys
+**File**: /Users/samschofield/atlas-fitness-onboarding/tests/e2e/automation-builder-critical-fixes.spec.ts
+
+**Test Scenarios Identified** (from test result directories):
+- ✅ Drag nodes from sidebar to canvas
+- ✅ Node configuration panel opening
+- ✅ Canvas panning and zooming
+- ✅ Test mode activation
+- ✅ Save workflow functionality
+- ❌ Workflow execution end-to-end
+- ❌ Template selection and application
+- ❌ Multi-browser compatibility
+
+**Browser Test Coverage**:
+- ✅ Chromium (primary)
+- ✅ Firefox (secondary)  
+- ❌ Safari/WebKit
+- ❌ Mobile browsers
+
+**Accessibility Testing**:
+- ✅ ARIA labels for interactive elements
+- ✅ Keyboard navigation support
+- ❌ Screen reader compatibility
+- ❌ High contrast mode support
+
+## Performance Tests
+
+### Load Testing
+**Status**: NOT IMPLEMENTED
+
+**Required Test Scenarios**:
+- Large workflow rendering (100+ nodes)
+- Rapid drag-and-drop operations
+- Auto-save performance under load
+- Canvas performance with complex workflows
+- Memory usage during extended editing sessions
+
+### Stress Testing
+**Scenarios Needed**:
+- Maximum node count limits
+- Deep nesting workflow structures  
+- Rapid configuration changes
+- Concurrent user editing
+- API rate limiting behavior
+
+## Security Tests
+
+### Authentication & Authorization
+**Status**: BASIC COVERAGE
+
+**Test Coverage**:
+- ✅ Organization-scoped data access
+- ❌ Cross-organization data leakage prevention
+- ❌ API endpoint authorization validation
+- ❌ Configuration injection attacks
+- ❌ XSS protection in dynamic content
+
+### Data Validation Tests
+**Status**: MINIMAL
+
+**Required Tests**:
+- Node configuration schema validation
+- Workflow data sanitization
+- API input validation
+- File upload security (if applicable)
+- SQL injection prevention in dynamic queries
+
+## Test Data Management
+
+### Mock Data Structure
+**Workflow Test Data** (from page.tsx fallback):
+```typescript
+const sampleWorkflows = [
+  {
+    id: '1',
+    name: 'New Lead Welcome Sequence',
+    description: 'Automatically send welcome messages...',
+    status: 'active',
+    trigger: 'New Lead',
+    totalExecutions: 127,
+    successRate: 98.4
+  }
+  // ... additional samples
+]
+```
+
+### Database Test Setup
+**Requirements**:
+- Test organization creation
+- Sample workflow data seeding
+- User authentication mocking
+- Database state cleanup between tests
+
+## Test Environment Configuration
+
+### Jest Configuration
+**File**: /Users/samschofield/atlas-fitness-onboarding/jest.config.js
+
+**Test Environment**: jsdom (for React component testing)
+**Setup Files**: /Users/samschofield/atlas-fitness-onboarding/tests/setup/jest.setup.ts
+
+### Playwright Configuration  
+**File**: /Users/samschofield/atlas-fitness-onboarding/playwright.config.ts
+
+**Browser Configuration**: Chromium, Firefox
+**Test Directory**: /Users/samschofield/atlas-fitness-onboarding/tests/e2e/
+
+### Test Helper Utilities
+**File**: /Users/samschofield/atlas-fitness-onboarding/tests/setup/test-database.ts
+**File**: /Users/samschofield/atlas-fitness-onboarding/tests/setup/database-helpers.sql
+
+## Coverage Gaps Analysis
+
+### High Priority Gaps
+1. **Workflow Execution Testing**: No real execution path testing
+2. **API Error Handling**: Limited error scenario coverage
+3. **Cross-Browser Compatibility**: Safari/WebKit not tested
+4. **Performance Under Load**: No stress testing
+5. **Security Validation**: Minimal security test coverage
+
+### Medium Priority Gaps  
+1. **Template System Testing**: Template application workflows
+2. **Real-time Features**: WebSocket/live updates testing
+3. **Mobile Responsive Testing**: Touch interactions
+4. **Accessibility Compliance**: Full WCAG 2.1 testing
+5. **Data Migration Testing**: Workflow version compatibility
+
+### Low Priority Gaps
+1. **Internationalization**: Multi-language support testing
+2. **Analytics Integration**: Tracking and metrics validation
+3. **Backup/Restore**: Data export/import functionality
+4. **Advanced Node Types**: AI and advanced logic node testing
+
+## Test Automation Strategy
+
+### Continuous Integration
+**Current Status**: Tests run in CI/CD pipeline
+**Missing Elements**:
+- Performance regression testing
+- Visual regression testing
+- Cross-environment validation
+
+### Test Data Seeding
+**Requirements**:
+- Automated test data generation
+- Realistic workflow complexity scenarios
+- Performance benchmark data sets
+- Error condition simulation data
+
+### Reporting & Metrics
+**Current**: Basic pass/fail reporting
+**Needed**: 
+- Code coverage reporting
+- Performance metrics tracking
+- Test reliability metrics
+- Failure analysis automation
+
+## Test Execution Commands
+
+### Unit Tests
+```bash
+npm run test                    # All unit tests
+npm run test:watch             # Watch mode
+npm run test:coverage          # Coverage report
+```
+
+### Integration Tests  
+```bash
+npm run test:integration       # API integration tests
+npm run test:db               # Database integration tests
+```
+
+### E2E Tests
+```bash
+npm run test:e2e              # All E2E tests  
+npm run test:e2e:headed       # With browser UI
+npm run test:e2e:debug        # Debug mode
+```
+
+### Test Scripts
+**File**: /Users/samschofield/atlas-fitness-onboarding/tests/run-automation-builder-tests.sh
+**File**: /Users/samschofield/atlas-fitness-onboarding/tests/run-all-tests.sh
+
+## Quality Gates
+
+### Pre-Commit Requirements
+- ✅ Unit tests must pass
+- ✅ Linting validation
+- ❌ Code coverage threshold (not configured)
+- ❌ Performance regression checks
+
+### Pre-Deploy Requirements  
+- ✅ All test suites pass
+- ✅ E2E test validation
+- ❌ Security scan completion
+- ❌ Performance benchmark validation
+
+### Acceptance Criteria
+- Unit test coverage > 80% (target, not enforced)
+- E2E tests cover critical user journeys
+- No security vulnerabilities in dependencies
+- Performance within acceptable thresholds
+
+Last updated: 2025-08-29T00:00:00Z

@@ -9,14 +9,18 @@ import StripeConnect from '@/app/components/billing/StripeConnect'
 import Button from '@/app/components/ui/Button'
 import { Card } from '@/app/components/ui/Card'
 import { formatBritishCurrency } from '@/app/lib/utils/british-format'
+import { useToast } from '@/app/lib/hooks/useToast'
+import { isFeatureEnabled } from '@/app/lib/feature-flags'
 
 function BillingContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [activeTab, setActiveTab] = useState('subscription')
   const [organization, setOrganization] = useState<any>(null)
+  const [useMockData, setUseMockData] = useState(false)
   const searchParams = useSearchParams()
   const supabase = createClient()
+  const toast = useToast()
   
   useEffect(() => {
     fetchOrganization()
@@ -45,7 +49,21 @@ function BillingContent() {
   const fetchOrganization = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) {
+        if (isFeatureEnabled('billingMswStub') && process.env.NODE_ENV === 'development') {
+          // Use mock data in development
+          setOrganization({
+            id: 'mock-org-id',
+            name: 'Demo Gym',
+            subscription_status: 'active',
+            plan_name: 'Pro Plan'
+          })
+          setUseMockData(true)
+          toast.info('Using demo data - no live billing API connection')
+          return
+        }
+        return
+      }
       
       const { data: userOrg } = await supabase
         .from('user_organizations')
@@ -56,10 +74,25 @@ function BillingContent() {
       
       if (userOrg) {
         setOrganization(userOrg.organizations)
+      } else {
+        throw new Error('No organization found')
       }
     } catch (error) {
       console.error('Error fetching organization:', error)
-      setError(true)
+      
+      if (isFeatureEnabled('billingMswStub') && process.env.NODE_ENV === 'development') {
+        // Fallback to mock data
+        setOrganization({
+          id: 'mock-org-id',
+          name: 'Demo Gym',
+          subscription_status: 'trial',
+          plan_name: 'Free Trial'
+        })
+        setUseMockData(true)
+        toast.error('Live API failed, using demo data')
+      } else {
+        setError(true)
+      }
     } finally {
       setLoading(false)
     }
@@ -95,16 +128,23 @@ function BillingContent() {
               <p className="text-gray-400 max-w-sm mb-4">
                 We couldn't fetch your billing details right now. This might be a temporary issue.
               </p>
-              <button 
-                onClick={() => {
-                  setError(false)
-                  setLoading(true)
-                  fetchOrganization()
-                }}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-              >
-                Try Again
-              </button>
+              <div className="space-y-3">
+                {isFeatureEnabled('billingRetryButton') && (
+                  <button 
+                    onClick={() => {
+                      setError(false)
+                      setLoading(true)
+                      fetchOrganization()
+                    }}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  >
+                    Try Again
+                  </button>
+                )}
+                <div className="text-sm text-gray-500">
+                  <p>Need help? <a href="mailto:support@atlasfitness.com" className="text-blue-400 hover:text-blue-300">Contact Support</a></p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -118,8 +158,17 @@ function BillingContent() {
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-6">
-            <h2 className="text-2xl font-bold">Billing & Subscription</h2>
-            <p className="text-gray-400 mt-1">Manage your subscription, payments, and billing settings</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold">Billing & Subscription</h2>
+                <p className="text-gray-400 mt-1">Manage your subscription, payments, and billing settings</p>
+              </div>
+              {useMockData && (
+                <div className="bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-full text-sm font-medium">
+                  Demo Data
+                </div>
+              )}
+            </div>
           </div>
           
           {/* Tab Navigation */}

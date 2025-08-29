@@ -213,7 +213,13 @@ export default function InternalMessageConfig({
                 <input
                   type="checkbox"
                   checked={selectedStaff.includes(staff.id)}
-                  onChange={() => toggleStaffSelection(staff.id)}
+                  onChange={() => {
+                    toggleStaffSelection(staff.id)
+                    const newSelectedStaff = selectedStaff.includes(staff.id) 
+                      ? selectedStaff.filter(id => id !== staff.id)
+                      : [...selectedStaff, staff.id]
+                    onChange({ ...nodeData, recipients: newSelectedStaff })
+                  }}
                   className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
                 />
                 <div className="flex items-center gap-2 flex-1">
@@ -267,7 +273,10 @@ export default function InternalMessageConfig({
           <input
             type="text"
             value={subject}
-            onChange={(e) => setSubject(e.target.value)}
+            onChange={(e) => {
+              setSubject(e.target.value)
+              onChange({ ...nodeData, subject: e.target.value })
+            }}
             placeholder="e.g., New Lead Alert: {{lead_name}}"
             className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
@@ -299,9 +308,13 @@ export default function InternalMessageConfig({
         </div>
         <textarea
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          onChange={(e) => {
+            setMessage(e.target.value)
+            onChange({ ...nodeData, message: e.target.value })
+          }}
           placeholder="Enter the notification message..."
           rows={4}
+          required
           className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <p className="text-xs text-gray-400 mt-1">

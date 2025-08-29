@@ -8,6 +8,7 @@ import EnhancedChatInterface from '@/app/components/chat/EnhancedChatInterface'
 import { MessageSquare, Mail, Phone, Clock, User, Search, Bot } from 'lucide-react'
 import { formatBritishDateTime } from '@/app/lib/utils/british-format'
 import AIToggleControl from '@/app/components/automation/AIToggleControl'
+import { isFeatureEnabled } from '@/app/lib/feature-flags'
 
 interface Conversation {
   id: string
@@ -38,6 +39,7 @@ export default function ConversationsPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [organizationId, setOrganizationId] = useState<string | null>(null)
+  const [contactsCount, setContactsCount] = useState(0)
   const router = useRouter()
   const supabase = createClient()
 
@@ -72,7 +74,12 @@ export default function ConversationsPage() {
         .order('updated_at', { ascending: false })
         .limit(50)
 
-      if (!customers) return
+      if (!customers) {
+        setContactsCount(0)
+        return
+      }
+
+      setContactsCount(customers.length)
 
       // For each customer, get their latest message
       const conversationsData: Conversation[] = []
@@ -219,16 +226,34 @@ export default function ConversationsPage() {
             <p className="text-gray-400">Recent messages with your customers</p>
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={() => {
-                // Toggle to enhanced view which has the new conversation button
-                setUseEnhanced(true)
-              }}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2"
-            >
-              <MessageSquare className="h-4 w-4" />
-              New Conversation
-            </button>
+            {isFeatureEnabled('conversationsNewButton') && contactsCount > 0 ? (
+              <button
+                onClick={() => {
+                  // Toggle to enhanced view which has the new conversation button
+                  setUseEnhanced(true)
+                }}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2"
+              >
+                <MessageSquare className="h-4 w-4" />
+                New Conversation
+              </button>
+            ) : (
+              <div className="relative">
+                <button
+                  disabled
+                  className="px-4 py-2 bg-gray-600 text-gray-400 rounded-lg flex items-center gap-2 cursor-not-allowed opacity-60"
+                  title={contactsCount === 0 ? "Add contacts first to start conversations" : "Feature not available"}
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  New Conversation
+                </button>
+                {contactsCount === 0 && (
+                  <div className="absolute top-full left-0 mt-1 bg-yellow-600 text-yellow-100 text-xs px-2 py-1 rounded whitespace-nowrap z-10">
+                    Add contacts first to start conversations
+                  </div>
+                )}
+              </div>
+            )}
             <button
               onClick={() => setUseEnhanced(!useEnhanced)}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"

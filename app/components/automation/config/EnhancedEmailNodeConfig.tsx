@@ -344,7 +344,10 @@ export default function EnhancedEmailNodeConfig({
           <input
             type="text"
             value={ccEmails}
-            onChange={(e) => setCcEmails(e.target.value)}
+            onChange={(e) => {
+              setCcEmails(e.target.value)
+              onChange({ ...nodeData, cc: e.target.value })
+            }}
             placeholder="Enter CC emails (comma separated)"
             className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
@@ -360,7 +363,10 @@ export default function EnhancedEmailNodeConfig({
           <input
             type="text"
             value={bccEmails}
-            onChange={(e) => setBccEmails(e.target.value)}
+            onChange={(e) => {
+              setBccEmails(e.target.value)
+              onChange({ ...nodeData, bcc: e.target.value })
+            }}
             placeholder="Enter BCC emails (comma separated)"
             className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
@@ -376,7 +382,10 @@ export default function EnhancedEmailNodeConfig({
           <input
             type="text"
             value={subject}
-            onChange={(e) => setSubject(e.target.value)}
+            onChange={(e) => {
+              setSubject(e.target.value)
+              onChange({ ...nodeData, subject: e.target.value })
+            }}
             placeholder="Subject"
             className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           />

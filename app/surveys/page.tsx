@@ -82,6 +82,8 @@ export default function SurveyPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'create' | 'responses' | 'analytics'>('overview')
   const [surveys, setSurveys] = useState(mockSurveys)
   const [selectedSurvey, setSelectedSurvey] = useState<any>(null)
+  const [showViewModal, setShowViewModal] = useState(false)
+  const [showWaitlistModal, setShowWaitlistModal] = useState(false)
   const toast = useToast()
 
   useEffect(() => {
@@ -253,20 +255,24 @@ export default function SurveyPage() {
                       <button 
                         onClick={() => {
                           setSelectedSurvey(survey)
-                          setActiveTab('responses')
+                          setShowViewModal(true)
                         }}
                         className="text-blue-400 hover:text-blue-300"
+                        title="View Survey (Read-only)"
                       >
                         <EyeIcon className="h-4 w-4" />
                       </button>
                       <button 
                         onClick={() => {
-                          // Edit survey
-                          alert(`Edit survey: ${survey.title}`)
-                          console.log('Edit survey:', survey.id)
+                          if (!isFeatureEnabled('surveysActions')) {
+                            toast.info('Survey editing coming soon!')
+                            return
+                          }
+                          toast.info(`Edit survey: ${survey.title}`)
                         }}
-                        className="text-gray-400 hover:text-white"
-                        title="Edit Survey"
+                        className="text-gray-400 hover:text-white disabled:opacity-50"
+                        title={isFeatureEnabled('surveysActions') ? "Edit Survey" : "Coming soon"}
+                        disabled={!isFeatureEnabled('surveysActions')}
                       >
                         <EditIcon className="h-4 w-4" />
                       </button>
@@ -310,11 +316,21 @@ export default function SurveyPage() {
     if (!isFeatureEnabled('surveysCreate')) {
       return (
         <div className="bg-gray-800 rounded-lg p-6">
-          <ComingSoon
-            feature="Survey Creation"
-            description="Build custom surveys with multiple question types, templates, and advanced logic to gather valuable member feedback."
-            estimatedDate="Q2 2025"
-          />
+          <div className="text-center py-8">
+            <div className="w-16 h-16 bg-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <ClipboardListIcon className="h-8 w-8 text-white" />
+            </div>
+            <h3 className="text-lg font-semibold text-white mb-2">Survey Creation Coming Soon</h3>
+            <p className="text-gray-400 max-w-md mx-auto mb-6">
+              Build custom surveys with multiple question types, templates, and advanced logic to gather valuable member feedback.
+            </p>
+            <button 
+              onClick={() => setShowWaitlistModal(true)}
+              className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg font-medium"
+            >
+              Join Early Access Waitlist
+            </button>
+          </div>
         </div>
       )
     }
@@ -564,6 +580,139 @@ export default function SurveyPage() {
         {activeTab === 'create' && renderCreateSurvey()}
         {activeTab === 'responses' && renderResponses()}
         {activeTab === 'analytics' && renderAnalytics()}
+        
+        {/* View Survey Modal */}
+        {showViewModal && selectedSurvey && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-white">{selectedSurvey.title}</h3>
+                <button
+                  onClick={() => setShowViewModal(false)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <p className="text-gray-400 mb-2">Description</p>
+                  <p className="text-white">{selectedSurvey.description}</p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-700 p-3 rounded">
+                    <p className="text-gray-400 text-sm">Status</p>
+                    <p className="text-white">{getStatusBadge(selectedSurvey.status)}</p>
+                  </div>
+                  <div className="bg-gray-700 p-3 rounded">
+                    <p className="text-gray-400 text-sm">Responses</p>
+                    <p className="text-white">{selectedSurvey.responses}</p>
+                  </div>
+                  <div className="bg-gray-700 p-3 rounded">
+                    <p className="text-gray-400 text-sm">Questions</p>
+                    <p className="text-white">{selectedSurvey.questions}</p>
+                  </div>
+                  <div className="bg-gray-700 p-3 rounded">
+                    <p className="text-gray-400 text-sm">Completion Rate</p>
+                    <p className="text-white">{selectedSurvey.completionRate}%</p>
+                  </div>
+                </div>
+                
+                <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <EyeIcon className="h-5 w-5 text-yellow-400" />
+                    <span className="text-yellow-400 font-medium">Read-only Preview</span>
+                  </div>
+                  <p className="text-yellow-200 text-sm">
+                    This is a preview mode. Full survey editing and question management will be available soon.
+                  </p>
+                </div>
+                
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => {
+                      setShowViewModal(false)
+                      setActiveTab('responses')
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+                  >
+                    View Responses
+                  </button>
+                  <button
+                    onClick={() => setShowViewModal(false)}
+                    className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Waitlist Modal */}
+        {showWaitlistModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-white">Join Early Access</h3>
+                <button
+                  onClick={() => setShowWaitlistModal(false)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <p className="text-gray-400">
+                  Be among the first to access our comprehensive survey creation tools when they become available.
+                </p>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">Email Address</label>
+                  <input
+                    type="email"
+                    placeholder="your@email.com"
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">What surveys do you want to create?</label>
+                  <textarea
+                    placeholder="Tell us about your survey needs..."
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white h-20"
+                  />
+                </div>
+                
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => {
+                      toast.success('Thanks for your interest! We\'ll notify you when survey creation is available.')
+                      setShowWaitlistModal(false)
+                    }}
+                    className="flex-1 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg"
+                  >
+                    Join Waitlist
+                  </button>
+                  <button
+                    onClick={() => setShowWaitlistModal(false)}
+                    className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   )

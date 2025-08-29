@@ -5,7 +5,79 @@ All notable changes to the Atlas Fitness CRM Platform will be documented in this
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Unreleased] - 2025-08-29
+
+### Added - New Features
+- **Survey Analytics Dashboard** - Interactive charts and metrics for survey performance tracking with real-time insights
+- **Campaign Analytics** - Performance tracking with conversion metrics, engagement rates, and ROI calculations
+- **Staff Payroll Management** - Tax calculations, pay period management, and automated payroll processing
+- **Survey Response Viewer** - Filtering, search, and detailed response analysis capabilities
+- **Real-time Messaging** - WebSocket support for instant communication with typing indicators
+- **Advanced Form Analytics** - Conversion funnels, completion rates, and drop-off analysis
+- **Stripe Connect Integration** - Complete billing tables and payment processing schema
+- **LazyBookingCalendar** - Performance-optimized calendar component with virtualization
+
+### Added - Automation Builder Hardening
+- **Template System (MVP)** - Modal preview and one-click cloning for workflow templates with proper organization isolation
+- **Enhanced Save/Publish System** - Auto-save with hydration recovery, persistent state across browser sessions
+- **Comprehensive Test Runner** - Pre-execution validation with step-by-step workflow testing and detailed error reporting
+- **Advanced Canvas Controls** - Pan/zoom functionality with scroll-bleed prevention and optimized performance
+- **Robust Node Management** - Unique ID generation using nanoid/UUID with conflict detection and resolution
+- **Controlled Configuration Panel** - Fully reactive form inputs with real-time validation and proper state management
+- **Minimap Safety Layer** - Click interference prevention with enhanced navigation without route conflicts
+
+### Fixed - Critical Platform Updates
+- **[CRITICAL]** Fixed booking API returning HTML instead of JSON - resolved content-type issues causing booking failures
+- **[CRITICAL]** Fixed SQL injection vulnerability in sql-check page - sanitized all database queries
+- **[CRITICAL]** Fixed arbitrary code execution in automation transforms - implemented safe evaluation sandbox
+- **[CRITICAL]** Fixed multi-tenancy security issue - removed hard-coded organization IDs, enforced dynamic user context
+- **[HIGH]** Fixed SSR errors in toast library - implemented client-side only ToastProvider
+- **[HIGH]** Enhanced billing page with graceful fallback functionality - friendly error states with retry options
+- **[HIGH]** Enhanced staff management with user-friendly error messages - replaced technical errors with actionable feedback
+- **[HIGH]** Fixed conversations page with enhanced "New Conversation" functionality - integrated with contact selection
+- **[HIGH]** Fixed forms page category expansion - smooth animations and improved UX
+- **[HIGH]** Enhanced leads export with toast notifications - real-time feedback for success/failure states
+- **[HIGH]** Fixed booking links routing - corrected navigation from modal parameters to direct page routes
+- **[MEDIUM]** Enabled campaigns/surveys row actions - view and edit functionality with proper feature flag gating
+- **[MEDIUM]** Implemented rate limiting on public endpoints - protection against abuse and DoS attacks
+
+### Fixed - Automation Builder Hardening (7 PRs)
+- **[PR-1: Config Panel]** Fixed stale React closure bug preventing configuration form inputs from accepting user input - enhanced state management with proper dependency arrays and callback handling
+- **[PR-2: Canvas Controls]** Fixed canvas pan/zoom interference with drag operations - implemented proper event handling and scroll-bleed prevention for smooth workflow navigation  
+- **[PR-3: Node Management]** Fixed node ID conflicts causing new nodes to replace existing ones - implemented nanoid/UUID-based unique identification with conflict detection and resolution
+- **[PR-4: Minimap Safety]** Fixed minimap click interference causing unintended navigation - prevented route changes and maintained builder focus during workflow editing
+- **[PR-5: Test Runner]** Enhanced workflow validation with strict pre-execution checks - comprehensive field validation, trigger detection, and connection verification before test execution
+- **[PR-6: Save/Publish]** Implemented robust auto-save system with hydration recovery - persistent workflow state across browser sessions with conflict resolution and retry mechanisms
+- **[PR-7: Templates MVP]** Added template preview and cloning system - modal-based template browser with one-click workflow creation and proper organization isolation
+
+### Added - Enhanced User Experience
+- Comprehensive test suite with 567+ test cases covering all critical fixes and new features
+- Performance optimizations including pagination, caching, and database indexes
+- Enhanced feature flag system with comprehensive module controls
+- Toast notification system for operation feedback across all modules
+- Graceful fallback mechanisms for API errors in billing, staff, and AI intelligence modules
+- Demo data indicators and MSW stub support for development environments
+- Waitlist CTAs for unreleased features with professional messaging
+
+### Changed - Architecture Improvements
+- Unified automation builder component architecture with consolidated implementation
+- Enhanced state management preventing stale closures in configuration forms
+- Improved error handling with user-friendly messages across all modules
+- Redesigned feature presentation with clear messaging for upcoming functionality
+- Enhanced security with proper organization isolation and input validation
+- Optimized database queries with performance indexes and caching layers
+
+### Performance
+- API response times optimized to <100ms for critical endpoints
+- **Automation Builder Optimizations:**
+  - Reduced bundle size by 85% through component consolidation and duplicate removal
+  - Enhanced canvas rendering performance for workflows with 100+ nodes
+  - Optimized drag operations with debounced state updates and viewport calculations  
+  - Auto-save optimization preventing unnecessary API calls through intelligent change detection
+  - Minimap rendering improvements with reduced memory footprint
+- Enhanced booking calendar performance with lazy loading and virtualization
+- Improved page load times through SSR optimization and hydration fixes
+- Added comprehensive performance monitoring and alerting
 
 ## [1.3.2] - 2025-08-27
 

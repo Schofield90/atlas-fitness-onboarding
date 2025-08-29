@@ -1,0 +1,191 @@
+# Feature Flags - Automations Module
+
+## Environment Configuration
+
+### Development vs Production
+**ENV Variable**: NODE_ENV
+- Values: development | production | test
+- Usage: Component SSR behavior, API error verbosity
+- File references: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/DynamicWorkflowBuilder.tsx:26-32
+
+### Feature Toggles
+
+### Workflow Builder Features
+**FEATURE_ENHANCED_WORKFLOWS** (implied)
+- Status: ACTIVE (inferred from codebase)
+- Location: Enhanced workflow builder components exist alongside basic ones
+- Impact: Determines which workflow builder components are available
+
+**FEATURE_SIMPLE_WORKFLOW_BUILDER** 
+- Status: DEPRECATED 
+- Source: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/DynamicWorkflowBuilder.tsx:34-35
+- Comment: "DEPRECATED: SimpleWorkflowBuilder is no longer used"
+- Impact: All workflow building now uses main WorkflowBuilder component
+
+### Test Mode Features
+**TEST_MODE_ENABLED**
+- Status: ACTIVE (always available)
+- Source: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/WorkflowBuilder.tsx:892-910
+- Controls: Test mode toggle in workflow builder toolbar
+- Impact: Enables/disables workflow test execution features
+
+### Node Palette Configuration
+**NODE_PALETTE_CATEGORIES** (hardcoded configuration)
+- Source: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/WorkflowBuilder.tsx:84-250
+- Categories: triggers, communication, crm, logic, data
+- Status: Static configuration, no feature flagging
+
+### Auto-Save Configuration  
+**AUTO_SAVE_ENABLED** (hardcoded)
+- Status: ACTIVE
+- Interval: 2000ms (2 seconds)
+- Source: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/WorkflowBuilder.tsx:534-560
+- Impact: Controls automatic workflow saving during editing
+
+## Database Feature Flags
+
+### Workflow Status States
+**WORKFLOW_STATUSES**
+- Values: 'draft' | 'active' | 'paused' | 'archived'
+- Source: /Users/samschofield/atlas-fitness-onboarding/app/lib/types/automation.ts:12
+- Impact: Controls workflow lifecycle management
+
+### Node Type Availability
+**AVAILABLE_NODE_TYPES** (configuration-driven)
+- Basic types: trigger, action, condition, wait, loop, transform, filter
+- Advanced types: ai_trigger, smart_condition, ai_action, parallel_processor, etc.
+- Source: /Users/samschofield/atlas-fitness-onboarding/app/lib/types/automation.ts:52-74
+- Impact: Determines which nodes appear in palette
+
+### Template System
+**TEMPLATE_SYSTEM_ENABLED** (inferred as ACTIVE)
+- Template categories: lead_nurture, client_onboarding, retention, sales, marketing, operations
+- Source: /Users/samschofield/atlas-fitness-onboarding/app/lib/types/automation.ts:249
+- Impact: Controls template selection and management features
+
+## Client Configuration Flags
+
+### ReactFlow Configuration
+**REACTFLOW_SSR** 
+- Status: DISABLED
+- Source: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/DynamicWorkflowBuilder.tsx:26-32
+- Config: `{ ssr: false, loading: () => <WorkflowBuilderLoading /> }`
+- Impact: Prevents server-side rendering of ReactFlow components
+
+### Drag & Drop Backend
+**DND_BACKEND**
+- Value: HTML5Backend (production), TestBackend (testing)
+- Source: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/WorkflowBuilder.tsx:1151-1156
+- Impact: Controls drag-and-drop implementation
+
+### Error Handling Mode
+**ERROR_FALLBACK_ENABLED**
+- Status: ACTIVE
+- Behavior: Falls back to sample data when API fails
+- Source: /Users/samschofield/atlas-fitness-onboarding/app/automations/page.tsx:66-114
+- Impact: Provides demo data when backend is unavailable
+
+## Component-Level Flags
+
+### Configuration Panel Features
+**JSON_VIEW_TOGGLE**
+- Status: ACTIVE
+- Source: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/config/DynamicConfigPanel.tsx:891-896
+- Control: Eye/EyeOff button in config panel header
+- Impact: Enables raw JSON editing of node configurations
+
+**FIELD_VALIDATION_ENABLED**
+- Status: ACTIVE  
+- Source: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/config/DynamicConfigPanel.tsx:632-670
+- Impact: Real-time form validation with error display
+
+### Builder UI Features
+**MINIMAP_ENABLED**
+- Status: ACTIVE
+- Source: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/WorkflowBuilder.tsx:969-981
+- Config: Custom node colors, transparent mask
+- Impact: Shows workflow overview in bottom-right corner
+
+**NODE_TOOLBAR_ENABLED**
+- Status: ACTIVE  
+- Source: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/WorkflowBuilder.tsx:984-1014
+- Features: Copy, settings, delete buttons on selected nodes
+- Impact: Quick access to node operations
+
+**BACKGROUND_DOTS**
+- Status: ACTIVE
+- Source: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/WorkflowBuilder.tsx:982
+- Config: `BackgroundVariant.Dots, gap={12}, size={1}`
+- Impact: Canvas background styling
+
+## Test & Debug Flags
+
+### Test Execution Configuration
+**TEST_EXECUTION_DELAY**
+- Value: 800ms (hardcoded)
+- Source: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/WorkflowBuilder.tsx:726
+- Impact: Simulation delay between workflow steps during testing
+
+**TEST_PAYLOAD_DEFAULT** (configuration)
+- Default test data provided in test panel
+- Source: /Users/samschofield/atlas-fitness-onboarding/app/components/automation/WorkflowBuilder.tsx:1040-1047
+- Impact: Starting point for workflow testing
+
+### Debug Features
+**VERBOSE_LOGGING** (implied from console.log statements)
+- Status: ACTIVE in development
+- Locations: Drop handlers, node creation, execution steps
+- Impact: Console debugging information during development
+
+## API Feature Flags
+
+### Organization Isolation
+**MULTI_TENANT_ENABLED**
+- Status: ACTIVE
+- Enforcement: getCurrentUserOrganization() in all endpoints
+- Source: /Users/samschofield/atlas-fitness-onboarding/app/api/automations/workflows/route.ts:7-10
+- Impact: Enforces organization-scoped data access
+
+### Error Response Mode
+**DETAILED_ERRORS** (environment-dependent)
+- Development: Detailed error messages and stack traces
+- Production: Generic error messages for security
+- Source: Error handling patterns in API routes
+
+## Configuration Management
+
+### Static Configuration
+- Node types and categories: Hardcoded in component files
+- Template definitions: Hardcoded in template components
+- Validation rules: Hardcoded in configuration panels
+
+### Runtime Configuration  
+- Organization settings: Loaded from database
+- User preferences: Stored in local storage (implied)
+- Workflow settings: Stored with workflow data
+
+### Missing Configuration System
+- No centralized feature flag management
+- No A/B testing framework
+- No dynamic configuration updates
+- No role-based feature access
+
+## Recommendations for Flag Management
+
+### Centralized Flag System
+- Implement feature flag service/context
+- Environment-based flag overrides
+- Database-stored organizational flags
+- Runtime flag updates without deployment
+
+### Role-Based Access
+- Premium features for paid plans
+- Staff vs admin feature access
+- Organization-level feature toggles
+
+### Performance Flags
+- Disable auto-save for large workflows
+- Reduce update frequency on slow connections
+- Optional features for mobile devices
+
+Last updated: 2025-08-29T00:00:00Z
