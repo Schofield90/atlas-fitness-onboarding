@@ -33,7 +33,7 @@ interface FormField {
   showWhen?: (config: any) => boolean
 }
 
-const getNodeConfigSchema = (node: WorkflowNode): FormField[] => {
+const getNodeConfigSchema = (node: WorkflowNode, dynamicData?: any): FormField[] => {
   const baseFields: FormField[] = [
     {
       key: 'label',
@@ -55,15 +55,21 @@ const getNodeConfigSchema = (node: WorkflowNode): FormField[] => {
   // Add type-specific fields based on node type
   switch (node.type) {
     case 'trigger':
+      // Check if it's a Facebook lead form trigger
+      const triggerType = node.data.actionType === 'facebook_lead_form' 
+        ? 'facebook_lead_form' 
+        : (node.data.config?.subtype || 'lead_trigger')
       return [
         ...baseFields,
-        ...getTriggerFields(node.data.config?.subtype || 'lead_trigger')
+        ...getTriggerFields(triggerType, dynamicData)
       ]
     
     case 'action':
+      // Use the actionType from the node data (set when dragged from palette)
+      const actionType = node.data.actionType || node.data.config?.actionType || 'send_email'
       return [
         ...baseFields,
-        ...getActionFields(node.data.actionType || 'send_email')
+        ...getActionFields(actionType, dynamicData)
       ]
     
     case 'condition':
@@ -119,8 +125,9 @@ const getNodeConfigSchema = (node: WorkflowNode): FormField[] => {
   }
 }
 
-const getTriggerFields = (subtype: string): FormField[] => {
-  const commonFields = [
+const getTriggerFields = (subtype: string, dynamicData?: any): FormField[] => {
+  // For Facebook lead form, don't show the trigger type dropdown
+  const commonFields = subtype === 'facebook_lead_form' ? [] : [
     {
       key: 'subtype',
       label: 'Trigger Type',
@@ -128,18 +135,69 @@ const getTriggerFields = (subtype: string): FormField[] => {
       required: true,
       options: [
         { value: 'lead_trigger', label: 'New Lead' },
+        { value: 'scheduled_time', label: 'Schedule' },
         { value: 'birthday_trigger', label: 'Birthday' },
         { value: 'contact_tagged', label: 'Contact Tagged' },
         { value: 'webhook_received', label: 'Webhook' },
         { value: 'email_event', label: 'Email Event' },
         { value: 'appointment_status', label: 'Appointment' },
         { value: 'booking_confirmed', label: 'Booking Confirmed' },
-        { value: 'missed_session', label: 'Missed Session' }
+        { value: 'missed_session', label: 'Missed Session' },
+        { value: 'membership_expires_soon', label: 'Membership Expiring' },
+        { value: 'payment_failed', label: 'Payment Failed' },
+        { value: 'form_submitted', label: 'Form Submitted' }
       ]
     }
   ]
 
   switch (subtype) {
+    case 'facebook_lead_form':
+      const { facebookPages = [], facebookForms = [], loadingFacebookData = false } = dynamicData || {}
+      
+      // Filter forms based on selected page
+      const getFormsForPage = (pageId: string) => {
+        if (!pageId || pageId === 'all') return facebookForms
+        return facebookForms.filter((form: any) => form.pageId === pageId)
+      }
+      
+      // Get forms for the selected page
+      const availableForms = getFormsForPage(dynamicData?.config?.pageId || 'all')
+      
+      return [
+        {
+          key: 'pageId',
+          label: 'Facebook Page',
+          type: 'select' as const,
+          required: true,
+          options: loadingFacebookData 
+            ? [{ value: 'loading', label: 'Loading pages...' }]
+            : facebookPages.length > 0 
+              ? [{ value: 'all', label: 'All Pages' }, ...facebookPages]
+              : [{ value: '', label: 'No pages available - Please connect Facebook' }],
+          description: 'Select the Facebook page to monitor for lead forms'
+        },
+        {
+          key: 'formId',
+          label: 'Lead Form',
+          type: 'select' as const,
+          required: false,
+          options: loadingFacebookData
+            ? [{ value: 'loading', label: 'Loading forms...' }]
+            : availableForms.length > 0
+              ? [
+                  { value: 'all', label: 'All Forms' },
+                  ...availableForms
+                ]
+              : [
+                  { value: 'all', label: 'All Forms (No specific forms synced yet)' },
+                  { value: '', label: 'Forms will appear here after they are created in Facebook' }
+                ],
+          description: availableForms.length > 0 
+            ? 'Select a specific form or monitor all forms'
+            : 'No forms available yet. Forms will sync automatically when created in Facebook.',
+          showWhen: (config: any) => config.pageId && config.pageId !== 'loading' && config.pageId !== '' && !loadingFacebookData
+        }
+      ]
     case 'lead_trigger':
       return [
         ...commonFields,
@@ -199,13 +257,117 @@ const getTriggerFields = (subtype: string): FormField[] => {
         }
       ]
 
+    case 'scheduled_time':
+      return [
+        ...commonFields,
+        {
+          key: 'scheduleType',
+          label: 'Schedule Type',
+          type: 'select' as const,
+          required: true,
+          defaultValue: 'daily',
+          options: [
+            { value: 'once', label: 'One Time' },
+            { value: 'daily', label: 'Daily' },
+            { value: 'weekly', label: 'Weekly' },
+            { value: 'monthly', label: 'Monthly' },
+            { value: 'cron', label: 'Custom (Cron)' }
+          ]
+        },
+        {
+          key: 'runAt',
+          label: 'Run At',
+          type: 'time' as const,
+          required: true,
+          defaultValue: '09:00',
+          description: 'Time to run the automation',
+          showWhen: (config) => ['daily', 'weekly', 'monthly'].includes(config.scheduleType)
+        },
+        {
+          key: 'runDate',
+          label: 'Run Date',
+          type: 'date' as const,
+          required: true,
+          description: 'Date to run the automation',
+          showWhen: (config) => config.scheduleType === 'once'
+        },
+        {
+          key: 'runDateTime',
+          label: 'Run Date & Time',
+          type: 'datetime-local' as const,
+          required: true,
+          description: 'Exact date and time to run',
+          showWhen: (config) => config.scheduleType === 'once'
+        },
+        {
+          key: 'weekDays',
+          label: 'Days of Week',
+          type: 'select' as const,
+          required: true,
+          options: [
+            { value: 'monday', label: 'Monday' },
+            { value: 'tuesday', label: 'Tuesday' },
+            { value: 'wednesday', label: 'Wednesday' },
+            { value: 'thursday', label: 'Thursday' },
+            { value: 'friday', label: 'Friday' },
+            { value: 'saturday', label: 'Saturday' },
+            { value: 'sunday', label: 'Sunday' }
+          ],
+          description: 'Select days to run',
+          showWhen: (config) => config.scheduleType === 'weekly'
+        },
+        {
+          key: 'dayOfMonth',
+          label: 'Day of Month',
+          type: 'number' as const,
+          required: true,
+          defaultValue: 1,
+          validation: { min: 1, max: 31 },
+          description: 'Day of the month to run (1-31)',
+          showWhen: (config) => config.scheduleType === 'monthly'
+        },
+        {
+          key: 'cronExpression',
+          label: 'Cron Expression',
+          type: 'text' as const,
+          required: true,
+          placeholder: '0 9 * * 1-5',
+          description: 'Cron expression (e.g., 0 9 * * 1-5 for 9 AM weekdays)',
+          showWhen: (config) => config.scheduleType === 'cron'
+        },
+        {
+          key: 'timezone',
+          label: 'Timezone',
+          type: 'select' as const,
+          required: true,
+          defaultValue: 'Europe/London',
+          options: [
+            { value: 'Europe/London', label: 'London (GMT)' },
+            { value: 'UTC', label: 'UTC' },
+            { value: 'America/New_York', label: 'New York (EST)' },
+            { value: 'America/Chicago', label: 'Chicago (CST)' },
+            { value: 'America/Los_Angeles', label: 'Los Angeles (PST)' }
+          ]
+        },
+        {
+          key: 'maxExecutions',
+          label: 'Maximum Executions',
+          type: 'number' as const,
+          placeholder: 'Leave empty for unlimited',
+          validation: { min: 1 },
+          description: 'Stop after this many executions'
+        }
+      ]
+
     default:
       return commonFields
   }
 }
 
-const getActionFields = (actionType: string): FormField[] => {
-  const commonFields = [
+const getActionFields = (actionType: string, dynamicData?: any): FormField[] => {
+  // Don't show action type dropdown if we already know the action type from the palette
+  // Only show it if actionType is generic or unknown
+  const commonFields = actionType && actionType !== 'action' ? [] : [
     {
       key: 'actionType',
       label: 'Action Type',
@@ -228,10 +390,19 @@ const getActionFields = (actionType: string): FormField[] => {
       return [
         ...commonFields,
         {
+          key: 'to',
+          label: 'To',
+          type: 'email' as const,
+          required: true,
+          placeholder: '{{email}} or recipient@example.com',
+          description: 'Recipient email address or variable'
+        },
+        {
           key: 'mode',
           label: 'Email Mode',
           type: 'select' as const,
           required: true,
+          defaultValue: 'custom',
           options: [
             { value: 'template', label: 'Use Template' },
             { value: 'custom', label: 'Custom Email' }
@@ -246,7 +417,9 @@ const getActionFields = (actionType: string): FormField[] => {
           options: [
             { value: 'welcome', label: 'Welcome Email' },
             { value: 'follow-up', label: 'Follow-up' },
-            { value: 'newsletter', label: 'Newsletter' }
+            { value: 'appointment_reminder', label: 'Appointment Reminder' },
+            { value: 'trial_ending', label: 'Trial Ending' },
+            { value: 'payment_reminder', label: 'Payment Reminder' }
           ]
         },
         {
@@ -255,7 +428,8 @@ const getActionFields = (actionType: string): FormField[] => {
           type: 'text' as const,
           required: true,
           showWhen: (config) => config.mode === 'custom',
-          placeholder: 'Email subject line'
+          placeholder: 'Welcome to Atlas Fitness, {{firstName}}!',
+          description: 'Supports variables like {{firstName}}'
         },
         {
           key: 'body',
@@ -263,20 +437,57 @@ const getActionFields = (actionType: string): FormField[] => {
           type: 'textarea' as const,
           required: true,
           showWhen: (config) => config.mode === 'custom',
-          placeholder: 'Email content...'
+          placeholder: 'Hi {{firstName}},\n\nWelcome to Atlas Fitness...',
+          description: 'Supports HTML and variables'
+        },
+        {
+          key: 'fromEmail',
+          label: 'From Email',
+          type: 'email' as const,
+          placeholder: 'team@atlasfitness.com',
+          description: 'Sender email (optional)'
         },
         {
           key: 'fromName',
           label: 'From Name',
           type: 'text' as const,
-          placeholder: 'Your Name'
+          placeholder: 'Atlas Fitness Team',
+          description: 'Sender display name'
         },
         {
-          key: 'delay',
-          label: 'Send Delay (minutes)',
-          type: 'number' as const,
-          defaultValue: 0,
-          validation: { min: 0 }
+          key: 'replyTo',
+          label: 'Reply To',
+          type: 'email' as const,
+          placeholder: 'support@atlasfitness.com',
+          description: 'Reply-to address (optional)'
+        },
+        {
+          key: 'cc',
+          label: 'CC',
+          type: 'text' as const,
+          placeholder: 'manager@atlasfitness.com',
+          description: 'Carbon copy (comma-separated)'
+        },
+        {
+          key: 'bcc',
+          label: 'BCC',
+          type: 'text' as const,
+          placeholder: 'archive@atlasfitness.com',
+          description: 'Blind carbon copy'
+        },
+        {
+          key: 'trackOpens',
+          label: 'Track Opens',
+          type: 'boolean' as const,
+          defaultValue: true,
+          description: 'Track when email is opened'
+        },
+        {
+          key: 'trackClicks',
+          label: 'Track Clicks',
+          type: 'boolean' as const,
+          defaultValue: true,
+          description: 'Track link clicks in email'
         }
       ]
 
@@ -284,13 +495,48 @@ const getActionFields = (actionType: string): FormField[] => {
       return [
         ...commonFields,
         {
+          key: 'to',
+          label: 'To',
+          type: 'tel' as const,
+          required: true,
+          placeholder: '{{phone}} or +447123456789',
+          description: 'Recipient phone number or variable'
+        },
+        {
           key: 'message',
           label: 'SMS Message',
           type: 'textarea' as const,
           required: true,
-          placeholder: 'Enter SMS message...',
-          validation: { max: 160 },
-          description: 'Keep under 160 characters for single SMS'
+          placeholder: 'Hi {{firstName}}, your session at Atlas Fitness is tomorrow at {{time}}. Reply STOP to opt out.',
+          validation: { max: 1600 },
+          description: 'SMS content (160 chars = 1 SMS, max 1600 chars = 10 SMS)'
+        },
+        {
+          key: 'senderId',
+          label: 'Sender ID',
+          type: 'text' as const,
+          placeholder: 'AtlasFit',
+          description: 'Alphanumeric sender ID (11 chars max)'
+        },
+        {
+          key: 'scheduledTime',
+          label: 'Schedule Send',
+          type: 'datetime-local' as const,
+          description: 'Send at specific time (optional)'
+        },
+        {
+          key: 'trackDelivery',
+          label: 'Track Delivery',
+          type: 'boolean' as const,
+          defaultValue: true,
+          description: 'Request delivery reports'
+        },
+        {
+          key: 'optOutMessage',
+          label: 'Include Opt-Out',
+          type: 'boolean' as const,
+          defaultValue: true,
+          description: 'Add "Reply STOP to unsubscribe"'
         }
       ]
 
@@ -298,23 +544,36 @@ const getActionFields = (actionType: string): FormField[] => {
       return [
         ...commonFields,
         {
+          key: 'to',
+          label: 'To',
+          type: 'tel' as const,
+          required: true,
+          placeholder: '{{phone}} or +447123456789',
+          description: 'WhatsApp number with country code'
+        },
+        {
           key: 'mode',
-          label: 'WhatsApp Mode',
+          label: 'Message Type',
           type: 'select' as const,
           required: true,
+          defaultValue: 'template',
           options: [
-            { value: 'template', label: 'Template Message' },
-            { value: 'freeform', label: 'Free-form Message' }
-          ]
+            { value: 'template', label: 'Template Message (24/7)' },
+            { value: 'freeform', label: 'Session Message (24hr window)' }
+          ],
+          description: 'Templates can be sent anytime, freeform only within 24hr session'
         },
         {
           key: 'templateId',
           label: 'WhatsApp Template',
           type: 'select' as const,
+          required: true,
           showWhen: (config) => config.mode === 'template',
           options: [
             { value: 'appointment_reminder', label: 'Appointment Reminder' },
-            { value: 'welcome_message', label: 'Welcome Message' }
+            { value: 'welcome_message', label: 'Welcome Message' },
+            { value: 'payment_reminder', label: 'Payment Reminder' },
+            { value: 'class_confirmation', label: 'Class Confirmation' }
           ]
         },
         {
@@ -423,32 +682,61 @@ const getWaitFields = (): FormField[] => [
     required: true,
     options: [
       { value: 'duration', label: 'Fixed Duration' },
-      { value: 'until_time', label: 'Until Specific Time' },
-      { value: 'until_condition', label: 'Until Condition Met' },
-      { value: 'dynamic', label: 'Dynamic Wait' }
+      { value: 'until_datetime', label: 'Until Specific Date/Time' },
+      { value: 'until_condition', label: 'Until Condition Met' }
     ]
   },
   {
     key: 'duration',
-    label: 'Duration',
-    type: 'json',
+    label: 'Wait Time',
+    type: 'number',
     required: true,
     showWhen: (config) => config.waitType === 'duration',
-    defaultValue: { value: 1, unit: 'hours' },
-    description: 'Example: {"value": 2, "unit": "days"}'
+    defaultValue: 1,
+    validation: { min: 1, max: 999 },
+    placeholder: 'Enter amount'
   },
   {
-    key: 'untilTime',
-    label: 'Until Time',
-    type: 'time',
-    showWhen: (config) => config.waitType === 'until_time'
+    key: 'unit',
+    label: 'Unit',
+    type: 'select',
+    required: true,
+    showWhen: (config) => config.waitType === 'duration',
+    defaultValue: 'hours',
+    options: [
+      { value: 'minutes', label: 'Minutes' },
+      { value: 'hours', label: 'Hours' },
+      { value: 'days', label: 'Days' },
+      { value: 'weeks', label: 'Weeks' }
+    ]
+  },
+  {
+    key: 'datetime',
+    label: 'Wait Until',
+    type: 'datetime-local',
+    required: true,
+    showWhen: (config) => config.waitType === 'until_datetime',
+    description: 'Date and time to wait until'
+  },
+  {
+    key: 'timezone',
+    label: 'Timezone',
+    type: 'select',
+    showWhen: (config) => config.waitType === 'until_datetime',
+    defaultValue: 'Europe/London',
+    options: [
+      { value: 'Europe/London', label: 'London (GMT)' },
+      { value: 'UTC', label: 'UTC' },
+      { value: 'America/New_York', label: 'New York (EST)' }
+    ]
   },
   {
     key: 'condition',
     label: 'Wait Condition',
     type: 'textarea',
     showWhen: (config) => config.waitType === 'until_condition',
-    placeholder: 'Define condition to wait for...'
+    placeholder: 'Define condition to wait for...',
+    description: 'Enter a condition expression'
   }
 ]
 
@@ -624,16 +912,68 @@ export default function DynamicConfigPanel({ node, onClose, onSave, onChange, or
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isValid, setIsValid] = useState(false)
   const [showJsonView, setShowJsonView] = useState(false)
+  const [facebookPages, setFacebookPages] = useState<Array<{ value: string; label: string }>>([])
+  const [facebookForms, setFacebookForms] = useState<Array<{ value: string; label: string }>>([])
+  const [loadingFacebookData, setLoadingFacebookData] = useState(false)
   
   // Feature flags
   const useControlledConfig = useFeatureFlag('automationBuilderControlledConfig')
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  const formSchema = getNodeConfigSchema(node)
+  const formSchema = getNodeConfigSchema(node, { facebookPages, facebookForms, loadingFacebookData, config })
 
   useEffect(() => {
     validateForm()
   }, [config])
+
+  // Fetch Facebook pages and forms when it's a Facebook lead form trigger
+  useEffect(() => {
+    if (node.type === 'trigger' && node.data.actionType === 'facebook_lead_form') {
+      fetchFacebookData()
+    }
+  }, [node.type, node.data.actionType])
+
+  const fetchFacebookData = async () => {
+    setLoadingFacebookData(true)
+    try {
+      // Fetch Facebook pages
+      const pagesResponse = await fetch('/api/integrations/facebook/pages')
+      if (pagesResponse.ok) {
+        const pagesData = await pagesResponse.json()
+        console.log('Facebook pages data:', pagesData) // Debug log
+        
+        if (pagesData.pages) {
+          const pageOptions = pagesData.pages.map((page: any) => ({
+            value: page.id,
+            label: page.name
+          }))
+          setFacebookPages(pageOptions)
+          
+          // Extract all forms from pages
+          const allForms: Array<{ value: string; label: string; pageId: string }> = []
+          pagesData.pages.forEach((page: any) => {
+            console.log(`Page ${page.name} forms:`, page.forms) // Debug log
+            
+            if (page.forms && page.forms.length > 0) {
+              page.forms.forEach((form: any) => {
+                allForms.push({
+                  value: form.facebook_form_id || form.id,
+                  label: `${form.form_name || form.name} (${page.name})`,
+                  pageId: page.id
+                })
+              })
+            }
+          })
+          
+          console.log('All forms extracted:', allForms) // Debug log
+          setFacebookForms(allForms)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch Facebook data:', error)
+    }
+    setLoadingFacebookData(false)
+  }
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
@@ -797,10 +1137,10 @@ export default function DynamicConfigPanel({ node, onClose, onSave, onChange, or
             onChange={(e) => handleFieldChange(field.key, e.target.value)}
             onBlur={(e) => handleFieldBlur(field.key, e.target.value)}
             placeholder={field.placeholder}
-            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+            className={`w-full px-3 py-2 bg-gray-800 text-gray-100 border rounded-lg focus:outline-none focus:ring-2 ${
               hasError 
-                ? 'border-red-500 focus:ring-red-200' 
-                : 'border-gray-300 focus:ring-blue-200'
+                ? 'border-red-500 focus:ring-red-400' 
+                : 'border-gray-600 focus:ring-orange-500'
             }`}
           />
         )
@@ -813,10 +1153,10 @@ export default function DynamicConfigPanel({ node, onClose, onSave, onChange, or
             onBlur={(e) => handleFieldBlur(field.key, e.target.value)}
             placeholder={field.placeholder}
             rows={3}
-            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+            className={`w-full px-3 py-2 bg-gray-800 text-gray-100 border rounded-lg focus:outline-none focus:ring-2 ${
               hasError 
-                ? 'border-red-500 focus:ring-red-200' 
-                : 'border-gray-300 focus:ring-blue-200'
+                ? 'border-red-500 focus:ring-red-400' 
+                : 'border-gray-600 focus:ring-orange-500'
             }`}
           />
         )
@@ -831,10 +1171,10 @@ export default function DynamicConfigPanel({ node, onClose, onSave, onChange, or
             placeholder={field.placeholder}
             min={field.validation?.min}
             max={field.validation?.max}
-            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+            className={`w-full px-3 py-2 bg-gray-800 text-gray-100 border rounded-lg focus:outline-none focus:ring-2 ${
               hasError 
-                ? 'border-red-500 focus:ring-red-200' 
-                : 'border-gray-300 focus:ring-blue-200'
+                ? 'border-red-500 focus:ring-red-400' 
+                : 'border-gray-600 focus:ring-orange-500'
             }`}
           />
         )
@@ -845,10 +1185,10 @@ export default function DynamicConfigPanel({ node, onClose, onSave, onChange, or
             value={value}
             onChange={(e) => handleFieldChange(field.key, e.target.value)}
             onBlur={(e) => handleFieldBlur(field.key, e.target.value)}
-            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+            className={`w-full px-3 py-2 bg-gray-800 text-gray-100 border rounded-lg focus:outline-none focus:ring-2 ${
               hasError 
-                ? 'border-red-500 focus:ring-red-200' 
-                : 'border-gray-300 focus:ring-blue-200'
+                ? 'border-red-500 focus:ring-red-400' 
+                : 'border-gray-600 focus:ring-orange-500'
             }`}
           >
             <option value="">Select {field.label}</option>
@@ -869,7 +1209,7 @@ export default function DynamicConfigPanel({ node, onClose, onSave, onChange, or
               onChange={(e) => handleFieldChange(field.key, e.target.checked)}
               className="mr-2"
             />
-            <span className="text-sm">Enable {field.label}</span>
+            <span className="text-sm text-gray-200">Enable {field.label}</span>
           </label>
         )
 
@@ -879,10 +1219,10 @@ export default function DynamicConfigPanel({ node, onClose, onSave, onChange, or
             type="date"
             value={value}
             onChange={(e) => handleFieldChange(field.key, e.target.value)}
-            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+            className={`w-full px-3 py-2 bg-gray-800 text-gray-100 border rounded-lg focus:outline-none focus:ring-2 ${
               hasError 
-                ? 'border-red-500 focus:ring-red-200' 
-                : 'border-gray-300 focus:ring-blue-200'
+                ? 'border-red-500 focus:ring-red-400' 
+                : 'border-gray-600 focus:ring-orange-500'
             }`}
           />
         )
@@ -893,10 +1233,10 @@ export default function DynamicConfigPanel({ node, onClose, onSave, onChange, or
             type="time"
             value={value}
             onChange={(e) => handleFieldChange(field.key, e.target.value)}
-            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+            className={`w-full px-3 py-2 bg-gray-800 text-gray-100 border rounded-lg focus:outline-none focus:ring-2 ${
               hasError 
-                ? 'border-red-500 focus:ring-red-200' 
-                : 'border-gray-300 focus:ring-blue-200'
+                ? 'border-red-500 focus:ring-red-400' 
+                : 'border-gray-600 focus:ring-orange-500'
             }`}
           />
         )
@@ -955,7 +1295,7 @@ export default function DynamicConfigPanel({ node, onClose, onSave, onChange, or
                 const newArray = Array.isArray(value) ? [...value, ''] : ['']
                 handleFieldChange(field.key, newArray)
               }}
-              className="flex items-center space-x-1 px-3 py-2 text-blue-600 hover:bg-blue-50 rounded"
+              className="flex items-center space-x-1 px-3 py-2 text-orange-400 hover:bg-gray-700 rounded"
             >
               <Plus className="w-4 h-4" />
               <span>Add Item</span>
@@ -970,28 +1310,28 @@ export default function DynamicConfigPanel({ node, onClose, onSave, onChange, or
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+      <div className="bg-gray-900 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden border border-gray-700">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between p-6 border-b border-gray-700">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">
+            <h2 className="text-xl font-bold text-white">
               Configure {node.data.label}
             </h2>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-gray-400 mt-1">
               {node.type} node configuration
             </p>
           </div>
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setShowJsonView(!showJsonView)}
-              className="p-2 text-gray-400 hover:text-gray-600"
+              className="p-2 text-gray-400 hover:text-gray-200"
               title={showJsonView ? "Hide JSON" : "Show JSON"}
             >
               {showJsonView ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
             <button
               onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600"
+              className="p-2 text-gray-400 hover:text-gray-200"
             >
               <X className="w-5 h-5" />
             </button>
@@ -1002,7 +1342,7 @@ export default function DynamicConfigPanel({ node, onClose, onSave, onChange, or
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
           {showJsonView ? (
             <div>
-              <h3 className="font-medium text-gray-900 mb-2 flex items-center">
+              <h3 className="font-medium text-white mb-2 flex items-center">
                 <Code className="w-4 h-4 mr-2" />
                 JSON Configuration
               </h3>
@@ -1020,7 +1360,7 @@ export default function DynamicConfigPanel({ node, onClose, onSave, onChange, or
                   }
                 }}
                 rows={20}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 font-mono text-sm"
+                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono text-sm"
               />
             </div>
           ) : (
@@ -1029,13 +1369,13 @@ export default function DynamicConfigPanel({ node, onClose, onSave, onChange, or
                 <div key={field.key} className="space-y-2">
                   <label className="block">
                     <div className="flex items-center">
-                      <span className="text-sm font-medium text-gray-700">
+                      <span className="text-sm font-medium text-gray-200">
                         {field.label}
-                        {field.required && <span className="text-red-500 ml-1">*</span>}
+                        {field.required && <span className="text-red-400 ml-1">*</span>}
                       </span>
                       {field.description && (
                         <div className="ml-2" title={field.description}>
-                          <Info className="w-4 h-4 text-gray-400" />
+                          <Info className="w-4 h-4 text-gray-500" />
                         </div>
                       )}
                     </div>
@@ -1052,7 +1392,7 @@ export default function DynamicConfigPanel({ node, onClose, onSave, onChange, or
                   )}
                   
                   {field.description && (
-                    <p className="text-xs text-gray-500">{field.description}</p>
+                    <p className="text-xs text-gray-400">{field.description}</p>
                   )}
                 </div>
               ))}
@@ -1061,15 +1401,15 @@ export default function DynamicConfigPanel({ node, onClose, onSave, onChange, or
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-between p-6 border-t border-gray-700 bg-gray-800">
           <div className="flex items-center space-x-2 text-sm">
             {isValid ? (
-              <div className="flex items-center text-green-600">
+              <div className="flex items-center text-green-400">
                 <CheckCircle className="w-4 h-4 mr-1" />
                 <span>Configuration is valid</span>
               </div>
             ) : (
-              <div className="flex items-center text-red-600">
+              <div className="flex items-center text-red-400">
                 <AlertCircle className="w-4 h-4 mr-1" />
                 <span>{Object.keys(errors).length} error(s) found</span>
               </div>
@@ -1079,14 +1419,14 @@ export default function DynamicConfigPanel({ node, onClose, onSave, onChange, or
           <div className="flex items-center space-x-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="px-4 py-2 text-gray-300 bg-gray-700 border border-gray-600 rounded-lg hover:bg-gray-600"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
               disabled={!isValid}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
             >
               <Save className="w-4 h-4 mr-1" />
               Save Configuration

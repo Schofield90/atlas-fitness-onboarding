@@ -35,6 +35,14 @@ const WaitNode = ({ data, selected }: CustomNodeProps) => {
           <div className="text-sm bg-gray-700 px-2 py-1 rounded">
             {data.config.duration} {data.config.unit}
           </div>
+        ) : data.config?.datetime ? (
+          <div className="text-sm bg-gray-700 px-2 py-1 rounded">
+            Until: {new Date(data.config.datetime).toLocaleString('en-GB')}
+          </div>
+        ) : data.config?.condition ? (
+          <div className="text-sm bg-gray-700 px-2 py-1 rounded">
+            Condition: {data.config.condition.substring(0, 30)}...
+          </div>
         ) : (
           <p className="text-xs text-gray-400">Duration not set</p>
         )}

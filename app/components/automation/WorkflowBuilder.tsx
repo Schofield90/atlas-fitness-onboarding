@@ -318,6 +318,8 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['triggers']))
   const [showConfigPanel, setShowConfigPanel] = useState(false)
   const [configNode, setConfigNode] = useState<WorkflowNode | null>(null)
+  const [workflowState, setWorkflow] = useState<Workflow | undefined>(workflow)
+  const [workflowName, setWorkflowName] = useState(workflow?.name || 'New Workflow')
 
   // Drop handler for the canvas
   const [{ isOver }, drop] = useDrop(() => ({
@@ -519,19 +521,37 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
   const deleteSelected = useCallback(() => {
     // Only delete if Delete key is pressed or delete button clicked
     // Don't delete on node click
-    const selectedNodes = nodes.filter((node) => node.selected)
-    const selectedEdges = edges.filter((edge) => edge.selected)
     
-    if (selectedNodes.length > 0) {
-      console.log('Deleting selected nodes:', selectedNodes.map(n => n.id))
-      setNodes((nds) => nds.filter((node) => !node.selected))
+    // If a specific node is selected via toolbar, delete that one
+    if (selectedNode) {
+      console.log('Deleting node from toolbar:', selectedNode)
+      setNodes((nds) => nds.filter((node) => node.id !== selectedNode))
+      // Also remove any edges connected to this node
+      setEdges((eds) => eds.filter((edge) => 
+        edge.source !== selectedNode && edge.target !== selectedNode
+      ))
+      setSelectedNode(null)
+    } else {
+      // Otherwise delete all selected nodes/edges
+      const selectedNodes = nodes.filter((node) => node.selected)
+      const selectedEdges = edges.filter((edge) => edge.selected)
+      
+      if (selectedNodes.length > 0) {
+        console.log('Deleting selected nodes:', selectedNodes.map(n => n.id))
+        const selectedNodeIds = selectedNodes.map(n => n.id)
+        setNodes((nds) => nds.filter((node) => !node.selected))
+        // Also remove edges connected to deleted nodes
+        setEdges((eds) => eds.filter((edge) => 
+          !selectedNodeIds.includes(edge.source) && !selectedNodeIds.includes(edge.target)
+        ))
+      }
+      
+      if (selectedEdges.length > 0) {
+        console.log('Deleting selected edges:', selectedEdges.map(e => e.id))
+        setEdges((eds) => eds.filter((edge) => !edge.selected))
+      }
     }
-    
-    if (selectedEdges.length > 0) {
-      console.log('Deleting selected edges:', selectedEdges.map(e => e.id))
-      setEdges((eds) => eds.filter((edge) => !edge.selected))
-    }
-  }, [nodes, edges, setNodes, setEdges])
+  }, [selectedNode, nodes, edges, setNodes, setEdges, setSelectedNode])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -569,50 +589,24 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [deleteSelected])
 
-  // Auto-save functionality
-  useEffect(() => {
-    if (!workflow || !onSave) return
-    
-    const autoSaveTimer = setTimeout(async () => {
-      if (nodes.length > 0 || edges.length > 0) {
-        try {
-          const updatedWorkflow: Workflow = {
-            ...workflow,
-            workflowData: {
-              nodes: nodes as WorkflowNode[],
-              edges,
-              variables: workflow.workflowData.variables || [],
-              viewport: reactFlowInstance?.getViewport(),
-            },
-          }
-          await onSave(updatedWorkflow)
-          setSaveMessage({ type: 'success', text: 'Auto-saved successfully' })
-          setTimeout(() => setSaveMessage(null), 2000)
-        } catch (error) {
-          console.error('Auto-save failed:', error)
-        }
-      }
-    }, 2000) // Auto-save every 2 seconds
-    
-    return () => clearTimeout(autoSaveTimer)
-  }, [nodes, edges, workflow, onSave, reactFlowInstance])
-
   // Save workflow
   const handleSave = useCallback(async () => {
-    if (onSave && workflow) {
+    if (onSave && workflowState) {
       setIsSaving(true)
       setSaveMessage(null)
       
       try {
         const updatedWorkflow: Workflow = {
-          ...workflow,
+          ...workflowState,
+          name: workflowName,
           workflowData: {
             nodes: nodes as WorkflowNode[],
             edges,
-            variables: workflow.workflowData.variables || [],
+            variables: workflowState.workflowData.variables || [],
             viewport: reactFlowInstance?.getViewport(),
           },
         }
+        // Manual save - will redirect after saving
         await onSave(updatedWorkflow)
         setSaveMessage({ type: 'success', text: 'Workflow saved successfully!' })
         setTimeout(() => setSaveMessage(null), 3000)
@@ -623,7 +617,17 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
         setIsSaving(false)
       }
     }
-  }, [workflow, nodes, edges, reactFlowInstance, onSave])
+  }, [workflowState, workflowName, nodes, edges, reactFlowInstance, onSave])
+
+  // Toggle workflow active status
+  const handleToggleActive = useCallback(() => {
+    if (workflowState) {
+      const newStatus = workflowState.status === 'active' ? 'paused' : 'active'
+      setWorkflow({ ...workflowState, status: newStatus })
+      setSaveMessage({ type: 'success', text: `Workflow ${newStatus === 'active' ? 'activated' : 'paused'}` })
+      setTimeout(() => setSaveMessage(null), 2000)
+    }
+  }, [workflowState])
 
   // Test workflow with validation
   const handleTest = useCallback(() => {
@@ -1116,13 +1120,45 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
               </button>
             )}
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold">{workflow?.name || 'New Workflow'}</h2>
-              {workflow?.description && (
-                <span className="text-sm text-gray-400">- {workflow.description}</span>
+              <input
+                type="text"
+                value={workflowName}
+                onChange={(e) => setWorkflowName(e.target.value)}
+                onBlur={() => {
+                  if (workflowState && workflowName !== workflowState.name) {
+                    setWorkflow({ ...workflowState, name: workflowName })
+                  }
+                }}
+                className="text-xl font-bold bg-transparent border-b border-transparent hover:border-gray-600 focus:border-orange-500 focus:outline-none px-1 py-0.5 transition-colors"
+                placeholder="Enter workflow name..."
+              />
+              {workflowState?.description && (
+                <span className="text-sm text-gray-400">- {workflowState.description}</span>
               )}
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Save Message */}
+            {saveMessage && (
+              <div className={`px-3 py-1 rounded-lg text-sm ${
+                saveMessage.type === 'success' ? 'bg-green-600/20 text-green-400' : 'bg-red-600/20 text-red-400'
+              }`}>
+                {saveMessage.text}
+              </div>
+            )}
+            
+            {/* Save Button */}
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className={`px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors flex items-center gap-2 ${
+                isSaving ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              <Save className="h-4 w-4" />
+              {isSaving ? 'Saving...' : 'Save'}
+            </button>
+            
             <button
               onClick={() => {
                 const newTestMode = !isTestMode
@@ -1143,23 +1179,17 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
                 {isTestMode ? 'Test Mode (Active)' : 'Test Mode'}
               </span>
             </button>
-            <button
-              onClick={handleTest}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors flex items-center gap-2"
-            >
-              <Play className="h-4 w-4" />
-              Run Test
-            </button>
+            
             <button
               onClick={handleToggleActive}
               disabled={isSaving}
               className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
-                workflow?.status === 'active'
+                workflowState?.status === 'active'
                   ? 'bg-green-600 hover:bg-green-700 text-white shadow-lg ring-2 ring-green-400 ring-opacity-50'
                   : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
               } ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              {workflow?.status === 'active' ? (
+              {workflowState?.status === 'active' ? (
                 <>
                   <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
                   <span className="font-semibold">Active</span>
