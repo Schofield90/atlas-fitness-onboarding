@@ -58,12 +58,12 @@ export default function AddClassTypeModal({ onClose, onSuccess }: AddClassTypeMo
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-700">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">New Class Type</h2>
+          <h2 className="text-2xl font-bold text-white">New Class Type</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
+            className="text-gray-400 hover:text-gray-200"
           >
             <X className="h-6 w-6" />
           </button>
@@ -71,50 +71,50 @@ export default function AddClassTypeModal({ onClose, onSuccess }: AddClassTypeMo
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-300 mb-1">
               Name:
             </label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-300 mb-1">
               Description:
             </label>
-            <div className="border border-gray-300 rounded-md">
-              <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-300 bg-gray-50">
-                <select className="text-sm border-0 bg-transparent focus:outline-none">
+            <div className="border border-gray-600 rounded-md">
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-600 bg-gray-700">
+                <select className="text-sm border-0 bg-transparent focus:outline-none text-gray-300">
                   <option>Body</option>
                 </select>
-                <button type="button" className="p-1 hover:bg-gray-200 rounded font-bold">B</button>
-                <button type="button" className="p-1 hover:bg-gray-200 rounded italic">I</button>
-                <button type="button" className="p-1 hover:bg-gray-200 rounded">🔗</button>
-                <button type="button" className="p-1 hover:bg-gray-200 rounded">↩</button>
-                <button type="button" className="p-1 hover:bg-gray-200 rounded">↪</button>
+                <button type="button" className="p-1 hover:bg-gray-600 rounded font-bold text-gray-300">B</button>
+                <button type="button" className="p-1 hover:bg-gray-600 rounded italic text-gray-300">I</button>
+                <button type="button" className="p-1 hover:bg-gray-600 rounded text-gray-300">🔗</button>
+                <button type="button" className="p-1 hover:bg-gray-600 rounded text-gray-300">↩</button>
+                <button type="button" className="p-1 hover:bg-gray-600 rounded text-gray-300">↪</button>
               </div>
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="w-full px-3 py-2 min-h-[100px] text-gray-900 placeholder-gray-900 focus:outline-none"
+                className="w-full px-3 py-2 min-h-[100px] bg-gray-700 text-white placeholder-gray-400 focus:outline-none"
                 placeholder="Describe the Class Type. You can format the text in this box."
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-300 mb-1">
               Category:
             </label>
             <select
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
             >
               <option value="">-- None --</option>
               <option value="strength">Strength</option>
@@ -177,7 +177,7 @@ export default function AddClassTypeModal({ onClose, onSuccess }: AddClassTypeMo
               Registration settings:
             </label>
             <div className="space-y-2">
-              <label className="flex items-start text-gray-900">
+              <label className="flex items-start text-gray-300">
                 <input
                   type="radio"
                   name="registrationSetting"
@@ -191,7 +191,7 @@ export default function AddClassTypeModal({ onClose, onSuccess }: AddClassTypeMo
                   <span className="text-gray-900"> Registrations between 365 days before event starts and when event starts. Cancels up to 1 minute before event starts.</span>
                 </div>
               </label>
-              <label className="flex items-start text-gray-900">
+              <label className="flex items-start text-gray-300">
                 <input
                   type="radio"
                   name="registrationSetting"
@@ -202,24 +202,24 @@ export default function AddClassTypeModal({ onClose, onSuccess }: AddClassTypeMo
                 />
                 <div>
                   <span>- Registrations between 365 days before event starts and when event starts.</span>
-                  <span className="text-gray-900"> Cancels up to 1 minute before event starts.</span>
+                  <span className="text-gray-400"> Cancels up to 1 minute before event starts.</span>
                 </div>
               </label>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-300 mb-1">
               Default occupancy:
             </label>
             <input
               type="number"
               value={formData.defaultOccupancy}
               onChange={(e) => setFormData({ ...formData, defaultOccupancy: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
               placeholder=""
             />
-            <p className="text-sm text-gray-900 mt-1">
+            <p className="text-sm text-gray-400 mt-1">
               The default size limit when creating new time slots or one-off events. Leave empty if no default occupancy is needed.
             </p>
           </div>
@@ -228,14 +228,14 @@ export default function AddClassTypeModal({ onClose, onSuccess }: AddClassTypeMo
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              className="px-4 py-2 text-gray-400 hover:text-gray-200"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              className="px-6 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:opacity-50"
             >
               {loading ? 'Creating...' : 'Create Class Type'}
             </button>

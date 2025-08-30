@@ -32,24 +32,53 @@ export default function NewCustomerPage() {
     setError(null)
 
     try {
-      // Get the current user's organization
+      // Get the current user
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
 
-      const { data: orgMember } = await supabase
-        .from('organization_members')
+      // Get user's organization
+      const { data: userOrg } = await supabase
+        .from('user_organizations')
         .select('organization_id')
         .eq('user_id', user.id)
         .single()
 
-      if (!orgMember) throw new Error('No organization found')
+      if (!userOrg?.organization_id) {
+        // Use default Atlas Fitness organization as fallback
+        const defaultOrgId = '63589490-8f55-4157-bd3a-e141594b748e'
+        
+        // Create user_organizations entry with default org
+        await supabase
+          .from('user_organizations')
+          .insert({
+            user_id: user.id,
+            organization_id: defaultOrgId,
+            role: 'member'
+          })
+        
+        // Create the customer with default org
+        const { data: customer, error: customerError } = await supabase
+          .from('clients')
+          .insert({
+            ...formData,
+            organization_id: defaultOrgId,
+            status: 'active',
+            created_at: new Date().toISOString()
+          })
+          .select()
+          .single()
+          
+        if (customerError) throw customerError
+        router.push(`/customers/${customer.id}`)
+        return
+      }
 
       // Create the customer
       const { data: customer, error: customerError } = await supabase
         .from('clients')
         .insert({
           ...formData,
-          organization_id: orgMember.organization_id,
+          organization_id: userOrg.organization_id,
           status: 'active',
           created_at: new Date().toISOString()
         })
@@ -76,36 +105,36 @@ export default function NewCustomerPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-900">
       <div className="max-w-4xl mx-auto p-6">
         {/* Header */}
         <div className="mb-8">
           <Link 
             href="/customers"
-            className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4"
+            className="inline-flex items-center text-gray-400 hover:text-gray-200 mb-4"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to customers
           </Link>
           
-          <h1 className="text-3xl font-bold text-gray-900">Add New Customer</h1>
-          <p className="text-gray-600 mt-2">Create a new customer profile</p>
+          <h1 className="text-3xl font-bold text-white">Add New Customer</h1>
+          <p className="text-gray-400 mt-2">Create a new customer profile</p>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+          <div className="mb-6 p-4 bg-red-900/20 border border-red-500/30 rounded-lg text-red-400">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm p-6">
+        <form onSubmit={handleSubmit} className="bg-gray-800 rounded-xl shadow-sm border border-gray-700 p-6">
           <div className="space-y-6">
             {/* Basic Information */}
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h2>
+              <h2 className="text-lg font-semibold text-white mb-4">Basic Information</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     <User className="inline h-4 w-4 mr-1" />
                     Full Name *
                   </label>
@@ -115,12 +144,12 @@ export default function NewCustomerPage() {
                     value={formData.name}
                     onChange={handleChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     <Mail className="inline h-4 w-4 mr-1" />
                     Email Address *
                   </label>
@@ -130,12 +159,12 @@ export default function NewCustomerPage() {
                     value={formData.email}
                     onChange={handleChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     <Phone className="inline h-4 w-4 mr-1" />
                     Phone Number *
                   </label>
@@ -145,12 +174,12 @@ export default function NewCustomerPage() {
                     value={formData.phone}
                     onChange={handleChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     <Calendar className="inline h-4 w-4 mr-1" />
                     Date of Birth
                   </label>
@@ -159,19 +188,19 @@ export default function NewCustomerPage() {
                     name="date_of_birth"
                     value={formData.date_of_birth}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     Gender
                   </label>
                   <select
                     name="gender"
                     value={formData.gender}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   >
                     <option value="">Select gender</option>
                     <option value="male">Male</option>
@@ -185,10 +214,10 @@ export default function NewCustomerPage() {
 
             {/* Address */}
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Address</h2>
+              <h2 className="text-lg font-semibold text-white mb-4">Address</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     <MapPin className="inline h-4 w-4 mr-1" />
                     Street Address
                   </label>
@@ -197,12 +226,12 @@ export default function NewCustomerPage() {
                     name="address"
                     value={formData.address}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     City
                   </label>
                   <input
@@ -210,12 +239,12 @@ export default function NewCustomerPage() {
                     name="city"
                     value={formData.city}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     Postal Code
                   </label>
                   <input
@@ -223,7 +252,7 @@ export default function NewCustomerPage() {
                     name="postal_code"
                     value={formData.postal_code}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   />
                 </div>
               </div>
@@ -231,10 +260,10 @@ export default function NewCustomerPage() {
 
             {/* Emergency Contact */}
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Emergency Contact</h2>
+              <h2 className="text-lg font-semibold text-white mb-4">Emergency Contact</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     Contact Name
                   </label>
                   <input
@@ -242,12 +271,12 @@ export default function NewCustomerPage() {
                     name="emergency_contact"
                     value={formData.emergency_contact}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
                     Contact Phone
                   </label>
                   <input
@@ -255,7 +284,7 @@ export default function NewCustomerPage() {
                     name="emergency_phone"
                     value={formData.emergency_phone}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   />
                 </div>
               </div>
@@ -263,7 +292,7 @@ export default function NewCustomerPage() {
 
             {/* Notes */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-300 mb-1">
                 Notes
               </label>
               <textarea
@@ -271,7 +300,7 @@ export default function NewCustomerPage() {
                 value={formData.notes}
                 onChange={handleChange}
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 placeholder="Any additional notes about this customer..."
               />
             </div>
@@ -282,7 +311,7 @@ export default function NewCustomerPage() {
             <button
               type="button"
               onClick={() => router.push('/customers')}
-              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              className="px-6 py-2 border border-gray-600 rounded-lg text-gray-300 hover:bg-gray-700 transition-colors"
             >
               Cancel
             </button>

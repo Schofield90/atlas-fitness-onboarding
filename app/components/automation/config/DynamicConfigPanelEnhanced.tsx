@@ -164,12 +164,21 @@ const getTriggerFields = (subtype: string, dynamicData?: any): FormField[] => {
           required: true,
           options: loadingFacebookData
             ? [{ value: 'loading', label: 'Loading forms...' }]
-            : facebookForms.length > 0
-              ? facebookForms
-              : [{ value: '', label: 'No forms found - Forms will appear here once created in Facebook' }],
-          description: facebookForms.length > 0 
-            ? 'Select one or more forms to monitor'
-            : 'No forms found. Create lead forms in Facebook Ads Manager first.',
+            : (() => {
+                // Filter forms for the selected page
+                const pageForms = config.pageId ? facebookForms.filter((f: any) => f.pageId === config.pageId) : []
+                if (pageForms.length > 0) {
+                  return [{ value: 'all', label: 'All Forms for this Page' }, ...pageForms]
+                }
+                return [{ value: '', label: 'No forms found - Create forms in Facebook Ads Manager' }]
+              })(),
+          description: (() => {
+            const pageForms = config.pageId ? facebookForms.filter((f: any) => f.pageId === config.pageId) : []
+            if (pageForms.length > 0) {
+              return `Found ${pageForms.length} form(s) for this page. Select one or more to monitor.`
+            }
+            return 'No forms found for this page. Create lead forms in Facebook Ads Manager first.'
+          })(),
           showWhen: (config: any) => config.pageId && config.pageId !== 'loading' && config.pageId !== ''
         },
         {
@@ -198,7 +207,7 @@ const getTriggerFields = (subtype: string, dynamicData?: any): FormField[] => {
               ? forms
               : [{ value: '', label: 'No forms available' }],
           description: forms.length === 0 && !loadingForms
-            ? 'No forms found. Create a form in the Forms section first.'
+            ? 'No forms found. Click below to create a form.'
             : 'Select which form submission should trigger this automation'
         },
         {
@@ -206,13 +215,14 @@ const getTriggerFields = (subtype: string, dynamicData?: any): FormField[] => {
           label: '',
           type: 'button' as const,
           buttonText: '➕ Create New Form',
-          onClick: () => window.open('/forms/create', '_blank'),
+          onClick: () => window.open('https://atlas-fitness-onboarding.vercel.app/forms', '_blank'),
           description: 'Open Forms section to create a new form',
           showWhen: (config: any) => forms.length === 0 && !loadingForms
         }
       ]
 
     case 'scheduled_time':
+      // Schedule trigger should only show timing settings, no trigger type
       return [
         {
           key: 'scheduleType',
@@ -649,12 +659,20 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
   const fetchFacebookData = useCallback(async () => {
     setLoadingFacebookData(true)
     try {
-      // Fetch pages
+      // Fetch pages with organization context
       const pagesResponse = await fetch('/api/integrations/facebook/pages')
       if (pagesResponse.ok) {
         const pagesData = await pagesResponse.json()
         
-        if (pagesData.pages) {
+        if (!pagesData.hasConnection) {
+          // No Facebook connection
+          setFacebookPages([])
+          setFacebookForms([])
+          toast.error('Please connect your Facebook account first in Settings > Integrations')
+          return
+        }
+        
+        if (pagesData.pages && pagesData.pages.length > 0) {
           const pageOptions = pagesData.pages.map((page: any) => ({
             value: page.id,
             label: page.name
@@ -665,31 +683,50 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
           const allForms: Array<{ value: string; label: string; pageId: string }> = []
           
           for (const page of pagesData.pages) {
-            try {
-              const formsResponse = await fetch(`/api/integrations/facebook/forms?pageId=${page.id}`)
-              if (formsResponse.ok) {
-                const formsData = await formsResponse.json()
-                if (formsData.forms) {
-                  formsData.forms.forEach((form: any) => {
-                    allForms.push({
-                      value: form.id,
-                      label: `${form.name} (${page.name})`,
-                      pageId: page.id
+            // If page already has forms, use them
+            if (page.forms && page.forms.length > 0) {
+              page.forms.forEach((form: any) => {
+                allForms.push({
+                  value: form.facebook_form_id || form.id,
+                  label: `${form.form_name || form.name} (${page.name})`,
+                  pageId: page.id
+                })
+              })
+            } else {
+              // Otherwise fetch forms from API
+              try {
+                const formsResponse = await fetch(`/api/integrations/facebook/forms?pageId=${page.id}`)
+                if (formsResponse.ok) {
+                  const formsData = await formsResponse.json()
+                  if (formsData.forms && formsData.forms.length > 0) {
+                    formsData.forms.forEach((form: any) => {
+                      allForms.push({
+                        value: form.id,
+                        label: `${form.name} (${page.name})`,
+                        pageId: page.id
+                      })
                     })
-                  })
+                  }
                 }
+              } catch (error) {
+                console.error(`Error fetching forms for page ${page.id}:`, error)
               }
-            } catch (error) {
-              console.error(`Error fetching forms for page ${page.id}:`, error)
             }
           }
           
           setFacebookForms(allForms)
+        } else {
+          setFacebookPages([])
+          setFacebookForms([])
         }
+      } else {
+        const errorData = await pagesResponse.json()
+        console.error('Failed to fetch pages:', errorData)
+        toast.error(errorData.message || 'Failed to load Facebook pages')
       }
     } catch (error) {
       console.error('Error fetching Facebook data:', error)
-      toast.error('Failed to load Facebook data')
+      toast.error('Failed to load Facebook data. Please check your Facebook integration.')
     } finally {
       setLoadingFacebookData(false)
     }
