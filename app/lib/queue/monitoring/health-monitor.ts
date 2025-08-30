@@ -573,3 +573,9 @@ export async function getSystemHealth(): Promise<HealthCheckResult> {
 export async function performEmergencyRecovery(): Promise<void> {
   return healthMonitor.performEmergencyRecovery();
 }
+
+// Process health check job (for worker)
+export async function processHealthCheck(job: any): Promise<void> {
+  const result = await healthMonitor.performHealthCheck();
+  return result;
+}

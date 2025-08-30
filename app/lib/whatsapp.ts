@@ -64,3 +64,6 @@ export async function sendWhatsApp(options: SendWhatsAppOptions) {
     throw error;
   }
 }
+
+// Alias for compatibility
+export const sendWhatsAppMessage = sendWhatsApp;
