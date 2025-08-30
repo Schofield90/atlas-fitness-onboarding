@@ -3,7 +3,7 @@
 import DashboardLayout from '../components/DashboardLayout'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
-import { MapPin, UserPlus } from 'lucide-react'
+import { MapPin, UserPlus, Phone, Mail, MessageCircle, Edit2, Trash2, Eye, MoreVertical } from 'lucide-react'
 import StaffLocationModal from './StaffLocationModal'
 import InviteStaffModal from './InviteStaffModal'
 import { useToast } from '@/app/lib/hooks/useToast'
@@ -50,51 +50,25 @@ export default function StaffPage() {
   const fetchStaff = async () => {
     try {
       setError(false)
+      setLoading(true)
       
-      // Get the organization ID from the API which handles auth properly
-      const response = await fetch('/api/organization/get-info')
+      // Fetch staff from API
+      const response = await fetch('/api/staff')
+      const data = await response.json()
+      
       if (!response.ok) {
-        throw new Error('Failed to get organization info')
+        throw new Error(data.error || 'Failed to fetch staff')
       }
       
-      const { organizationId } = await response.json()
-
-      const { data, error: staffError } = await supabase
-        .from('organization_staff')
-        .select('*')
-        .eq('organization_id', organizationId)
-        .order('created_at', { ascending: false })
-
-      if (staffError) {
-        throw staffError
-      }
-
-      setStaff(data || [])
-    } catch (error) {
-      console.error('Error fetching staff:', error)
-      
-      if (isFeatureEnabled('staffFallback')) {
-        // Show placeholder staff list
-        setStaff([
-          {
-            id: 'placeholder-1',
-            user_id: 'placeholder',
-            phone_number: '+44 7123 456789',
-            email: 'demo@example.com',
-            is_available: true,
-            receives_calls: true,
-            receives_sms: true,
-            receives_whatsapp: false,
-            receives_emails: true,
-            routing_priority: 1,
-            role: 'manager',
-            location_access: { all_locations: true }
-          }
-        ])
-        toast.error('Unable to load staff - showing demo data')
+      if (data.success) {
+        setStaff(data.staff || [])
       } else {
-        setError(true)
+        setStaff([])
       }
+    } catch (error: any) {
+      console.error('Error fetching staff:', error)
+      toast.error(error.message || 'Unable to load staff members')
+      setStaff([])
     } finally {
       setLoading(false)
     }
@@ -104,13 +78,15 @@ export default function StaffPage() {
     e.preventDefault()
     
     try {
-      const response = await fetch('/api/organization/add-staff', {
+      const response = await fetch('/api/staff', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          name: formData.name,
           email: formData.email,
           phone_number: formData.phone,
-          role: formData.role || 'staff'
+          role: formData.role || 'staff',
+          hourly_rate: formData.hourlyRate ? parseFloat(formData.hourlyRate) : 0
         })
       })
 
@@ -120,7 +96,7 @@ export default function StaffPage() {
         throw new Error(data.error || 'Failed to add staff member')
       }
 
-      alert('Staff member added successfully!')
+      toast.success('Staff member added successfully!')
       setShowAddModal(false)
       // Reset form
       setFormData({
@@ -135,7 +111,56 @@ export default function StaffPage() {
       fetchStaff()
     } catch (error: any) {
       console.error('Error adding staff:', error)
-      alert(error.message || 'Failed to add staff member')
+      toast.error(error.message || 'Failed to add staff member')
+    }
+  }
+
+  const handleEditStaff = async (staffId: string, updatedData: any) => {
+    try {
+      const response = await fetch('/api/staff', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: staffId,
+          ...updatedData
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update staff member')
+      }
+
+      toast.success('Staff member updated successfully!')
+      fetchStaff()
+    } catch (error: any) {
+      console.error('Error updating staff:', error)
+      toast.error(error.message || 'Failed to update staff member')
+    }
+  }
+
+  const handleDeleteStaff = async (staffId: string) => {
+    if (!confirm('Are you sure you want to remove this staff member?')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/staff?id=${staffId}`, {
+        method: 'DELETE'
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete staff member')
+      }
+
+      toast.success('Staff member removed successfully!')
+      fetchStaff()
+    } catch (error: any) {
+      console.error('Error deleting staff:', error)
+      toast.error(error.message || 'Failed to remove staff member')
     }
   }
 
@@ -170,21 +195,29 @@ export default function StaffPage() {
           <div className="border-b border-gray-700 mb-6">
             <nav className="flex space-x-8">
               {[
-                { id: 'team', label: 'Team Members' },
-                { id: 'schedule', label: 'Schedules' },
-                { id: 'payroll', label: 'Payroll' },
-                { id: 'permissions', label: 'Permissions' }
+                { id: 'team', label: 'Team Members', enabled: true },
+                { id: 'schedule', label: 'Schedules', enabled: false, badge: 'Coming Soon' },
+                { id: 'payroll', label: 'Payroll', enabled: false, badge: 'Coming Soon' },
+                { id: 'permissions', label: 'Permissions', enabled: false, badge: 'Coming Soon' }
               ].map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  onClick={() => tab.enabled && setActiveTab(tab.id)}
+                  disabled={!tab.enabled}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors relative ${
                     activeTab === tab.id
                       ? 'border-orange-500 text-orange-500'
-                      : 'border-transparent text-gray-400 hover:text-gray-300'
+                      : tab.enabled 
+                        ? 'border-transparent text-gray-400 hover:text-gray-300'
+                        : 'border-transparent text-gray-600 cursor-not-allowed'
                   }`}
                 >
                   {tab.label}
+                  {tab.badge && (
+                    <span className="ml-2 text-xs bg-gray-700 text-gray-400 px-2 py-0.5 rounded">
+                      {tab.badge}
+                    </span>
+                  )}
                 </button>
               ))}
             </nav>
@@ -225,16 +258,52 @@ export default function StaffPage() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {staff.map((member) => (
-                    <div key={member.id} className="bg-gray-700 rounded-lg p-4">
+                    <div key={member.id} className="bg-gray-700 rounded-lg p-4 relative group">
+                      {/* Action Menu */}
+                      <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => {
+                              // View staff details (could open a modal)
+                              toast.info(`Viewing ${member.email}`);
+                            }}
+                            className="p-1.5 bg-gray-600 hover:bg-gray-500 rounded transition-colors"
+                            title="View Details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              // Edit staff (could open edit modal with pre-filled data)
+                              const newEmail = prompt('Enter new email:', member.email);
+                              if (newEmail && newEmail !== member.email) {
+                                handleEditStaff(member.id, { email: newEmail });
+                              }
+                            }}
+                            className="p-1.5 bg-gray-600 hover:bg-gray-500 rounded transition-colors"
+                            title="Edit"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteStaff(member.id)}
+                            className="p-1.5 bg-red-600 hover:bg-red-500 rounded transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center space-x-3">
                           <div className="w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center">
                             <span className="text-white font-semibold">
-                              {member.email.charAt(0).toUpperCase()}
+                              {(member.name || member.email).charAt(0).toUpperCase()}
                             </span>
                           </div>
                           <div>
-                            <h4 className="font-medium">{member.email}</h4>
+                            <h4 className="font-medium">{member.name || member.email}</h4>
                             <p className="text-sm text-gray-400 capitalize">{member.role}</p>
                           </div>
                         </div>
@@ -244,21 +313,80 @@ export default function StaffPage() {
                           {member.is_available ? 'Available' : 'Unavailable'}
                         </div>
                       </div>
-                      <div className="space-y-1 text-sm">
-                        <p className="text-gray-400">
-                          <span className="inline-block w-16">Phone:</span>
-                          <span className="text-gray-300">{member.phone_number}</span>
-                        </p>
-                        <div className="flex gap-2 mt-2 text-xs">
-                          {member.receives_calls && <span className="bg-gray-600 px-2 py-1 rounded">Calls</span>}
-                          {member.receives_sms && <span className="bg-gray-600 px-2 py-1 rounded">SMS</span>}
-                          {member.receives_whatsapp && <span className="bg-gray-600 px-2 py-1 rounded">WhatsApp</span>}
-                          {member.receives_emails && <span className="bg-gray-600 px-2 py-1 rounded">Email</span>}
+                      
+                      <div className="space-y-2 text-sm">
+                        {/* Contact Info with clickable links */}
+                        {member.phone_number && (
+                          <div className="flex items-center gap-2">
+                            <Phone className="h-4 w-4 text-gray-400" />
+                            <a 
+                              href={`tel:${member.phone_number}`}
+                              className="text-gray-300 hover:text-orange-400 transition-colors"
+                            >
+                              {member.phone_number}
+                            </a>
+                          </div>
+                        )}
+                        
+                        {member.email && (
+                          <div className="flex items-center gap-2">
+                            <Mail className="h-4 w-4 text-gray-400" />
+                            <a 
+                              href={`mailto:${member.email}`}
+                              className="text-gray-300 hover:text-orange-400 transition-colors truncate"
+                            >
+                              {member.email}
+                            </a>
+                          </div>
+                        )}
+
+                        {/* Contact Methods */}
+                        <div className="flex gap-2 mt-3 pt-3 border-t border-gray-600">
+                          {member.phone_number && (
+                            <>
+                              <a
+                                href={`tel:${member.phone_number}`}
+                                className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-gray-600 hover:bg-green-600 rounded transition-colors text-xs"
+                                title="Call"
+                              >
+                                <Phone className="h-3 w-3" />
+                                Call
+                              </a>
+                              <a
+                                href={`sms:${member.phone_number}`}
+                                className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-gray-600 hover:bg-blue-600 rounded transition-colors text-xs"
+                                title="SMS"
+                              >
+                                <MessageCircle className="h-3 w-3" />
+                                SMS
+                              </a>
+                              <a
+                                href={`https://wa.me/${member.phone_number.replace(/[^0-9]/g, '')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-gray-600 hover:bg-green-500 rounded transition-colors text-xs"
+                                title="WhatsApp"
+                              >
+                                <MessageCircle className="h-3 w-3" />
+                                WA
+                              </a>
+                            </>
+                          )}
                         </div>
+
+                        {/* Communication Preferences */}
+                        <div className="flex flex-wrap gap-1 mt-2 text-xs">
+                          {member.receives_calls && <span className="bg-gray-600 px-2 py-0.5 rounded text-xs">📞 Calls</span>}
+                          {member.receives_sms && <span className="bg-gray-600 px-2 py-0.5 rounded text-xs">💬 SMS</span>}
+                          {member.receives_whatsapp && <span className="bg-gray-600 px-2 py-0.5 rounded text-xs">📱 WhatsApp</span>}
+                          {member.receives_emails && <span className="bg-gray-600 px-2 py-0.5 rounded text-xs">📧 Email</span>}
+                        </div>
+
+                        {/* Location Management */}
                         <div className="mt-3">
                           <button
                             onClick={() => setSelectedStaffForLocation({ id: member.id, name: member.email })}
-                            className="flex items-center gap-2 text-xs bg-gray-600 hover:bg-gray-500 px-3 py-1.5 rounded transition-colors"
+                            className="w-full flex items-center justify-center gap-2 text-xs bg-gray-600 hover:bg-gray-500 px-3 py-1.5 rounded transition-colors"
                           >
                             <MapPin className="h-3 w-3" />
                             {member.location_access?.all_locations ? 'All Locations' : 'Manage Locations'}
@@ -300,26 +428,33 @@ export default function StaffPage() {
                 <h3 className="text-xl font-bold mb-4">Add Staff Member</h3>
                 <form onSubmit={handleAddStaff} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2">Full Name</label>
+                    <label className="block text-sm font-medium mb-2">
+                      Full Name <span className="text-red-400">*</span>
+                    </label>
                     <input
                       type="text"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-orange-500"
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-orange-500 text-white"
                       placeholder="John Doe"
                       required
+                      minLength={2}
+                      maxLength={100}
                     />
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium mb-2">Email Address</label>
+                    <label className="block text-sm font-medium mb-2">
+                      Email Address <span className="text-red-400">*</span>
+                    </label>
                     <input
                       type="email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-orange-500"
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-orange-500 text-white"
                       placeholder="john@example.com"
                       required
+                      pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
                     />
                   </div>
                   
@@ -329,17 +464,20 @@ export default function StaffPage() {
                       type="tel"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-orange-500"
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-orange-500 text-white"
                       placeholder="+44 7123 456789"
+                      pattern="[\+]?[0-9\s\-\(\)]+"
                     />
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium mb-2">Role</label>
+                    <label className="block text-sm font-medium mb-2">
+                      Role <span className="text-red-400">*</span>
+                    </label>
                     <select
                       value={formData.role}
                       onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-orange-500"
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-orange-500 text-white"
                       required
                     >
                       <option value="">Select a role</option>
