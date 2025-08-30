@@ -69,7 +69,7 @@ import WaitNode from './nodes/WaitNode'
 import LoopNode from './nodes/LoopNode'
 import TransformNode from './nodes/TransformNode'
 import FilterNode from './nodes/FilterNode'
-import DynamicConfigPanel from './config/DynamicConfigPanel'
+import DynamicConfigPanelEnhanced from './config/DynamicConfigPanelEnhanced'
 
 // Node types mapping
 const nodeTypes = {
@@ -1395,14 +1395,18 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
       
       {/* Node Configuration Panel */}
       {showConfigPanel && configNode && (
-        <DynamicConfigPanel
+        <DynamicConfigPanelEnhanced
           node={configNode}
           organizationId={workflow?.organizationId || ''}
           onClose={() => {
             setShowConfigPanel(false)
             setConfigNode(null)
           }}
-          onSave={handleNodeConfigSave}
+          onSave={(nodeId, config) => {
+            handleNodeConfigSave(nodeId, config)
+            setShowConfigPanel(false)
+            setConfigNode(null)
+          }}
         />
       )}
     </div>

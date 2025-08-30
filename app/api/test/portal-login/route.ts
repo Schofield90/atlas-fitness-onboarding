@@ -18,9 +18,9 @@ export async function GET(request: NextRequest) {
     if (error) {
       return NextResponse.json({ 
         error: 'Query failed',
-        details: error,
-        code: code,
-        query: `SELECT * FROM client_portal_access WHERE access_code = '${code}'`
+        details: error.message,
+        code: code
+        // Removed SQL query to prevent SQL injection vulnerability exposure
       }, { status: 400 })
     }
     

@@ -142,6 +142,7 @@
     "ioredis": "^5.4.1",
     "jose": "^5.10.0",
     "jsonwebtoken": "^9.0.2",
+    "lru-cache": "^11.1.0",
     "lucide-react": "^0.456.0",
     "mixpanel-browser": "^2.56.0",
     "moment": "^2.30.1",

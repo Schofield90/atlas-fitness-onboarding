@@ -17,11 +17,11 @@ interface DynamicConfigPanelProps {
 interface FormField {
   key: string
   label: string
-  type: 'text' | 'textarea' | 'select' | 'number' | 'boolean' | 'date' | 'time' | 'datetime-local' | 'email' | 'tel' | 'url' | 'json' | 'array' | 'variable'
+  type: 'text' | 'textarea' | 'select' | 'multi-select' | 'number' | 'boolean' | 'date' | 'time' | 'datetime-local' | 'email' | 'tel' | 'url' | 'json' | 'array' | 'variable' | 'button'
   required?: boolean
   placeholder?: string
   description?: string
-  options?: Array<{ value: string; label: string }>
+  options?: Array<{ value: string; label: string; pageId?: string }>
   defaultValue?: any
   validation?: {
     min?: number
@@ -31,6 +31,8 @@ interface FormField {
   }
   dependencies?: Array<{ field: string; value: any }>
   showWhen?: (config: any) => boolean
+  buttonText?: string
+  onClick?: () => void
 }
 
 const getNodeConfigSchema = (node: WorkflowNode, dynamicData?: any): FormField[] => {
@@ -161,7 +163,7 @@ const getTriggerFields = (subtype: string, dynamicData?: any): FormField[] => {
       }
       
       // Get forms for the selected page
-      const availableForms = getFormsForPage(dynamicData?.config?.pageId || 'all')
+      const availableForms = getFormsForPage(dynamicData?.config?.pageId || '')
       
       return [
         {
@@ -172,30 +174,33 @@ const getTriggerFields = (subtype: string, dynamicData?: any): FormField[] => {
           options: loadingFacebookData 
             ? [{ value: 'loading', label: 'Loading pages...' }]
             : facebookPages.length > 0 
-              ? [{ value: 'all', label: 'All Pages' }, ...facebookPages]
+              ? facebookPages
               : [{ value: '', label: 'No pages available - Please connect Facebook' }],
           description: 'Select the Facebook page to monitor for lead forms'
         },
         {
-          key: 'formId',
-          label: 'Lead Form',
-          type: 'select' as const,
-          required: false,
-          defaultValue: 'all',
+          key: 'formIds',
+          label: 'Select Lead Forms',
+          type: 'multi-select' as const,
+          required: true,
           options: loadingFacebookData
             ? [{ value: 'loading', label: 'Loading forms...' }]
             : availableForms.length > 0
-              ? [
-                  { value: 'all', label: 'All Forms' },
-                  ...availableForms
-                ]
-              : [
-                  { value: 'all', label: 'All Forms (Monitor all lead forms)' }
-                ],
+              ? availableForms
+              : [{ value: '', label: 'No forms found - Forms will appear here once created in Facebook' }],
           description: availableForms.length > 0 
-            ? 'Select a specific form or monitor all forms'
-            : 'Will monitor all lead forms from the selected page. Specific forms will appear here as they are created in Facebook.',
+            ? 'Select one or more forms to monitor'
+            : 'No forms found. Create lead forms in Facebook Ads Manager first.',
           showWhen: (config: any) => config.pageId && config.pageId !== 'loading' && config.pageId !== '' && !loadingFacebookData
+        },
+        {
+          key: 'refreshForms',
+          label: '',
+          type: 'button' as const,
+          buttonText: 'Refresh Forms',
+          onClick: () => dynamicData?.onRefreshForms?.(),
+          description: 'Click to fetch the latest forms from Facebook',
+          showWhen: (config: any) => config.pageId && config.pageId !== ''
         }
       ]
     case 'lead_trigger':
@@ -259,7 +264,6 @@ const getTriggerFields = (subtype: string, dynamicData?: any): FormField[] => {
 
     case 'scheduled_time':
       return [
-        ...commonFields,
         {
           key: 'scheduleType',
           label: 'Schedule Type',
