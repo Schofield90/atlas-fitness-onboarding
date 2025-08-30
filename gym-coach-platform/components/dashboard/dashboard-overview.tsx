@@ -4,6 +4,7 @@ import { Users, UserPlus, TrendingUp, DollarSign, Target, Calendar } from 'lucid
 import { MetricsCard } from './metrics-card'
 import { AIInsightsCard } from '@/components/ai/ai-insights-card'
 import { LeadRecommendations } from '@/components/ai/lead-recommendations'
+import { IntegrationCardsDemo } from './integration-cards'
 import { useDashboardMetrics } from '@/hooks/use-api'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
 
@@ -171,6 +172,12 @@ export function DashboardOverview() {
           </div>
         </div>
       )}
+
+      {/* Integrations Section */}
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Integrations</h2>
+        <IntegrationCardsDemo />
+      </div>
 
       {/* AI Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
