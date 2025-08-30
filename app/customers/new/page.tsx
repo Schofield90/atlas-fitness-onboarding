@@ -18,9 +18,11 @@ export default function NewCustomerPage() {
     phone: '',
     date_of_birth: '',
     gender: '',
-    address: '',
+    address_line_1: '',
+    address_line_2: '',
     city: '',
     postal_code: '',
+    country: 'UK',
     emergency_contact: '',
     emergency_phone: '',
     notes: ''
@@ -60,7 +62,16 @@ export default function NewCustomerPage() {
         const { data: customer, error: customerError } = await supabase
           .from('clients')
           .insert({
-            ...formData,
+            name: formData.name,
+            email: formData.email,
+            phone: formData.phone,
+            date_of_birth: formData.date_of_birth || null,
+            gender: formData.gender || null,
+            address_line_1: formData.address_line_1 || null,
+            address_line_2: formData.address_line_2 || null,
+            city: formData.city || null,
+            postal_code: formData.postal_code || null,
+            country: formData.country || 'UK',
             organization_id: defaultOrgId,
             status: 'active',
             created_at: new Date().toISOString()
@@ -77,7 +88,16 @@ export default function NewCustomerPage() {
       const { data: customer, error: customerError } = await supabase
         .from('clients')
         .insert({
-          ...formData,
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          date_of_birth: formData.date_of_birth || null,
+          gender: formData.gender || null,
+          address_line_1: formData.address_line_1 || null,
+          address_line_2: formData.address_line_2 || null,
+          city: formData.city || null,
+          postal_code: formData.postal_code || null,
+          country: formData.country || 'UK',
           organization_id: userOrg.organization_id,
           status: 'active',
           created_at: new Date().toISOString()
@@ -219,14 +239,29 @@ export default function NewCustomerPage() {
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-300 mb-1">
                     <MapPin className="inline h-4 w-4 mr-1" />
-                    Street Address
+                    Address Line 1
                   </label>
                   <input
                     type="text"
-                    name="address"
-                    value={formData.address}
+                    name="address_line_1"
+                    value={formData.address_line_1}
                     onChange={handleChange}
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    placeholder="Street address"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Address Line 2 (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    name="address_line_2"
+                    value={formData.address_line_2}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    placeholder="Apartment, suite, etc."
                   />
                 </div>
 

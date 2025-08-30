@@ -130,15 +130,16 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Create staff member
+    // Create staff member - user_id is TEXT and can be any string
     const { data: newStaff, error: insertError } = await supabase
       .from('organization_staff')
       .insert({
         organization_id: userOrg.organization_id,
-        user_id: crypto.randomUUID(), // Generate a temporary ID
+        user_id: `pending_${Date.now()}`, // Use a pending ID until user accepts invitation
+        name: name || email.split('@')[0], // Use name or email prefix
         email,
         phone_number: phone_number || '',
-        role,
+        role: role || 'staff',
         hourly_rate: hourly_rate || 0,
         is_available: true,
         receives_calls: true,
