@@ -18,7 +18,7 @@ import { ReactFlowProvider } from 'reactflow'
 import { toast } from 'react-hot-toast'
 
 // Mock dependencies
-jest.mock('app/lib/feature-flags', () => ({
+jest.mock('@/app/lib/feature-flags', () => ({
   useFeatureFlag: jest.fn(() => false)
 }))
 

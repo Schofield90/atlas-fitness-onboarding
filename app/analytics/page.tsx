@@ -51,6 +51,7 @@ export default function AnalyticsPage() {
     }
   };
   
+  const isAnalyticsBeta = isFeatureEnabled('analyticsBeta');
   const isAnalyticsEnabled = isFeatureEnabled('analyticsReporting');
   
   const renderComingSoonFeature = (title: string, description: string, icon: React.ReactNode) => (
@@ -251,7 +252,9 @@ export default function AnalyticsPage() {
           
           {/* Tab Content */}
           {activeTab === 'overview' && (
-            isAnalyticsEnabled ? renderDemoData() : renderComingSoonFeature(
+            isAnalyticsBeta ? renderDemoData() : 
+            isAnalyticsEnabled ? renderDemoData() : 
+            renderComingSoonFeature(
               'Analytics Dashboard', 
               'Get comprehensive insights into your gym\'s performance with detailed analytics and reporting tools.',
               <BarChart3 className="w-8 h-8" />

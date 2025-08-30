@@ -15,7 +15,10 @@ import {
   Mail,
   Phone,
   Star,
-  ArrowRight
+  ArrowRight,
+  X,
+  Eye,
+  Copy
 } from 'lucide-react'
 
 interface WorkflowTemplate {
@@ -30,11 +33,26 @@ interface WorkflowTemplate {
   popular?: boolean
 }
 
+interface WorkflowNode {
+  id: string
+  type: string
+  position: { x: number; y: number }
+  data: { label: string; config?: any }
+}
+
+interface WorkflowData {
+  nodes: WorkflowNode[]
+  edges: Array<{ id: string; source: string; target: string }>
+}
+
 export default function WorkflowTemplatesPage() {
   const router = useRouter()
   const [userData, setUserData] = useState<any>(null)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [templates, setTemplates] = useState<WorkflowTemplate[]>([])
+  const [showPreviewModal, setShowPreviewModal] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState<WorkflowTemplate | null>(null)
+  const [isCloning, setIsCloning] = useState(false)
 
   useEffect(() => {
     const storedData = localStorage.getItem('gymleadhub_trial_data')
@@ -173,10 +191,74 @@ export default function WorkflowTemplatesPage() {
     }
   }
 
-  const handleUseTemplate = (template: WorkflowTemplate) => {
-    // In a real implementation, this would create a new workflow from the template
-    alert(`Creating workflow from template: ${template.name}\n\nThis will open the workflow builder with pre-configured nodes and settings.`)
+  const handleUseTemplate = async (template: WorkflowTemplate) => {
+    setIsCloning(true)
+    
+    // Store template data in localStorage for the builder to use
+    const workflowData = getTemplateWorkflowData(template.id)
+    localStorage.setItem('workflow_template_data', JSON.stringify({
+      templateId: template.id,
+      name: template.name,
+      ...workflowData
+    }))
+    
+    // Simulate cloning delay
+    await new Promise(resolve => setTimeout(resolve, 500))
+    
+    setIsCloning(false)
     router.push(`/automations/builder/new?template=${template.id}`)
+  }
+
+  const getTemplateWorkflowData = (templateId: string): WorkflowData => {
+    // Mock workflow data for each template
+    const templates: Record<string, WorkflowData> = {
+      'lead-welcome': {
+        nodes: [
+          { id: '1', type: 'trigger', position: { x: 100, y: 100 }, data: { label: 'New Lead Added' } },
+          { id: '2', type: 'action', position: { x: 300, y: 100 }, data: { label: 'Send Welcome SMS' } },
+          { id: '3', type: 'delay', position: { x: 500, y: 100 }, data: { label: 'Wait 1 hour' } },
+          { id: '4', type: 'action', position: { x: 700, y: 100 }, data: { label: 'Send Follow-up Email' } }
+        ],
+        edges: [
+          { id: 'e1-2', source: '1', target: '2' },
+          { id: 'e2-3', source: '2', target: '3' },
+          { id: 'e3-4', source: '3', target: '4' }
+        ]
+      },
+      'trial-nurture': {
+        nodes: [
+          { id: '1', type: 'trigger', position: { x: 100, y: 100 }, data: { label: 'Trial Started' } },
+          { id: '2', type: 'action', position: { x: 300, y: 100 }, data: { label: 'Send Onboarding Email' } },
+          { id: '3', type: 'condition', position: { x: 500, y: 100 }, data: { label: 'Check Progress' } },
+          { id: '4', type: 'action', position: { x: 700, y: 50 }, data: { label: 'Send Success Tips' } },
+          { id: '5', type: 'action', position: { x: 700, y: 150 }, data: { label: 'Send Reminder' } }
+        ],
+        edges: [
+          { id: 'e1-2', source: '1', target: '2' },
+          { id: 'e2-3', source: '2', target: '3' },
+          { id: 'e3-4', source: '3', target: '4' },
+          { id: 'e3-5', source: '3', target: '5' }
+        ]
+      },
+      'default': {
+        nodes: [
+          { id: '1', type: 'trigger', position: { x: 100, y: 100 }, data: { label: 'Trigger Event' } },
+          { id: '2', type: 'action', position: { x: 300, y: 100 }, data: { label: 'Perform Action' } },
+          { id: '3', type: 'action', position: { x: 500, y: 100 }, data: { label: 'Send Notification' } }
+        ],
+        edges: [
+          { id: 'e1-2', source: '1', target: '2' },
+          { id: 'e2-3', source: '2', target: '3' }
+        ]
+      }
+    }
+    
+    return templates[templateId] || templates['default']
+  }
+
+  const handlePreviewTemplate = (template: WorkflowTemplate) => {
+    setSelectedTemplate(template)
+    setShowPreviewModal(true)
   }
 
   if (!userData) {
@@ -299,16 +381,26 @@ export default function WorkflowTemplatesPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleUseTemplate(template)}
-                    className="flex-1 flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded-lg transition-colors"
+                    disabled={isCloning}
+                    className="flex-1 flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Use Template
-                    <ArrowRight className="h-4 w-4" />
+                    {isCloning ? (
+                      <>
+                        <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                        Cloning...
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4" />
+                        Use Template
+                      </>
+                    )}
                   </button>
                   <button
-                    onClick={() => alert(`Template Preview: ${template.name}\n\nThis would show a detailed preview of the workflow structure, nodes, and configuration options.`)}
+                    onClick={() => handlePreviewTemplate(template)}
                     className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
                   >
-                    Preview
+                    <Eye className="h-4 w-4" />
                   </button>
                 </div>
               </div>
@@ -338,13 +430,135 @@ export default function WorkflowTemplatesPage() {
               Build Custom Workflow
             </button>
             <button 
-              onClick={() => alert('🤝 Custom Template Request\n\nOur team can help create custom templates for your specific needs.\n\nContact: support@atlasfitness.com')}
+              onClick={() => {
+                const toast = document.createElement('div')
+                toast.className = 'fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg bg-blue-600 text-white'
+                toast.innerHTML = `
+                  <div class="font-medium">Custom Template Request</div>
+                  <div class="text-sm opacity-90">Contact support@atlasfitness.com for custom templates</div>
+                `
+                document.body.appendChild(toast)
+                setTimeout(() => {
+                  toast.style.opacity = '0'
+                  setTimeout(() => document.body.removeChild(toast), 300)
+                }, 3000)
+              }}
               className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition-colors"
             >
               Request Custom Template
             </button>
           </div>
         </div>
+
+        {/* Preview Modal */}
+        {showPreviewModal && selectedTemplate && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-800 rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-white mb-2">{selectedTemplate.name}</h2>
+                  <p className="text-gray-400">{selectedTemplate.description}</p>
+                </div>
+                <button
+                  onClick={() => setShowPreviewModal(false)}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              {/* Workflow Visualization */}
+              <div className="bg-gray-900 rounded-lg p-8 mb-6">
+                <h3 className="text-lg font-semibold text-white mb-4">Workflow Structure</h3>
+                <div className="relative h-64 overflow-hidden">
+                  {/* Simple workflow visualization */}
+                  <div className="flex items-center justify-center h-full">
+                    <div className="flex items-center gap-4">
+                      <div className="bg-blue-600 p-3 rounded-lg">
+                        <Zap className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="h-0.5 w-16 bg-gray-600"></div>
+                      <div className="bg-orange-600 p-3 rounded-lg">
+                        <MessageSquare className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="h-0.5 w-16 bg-gray-600"></div>
+                      <div className="bg-green-600 p-3 rounded-lg">
+                        <Clock className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="h-0.5 w-16 bg-gray-600"></div>
+                      <div className="bg-purple-600 p-3 rounded-lg">
+                        <Mail className="h-6 w-6 text-white" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-gray-900 to-transparent pointer-events-none"></div>
+                </div>
+              </div>
+
+              {/* Template Details */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-white mb-3">Key Features</h3>
+                  <ul className="space-y-2">
+                    {selectedTemplate.features.map((feature, index) => (
+                      <li key={index} className="flex items-center gap-2 text-gray-300">
+                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white mb-3">Configuration</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-400">Difficulty</span>
+                      <span className="text-white capitalize">{selectedTemplate.difficulty}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-400">Setup Time</span>
+                      <span className="text-white">{selectedTemplate.estimatedSetupTime} minutes</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-400">Category</span>
+                      <span className="text-white capitalize">{selectedTemplate.category.replace('-', ' ')}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-4">
+                <button
+                  onClick={() => {
+                    setShowPreviewModal(false)
+                    handleUseTemplate(selectedTemplate)
+                  }}
+                  disabled={isCloning}
+                  className="flex-1 flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 text-white py-3 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isCloning ? (
+                    <>
+                      <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                      Cloning Template...
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-5 w-5" />
+                      Use This Template
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowPreviewModal(false)}
+                  className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                >
+                  Close Preview
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   )

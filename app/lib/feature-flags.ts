@@ -9,6 +9,7 @@ export interface FeatureFlags {
   campaignsCreate: boolean
   campaignsAnalytics: boolean
   campaignsActions: boolean // View/Edit buttons
+  marketingCampaigns: boolean // Legacy alias for campaigns
   
   // Surveys  
   surveys: boolean
@@ -21,6 +22,9 @@ export interface FeatureFlags {
   advancedAnalytics: boolean
   customReports: boolean
   betaAnalytics: boolean // Beta dashboard access
+  reportingBeta: boolean // Reporting beta feature flag
+  analyticsBeta: boolean // Analytics beta feature flag
+  analyticsReporting: boolean // Combined flag for analytics & reporting
   
   // AI Features
   aiInsights: boolean
@@ -50,6 +54,7 @@ export interface FeatureFlags {
   automationBuilderValidation: boolean // PR-5: Strict pre-run workflow validation
   automationBuilderAutoSave: boolean // PR-6: Enhanced save/publish with hydration
   automationBuilderTemplateModal: boolean // PR-7: Modal template preview and cloning
+  automationBuilder: boolean // General automation builder feature flag
 }
 
 // Default feature flag values
@@ -60,6 +65,7 @@ const defaultFlags: FeatureFlags = {
   campaignsCreate: false, // Disable campaign creation
   campaignsAnalytics: false, // Analytics tab is empty
   campaignsActions: false, // View/Edit don't work
+  marketingCampaigns: false, // Legacy alias
   
   // Surveys - UI only with mock data
   surveys: true, // Show in nav but with limited functionality
@@ -72,6 +78,9 @@ const defaultFlags: FeatureFlags = {
   advancedAnalytics: false,
   customReports: false,
   betaAnalytics: false, // Keep beta dashboard gated
+  reportingBeta: false, // Reporting beta feature flag
+  analyticsBeta: false, // Analytics beta feature flag
+  analyticsReporting: true, // Combined flag for showing demo data
   
   // AI Features
   aiInsights: true, // This seems to work based on codebase
@@ -101,6 +110,7 @@ const defaultFlags: FeatureFlags = {
   automationBuilderValidation: false, // PR-5: Start disabled, enable when ready
   automationBuilderAutoSave: false, // PR-6: Start disabled, enable when ready
   automationBuilderTemplateModal: false, // PR-7: Start disabled, enable when ready
+  automationBuilder: true, // General automation builder enabled
 }
 
 // Environment-based overrides

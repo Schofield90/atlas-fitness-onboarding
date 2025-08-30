@@ -16,7 +16,7 @@ const config = {
     }]
   },
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/app/$1',
+    '^@/(.*)$': '<rootDir>/$1',
     '^@/app/(.*)$': '<rootDir>/app/$1',
     '^@/lib/(.*)$': '<rootDir>/app/lib/$1',
     '^@/components/(.*)$': '<rootDir>/app/components/$1'
