@@ -1,0 +1,91 @@
+# Test Coverage Matrix - Atlas Fitness Gym Coach Platform
+# Updated: 2025-08-30T10:00:00Z
+
+## Existing Test Infrastructure
+[source: __tests__/ directory structure]
+
+### Unit Tests
+**Framework**: Jest with React Testing Library
+**Config**: `/jest.config.js`, `__tests__/setup/jest.setup.ts`
+
+#### Component Tests
+- `__tests__/components/layout/header.test.tsx` - Header component
+- `__tests__/components/dashboard/integration-cards.test.tsx` - Dashboard cards
+- `__tests__/simple.test.tsx` - Basic smoke test
+
+#### Test Utilities
+- `__tests__/setup/global-setup.ts` - Global test setup
+- `__tests__/setup/global-teardown.ts` - Global test cleanup
+
+### E2E Tests  
+**Framework**: Playwright
+**Config**: `/playwright.config.ts`
+
+#### Test Scenarios
+- `__tests__/e2e/dashboard-actions.spec.ts` - Dashboard interaction flows
+- **Results**: `test-results/`, `playwright-report/`
+
+## Test Scenarios for Task 2 Implementation
+
+### Add Lead Modal Tests
+**REQUIRED**: Test scenarios to implement
+- Modal opens when "Add Lead" button clicked
+- Form validation (required fields: name, email, source)
+- Successful lead creation flow
+- Error handling and display
+- Modal closes after successful submission
+- Form resets on close/cancel
+
+### Import CSV Tests  
+**REQUIRED**: Test scenarios to implement
+- File upload component renders
+- CSV file validation (headers, format)
+- Successful bulk import flow
+- Duplicate email handling
+- Import progress feedback
+- Error reporting for failed rows
+- Success confirmation with count
+
+### Export CSV Tests
+**REQUIRED**: Test scenarios to implement  
+- Export button triggers download
+- CSV file contains correct headers
+- All visible leads included in export
+- Filtered results respect export scope
+- File naming convention (leads_YYYY-MM-DD.csv)
+- Browser download handling
+
+## Testing Patterns in Codebase
+[source: analysis of existing tests]
+
+### Modal Testing Pattern
+```typescript
+// Pattern from existing tests
+render(<ComponentWithModal />)
+await user.click(screen.getByRole('button', { name: /open modal/i }))
+expect(screen.getByRole('dialog')).toBeInTheDocument()
+```
+
+### Form Testing Pattern  
+```typescript
+// Form validation testing
+await user.type(screen.getByLabelText(/email/i), 'invalid-email')
+expect(screen.getByText(/invalid email/i)).toBeInTheDocument()
+```
+
+### API Testing Pattern
+```typescript
+// Mock API calls in tests
+const mockMutate = jest.fn()
+jest.mock('@/hooks/use-api', () => ({
+  useCreateLead: () => ({ mutate: mockMutate })
+}))
+```
+
+## Missing Test Coverage
+**BLOCKERS**: Areas requiring test implementation
+- Lead form validation edge cases
+- CSV file parsing logic
+- File download functionality  
+- Error boundary handling
+- Toast notification testing

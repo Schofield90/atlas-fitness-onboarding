@@ -623,7 +623,24 @@ const RichTextField: React.FC<{
 }
 
 export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onChange, organizationId }: DynamicConfigPanelProps) {
-  const [config, setConfig] = useState(node.data.config || {})
+  // Validate node exists and has required properties
+  if (!node) {
+    console.error('DynamicConfigPanelEnhanced: No node provided')
+    toast.error('Configuration error: No node selected')
+    onClose()
+    return null
+  }
+  
+  if (!node.id || !node.type) {
+    console.error('DynamicConfigPanelEnhanced: Invalid node data', node)
+    toast.error('Configuration error: Invalid node data')
+    onClose()
+    return null
+  }
+  
+  console.log('DynamicConfigPanelEnhanced: Opening config for node', { id: node.id, type: node.type, data: node.data })
+  
+  const [config, setConfig] = useState(node.data?.config || {})
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isValid, setIsValid] = useState(false)
   const [facebookPages, setFacebookPages] = useState<Array<{ value: string; label: string }>>([])

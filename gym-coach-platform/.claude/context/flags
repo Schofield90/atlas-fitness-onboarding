@@ -1,0 +1,52 @@
+# Feature Flags & Configuration - Atlas Fitness Gym Coach Platform  
+# Updated: 2025-08-30T10:00:00Z
+
+## Environment Variables
+[source: next.config.js, middleware.ts, lib/supabase/]
+
+### Supabase Configuration
+- `NEXT_PUBLIC_SUPABASE_URL`: Public Supabase project URL
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Public Supabase anonymous key  
+- `SUPABASE_SERVICE_ROLE_KEY`: Server-side admin access key
+
+### Authentication
+- **Multi-tenant**: Organization-based access control
+- **Facebook OAuth**: Configured for social login
+- **Role-based**: owner, admin, staff, viewer roles
+
+## Development Features
+[source: components/providers/query-provider.tsx]
+- **React Query Devtools**: Enabled in development
+- **Hot Reload**: Next.js development server
+- **Type Safety**: Full TypeScript coverage
+
+## UI/UX Configuration
+[source: components/providers/query-provider.tsx:L27-33]
+- **Toast Position**: 'top-right'
+- **Toast Duration**: 4000ms
+- **Toast Styling**: Custom white background with border
+
+## Query Client Settings
+[source: components/providers/query-provider.tsx:L9-22]
+- **Stale Time**: 5 minutes
+- **GC Time**: 10 minutes  
+- **Retry Logic**: Max 2 retries, skip on 401 errors
+
+## Component Feature Flags
+[source: app/dashboard/leads/page.tsx]
+- **View Modes**: Table and Kanban view toggle
+- **Modal System**: Native modals vs Radix Dialog components
+- **AI Features**: Lead scoring and bulk analysis
+
+## Current Limitations (Flags to Address)
+- **CSV Import**: Not implemented
+- **CSV Export**: Shows toast but no file download
+- **File Upload**: No infrastructure present
+- **Bulk Operations**: Limited to AI analysis only
+
+## Form Validation Rules
+[source: components/leads/lead-form.tsx:L11-17]
+- **Required Fields**: name, email, source
+- **Email Validation**: Standard email regex
+- **Phone**: Optional field
+- **Source Options**: facebook, instagram, google, website, referral, walk-in, other

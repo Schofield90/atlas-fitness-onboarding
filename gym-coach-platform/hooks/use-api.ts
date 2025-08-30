@@ -102,6 +102,42 @@ export function useDeleteLead() {
   })
 }
 
+export function useBulkImportLeads() {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: (data: { leads: any[] }) => apiClient.bulkImportLeads(data.leads),
+    onSuccess: (result: any) => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard', 'metrics'] })
+      
+      if (result.failed > 0) {
+        toast.success(
+          `Import completed: ${result.imported} imported, ${result.failed} failed`,
+          { duration: 5000 }
+        )
+      } else {
+        toast.success(`Successfully imported ${result.imported} leads`)
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(`Import failed: ${error.message}`)
+    },
+  })
+}
+
+export function useExportLeads() {
+  return useMutation({
+    mutationFn: (params?: Record<string, any>) => apiClient.exportLeads(params),
+    onSuccess: () => {
+      toast.success('Export completed successfully')
+    },
+    onError: (error: Error) => {
+      toast.error(`Export failed: ${error.message}`)
+    },
+  })
+}
+
 // Client hooks
 export function useClients(params?: Record<string, any>) {
   return useQuery({

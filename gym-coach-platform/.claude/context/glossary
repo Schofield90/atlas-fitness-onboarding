@@ -1,0 +1,48 @@
+# Glossary - Atlas Fitness Gym Coach Platform
+# Updated: 2025-08-30T10:00:00Z
+
+## Project Overview Terms
+- **Gym Coach Platform**: CRM/lead management system for fitness businesses
+- **Atlas Fitness**: Parent organization/brand name
+- **Lead**: Potential client/prospect in the sales pipeline
+- **Client**: Converted lead who became a paying member
+- **Organization**: Gym/fitness business using the platform (multi-tenant)
+- **User**: Staff member with access to the platform
+
+## Technical Architecture
+- **Next.js 14**: React framework with App Router
+- **Supabase**: Backend-as-a-service (database, auth, real-time)
+- **TanStack Query**: Server state management (formerly React Query)
+- **Tailwind CSS**: Utility-first CSS framework
+- **Shadcn/ui**: Component library built on Radix UI
+- **React Hook Form**: Form validation with Zod schemas
+
+## Lead Management Terms
+- **Lead Score**: AI-generated numerical rating (0-100) indicating conversion likelihood
+- **Lead Status**: Pipeline stage (cold, warm, hot, converted, lost)
+- **Lead Source**: Origin channel (facebook, website, referral, walk-in, etc.)
+- **AI Analysis**: ML-powered lead qualification and insights
+- **Qualification Notes**: Manual notes about lead interaction/quality
+
+## Data Flow Patterns
+- **API Routes**: `/app/api/` Next.js route handlers
+- **Middleware**: Request authentication and organization filtering
+- **Hooks**: Custom React hooks for API interactions (`use-api.ts`, `use-ai.ts`)
+- **Query Client**: Centralized data fetching with cache management
+
+## Modal System Architecture
+- **Radix UI Dialog**: Accessible modal primitive foundation
+- **Shadcn Dialog**: Styled dialog components wrapper
+- **Custom Modals**: Component-specific modal implementations
+- **React Hot Toast**: Notification system for user feedback
+
+## CSV/Import-Export Context
+- **No existing CSV utilities**: Need to implement from scratch
+- **No bulk operations**: Currently limited to single lead operations
+- **No file handling**: No existing file upload/download infrastructure
+- **Toast feedback**: Error/success notifications via react-hot-toast
+
+## Form Validation Schema
+- **Zod**: TypeScript-first schema validation
+- **leadCreateSchema**: Validation for new lead creation
+- **react-hook-form**: Form state management with validation integration

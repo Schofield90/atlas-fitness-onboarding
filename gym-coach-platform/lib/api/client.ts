@@ -90,6 +90,54 @@ class ApiClient {
     })
   }
 
+  async bulkImportLeads(leads: any[]) {
+    return this.request('/leads/import', {
+      method: 'POST',
+      body: JSON.stringify({ leads }),
+    })
+  }
+
+  async exportLeads(params?: Record<string, any>) {
+    const searchParams = params ? new URLSearchParams(params).toString() : ''
+    const url = `/leads/export${searchParams ? `?${searchParams}` : ''}`
+    
+    // Handle CSV download differently since it returns a blob
+    const response = await fetch(`${this.baseUrl}${url}`, {
+      method: 'GET',
+      headers: {
+        ...(this.token && { Authorization: `Bearer ${this.token}` }),
+      },
+    })
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Export failed' }))
+      throw new Error(error.error || 'Export failed')
+    }
+    
+    // Get filename from response headers
+    const contentDisposition = response.headers.get('Content-Disposition')
+    let filename = 'leads-export.csv'
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="(.+)"/)
+      if (filenameMatch) {
+        filename = filenameMatch[1]
+      }
+    }
+    
+    // Create blob and trigger download
+    const blob = await response.blob()
+    const downloadUrl = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = downloadUrl
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(downloadUrl)
+    
+    return { success: true, filename }
+  }
+
   // Client methods
   async getClients(params?: Record<string, any>) {
     const searchParams = new URLSearchParams(params).toString()

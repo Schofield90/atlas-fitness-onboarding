@@ -1,0 +1,45 @@
+# JAM Index - Atlas Fitness Gym Coach Platform
+# Updated: 2025-08-30T10:00:00Z
+
+## Documentation Links
+- `docs/README.md` - Project overview and setup
+- `docs/api.md` - API documentation  
+- `docs/dashboard.md` - Dashboard component guide
+- `docs/components/` - Component-specific documentation
+
+## Related Issues for Task 2
+**Current Implementation Status**:
+- Add Lead functionality: ✅ IMPLEMENTED [source: leads-table.tsx:L156-162]
+- Import CSV functionality: ❌ NOT IMPLEMENTED (button exists but no action)
+- Export CSV functionality: ❌ NOT IMPLEMENTED (shows toast, no file download)
+
+## Design System Resources
+- **Shadcn/ui Components**: Available in `/components/ui/`
+  - Dialog system for modals
+  - Form components (Input, Textarea, Select)
+  - Button variants and states
+  - Toast notification system
+
+## External Dependencies
+- **React Hook Form + Zod**: Form validation pattern established
+- **TanStack Query**: Data fetching and caching strategy
+- **Lucide React**: Icon library (Plus, Upload, Download icons available)
+- **React Hot Toast**: Notification system implementation
+
+## Database Schema
+[source: lib/supabase/database.types.ts, types/database.ts]
+- **leads table**: Core entity with organization scoping
+- **Lead interface**: TypeScript definitions for lead data structure
+- **Validation schemas**: Zod schemas for API request validation
+
+## Implementation References
+- **Modal Pattern**: `/components/booking/ClassBookingModal.tsx` - Complex modal example
+- **Form Pattern**: `/components/leads/lead-form.tsx` - Form with validation
+- **API Pattern**: `/app/api/leads/route.ts` - CRUD endpoint implementation
+- **Hook Pattern**: `/hooks/use-api.ts` - Data fetching abstractions
+
+## UI/UX Patterns
+- **Table Actions**: Add/Edit/Delete buttons in header bar
+- **Modal Workflow**: Open modal → Form submission → Close modal → Refresh data
+- **Error Handling**: Toast notifications for user feedback
+- **Loading States**: Button disabled states during API calls

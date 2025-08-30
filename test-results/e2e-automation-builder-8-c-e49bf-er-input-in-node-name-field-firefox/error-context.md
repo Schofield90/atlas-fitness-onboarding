@@ -10,5 +10,5 @@
     - generic [ref=e11]: AI Assistant
   - button "Open Next.js Dev Tools" [ref=e17] [cursor=pointer]:
     - img [ref=e18] [cursor=pointer]
-  - alert [ref=e21]
+  - alert [ref=e22]
 ```

@@ -49,6 +49,7 @@ import { DndProvider, useDrag, useDrop } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 import { v4 as uuidv4 } from 'uuid'
 import { nanoid } from 'nanoid'
+import { toast } from 'react-hot-toast'
 
 import type { 
   Workflow, 
@@ -510,23 +511,41 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
 
   // Node selection handler
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
-    event.stopPropagation() // Prevent event from bubbling
-    event.preventDefault() // Prevent any default behavior
-    
-    // Don't select the node for deletion, just for configuration
-    setSelectedNode(node.id)
-    
-    // Open config panel on single click for better UX
-    setConfigNode(node as WorkflowNode)
-    setShowConfigPanel(true)
-    
-    // Ensure the node isn't marked as selected for deletion
-    setNodes((nds) => 
-      nds.map((n) => ({
-        ...n,
-        selected: n.id === node.id ? false : n.selected
-      }))
-    )
+    try {
+      console.log('Node click event:', { nodeId: node.id, nodeType: node.type, nodeData: node.data })
+      
+      event.stopPropagation() // Prevent event from bubbling
+      event.preventDefault() // Prevent any default behavior
+      
+      // Validate node exists and has required properties
+      if (!node || !node.id) {
+        console.error('Invalid node clicked:', node)
+        toast.error('Invalid node selected')
+        return
+      }
+      
+      // Don't select the node for deletion, just for configuration
+      setSelectedNode(node.id)
+      
+      console.log('Opening config panel for node:', node.id)
+      
+      // Open config panel on single click for better UX
+      setConfigNode(node as WorkflowNode)
+      setShowConfigPanel(true)
+      
+      // Ensure the node isn't marked as selected for deletion
+      setNodes((nds) => 
+        nds.map((n) => ({
+          ...n,
+          selected: n.id === node.id ? false : n.selected
+        }))
+      )
+      
+      console.log('Node clicked successfully:', node.id)
+    } catch (error) {
+      console.error('Error in onNodeClick:', error)
+      toast.error('Failed to open node configuration')
+    }
   }, [setNodes])
 
   // Delete selected elements (only when explicitly triggered)

@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown, Search, Filter, Plus, Eye, Edit, Trash2, Brain, Zap } from 'lucide-react'
-import { useLeads, useDeleteLead } from '@/hooks/use-api'
+import { ChevronDown, Search, Filter, Plus, Eye, Edit, Trash2, Brain, Zap, Upload, Download } from 'lucide-react'
+import { useLeads, useDeleteLead, useBulkImportLeads, useExportLeads } from '@/hooks/use-api'
 import { useAnalyzeLead, useBulkAnalyzeLeads } from '@/hooks/use-ai'
 import { AIScoringBadge } from '@/components/ai/ai-scoring-badge'
+import { ImportModal } from '@/components/leads/import-modal'
 import { Lead, LeadStatus } from '@/types/database'
 import { cn } from '@/lib/utils'
 
@@ -20,6 +21,7 @@ export function LeadsTable({ onCreateLead, onEditLead, onViewLead }: LeadsTableP
   const [page, setPage] = useState(1)
   const [sortBy, setSortBy] = useState('created_at')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [showImportModal, setShowImportModal] = useState(false)
 
   const { data: leadsData, isLoading, error } = useLeads({
     page,
@@ -35,6 +37,8 @@ export function LeadsTable({ onCreateLead, onEditLead, onViewLead }: LeadsTableP
   const deleteLead = useDeleteLead()
   const analyzeLead = useAnalyzeLead()
   const bulkAnalyze = useBulkAnalyzeLeads()
+  const bulkImport = useBulkImportLeads()
+  const exportLeads = useExportLeads()
   const [selectedLeads, setSelectedLeads] = useState<string[]>([])
 
   const getStatusBadge = (status: LeadStatus) => {
@@ -121,6 +125,19 @@ export function LeadsTable({ onCreateLead, onEditLead, onViewLead }: LeadsTableP
     )
   }
 
+  const handleImport = async (leads: any[]) => {
+    await bulkImport.mutateAsync({ leads })
+  }
+
+  const handleExport = () => {
+    const params = {
+      ...(search && { search }),
+      ...(status && { status }),
+      format: 'csv' as const
+    }
+    exportLeads.mutate(params)
+  }
+
   if (error) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -141,6 +158,30 @@ export function LeadsTable({ onCreateLead, onEditLead, onViewLead }: LeadsTableP
                 {selectedLeads.length} selected
               </span>
             )}
+            <button
+              onClick={() => setShowImportModal(true)}
+              disabled={bulkImport.isPending}
+              className="inline-flex items-center px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+            >
+              {bulkImport.isPending ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+              ) : (
+                <Upload className="w-4 h-4 mr-2" />
+              )}
+              Import CSV
+            </button>
+            <button
+              onClick={handleExport}
+              disabled={exportLeads.isPending}
+              className="inline-flex items-center px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50"
+            >
+              {exportLeads.isPending ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+              ) : (
+                <Download className="w-4 h-4 mr-2" />
+              )}
+              Export CSV
+            </button>
             <button
               onClick={handleBulkAnalyze}
               disabled={bulkAnalyze.isPending}
@@ -361,6 +402,14 @@ export function LeadsTable({ onCreateLead, onEditLead, onViewLead }: LeadsTableP
           </div>
         </div>
       )}
+
+      {/* Import Modal */}
+      <ImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onImport={handleImport}
+        isImporting={bulkImport.isPending}
+      />
     </div>
   )
 }

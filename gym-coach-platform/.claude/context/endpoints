@@ -1,0 +1,63 @@
+# API Endpoints - Atlas Fitness Gym Coach Platform
+# Updated: 2025-08-30T10:00:00Z
+
+## Leads API
+**Base Route**: `/api/leads`
+[source: /app/api/leads/route.ts]
+
+### GET /api/leads
+- **Purpose**: Fetch paginated leads with filtering
+- **Query Parameters**:
+  - `page` (number): Page number for pagination
+  - `limit` (number): Items per page
+  - `search` (string): Search in name/email fields
+  - `status` (LeadStatus): Filter by lead status
+  - `assigned_to` (string): Filter by assigned user ID
+  - `source` (string): Filter by lead source
+  - `sort` (string): Sort field (default: 'created_at')
+  - `order` ('asc'|'desc'): Sort order (default: 'desc')
+- **Response**: `{ leads: Lead[], pagination: PaginationInfo }`
+- **Auth**: Organization-scoped access
+
+### POST /api/leads
+- **Purpose**: Create new lead
+- **Body Schema**: `leadCreateSchema` (name, email, phone?, source, qualification_notes?)
+- **Response**: Complete lead object with relationships
+- **Validation**: Email uniqueness within organization
+- **Side Effects**: Analytics event logged
+- **Auth**: Organization-scoped access
+
+### Individual Lead Operations
+**Base Route**: `/api/leads/[id]`
+[source: inferred from useUpdateLead, useDeleteLead hooks]
+
+## Dashboard Metrics API
+**Route**: `/api/dashboard/metrics`
+[source: hooks/use-api.ts:L20-25]
+- **Purpose**: Fetch dashboard overview statistics
+- **Response**: DashboardMetrics object
+
+## Auth & User API
+**Routes**:
+- `/api/auth/me` - Current user profile
+- `/api/auth/profile` - Update user profile
+- `/api/auth/signup` - User registration
+
+## Client Management API
+**Base Route**: `/api/clients`
+[source: inferred from hooks/use-api.ts]
+- Similar CRUD pattern to leads API
+- Organization-scoped access
+
+## AI Integration API
+**Routes**:
+- `/api/ai/insights` - Lead qualification analysis
+- `/api/ai/job` - AI processing job status
+- `/api/ai/recommendations` - Lead action recommendations
+- `/api/ai/bulk-analyze` - Batch lead analysis
+
+## Missing Endpoints for Task 2
+**BLOCKERS**: Need to implement these endpoints:
+- **Import CSV**: No existing endpoint for bulk lead import
+- **Export CSV**: No existing endpoint for lead data export
+- **File Upload**: No file handling infrastructure present
