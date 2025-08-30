@@ -173,4 +173,160 @@ const fetchWorkflows = async () => {
 - Template data: Can be cached longer-term
 - Execution data: Real-time updates preferred, minimal caching
 
-Last updated: 2025-08-29T00:00:00Z
+## Leads & Contacts API Endpoints
+
+### Leads Management
+**GET /api/leads**
+- File: /Users/samschofield/atlas-fitness-onboarding/app/api/leads/route.ts:12-113
+- Purpose: Fetch leads for current organization with filtering and pagination
+- Auth: Organization-scoped via requireAuth()
+- Query Params: status, source, assigned_to, created_by, page, page_size
+- Response: { success: true, leads: Lead[], pagination: PaginationInfo, organizationId }
+- Caching: 5-minute cache with organization-specific cache keys
+
+**POST /api/leads**
+- File: /Users/samschofield/atlas-fitness-onboarding/app/api/leads/route.ts:115-208
+- Purpose: Create new lead with workflow trigger
+- Auth: Organization-scoped
+- Body: { name, email, phone, source?, status?, form_name?, campaign_name? }
+- Response: { success: true, lead: Lead }
+- Side Effects: Triggers lead-created webhook for workflow automation
+
+**PATCH /api/leads**
+- File: /Users/samschofield/atlas-fitness-onboarding/app/api/leads/route.ts:210-254
+- Purpose: Update existing lead
+- Auth: Organization ownership validation
+- Body: { id, ...updateFields }
+- Response: { success: true, lead: Lead }
+
+**DELETE /api/leads?id=[leadId]**
+- File: /Users/samschofield/atlas-fitness-onboarding/app/api/leads/route.ts:256-301
+- Purpose: Delete lead with organization validation
+- Auth: Organization ownership required
+- Response: { success: true, deleted: leadId }
+
+### Lead Activities
+**GET /api/leads/activities**
+- File: /Users/samschofield/atlas-fitness-onboarding/app/api/leads/activities/route.ts (implied)
+- Purpose: Fetch lead activity history
+- Status: Referenced in components but endpoint may be missing
+
+**POST /api/leads/activities**
+- File: Referenced in /Users/samschofield/atlas-fitness-onboarding/app/components/leads/LeadsTable.tsx:167-175
+- Purpose: Record lead activities for scoring
+- Body: { leadId, activityType, activityValue }
+- Status: Endpoint referenced but implementation unclear
+
+### Lead Scoring
+**GET /api/leads/scoring**
+- File: /Users/samschofield/atlas-fitness-onboarding/app/api/leads/scoring/route.ts (implied)
+- Purpose: Get lead scoring configuration and analytics
+- Status: Referenced in components
+
+**POST /api/ai/lead-scoring**
+- File: /Users/samschofield/atlas-fitness-onboarding/app/api/ai/lead-scoring/route.ts
+- Purpose: AI-powered lead scoring calculation
+- Integration: Connected to lead scoring system
+
+### Contacts API (Limited Implementation)
+**GET /api/contacts/birthdays**
+- File: /Users/samschofield/atlas-fitness-onboarding/app/api/contacts/birthdays/route.ts
+- Purpose: Fetch upcoming birthdays for contacts
+- Note: Treats both leads and clients as contacts
+
+**GET /api/contacts/tags**
+- File: /Users/samschofield/atlas-fitness-onboarding/app/api/contacts/tags/route.ts
+- Purpose: Manage contact tags system
+- Scope: Works with both leads and clients
+
+### Customers/Clients API
+**GET /api/customers/[id]**
+- File: /Users/samschofield/atlas-fitness-onboarding/app/api/customers/[id]/route.ts
+- Purpose: Fetch individual customer/client details
+- Relationship: Complements leads API for converted customers
+
+**POST /api/customers**
+- Implementation: Via new customer form in /Users/samschofield/atlas-fitness-onboarding/app/customers/new/page.tsx
+- Purpose: Create new client record
+- Note: Direct Supabase client usage, not centralized API
+
+### Import/Export Endpoints
+**POST /api/v2/leads/import** - MISSING
+- Purpose: Bulk import leads from CSV/Excel
+- Status: Referenced in BulkImportModal but endpoint not implemented
+- Expected Body: { leads: Lead[], organizationId, options: ImportOptions }
+- Required For: Bulk import functionality
+
+**GET /api/leads/export** - PARTIALLY IMPLEMENTED
+- Current: Client-side CSV generation in leads page
+- File: /Users/samschofield/atlas-fitness-onboarding/app/leads/page.tsx:48-130
+- Enhancement Needed: Server-side export with more comprehensive data
+
+## Missing Critical Endpoints
+
+### Lead Details
+**GET /api/leads/[id]** - MISSING
+- Purpose: Fetch single lead with full details
+- Required For: Lead detail pages, edit forms
+- Expected Response: { lead: Lead, activities: Activity[], tags: Tag[] }
+
+### Lead Conversion
+**POST /api/leads/[id]/convert** - MISSING
+- Purpose: Convert lead to customer
+- Required For: Lead qualification workflow
+- Expected Body: { membershipPlan?, startDate? }
+
+### Bulk Operations
+**POST /api/leads/bulk-update** - MISSING
+- Purpose: Update multiple leads at once
+- Required For: Bulk status changes, tag assignments
+- Expected Body: { leadIds: string[], updates: Partial<Lead> }
+
+**DELETE /api/leads/bulk** - MISSING
+- Purpose: Delete multiple leads
+- Required For: Bulk delete operations
+
+### Lead Assignment
+**POST /api/leads/[id]/assign** - MISSING
+- Purpose: Assign lead to staff member
+- Required For: Lead distribution workflow
+- Expected Body: { assignedTo: string }
+
+## Database Schema Dependencies
+
+### leads table
+- File: /Users/samschofield/atlas-fitness-onboarding/supabase/migrations/20250728_add_organization_to_leads.sql
+- Columns: id, name, email, phone, source, status, organization_id, lead_score, created_at, updated_at
+- RLS: Organization-scoped policies with get_user_organization_id()
+- Indexes: organization_id, status, source, created_at
+
+### lead_activities table
+- File: /Users/samschofield/atlas-fitness-onboarding/supabase/migrations/20250728110657_add_crm_tables.sql:115-148
+- Schema: id, organization_id, lead_id, user_id, activity_type, channel, direction, content, outcome
+- Purpose: Track all lead interactions for scoring and history
+
+### clients table
+- File: Customer-related migrations
+- Purpose: Store converted leads as paying customers
+- Relationship: One-way conversion from leads to clients
+
+## API Security & Organization Isolation
+
+### Authentication Pattern
+```typescript
+const userWithOrg = await requireAuth()
+// Returns: { id: string, organizationId: string } or throws error
+```
+
+### Organization Filtering
+```typescript
+.eq('organization_id', userWithOrg.organizationId)
+// Required on all database queries
+```
+
+### RLS Enforcement
+- Database-level policies prevent cross-organization access
+- API endpoints provide additional validation layer
+- Cache keys include organization_id for isolation
+
+Last updated: 2025-08-30T00:00:00Z

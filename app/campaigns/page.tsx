@@ -81,6 +81,7 @@ export default function CampaignsPage() {
   const [selectedCampaignType, setSelectedCampaignType] = useState<'facebook' | 'instagram' | 'email'>('facebook')
   const [campaigns, setCampaigns] = useState(mockCampaigns)
   const [selectedCampaign, setSelectedCampaign] = useState<any>(null)
+  const [showViewModal, setShowViewModal] = useState(false)
   const [campaignForm, setCampaignForm] = useState({
     name: '',
     type: 'facebook',
@@ -365,12 +366,11 @@ export default function CampaignsPage() {
                     <div className="flex gap-2">
                       <button 
                         onClick={() => {
-                          // Set selected campaign and navigate to analytics
                           setSelectedCampaign(campaign)
-                          setActiveTab('analytics')
+                          setShowViewModal(true)
                         }}
                         className="text-blue-400 hover:text-blue-300"
-                        title="View Campaign"
+                        title="View Campaign Details"
                       >
                         <EyeIcon className="h-4 w-4" />
                       </button>
@@ -828,6 +828,203 @@ The Atlas Fitness Team"
         {activeTab === 'overview' && renderOverview()}
         {activeTab === 'create' && renderCreateCampaign()}
         {activeTab === 'analytics' && renderAnalytics()}
+        
+        {/* Campaign View Modal */}
+        {showViewModal && selectedCampaign && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-700">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-white">{selectedCampaign.name}</h3>
+                  <p className="text-gray-400 mt-1">{selectedCampaign.description || 'Campaign details and performance metrics'}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowViewModal(false)
+                    setSelectedCampaign(null)
+                  }}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              {/* Campaign Overview */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div className="bg-gray-700 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    {selectedCampaign.type === 'Facebook Ads' && <div className="w-4 h-4 bg-blue-600 rounded"></div>}
+                    {selectedCampaign.type === 'Email' && <div className="w-4 h-4 bg-green-600 rounded"></div>}
+                    {selectedCampaign.type === 'Instagram' && <div className="w-4 h-4 bg-pink-600 rounded"></div>}
+                    <span className="text-gray-300 font-medium">{selectedCampaign.type}</span>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Status</span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        selectedCampaign.status === 'active' ? 'bg-green-500 text-white' :
+                        selectedCampaign.status === 'completed' ? 'bg-blue-500 text-white' :
+                        selectedCampaign.status === 'paused' ? 'bg-yellow-500 text-black' :
+                        'bg-gray-500 text-white'
+                      }`}>
+                        {selectedCampaign.status.charAt(0).toUpperCase() + selectedCampaign.status.slice(1)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Duration</span>
+                      <span className="text-white">
+                        {new Date(selectedCampaign.startDate).toLocaleDateString()} - {new Date(selectedCampaign.endDate).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-gray-700 rounded-lg p-4">
+                  <h4 className="text-white font-medium mb-3">Performance Summary</h4>
+                  <div className="space-y-2 text-sm">
+                    {selectedCampaign.type === 'Facebook Ads' && (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">Total Leads</span>
+                          <span className="text-green-400 font-medium">{selectedCampaign.leads}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">Clicks</span>
+                          <span className="text-blue-400 font-medium">{selectedCampaign.clicks}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">CTR</span>
+                          <span className="text-purple-400 font-medium">{selectedCampaign.ctr}%</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">Cost per Lead</span>
+                          <span className="text-orange-400 font-medium">£{selectedCampaign.costPerLead}</span>
+                        </div>
+                      </>
+                    )}
+                    {selectedCampaign.type === 'Email' && (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">Recipients</span>
+                          <span className="text-blue-400 font-medium">{selectedCampaign.recipients}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">Open Rate</span>
+                          <span className="text-green-400 font-medium">{selectedCampaign.openRate}%</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">Click Rate</span>
+                          <span className="text-purple-400 font-medium">{selectedCampaign.clickRate}%</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">Unsubscribes</span>
+                          <span className="text-red-400 font-medium">{selectedCampaign.unsubscribed || 0}</span>
+                        </div>
+                      </>
+                    )}
+                    {selectedCampaign.type === 'Instagram' && (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">Reach</span>
+                          <span className="text-blue-400 font-medium">{selectedCampaign.reach}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">Engagement</span>
+                          <span className="text-green-400 font-medium">{selectedCampaign.engagement}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">Profile Visits</span>
+                          <span className="text-purple-400 font-medium">{selectedCampaign.profileVisits}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">Website Clicks</span>
+                          <span className="text-orange-400 font-medium">{selectedCampaign.websiteClicks}</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Budget Information */}
+              {selectedCampaign.budget && (
+                <div className="bg-gray-700 rounded-lg p-4 mb-6">
+                  <h4 className="text-white font-medium mb-3">Budget & Spending</h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400">Total Budget</span>
+                      <span className="text-white font-medium">£{selectedCampaign.budget}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400">Amount Spent</span>
+                      <span className="text-orange-400 font-medium">£{selectedCampaign.spent}</span>
+                    </div>
+                    <div className="w-full bg-gray-600 rounded-full h-2">
+                      <div 
+                        className="bg-orange-500 h-2 rounded-full transition-all duration-300" 
+                        style={{ width: `${Math.min((selectedCampaign.spent / selectedCampaign.budget) * 100, 100)}%` }}
+                      ></div>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-500">Remaining: £{selectedCampaign.budget - selectedCampaign.spent}</span>
+                      <span className="text-gray-500">{Math.round((selectedCampaign.spent / selectedCampaign.budget) * 100)}% used</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Actions */}
+              <div className="flex gap-3 pt-4 border-t border-gray-700">
+                <button
+                  onClick={() => {
+                    setShowViewModal(false)
+                    setSelectedCampaign(selectedCampaign)
+                    setActiveTab('analytics')
+                  }}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                >
+                  View Full Analytics
+                </button>
+                <button
+                  onClick={() => {
+                    if (!isFeatureEnabled('campaignsActions')) {
+                      toast.info('Campaign editing coming soon!')
+                      return
+                    }
+                    setShowViewModal(false)
+                    // Navigate to edit mode
+                    setCampaignForm({
+                      name: selectedCampaign.name,
+                      type: selectedCampaign.type.toLowerCase().replace(' ads', '').replace(' ', '_'),
+                      budget: selectedCampaign.budget?.toString() || '',
+                      duration: '1 month',
+                      targetAudience: '',
+                      template: '',
+                      sendSchedule: 'immediately',
+                      sendDate: ''
+                    })
+                    setSelectedCampaign(selectedCampaign)
+                    setActiveTab('create')
+                  }}
+                  className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                >
+                  Edit Campaign
+                </button>
+                <button
+                  onClick={() => {
+                    setShowViewModal(false)
+                    setSelectedCampaign(null)
+                  }}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   )

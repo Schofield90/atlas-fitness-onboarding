@@ -114,7 +114,59 @@ export default function AIIntelligencePage() {
       setAIInsights(data.insights);
     } catch (error) {
       console.error('Error loading AI insights:', error);
-      setError('Failed to load AI insights');
+      
+      // Provide demo data as fallback
+      const demoInsights: AIInsights = {
+        lead_scoring: {
+          total_leads: 47,
+          high_priority: 12,
+          conversion_predictions: 8,
+          recent_scores: []
+        },
+        churn_prediction: {
+          at_risk_customers: 5,
+          medium_risk: 12,
+          low_risk: 28,
+          retention_recommendations: [
+            'Send personalized check-in messages to at-risk members',
+            'Offer discounted personal training sessions',
+            'Create targeted retention email campaigns'
+          ]
+        },
+        revenue_forecasting: {
+          next_month_prediction: 8500,
+          confidence: 0.83,
+          trend: 'up',
+          factors: [
+            'Increased membership signups this month',
+            'Strong retention in premium memberships',
+            'New class offerings showing high demand'
+          ]
+        },
+        customer_insights: {
+          total_customers: 156,
+          most_active_segment: 'Premium Members',
+          engagement_score: 0.74,
+          recommendations: [
+            'Focus marketing on 25-35 age demographic',
+            'Expand evening class schedules',
+            'Consider launching nutrition coaching program'
+          ]
+        },
+        operational_insights: {
+          peak_hours: '6-8 PM',
+          popular_classes: ['HIIT Training', 'Yoga Flow', 'Strength Training'],
+          staff_utilization: 0.68,
+          capacity_optimization: [
+            'Add more equipment during peak hours',
+            'Consider expanding facility space',
+            'Optimize class scheduling for better distribution'
+          ]
+        }
+      };
+      
+      setAIInsights(demoInsights);
+      setError('AI insights temporarily unavailable. Showing sample data for demonstration.');
     } finally {
       setLoading(false);
     }
@@ -237,10 +289,25 @@ export default function AIIntelligencePage() {
           </div>
 
           {error && (
-            <div className="bg-red-900/20 border border-red-700 rounded-lg p-4 mb-6">
-              <div className="flex items-center gap-2 text-red-400">
-                <AlertCircle className="w-5 h-5" />
-                <span>{error}</span>
+            <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <div className="text-yellow-300 font-medium mb-1">Demo Mode Active</div>
+                  <div className="text-yellow-200 text-sm mb-3">{error}</div>
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={() => {
+                        setError(null);
+                        loadAIInsights();
+                      }}
+                      className="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 text-yellow-100 rounded text-sm transition-colors"
+                    >
+                      Retry Connection
+                    </button>
+                    <span className="text-yellow-300 text-sm">or continue exploring with demo data</span>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -537,13 +604,115 @@ export default function AIIntelligencePage() {
             </div>
           )}
 
-          {/* Other tabs would show placeholder content */}
-          {(activeTab === 'insights' || activeTab === 'settings') && (
+          {/* AI Insights Tab */}
+          {activeTab === 'insights' && aiInsights && (
+            <div className="space-y-6">
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <Brain className="w-5 h-5 text-purple-400" />
+                  Advanced AI Analysis
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Lead Scoring Deep Dive */}
+                  <div className="bg-gray-700 rounded-lg p-4">
+                    <h4 className="text-white font-medium mb-3">Lead Scoring Intelligence</h4>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">High-Value Leads</span>
+                        <span className="text-green-400 font-semibold">{aiInsights.lead_scoring.high_priority}</span>
+                      </div>
+                      <div className="w-full bg-gray-600 rounded-full h-2">
+                        <div className="bg-green-400 h-2 rounded-full" style={{ width: `${(aiInsights.lead_scoring.high_priority / aiInsights.lead_scoring.total_leads) * 100}%` }}></div>
+                      </div>
+                      <p className="text-gray-300 text-sm">AI identifies {aiInsights.lead_scoring.conversion_predictions} leads with 85%+ conversion probability</p>
+                    </div>
+                  </div>
+                  
+                  {/* Churn Prevention Insights */}
+                  <div className="bg-gray-700 rounded-lg p-4">
+                    <h4 className="text-white font-medium mb-3">Churn Prevention AI</h4>
+                    <div className="grid grid-cols-3 gap-2 text-center mb-3">
+                      <div>
+                        <div className="text-red-400 font-bold text-lg">{aiInsights.churn_prediction.at_risk_customers}</div>
+                        <div className="text-xs text-gray-400">High Risk</div>
+                      </div>
+                      <div>
+                        <div className="text-yellow-400 font-bold text-lg">{aiInsights.churn_prediction.medium_risk}</div>
+                        <div className="text-xs text-gray-400">Medium Risk</div>
+                      </div>
+                      <div>
+                        <div className="text-green-400 font-bold text-lg">{aiInsights.churn_prediction.low_risk}</div>
+                        <div className="text-xs text-gray-400">Stable</div>
+                      </div>
+                    </div>
+                    <p className="text-gray-300 text-sm">AI suggests proactive outreach for {aiInsights.churn_prediction.at_risk_customers} members this week</p>
+                  </div>
+                </div>
+                
+                {/* AI Recommendations */}
+                <div className="mt-6 bg-gradient-to-r from-purple-900/30 to-orange-900/30 rounded-lg p-4 border border-purple-700/30">
+                  <h4 className="text-white font-medium mb-3 flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-orange-400" />
+                    AI Action Recommendations
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <h5 className="text-purple-300 font-medium mb-2">Revenue Growth</h5>
+                      <ul className="space-y-1">
+                        {aiInsights.revenue_forecasting.factors.slice(0, 2).map((factor, index) => (
+                          <li key={index} className="text-gray-300 text-sm flex items-start gap-2">
+                            <div className="w-1.5 h-1.5 bg-purple-400 rounded-full mt-2 flex-shrink-0"></div>
+                            {factor}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <h5 className="text-orange-300 font-medium mb-2">Member Retention</h5>
+                      <ul className="space-y-1">
+                        {aiInsights.churn_prediction.retention_recommendations.slice(0, 2).map((rec, index) => (
+                          <li key={index} className="text-gray-300 text-sm flex items-start gap-2">
+                            <div className="w-1.5 h-1.5 bg-orange-400 rounded-full mt-2 flex-shrink-0"></div>
+                            {rec}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Settings Tab */}
+          {activeTab === 'settings' && (
             <div className="bg-gray-800 rounded-lg p-12 border border-gray-700 text-center">
               <div className="text-gray-400">
                 <Settings className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                <h3 className="text-xl font-semibold mb-2">Coming Soon</h3>
-                <p>This section is under development and will be available in the next update.</p>
+                <h3 className="text-xl font-semibold mb-2">AI Settings</h3>
+                <p className="mb-6">Configure AI processing preferences and data sources.</p>
+                <div className="max-w-md mx-auto text-left bg-gray-700 rounded-lg p-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-300">Auto-refresh insights</span>
+                      <div className="w-10 h-6 bg-orange-600 rounded-full p-1">
+                        <div className="w-4 h-4 bg-white rounded-full transform translate-x-4 transition-transform"></div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-300">Email notifications</span>
+                      <div className="w-10 h-6 bg-gray-600 rounded-full p-1">
+                        <div className="w-4 h-4 bg-white rounded-full transition-transform"></div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-300">Advanced analytics</span>
+                      <div className="w-10 h-6 bg-orange-600 rounded-full p-1">
+                        <div className="w-4 h-4 bg-white rounded-full transform translate-x-4 transition-transform"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}

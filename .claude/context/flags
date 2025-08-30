@@ -188,4 +188,177 @@
 - Reduce update frequency on slow connections
 - Optional features for mobile devices
 
-Last updated: 2025-08-29T00:00:00Z
+## Leads & Contacts Module Flags
+
+### Core Feature Flags
+
+### contactsExportFeedback
+**Status**: ACTIVE (true in feature-flags.ts)
+- Source: /Users/samschofield/atlas-fitness-onboarding/app/lib/feature-flags.ts:94
+- Purpose: Controls export feedback toasts and comprehensive export functionality
+- Usage: /Users/samschofield/atlas-fitness-onboarding/app/customers/page.tsx:188
+- Impact: When enabled, shows toast notifications and exports detailed customer data
+
+### conversationsNewButton  
+**Status**: ACTIVE (true in feature-flags.ts)
+- Source: /Users/samschofield/atlas-fitness-onboarding/app/lib/feature-flags.ts:93
+- Purpose: Enable/disable New button based on contacts availability
+- Relationship: Connected to contacts functionality
+
+### Export System Flags
+
+**CLIENT_SIDE_EXPORT**
+- Status: ACTIVE (current implementation)
+- Location: /Users/samschofield/atlas-fitness-onboarding/app/leads/page.tsx:48-130
+- Purpose: Client-side CSV generation and download
+- Performance: Suitable for small datasets, may need server-side for large exports
+
+**COMPREHENSIVE_EXPORT_DATA**
+- Status: CONDITIONAL (based on contactsExportFeedback flag)
+- Includes: Emergency contacts, medical info, membership details, activity history
+- Location: /Users/samschofield/atlas-fitness-onboarding/app/customers/page.tsx:216-280
+
+### Import System Flags
+
+**BULK_IMPORT_ENABLED**
+- Status: UI IMPLEMENTED, BACKEND MISSING
+- Component: /Users/samschofield/atlas-fitness-onboarding/app/components/leads/BulkImportModal.tsx
+- Backend: /api/v2/leads/import endpoint not implemented
+- Features: CSV/Excel upload, field mapping, duplicate handling options
+
+**IMPORT_FIELD_MAPPING**
+- Status: ACTIVE
+- Features: Auto-mapping of common fields, manual mapping interface
+- Supported Formats: CSV, XLSX, XLS files
+- Validation: Required fields (name, email), optional fields mapping
+
+### Lead Management Flags
+
+**LEAD_SCORING_ENABLED**
+- Status: ACTIVE (implemented)
+- Components: LeadScoringBadge, LeadScoringBreakdown, LeadScoringDashboard
+- Algorithm: Activity-based scoring (0-100 scale)
+- UI: Temperature indicators (hot/warm/lukewarm/cold)
+
+**LEAD_ACTIVITIES_TRACKING**
+- Status: PARTIALLY IMPLEMENTED
+- Frontend: Activity recording buttons in LeadsTable
+- Backend: API endpoint referenced but may be missing
+- Types: email_open, website_visit, call, meeting, note, status_change
+
+**LEAD_FILTERING_ADVANCED**
+- Status: ACTIVE
+- Features: Status filter, temperature filter, search, sorting
+- Location: /Users/samschofield/atlas-fitness-onboarding/app/components/leads/LeadsTable.tsx:120-163
+- Filters: All, Hot, Warm, Lukewarm, Cold temperature classifications
+
+### Contacts Unification Flags
+
+**UNIFIED_CONTACTS_VIEW** 
+- Status: PARTIAL (conceptual in UI, not implemented)
+- Current: Separate leads and customers pages
+- Goal: Unified view of all contacts (leads + clients)
+- Challenge: Different table schemas (leads vs clients)
+
+**LEAD_TO_CUSTOMER_CONVERSION**
+- Status: MISSING IMPLEMENTATION
+- Current: Manual process or separate creation
+- Needed: API endpoint for lead → client conversion
+- Workflow: Qualified leads should convert to paying customers
+
+### Data Isolation Flags
+
+**ORGANIZATION_SCOPED_DATA**
+- Status: ACTIVE (enforced)
+- Implementation: organization_id in all tables with RLS policies
+- Pattern: get_user_organization_id() function in database policies
+- API: requireAuth() helper ensures organization context
+
+**MULTI_TENANT_CACHING**
+- Status: ACTIVE
+- Pattern: Cache keys include organization_id
+- Duration: 5-minute cache for lead lists (CACHE_TTL.LEAD_LISTS)
+- Invalidation: Organization-specific cache clearing
+
+### Contact Communication Flags
+
+**MESSAGING_INTEGRATION**
+- Status: ACTIVE
+- Component: MessageComposer modal for leads
+- Channels: Email, SMS, WhatsApp integration
+- Location: /Users/samschofield/atlas-fitness-onboarding/app/components/messaging/MessageComposer.tsx
+
+**CALL_TRACKING_ENABLED**
+- Status: ACTIVE (referenced)
+- Components: PhoneCallButton integration
+- Purpose: Track phone calls as lead activities
+- Integration: Twilio voice calling system
+
+### Missing Feature Flags (Should be implemented)
+
+**CONTACTS_MERGE_DUPLICATES**
+- Status: NOT IMPLEMENTED
+- Purpose: Identify and merge duplicate contacts across leads/customers
+- Needed For: Data quality management
+
+**LEAD_ASSIGNMENT_ENABLED**
+- Status: NOT IMPLEMENTED  
+- Purpose: Assign leads to specific staff members
+- Current: No assignment functionality in UI or API
+
+**ADVANCED_LEAD_SEGMENTATION**
+- Status: NOT IMPLEMENTED
+- Purpose: Create custom segments based on behavior, demographics
+- Current: Basic filtering only
+
+**CONTACT_CUSTOM_FIELDS**
+- Status: LIMITED IMPLEMENTATION
+- Current: Fixed schema fields only
+- Needed: Dynamic custom fields for organizations
+
+## Configuration Patterns
+
+### Feature Flag Usage Pattern
+```typescript
+import { isFeatureEnabled } from '@/app/lib/feature-flags'
+
+if (!isFeatureEnabled('contactsExportFeedback')) {
+  // Fallback behavior
+  alert('Export not available yet - please contact support')
+  return
+}
+```
+
+### Environment-Based Overrides
+```typescript
+// Development shows all features but may disable actions
+if (process.env.NODE_ENV === 'development') {
+  overrides.campaigns = true  // Show but limit functionality
+}
+```
+
+### Component-Level Flags
+- contactsExportFeedback: Controls toast notifications and detailed export
+- conversationsNewButton: Gates conversation creation based on contact availability
+- Bulk operations: UI exists but backend implementation flags needed
+
+## Recommendations
+
+### Add Missing Flags
+1. `leadsImportEnabled` - Control import functionality availability
+2. `leadConversionEnabled` - Control lead-to-customer conversion
+3. `contactsUnificationEnabled` - Control unified contacts view
+4. `advancedLeadScoringEnabled` - Control AI-powered scoring features
+5. `bulkOperationsEnabled` - Control bulk update/delete operations
+
+### Performance Flags  
+1. `serverSideExportEnabled` - Switch between client/server export
+2. `leadPaginationSize` - Configure pagination limits
+3. `realTimeUpdatesEnabled` - Control live updates vs refresh
+
+### Role-Based Flags
+1. `leadExportPermission` - Role-based export access
+2. `leadDeletePermission` - Role-based delete access  
+3. `bulkOperationsPermission` - Role-based bulk operations
+
+Last updated: 2025-08-30T00:00:00Z

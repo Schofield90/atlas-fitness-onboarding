@@ -225,4 +225,72 @@
 **Migration**: Enhanced types provide backward compatibility
 **File Reference**: Type definitions show evolution from basic to advanced
 
-Last updated: 2025-08-29T00:00:00Z
+## Leads & Contacts Module Terms
+
+### Lead
+**Definition**: A potential customer who has shown interest but not yet become a paying customer.
+**Technical**: Stored in `leads` table with organization_id for multi-tenant isolation
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/leads/page.tsx:1-239
+**Database Schema**: id, name, email, phone, source, status, organization_id, lead_score, created_at, updated_at
+**Lifecycle**: new → contacted → qualified → converted
+
+### Contact
+**Definition**: Generic term for any person in the system, can be lead or customer.
+**UI Context**: Used interchangeably with "lead" in UI contexts
+**Note**: The system shows "Leads & Contacts" but primarily works with leads table
+**Relationship**: Conceptual union of leads and clients tables
+
+### Customer/Client
+**Definition**: A paying member of the gym.
+**Technical**: Stored in `clients` table with organization_id scoping
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/customers/page.tsx:1-802
+**Database Schema**: id, first_name, last_name, email, phone, status, organization_id, created_at, memberships relationship
+**Status Values**: active/inactive/slipping_away
+
+### Lead Score
+**Definition**: AI-calculated score (0-100) based on engagement activities.
+**Algorithm**: Website visits, email opens, form submissions add points
+**Purpose**: Higher scores indicate higher conversion probability
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/components/leads/LeadScoringBadge.tsx
+
+### Temperature Classification
+**Definition**: Visual classification of lead quality based on score:
+- **Hot**: 80-100 (red indicator) - Ready for immediate contact
+- **Warm**: 60-79 (orange indicator) - Engaged, needs nurturing  
+- **Lukewarm**: 40-59 (yellow indicator) - Some interest shown
+- **Cold**: 0-39 (blue indicator) - Minimal engagement
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/components/leads/LeadsTable.tsx:129-134
+
+### Lead Source
+**Definition**: Origin of the lead (facebook/website/referral/walk-in/manual)
+**UI Display**: Icons and labels in leads table
+**Integration**: Connected to Facebook Lead Ads and website forms
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/components/leads/LeadsTable.tsx:76-106
+
+### Lead Activities
+**Definition**: Tracked interactions (call/email/sms/whatsapp/meeting/note/status_change)
+**Database Table**: lead_activities with relationship to leads
+**Schema**: activity_type, channel, direction, content, outcome, duration_seconds
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/supabase/migrations/20250728110657_add_crm_tables.sql:115-148
+
+## CRM Architecture Terms
+
+### Multi-Tenant Organization
+**Definition**: Architecture where multiple gym organizations share the same application
+**Implementation**: organization_id column in all tables with RLS policies
+**Security**: Row Level Security ensures users only access their organization's data
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/supabase/migrations/20250728_add_organization_to_leads.sql:1-87
+
+### RLS (Row Level Security)
+**Definition**: Database-level access control based on user context
+**Purpose**: Ensures users only see data from their organization
+**Implementation**: Supabase policies on leads, clients, and related tables
+**Function**: get_user_organization_id() helper for policy enforcement
+
+### Lead Import/Export System
+**Status**: Import partially implemented, Export fully functional
+**Import**: CSV/Excel upload with field mapping in BulkImportModal
+**Export**: CSV download with comprehensive customer/lead data
+**File Reference**: /Users/samschofield/atlas-fitness-onboarding/app/components/leads/BulkImportModal.tsx:1-409
+
+Last updated: 2025-08-30T00:00:00Z

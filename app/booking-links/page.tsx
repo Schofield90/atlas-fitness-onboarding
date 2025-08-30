@@ -60,6 +60,23 @@ export default function BookingLinksPage() {
       setBookingLinks(linksWithStats)
     } catch (error) {
       console.error('Error fetching booking links:', error)
+      // Show user-friendly error message
+      const toast = document.createElement('div')
+      toast.className = 'fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg bg-red-600 text-white flex items-center gap-3'
+      toast.innerHTML = `
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <div>
+          <div class="font-medium">Unable to load booking links</div>
+          <div class="text-sm opacity-90">Please check your connection and try again</div>
+        </div>
+      `
+      document.body.appendChild(toast)
+      setTimeout(() => {
+        toast.style.opacity = '0'
+        setTimeout(() => document.body.removeChild(toast), 300)
+      }, 5000)
     } finally {
       setLoading(false)
     }
@@ -81,10 +98,45 @@ export default function BookingLinksPage() {
       }
 
       setBookingLinks(bookingLinks.filter(link => link.id !== id))
-      alert('Booking link deleted successfully!')
+      
+      // Show success toast
+      const toast = document.createElement('div')
+      toast.className = 'fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg bg-green-600 text-white flex items-center gap-3'
+      toast.innerHTML = `
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
+        <div>
+          <div class="font-medium">Booking link deleted</div>
+          <div class="text-sm opacity-90">"${name}" has been removed successfully</div>
+        </div>
+      `
+      document.body.appendChild(toast)
+      setTimeout(() => {
+        toast.style.opacity = '0'
+        setTimeout(() => document.body.removeChild(toast), 300)
+      }, 3000)
     } catch (error) {
       console.error('Error deleting booking link:', error)
-      alert(error instanceof Error ? error.message : 'Failed to delete booking link')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete booking link'
+      
+      // Show error toast
+      const toast = document.createElement('div')
+      toast.className = 'fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg bg-red-600 text-white flex items-center gap-3'
+      toast.innerHTML = `
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <div>
+          <div class="font-medium">Delete failed</div>
+          <div class="text-sm opacity-90">${errorMessage}</div>
+        </div>
+      `
+      document.body.appendChild(toast)
+      setTimeout(() => {
+        toast.style.opacity = '0'
+        setTimeout(() => document.body.removeChild(toast), 300)
+      }, 5000)
     }
   }
 
@@ -304,7 +356,30 @@ export default function BookingLinksPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => router.push(`/booking-links/${link.id}/analytics`)}
+                    onClick={() => {
+                      // Check if analytics route exists, fallback to placeholder
+                      try {
+                        router.push(`/booking-links/${link.id}/analytics`)
+                      } catch (error) {
+                        console.error('Navigation error:', error)
+                        const toast = document.createElement('div')
+                        toast.className = 'fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg bg-blue-600 text-white flex items-center gap-3'
+                        toast.innerHTML = `
+                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <div>
+                            <div class="font-medium">Analytics coming soon</div>
+                            <div class="text-sm opacity-90">Advanced analytics are being built</div>
+                          </div>
+                        `
+                        document.body.appendChild(toast)
+                        setTimeout(() => {
+                          toast.style.opacity = '0'
+                          setTimeout(() => document.body.removeChild(toast), 300)
+                        }, 3000)
+                      }
+                    }}
                     title="View Analytics"
                   >
                     <BarChart3 className="w-4 h-4" />
@@ -320,7 +395,29 @@ export default function BookingLinksPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => router.push(`/booking-links/${link.id}/edit`)}
+                    onClick={() => {
+                      try {
+                        router.push(`/booking-links/${link.id}/edit`)
+                      } catch (error) {
+                        console.error('Navigation error:', error)
+                        const toast = document.createElement('div')
+                        toast.className = 'fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg bg-blue-600 text-white flex items-center gap-3'
+                        toast.innerHTML = `
+                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <div>
+                            <div class="font-medium">Edit feature coming soon</div>
+                            <div class="text-sm opacity-90">Booking link editor is being built</div>
+                          </div>
+                        `
+                        document.body.appendChild(toast)
+                        setTimeout(() => {
+                          toast.style.opacity = '0'
+                          setTimeout(() => document.body.removeChild(toast), 300)
+                        }, 3000)
+                      }
+                    }}
                     title="Edit"
                   >
                     <Edit className="w-4 h-4" />

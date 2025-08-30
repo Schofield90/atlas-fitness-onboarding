@@ -834,6 +834,23 @@ export default function EnhancedChatInterface() {
                   <Users className="h-12 w-12 text-gray-600 mx-auto mb-4" />
                   <p className="text-gray-400">No contacts available</p>
                   <p className="text-gray-500 text-sm mt-2">Add leads or customers first</p>
+                  <div className="mt-4 space-y-2">
+                    <a
+                      href="/leads"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Lead
+                    </a>
+                    <span className="mx-2 text-gray-500">or</span>
+                    <a
+                      href="/customers/new"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                    >
+                      <User className="h-4 w-4" />
+                      Add Customer
+                    </a>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-2">

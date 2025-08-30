@@ -373,41 +373,106 @@ export default function FormsDocumentsPage() {
           {/* Expanded Category Content */}
           {Object.entries(expandedCategories).map(([category, isExpanded]) => 
             isExpanded && (
-              <div key={category} className="mb-8 bg-gray-800 rounded-lg p-6">
-                <h3 className="text-lg font-semibold mb-4 capitalize">{category} Documents</h3>
+              <div key={category} className="mb-8 bg-gray-800 rounded-lg p-6 transition-all duration-300 ease-in-out">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-lg font-semibold capitalize">{category} Documents</h3>
+                  <button
+                    onClick={() => setExpandedCategories(prev => ({ ...prev, [category]: false }))}
+                    className="text-gray-400 hover:text-white transition-colors"
+                    title="Collapse section"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                    </svg>
+                  </button>
+                </div>
                 <div className="grid gap-4">
                   {forms.filter(f => f.type === category.slice(0, -1)).length > 0 ? (
                     forms.filter(f => f.type === category.slice(0, -1)).map(form => (
-                      <div key={form.id} className="flex justify-between items-center p-3 bg-gray-700 rounded-lg">
-                        <div>
-                          <h4 className="font-medium">{form.title}</h4>
-                          <p className="text-sm text-gray-400">{form.description}</p>
+                      <div key={form.id} className="flex justify-between items-center p-4 bg-gray-700 rounded-lg hover:bg-gray-650 transition-colors">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-white">{form.title}</h4>
+                          <p className="text-sm text-gray-400 mt-1">{form.description}</p>
+                          <div className="flex items-center gap-3 mt-2">
+                            <span className="text-xs bg-gray-600 px-2 py-1 rounded capitalize">{form.type}</span>
+                            <span className={`text-xs px-2 py-1 rounded ${form.is_active ? 'bg-green-900 text-green-300' : 'bg-gray-600 text-gray-400'}`}>
+                              {form.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 ml-4">
                           <button 
                             onClick={() => viewForm(form)}
-                            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+                            className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors flex items-center gap-1"
+                            title="View form"
                           >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
                             View
                           </button>
                           <button 
                             onClick={() => editForm(form)}
-                            className="px-3 py-1 bg-gray-600 hover:bg-gray-700 rounded text-sm"
+                            className="px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded transition-colors flex items-center gap-1"
+                            title="Edit form"
                           >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
                             Edit
                           </button>
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div className="text-center py-8 text-gray-400">
-                      <p>No {category.toLowerCase()} forms created yet</p>
-                      <button 
-                        onClick={() => setShowFormBuilder(true)}
-                        className="mt-4 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-white"
-                      >
-                        Create {category.slice(0, -1)} Form with AI
-                      </button>
+                    <div className="text-center py-12 text-gray-400 bg-gray-750 rounded-lg border-2 border-dashed border-gray-600">
+                      <svg className="w-12 h-12 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <h4 className="text-lg font-medium text-white mb-2">No {category.toLowerCase()} forms yet</h4>
+                      <p className="text-sm mb-6">Create your first {category.slice(0, -1).toLowerCase()} form to get started</p>
+                      <div className="flex gap-3 justify-center">
+                        <button 
+                          onClick={() => setShowFormBuilder(true)}
+                          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                          </svg>
+                          Create with AI
+                        </button>
+                        <button 
+                          onClick={() => {
+                            const blankForm = {
+                              title: `New ${category.slice(0, -1)} Form`,
+                              description: `Custom ${category.slice(0, -1).toLowerCase()} form`,
+                              type: category.slice(0, -1).toLowerCase(),
+                              is_active: false,
+                              schema: {
+                                fields: [
+                                  {
+                                    id: `field_${Date.now()}`,
+                                    label: 'Full Name',
+                                    type: 'text',
+                                    required: true,
+                                    placeholder: 'Enter your full name'
+                                  }
+                                ]
+                              }
+                            }
+                            setGeneratedForm(blankForm)
+                            setShowFormPreview(true)
+                            setEditingForm(true)
+                          }}
+                          className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors flex items-center gap-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          Manual Builder
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
