@@ -39,6 +39,7 @@ export default function NewCustomerPage() {
       if (!user) throw new Error('Not authenticated')
 
       // Get user's organization
+      let organizationId: string
       const { data: userOrg } = await supabase
         .from('user_organizations')
         .select('organization_id')
@@ -50,7 +51,7 @@ export default function NewCustomerPage() {
         const defaultOrgId = '63589490-8f55-4157-bd3a-e141594b748e'
         
         // Create user_organizations entry with default org
-        await supabase
+        const { error: orgError } = await supabase
           .from('user_organizations')
           .insert({
             user_id: user.id,
@@ -58,37 +59,28 @@ export default function NewCustomerPage() {
             role: 'member'
           })
         
-        // Create the customer with default org
-        const { data: customer, error: customerError } = await supabase
-          .from('clients')
-          .insert({
-            name: formData.name,
-            email: formData.email,
-            phone: formData.phone,
-            date_of_birth: formData.date_of_birth || null,
-            gender: formData.gender || null,
-            address_line_1: formData.address_line_1 || null,
-            address_line_2: formData.address_line_2 || null,
-            city: formData.city || null,
-            postal_code: formData.postal_code || null,
-            country: formData.country || 'UK',
-            organization_id: defaultOrgId,
-            status: 'active',
-            created_at: new Date().toISOString()
-          })
-          .select()
-          .single()
-          
-        if (customerError) throw customerError
-        router.push(`/customers/${customer.id}`)
-        return
+        // Ignore conflict errors (user might already have this org)
+        if (orgError && !orgError.message.includes('duplicate')) {
+          console.error('Error creating user organization:', orgError)
+        }
+        
+        organizationId = defaultOrgId
+      } else {
+        organizationId = userOrg.organization_id
       }
 
-      // Create the customer
+      // Split name into first and last name
+      const nameParts = formData.name.trim().split(' ')
+      const firstName = nameParts[0] || formData.name
+      const lastName = nameParts.slice(1).join(' ') || ''
+
+      // Create the customer with both org_id and organization_id for compatibility
       const { data: customer, error: customerError } = await supabase
         .from('clients')
         .insert({
           name: formData.name,
+          first_name: firstName,
+          last_name: lastName,
           email: formData.email,
           phone: formData.phone,
           date_of_birth: formData.date_of_birth || null,
@@ -98,14 +90,48 @@ export default function NewCustomerPage() {
           city: formData.city || null,
           postal_code: formData.postal_code || null,
           country: formData.country || 'UK',
-          organization_id: userOrg.organization_id,
+          organization_id: organizationId,
+          org_id: organizationId, // Include both for compatibility
           status: 'active',
           created_at: new Date().toISOString()
         })
         .select()
         .single()
 
-      if (customerError) throw customerError
+      if (customerError) {
+        // If address columns don't exist, try without them
+        if (customerError.message.includes('address_line_1') || 
+            customerError.message.includes('column')) {
+          const { data: customerFallback, error: fallbackError } = await supabase
+            .from('clients')
+            .insert({
+              name: formData.name,
+              email: formData.email,
+              phone: formData.phone,
+              organization_id: organizationId,
+              org_id: organizationId, // Include both for compatibility
+              metadata: {
+                address: {
+                  line_1: formData.address_line_1,
+                  line_2: formData.address_line_2,
+                  city: formData.city,
+                  postal_code: formData.postal_code,
+                  country: formData.country
+                },
+                date_of_birth: formData.date_of_birth,
+                gender: formData.gender
+              },
+              created_at: new Date().toISOString()
+            })
+            .select()
+            .single()
+          
+          if (fallbackError) throw fallbackError
+          router.push(`/customers/${customerFallback.id}`)
+          return
+        }
+        throw customerError
+      }
 
       // Navigate to the customer's profile
       router.push(`/customers/${customer.id}`)

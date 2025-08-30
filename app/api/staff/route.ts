@@ -46,25 +46,40 @@ export async function GET(request: NextRequest) {
       }, { status: 404 })
     }
 
-    // Get staff from organization_staff table
-    const { data: staffMembers, error: staffError } = await supabase
+    // Try to get staff from both tables - organization_staff first, then staff table
+    const { data: orgStaffMembers, error: orgStaffError } = await supabase
       .from('organization_staff')
       .select('*')
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false })
 
-    // If organization_staff table doesn't exist or has no data, return empty array
-    if (staffError) {
-      console.log('Staff table error:', staffError.message)
-      // Return empty staff list instead of erroring
-      return NextResponse.json({ 
-        success: true,
-        staff: [],
-        message: 'No staff members found'
+    // Also try the staff table
+    const { data: staffMembers, error: staffError } = await supabase
+      .from('staff')
+      .select('*')
+      .eq('organization_id', organizationId)
+      .order('created_at', { ascending: false })
+
+    // Combine results from both tables
+    let allStaff = []
+    
+    if (orgStaffMembers && orgStaffMembers.length > 0) {
+      allStaff = [...allStaff, ...orgStaffMembers]
+    }
+    
+    if (staffMembers && staffMembers.length > 0) {
+      allStaff = [...allStaff, ...staffMembers]
+    }
+
+    // If both queries failed, log but don't error
+    if (orgStaffError && staffError) {
+      console.log('Staff table errors:', { 
+        orgStaffError: orgStaffError.message, 
+        staffError: staffError.message 
       })
     }
     
-    if (!staffMembers || staffMembers.length === 0) {
+    if (allStaff.length === 0) {
       // No staff members yet - return empty array
       return NextResponse.json({ 
         success: true,
@@ -73,10 +88,10 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Return the staff data in the format expected by the frontend
+    // Return the combined staff data
     return NextResponse.json({ 
       success: true,
-      staff: staffMembers
+      staff: allStaff
     })
 
   } catch (error) {

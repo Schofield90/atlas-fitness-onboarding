@@ -84,11 +84,11 @@ const getNodeConfigSchema = (node: WorkflowNode, dynamicData?: any): FormField[]
   switch (node.type) {
     case 'trigger':
       // Check if it's a Facebook lead form trigger
-      const triggerType = node.data.actionType === 'facebook_lead_form' 
+      const triggerType = node.data?.actionType === 'facebook_lead_form' 
         ? 'facebook_lead_form' 
-        : node.data.actionType === 'form_submitted'
+        : node.data?.actionType === 'form_submitted'
         ? 'form_submitted'
-        : (node.data.config?.subtype || 'lead_trigger')
+        : (node.data?.config?.subtype || 'lead_trigger')
       return [
         ...baseFields,
         ...getTriggerFields(triggerType, dynamicData)
@@ -96,7 +96,7 @@ const getNodeConfigSchema = (node: WorkflowNode, dynamicData?: any): FormField[]
     
     case 'action':
       // Use the actionType from the node data (set when dragged from palette)
-      const actionType = node.data.actionType || node.data.config?.actionType || 'send_email'
+      const actionType = node.data?.actionType || node.data?.config?.actionType || 'send_email'
       return [
         ...baseFields,
         ...getActionFields(actionType, dynamicData)
@@ -640,6 +640,11 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
   
   console.log('DynamicConfigPanelEnhanced: Opening config for node', { id: node.id, type: node.type, data: node.data })
   
+  // Add safety check for node.data
+  if (!node.data) {
+    node.data = { config: {} }
+  }
+  
   const [config, setConfig] = useState(node.data?.config || {})
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isValid, setIsValid] = useState(false)
@@ -773,13 +778,13 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
   
   // Fetch data based on node type
   useEffect(() => {
-    if (node.type === 'trigger' && node.data.actionType === 'facebook_lead_form') {
+    if (node.type === 'trigger' && node.data?.actionType === 'facebook_lead_form') {
       fetchFacebookData()
     }
-    if (node.type === 'trigger' && (node.data.actionType === 'form_submitted' || config.subtype === 'form_submitted')) {
+    if (node.type === 'trigger' && (node.data?.actionType === 'form_submitted' || config.subtype === 'form_submitted')) {
       fetchForms()
     }
-  }, [node.type, node.data.actionType, config.subtype, fetchFacebookData, fetchForms])
+  }, [node.type, node.data?.actionType, config.subtype, fetchFacebookData, fetchForms])
   
   // Test send functions
   const sendTestEmail = async (config: any) => {
@@ -907,7 +912,7 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
       // Update the node label if it was changed
       const updatedConfig = {
         ...config,
-        label: config.label || node.data.label
+        label: config.label || node.data?.label
       }
       onSave(node.id, updatedConfig)
       onClose()
@@ -1049,7 +1054,7 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
       <div className="bg-gray-900 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
           <h2 className="text-xl font-semibold text-white">
-            Configure {node.data.label || 'Node'}
+            Configure {node.data?.label || 'Node'}
           </h2>
           <button
             onClick={onClose}

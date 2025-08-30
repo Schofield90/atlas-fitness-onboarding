@@ -58,17 +58,38 @@ export default function CustomersPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      // Get organization
-      const { data: orgMember } = await supabase
-        .from('organization_members')
+      // Try to get organization from user_organizations first (newer table)
+      let organizationId: string | null = null
+      
+      const { data: userOrg } = await supabase
+        .from('user_organizations')
         .select('organization_id')
         .eq('user_id', user.id)
         .single()
+      
+      if (userOrg?.organization_id) {
+        organizationId = userOrg.organization_id
+      } else {
+        // Fallback to organization_members (older table)
+        const { data: orgMember } = await supabase
+          .from('organization_members')
+          .select('organization_id')
+          .eq('user_id', user.id)
+          .single()
+        
+        if (orgMember?.organization_id) {
+          organizationId = orgMember.organization_id
+        }
+      }
 
-      if (!orgMember) return
+      if (!organizationId) {
+        // Use default organization if no org found
+        organizationId = '63589490-8f55-4157-bd3a-e141594b748e'
+      }
 
       // Fetch only clients (actual customers, not leads)
-      const clientsResult = await supabase
+      // Try with organization_id first, fall back to org_id
+      let clientsResult = await supabase
         .from('clients')
         .select(`
           *,
@@ -80,8 +101,26 @@ export default function CustomersPage() {
             end_date
           )
         `)
-        .eq('organization_id', orgMember.organization_id)
+        .eq('organization_id', organizationId)
         .order('created_at', { ascending: false })
+      
+      // If no results or error, try with org_id
+      if (clientsResult.error || !clientsResult.data?.length) {
+        clientsResult = await supabase
+          .from('clients')
+          .select(`
+            *,
+            memberships (
+              id,
+              membership_type,
+              status,
+              start_date,
+              end_date
+            )
+          `)
+          .eq('org_id', organizationId)
+          .order('created_at', { ascending: false })
+      }
 
       if (clientsResult.error) {
         console.error('Error fetching clients:', clientsResult.error)

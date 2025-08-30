@@ -679,7 +679,12 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
     
     // Validate each action node has required fields
     for (const node of actionNodes) {
-      const config = node.data?.config || {}
+      // Add null check for node.data
+      if (!node.data) {
+        invalidNodes.push(`${node.id}: Node data is missing`)
+        continue
+      }
+      const config = node.data.config || {}
       const actionType = config.actionType
       
       if (!actionType) {
