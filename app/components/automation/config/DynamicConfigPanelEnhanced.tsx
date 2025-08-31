@@ -697,16 +697,21 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
   }
   
   // Fetch Facebook data
-  const fetchFacebookData = useCallback(async () => {
+  const fetchFacebookData = async () => {
+    console.log('fetchFacebookData called')
     setLoadingFacebookData(true)
     try {
       // Fetch pages with organization context
       const pagesResponse = await fetch('/api/integrations/facebook/pages')
+      console.log('Facebook pages API response status:', pagesResponse.status)
+      
       if (pagesResponse.ok) {
         const pagesData = await pagesResponse.json()
+        console.log('Facebook pages data:', pagesData)
         
         if (!pagesData.hasConnection) {
           // No Facebook connection
+          console.log('No Facebook connection found')
           setFacebookPages([])
           setFacebookForms([])
           toast.error('Please connect your Facebook account first in Settings > Integrations')
@@ -771,10 +776,10 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
     } finally {
       setLoadingFacebookData(false)
     }
-  }, [])
+  }
   
   // Fetch forms
-  const fetchForms = useCallback(async () => {
+  const fetchForms = async () => {
     setLoadingForms(true)
     try {
       const response = await fetch(`/api/forms?organizationId=${organizationId}`)
@@ -793,17 +798,18 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
     } finally {
       setLoadingForms(false)
     }
-  }, [organizationId])
+  }
   
   // Fetch data based on node type
   useEffect(() => {
     if (node.type === 'trigger' && node.data?.actionType === 'facebook_lead_form') {
+      console.log('Facebook Lead Form trigger detected, fetching Facebook data...')
       fetchFacebookData()
     }
     if (node.type === 'trigger' && (node.data?.actionType === 'form_submitted' || config?.subtype === 'form_submitted')) {
       fetchForms()
     }
-  }, [node.type, node.data?.actionType, config?.subtype, fetchFacebookData, fetchForms])
+  }, [node.type, node.data?.actionType, config?.subtype]) // Removed fetchFacebookData and fetchForms from deps to prevent infinite loop
   
   // Test send functions
   const sendTestEmail = async (config: any) => {
