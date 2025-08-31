@@ -1,45 +1,32 @@
-# JAM Index - Atlas Fitness Gym Coach Platform
-# Updated: 2025-08-30T10:00:00Z
+# JAM Index - External Links & References
+<!-- Updated: 2025-08-30T00:00:00Z -->
 
-## Documentation Links
-- `docs/README.md` - Project overview and setup
-- `docs/api.md` - API documentation  
-- `docs/dashboard.md` - Dashboard component guide
-- `docs/components/` - Component-specific documentation
+## Design & Documentation Links
+- **Project Repository**: gym-coach-platform
+- **Database Schema**: [source: lib/supabase/schema.sql]
+- **Migration Files**: [source: lib/supabase/migrations/]
+- **Type Definitions**: [source: lib/supabase/database.types.ts]
 
-## Related Issues for Task 2
-**Current Implementation Status**:
-- Add Lead functionality: ✅ IMPLEMENTED [source: leads-table.tsx:L156-162]
-- Import CSV functionality: ❌ NOT IMPLEMENTED (button exists but no action)
-- Export CSV functionality: ❌ NOT IMPLEMENTED (shows toast, no file download)
+## Architecture Decision Records
+- **Multi-tenant Design**: Organization-scoped data with RLS policies
+- **Authentication**: Supabase Auth with custom user roles
+- **AI Integration**: OpenAI for lead qualification and analysis
+- **Real-time**: Supabase real-time subscriptions (not yet utilized for messaging)
 
-## Design System Resources
-- **Shadcn/ui Components**: Available in `/components/ui/`
-  - Dialog system for modals
-  - Form components (Input, Textarea, Select)
-  - Button variants and states
-  - Toast notification system
+## External Integrations
+- **Facebook**: Lead sync and messaging webhook support
+- **LookInBody**: Body composition data integration
+- **Email**: Generic email sending infrastructure
+- **WhatsApp/Telegram**: Supported in interactions table but no active integration
 
-## External Dependencies
-- **React Hook Form + Zod**: Form validation pattern established
-- **TanStack Query**: Data fetching and caching strategy
-- **Lucide React**: Icon library (Plus, Upload, Download icons available)
-- **React Hot Toast**: Notification system implementation
+## Conversations Module References
+- **Missing Implementation**: No existing conversations or messaging system
+- **Navigation Link**: Messages link in sidebar points to non-existent page
+- **Database Foundation**: Interactions table could serve as basis for messaging system
+- **Real-time Potential**: Supabase real-time capabilities available but unused
 
-## Database Schema
-[source: lib/supabase/database.types.ts, types/database.ts]
-- **leads table**: Core entity with organization scoping
-- **Lead interface**: TypeScript definitions for lead data structure
-- **Validation schemas**: Zod schemas for API request validation
-
-## Implementation References
-- **Modal Pattern**: `/components/booking/ClassBookingModal.tsx` - Complex modal example
-- **Form Pattern**: `/components/leads/lead-form.tsx` - Form with validation
-- **API Pattern**: `/app/api/leads/route.ts` - CRUD endpoint implementation
-- **Hook Pattern**: `/hooks/use-api.ts` - Data fetching abstractions
-
-## UI/UX Patterns
-- **Table Actions**: Add/Edit/Delete buttons in header bar
-- **Modal Workflow**: Open modal → Form submission → Close modal → Refresh data
-- **Error Handling**: Toast notifications for user feedback
-- **Loading States**: Button disabled states during API calls
+## Technical Debt Items
+- **Broken Navigation**: /dashboard/messages route missing
+- **Incomplete Features**: Sidebar shows Messages but functionality does not exist
+- **Underutilized Tables**: Interactions table exists but no API endpoints
+- **Missing Components**: No conversation UI components or message handling

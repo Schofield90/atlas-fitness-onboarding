@@ -9,6 +9,27 @@
 - **Organization**: Gym/fitness business using the platform (multi-tenant)
 - **User**: Staff member with access to the platform
 
+## Database Schema Terms
+- **Interactions**: Generic communication records (email, sms, call, meeting, whatsapp, telegram, note)
+- **Campaigns**: Marketing campaign tracking with budget/spend metrics
+- **Workflows**: Automation sequences with trigger-based actions
+- **Tasks**: Action items with priority and assignment tracking
+- **Analytics Events**: System event logging for insights
+
+## User Roles & Status
+- **Owner**: Full system access with billing control
+- **Admin**: Management access, can manage users
+- **Staff**: Daily operations access
+- **Viewer**: Read-only access
+- **Lead Status**: cold → warm → hot → converted/lost
+- **Membership Status**: active, paused, cancelled
+
+## Messaging/Conversations (MISSING)
+- **Conversations Module**: Does not currently exist
+- **Messages Page**: Navigation exists but page missing (/dashboard/messages)
+- **Real-time Chat**: Not implemented
+- **Message Threading**: Could leverage existing interactions table
+
 ## Technical Architecture
 - **Next.js 14**: React framework with App Router
 - **Supabase**: Backend-as-a-service (database, auth, real-time)

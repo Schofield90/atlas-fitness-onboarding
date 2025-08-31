@@ -56,7 +56,25 @@
 - `/api/ai/recommendations` - Lead action recommendations
 - `/api/ai/bulk-analyze` - Batch lead analysis
 
-## Missing Endpoints for Task 2
+## Conversation/Messages Endpoints (MISSING - TO BE IMPLEMENTED)
+
+**CRITICAL**: No conversation or messaging endpoints currently exist in the codebase.
+
+### Required Endpoints for Conversations Module:
+- `GET /api/conversations` - List user's conversations
+- `POST /api/conversations` - Create new conversation  
+- `GET /api/conversations/[id]/messages` - Get conversation messages
+- `POST /api/conversations/[id]/messages` - Send new message
+- `PUT /api/conversations/[id]/read` - Mark conversation as read
+
+### Existing Related Endpoints:
+- `POST /api/email/send` - Generic email sending [source: app/api/email/send/route.ts]
+- `POST /api/clients/[id]/send-welcome` - Send welcome message [source: app/api/clients/[id]/send-welcome/route.ts]
+- `POST /api/facebook/webhook` - Facebook Messenger webhook [source: app/api/facebook/webhook/route.ts]
+
+**Note**: The interactions table exists in database but no API endpoints are implemented for it.
+
+## Missing Endpoints for Import/Export
 **BLOCKERS**: Need to implement these endpoints:
 - **Import CSV**: No existing endpoint for bulk lead import
 - **Export CSV**: No existing endpoint for lead data export
