@@ -72,8 +72,8 @@ const NewMembershipPlanModal: React.FC<NewMembershipPlanModalProps> = ({ isOpen,
         return;
       }
       
-      // Convert price to pence (multiply by 100)
-      const priceInPence = Math.round(parseFloat(formData.price) * 100);
+      // Convert price to decimal (database expects price_amount as decimal)
+      const priceAmount = parseFloat(formData.price);
       
       // Determine billing period
       let billingPeriod = 'monthly';
@@ -89,7 +89,7 @@ const NewMembershipPlanModal: React.FC<NewMembershipPlanModalProps> = ({ isOpen,
         .insert({
           name: formData.name,
           description: formData.description,
-          price: priceInPence,
+          price_amount: priceAmount,
           billing_period: billingPeriod,
           features: formData.features.filter(f => f.trim() !== ''),
           is_active: true,

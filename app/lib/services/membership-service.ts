@@ -6,11 +6,13 @@ export interface MembershipPlan {
   name: string
   description: string
   price: number
-  billing_period: 'monthly' | 'yearly' | 'one-time'
-  features: string[]
+  price_amount: number
+  billing_period: string
+  features: any
   is_active: boolean
-  trial_days: number
-  max_members: number | null
+  trial_days?: number
+  max_members?: number | null
+  class_credits?: number
   created_at: string
   updated_at: string
   organization_id: string
@@ -40,7 +42,15 @@ export async function getMembershipPlans(): Promise<{ plans: MembershipPlan[], e
       return { plans: [], error: error.message }
     }
     
-    return { plans: data || [], error: null }
+    // Normalize the price field (convert price_amount from decimal to pennies for consistency)
+    const normalizedPlans = (data || []).map(plan => ({
+      ...plan,
+      price: plan.price_amount ? Math.round(plan.price_amount * 100) : 0,
+      price_amount: plan.price_amount || 0,
+      features: Array.isArray(plan.features) ? plan.features : (plan.features ? [plan.features] : [])
+    }))
+    
+    return { plans: normalizedPlans, error: null }
   } catch (error: any) {
     console.error('Unexpected error in getMembershipPlans:', error)
     return { plans: [], error: error.message || 'Failed to fetch membership plans' }
@@ -58,13 +68,20 @@ export async function createMembershipPlan(plan: Omit<MembershipPlan, 'id' | 'cr
       return { plan: null, error: orgError || 'No organization found' }
     }
     
+    // Convert price from pennies to decimal for price_amount field
+    const planData = {
+      ...plan,
+      organization_id: organizationId,
+      price_amount: plan.price ? plan.price / 100 : (plan.price_amount || 0)
+    }
+    
+    // Remove the price field if it exists (we use price_amount in the database)
+    delete (planData as any).price
+    
     // Create the plan
     const { data, error } = await supabase
       .from('membership_plans')
-      .insert({
-        ...plan,
-        organization_id: organizationId
-      })
+      .insert(planData)
       .select()
       .single()
     

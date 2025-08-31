@@ -409,44 +409,20 @@ export default function BookingLinksManager() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1">
-                  Appointment Types
+                  Duration
                 </label>
-                {appointmentTypes.length === 0 ? (
-                  <div className="text-sm text-gray-400">
-                    <p>No appointment types found.</p>
-                    <a href="/settings/booking" className="text-orange-500 hover:text-orange-400 underline">
-                      Create appointment types first →
-                    </a>
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-32 overflow-y-auto">
-                    {appointmentTypes.map((type) => (
-                      <label key={type.id} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={formData.appointment_type_ids.includes(type.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setFormData({
-                                ...formData,
-                                appointment_type_ids: [...formData.appointment_type_ids, type.id]
-                              })
-                            } else {
-                              setFormData({
-                                ...formData,
-                                appointment_type_ids: formData.appointment_type_ids.filter(id => id !== type.id)
-                              })
-                            }
-                          }}
-                          className="mr-2"
-                        />
-                        <span className="text-sm text-gray-300">
-                          {type.name} ({type.duration_minutes} min)
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                )}
+                <select
+                  value={formData.duration || 30}
+                  onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) })}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                >
+                  <option value={15}>15 minutes</option>
+                  <option value={30}>30 minutes</option>
+                  <option value={45}>45 minutes</option>
+                  <option value={60}>1 hour</option>
+                  <option value={90}>1.5 hours</option>
+                  <option value={120}>2 hours</option>
+                </select>
               </div>
 
               <div>
@@ -477,7 +453,7 @@ export default function BookingLinksManager() {
               </Button>
               <Button
                 onClick={editingLink ? handleUpdate : handleCreate}
-                disabled={!formData.name || !formData.slug || formData.appointment_type_ids.length === 0}
+                disabled={!formData.name || !formData.slug}
                 className="bg-orange-600 hover:bg-orange-700"
               >
                 {editingLink ? 'Update' : 'Create'} Link

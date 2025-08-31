@@ -217,14 +217,14 @@ export function SOPList({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No SOPs found</h3>
-            <p className="text-gray-500 mb-4">
+            <h3 className="text-lg font-medium text-white mb-2">No SOPs found</h3>
+            <p className="text-gray-400 mb-4">
               {Object.keys(filters).some(key => filters[key as keyof SOPFilters])
                 ? "Try adjusting your filters or search terms"
                 : "Get started by creating your first SOP"
               }
             </p>
-            <Button onClick={onCreateNew} className="bg-blue-600 hover:bg-blue-700">
+            <Button onClick={onCreateNew} className="bg-orange-600 hover:bg-orange-700">
               Create Your First SOP
             </Button>
           </Card>
@@ -233,32 +233,32 @@ export function SOPList({
             {sops.map((sop) => (
               <Card 
                 key={sop.id} 
-                className="p-6 hover:shadow-md transition-shadow cursor-pointer"
+                className="p-6 bg-gray-800 hover:bg-gray-750 transition-all cursor-pointer border border-gray-700"
                 onClick={() => onSelectSOP(sop)}
               >
                 <div className="flex justify-between items-start">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900 truncate">
+                      <h3 className="text-lg font-semibold text-white truncate">
                         {sop.title}
                       </h3>
                       <Badge className={getStatusColor(sop.status)}>
                         {sop.status}
                       </Badge>
                       {sop.training_required && (
-                        <Badge className="bg-purple-100 text-purple-800">
+                        <Badge className="bg-purple-900 text-purple-400">
                           Training Required
                         </Badge>
                       )}
                     </div>
                     
                     {sop.description && (
-                      <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                      <p className="text-gray-400 text-sm mb-3 line-clamp-2">
                         {sop.description}
                       </p>
                     )}
 
-                    <div className="flex items-center gap-4 text-sm text-gray-500">
+                    <div className="flex items-center gap-4 text-sm text-gray-400">
                       <span>Category: {sop.category}</span>
                       <span>Version: {sop.version}</span>
                       <span>Updated: {formatDate(sop.updated_at)}</span>
@@ -272,13 +272,13 @@ export function SOPList({
                         {sop.tags.slice(0, 5).map((tag, index) => (
                           <span 
                             key={index}
-                            className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full"
+                            className="px-2 py-1 bg-gray-700 text-gray-300 text-xs rounded-full"
                           >
                             {tag}
                           </span>
                         ))}
                         {sop.tags.length > 5 && (
-                          <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                          <span className="px-2 py-1 bg-gray-700 text-gray-300 text-xs rounded-full">
                             +{sop.tags.length - 5} more
                           </span>
                         )}
@@ -288,7 +288,7 @@ export function SOPList({
 
                   <div className="flex flex-col items-end ml-4">
                     {sop.training_stats && (
-                      <div className="text-right text-sm text-gray-500 mb-2">
+                      <div className="text-right text-sm text-gray-400 mb-2">
                         <div>Training Progress</div>
                         <div className="text-xs">
                           {sop.training_stats.completed}/{sop.training_stats.total_assigned} completed
@@ -298,7 +298,7 @@ export function SOPList({
                     
                     <div className="flex items-center gap-2">
                       {sop.ai_summary && (
-                        <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                        <span className="text-xs text-blue-400 bg-blue-900 px-2 py-1 rounded">
                           AI Analyzed
                         </span>
                       )}
@@ -323,7 +323,7 @@ export function SOPList({
                   Previous
                 </Button>
                 
-                <span className="px-4 py-2 text-sm text-gray-700">
+                <span className="px-4 py-2 text-sm text-gray-300">
                   Page {pagination.page} of {pagination.pages}
                 </span>
                 

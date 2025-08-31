@@ -26,6 +26,8 @@ function FacebookIntegrationContent() {
     leadForms: []
   })
   const [saving, setSaving] = useState(false)
+  const [showAllPages, setShowAllPages] = useState(false)
+  const [showAllAdAccounts, setShowAllAdAccounts] = useState(false)
   const [userData, setUserData] = useState<any>(null)
   const [timeFilter, setTimeFilter] = useState('last_30_days')
   const [webhookStatus, setWebhookStatus] = useState<Record<string, boolean>>({})
@@ -272,13 +274,13 @@ function FacebookIntegrationContent() {
   }, [selectedItems.pages, pages])
 
   return (
-      <div className="container mx-auto px-6 py-8 max-w-4xl">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-4">🔗 Connect Facebook Ads</h1>
-          <p className="text-gray-300 text-lg">
-            Connect your Facebook ad account to automatically capture and manage leads from your Facebook advertising campaigns.
-          </p>
-        </div>
+    <div className="container mx-auto px-6 py-8 max-w-4xl">
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-bold mb-4">🔗 Connect Facebook Ads</h1>
+        <p className="text-gray-300 text-lg">
+          Connect your Facebook ad account to automatically capture and manage leads from your Facebook advertising campaigns.
+        </p>
+      </div>
 
         {/* Benefits */}
         <div className="bg-gray-800 rounded-lg p-6 mb-8">
@@ -388,12 +390,16 @@ function FacebookIntegrationContent() {
               </div>
             )}
 
-            {/* Facebook Pages Section */}
+            {/* Facebook Pages Section - Streamlined */}
             <div className="bg-gray-800 rounded-lg p-6 mb-6">
               <div className="flex justify-between items-center mb-4">
                 <div>
-                  <h3 className="text-lg font-bold">Your Facebook Pages</h3>
-                  <p className="text-gray-400 text-sm">Select the page that contains your lead forms</p>
+                  <h3 className="text-lg font-bold">Facebook Page</h3>
+                  <p className="text-gray-400 text-sm">
+                    {selectedItems.pages.length > 0 && !showAllPages 
+                      ? 'Your selected page for lead forms' 
+                      : 'Select the page that contains your lead forms'}
+                  </p>
                 </div>
                 <button 
                   onClick={async () => {
@@ -461,7 +467,53 @@ function FacebookIntegrationContent() {
                 </div>
               ) : pages.length > 0 ? (
                 <div className="grid gap-4">
-                  {pages.map((page) => (
+                  {/* Show only selected page if one is selected and not showing all */}
+                  {selectedItems.pages.length > 0 && !showAllPages ? (
+                    pages
+                      .filter(page => selectedItems.pages.includes(page.id))
+                      .map((page) => (
+                        <div key={page.id} className="border border-blue-500 bg-blue-900/20 rounded-lg p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4">
+                              {page.cover && (
+                                <img 
+                                  src={page.cover} 
+                                  alt={page.name}
+                                  className="w-16 h-16 rounded-lg object-cover"
+                                />
+                              )}
+                              <div>
+                                <h4 className="font-semibold text-white flex items-center gap-2">
+                                  {page.name}
+                                  <span className="text-xs px-2 py-1 bg-green-800 text-green-200 rounded">
+                                    ✓ Selected
+                                  </span>
+                                </h4>
+                                {page.category && (
+                                  <p className="text-gray-400 text-sm">{page.category}</p>
+                                )}
+                                <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                                  {page.followers_count !== undefined && page.followers_count !== null && (
+                                    <span>{page.followers_count.toLocaleString()} followers</span>
+                                  )}
+                                  <span className={`px-2 py-1 rounded ${page.hasLeadAccess ? 'bg-green-800 text-green-200' : 'bg-gray-700 text-gray-400'}`}>
+                                    {page.hasLeadAccess ? 'Lead Access ✓' : 'No Lead Access'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => setShowAllPages(true)}
+                              className="bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded text-sm transition-colors"
+                            >
+                              Change Page
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                  ) : (
+                    /* Show all pages for selection */
+                    pages.map((page) => (
                     <div 
                       key={page.id}
                       className={`border rounded-lg p-4 transition-all ${
@@ -482,6 +534,7 @@ function FacebookIntegrationContent() {
                                 ...prev,
                                 pages: [...prev.pages, page.id]
                               }))
+                              setShowAllPages(false) // Hide others after selection
                             } else {
                               setSelectedItems(prev => ({
                                 ...prev,
@@ -516,7 +569,7 @@ function FacebookIntegrationContent() {
                         </label>
                       </div>
                     </div>
-                  ))}
+                  )))}
                 </div>
               ) : isSyncing ? (
                 <div className="flex items-center justify-center py-8">
@@ -661,12 +714,16 @@ function FacebookIntegrationContent() {
               </div>
             )}
 
-            {/* Ad Accounts Section */}
+            {/* Ad Accounts Section - Streamlined */}
             <div className="bg-gray-800 rounded-lg p-6 mb-6">
               <div className="flex justify-between items-center mb-4">
                 <div>
-                  <h3 className="text-lg font-bold">Ad Accounts</h3>
-                  <p className="text-gray-400 text-sm">Your connected advertising accounts</p>
+                  <h3 className="text-lg font-bold">Ad Account</h3>
+                  <p className="text-gray-400 text-sm">
+                    {selectedItems.adAccounts.length > 0 && !showAllAdAccounts
+                      ? 'Your selected advertising account'
+                      : 'Your connected advertising accounts'}
+                  </p>
                 </div>
                 <div className="flex items-center gap-3">
                   {/* Time Filter */}
@@ -707,7 +764,60 @@ function FacebookIntegrationContent() {
                 </div>
               ) : adAccounts.length > 0 ? (
                 <div className="grid gap-4">
-                  {adAccounts.map((account) => (
+                  {/* Show only selected ad account if one is selected and not showing all */}
+                  {selectedItems.adAccounts.length > 0 && !showAllAdAccounts ? (
+                    adAccounts
+                      .filter(account => selectedItems.adAccounts.includes(account.id))
+                      .map((account) => (
+                        <div key={account.id} className="border border-blue-500 bg-blue-900/20 rounded-lg p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-3">
+                                <h4 className="font-semibold text-white">{account.name}</h4>
+                                <span className="text-xs px-2 py-1 bg-green-800 text-green-200 rounded">
+                                  ✓ Selected
+                                </span>
+                                <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                  account.status_color === 'green' ? 'bg-green-800 text-green-200' :
+                                  account.status_color === 'red' ? 'bg-red-800 text-red-200' :
+                                  account.status_color === 'yellow' ? 'bg-yellow-800 text-yellow-200' :
+                                  'bg-gray-700 text-gray-300'
+                                }`}>
+                                  {account.status}
+                                </div>
+                              </div>
+                              <p className="text-gray-400 text-sm mb-3">{account.id}</p>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                <div>
+                                  <p className="text-gray-400">Spent</p>
+                                  <p className="text-white">£{account.amount_spent.toFixed(2)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-gray-400">Balance</p>
+                                  <p className="text-white">£{account.balance.toFixed(2)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-gray-400">Currency</p>
+                                  <p className="text-white">{account.currency}</p>
+                                </div>
+                                <div>
+                                  <p className="text-gray-400">Funding</p>
+                                  <p className="text-white">{account.funding_source}</p>
+                                </div>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => setShowAllAdAccounts(true)}
+                              className="bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded text-sm transition-colors"
+                            >
+                              Change Account
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                  ) : (
+                    /* Show all ad accounts for selection */
+                    adAccounts.map((account) => (
                     <div key={account.id} className={`border rounded-lg p-4 transition-all ${
                       selectedItems.adAccounts.includes(account.id)
                         ? 'border-blue-500 bg-blue-900/20' 
@@ -724,6 +834,7 @@ function FacebookIntegrationContent() {
                                 ...prev,
                                 adAccounts: [...prev.adAccounts, account.id]
                               }))
+                              setShowAllAdAccounts(false) // Hide others after selection
                             } else {
                               setSelectedItems(prev => ({
                                 ...prev,
@@ -769,7 +880,7 @@ function FacebookIntegrationContent() {
                         </label>
                       </div>
                     </div>
-                  ))}
+                  )))}
                 </div>
               ) : (
                 <div className="text-center py-8 text-gray-400">
@@ -1530,7 +1641,7 @@ function FacebookIntegrationContent() {
             </p>
           </div>
         </div>
-      </div>
+    </div>
   )
 }
 

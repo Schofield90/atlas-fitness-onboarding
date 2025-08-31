@@ -83,11 +83,19 @@ const getNodeConfigSchema = (node: WorkflowNode, dynamicData?: any): FormField[]
   // Add type-specific fields based on node type
   switch (node.type) {
     case 'trigger':
-      // Check if it's a Facebook lead form trigger
+      // Check if it's a specific trigger type
       const triggerType = node.data?.actionType === 'facebook_lead_form' 
         ? 'facebook_lead_form' 
         : node.data?.actionType === 'form_submitted'
         ? 'form_submitted'
+        : node.data?.actionType === 'website_form'
+        ? 'form_submitted' // Website form uses same config as form_submitted
+        : node.data?.actionType === 'scheduled'
+        ? 'scheduled_time'
+        : node.data?.actionType === 'webhook'
+        ? 'webhook_received'
+        : node.data?.subtype === 'webhook_received'
+        ? 'webhook_received'
         : (node.data?.config?.subtype || 'lead_trigger')
       return [
         ...baseFields,
@@ -121,7 +129,7 @@ const getNodeConfigSchema = (node: WorkflowNode, dynamicData?: any): FormField[]
 
 const getTriggerFields = (subtype: string, dynamicData?: any): FormField[] => {
   // For specific trigger types, don't show the dropdown
-  const hideDropdown = ['facebook_lead_form', 'form_submitted', 'scheduled_time'].includes(subtype)
+  const hideDropdown = ['facebook_lead_form', 'form_submitted', 'scheduled_time', 'webhook_received'].includes(subtype)
   
   const commonFields = hideDropdown ? [] : [
     {
@@ -144,6 +152,20 @@ const getTriggerFields = (subtype: string, dynamicData?: any): FormField[] => {
     case 'facebook_lead_form':
       const { facebookPages = [], facebookForms = [], loadingFacebookData = false } = dynamicData || {}
       
+      // Debug logging
+      console.log('Facebook Lead Form Config:', {
+        pagesCount: facebookPages.length,
+        formsCount: facebookForms.length,
+        loading: loadingFacebookData,
+        currentPageId: dynamicData?.config?.pageId
+      })
+      
+      // Filter forms for the selected page
+      const selectedPageId = dynamicData?.config?.pageId
+      const availableForms = selectedPageId && selectedPageId !== '' 
+        ? facebookForms.filter((f: any) => f.pageId === selectedPageId)
+        : []
+      
       return [
         {
           key: 'pageId',
@@ -154,8 +176,23 @@ const getTriggerFields = (subtype: string, dynamicData?: any): FormField[] => {
             ? [{ value: 'loading', label: 'Loading pages...' }]
             : facebookPages.length > 0 
               ? facebookPages
-              : [{ value: '', label: 'No pages available - Please connect Facebook' }],
-          description: 'Select the Facebook page to monitor for lead forms'
+              : [{ value: '', label: 'No pages available - Please connect Facebook in Settings > Integrations' }],
+          description: facebookPages.length > 0 
+            ? 'Select the Facebook page to monitor for lead forms'
+            : 'No Facebook pages found. Please ensure your Facebook account is connected and has pages with lead forms access.'
+        },
+        {
+          key: 'formSelection',
+          label: 'Form Selection',
+          type: 'select' as const,
+          required: true,
+          defaultValue: 'all',
+          options: [
+            { value: 'all', label: 'All Forms (current and future)' },
+            { value: 'specific', label: 'Specific Forms Only' }
+          ],
+          description: 'Choose whether to trigger for all forms or specific ones',
+          showWhen: (config: any) => config.pageId && config.pageId !== 'loading' && config.pageId !== '' && availableForms.length > 0
         },
         {
           key: 'formIds',
@@ -164,24 +201,13 @@ const getTriggerFields = (subtype: string, dynamicData?: any): FormField[] => {
           required: true,
           options: loadingFacebookData
             ? [{ value: 'loading', label: 'Loading forms...' }]
-            : (() => {
-                // Filter forms for the selected page
-                const pageId = dynamicData?.config?.pageId
-                const pageForms = pageId ? facebookForms.filter((f: any) => f.pageId === pageId) : []
-                if (pageForms.length > 0) {
-                  return [{ value: 'all', label: 'All Forms for this Page' }, ...pageForms]
-                }
-                return [{ value: '', label: 'No forms found - Create forms in Facebook Ads Manager' }]
-              })(),
-          description: (() => {
-            const pageId = dynamicData?.config?.pageId
-            const pageForms = pageId ? facebookForms.filter((f: any) => f.pageId === pageId) : []
-            if (pageForms.length > 0) {
-              return `Found ${pageForms.length} form(s) for this page. Select one or more to monitor.`
-            }
-            return 'No forms found for this page. Create lead forms in Facebook Ads Manager first.'
-          })(),
-          showWhen: (config: any) => config.pageId && config.pageId !== 'loading' && config.pageId !== ''
+            : availableForms.length > 0
+              ? availableForms
+              : [{ value: '', label: 'No forms found - Create forms in Facebook Ads Manager' }],
+          description: availableForms.length > 0
+            ? `Found ${availableForms.length} form(s) for this page. Select which forms to monitor.`
+            : 'No forms found for this page. Create lead forms in Facebook Ads Manager first.',
+          showWhen: (config: any) => config.pageId && config.pageId !== 'loading' && config.pageId !== '' && config.formSelection === 'specific'
         },
         {
           key: 'refreshForms',
@@ -191,6 +217,15 @@ const getTriggerFields = (subtype: string, dynamicData?: any): FormField[] => {
           onClick: () => dynamicData?.onRefreshForms?.(),
           description: 'Click to fetch the latest forms from Facebook',
           showWhen: (config: any) => config.pageId && config.pageId !== ''
+        },
+        {
+          key: 'connectFacebook',
+          label: '',
+          type: 'button' as const,
+          buttonText: '🔗 Connect Facebook Account',
+          onClick: () => window.open('/settings/integrations', '_blank'),
+          description: 'Connect your Facebook account to use this trigger',
+          showWhen: (config: any) => facebookPages.length === 0 && !loadingFacebookData
         }
       ]
 
@@ -224,44 +259,28 @@ const getTriggerFields = (subtype: string, dynamicData?: any): FormField[] => {
       ]
 
     case 'scheduled_time':
-      // Schedule trigger should only show timing settings, no trigger type
+      // Simplified schedule trigger - multiple days and time
       return [
         {
           key: 'scheduleType',
           label: 'Schedule Type',
           type: 'select' as const,
           required: true,
-          defaultValue: 'daily',
+          defaultValue: 'specific_days',
           options: [
-            { value: 'once', label: 'One Time' },
-            { value: 'daily', label: 'Daily' },
-            { value: 'weekly', label: 'Weekly' },
-            { value: 'monthly', label: 'Monthly' },
-            { value: 'cron', label: 'Custom (Cron)' }
-          ]
+            { value: 'specific_days', label: 'Specific Days' },
+            { value: 'everyday', label: 'Every Day' },
+            { value: 'weekdays', label: 'Weekdays (Mon-Fri)' },
+            { value: 'weekends', label: 'Weekends (Sat-Sun)' }
+          ],
+          description: 'Choose your schedule pattern'
         },
         {
-          key: 'runDateTime',
-          label: 'Run Date & Time',
-          type: 'datetime-local' as const,
+          key: 'daysOfWeek',
+          label: 'Select Days',
+          type: 'multi-select' as const,
           required: true,
-          description: 'When to trigger this automation',
-          showWhen: (config) => config.scheduleType === 'once'
-        },
-        {
-          key: 'runTime',
-          label: 'Run Time',
-          type: 'time' as const,
-          required: true,
-          defaultValue: '09:00',
-          description: 'Time to run the automation',
-          showWhen: (config) => ['daily', 'weekly', 'monthly'].includes(config.scheduleType)
-        },
-        {
-          key: 'dayOfWeek',
-          label: 'Day of Week',
-          type: 'select' as const,
-          required: true,
+          defaultValue: ['1'],
           options: [
             { value: '1', label: 'Monday' },
             { value: '2', label: 'Tuesday' },
@@ -271,26 +290,16 @@ const getTriggerFields = (subtype: string, dynamicData?: any): FormField[] => {
             { value: '6', label: 'Saturday' },
             { value: '0', label: 'Sunday' }
           ],
-          showWhen: (config) => config.scheduleType === 'weekly'
+          description: 'Select which days to run the automation',
+          showWhen: (config: any) => config.scheduleType === 'specific_days'
         },
         {
-          key: 'dayOfMonth',
-          label: 'Day of Month',
-          type: 'number' as const,
+          key: 'runTime',
+          label: 'Time',
+          type: 'time' as const,
           required: true,
-          validation: { min: 1, max: 31 },
-          defaultValue: 1,
-          description: 'Day of the month to run (1-31)',
-          showWhen: (config) => config.scheduleType === 'monthly'
-        },
-        {
-          key: 'cronExpression',
-          label: 'Cron Expression',
-          type: 'text' as const,
-          required: true,
-          placeholder: '0 9 * * 1-5',
-          description: 'Cron expression (e.g., 0 9 * * 1-5 for 9 AM weekdays)',
-          showWhen: (config) => config.scheduleType === 'cron'
+          defaultValue: '09:00',
+          description: 'What time to trigger (e.g., 9:00 AM)'
         },
         {
           key: 'timezone',
@@ -299,10 +308,112 @@ const getTriggerFields = (subtype: string, dynamicData?: any): FormField[] => {
           required: true,
           defaultValue: 'Europe/London',
           options: [
-            { value: 'Europe/London', label: 'London (GMT)' },
-            { value: 'UTC', label: 'UTC' },
-            { value: 'America/New_York', label: 'New York (EST)' }
-          ]
+            { value: 'Europe/London', label: 'London (GMT/BST)' },
+            { value: 'Europe/Dublin', label: 'Dublin' },
+            { value: 'Europe/Paris', label: 'Paris' },
+            { value: 'Europe/Berlin', label: 'Berlin' },
+            { value: 'America/New_York', label: 'New York' },
+            { value: 'America/Chicago', label: 'Chicago' },
+            { value: 'America/Los_Angeles', label: 'Los Angeles' },
+            { value: 'UTC', label: 'UTC' }
+          ],
+          description: 'Timezone for the schedule'
+        }
+      ]
+
+    case 'webhook_received':
+      // Webhook configuration with detailed event types
+      return [
+        {
+          key: 'webhookEvent',
+          label: 'Webhook Event Type',
+          type: 'select' as const,
+          required: true,
+          defaultValue: 'custom',
+          options: [
+            { value: 'custom', label: 'Custom Webhook' },
+            { value: 'stripe_payment_succeeded', label: 'Stripe - Payment Succeeded' },
+            { value: 'stripe_payment_failed', label: 'Stripe - Payment Failed' },
+            { value: 'stripe_subscription_created', label: 'Stripe - Subscription Created' },
+            { value: 'stripe_subscription_cancelled', label: 'Stripe - Subscription Cancelled' },
+            { value: 'stripe_invoice_paid', label: 'Stripe - Invoice Paid' },
+            { value: 'stripe_invoice_failed', label: 'Stripe - Invoice Failed' },
+            { value: 'twilio_message_received', label: 'Twilio - Message Received' },
+            { value: 'twilio_call_completed', label: 'Twilio - Call Completed' },
+            { value: 'calendar_event_created', label: 'Calendar - Event Created' },
+            { value: 'calendar_event_updated', label: 'Calendar - Event Updated' },
+            { value: 'calendar_event_cancelled', label: 'Calendar - Event Cancelled' },
+            { value: 'form_submission', label: 'External Form Submission' },
+            { value: 'booking_created', label: 'Booking Created' },
+            { value: 'booking_cancelled', label: 'Booking Cancelled' },
+            { value: 'membership_expired', label: 'Membership Expired' },
+            { value: 'review_submitted', label: 'Review Submitted' }
+          ],
+          description: 'Select the type of webhook event to listen for'
+        },
+        {
+          key: 'webhookUrl',
+          label: 'Webhook URL',
+          type: 'text' as const,
+          required: false,
+          placeholder: 'https://your-domain.com/webhooks/...',
+          description: 'Your unique webhook URL (generated automatically)',
+          readOnly: true,
+          defaultValue: `${typeof window !== 'undefined' ? window.location.origin : ''}/api/webhooks/automation/${dynamicData?.workflowId || 'new'}`,
+          showWhen: (config: any) => config.webhookEvent
+        },
+        {
+          key: 'webhookSecret',
+          label: 'Webhook Secret (Optional)',
+          type: 'text' as const,
+          required: false,
+          placeholder: 'Enter a secret key for webhook verification',
+          description: 'Add a secret key to verify webhook authenticity (recommended for production)',
+          showWhen: (config: any) => config.webhookEvent === 'custom'
+        },
+        {
+          key: 'webhookFilters',
+          label: 'Filter Conditions',
+          type: 'textarea' as const,
+          required: false,
+          placeholder: 'e.g., event.type === "payment.succeeded" && event.amount > 100',
+          description: 'JavaScript expression to filter webhook events (advanced)',
+          showWhen: (config: any) => config.webhookEvent === 'custom'
+        },
+        {
+          key: 'webhookHelp',
+          label: '',
+          type: 'button' as const,
+          buttonText: '📖 Webhook Setup Guide',
+          onClick: () => window.open('/docs/webhooks', '_blank'),
+          description: 'Learn how to set up webhooks with your external services',
+          showWhen: (config: any) => config.webhookEvent
+        },
+        {
+          key: 'testWebhook',
+          label: '',
+          type: 'button' as const,
+          buttonText: '🧪 Send Test Webhook',
+          onClick: () => {
+            // Send test webhook
+            fetch('/api/webhooks/test', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                webhookUrl: dynamicData?.config?.webhookUrl,
+                eventType: dynamicData?.config?.webhookEvent,
+                secret: dynamicData?.config?.webhookSecret
+              })
+            }).then(res => {
+              if (res.ok) {
+                toast.success('Test webhook sent! Check your automation logs.')
+              } else {
+                toast.error('Failed to send test webhook')
+              }
+            })
+          },
+          description: 'Send a test webhook to verify your configuration',
+          showWhen: (config: any) => config.webhookEvent && config.webhookUrl
         }
       ]
 
@@ -725,42 +836,44 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
           }))
           setFacebookPages(pageOptions)
           
-          // Now fetch forms for each page
-          const allForms: Array<{ value: string; label: string; pageId: string }> = []
+          // Now fetch forms for ALL pages using the lead-forms endpoint
+          const pageIds = pagesData.pages.map((p: any) => p.id).join(',')
+          console.log('Fetching lead forms for pages:', pageIds)
           
-          for (const page of pagesData.pages) {
-            // If page already has forms, use them
-            if (page.forms && page.forms.length > 0) {
-              page.forms.forEach((form: any) => {
-                allForms.push({
-                  value: form.facebook_form_id || form.id,
-                  label: `${form.form_name || form.name} (${page.name})`,
-                  pageId: page.id
+          try {
+            const formsResponse = await fetch(`/api/integrations/facebook/lead-forms?pageIds=${pageIds}`)
+            if (formsResponse.ok) {
+              const formsData = await formsResponse.json()
+              console.log('Lead forms response:', formsData)
+              
+              const allForms: Array<{ value: string; label: string; pageId: string }> = []
+              
+              if (formsData.forms && formsData.forms.length > 0) {
+                formsData.forms.forEach((form: any) => {
+                  // Find which page this form belongs to
+                  const page = pagesData.pages.find((p: any) => p.id === form.pageId)
+                  const pageName = page?.name || 'Unknown Page'
+                  
+                  allForms.push({
+                    value: form.id,
+                    label: `${form.name} (${pageName})`,
+                    pageId: form.pageId
+                  })
                 })
-              })
-            } else {
-              // Otherwise fetch forms from API
-              try {
-                const formsResponse = await fetch(`/api/integrations/facebook/forms?pageId=${page.id}`)
-                if (formsResponse.ok) {
-                  const formsData = await formsResponse.json()
-                  if (formsData.forms && formsData.forms.length > 0) {
-                    formsData.forms.forEach((form: any) => {
-                      allForms.push({
-                        value: form.id,
-                        label: `${form.name} (${page.name})`,
-                        pageId: page.id
-                      })
-                    })
-                  }
-                }
-              } catch (error) {
-                console.error(`Error fetching forms for page ${page.id}:`, error)
               }
+              
+              console.log('Processed forms for workflow:', allForms)
+              setFacebookForms(allForms)
+            } else {
+              const errorData = await formsResponse.json()
+              console.error('Failed to fetch lead forms:', errorData)
+              // Still set empty forms so user can see the page selection
+              setFacebookForms([])
             }
+          } catch (error) {
+            console.error('Error fetching lead forms:', error)
+            setFacebookForms([])
           }
-          
-          setFacebookForms(allForms)
         } else {
           setFacebookPages([])
           setFacebookForms([])
@@ -782,19 +895,27 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
   const fetchForms = async () => {
     setLoadingForms(true)
     try {
-      const response = await fetch(`/api/forms?organizationId=${organizationId}`)
+      const response = await fetch('/api/forms/list')
       if (response.ok) {
         const data = await response.json()
         if (data.forms) {
-          const formOptions = data.forms.map((form: any) => ({
-            value: form.id,
-            label: form.name || form.title || `Form ${form.id}`
-          }))
+          const formOptions = [
+            { value: 'default', label: 'Default Lead Form' },
+            ...data.forms.map((form: any) => ({
+              value: form.id,
+              label: form.title || form.name || `Form ${form.id}`
+            }))
+          ]
           setForms(formOptions)
+        } else {
+          // If no custom forms, at least show the default form
+          setForms([{ value: 'default', label: 'Default Lead Form' }])
         }
       }
     } catch (error) {
       console.error('Error fetching forms:', error)
+      // On error, at least show the default form
+      setForms([{ value: 'default', label: 'Default Lead Form' }])
     } finally {
       setLoadingForms(false)
     }
@@ -804,81 +925,174 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
   useEffect(() => {
     if (node.type === 'trigger' && node.data?.actionType === 'facebook_lead_form') {
       console.log('Facebook Lead Form trigger detected, fetching Facebook data...')
+      console.log('Current config:', config)
       fetchFacebookData()
     }
-    if (node.type === 'trigger' && (node.data?.actionType === 'form_submitted' || config?.subtype === 'form_submitted')) {
+    if (node.type === 'trigger' && (node.data?.actionType === 'form_submitted' || node.data?.actionType === 'website_form' || config?.subtype === 'form_submitted')) {
       fetchForms()
     }
   }, [node.type, node.data?.actionType, config?.subtype]) // Removed fetchFacebookData and fetchForms from deps to prevent infinite loop
   
+  // Load saved config on mount
+  useEffect(() => {
+    if (node.data?.config && Object.keys(config).length === 0) {
+      console.log('Loading saved node config:', node.data.config)
+      setConfig(node.data.config)
+    }
+  }, [])
+  
   // Test send functions
   const sendTestEmail = async (config: any) => {
+    if (!config.testEmail) {
+      toast.error('Please enter a test email address')
+      return
+    }
+    
+    // Show loading toast
+    const loadingToast = toast.loading('Sending test email...')
+    
     try {
       const response = await fetch('/api/automations/test/email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: config.testEmail,
-          subject: config.subject,
-          body: config.body,
+          subject: config.subject || 'Test Email',
+          body: config.body || 'This is a test email from your automation.',
           from: config.from
         })
       })
       
+      toast.dismiss(loadingToast)
+      
       if (response.ok) {
-        toast.success('Test email sent successfully!')
+        const data = await response.json()
+        toast.success(
+          <div>
+            <strong>✅ Test email sent successfully!</strong>
+            <br />
+            <span className="text-sm">Check {config.testEmail} for your test message.</span>
+          </div>,
+          { duration: 5000 }
+        )
       } else {
-        toast.error('Failed to send test email')
+        const errorData = await response.json().catch(() => ({}))
+        toast.error(
+          <div>
+            <strong>❌ Failed to send test email</strong>
+            <br />
+            <span className="text-sm">{errorData.error || 'Please check your email configuration'}</span>
+          </div>,
+          { duration: 5000 }
+        )
       }
     } catch (error) {
+      toast.dismiss(loadingToast)
       console.error('Error sending test email:', error)
-      toast.error('Failed to send test email')
+      toast.error(
+        <div>
+          <strong>❌ Network error</strong>
+          <br />
+          <span className="text-sm">Could not connect to email service</span>
+        </div>,
+        { duration: 5000 }
+      )
     }
   }
   
   const sendTestSMS = async (config: any) => {
+    if (!config.testPhone) {
+      toast.error('Please enter a test phone number')
+      return
+    }
+    
+    const loadingToast = toast.loading('Sending test SMS...')
+    
     try {
       const response = await fetch('/api/automations/test/sms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: config.testPhone,
-          message: config.message,
+          message: config.message || 'This is a test SMS from your automation.',
           from: config.from
         })
       })
       
+      toast.dismiss(loadingToast)
+      
       if (response.ok) {
-        toast.success('Test SMS sent successfully!')
+        toast.success(
+          <div>
+            <strong>✅ Test SMS sent successfully!</strong>
+            <br />
+            <span className="text-sm">Check {config.testPhone} for your test message.</span>
+          </div>,
+          { duration: 5000 }
+        )
       } else {
-        toast.error('Failed to send test SMS')
+        const errorData = await response.json().catch(() => ({}))
+        toast.error(
+          <div>
+            <strong>❌ Failed to send test SMS</strong>
+            <br />
+            <span className="text-sm">{errorData.error || 'Please check your SMS configuration'}</span>
+          </div>,
+          { duration: 5000 }
+        )
       }
     } catch (error) {
+      toast.dismiss(loadingToast)
       console.error('Error sending test SMS:', error)
-      toast.error('Failed to send test SMS')
+      toast.error('Failed to connect to SMS service')
     }
   }
   
   const sendTestWhatsApp = async (config: any) => {
+    if (!config.testWhatsApp) {
+      toast.error('Please enter a test WhatsApp number')
+      return
+    }
+    
+    const loadingToast = toast.loading('Sending test WhatsApp message...')
+    
     try {
       const response = await fetch('/api/automations/test/whatsapp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: config.testWhatsApp,
-          message: config.message,
+          message: config.message || 'This is a test WhatsApp message from your automation.',
           from: config.from
         })
       })
       
+      toast.dismiss(loadingToast)
+      
       if (response.ok) {
-        toast.success('Test WhatsApp message sent successfully!')
+        toast.success(
+          <div>
+            <strong>✅ Test WhatsApp sent successfully!</strong>
+            <br />
+            <span className="text-sm">Check {config.testWhatsApp} for your test message.</span>
+          </div>,
+          { duration: 5000 }
+        )
       } else {
-        toast.error('Failed to send test WhatsApp message')
+        const errorData = await response.json().catch(() => ({}))
+        toast.error(
+          <div>
+            <strong>❌ Failed to send test WhatsApp</strong>
+            <br />
+            <span className="text-sm">{errorData.error || 'Please check your WhatsApp configuration'}</span>
+          </div>,
+          { duration: 5000 }
+        )
       }
     } catch (error) {
+      toast.dismiss(loadingToast)
       console.error('Error sending test WhatsApp:', error)
-      toast.error('Failed to send test WhatsApp message')
+      toast.error('Failed to connect to WhatsApp service')
     }
   }
   
@@ -928,6 +1142,13 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
     // Defensive: ensure config is an object
     const safeConfig = config || {}
     const newConfig = { ...safeConfig, [key]: value }
+    
+    // When Facebook page changes, reset form selection
+    if (key === 'pageId' && node.type === 'trigger' && node.data?.actionType === 'facebook_lead_form') {
+      newConfig.formSelection = 'all'
+      newConfig.formIds = []
+    }
+    
     setConfig(newConfig)
     if (onChange) {
       onChange(newConfig)
@@ -944,11 +1165,25 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
   
   const handleSave = () => {
     if (isValid) {
-      // Update the node label if it was changed
+      // Ensure all config values are preserved
       const updatedConfig = {
         ...config,
-        label: config.label || node.data?.label
+        label: config.label || node.data?.label,
+        // Preserve Facebook-specific settings
+        pageId: config.pageId,
+        formSelection: config.formSelection || 'all',
+        formIds: config.formIds || [],
+        // Preserve any other node-specific settings
+        ...config
       }
+      
+      console.log('Saving node config:', {
+        nodeId: node.id,
+        nodeType: node.type,
+        actionType: node.data?.actionType,
+        config: updatedConfig
+      })
+      
       onSave(node.id, updatedConfig)
       onClose()
     }

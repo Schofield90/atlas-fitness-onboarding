@@ -20,6 +20,9 @@ export default function LeadFormsPage() {
   const [showFormBuilder, setShowFormBuilder] = useState(false)
   const [formDescription, setFormDescription] = useState('')
   const [generatingForm, setGeneratingForm] = useState(false)
+  const [customForms, setCustomForms] = useState<any[]>([])
+  const [editingForm, setEditingForm] = useState<any>(null)
+  const [showEditModal, setShowEditModal] = useState(false)
   
   const supabase = createClient()
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://atlas-fitness-onboarding.vercel.app'
@@ -27,6 +30,7 @@ export default function LeadFormsPage() {
   useEffect(() => {
     loadLeads()
     loadStats()
+    loadCustomForms()
   }, [])
 
   const loadLeads = async () => {
@@ -67,6 +71,73 @@ export default function LeadFormsPage() {
       week: week || 0,
       conversion: 0
     })
+  }
+
+  const loadCustomForms = async () => {
+    try {
+      const response = await fetch('/api/forms/list')
+      const data = await response.json()
+      if (data.forms) {
+        setCustomForms(data.forms)
+      }
+    } catch (error) {
+      console.error('Error loading forms:', error)
+    }
+  }
+
+  const handleEditForm = (form: any) => {
+    setEditingForm(form)
+    setShowEditModal(true)
+  }
+
+  const handleDeleteForm = async (formId: string) => {
+    if (!confirm('Are you sure you want to delete this form?')) return
+    
+    try {
+      const response = await fetch(`/api/forms/delete?id=${formId}`, {
+        method: 'DELETE'
+      })
+      
+      if (response.ok) {
+        alert('Form deleted successfully')
+        loadCustomForms()
+      } else {
+        const error = await response.json()
+        alert(`Failed to delete form: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error deleting form:', error)
+      alert('Failed to delete form')
+    }
+  }
+
+  const handleSaveForm = async (formData: any) => {
+    try {
+      const url = editingForm ? '/api/forms/update' : '/api/forms/save'
+      const method = editingForm ? 'PUT' : 'POST'
+      
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          id: editingForm?.id
+        })
+      })
+      
+      if (response.ok) {
+        alert(editingForm ? 'Form updated successfully' : 'Form created successfully')
+        setShowEditModal(false)
+        setEditingForm(null)
+        loadCustomForms()
+      } else {
+        const error = await response.json()
+        alert(`Failed to save form: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error saving form:', error)
+      alert('Failed to save form')
+    }
   }
 
   const generateForm = async () => {
@@ -251,6 +322,55 @@ export default function LeadFormsPage() {
                   </div>
                 </div>
               </div>
+              
+              {/* Custom Forms */}
+              {customForms.map((form) => (
+                <div key={form.id} className="bg-gray-700 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold mb-1">{form.title}</h3>
+                      <p className="text-sm text-gray-400">{form.description || 'Custom lead capture form'}</p>
+                      <div className="flex items-center gap-4 mt-2 text-sm">
+                        <span className={form.is_active ? "text-green-500" : "text-red-500"}>
+                          ● {form.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                        <span className="text-gray-400">Type: {form.type || 'custom'}</span>
+                        <span className="text-gray-400">Created: {new Date(form.created_at).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleEditForm(form)}
+                        className="px-3 py-1 bg-gray-600 hover:bg-gray-500 rounded transition-colors"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => window.open(`${baseUrl}/embed/form/${form.id}`, '_blank')}
+                        className="px-3 py-1 bg-gray-600 hover:bg-gray-500 rounded transition-colors"
+                      >
+                        Preview
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedFormId(form.id)
+                          setEmbedCode(generateEmbedCode(form.id, embedType))
+                          setShowEmbedModal(true)
+                        }}
+                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded transition-colors"
+                      >
+                        Embed
+                      </button>
+                      <button
+                        onClick={() => handleDeleteForm(form.id)}
+                        className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded transition-colors"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -490,6 +610,104 @@ export default function LeadFormsPage() {
                   ) : (
                     'Generate Form'
                   )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Form Modal */}
+        {showEditModal && editingForm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+              <h3 className="text-xl font-bold mb-4">Edit Form</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Form Title</label>
+                  <input
+                    type="text"
+                    value={editingForm.title || ''}
+                    onChange={(e) => setEditingForm({...editingForm, title: e.target.value})}
+                    className="w-full px-4 py-2 bg-gray-700 rounded-lg text-white"
+                    placeholder="Enter form title"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Description</label>
+                  <textarea
+                    value={editingForm.description || ''}
+                    onChange={(e) => setEditingForm({...editingForm, description: e.target.value})}
+                    className="w-full px-4 py-2 bg-gray-700 rounded-lg text-white"
+                    rows={3}
+                    placeholder="Enter form description"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Form Type</label>
+                  <select
+                    value={editingForm.type || 'custom'}
+                    onChange={(e) => setEditingForm({...editingForm, type: e.target.value})}
+                    className="w-full px-4 py-2 bg-gray-700 rounded-lg text-white"
+                  >
+                    <option value="custom">Custom</option>
+                    <option value="waiver">Waiver</option>
+                    <option value="contract">Contract</option>
+                    <option value="health">Health</option>
+                    <option value="policy">Policy</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Form Fields (JSON Schema)</label>
+                  <textarea
+                    value={JSON.stringify(editingForm.schema, null, 2)}
+                    onChange={(e) => {
+                      try {
+                        const schema = JSON.parse(e.target.value)
+                        setEditingForm({...editingForm, schema})
+                      } catch (error) {
+                        // Invalid JSON, don't update
+                      }
+                    }}
+                    className="w-full px-4 py-2 bg-gray-700 rounded-lg text-white font-mono text-sm"
+                    rows={10}
+                    placeholder="Enter form schema as JSON"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Edit the JSON schema to add, remove, or modify form fields
+                  </p>
+                </div>
+
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="isActive"
+                    checked={editingForm.is_active !== false}
+                    onChange={(e) => setEditingForm({...editingForm, is_active: e.target.checked})}
+                    className="mr-2"
+                  />
+                  <label htmlFor="isActive" className="text-sm">Form is active</label>
+                </div>
+              </div>
+
+              <div className="flex gap-4 mt-6">
+                <button
+                  onClick={() => handleSaveForm(editingForm)}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded transition-colors"
+                >
+                  Save Changes
+                </button>
+                <button
+                  onClick={() => {
+                    setShowEditModal(false)
+                    setEditingForm(null)
+                  }}
+                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded transition-colors"
+                >
+                  Cancel
                 </button>
               </div>
             </div>

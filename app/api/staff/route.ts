@@ -60,22 +60,52 @@ export async function GET(request: NextRequest) {
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false })
 
-    // Combine results from both tables
+    // Also fetch instructors (for fitness classes)
+    const { data: instructors, error: instructorsError } = await supabase
+      .from('instructors')
+      .select('*')
+      .eq('organization_id', organizationId)
+      .order('created_at', { ascending: false })
+
+    // Combine results from all tables
     let allStaff = []
     
     if (orgStaffMembers && orgStaffMembers.length > 0) {
-      allStaff = [...allStaff, ...orgStaffMembers]
+      allStaff = [...allStaff, ...orgStaffMembers.map(s => ({ ...s, type: 'staff' }))]
     }
     
     if (staffMembers && staffMembers.length > 0) {
-      allStaff = [...allStaff, ...staffMembers]
+      allStaff = [...allStaff, ...staffMembers.map(s => ({ ...s, type: 'staff' }))]
     }
 
-    // If both queries failed, log but don't error
-    if (orgStaffError && staffError) {
+    if (instructors && instructors.length > 0) {
+      // Map instructors to staff format
+      const instructorStaff = instructors.map(instructor => ({
+        id: instructor.id,
+        user_id: instructor.user_id || instructor.id,
+        name: instructor.name,
+        email: instructor.email || '',
+        phone_number: instructor.phone || '',
+        role: 'instructor',
+        specializations: instructor.specializations,
+        certifications: instructor.certifications,
+        bio: instructor.bio,
+        rating: instructor.rating,
+        is_active: instructor.is_active,
+        type: 'instructor',
+        organization_id: instructor.organization_id,
+        created_at: instructor.created_at,
+        updated_at: instructor.updated_at
+      }))
+      allStaff = [...allStaff, ...instructorStaff]
+    }
+
+    // If all queries failed, log but don't error
+    if (orgStaffError && staffError && instructorsError) {
       console.log('Staff table errors:', { 
-        orgStaffError: orgStaffError.message, 
-        staffError: staffError.message 
+        orgStaffError: orgStaffError?.message, 
+        staffError: staffError?.message,
+        instructorsError: instructorsError?.message
       })
     }
     

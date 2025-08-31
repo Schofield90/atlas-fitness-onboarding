@@ -232,9 +232,9 @@ export default function ClassCalendarPage() {
   
   return (
     <DashboardLayout userData={null}>
-      <div className="min-h-screen bg-gray-900">
+      <div className="flex flex-col h-screen bg-gray-900">
         {/* Top Action Bar */}
-        <div className="border-b border-gray-700 bg-gray-800 sticky top-0 z-50">
+        <div className="border-b border-gray-700 bg-gray-800 flex-shrink-0">
         <div className="flex items-center justify-between px-6 py-4">
           <div>
             <h1 className="text-2xl font-bold text-white">Class Schedule</h1>
@@ -327,35 +327,37 @@ export default function ClassCalendarPage() {
       </div>
       
       {/* Main Content Area */}
-      <div className="flex h-[calc(100vh-180px)]">
+      <div className="flex flex-1 overflow-hidden">
         {/* Left Sidebar - Class Types & Filters */}
-        <div className="w-64 border-r border-gray-700 bg-gray-800/50 p-4 overflow-y-auto">
+        <div className="w-64 border-r border-gray-700 bg-gray-800/50 p-4 overflow-y-auto flex-shrink-0">
           <ClassTypeFilter />
           <InstructorFilter />
           <TimeRangeFilter />
         </div>
         
         {/* Calendar/Schedule View */}
-        <div className="flex-1 p-6 overflow-hidden">
-          <CalendarViewToggle 
-            view={calendarView}
-            currentDate={currentDate}
-            onViewChange={(newView) => {
-              setCalendarView(newView);
-              if (organizationId) {
-                const range = getDateRange(currentDate, newView);
-                fetchClasses(organizationId, range.start, range.end);
-              }
-            }}
-            onDateChange={(newDate) => {
-              setCurrentDate(newDate);
-              if (organizationId) {
-                const range = getDateRange(newDate, calendarView);
-                fetchClasses(organizationId, range.start, range.end);
-              }
-            }}
-          />
-          <div className="h-[calc(100%-80px)] overflow-auto">
+        <div className="flex-1 flex flex-col p-6 overflow-hidden">
+          <div className="flex-shrink-0">
+            <CalendarViewToggle 
+              view={calendarView}
+              currentDate={currentDate}
+              onViewChange={(newView) => {
+                setCalendarView(newView);
+                if (organizationId) {
+                  const range = getDateRange(currentDate, newView);
+                  fetchClasses(organizationId, range.start, range.end);
+                }
+              }}
+              onDateChange={(newDate) => {
+                setCurrentDate(newDate);
+                if (organizationId) {
+                  const range = getDateRange(newDate, calendarView);
+                  fetchClasses(organizationId, range.start, range.end);
+                }
+              }}
+            />
+          </div>
+          <div className="flex-1 overflow-auto mt-4">
             <PremiumCalendarGrid 
               classes={classes} 
               loading={loading}
@@ -375,7 +377,7 @@ export default function ClassCalendarPage() {
         </div>
         
         {/* Right Sidebar - Selected Class Details */}
-        <div className="w-96 border-l border-gray-700 bg-gray-800/50 overflow-hidden">
+        <div className="w-96 border-l border-gray-700 bg-gray-800/50 overflow-y-auto flex-shrink-0">
           <SelectedClassDetails />
         </div>
       </div>

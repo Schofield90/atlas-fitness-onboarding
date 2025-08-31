@@ -433,16 +433,19 @@ export default function CustomersPage() {
               // Import as client
               const nameParts = customer.name?.split(' ') || []
               await supabase.from('clients').insert({
-                organization_id: orgMember.organization_id,
+                org_id: orgMember.organization_id,
                 first_name: nameParts[0] || '',
                 last_name: nameParts.slice(1).join(' ') || '',
                 email: customer.email,
                 phone: customer.phone,
-                status: customer.status || 'active',
-                date_of_birth: customer['date_of_birth'] || customer.dob || null,
-                address_line_1: customer.address || customer['address_line_1'] || null,
-                city: customer.city || null,
-                postal_code: customer['postal_code'] || customer.postcode || null
+                membership_tier: customer.membership || null,
+                metadata: {
+                  status: customer.status || 'active',
+                  date_of_birth: customer['date_of_birth'] || customer.dob || null,
+                  address_line_1: customer.address || customer['address_line_1'] || null,
+                  city: customer.city || null,
+                  postal_code: customer['postal_code'] || customer.postcode || null
+                }
               })
             } else {
               // Import as lead

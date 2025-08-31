@@ -12,15 +12,21 @@ import { isFeatureEnabled } from '@/app/lib/feature-flags'
 interface Staff {
   id: string
   user_id: string
+  name?: string
   phone_number: string
   email: string
   is_available: boolean
-  receives_calls: boolean
-  receives_sms: boolean
-  receives_whatsapp: boolean
-  receives_emails: boolean
-  routing_priority: number
+  receives_calls?: boolean
+  receives_sms?: boolean
+  receives_whatsapp?: boolean
+  receives_emails?: boolean
+  routing_priority?: number
   role: string
+  type?: string
+  specializations?: string[]
+  certifications?: any
+  bio?: string
+  rating?: number
   location_access?: any
 }
 
@@ -304,7 +310,14 @@ export default function StaffPage() {
                           </div>
                           <div>
                             <h4 className="font-medium">{member.name || member.email}</h4>
-                            <p className="text-sm text-gray-400 capitalize">{member.role}</p>
+                            <p className="text-sm text-gray-400 capitalize">
+                              {member.role || member.type}
+                              {member.specializations && member.specializations.length > 0 && (
+                                <span className="ml-1 text-xs">
+                                  ({member.specializations.join(', ')})
+                                </span>
+                              )}
+                            </p>
                           </div>
                         </div>
                         <div className={`px-2 py-1 rounded text-xs ${

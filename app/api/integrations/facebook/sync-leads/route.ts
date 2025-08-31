@@ -210,6 +210,7 @@ export async function POST(request: NextRequest) {
     
     // Save synced leads to database
     let savedCount = 0
+    let contactsCreated = 0
     const saveErrors = []
     
     for (const lead of syncedLeads) {
@@ -224,7 +225,7 @@ export async function POST(request: NextRequest) {
         
         if (!existingLead) {
           // Create new lead
-          const { error: insertError } = await supabase
+          const { data: newLead, error: insertError } = await supabase
             .from('leads')
             .insert({
               organization_id: organizationId,
@@ -244,6 +245,8 @@ export async function POST(request: NextRequest) {
               },
               created_at: lead.created_at
             })
+            .select()
+            .single()
           
           if (insertError) {
             console.error('Error saving lead:', insertError)
@@ -253,6 +256,79 @@ export async function POST(request: NextRequest) {
             })
           } else {
             savedCount++
+            
+            // Also create or update contact record
+            // Extract first and last name
+            const nameParts = lead.name ? lead.name.split(' ') : ['', '']
+            const firstName = nameParts[0] || ''
+            const lastName = nameParts.slice(1).join(' ') || ''
+            
+            // Check if contact exists by phone or email
+            let existingContact = null
+            if (lead.phone && lead.phone !== 'Not provided') {
+              const { data } = await supabase
+                .from('contacts')
+                .select('id')
+                .eq('phone', lead.phone)
+                .single()
+              existingContact = data
+            }
+            
+            if (!existingContact && lead.email && lead.email !== 'Not provided') {
+              const { data } = await supabase
+                .from('contacts')
+                .select('id')
+                .eq('email', lead.email)
+                .single()
+              existingContact = data
+            }
+            
+            if (!existingContact) {
+              // Create new contact
+              const { error: contactError } = await supabase
+                .from('contacts')
+                .insert({
+                  phone: lead.phone !== 'Not provided' ? lead.phone : null,
+                  email: lead.email !== 'Not provided' ? lead.email : null,
+                  first_name: firstName,
+                  last_name: lastName,
+                  lead_id: newLead?.id,
+                  sms_opt_in: true,
+                  whatsapp_opt_in: true,
+                  email_opt_in: true,
+                  tags: ['facebook-lead', lead.page_name, lead.form_name].filter(Boolean),
+                  metadata: {
+                    source: 'facebook',
+                    facebook_lead_id: lead.facebook_lead_id,
+                    form_name: lead.form_name,
+                    page_name: lead.page_name,
+                    imported_at: new Date().toISOString()
+                  }
+                })
+              
+              if (!contactError) {
+                contactsCreated++
+                console.log(`✅ Created contact for lead: ${lead.name}`)
+              } else {
+                console.error('Error creating contact:', contactError)
+              }
+            } else {
+              // Update existing contact with lead_id if not already linked
+              const { error: updateError } = await supabase
+                .from('contacts')
+                .update({
+                  lead_id: newLead?.id,
+                  first_name: firstName || undefined,
+                  last_name: lastName || undefined,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', existingContact.id)
+                .is('lead_id', null)
+              
+              if (!updateError) {
+                console.log(`🔄 Updated existing contact for lead: ${lead.name}`)
+              }
+            }
           }
         }
       } catch (error) {
