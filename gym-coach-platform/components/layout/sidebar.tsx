@@ -2,7 +2,10 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Users, UserPlus, Settings, BarChart3, MessageSquare, Zap } from 'lucide-react'
+import { 
+  Home, Users, UserPlus, Settings, BarChart3, MessageSquare, Zap, Calendar, UserCog,
+  Megaphone, MessageCircle, Globe, Brain, CreditCard, FileText, Plug
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function Sidebar() {
@@ -12,8 +15,17 @@ export function Sidebar() {
     { name: 'Dashboard', href: '/dashboard', icon: Home },
     { name: 'Leads', href: '/dashboard/leads', icon: UserPlus },
     { name: 'Clients', href: '/dashboard/clients', icon: Users },
+    { name: 'Calendar', href: '/dashboard/calendar', icon: Calendar },
+    { name: 'Staff', href: '/dashboard/staff', icon: UserCog },
+    { name: 'Marketing', href: '/dashboard/marketing', icon: Megaphone },
+    { name: 'Surveys', href: '/dashboard/surveys', icon: MessageCircle },
+    { name: 'Website', href: '/dashboard/website', icon: Globe },
+    { name: 'AI Insights', href: '/dashboard/ai', icon: Brain },
     { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
+    { name: 'Billing', href: '/dashboard/billing', icon: CreditCard },
+    { name: 'SOPs', href: '/dashboard/sops', icon: FileText },
     { name: 'Automations', href: '/dashboard/automations', icon: Zap },
+    { name: 'Integrations', href: '/dashboard/integrations', icon: Plug },
     { name: 'Messages', href: '/dashboard/messages', icon: MessageSquare },
     { name: 'Settings', href: '/dashboard/settings', icon: Settings },
   ]

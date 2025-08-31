@@ -71,6 +71,7 @@ import LoopNode from './nodes/LoopNode'
 import TransformNode from './nodes/TransformNode'
 import FilterNode from './nodes/FilterNode'
 import DynamicConfigPanelEnhanced from './config/DynamicConfigPanelEnhanced'
+import { ConfigPanelErrorBoundary } from './config/ConfigPanelErrorBoundary'
 
 // Node types mapping
 const nodeTypes = {
@@ -81,6 +82,53 @@ const nodeTypes = {
   loop: LoopNode,
   transform: TransformNode,
   filter: FilterNode,
+}
+
+// Helper to get default config based on node type
+const getDefaultNodeConfig = (type: string, actionType?: string) => {
+  const defaults: Record<string, any> = {
+    trigger: {
+      subtype: actionType || 'lead_trigger',
+      sourceId: '',
+      conditions: []
+    },
+    action: {
+      actionType: actionType || 'send_email',
+      mode: 'template',
+      templateId: '',
+      subject: '',
+      body: '',
+      delay: 0
+    },
+    condition: {
+      field: '',
+      operator: 'equals',
+      value: '',
+      trueBranch: null,
+      falseBranch: null
+    },
+    wait: {
+      duration: 60,
+      unit: 'seconds'
+    },
+    loop: {
+      maxIterations: 10,
+      currentIteration: 0,
+      items: []
+    },
+    transform: {
+      inputField: '',
+      outputField: '',
+      transformation: 'none'
+    },
+    filter: {
+      field: '',
+      operator: 'contains',
+      value: ''
+    }
+  }
+  
+  return defaults[type] || {}
 }
 
 // Node palette categories
@@ -383,16 +431,22 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
           } while (nodes.some(n => n.id === nodeId))
         }
         
+        // Initialize with complete node data structure to prevent undefined errors
         const newNode: WorkflowNode = {
           id: nodeId,
           type: item.type,
           position,
           data: {
-            label: item.name,
-            icon: item.icon,
-            actionType: item.actionType,
-            config: {},
-            description: item.description,
+            label: item.name || 'New Node',
+            icon: item.icon || 'Settings',
+            actionType: item.actionType || item.type,
+            config: {
+              // Initialize with default values based on node type
+              label: item.name || 'New Node',
+              description: item.description || '',
+              ...getDefaultNodeConfig(item.type, item.actionType)
+            },
+            description: item.description || '',
             isValid: item.type === 'trigger', // Triggers are valid by default
           },
         }
@@ -1419,19 +1473,30 @@ function WorkflowBuilderInner({ workflow, onSave, onTest, onCancel }: WorkflowBu
       
       {/* Node Configuration Panel */}
       {showConfigPanel && configNode && (
-        <DynamicConfigPanelEnhanced
-          node={configNode}
-          organizationId={workflow?.organizationId || ''}
-          onClose={() => {
+        <ConfigPanelErrorBoundary
+          onReset={() => {
             setShowConfigPanel(false)
             setConfigNode(null)
+            setTimeout(() => {
+              setShowConfigPanel(true)
+              setConfigNode(configNode)
+            }, 100)
           }}
-          onSave={(nodeId, config) => {
-            handleNodeConfigSave(nodeId, config)
-            setShowConfigPanel(false)
-            setConfigNode(null)
-          }}
-        />
+        >
+          <DynamicConfigPanelEnhanced
+            node={configNode}
+            organizationId={workflow?.organizationId || ''}
+            onClose={() => {
+              setShowConfigPanel(false)
+              setConfigNode(null)
+            }}
+            onSave={(nodeId, config) => {
+              handleNodeConfigSave(nodeId, config)
+              setShowConfigPanel(false)
+              setConfigNode(null)
+            }}
+          />
+        </ConfigPanelErrorBoundary>
       )}
     </div>
   )

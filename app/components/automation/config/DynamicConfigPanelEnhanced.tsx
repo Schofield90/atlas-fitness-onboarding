@@ -661,6 +661,23 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
   // Feature flags
   const useControlledConfig = useFeatureFlag('automationBuilderControlledConfig')
   
+  // CRITICAL FIX: Sync config state when node changes
+  useEffect(() => {
+    // Reset config to the new node's config when node changes
+    const newConfig = node.data?.config || {}
+    setConfig(newConfig)
+    setErrors({}) // Clear errors for new node
+    setIsValid(false) // Reset validation state
+    
+    // Also update node.data fields if they exist
+    if (node.data?.label) {
+      setConfig(prev => ({ ...prev, label: node.data.label }))
+    }
+    if (node.data?.description) {
+      setConfig(prev => ({ ...prev, description: node.data.description }))
+    }
+  }, [node.id, node.data]) // Re-run when node or its data changes
+  
   // Fetch user phone numbers
   useEffect(() => {
     fetchUserDetails()
@@ -902,11 +919,21 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
   }, [config])
   
   const handleFieldChange = (key: string, value: any) => {
-    const newConfig = { ...config, [key]: value }
+    // Defensive: ensure config is an object
+    const safeConfig = config || {}
+    const newConfig = { ...safeConfig, [key]: value }
     setConfig(newConfig)
     if (onChange) {
       onChange(newConfig)
     }
+  }
+  
+  // Helper function to safely get config values
+  const getConfigValue = (key: string, defaultValue: any = '') => {
+    if (!config || typeof config !== 'object') {
+      return defaultValue
+    }
+    return config[key] !== undefined ? config[key] : defaultValue
   }
   
   const handleSave = () => {
@@ -952,7 +979,7 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
           </label>
           <RichTextField
             field={field}
-            value={config[field.key] || ''}
+            value={getConfigValue(field.key, '')}
             onChange={(value) => handleFieldChange(field.key, value)}
             error={errors[field.key]}
           />
@@ -970,7 +997,7 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
         
         {field.type === 'select' && (
           <select
-            value={config[field.key] || ''}
+            value={getConfigValue(field.key, '')}
             onChange={(e) => handleFieldChange(field.key, e.target.value)}
             className={`w-full px-3 py-2 bg-gray-800 border ${errors[field.key] ? 'border-red-500' : 'border-gray-700'} rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500`}
             required={field.required}
@@ -1009,7 +1036,7 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
         {['text', 'email', 'tel', 'url', 'number', 'date', 'time', 'datetime-local'].includes(field.type) && (
           <input
             type={field.type}
-            value={config[field.key] || field.defaultValue || ''}
+            value={getConfigValue(field.key, field.defaultValue || '')}
             onChange={(e) => handleFieldChange(field.key, e.target.value)}
             placeholder={field.placeholder}
             className={`w-full px-3 py-2 bg-gray-800 border ${errors[field.key] ? 'border-red-500' : 'border-gray-700'} rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500`}
@@ -1019,7 +1046,7 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
         
         {field.type === 'textarea' && (
           <textarea
-            value={config[field.key] || ''}
+            value={getConfigValue(field.key, '')}
             onChange={(e) => handleFieldChange(field.key, e.target.value)}
             placeholder={field.placeholder}
             className={`w-full px-3 py-2 bg-gray-800 border ${errors[field.key] ? 'border-red-500' : 'border-gray-700'} rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none`}
@@ -1032,7 +1059,7 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
           <label className="flex items-center space-x-2">
             <input
               type="checkbox"
-              checked={config[field.key] || false}
+              checked={getConfigValue(field.key, false)}
               onChange={(e) => handleFieldChange(field.key, e.target.checked)}
               className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
             />

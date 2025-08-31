@@ -198,6 +198,65 @@ export function getNodeSchema(nodeType: string, subtype?: string) {
  * Validate node configuration using Zod
  */
 export function validateNodeConfig(nodeType: string, config: any, subtype?: string) {
-  const schema = getNodeSchema(nodeType, subtype)
-  return schema.safeParse(config)
+  // Ensure config is an object
+  if (!config || typeof config !== 'object') {
+    return {
+      success: false,
+      error: {
+        issues: [{
+          path: [],
+          message: 'Configuration is required',
+          code: 'custom'
+        }]
+      }
+    }
+  }
+  
+  try {
+    const schema = getNodeSchema(nodeType, subtype)
+    const result = schema.safeParse(config)
+    
+    // Add more user-friendly error messages
+    if (!result.success && result.error) {
+      result.error.issues = result.error.issues.map(issue => ({
+        ...issue,
+        message: formatValidationMessage(issue)
+      }))
+    }
+    
+    return result
+  } catch (error) {
+    return {
+      success: false,
+      error: {
+        issues: [{
+          path: [],
+          message: 'Validation error: ' + (error as Error).message,
+          code: 'custom'
+        }]
+      }
+    }
+  }
+}
+
+// Helper to format validation messages
+function formatValidationMessage(issue: any): string {
+  const field = issue.path.join('.')
+  
+  switch (issue.code) {
+    case 'too_small':
+      return field ? `${field} is required` : 'This field is required'
+    case 'invalid_type':
+      return field ? `${field} has invalid type` : 'Invalid value type'
+    case 'invalid_string':
+      if (issue.validation === 'email') {
+        return field ? `${field} must be a valid email` : 'Must be a valid email'
+      }
+      if (issue.validation === 'url') {
+        return field ? `${field} must be a valid URL` : 'Must be a valid URL'
+      }
+      return field ? `${field} is invalid` : 'Invalid value'
+    default:
+      return issue.message
+  }
 }
