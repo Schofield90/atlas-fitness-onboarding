@@ -166,14 +166,16 @@ const getTriggerFields = (subtype: string, dynamicData?: any): FormField[] => {
             ? [{ value: 'loading', label: 'Loading forms...' }]
             : (() => {
                 // Filter forms for the selected page
-                const pageForms = config.pageId ? facebookForms.filter((f: any) => f.pageId === config.pageId) : []
+                const pageId = dynamicData?.config?.pageId
+                const pageForms = pageId ? facebookForms.filter((f: any) => f.pageId === pageId) : []
                 if (pageForms.length > 0) {
                   return [{ value: 'all', label: 'All Forms for this Page' }, ...pageForms]
                 }
                 return [{ value: '', label: 'No forms found - Create forms in Facebook Ads Manager' }]
               })(),
           description: (() => {
-            const pageForms = config.pageId ? facebookForms.filter((f: any) => f.pageId === config.pageId) : []
+            const pageId = dynamicData?.config?.pageId
+            const pageForms = pageId ? facebookForms.filter((f: any) => f.pageId === pageId) : []
             if (pageForms.length > 0) {
               return `Found ${pageForms.length} form(s) for this page. Select one or more to monitor.`
             }
@@ -781,10 +783,10 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
     if (node.type === 'trigger' && node.data?.actionType === 'facebook_lead_form') {
       fetchFacebookData()
     }
-    if (node.type === 'trigger' && (node.data?.actionType === 'form_submitted' || config.subtype === 'form_submitted')) {
+    if (node.type === 'trigger' && (node.data?.actionType === 'form_submitted' || config?.subtype === 'form_submitted')) {
       fetchForms()
     }
-  }, [node.type, node.data?.actionType, config.subtype, fetchFacebookData, fetchForms])
+  }, [node.type, node.data?.actionType, config?.subtype, fetchFacebookData, fetchForms])
   
   // Test send functions
   const sendTestEmail = async (config: any) => {
