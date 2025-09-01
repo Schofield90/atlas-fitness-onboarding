@@ -1,0 +1,50 @@
+{
+  "name": "Atlas Fitness Multi-Tenant SaaS",
+  "type": "multi-tenant-saas",
+  "critical_requirements": {
+    "architecture": "MULTI-TENANT",
+    "security": "ROW_LEVEL_SECURITY",
+    "data_isolation": "STRICT_PER_ORGANIZATION",
+    "default_behavior": "ALWAYS_FILTER_BY_ORGANIZATION"
+  },
+  "forbidden_patterns": [
+    "Hard-coded organization IDs",
+    "Queries without organization filters",
+    "Tables without RLS policies",
+    "Cross-tenant data access"
+  ],
+  "required_patterns": [
+    "Dynamic organization lookup from user session",
+    "All queries filtered by organization_id",
+    "All tables have RLS policies",
+    "Organization context in every API route"
+  ],
+  "validation_rules": {
+    "before_commit": [
+      "No hard-coded UUIDs in code",
+      "All database queries include organization_id filter",
+      "All new tables have RLS policies",
+      "API routes use getUserOrganization() helper"
+    ],
+    "testing": [
+      "Test with multiple organizations",
+      "Verify data isolation between tenants",
+      "Check for N+1 queries",
+      "Verify pagination is implemented"
+    ]
+  },
+  "code_templates": {
+    "api_route": "Always use getUserOrganization() and filter by organization_id",
+    "database_query": "Always include .eq('organization_id', organizationId)",
+    "new_table": "Always add organization_id column and RLS policies"
+  },
+  "ai_instructions": [
+    "This is a MULTI-TENANT SaaS application",
+    "NEVER use hard-coded organization IDs",
+    "ALWAYS filter queries by organization_id",
+    "ALWAYS add RLS policies to new tables",
+    "ALWAYS get organization from user session",
+    "WARN if code doesn't follow multi-tenant patterns",
+    "REFUSE to write code that could leak data between tenants"
+  ]
+}
