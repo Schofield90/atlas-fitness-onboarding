@@ -15,7 +15,7 @@ export default function CalendarDiagnostic() {
     setDiagnostics(null)
 
     try {
-      const response = await fetch('/api/debug/check-calendar-integration', {
+      const response = await fetch('/api/calendar/integration-status', {
         credentials: 'include',
       })
 
