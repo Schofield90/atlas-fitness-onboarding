@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
-import { MessageSquare, Mail, Phone, Send, ChevronDown, ChevronUp } from 'lucide-react'
+import { MessageSquare, Mail, Phone, Send, ChevronDown, ChevronUp, MessageCircle, Bot, User } from 'lucide-react'
 import { formatBritishDateTime } from '@/app/lib/utils/british-format'
 import { MessageComposer } from '@/app/components/messaging/MessageComposer'
 
@@ -24,16 +24,33 @@ interface Message {
   metadata?: any
 }
 
+interface CoachingMessage {
+  id: string
+  content: string
+  sender_type: 'member' | 'coach' | 'ai'
+  sender_id: string
+  sender_name?: string
+  created_at: string
+  read: boolean
+}
+
 export default function MessagesTab({ customerId, customer }: MessagesTabProps) {
   const [messages, setMessages] = useState<Message[]>([])
+  const [coachingMessages, setCoachingMessages] = useState<CoachingMessage[]>([])
   const [loading, setLoading] = useState(true)
+  const [coachingLoading, setCoachingLoading] = useState(true)
+  const [activeMessageTab, setActiveMessageTab] = useState<'general' | 'coaching'>('general')
   const [filter, setFilter] = useState('all')
   const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set())
   const [showComposer, setShowComposer] = useState(false)
+  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [newCoachMessage, setNewCoachMessage] = useState('')
+  const [sendingCoachMessage, setSendingCoachMessage] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
     fetchMessages()
+    fetchCoachingMessages()
   }, [customerId])
 
   const fetchMessages = async () => {
@@ -143,6 +160,87 @@ export default function MessagesTab({ customerId, customer }: MessagesTabProps) 
     }
   }
 
+  const fetchCoachingMessages = async () => {
+    try {
+      setCoachingLoading(true)
+      
+      // Get coaching messages for this customer
+      const { data: messages, error } = await supabase
+        .from('member_coach_messages')
+        .select(`
+          id,
+          content,
+          sender_type,
+          sender_id,
+          created_at,
+          read,
+          users!sender_id (
+            first_name,
+            last_name,
+            email
+          )
+        `)
+        .eq('member_id', customerId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      const formattedMessages = (messages || []).map(msg => ({
+        id: msg.id,
+        content: msg.content,
+        sender_type: msg.sender_type,
+        sender_id: msg.sender_id,
+        sender_name: msg.users 
+          ? `${msg.users.first_name} ${msg.users.last_name}`.trim() 
+          : (msg.sender_type === 'member' ? customer.name : 'Coach'),
+        created_at: msg.created_at,
+        read: msg.read
+      }))
+
+      setCoachingMessages(formattedMessages)
+    } catch (error) {
+      console.error('Error fetching coaching messages:', error)
+    } finally {
+      setCoachingLoading(false)
+    }
+  }
+
+  const sendCoachMessage = async () => {
+    if (!newCoachMessage.trim() || sendingCoachMessage || !currentUser) return
+
+    try {
+      setSendingCoachMessage(true)
+
+      const { error } = await supabase
+        .from('member_coach_messages')
+        .insert({
+          member_id: customerId,
+          coach_id: currentUser.id,
+          content: newCoachMessage.trim(),
+          sender_type: 'coach',
+          sender_id: currentUser.id,
+          read: false
+        })
+
+      if (error) throw error
+
+      setNewCoachMessage('')
+      fetchCoachingMessages()
+    } catch (error) {
+      console.error('Error sending message:', error)
+    } finally {
+      setSendingCoachMessage(false)
+    }
+  }
+
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setCurrentUser(user)
+    }
+    getCurrentUser()
+  }, [])
+
   const getMessageIcon = (type: string) => {
     switch (type) {
       case 'email':
@@ -204,19 +302,36 @@ export default function MessagesTab({ customerId, customer }: MessagesTabProps) 
 
   return (
     <div>
-      {/* Header with filter and compose button */}
+      {/* Tab Navigation */}
       <div className="flex items-center justify-between mb-6">
-        <select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
-        >
-          {messageTypes.map((type) => (
-            <option key={type.value} value={type.value}>
-              {type.label}
-            </option>
-          ))}
-        </select>
+        <div className="flex border-b border-gray-700">
+          <button
+            onClick={() => setActiveMessageTab('general')}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              activeMessageTab === 'general'
+                ? 'text-blue-500 border-b-2 border-blue-500'
+                : 'text-gray-400 hover:text-gray-300'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <MessageSquare className="h-4 w-4" />
+              <span>General Messages</span>
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveMessageTab('coaching')}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              activeMessageTab === 'coaching'
+                ? 'text-blue-500 border-b-2 border-blue-500'
+                : 'text-gray-400 hover:text-gray-300'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <MessageCircle className="h-4 w-4" />
+              <span>Coaching Chat</span>
+            </div>
+          </button>
+        </div>
 
         <button
           onClick={() => setShowComposer(!showComposer)}
@@ -226,6 +341,26 @@ export default function MessagesTab({ customerId, customer }: MessagesTabProps) 
           <span>Send Message</span>
         </button>
       </div>
+
+      {/* General Messages Tab */}
+      {activeMessageTab === 'general' && (
+        <>
+          {/* Filter */}
+          <div className="mb-6">
+            <select
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
+            >
+              {messageTypes.map((type) => (
+                <option key={type.value} value={type.value}>
+                  {type.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </>
+      )}
 
       {/* Message Composer */}
       {showComposer && (
@@ -247,87 +382,199 @@ export default function MessagesTab({ customerId, customer }: MessagesTabProps) 
         </div>
       )}
 
-      {/* Messages List */}
-      {filteredMessages.length === 0 ? (
-        <div className="text-center py-12">
-          <MessageSquare className="h-12 w-12 text-gray-600 mx-auto mb-4" />
-          <p className="text-gray-400">No messages yet</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {filteredMessages.map((message) => {
-            const isExpanded = expandedMessages.has(message.id)
-            const isEmail = message.type === 'email'
-            const isLongMessage = message.body && message.body.length > 150
+      {/* General Messages List */}
+      {activeMessageTab === 'general' && (
+        <>
+          {loading ? (
+            <div className="text-center py-12">
+              <p className="text-gray-400">Loading messages...</p>
+            </div>
+          ) : filteredMessages.length === 0 ? (
+            <div className="text-center py-12">
+              <MessageSquare className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+              <p className="text-gray-400">No messages yet</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredMessages.map((message) => {
+                const isExpanded = expandedMessages.has(message.id)
+                const isEmail = message.type === 'email'
+                const isLongMessage = message.body && message.body.length > 150
 
-            return (
-              <div 
-                key={message.id} 
-                className={`bg-gray-800 rounded-lg p-4 ${message.direction === 'inbound' ? 'border-l-4 border-green-500' : ''}`}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start space-x-3 flex-1">
-                    <div className={`flex items-center justify-center w-10 h-10 rounded-full ${getMessageColor(message.type)}`}>
-                      {getMessageIcon(message.type)}
+                return (
+                  <div 
+                    key={message.id} 
+                    className={`bg-gray-800 rounded-lg p-4 ${message.direction === 'inbound' ? 'border-l-4 border-green-500' : ''}`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start space-x-3 flex-1">
+                        <div className={`flex items-center justify-center w-10 h-10 rounded-full ${getMessageColor(message.type)}`}>
+                          {getMessageIcon(message.type)}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <span className="font-medium text-white capitalize">{message.type}</span>
+                            <span className={`text-xs px-2 py-1 rounded ${
+                              message.direction === 'inbound' 
+                                ? 'bg-green-900 text-green-300' 
+                                : 'bg-blue-900 text-blue-300'
+                            }`}>
+                              {message.direction}
+                            </span>
+                            <span className="text-sm text-gray-400">
+                              {formatBritishDateTime(message.created_at)}
+                            </span>
+                          </div>
+                          
+                          {isEmail && message.subject && (
+                            <p className="font-medium text-white mb-2">{message.subject}</p>
+                          )}
+                          
+                          <div className="text-gray-300">
+                            {isEmail && isLongMessage && !isExpanded ? (
+                              <>
+                                <p>{message.body.substring(0, 150)}...</p>
+                                <button
+                                  onClick={() => toggleExpanded(message.id)}
+                                  className="text-blue-400 hover:text-blue-300 text-sm mt-2 flex items-center space-x-1"
+                                >
+                                  <span>Show more</span>
+                                  <ChevronDown className="h-4 w-4" />
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <p className="whitespace-pre-wrap">{message.body}</p>
+                                {isEmail && isLongMessage && (
+                                  <button
+                                    onClick={() => toggleExpanded(message.id)}
+                                    className="text-blue-400 hover:text-blue-300 text-sm mt-2 flex items-center space-x-1"
+                                  >
+                                    <span>Show less</span>
+                                    <ChevronUp className="h-4 w-4" />
+                                  </button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                          
+                          {message.status && (
+                            <p className="text-xs text-gray-500 mt-2">
+                              Status: <span className="capitalize">{message.status}</span>
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Coaching Messages Tab */}
+      {activeMessageTab === 'coaching' && (
+        <div className="space-y-6">
+          {/* Coach Reply Box */}
+          <div className="bg-gray-800 rounded-lg p-4">
+            <h3 className="text-lg font-semibold text-white mb-4">Send Message to {customer.name}</h3>
+            <div className="space-y-3">
+              <textarea
+                value={newCoachMessage}
+                onChange={(e) => setNewCoachMessage(e.target.value)}
+                placeholder="Type your message..."
+                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                rows={3}
+              />
+              <div className="flex justify-end">
+                <button
+                  onClick={sendCoachMessage}
+                  disabled={!newCoachMessage.trim() || sendingCoachMessage}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  {sendingCoachMessage ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Sending...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4" />
+                      <span>Send</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Coaching Messages List */}
+          {coachingLoading ? (
+            <div className="text-center py-12">
+              <p className="text-gray-400">Loading chat history...</p>
+            </div>
+          ) : coachingMessages.length === 0 ? (
+            <div className="text-center py-12">
+              <MessageCircle className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+              <p className="text-gray-400">No coaching messages yet</p>
+              <p className="text-gray-500 text-sm mt-1">Start a conversation with this member</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {coachingMessages.map((message) => (
+                <div 
+                  key={message.id}
+                  className={`rounded-lg p-4 ${
+                    message.sender_type === 'member' 
+                      ? 'bg-gray-800 border-l-4 border-green-500' 
+                      : message.sender_type === 'ai'
+                      ? 'bg-purple-900 border-l-4 border-purple-500'
+                      : 'bg-blue-900 border-l-4 border-blue-500'
+                  }`}
+                >
+                  <div className="flex items-start space-x-3">
+                    <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
+                      message.sender_type === 'member' 
+                        ? 'bg-green-500 text-white' 
+                        : message.sender_type === 'ai'
+                        ? 'bg-purple-500 text-white'
+                        : 'bg-blue-500 text-white'
+                    }`}>
+                      {message.sender_type === 'member' ? (
+                        <User className="h-5 w-5" />
+                      ) : message.sender_type === 'ai' ? (
+                        <Bot className="h-5 w-5" />
+                      ) : (
+                        <MessageCircle className="h-5 w-5" />
+                      )}
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-1">
-                        <span className="font-medium text-white capitalize">{message.type}</span>
+                        <span className="font-medium text-white">
+                          {message.sender_name}
+                        </span>
                         <span className={`text-xs px-2 py-1 rounded ${
-                          message.direction === 'inbound' 
-                            ? 'bg-green-900 text-green-300' 
+                          message.sender_type === 'member' 
+                            ? 'bg-green-900 text-green-300'
+                            : message.sender_type === 'ai'
+                            ? 'bg-purple-900 text-purple-300'
                             : 'bg-blue-900 text-blue-300'
                         }`}>
-                          {message.direction}
+                          {message.sender_type === 'ai' ? 'AI Assistant' : message.sender_type}
                         </span>
                         <span className="text-sm text-gray-400">
                           {formatBritishDateTime(message.created_at)}
                         </span>
                       </div>
-                      
-                      {isEmail && message.subject && (
-                        <p className="font-medium text-white mb-2">{message.subject}</p>
-                      )}
-                      
-                      <div className="text-gray-300">
-                        {isEmail && isLongMessage && !isExpanded ? (
-                          <>
-                            <p>{message.body.substring(0, 150)}...</p>
-                            <button
-                              onClick={() => toggleExpanded(message.id)}
-                              className="text-blue-400 hover:text-blue-300 text-sm mt-2 flex items-center space-x-1"
-                            >
-                              <span>Show more</span>
-                              <ChevronDown className="h-4 w-4" />
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <p className="whitespace-pre-wrap">{message.body}</p>
-                            {isEmail && isLongMessage && (
-                              <button
-                                onClick={() => toggleExpanded(message.id)}
-                                className="text-blue-400 hover:text-blue-300 text-sm mt-2 flex items-center space-x-1"
-                              >
-                                <span>Show less</span>
-                                <ChevronUp className="h-4 w-4" />
-                              </button>
-                            )}
-                          </>
-                        )}
-                      </div>
-                      
-                      {message.status && (
-                        <p className="text-xs text-gray-500 mt-2">
-                          Status: <span className="capitalize">{message.status}</span>
-                        </p>
-                      )}
+                      <p className="text-gray-300 whitespace-pre-wrap">{message.content}</p>
                     </div>
                   </div>
                 </div>
-              </div>
-            )
-          })}
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

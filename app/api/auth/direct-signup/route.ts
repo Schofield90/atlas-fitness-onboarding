@@ -40,6 +40,19 @@ export async function POST(request: Request) {
         }
       }, { status: 503 })
     }
+    
+    // Auth succeeded
+    if (authData?.user) {
+      const userId = authData.user.id
+      
+      // Ensure user exists in public.users (trigger should handle this)
+      await supabase
+        .from('users')
+        .upsert({
+          id: userId,
+          email: authData.user.email,
+          full_name: name || email.split('@')[0]
+        })
       
       // Create organization if provided
       if (organizationName) {
@@ -73,25 +86,7 @@ export async function POST(request: Request) {
       
       return NextResponse.json({ 
         success: true,
-        message: 'User created directly in database. Please sign in.',
-        userId
-      })
-    }
-    
-    // Auth succeeded
-    if (authData?.user) {
-      // Ensure user exists in public.users (trigger should handle this)
-      await supabase
-        .from('users')
-        .upsert({
-          id: authData.user.id,
-          email: authData.user.email,
-          full_name: name || email.split('@')[0]
-        })
-      
-      return NextResponse.json({ 
-        success: true,
-        userId: authData.user.id,
+        userId: userId,
         message: 'Account created successfully'
       })
     }

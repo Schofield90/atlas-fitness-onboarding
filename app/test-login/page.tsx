@@ -14,20 +14,38 @@ export default function TestLogin() {
     setMessage('');
     
     try {
-      const supabase = createClient();
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      // Try emergency auth endpoint first (handles both normal and emergency)
+      const response = await fetch('/api/auth/emergency-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
       });
-
-      if (error) {
-        setMessage('Error: ' + error.message);
-      } else if (data?.user) {
-        setMessage('Success! Redirecting...');
-        window.location.href = '/dashboard';
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        if (result.isEmergencyMode) {
+          setMessage('⚠️ Using emergency auth (Supabase is down). Redirecting...');
+        } else {
+          setMessage('Success! Redirecting...');
+        }
+        
+        setTimeout(() => {
+          // Store auth info for emergency dashboard
+          if (result.isEmergencyMode) {
+            localStorage.setItem('emergency_auth', JSON.stringify({
+              user_id: result.user.id,
+              email: result.user.email,
+              name: result.user.name,
+              expires: Date.now() + (24 * 60 * 60 * 1000)
+            }));
+            window.location.href = '/dashboard-emergency';
+          } else {
+            window.location.href = '/dashboard';
+          }
+        }, 1500);
       } else {
-        setMessage('No user data returned');
+        setMessage('Error: ' + result.error);
       }
     } catch (err: any) {
       setMessage('Catch error: ' + err.message);

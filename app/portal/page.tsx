@@ -6,6 +6,7 @@ import { createClient } from '@/app/lib/supabase/client'
 import { Home, Calendar, MessageSquare, User, Activity, Dumbbell } from 'lucide-react'
 import toast from '@/app/lib/toast'
 import InterfaceSwitcher from '@/app/components/InterfaceSwitcher'
+import AINutritionCoach from '@/app/components/AINutritionCoach'
 
 export default function MemberPortal() {
   const [activeTab, setActiveTab] = useState('home')
@@ -57,7 +58,7 @@ export default function MemberPortal() {
       case 'home':
         return <HomeTab memberData={memberData} />
       case 'bookings':
-        return <BookingsTab memberData={memberData} />
+        return <BookingsTab memberData={memberData} router={router} />
       case 'nutrition':
         return <NutritionTab memberData={memberData} />
       case 'messages':
@@ -225,12 +226,15 @@ function HomeTab({ memberData }: any) {
 }
 
 // Bookings Tab Component
-function BookingsTab({ memberData }: any) {
+function BookingsTab({ memberData, router }: any) {
   const [bookings, setBookings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [showCalendar, setShowCalendar] = useState(false)
+  const [classes, setClasses] = useState<any[]>([])
 
   useEffect(() => {
     fetchBookings()
+    fetchAvailableClasses()
   }, [])
 
   const fetchBookings = async () => {
@@ -250,15 +254,95 @@ function BookingsTab({ memberData }: any) {
     }
   }
 
+  const fetchAvailableClasses = async () => {
+    try {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('class_sessions')
+        .select('*')
+        .gte('date', new Date().toISOString().split('T')[0])
+        .order('date', { ascending: true })
+        .limit(20)
+
+      setClasses(data || [])
+    } catch (error) {
+      console.error('Error fetching classes:', error)
+    }
+  }
+
+  const handleBookClass = (classId: string) => {
+    // Navigate to booking page with class ID
+    if (memberData?.organization_id) {
+      router.push(`/book/public/${memberData.organization_id}?class=${classId}`)
+    } else {
+      toast.error('Unable to book class. Please contact support.')
+    }
+  }
+
   return (
     <div className="p-4">
       <h2 className="text-xl font-bold mb-4">Your Bookings</h2>
       
-      <div className="mb-4">
-        <button className="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 px-4 rounded-lg font-medium">
-          Book a New Class
+      <div className="mb-4 space-y-2">
+        <button 
+          onClick={() => setShowCalendar(!showCalendar)}
+          className="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 px-4 rounded-lg font-medium"
+        >
+          {showCalendar ? 'Hide Timetable' : 'View Full Timetable'}
         </button>
+        
+        {memberData?.organization_id && (
+          <button 
+            onClick={() => router.push(`/book/public/${memberData.organization_id}`)}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-medium"
+          >
+            Book a New Class
+          </button>
+        )}
       </div>
+
+      {/* Calendar/Timetable View */}
+      {showCalendar && (
+        <div className="mb-6 bg-gray-800 rounded-lg p-4">
+          <h3 className="font-bold mb-3">Available Classes</h3>
+          {classes.length > 0 ? (
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {classes.map((cls) => (
+                <div key={cls.id} className="flex justify-between items-center p-3 bg-gray-700 rounded-lg">
+                  <div>
+                    <div className="font-medium">{cls.title}</div>
+                    <div className="text-sm text-gray-400">
+                      {new Date(cls.date + 'T' + cls.start_time).toLocaleString('en-GB', {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {cls.current_attendees}/{cls.max_attendees} spots filled
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => handleBookClass(cls.id)}
+                    disabled={cls.current_attendees >= cls.max_attendees}
+                    className={`px-3 py-1 rounded text-sm ${
+                      cls.current_attendees >= cls.max_attendees
+                        ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                        : 'bg-orange-600 hover:bg-orange-700 text-white'
+                    }`}
+                  >
+                    {cls.current_attendees >= cls.max_attendees ? 'Full' : 'Book'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-400">No upcoming classes available</p>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <div className="text-center py-8">
@@ -290,101 +374,9 @@ function BookingsTab({ memberData }: any) {
 
 // Nutrition Tab Component
 function NutritionTab({ memberData }: any) {
-  const [activeNutritionTab, setActiveNutritionTab] = useState('coach')
-
   return (
     <div className="p-4">
-      <h2 className="text-xl font-bold mb-4">Nutrition</h2>
-      
-      {/* Sub-tabs */}
-      <div className="flex gap-2 mb-4">
-        <button
-          onClick={() => setActiveNutritionTab('coach')}
-          className={`px-4 py-2 rounded-lg ${
-            activeNutritionTab === 'coach'
-              ? 'bg-orange-600 text-white'
-              : 'bg-gray-800 text-gray-400'
-          }`}
-        >
-          AI Coach
-        </button>
-        <button
-          onClick={() => setActiveNutritionTab('tracking')}
-          className={`px-4 py-2 rounded-lg ${
-            activeNutritionTab === 'tracking'
-              ? 'bg-orange-600 text-white'
-              : 'bg-gray-800 text-gray-400'
-          }`}
-        >
-          Tracking
-        </button>
-        <button
-          onClick={() => setActiveNutritionTab('inbody')}
-          className={`px-4 py-2 rounded-lg ${
-            activeNutritionTab === 'inbody'
-              ? 'bg-orange-600 text-white'
-              : 'bg-gray-800 text-gray-400'
-          }`}
-        >
-          InBody
-        </button>
-      </div>
-
-      {activeNutritionTab === 'coach' && (
-        <div className="bg-gray-800 rounded-lg p-4">
-          <h3 className="font-bold mb-3">AI Nutrition Coach</h3>
-          <div className="space-y-3">
-            <div className="bg-gray-700 rounded-lg p-3">
-              <div className="text-sm text-orange-500 mb-1">AI Coach</div>
-              <div>Hi! I'm your personal nutrition coach. What are your fitness goals?</div>
-            </div>
-            <input
-              type="text"
-              placeholder="Ask about nutrition, meal plans, or macros..."
-              className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500"
-            />
-          </div>
-        </div>
-      )}
-
-      {activeNutritionTab === 'tracking' && (
-        <div className="space-y-4">
-          <div className="bg-gray-800 rounded-lg p-4">
-            <h3 className="font-bold mb-3">Today's Macros</h3>
-            <div className="space-y-2">
-              <MacroBar label="Protein" current={85} target={150} color="blue" />
-              <MacroBar label="Carbs" current={120} target={200} color="green" />
-              <MacroBar label="Fats" current={45} target={60} color="yellow" />
-            </div>
-          </div>
-          <button className="w-full bg-gray-800 text-white py-3 px-4 rounded-lg">
-            Log Food
-          </button>
-        </div>
-      )}
-
-      {activeNutritionTab === 'inbody' && (
-        <div className="bg-gray-800 rounded-lg p-4">
-          <h3 className="font-bold mb-3">InBody Results</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-gray-400">Muscle Mass</span>
-              <span className="font-bold">32.5 kg</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Body Fat</span>
-              <span className="font-bold">18.2%</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">BMI</span>
-              <span className="font-bold">23.4</span>
-            </div>
-            <div className="text-sm text-gray-400 mt-3">
-              Last scan: 2 weeks ago
-            </div>
-          </div>
-        </div>
-      )}
+      <AINutritionCoach memberData={memberData} />
     </div>
   )
 }
@@ -458,6 +450,113 @@ function MessagesTab({ memberData }: any) {
 
 // Profile Tab Component
 function ProfileTab({ memberData, user }: any) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [formData, setFormData] = useState({
+    first_name: memberData?.first_name || '',
+    last_name: memberData?.last_name || '',
+    phone: memberData?.phone || '',
+    emergency_contact: memberData?.emergency_contact || '',
+    emergency_phone: memberData?.emergency_phone || ''
+  })
+  const [saving, setSaving] = useState(false)
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('clients')
+        .update(formData)
+        .eq('id', memberData?.id)
+      
+      if (error) throw error
+      
+      toast.success('Profile updated successfully!')
+      setIsEditing(false)
+      // Refresh the page to show updated data
+      window.location.reload()
+    } catch (error) {
+      console.error('Error updating profile:', error)
+      toast.error('Failed to update profile')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (isEditing) {
+    return (
+      <div className="p-4 space-y-4">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold">Edit Profile</h2>
+          <button
+            onClick={() => setIsEditing(false)}
+            className="text-gray-400 hover:text-white"
+          >
+            Cancel
+          </button>
+        </div>
+        
+        <div className="bg-gray-800 rounded-lg p-4 space-y-4">
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">First Name</label>
+            <input
+              type="text"
+              value={formData.first_name}
+              onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+              className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">Last Name</label>
+            <input
+              type="text"
+              value={formData.last_name}
+              onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+              className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">Phone</label>
+            <input
+              type="tel"
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">Emergency Contact</label>
+            <input
+              type="text"
+              value={formData.emergency_contact}
+              onChange={(e) => setFormData({ ...formData, emergency_contact: e.target.value })}
+              className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              placeholder="Contact name"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">Emergency Phone</label>
+            <input
+              type="tel"
+              value={formData.emergency_phone}
+              onChange={(e) => setFormData({ ...formData, emergency_phone: e.target.value })}
+              className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              placeholder="Emergency contact phone"
+            />
+          </div>
+        </div>
+
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 px-4 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {saving ? 'Saving...' : 'Save Changes'}
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div className="p-4 space-y-4">
       <h2 className="text-xl font-bold mb-4">Profile</h2>
@@ -479,6 +578,14 @@ function ProfileTab({ memberData, user }: any) {
             <label className="text-sm text-gray-400">Phone</label>
             <div className="font-medium">{memberData?.phone || 'Not set'}</div>
           </div>
+          {memberData?.emergency_contact && (
+            <div>
+              <label className="text-sm text-gray-400">Emergency Contact</label>
+              <div className="font-medium">
+                {memberData.emergency_contact} - {memberData.emergency_phone}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -504,7 +611,10 @@ function ProfileTab({ memberData, user }: any) {
         </div>
       </div>
 
-      <button className="w-full bg-gray-800 text-white py-3 px-4 rounded-lg">
+      <button 
+        onClick={() => setIsEditing(true)}
+        className="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 px-4 rounded-lg font-medium transition-colors"
+      >
         Edit Profile
       </button>
     </div>

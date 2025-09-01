@@ -41,8 +41,8 @@ export default function AdminDashboard() {
   const checkAuth = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     
-    // Check if user is authorized
-    if (!user || user.email !== 'sam@gymleadhub.co.uk') {
+    // Check if user is authorized (allow both admin emails)
+    if (!user || (user.email !== 'sam@gymleadhub.co.uk' && user.email !== 'sam@atlas-gyms.co.uk')) {
       toast.error('Unauthorized access')
       router.push('/dashboard')
       return

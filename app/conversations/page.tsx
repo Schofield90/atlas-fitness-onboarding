@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/app/lib/supabase/client'
 import DashboardLayout from '@/app/components/DashboardLayout'
 import EnhancedChatInterface from '@/app/components/chat/EnhancedChatInterface'
-import { MessageSquare, Mail, Phone, Clock, User, Search, Bot } from 'lucide-react'
+import CoachMessaging from '@/app/components/CoachMessaging'
+import { MessageSquare, Mail, Phone, Clock, User, Search, Bot, MessageCircle } from 'lucide-react'
 import { formatBritishDateTime } from '@/app/lib/utils/british-format'
 import AIToggleControl from '@/app/components/automation/AIToggleControl'
 import { isFeatureEnabled } from '@/app/lib/feature-flags'
@@ -25,11 +26,115 @@ interface Conversation {
 
 function ConversationsContent() {
   const [useEnhanced, setUseEnhanced] = useState(true)
+  const [activeTab, setActiveTab] = useState<'conversations' | 'coaching'>('conversations')
+  const [userData, setUserData] = useState<any>(null)
+  const supabase = createClient()
 
-  if (useEnhanced) {
+  useEffect(() => {
+    loadUserData()
+  }, [])
+
+  const loadUserData = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+      
+      if (userData) {
+        // Get organization data too
+        const { data: userOrg } = await supabase
+          .from('user_organizations')
+          .select('organization_id')
+          .eq('user_id', user.id)
+          .single()
+        
+        setUserData({
+          ...userData,
+          organization_id: userOrg?.organization_id
+        })
+      }
+    }
+  }
+
+  if (useEnhanced && activeTab === 'conversations') {
     return (
       <DashboardLayout>
+        <div className="mb-6">
+          <div className="border-b border-gray-700">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab('conversations')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'conversations'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  General Conversations
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('coaching')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'coaching'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <MessageCircle className="h-4 w-4" />
+                  Member Coaching
+                </div>
+              </button>
+            </nav>
+          </div>
+        </div>
         <EnhancedChatInterface />
+      </DashboardLayout>
+    )
+  }
+
+  if (activeTab === 'coaching') {
+    return (
+      <DashboardLayout>
+        <div className="mb-6">
+          <div className="border-b border-gray-700">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab('conversations')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'conversations'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  General Conversations
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('coaching')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'coaching'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <MessageCircle className="h-4 w-4" />
+                  Member Coaching
+                </div>
+              </button>
+            </nav>
+          </div>
+        </div>
+        {userData && <CoachMessaging coachData={userData} />}
       </DashboardLayout>
     )
   }
@@ -41,7 +146,6 @@ function ConversationsContent() {
   const [organizationId, setOrganizationId] = useState<string | null>(null)
   const [contactsCount, setContactsCount] = useState(0)
   const router = useRouter()
-  const supabase = createClient()
 
   useEffect(() => {
     fetchConversations()
