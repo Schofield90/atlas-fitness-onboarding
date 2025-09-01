@@ -1,5 +1,5 @@
 import { addMinutes, startOfDay, endOfDay, isAfter, isBefore, isWithinInterval, parseISO, format, addDays, setHours, setMinutes } from 'date-fns';
-import { utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz';
+import { fromZonedTime, toZonedTime } from 'date-fns-tz';
 
 export interface WorkHours {
   [key: string]: string[][]; // { Mon: [["08:00", "18:00"]], ... }
@@ -119,8 +119,8 @@ export function generateSlots(
         const isAvailable = meetsMinNotice && !hasConflict && !isHiddenByLookBusy;
         
         // Convert to user's timezone for display
-        const zonedStart = utcToZonedTime(slotStart, userTimezone);
-        const zonedEnd = utcToZonedTime(slotEnd, userTimezone);
+        const zonedStart = toZonedTime(slotStart, userTimezone);
+        const zonedEnd = toZonedTime(slotEnd, userTimezone);
         
         dailySlots.push({
           startTime: slotStart.toISOString(),
