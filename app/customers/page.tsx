@@ -1,5 +1,6 @@
 'use client'
 
+import { Suspense } from 'react'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
 import DashboardLayout from '@/app/components/DashboardLayout'
@@ -26,7 +27,7 @@ interface Customer {
   notes?: string
 }
 
-export default function CustomersPage() {
+function CustomersContent() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
@@ -486,17 +487,14 @@ export default function CustomersPage() {
 
   if (loading) {
     return (
-      <DashboardLayout userData={null}>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
-        </div>
-      </DashboardLayout>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+      </div>
     )
   }
 
   return (
-    <DashboardLayout userData={null}>
-      <div className="container mx-auto px-6 py-8">
+    <div className="container mx-auto px-6 py-8">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-2">
@@ -837,6 +835,19 @@ export default function CustomersPage() {
           </div>
         )}
       </div>
+  )
+}
+
+export default function CustomersPage() {
+  return (
+    <DashboardLayout userData={null}>
+      <Suspense fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+        </div>
+      }>
+        <CustomersContent />
+      </Suspense>
     </DashboardLayout>
   )
 }

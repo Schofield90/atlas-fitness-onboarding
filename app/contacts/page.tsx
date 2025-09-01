@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
 import DashboardLayout from '@/app/components/DashboardLayout'
 import { Plus, Search, Download, Filter, UserPlus, Mail, Phone, MessageSquare, Upload, Tags } from 'lucide-react'
@@ -32,7 +32,7 @@ interface Contact {
   }
 }
 
-export default function ContactsPage() {
+function ContactsContent() {
   const [contacts, setContacts] = useState<Contact[]>([])
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([])
   const [loading, setLoading] = useState(true)
@@ -374,8 +374,7 @@ export default function ContactsPage() {
   const totalPages = Math.ceil(filteredContacts.length / itemsPerPage)
 
   return (
-    <DashboardLayout>
-      <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
@@ -704,6 +703,19 @@ export default function ContactsPage() {
           )}
         </div>
       </div>
+  )
+}
+
+export default function ContactsPage() {
+  return (
+    <DashboardLayout>
+      <Suspense fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-gray-400">Loading contacts...</div>
+        </div>
+      }>
+        <ContactsContent />
+      </Suspense>
     </DashboardLayout>
   )
 }
