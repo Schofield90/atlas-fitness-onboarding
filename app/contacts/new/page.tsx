@@ -51,14 +51,47 @@ export default function NewContactPage() {
         return
       }
 
-      // Get organization ID
+      // Get organization ID - try multiple approaches
+      let organizationId = null
+      
+      // First try user_organizations table
       const { data: orgData } = await supabase
         .from('user_organizations')
         .select('organization_id')
         .eq('user_id', user.id)
         .single()
+      
+      if (orgData?.organization_id) {
+        organizationId = orgData.organization_id
+      } else {
+        // Try organization_members as fallback
+        const { data: memberData } = await supabase
+          .from('organization_members')
+          .select('organization_id')
+          .eq('user_id', user.id)
+          .eq('is_active', true)
+          .single()
+        
+        if (memberData?.organization_id) {
+          organizationId = memberData.organization_id
+        } else {
+          // Use default Atlas Fitness organization and create association
+          organizationId = '63589490-8f55-4157-bd3a-e141594b748e'
+          
+          // Try to create the association
+          await supabase
+            .from('user_organizations')
+            .upsert({
+              user_id: user.id,
+              organization_id: organizationId,
+              role: 'owner'
+            }, {
+              onConflict: 'user_id'
+            })
+        }
+      }
 
-      if (!orgData) {
+      if (!organizationId) {
         alert('Could not find organization')
         return
       }
@@ -67,7 +100,7 @@ export default function NewContactPage() {
       const { data, error } = await supabase
         .from('contacts')
         .insert({
-          organization_id: orgData.organization_id,
+          organization_id: organizationId,
           first_name: formData.first_name,
           last_name: formData.last_name,
           email: formData.email,
@@ -101,7 +134,7 @@ export default function NewContactPage() {
       await supabase
         .from('leads')
         .insert({
-          organization_id: orgData.organization_id,
+          organization_id: organizationId,
           first_name: formData.first_name,
           last_name: formData.last_name,
           email: formData.email,
