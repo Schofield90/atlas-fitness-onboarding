@@ -399,6 +399,81 @@ export class GoogleCalendarService {
     })
   }
 
+  // Get busy times from Google Calendar
+  async getGoogleCalendarBusyTimes(
+    userId: string,
+    timeMin: string,
+    timeMax: string
+  ): Promise<{ start: string; end: string }[]> {
+    const busyTimes: { start: string; end: string }[] = []
+    
+    try {
+      const accessToken = await this.getValidAccessToken(userId)
+      if (!accessToken) {
+        return busyTimes
+      }
+
+      // Get the user's calendar list first
+      const calendarListResponse = await fetch(
+        `${GOOGLE_CALENDAR_API}/users/me/calendarList`,
+        {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        }
+      )
+
+      if (!calendarListResponse.ok) {
+        console.error('Failed to fetch calendar list')
+        return busyTimes
+      }
+
+      const calendarList = await calendarListResponse.json()
+      const calendarIds = calendarList.items
+        ?.filter((cal: any) => !cal.hidden && cal.selected)
+        ?.map((cal: any) => cal.id) || ['primary']
+
+      // Use FreeBusy API to get busy times across all calendars
+      const freeBusyResponse = await fetch(
+        `${GOOGLE_CALENDAR_API}/freeBusy`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            timeMin,
+            timeMax,
+            items: calendarIds.map((id: string) => ({ id }))
+          })
+        }
+      )
+
+      if (!freeBusyResponse.ok) {
+        console.error('Failed to fetch free/busy information')
+        return busyTimes
+      }
+
+      const freeBusyData = await freeBusyResponse.json()
+      
+      // Collect all busy times from all calendars
+      Object.values(freeBusyData.calendars || {}).forEach((calendar: any) => {
+        if (calendar.busy) {
+          calendar.busy.forEach((busy: any) => {
+            busyTimes.push({
+              start: busy.start,
+              end: busy.end
+            })
+          })
+        }
+      })
+
+      return busyTimes
+    } catch (error) {
+      console.error('Error fetching Google Calendar busy times:', error)
+      return busyTimes
+    }
+  }
+
   // Sync booking with Google Calendar (create, update, or delete)
   async syncBookingWithGoogle(
     userId: string,

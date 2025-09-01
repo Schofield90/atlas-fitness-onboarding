@@ -150,14 +150,54 @@ export async function POST(request: NextRequest) {
       }, { status: 401 })
     }
 
-    // Get organization ID
+    // Get organization ID - try multiple approaches
+    let organizationId: string | null = null
+    
+    // Try user_organizations table first
     const { data: userOrg } = await supabase
       .from('user_organizations')
       .select('organization_id')
       .eq('user_id', user.id)
       .single()
+    
+    if (userOrg?.organization_id) {
+      organizationId = userOrg.organization_id
+    } else {
+      // Try organization_members table
+      const { data: orgMember } = await supabase
+        .from('organization_members')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .single()
+      
+      if (orgMember?.organization_id) {
+        organizationId = orgMember.organization_id
+      } else {
+        // Last resort - check if user owns an organization
+        const { data: ownedOrg } = await supabase
+          .from('organizations')
+          .select('id')
+          .eq('owner_id', user.id)
+          .single()
+        
+        if (ownedOrg?.id) {
+          organizationId = ownedOrg.id
+          // Create user_organizations entry for future
+          await supabase
+            .from('user_organizations')
+            .insert({
+              user_id: user.id,
+              organization_id: ownedOrg.id,
+              role: 'owner'
+            })
+            .then(() => console.log('Created user_organizations entry'))
+            .catch(console.error)
+        }
+      }
+    }
 
-    if (!userOrg?.organization_id) {
+    if (!organizationId) {
       return NextResponse.json({ 
         success: false,
         error: 'Organization not found' 
@@ -179,7 +219,7 @@ export async function POST(request: NextRequest) {
     const { data: newStaff, error: insertError } = await supabase
       .from('organization_staff')
       .insert({
-        organization_id: userOrg.organization_id,
+        organization_id: organizationId,
         user_id: `pending_${Date.now()}`, // Use a pending ID until user accepts invitation
         name: name || email.split('@')[0], // Use name or email prefix
         email,

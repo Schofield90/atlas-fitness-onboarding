@@ -131,14 +131,52 @@ export async function POST(request: NextRequest) {
       ? cleanedFrom.replace('+44', '0') 
       : cleanedFrom
     
-    // Try to find organization by lead phone number
+    // Try to find lead/client with full context by phone number
     const { data: lead } = await adminSupabase
       .from('leads')
-      .select('id, organization_id')
+      .select(`
+        id, 
+        organization_id,
+        first_name,
+        last_name,
+        email,
+        phone,
+        status,
+        source,
+        tags,
+        notes,
+        ai_score,
+        ai_insights,
+        created_at
+      `)
       .or(`phone.eq.${cleanedFrom},phone.eq.${phoneWithoutPrefix}`)
       .single()
     
-    const organizationId = lead?.organization_id || '63589490-8f55-4157-bd3a-e141594b748e'
+    // Also check clients table if not found in leads
+    let clientInfo = null
+    if (!lead) {
+      const { data: client } = await adminSupabase
+        .from('clients')
+        .select(`
+          id,
+          organization_id,
+          first_name,
+          last_name,
+          email,
+          phone,
+          membership_status,
+          last_visit,
+          notes,
+          created_at
+        `)
+        .or(`phone.eq.${cleanedFrom},phone.eq.${phoneWithoutPrefix}`)
+        .single()
+      
+      clientInfo = client
+    }
+    
+    const organizationId = lead?.organization_id || clientInfo?.organization_id || '63589490-8f55-4157-bd3a-e141594b748e'
+    const contactInfo = lead || clientInfo
     
     // Log incoming message
     const tableName = isWhatsApp ? 'whatsapp_logs' : 'sms_logs'
@@ -172,7 +210,7 @@ export async function POST(request: NextRequest) {
     
     // Process message with enhanced AI in real-time (async, don't block response)
     if (messageData.body && messageData.body.trim()) {
-      processMessageWithEnhancedAI(organizationId, cleanedFrom, messageData.body, channel, lead?.id)
+      processMessageWithEnhancedAI(organizationId, cleanedFrom, messageData.body, channel, contactInfo?.id, contactInfo)
         .catch(error => {
           console.error('Enhanced AI processing failed (non-blocking):', error)
         })
@@ -325,12 +363,13 @@ For assistance, please contact our support team.`
           const knowledge = await fetchRelevantKnowledge(messageData.body)
           const knowledgeContext = formatKnowledgeContext(knowledge)
           
-          // Generate AI response with context
+          // Generate AI response with context and contact info
           const aiResponse = await generateAIResponse(
             messageData.body, 
             cleanedFrom,
             knowledgeContext,
-            conversationContext || []
+            conversationContext || [],
+            contactInfo // Pass contact info to AI
           )
           
           responseMessage = aiResponse.response
@@ -463,7 +502,8 @@ async function processMessageWithEnhancedAI(
   phoneNumber: string,
   messageContent: string,
   channel: 'sms' | 'whatsapp',
-  leadId?: string
+  leadId?: string,
+  contactInfo?: any
 ): Promise<void> {
   try {
     console.log('Starting enhanced AI processing for message:', {

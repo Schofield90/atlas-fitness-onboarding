@@ -18,7 +18,7 @@ export async function GET(
       .from('leads')
       .select('id, phone, email')
       .eq('id', leadId)
-      .eq('organization_id', userWithOrg.organizationId)
+      .eq('org_id', userWithOrg.organizationId)
       .single()
 
     if (leadError || !lead) {
@@ -230,8 +230,7 @@ export async function GET(
     })
 
     return NextResponse.json({ 
-      messages: mergedMessages, // Return flat array as expected by the component
-      messagesByType: {
+      messages: {
         emails: mergedMessages.filter(m => m.type === 'email'),
         sms: mergedMessages.filter(m => m.type === 'sms'),
         whatsapp: mergedMessages.filter(m => m.type === 'whatsapp'),

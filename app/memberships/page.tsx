@@ -222,7 +222,7 @@ export default function MembershipsPage() {
                       
                       <div className="mb-4">
                         <p className="text-3xl font-bold">
-                          {formatBritishCurrency(plan.price, true)}
+                          {formatBritishCurrency(plan.price_pennies, true)}
                           <span className="text-sm text-gray-400 font-normal">
                             /{plan.billing_period === 'monthly' ? 'month' : plan.billing_period === 'yearly' ? 'year' : 'one-time'}
                           </span>

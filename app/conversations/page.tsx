@@ -66,13 +66,37 @@ function ConversationsContent() {
       setOrganizationId(userOrg.organization_id)
 
       // Fetch all recent messages grouped by customer
-      // First get all customers
-      const { data: customers } = await supabase
-        .from('contacts')
-        .select('id, name, email, phone')
-        .eq('organization_id', userOrg.organization_id)
-        .order('updated_at', { ascending: false })
-        .limit(50)
+      // Get leads and clients instead of contacts (which doesn't have org_id)
+      const [leadsResult, clientsResult] = await Promise.all([
+        supabase
+          .from('leads')
+          .select('id, first_name, last_name, email, phone')
+          .eq('org_id', userOrg.organization_id)
+          .order('updated_at', { ascending: false })
+          .limit(50),
+        supabase
+          .from('clients')
+          .select('id, first_name, last_name, email, phone')
+          .eq('org_id', userOrg.organization_id)
+          .order('updated_at', { ascending: false })
+          .limit(50)
+      ])
+      
+      // Combine leads and clients into customers list
+      const customers = [
+        ...(leadsResult.data || []).map(l => ({
+          id: l.id,
+          name: `${l.first_name || ''} ${l.last_name || ''}`.trim() || 'Unknown',
+          email: l.email,
+          phone: l.phone
+        })),
+        ...(clientsResult.data || []).map(c => ({
+          id: c.id,
+          name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
+          email: c.email,
+          phone: c.phone
+        }))
+      ]
 
       if (!customers) {
         setContactsCount(0)
@@ -103,7 +127,19 @@ function ConversationsContent() {
         }
       }
 
-      // Batch fetch all messages in parallel (3 queries instead of 150+)
+      // Fetch messages from the unified messages table
+      const { data: messages } = await supabase
+        .from('messages')
+        .select(`
+          *,
+          lead:leads!messages_lead_id_fkey(id, first_name, last_name, email, phone),
+          user:users!messages_user_id_fkey(id, full_name, email)
+        `)
+        .eq('organization_id', userOrg.organization_id)
+        .order('created_at', { ascending: false })
+        .limit(500)
+      
+      // Also fetch from log tables for backwards compatibility
       const [smsResults, whatsappResults, emailResults] = await Promise.all([
         phoneNumbers.length > 0 
           ? supabase
@@ -111,6 +147,7 @@ function ConversationsContent() {
               .select('*')
               .or(phoneNumbers.map(p => `to.eq.${p}`).concat(phoneNumbers.map(p => `from_number.eq.${p}`)).join(','))
               .order('created_at', { ascending: false })
+              .limit(100)
           : Promise.resolve({ data: [] }),
         
         phoneNumbers.length > 0
@@ -119,6 +156,7 @@ function ConversationsContent() {
               .select('*')
               .or(phoneNumbers.map(p => `to.eq.${p}`).concat(phoneNumbers.map(p => `from_number.eq.${p}`)).join(','))
               .order('created_at', { ascending: false })
+              .limit(100)
           : Promise.resolve({ data: [] }),
         
         emailAddresses.length > 0
@@ -127,13 +165,35 @@ function ConversationsContent() {
               .select('*')
               .in('to_email', emailAddresses)
               .order('created_at', { ascending: false })
+              .limit(100)
           : Promise.resolve({ data: [] })
       ])
 
       // Group messages by customer
       const messagesByCustomer = new Map<string, Array<{message: any, type: 'sms' | 'whatsapp' | 'email'}>>()
       
-      // Process SMS messages
+      // Process messages from unified messages table first
+      if (messages && messages.length > 0) {
+        for (const msg of messages) {
+          const customerId = msg.lead_id
+          if (customerId) {
+            if (!messagesByCustomer.has(customerId)) {
+              messagesByCustomer.set(customerId, [])
+            }
+            messagesByCustomer.get(customerId)!.push({ 
+              message: {
+                ...msg,
+                message: msg.content || msg.message,
+                from_number: msg.direction === 'inbound' ? msg.phone_number : null,
+                to: msg.direction === 'outbound' ? msg.phone_number : null
+              }, 
+              type: msg.type as 'sms' | 'whatsapp' | 'email' 
+            })
+          }
+        }
+      }
+      
+      // Process SMS messages from logs
       for (const msg of smsResults.data || []) {
         const customer = customerByPhone.get(msg.to) || customerByPhone.get(msg.from_number)
         if (customer) {
@@ -200,6 +260,12 @@ function ConversationsContent() {
         new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime()
       )
 
+      console.log('Found conversations:', conversationsData.length)
+      console.log('Messages from unified table:', messages?.length || 0)
+      console.log('Messages from SMS logs:', smsResults.data?.length || 0)
+      console.log('Messages from WhatsApp logs:', whatsappResults.data?.length || 0)
+      console.log('Messages from Email logs:', emailResults.data?.length || 0)
+      
       setConversations(conversationsData)
     } catch (error) {
       console.error('Error fetching conversations:', error)

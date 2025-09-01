@@ -48,18 +48,36 @@ export async function generateAIResponse(
   userMessage: string,
   phoneNumber: string,
   knowledgeContext: string,
-  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string; timestamp?: string }>
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string; timestamp?: string }>,
+  contactInfo?: any // Add contact info parameter
 ): Promise<{ response: string; extractedInfo?: any; bookingIntent?: boolean }> {
   try {
     // Fetch training feedback examples
     const feedbackExamples = await fetchActiveFeedback()
     const feedbackContext = formatFeedbackExamples(feedbackExamples)
+    
+    // Format contact info if available
+    const contactContext = contactInfo ? `
+CUSTOMER INFORMATION (from database):
+- Name: ${contactInfo.first_name || ''} ${contactInfo.last_name || ''}
+- Phone: ${contactInfo.phone || phoneNumber}
+- Email: ${contactInfo.email || 'Not provided'}
+- Status: ${contactInfo.status || contactInfo.membership_status || 'New contact'}
+- Notes: ${contactInfo.notes || 'None'}
+- AI Score: ${contactInfo.ai_score || 'Not scored'}
+- Previous interactions: ${contactInfo.ai_insights ? JSON.stringify(contactInfo.ai_insights) : 'None recorded'}
+- Member since: ${contactInfo.created_at ? new Date(contactInfo.created_at).toLocaleDateString() : 'N/A'}
+
+Use this information to personalize your responses. If you know their name, use it naturally in conversation.
+` : ''
+    
     const systemPrompt = `You are a professional gym business WhatsApp sales assistant for Atlas Fitness. Your role is to engage with potential and existing gym members, answer their questions, and guide them towards booking a trial or membership.
 
 IMPORTANT: The following is REAL GYM DATA that you MUST use in your responses:
 
 ${knowledgeContext}
 ${feedbackContext}
+${contactContext}
 
 CRITICAL RULES - YOU MUST FOLLOW THESE:
 1. ALWAYS use the EXACT information provided above - this is the REAL gym data

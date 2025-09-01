@@ -77,8 +77,11 @@ export default function LeadFormsPage() {
     try {
       const response = await fetch('/api/forms/list')
       const data = await response.json()
+      console.log('Loaded forms:', data.forms?.length || 0)
       if (data.forms) {
         setCustomForms(data.forms)
+      } else if (data.error) {
+        console.error('Error from API:', data.error)
       }
     } catch (error) {
       console.error('Error loading forms:', error)
@@ -129,7 +132,10 @@ export default function LeadFormsPage() {
         alert(editingForm ? 'Form updated successfully' : 'Form created successfully')
         setShowEditModal(false)
         setEditingForm(null)
-        loadCustomForms()
+        // Add a small delay to ensure database write completes
+        setTimeout(() => {
+          loadCustomForms()
+        }, 500)
       } else {
         const error = await response.json()
         alert(`Failed to save form: ${error.error}`)

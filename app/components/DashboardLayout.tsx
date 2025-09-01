@@ -8,6 +8,7 @@ import { isFeatureEnabled } from '@/app/lib/feature-flags'
 import { ComingSoonBadge } from '@/app/components/ComingSoon'
 import LocationSwitcher from './LocationSwitcher'
 import OrganizationSwitcher from './OrganizationSwitcher'
+import InterfaceSwitcher from './InterfaceSwitcher'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -549,6 +550,7 @@ export default function DashboardLayout({ children, userData }: DashboardLayoutP
             <div className="flex items-center space-x-4">
               <OrganizationSwitcher />
               <LocationSwitcher />
+              <InterfaceSwitcher currentInterface="gym" />
               {user && (
                 <span className="text-sm text-gray-400">
                   {user.email}

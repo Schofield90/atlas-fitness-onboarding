@@ -5,12 +5,16 @@ export interface MembershipPlan {
   id: string
   name: string
   description: string
-  price: number
+  price_pennies: number
   billing_period: string
   features: any
   is_active: boolean
   trial_days?: number
-  max_members?: number | null
+  class_limit?: number | null
+  signup_fee_pennies?: number
+  cancellation_fee_pennies?: number
+  cancellation_notice_days?: number
+  contract_length_months?: number
   created_at: string
   updated_at: string
   organization_id: string
@@ -40,10 +44,10 @@ export async function getMembershipPlans(): Promise<{ plans: MembershipPlan[], e
       return { plans: [], error: error.message }
     }
     
-    // Normalize the data (price is already stored in pence as INTEGER)
+    // Normalize the data (price_pennies is already stored as INTEGER)
     const normalizedPlans = (data || []).map(plan => ({
       ...plan,
-      price: plan.price || 0,
+      price_pennies: plan.price_pennies || 0,
       features: Array.isArray(plan.features) ? plan.features : (plan.features ? [plan.features] : [])
     }))
     
@@ -65,11 +69,11 @@ export async function createMembershipPlan(plan: Omit<MembershipPlan, 'id' | 'cr
       return { plan: null, error: orgError || 'No organization found' }
     }
     
-    // Prepare plan data (price is already in correct format - pence as INTEGER)
+    // Prepare plan data (price_pennies is already in correct format - INTEGER)
     const planData = {
       ...plan,
       organization_id: organizationId,
-      price: plan.price || 0
+      price_pennies: plan.price_pennies || 0
     }
     
     // Create the plan

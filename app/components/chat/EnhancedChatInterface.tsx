@@ -214,28 +214,40 @@ export default function EnhancedChatInterface() {
 
   const handleNewConversation = async () => {
     try {
-      // Fetch available leads and customers
+      // Fetch available leads and customers - use org_id not organization_id
       const { data: leads } = await supabase
         .from('leads')
-        .select('id, name, email, phone')
-        .eq('organization_id', organizationId)
+        .select('id, first_name, last_name, email, phone')
+        .eq('org_id', organizationId)
         .limit(20)
 
       const { data: customers } = await supabase
         .from('clients')
-        .select('id, name, email, phone')
-        .eq('organization_id', organizationId)
+        .select('id, first_name, last_name, email, phone')
+        .eq('org_id', organizationId)
         .limit(20)
 
       const contacts = [
-        ...(leads || []).map(l => ({ ...l, type: 'lead' })),
-        ...(customers || []).map(c => ({ ...c, type: 'customer' }))
+        ...(leads || []).map(l => ({ 
+          ...l, 
+          name: `${l.first_name || ''} ${l.last_name || ''}`.trim() || 'Unknown',
+          type: 'lead' 
+        })),
+        ...(customers || []).map(c => ({ 
+          ...c, 
+          name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
+          type: 'customer' 
+        }))
       ]
 
+      console.log('Found contacts:', contacts.length)
       setAvailableContacts(contacts)
       setShowNewConversationModal(true)
     } catch (error) {
       console.error('Error fetching contacts:', error)
+      // Still show modal even if no contacts found
+      setAvailableContacts([])
+      setShowNewConversationModal(true)
     }
   }
 
