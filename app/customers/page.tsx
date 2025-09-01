@@ -88,8 +88,8 @@ export default function CustomersPage() {
       }
 
       // Fetch only clients (actual customers, not leads)
-      // Try with organization_id first, fall back to org_id
-      let clientsResult = await supabase
+      // The clients table uses 'org_id' not 'organization_id'
+      const clientsResult = await supabase
         .from('clients')
         .select(`
           *,
@@ -101,26 +101,8 @@ export default function CustomersPage() {
             end_date
           )
         `)
-        .eq('organization_id', organizationId)
+        .eq('org_id', organizationId)
         .order('created_at', { ascending: false })
-      
-      // If no results or error, try with org_id
-      if (clientsResult.error || !clientsResult.data?.length) {
-        clientsResult = await supabase
-          .from('clients')
-          .select(`
-            *,
-            memberships (
-              id,
-              membership_type,
-              status,
-              start_date,
-              end_date
-            )
-          `)
-          .eq('org_id', organizationId)
-          .order('created_at', { ascending: false })
-      }
 
       if (clientsResult.error) {
         console.error('Error fetching clients:', clientsResult.error)

@@ -74,53 +74,48 @@ export default function NewCustomerPage() {
       const firstName = nameParts[0] || formData.name
       const lastName = nameParts.slice(1).join(' ') || ''
 
-      // Create the customer with both org_id and organization_id for compatibility
+      // Create the customer (clients table uses org_id, not organization_id)
       const { data: customer, error: customerError } = await supabase
         .from('clients')
         .insert({
-          name: formData.name,
           first_name: firstName,
           last_name: lastName,
           email: formData.email,
           phone: formData.phone,
-          date_of_birth: formData.date_of_birth || null,
-          gender: formData.gender || null,
-          address_line_1: formData.address_line_1 || null,
-          address_line_2: formData.address_line_2 || null,
-          city: formData.city || null,
-          postal_code: formData.postal_code || null,
-          country: formData.country || 'UK',
-          organization_id: organizationId,
-          org_id: organizationId, // Include both for compatibility
+          org_id: organizationId, // clients table uses org_id
           status: 'active',
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
+          // Store additional data in metadata since these columns might not exist
+          metadata: {
+            name: formData.name,
+            date_of_birth: formData.date_of_birth,
+            gender: formData.gender,
+            address: {
+              line_1: formData.address_line_1,
+              line_2: formData.address_line_2,
+              city: formData.city,
+              postal_code: formData.postal_code,
+              country: formData.country || 'UK'
+            }
+          }
         })
         .select()
         .single()
 
       if (customerError) {
-        // If address columns don't exist, try without them
-        if (customerError.message.includes('address_line_1') || 
+        // If there's still an error, log it and throw
+        console.error('Error creating customer:', customerError)
+        // Try simpler insert without metadata
+        if (customerError.message.includes('metadata') || 
             customerError.message.includes('column')) {
           const { data: customerFallback, error: fallbackError } = await supabase
             .from('clients')
             .insert({
-              name: formData.name,
+              first_name: firstName,
+              last_name: lastName,
               email: formData.email,
               phone: formData.phone,
-              organization_id: organizationId,
-              org_id: organizationId, // Include both for compatibility
-              metadata: {
-                address: {
-                  line_1: formData.address_line_1,
-                  line_2: formData.address_line_2,
-                  city: formData.city,
-                  postal_code: formData.postal_code,
-                  country: formData.country
-                },
-                date_of_birth: formData.date_of_birth,
-                gender: formData.gender
-              },
+              org_id: organizationId, // Only use org_id
               created_at: new Date().toISOString()
             })
             .select()
