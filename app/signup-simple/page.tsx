@@ -300,8 +300,23 @@ export default function SimpleSignupPage() {
             >
               {loading ? 'Creating account...' : 'Create account'}
             </button>
+            
+            {/* Emergency setup button - always visible */}
+            <button
+              type="button"
+              onClick={() => {
+                setEmail('sam@gymleadhub.co.uk')
+                setName('Sam')
+                setOrganizationName('GymLeadHub')
+                handleEmergencySetup()
+              }}
+              disabled={loading}
+              className="w-full flex justify-center py-2 px-4 border border-red-600 rounded-md shadow-sm text-sm font-medium text-red-300 bg-red-900 hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+            >
+              🚨 Emergency Setup for sam@gymleadhub.co.uk (Bypass Auth)
+            </button>
 
-            {email === 'sam@gymleadhub.co.uk' && (
+            {(email === 'sam@gymleadhub.co.uk' || email.toLowerCase().includes('sam')) && (
               <>
                 <button
                   type="button"
@@ -314,11 +329,14 @@ export default function SimpleSignupPage() {
                 
                 <button
                   type="button"
-                  onClick={handleEmergencySetup}
+                  onClick={() => {
+                    setEmail('sam@gymleadhub.co.uk')
+                    handleEmergencySetup()
+                  }}
                   disabled={loading}
                   className="w-full flex justify-center py-2 px-4 border border-red-600 rounded-md shadow-sm text-sm font-medium text-red-300 bg-red-900 hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
                 >
-                  Emergency Setup (Bypass Auth)
+                  Emergency Setup for sam@gymleadhub.co.uk (Bypass Auth)
                 </button>
               </>
             )}
