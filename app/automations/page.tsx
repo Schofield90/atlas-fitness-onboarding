@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import DashboardLayout from '@/app/components/DashboardLayout'
@@ -28,9 +28,9 @@ interface Workflow {
   status: 'active' | 'paused' | 'draft'
   trigger: string
   totalExecutions: number
-  successRate: number
-  lastRun?: string
-  createdAt: string
+  lastExecuted?: string
+  created_at: string
+  updated_at: string
 }
 
 interface PaginationInfo {
@@ -40,7 +40,7 @@ interface PaginationInfo {
   totalPages: number
 }
 
-export default function AutomationsPage() {
+function AutomationsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   
@@ -57,147 +57,129 @@ export default function AutomationsPage() {
 
   useEffect(() => {
     setMounted(true)
-    fetchWorkflows()
-  }, [pagination.page, pagination.pageSize, statusFilter])
+  }, [])
 
-  // Update URL when pagination changes
   useEffect(() => {
-    if (mounted) {
-      const params = new URLSearchParams(searchParams.toString())
-      params.set('page', pagination.page.toString())
-      params.set('pageSize', pagination.pageSize.toString())
-      router.replace(`?${params.toString()}`, { scroll: false })
-    }
-  }, [pagination.page, pagination.pageSize, router, searchParams, mounted])
+    fetchWorkflows()
+  }, [statusFilter, pagination.page, pagination.pageSize])
 
   const fetchWorkflows = async () => {
     try {
-      const params = new URLSearchParams()
-      params.set('page', pagination.page.toString())
-      params.set('page_size', pagination.pageSize.toString())
-      if (statusFilter && statusFilter !== 'all') {
-        params.set('status', statusFilter)
-      }
+      setLoading(true)
+      const params = new URLSearchParams({
+        page: pagination.page.toString(),
+        pageSize: pagination.pageSize.toString(),
+        ...(statusFilter !== 'all' && { status: statusFilter })
+      })
       
-      const url = `/api/automations/workflows?${params.toString()}`
-      const response = await fetch(url)
+      const response = await fetch(`/api/automations?${params}`)
+      const data = await response.json()
       
-      if (response.ok) {
-        const data = await response.json()
-        
-        const mappedWorkflows = data.workflows.map((w: any) => ({
-          id: w.id,
-          name: w.name,
-          description: w.description || '',
-          status: w.status,
-          trigger: w.trigger_type || 'manual',
-          totalExecutions: w.total_executions || 0,
-          successRate: w.successful_executions && w.total_executions 
-            ? Math.round((w.successful_executions / w.total_executions) * 100)
-            : 0,
-          lastRun: w.last_run_at,
-          createdAt: w.created_at
+      if (data.success) {
+        setWorkflows(data.workflows || [])
+        setPagination(prev => ({
+          ...prev,
+          total: data.total || 0,
+          totalPages: Math.ceil((data.total || 0) / prev.pageSize)
         }))
-        
-        setWorkflows(mappedWorkflows)
-        
-        if (data.pagination) {
-          setPagination(prev => ({
-            ...prev,
-            total: data.pagination.total,
-            totalPages: data.pagination.totalPages
-          }))
-        }
-      } else {
-        throw new Error('Failed to fetch workflows')
       }
     } catch (error) {
       console.error('Error fetching workflows:', error)
-      // Fallback to sample data if no workflows exist
-      const sampleWorkflows = [
-        {
-          id: '1',
-          name: 'New Lead Welcome Sequence',
-          description: 'Automatically send welcome messages and schedule follow-ups for new leads',
-          status: 'active' as const,
-          trigger: 'New Lead',
-          totalExecutions: 127,
-          successRate: 98.4,
-          lastRun: '2024-01-20T14:30:00Z',
-          createdAt: '2024-01-15T10:00:00Z'
-        },
-        {
-          id: '2', 
-          name: 'Lead Qualification Bot',
-          description: 'Qualify leads with AI-powered questions and route to appropriate team members',
-          status: 'active' as const,
-          trigger: 'Form Submission',
-          totalExecutions: 89,
-          successRate: 94.7,
-          lastRun: '2024-01-20T16:45:00Z',
-          createdAt: '2024-01-16T09:15:00Z'
-        },
-        {
-          id: '3',
-          name: 'Appointment Reminder Flow',
-          description: 'Send automated reminders 24hrs and 1hr before scheduled appointments',
-          status: 'paused' as const,
-          trigger: 'Calendar Event',
-          totalExecutions: 45,
-          successRate: 100,
-          lastRun: '2024-01-19T12:00:00Z',
-          createdAt: '2024-01-17T15:30:00Z'
-        },
-        {
-          id: '4',
-          name: 'Membership Renewal Campaign',
-          description: 'Target members 30 days before renewal with personalized offers',
-          status: 'draft' as const,
-          trigger: 'Scheduled',
-          totalExecutions: 0,
-          successRate: 0,
-          createdAt: '2024-01-20T11:20:00Z'
-        }
-      ]
-      setWorkflows(sampleWorkflows)
-      setPagination(prev => ({
-        ...prev,
-        total: sampleWorkflows.length,
-        totalPages: Math.ceil(sampleWorkflows.length / prev.pageSize)
-      }))
-    }
-    setLoading(false)
-  }
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <CheckCircle className="h-4 w-4 text-green-400" />
-      case 'paused':
-        return <Pause className="h-4 w-4 text-yellow-400" />
-      case 'draft':
-        return <Clock className="h-4 w-4 text-gray-400" />
-      default:
-        return <XCircle className="h-4 w-4 text-red-400" />
+    } finally {
+      setLoading(false)
     }
   }
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'text-green-400'
-      case 'paused': return 'text-yellow-400' 
-      case 'draft': return 'text-gray-400'
-      default: return 'text-red-400'
+      case 'active':
+        return 'bg-green-500/10 text-green-500 border-green-500/20'
+      case 'paused':
+        return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'
+      case 'draft':
+        return 'bg-gray-500/10 text-gray-400 border-gray-500/20'
+      default:
+        return 'bg-gray-500/10 text-gray-400 border-gray-500/20'
     }
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'active':
+        return <CheckCircle className="w-4 h-4" />
+      case 'paused':
+        return <Clock className="w-4 h-4" />
+      case 'draft':
+        return <XCircle className="w-4 h-4" />
+      default:
+        return null
+    }
+  }
+
+  const getTriggerIcon = (trigger: string) => {
+    switch (trigger) {
+      case 'lead_created':
+        return <Zap className="w-4 h-4 text-blue-500" />
+      case 'booking_created':
+        return <Clock className="w-4 h-4 text-green-500" />
+      case 'form_submitted':
+        return <Edit className="w-4 h-4 text-purple-500" />
+      default:
+        return <Zap className="w-4 h-4 text-gray-500" />
+    }
+  }
+
+  const formatTriggerName = (trigger: string) => {
+    return trigger.split('_').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ')
+  }
+
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString('en-GB', {
+      day: '2-digit',
       month: 'short',
-      day: 'numeric',
+      year: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
     })
+  }
+
+  const handleDuplicate = async (workflow: Workflow) => {
+    try {
+      const response = await fetch(`/api/automations/${workflow.id}/duplicate`, {
+        method: 'POST'
+      })
+      const data = await response.json()
+      
+      if (data.success) {
+        fetchWorkflows()
+      }
+    } catch (error) {
+      console.error('Error duplicating workflow:', error)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this workflow?')) return
+    
+    try {
+      const response = await fetch(`/api/automations/${id}`, {
+        method: 'DELETE'
+      })
+      const data = await response.json()
+      
+      if (data.success) {
+        setWorkflows(prev => prev.filter(w => w.id !== id))
+        setPagination(prev => ({
+          ...prev,
+          total: prev.total - 1,
+          totalPages: Math.ceil((prev.total - 1) / prev.pageSize)
+        }))
+      }
+    } catch (error) {
+      console.error('Error deleting workflow:', error)
+    }
   }
 
   const handleToggleWorkflow = (id: string, currentStatus: string) => {
@@ -231,315 +213,274 @@ export default function AutomationsPage() {
   }
 
   return (
-    <DashboardLayout>
-      <div className="container mx-auto px-6 py-8">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Workflow Automations</h1>
-            <p className="text-gray-300">Create powerful automations to streamline your gym operations</p>
+    <div className="container mx-auto px-6 py-8">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Workflow Automations</h1>
+          <p className="text-gray-400">Create and manage automated workflows for your gym</p>
+        </div>
+        <Link
+          href="/automations/builder"
+          className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors"
+        >
+          <Plus className="w-5 h-5" />
+          Create Workflow
+        </Link>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-gray-400">Total Workflows</span>
+            <Zap className="w-5 h-5 text-orange-500" />
           </div>
-          <div className="flex gap-3">
-            <button 
-              onClick={() => router.push('/automations/templates')}
-              className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
-            >
-              <Zap className="h-4 w-4" />
-              Templates
-            </button>
-            <button 
-              onClick={() => router.push('/automations/builder/new')}
-              className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              Create Workflow
-            </button>
+          <div className="text-2xl font-bold">{pagination.total}</div>
+        </div>
+        
+        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-gray-400">Active</span>
+            <CheckCircle className="w-5 h-5 text-green-500" />
+          </div>
+          <div className="text-2xl font-bold">
+            {workflows.filter(w => w.status === 'active').length}
           </div>
         </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-gray-800 rounded-lg p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-medium text-gray-400">Active Workflows</h3>
-                <div className="text-2xl font-bold text-white mt-1">
-                  {workflows.filter(w => w.status === 'active').length}
-                </div>
-              </div>
-              <div className="bg-green-500/20 p-3 rounded-lg">
-                <Play className="h-6 w-6 text-green-400" />
-              </div>
-            </div>
+        
+        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-gray-400">Paused</span>
+            <Pause className="w-5 h-5 text-yellow-500" />
           </div>
-
-          <div className="bg-gray-800 rounded-lg p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-medium text-gray-400">Total Executions</h3>
-                <div className="text-2xl font-bold text-white mt-1">
-                  {workflows.reduce((sum, w) => sum + w.totalExecutions, 0).toLocaleString()}
-                </div>
-              </div>
-              <div className="bg-blue-500/20 p-3 rounded-lg">
-                <Zap className="h-6 w-6 text-blue-400" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-gray-800 rounded-lg p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-medium text-gray-400">Success Rate</h3>
-                <div className="text-2xl font-bold text-white mt-1">
-                  {workflows.length > 0 ? 
-                    Math.round(workflows.reduce((sum, w) => sum + w.successRate, 0) / workflows.length) + '%' 
-                    : '0%'
-                  }
-                </div>
-              </div>
-              <div className="bg-green-500/20 p-3 rounded-lg">
-                <BarChart3 className="h-6 w-6 text-green-400" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-gray-800 rounded-lg p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-medium text-gray-400">Time Saved</h3>
-                <div className="text-2xl font-bold text-white mt-1">24h</div>
-                <div className="text-xs text-gray-400">This month</div>
-              </div>
-              <div className="bg-purple-500/20 p-3 rounded-lg">
-                <Clock className="h-6 w-6 text-purple-400" />
-              </div>
-            </div>
+          <div className="text-2xl font-bold">
+            {workflows.filter(w => w.status === 'paused').length}
           </div>
         </div>
-
-        {/* Workflows List */}
-        <div className="bg-gray-800 rounded-lg">
-          <div className="p-6 border-b border-gray-700">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Your Workflows</h2>
-              
-              {/* Status Filter */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-400">Filter:</span>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => {
-                    setStatusFilter(e.target.value)
-                    setPagination(prev => ({ ...prev, page: 1 })) // Reset to first page
-                  }}
-                  className="bg-gray-700 text-white rounded px-3 py-1 text-sm"
-                >
-                  <option value="all">All Status</option>
-                  <option value="active">Active</option>
-                  <option value="paused">Paused</option>
-                  <option value="draft">Draft</option>
-                </select>
-              </div>
-            </div>
+        
+        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-gray-400">Total Executions</span>
+            <BarChart3 className="w-5 h-5 text-blue-500" />
           </div>
+          <div className="text-2xl font-bold">
+            {workflows.reduce((acc, w) => acc + w.totalExecutions, 0)}
+          </div>
+        </div>
+      </div>
 
-          {loading ? (
-            <div className="p-8 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-4"></div>
-              <p className="text-gray-400">Loading your workflows...</p>
-            </div>
-          ) : workflows.length === 0 ? (
-            <div className="p-8 text-center">
-              <Zap className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-white mb-2">No workflows yet</h3>
-              <p className="text-gray-400 mb-6">Create your first automation to streamline your gym operations</p>
-              <button 
-                onClick={() => router.push('/automations/builder/new')}
-                className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg transition-colors"
-              >
-                Create Your First Workflow
-              </button>
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-700">
-              {workflows.map((workflow) => (
-                <div key={workflow.id} className="p-6 hover:bg-gray-750 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        {getStatusIcon(workflow.status)}
-                        <h3 className="text-lg font-medium text-white">{workflow.name}</h3>
-                        <span className={`px-2 py-1 rounded text-xs font-medium capitalize ${getStatusColor(workflow.status)}`}>
-                          {workflow.status}
-                        </span>
-                      </div>
-                      <p className="text-gray-400 text-sm mb-2">{workflow.description}</p>
-                      <div className="flex items-center gap-4 text-sm text-gray-400">
-                        <span>Trigger: {workflow.trigger}</span>
-                        <span>•</span>
-                        <span>{workflow.totalExecutions} executions</span>
-                        <span>•</span>
-                        <span>{workflow.successRate}% success</span>
-                        {workflow.lastRun && (
-                          <>
-                            <span>•</span>
-                            <span>Last run: {formatDate(workflow.lastRun)}</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleToggleWorkflow(workflow.id, workflow.status)}
-                        className={`p-2 rounded-lg transition-colors ${
-                          workflow.status === 'active' 
-                            ? 'bg-yellow-600 hover:bg-yellow-700 text-white' 
-                            : 'bg-green-600 hover:bg-green-700 text-white'
-                        }`}
-                        title={workflow.status === 'active' ? 'Pause workflow' : 'Activate workflow'}
-                      >
-                        {workflow.status === 'active' ? 
-                          <Pause className="h-4 w-4" /> : 
-                          <Play className="h-4 w-4" />
-                        }
-                      </button>
-                      
-                      <button
-                        onClick={() => router.push(`/automations/builder/${workflow.id}`)}
-                        className="p-2 rounded-lg bg-gray-600 hover:bg-gray-700 text-white transition-colors"
-                        title="Edit workflow"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      
-                      <div className="relative">
-                        <button
-                          className="p-2 rounded-lg bg-gray-600 hover:bg-gray-700 text-white transition-colors"
-                          title="More options"
-                        >
-                          <MoreVertical className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            
-            {/* Pagination */}
-            {pagination.total > 0 && pagination.totalPages > 1 && (
-              <div className="p-6 border-t border-gray-700">
-                <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                  <div className="flex items-center gap-4">
-                    <p className="text-sm text-gray-400">
-                      Showing {((pagination.page - 1) * pagination.pageSize) + 1} to{' '}
-                      {Math.min(pagination.page * pagination.pageSize, pagination.total)} of{' '}
-                      {pagination.total} workflows
-                    </p>
-                    
-                    {/* Page Size Selector */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-400">Show:</span>
-                      <select
-                        value={pagination.pageSize}
-                        onChange={(e) => handlePageSizeChange(parseInt(e.target.value))}
-                        className="bg-gray-700 text-white rounded px-2 py-1 text-sm"
-                      >
-                        <option value={10}>10</option>
-                        <option value={25}>25</option>
-                        <option value={50}>50</option>
-                      </select>
-                    </div>
+      {/* Filter and Search */}
+      <div className="flex gap-4 mb-6">
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+        >
+          <option value="all">All Status</option>
+          <option value="active">Active</option>
+          <option value="paused">Paused</option>
+          <option value="draft">Draft</option>
+        </select>
+      </div>
+
+      {/* Workflows List */}
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+        </div>
+      ) : workflows.length === 0 ? (
+        <div className="bg-gray-800 rounded-lg p-12 text-center border border-gray-700">
+          <Zap className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold mb-2">No workflows yet</h3>
+          <p className="text-gray-400 mb-6">Create your first automation workflow to get started</p>
+          <Link
+            href="/automations/builder"
+            className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            Create Your First Workflow
+          </Link>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {workflows.map((workflow) => (
+            <div
+              key={workflow.id}
+              className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-gray-600 transition-colors"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-xl font-semibold">{workflow.name}</h3>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium border flex items-center gap-1 ${getStatusColor(workflow.status)}`}>
+                      {getStatusIcon(workflow.status)}
+                      {workflow.status}
+                    </span>
                   </div>
                   
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handlePageChange(pagination.page - 1)}
-                      disabled={pagination.page === 1}
-                      className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Previous
-                    </button>
-                    
-                    {/* Page Numbers */}
-                    <div className="flex gap-1">
-                      {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
-                        const startPage = Math.max(1, pagination.page - 2)
-                        const pageNum = startPage + i
-                        
-                        if (pageNum > pagination.totalPages) return null
-                        
-                        return (
-                          <button
-                            key={pageNum}
-                            onClick={() => handlePageChange(pageNum)}
-                            className={`px-3 py-1 rounded transition-colors ${
-                              pageNum === pagination.page
-                                ? 'bg-orange-500 text-white'
-                                : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                            }`}
-                          >
-                            {pageNum}
-                          </button>
-                        )
-                      })}
+                  <p className="text-gray-400 mb-4">{workflow.description}</p>
+                  
+                  <div className="flex items-center gap-6 text-sm">
+                    <div className="flex items-center gap-2">
+                      {getTriggerIcon(workflow.trigger)}
+                      <span className="text-gray-400">
+                        Trigger: <span className="text-white">{formatTriggerName(workflow.trigger)}</span>
+                      </span>
                     </div>
                     
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4 text-gray-500" />
+                      <span className="text-gray-400">
+                        Executions: <span className="text-white">{workflow.totalExecutions}</span>
+                      </span>
+                    </div>
+                    
+                    {workflow.lastExecuted && (
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-gray-500" />
+                        <span className="text-gray-400">
+                          Last run: <span className="text-white">{formatDate(workflow.lastExecuted)}</span>
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleToggleWorkflow(workflow.id, workflow.status)}
+                    className={`p-2 rounded-lg transition-colors ${
+                      workflow.status === 'active' 
+                        ? 'bg-green-500/10 hover:bg-green-500/20 text-green-500' 
+                        : 'bg-gray-700 hover:bg-gray-600 text-gray-400'
+                    }`}
+                    title={workflow.status === 'active' ? 'Pause Workflow' : 'Activate Workflow'}
+                  >
+                    {workflow.status === 'active' ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+                  </button>
+                  
+                  <Link
+                    href={`/automations/builder?id=${workflow.id}`}
+                    className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-gray-400 hover:text-white"
+                    title="Edit Workflow"
+                  >
+                    <Edit className="w-5 h-5" />
+                  </Link>
+                  
+                  <div className="relative group">
                     <button
-                      onClick={() => handlePageChange(pagination.page + 1)}
-                      disabled={pagination.page === pagination.totalPages}
-                      className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-gray-400 hover:text-white"
+                      title="More Options"
                     >
-                      Next
+                      <MoreVertical className="w-5 h-5" />
                     </button>
+                    
+                    <div className="absolute right-0 mt-2 w-48 bg-gray-700 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+                      <button
+                        onClick={() => handleDuplicate(workflow)}
+                        className="flex items-center gap-2 w-full px-4 py-2 hover:bg-gray-600 transition-colors text-left"
+                      >
+                        <Copy className="w-4 h-4" />
+                        Duplicate
+                      </button>
+                      <button
+                        onClick={() => handleDelete(workflow.id)}
+                        className="flex items-center gap-2 w-full px-4 py-2 hover:bg-gray-600 transition-colors text-left text-red-400 hover:text-red-300"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-            )}
-          )}
-        </div>
-
-        {/* Getting Started Section */}
-        {workflows.filter(w => w.status === 'active').length === 0 && (
-          <div className="bg-gradient-to-r from-orange-500/10 to-purple-500/10 border border-orange-500/20 rounded-lg p-6 mt-8">
-            <h3 className="text-lg font-semibold text-white mb-3">🚀 Get Started with Automations</h3>
-            <div className="grid md:grid-cols-3 gap-4">
-              <div className="bg-gray-800/50 rounded-lg p-4">
-                <h4 className="font-medium text-white mb-2">1. Choose a Template</h4>
-                <p className="text-gray-400 text-sm mb-3">Start with pre-built workflows designed for gyms</p>
-                <button 
-                  onClick={() => router.push('/automations/templates')}
-                  className="text-orange-400 hover:text-orange-300 text-sm font-medium"
-                >
-                  Browse Templates →
-                </button>
-              </div>
-              <div className="bg-gray-800/50 rounded-lg p-4">
-                <h4 className="font-medium text-white mb-2">2. Build Custom Flow</h4>
-                <p className="text-gray-400 text-sm mb-3">Create workflows tailored to your specific needs</p>
-                <button 
-                  onClick={() => router.push('/automations/builder/new')}
-                  className="text-orange-400 hover:text-orange-300 text-sm font-medium"
-                >
-                  Start Building →
-                </button>
-              </div>
-              <div className="bg-gray-800/50 rounded-lg p-4">
-                <h4 className="font-medium text-white mb-2">3. Monitor & Optimize</h4>
-                <p className="text-gray-400 text-sm mb-3">Track performance and improve your automations</p>
-                <button 
-                  onClick={() => alert('Analytics dashboard coming soon!')}
-                  className="text-gray-500 text-sm font-medium"
-                >
-                  View Analytics →
-                </button>
-              </div>
             </div>
+          ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {pagination.totalPages > 1 && (
+        <div className="mt-8 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-gray-400">Show</span>
+            <select
+              value={pagination.pageSize}
+              onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+              className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white"
+            >
+              <option value="10">10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+            <span className="text-gray-400">per page</span>
           </div>
-        )}
-      </div>
+          
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handlePageChange(pagination.page - 1)}
+              disabled={pagination.page === 1}
+              className="px-3 py-1 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Previous
+            </button>
+            
+            <div className="flex items-center gap-1">
+              {[...Array(Math.min(5, pagination.totalPages))].map((_, index) => {
+                const pageNum = pagination.page <= 3 
+                  ? index + 1
+                  : pagination.page >= pagination.totalPages - 2
+                    ? pagination.totalPages - 4 + index
+                    : pagination.page - 2 + index
+                    
+                if (pageNum < 1 || pageNum > pagination.totalPages) return null
+                
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => handlePageChange(pageNum)}
+                    className={`px-3 py-1 rounded transition-colors ${
+                      pageNum === pagination.page
+                        ? 'bg-orange-500 text-white'
+                        : 'bg-gray-800 border border-gray-700 hover:bg-gray-700'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                )
+              })}
+            </div>
+            
+            <button
+              onClick={() => handlePageChange(pagination.page + 1)}
+              disabled={pagination.page === pagination.totalPages}
+              className="px-3 py-1 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+            </button>
+          </div>
+          
+          <div className="text-gray-400">
+            Page {pagination.page} of {pagination.totalPages} ({pagination.total} total)
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function AutomationsPage() {
+  return (
+    <DashboardLayout>
+      <Suspense fallback={
+        <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+        </div>
+      }>
+        <AutomationsContent />
+      </Suspense>
     </DashboardLayout>
   )
 }
