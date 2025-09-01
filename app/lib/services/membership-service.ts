@@ -6,13 +6,11 @@ export interface MembershipPlan {
   name: string
   description: string
   price: number
-  price_amount: number
   billing_period: string
   features: any
   is_active: boolean
   trial_days?: number
   max_members?: number | null
-  class_credits?: number
   created_at: string
   updated_at: string
   organization_id: string
@@ -42,11 +40,10 @@ export async function getMembershipPlans(): Promise<{ plans: MembershipPlan[], e
       return { plans: [], error: error.message }
     }
     
-    // Normalize the price field (convert price_amount from decimal to pennies for consistency)
+    // Normalize the data (price is already stored in pence as INTEGER)
     const normalizedPlans = (data || []).map(plan => ({
       ...plan,
-      price: plan.price_amount ? Math.round(plan.price_amount * 100) : 0,
-      price_amount: plan.price_amount || 0,
+      price: plan.price || 0,
       features: Array.isArray(plan.features) ? plan.features : (plan.features ? [plan.features] : [])
     }))
     
@@ -68,15 +65,12 @@ export async function createMembershipPlan(plan: Omit<MembershipPlan, 'id' | 'cr
       return { plan: null, error: orgError || 'No organization found' }
     }
     
-    // Convert price from pennies to decimal for price_amount field
+    // Prepare plan data (price is already in correct format - pence as INTEGER)
     const planData = {
       ...plan,
       organization_id: organizationId,
-      price_amount: plan.price ? plan.price / 100 : (plan.price_amount || 0)
+      price: plan.price || 0
     }
-    
-    // Remove the price field if it exists (we use price_amount in the database)
-    delete (planData as any).price
     
     // Create the plan
     const { data, error } = await supabase
