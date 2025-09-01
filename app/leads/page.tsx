@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { LeadsTable } from '@/app/components/leads/LeadsTable'
 import { AddLeadModal } from '@/app/components/leads/AddLeadModal'
@@ -8,7 +8,7 @@ import BulkImportModal from '@/app/components/leads/BulkImportModal'
 import DashboardLayout from '@/app/components/DashboardLayout'
 import { createClient } from '@/app/lib/supabase/client'
 
-export default function LeadsPage() {
+function LeadsContent() {
   const [activeTab, setActiveTab] = useState('all')
   const [userData, setUserData] = useState<any>(null)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -130,8 +130,7 @@ export default function LeadsPage() {
   }
 
   return (
-    <DashboardLayout userData={userData}>
-      <div className="container mx-auto px-6 py-8">
+    <div className="container mx-auto px-6 py-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Leads & Contacts</h1>
           <div className="flex gap-3">
@@ -234,6 +233,19 @@ export default function LeadsPage() {
           />
         )}
       </div>
+  )
+}
+
+export default function LeadsPage() {
+  return (
+    <DashboardLayout>
+      <Suspense fallback={
+        <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+        </div>
+      }>
+        <LeadsContent />
+      </Suspense>
     </DashboardLayout>
   )
 }
