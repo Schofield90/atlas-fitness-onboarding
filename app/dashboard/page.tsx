@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import DashboardLayout from '../components/DashboardLayout'
 import { createClient } from '@/app/lib/supabase/client'
 import { Calendar, Users, DollarSign, Activity, TrendingUp, MessageSquare, Settings, BarChart3 } from 'lucide-react'
-import { getUserOrganization } from '@/app/lib/auth/organization'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -26,15 +25,35 @@ export default function DashboardPage() {
       } else {
         setUser(user)
         
-        // Get user's organization dynamically
+        // Get user's organization dynamically using client-side query
         try {
-          const orgId = await getUserOrganization(user.id)
-          setOrganizationId(orgId)
-          localStorage.setItem('organizationId', orgId)
+          // Try to get user's organization from user_organizations table
+          const { data: userOrg } = await supabase
+            .from('user_organizations')
+            .select('organization_id')
+            .eq('user_id', user.id)
+            .single()
+          
+          if (userOrg?.organization_id) {
+            setOrganizationId(userOrg.organization_id)
+            localStorage.setItem('organizationId', userOrg.organization_id)
+          } else {
+            // Try organization_members table as fallback
+            const { data: memberOrg } = await supabase
+              .from('organization_members')
+              .select('organization_id')
+              .eq('user_id', user.id)
+              .eq('is_active', true)
+              .single()
+            
+            if (memberOrg?.organization_id) {
+              setOrganizationId(memberOrg.organization_id)
+              localStorage.setItem('organizationId', memberOrg.organization_id)
+            }
+          }
         } catch (error) {
           console.error('Failed to get organization:', error)
-          // Create a default organization for the user if none exists
-          // This should be handled properly in production
+          // User might not have an organization yet
         }
         
         setLoading(false)
