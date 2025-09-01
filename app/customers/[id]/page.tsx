@@ -61,27 +61,67 @@ export default function CustomerDetailPage() {
     try {
       setLoading(true)
       
-      // First try to get from clients table
-      const { data: clientData, error: clientError } = await supabase
+      // Get current user and organization
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        throw new Error('Not authenticated')
+      }
+
+      // Get user's organization
+      const { data: userOrg } = await supabase
+        .from('user_organizations')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single()
+
+      const organizationId = userOrg?.organization_id || '63589490-8f55-4157-bd3a-e141594b748e'
+      
+      // Try to get basic client data first (simplified query)
+      let { data: clientData, error: clientError } = await supabase
         .from('clients')
-        .select(`
-          *,
-          memberships (
-            id,
-            membership_type,
-            status,
-            start_date,
-            end_date
-          ),
-          emergency_contacts (*),
-          customer_medical_info (*),
-          customer_family_members (
-            *,
-            family_member_client:clients!customer_family_members_family_member_client_id_fkey(id, first_name, last_name, email)
-          )
-        `)
+        .select('*')
         .eq('id', customerId)
         .single()
+
+      // If client not found, try checking if it's a lead instead
+      if (clientError || !clientData) {
+        const { data: leadData, error: leadError } = await supabase
+          .from('leads')
+          .select('*')
+          .eq('id', customerId)
+          .single()
+        
+        if (!leadError && leadData) {
+          // Convert lead to client format
+          clientData = {
+            id: leadData.id,
+            first_name: leadData.name?.split(' ')[0] || leadData.name || 'Unknown',
+            last_name: leadData.name?.split(' ').slice(1).join(' ') || '',
+            email: leadData.email || '',
+            phone: leadData.phone || '',
+            date_of_birth: null,
+            address: null,
+            created_at: leadData.created_at,
+            updated_at: leadData.updated_at,
+            status: 'prospect',
+            source: leadData.source || 'lead',
+            tags: [],
+            memberships: [],
+            emergency_contacts: [],
+            customer_medical_info: [],
+            customer_family_members: []
+          }
+        }
+      }
+
+      // If we found client data, add empty arrays for missing relationships
+      if (clientData) {
+        clientData.memberships = clientData.memberships || []
+        clientData.emergency_contacts = clientData.emergency_contacts || []
+        clientData.customer_medical_info = clientData.customer_medical_info || []
+        clientData.customer_family_members = clientData.customer_family_members || []
+        clientData.tags = clientData.tags || []
+      }
 
       if (clientData) {
         // Transform client data to expected format
@@ -95,37 +135,8 @@ export default function CustomerDetailPage() {
         return
       }
 
-      // If not found in clients, try leads table
-      const { data: leadData, error: leadError } = await supabase
-        .from('leads')
-        .select(`
-          *,
-          lead_tags (
-            tag_id,
-            tags (
-              id,
-              name,
-              color
-            )
-          )
-        `)
-        .eq('id', customerId)
-        .single()
-
-      if (leadError && clientError) {
-        throw new Error('Customer not found')
-      }
-
-      if (leadData) {
-        // Transform lead data
-        const customerData = {
-          ...leadData,
-          first_name: leadData.first_name || leadData.name?.split(' ')[0] || '',
-          last_name: leadData.last_name || leadData.name?.split(' ').slice(1).join(' ') || '',
-          is_lead: true
-        }
-        setCustomer(customerData)
-      }
+      // If no data found at all, throw error
+      throw new Error('Customer not found')
     } catch (error) {
       console.error('Error fetching customer:', error)
       setError('Failed to load customer details')

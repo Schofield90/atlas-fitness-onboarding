@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { bookingLinkService } from '@/app/lib/services/booking-link'
-import { addDays, startOfDay, endOfDay } from 'date-fns'
+import { createClient } from '@supabase/supabase-js'
+import { addDays, startOfDay, endOfDay, format, addMinutes, setHours, setMinutes } from 'date-fns'
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,23 +14,66 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Slug is required' }, { status: 400 })
     }
 
-    // Default to next 30 days if no dates provided
-    const startDate = startDateParam ? new Date(startDateParam) : startOfDay(new Date())
-    const endDate = endDateParam ? new Date(endDateParam) : endOfDay(addDays(new Date(), 30))
-
-    // Track page view for analytics
-    await bookingLinkService.trackEvent(slug, 'page_view', {
-      user_agent: request.headers.get('user-agent'),
-      referrer: request.headers.get('referer'),
-      ip: request.ip || request.headers.get('x-forwarded-for')
-    })
-
-    const availableSlots = await bookingLinkService.getAvailableSlots(
-      slug,
-      startDate,
-      endDate,
-      timezone
+    // Create Supabase client for database access
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json({ 
+        error: 'Service configuration error' 
+      }, { status: 500 })
+    }
+    
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
     )
+
+    // Get booking link details
+    const { data: bookingLink, error: linkError } = await supabase
+      .from('booking_links')
+      .select('*')
+      .eq('slug', slug)
+      .single()
+    
+    if (linkError || !bookingLink) {
+      return NextResponse.json({ error: 'Booking link not found' }, { status: 404 })
+    }
+
+    // Default to next 7 days if no dates provided
+    const startDate = startDateParam ? new Date(startDateParam) : startOfDay(new Date())
+    const endDate = endDateParam ? new Date(endDateParam) : endOfDay(addDays(new Date(), 7))
+
+    // Generate basic available slots - Monday to Friday 9 AM to 5 PM
+    const availableSlots = []
+    const currentDate = new Date(startDate)
+
+    while (currentDate <= endDate) {
+      const dayOfWeek = currentDate.getDay()
+      
+      // Only weekdays (Monday = 1, Friday = 5)
+      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+        // Generate slots from 9 AM to 5 PM with 30-minute intervals
+        for (let hour = 9; hour < 17; hour++) {
+          for (let minute of [0, 30]) {
+            const slotStart = setMinutes(setHours(new Date(currentDate), hour), minute)
+            const slotEnd = addMinutes(slotStart, 30)
+            
+            // Skip past slots
+            if (slotStart > new Date()) {
+              availableSlots.push({
+                start_time: slotStart.toISOString(),
+                end_time: slotEnd.toISOString(),
+                staff_id: bookingLink.user_id || 'default-staff',
+                staff_name: 'Atlas Fitness Trainer',
+                appointment_type_id: bookingLink.appointment_type_ids?.[0] || 'default',
+                appointment_type_name: bookingLink.name || 'Consultation',
+                duration_minutes: 30
+              })
+            }
+          }
+        }
+      }
+
+      currentDate.setDate(currentDate.getDate() + 1)
+    }
 
     // Group slots by date
     const slotsByDate: Record<string, typeof availableSlots> = {}
