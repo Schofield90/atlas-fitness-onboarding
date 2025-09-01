@@ -6,7 +6,7 @@ import {
   AlertCircle, ChevronLeft, ChevronRight, Loader2,
   Video, Phone, Coffee, Zap, Target, Award
 } from 'lucide-react'
-import { format, parseISO, addDays, startOfWeek, endOfWeek, isSameDay, isToday, isBefore } from 'date-fns'
+import { format, parseISO, addDays, startOfWeek, endOfWeek, isSameDay, isToday, isBefore, startOfDay } from 'date-fns'
 import Button from '@/app/components/ui/Button'
 
 interface BookingWidgetProps {
