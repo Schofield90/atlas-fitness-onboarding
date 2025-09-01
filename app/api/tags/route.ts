@@ -43,26 +43,55 @@ export async function GET(request: NextRequest) {
       }, { status: 500 })
     }
 
-    // Calculate usage count for each tag
-    const tagsWithUsage = await Promise.all((tags || []).map(async (tag) => {
-      // Count usage in leads table
-      const { count: leadCount } = await supabase
-        .from('leads')
-        .select('*', { count: 'exact', head: true })
-        .eq('organization_id', userWithOrg.organizationId)
-        .contains('tags', [tag.name])
-
-      // Count usage in other relevant tables if needed
-      const { count: contactCount } = await supabase
-        .from('contacts')
-        .select('*', { count: 'exact', head: true })
-        .eq('organization_id', userWithOrg.organizationId)
-        .contains('tags', [tag.name])
-
-      return {
-        ...tag,
-        usage_count: (leadCount || 0) + (contactCount || 0)
+    // Batch fetch usage counts for all tags in 2 queries instead of 2N
+    const tagNames = (tags || []).map(tag => tag.name)
+    
+    // Get all lead and contact tag usage in parallel
+    const [leadData, contactData] = await Promise.all([
+      // Get all leads with tags
+      tagNames.length > 0 
+        ? supabase
+            .from('leads')
+            .select('tags')
+            .eq('organization_id', userWithOrg.organizationId)
+            .not('tags', 'is', null)
+        : Promise.resolve({ data: [] }),
+      
+      // Get all contacts with tags
+      tagNames.length > 0
+        ? supabase
+            .from('contacts')
+            .select('tags')
+            .eq('organization_id', userWithOrg.organizationId)
+            .not('tags', 'is', null)
+        : Promise.resolve({ data: [] })
+    ])
+    
+    // Count tag occurrences
+    const tagUsageMap = new Map<string, number>()
+    
+    // Count from leads
+    for (const lead of leadData.data || []) {
+      if (lead.tags && Array.isArray(lead.tags)) {
+        for (const tag of lead.tags) {
+          tagUsageMap.set(tag, (tagUsageMap.get(tag) || 0) + 1)
+        }
       }
+    }
+    
+    // Count from contacts
+    for (const contact of contactData.data || []) {
+      if (contact.tags && Array.isArray(contact.tags)) {
+        for (const tag of contact.tags) {
+          tagUsageMap.set(tag, (tagUsageMap.get(tag) || 0) + 1)
+        }
+      }
+    }
+    
+    // Add usage count to each tag
+    const tagsWithUsage = (tags || []).map(tag => ({
+      ...tag,
+      usage_count: tagUsageMap.get(tag.name) || 0
     }))
 
     return NextResponse.json({

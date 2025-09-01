@@ -81,88 +81,116 @@ function ConversationsContent() {
 
       setContactsCount(customers.length)
 
-      // For each customer, get their latest message
-      const conversationsData: Conversation[] = []
+      // Create maps for customer lookup
+      const customerById = new Map(customers.map(c => [c.id, c]))
+      const customerByPhone = new Map<string, typeof customers[0]>()
+      const customerByEmail = new Map<string, typeof customers[0]>()
+      
+      // Build phone and email maps
+      const phoneNumbers: string[] = []
+      const emailAddresses: string[] = []
       
       for (const customer of customers) {
-        // Skip if no contact info
-        if (!customer.email && !customer.phone) continue
-
-        // Build query conditions
-        const conditions = []
         if (customer.phone) {
           const normalizedPhone = customer.phone.startsWith('+') ? customer.phone : `+44${customer.phone.substring(1)}`
-          conditions.push(`to.eq.${customer.phone}`, `from_number.eq.${customer.phone}`)
-          conditions.push(`to.eq.${normalizedPhone}`, `from_number.eq.${normalizedPhone}`)
+          phoneNumbers.push(customer.phone, normalizedPhone)
+          customerByPhone.set(customer.phone, customer)
+          customerByPhone.set(normalizedPhone, customer)
         }
-
-        // Get latest SMS
-        let latestMessage: any = null
-        let messageType: 'email' | 'sms' | 'whatsapp' | 'call' = 'sms'
-
-        if (conditions.length > 0) {
-          const { data: smsMessages } = await supabase
-            .from('sms_logs')
-            .select('*')
-            .or(conditions.join(','))
-            .order('created_at', { ascending: false })
-            .limit(1)
-
-          const { data: whatsappMessages } = await supabase
-            .from('whatsapp_logs')
-            .select('*')
-            .or(conditions.join(','))
-            .order('created_at', { ascending: false })
-            .limit(1)
-
-          // Compare timestamps to find the latest
-          if (smsMessages?.[0] && whatsappMessages?.[0]) {
-            if (new Date(smsMessages[0].created_at) > new Date(whatsappMessages[0].created_at)) {
-              latestMessage = smsMessages[0]
-              messageType = 'sms'
-            } else {
-              latestMessage = whatsappMessages[0]
-              messageType = 'whatsapp'
-            }
-          } else if (smsMessages?.[0]) {
-            latestMessage = smsMessages[0]
-            messageType = 'sms'
-          } else if (whatsappMessages?.[0]) {
-            latestMessage = whatsappMessages[0]
-            messageType = 'whatsapp'
-          }
-        }
-
-        // Check email if we have it
         if (customer.email) {
-          const { data: emailMessages } = await supabase
-            .from('email_logs')
-            .select('*')
-            .eq('to_email', customer.email)
-            .order('created_at', { ascending: false })
-            .limit(1)
-
-          if (emailMessages?.[0]) {
-            if (!latestMessage || new Date(emailMessages[0].created_at) > new Date(latestMessage.created_at)) {
-              latestMessage = emailMessages[0]
-              messageType = 'email'
-            }
-          }
+          emailAddresses.push(customer.email)
+          customerByEmail.set(customer.email, customer)
         }
+      }
 
-        // If we found any messages, add to conversations
-        if (latestMessage) {
+      // Batch fetch all messages in parallel (3 queries instead of 150+)
+      const [smsResults, whatsappResults, emailResults] = await Promise.all([
+        phoneNumbers.length > 0 
+          ? supabase
+              .from('sms_logs')
+              .select('*')
+              .or(phoneNumbers.map(p => `to.eq.${p}`).concat(phoneNumbers.map(p => `from_number.eq.${p}`)).join(','))
+              .order('created_at', { ascending: false })
+          : Promise.resolve({ data: [] }),
+        
+        phoneNumbers.length > 0
+          ? supabase
+              .from('whatsapp_logs')
+              .select('*')
+              .or(phoneNumbers.map(p => `to.eq.${p}`).concat(phoneNumbers.map(p => `from_number.eq.${p}`)).join(','))
+              .order('created_at', { ascending: false })
+          : Promise.resolve({ data: [] }),
+        
+        emailAddresses.length > 0
+          ? supabase
+              .from('email_logs')
+              .select('*')
+              .in('to_email', emailAddresses)
+              .order('created_at', { ascending: false })
+          : Promise.resolve({ data: [] })
+      ])
+
+      // Group messages by customer
+      const messagesByCustomer = new Map<string, Array<{message: any, type: 'sms' | 'whatsapp' | 'email'}>>()
+      
+      // Process SMS messages
+      for (const msg of smsResults.data || []) {
+        const customer = customerByPhone.get(msg.to) || customerByPhone.get(msg.from_number)
+        if (customer) {
+          if (!messagesByCustomer.has(customer.id)) {
+            messagesByCustomer.set(customer.id, [])
+          }
+          messagesByCustomer.get(customer.id)!.push({ message: msg, type: 'sms' })
+        }
+      }
+      
+      // Process WhatsApp messages  
+      for (const msg of whatsappResults.data || []) {
+        const customer = customerByPhone.get(msg.to) || customerByPhone.get(msg.from_number)
+        if (customer) {
+          if (!messagesByCustomer.has(customer.id)) {
+            messagesByCustomer.set(customer.id, [])
+          }
+          messagesByCustomer.get(customer.id)!.push({ message: msg, type: 'whatsapp' })
+        }
+      }
+      
+      // Process email messages
+      for (const msg of emailResults.data || []) {
+        const customer = customerByEmail.get(msg.to_email)
+        if (customer) {
+          if (!messagesByCustomer.has(customer.id)) {
+            messagesByCustomer.set(customer.id, [])
+          }
+          messagesByCustomer.get(customer.id)!.push({ message: msg, type: 'email' })
+        }
+      }
+      
+      // Build conversations from grouped messages
+      const conversationsData: Conversation[] = []
+      
+      for (const [customerId, messages] of messagesByCustomer) {
+        const customer = customerById.get(customerId)
+        if (!customer) continue
+        
+        // Sort messages by date and get the latest
+        messages.sort((a, b) => 
+          new Date(b.message.created_at).getTime() - new Date(a.message.created_at).getTime()
+        )
+        
+        const latest = messages[0]
+        if (latest) {
           conversationsData.push({
             id: customer.id,
             customer_id: customer.id,
             customer_name: customer.name || 'Unknown',
             customer_email: customer.email || '',
             customer_phone: customer.phone || '',
-            last_message: latestMessage.message || latestMessage.subject || 'No content',
-            last_message_type: messageType,
-            last_message_time: latestMessage.created_at,
+            last_message: latest.message.message || latest.message.subject || 'No content',
+            last_message_type: latest.type,
+            last_message_time: latest.message.created_at,
             unread_count: 0, // TODO: Implement unread tracking
-            total_messages: 1 // TODO: Get actual count
+            total_messages: messages.length
           })
         }
       }
