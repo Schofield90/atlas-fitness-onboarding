@@ -5,7 +5,7 @@ import { createClient } from '@/app/lib/supabase/client'
 import DashboardLayout from '@/app/components/DashboardLayout'
 import { Plus, Search, Download, Filter, UserPlus, Mail, Phone, MessageSquare, Upload, Tags } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useToast } from '@/app/lib/hooks/useToast'
 
 interface Contact {
@@ -44,16 +44,30 @@ export default function ContactsPage() {
   const [itemsPerPage, setItemsPerPage] = useState(25)
   const [showImportModal, setShowImportModal] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
   const toast = useToast()
 
   useEffect(() => {
     fetchContacts()
+    // Initialize pagination from URL params
+    const page = parseInt(searchParams.get('page') || '1')
+    const pageSize = parseInt(searchParams.get('pageSize') || '25')
+    setCurrentPage(page)
+    setItemsPerPage(pageSize)
   }, [])
 
   useEffect(() => {
     filterContacts()
   }, [contacts, searchTerm, sourceFilter, tagFilter, optInFilter])
+
+  // Update URL when pagination changes
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('page', currentPage.toString())
+    params.set('pageSize', itemsPerPage.toString())
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }, [currentPage, itemsPerPage, router, searchParams])
 
   const fetchContacts = async () => {
     try {
@@ -314,7 +328,11 @@ export default function ContactsPage() {
     }
 
     setFilteredContacts(filtered)
-    setCurrentPage(1)
+    
+    // Reset to first page when filtering changes
+    if (currentPage > 1 && (searchTerm || sourceFilter !== 'all' || tagFilter || optInFilter !== 'all')) {
+      setCurrentPage(1)
+    }
   }
 
   const handleExport = () => {

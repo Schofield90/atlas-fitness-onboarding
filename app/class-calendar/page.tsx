@@ -33,16 +33,16 @@ export default function ClassCalendarPage() {
         const { organizationId: orgId, error } = await getCurrentUserOrganization();
         console.log('Current user organization:', { orgId, error });
         
-        // Always use the correct organization ID for now
-        const correctOrgId = '63589490-8f55-4157-bd3a-e141594b748e';
-        console.log('Using organization ID:', correctOrgId);
-        setOrganizationId(correctOrgId);
+        if (error || !orgId) {
+          throw new Error('No organization found for user');
+        }
+        
+        console.log('Using organization ID:', orgId);
+        setOrganizationId(orgId);
       } catch (error) {
         console.error('Error initializing booking:', error);
-        // Use hardcoded organization ID as fallback for testing
-        const correctOrgId = '63589490-8f55-4157-bd3a-e141594b748e'; // Atlas Fitness
-        console.log('Using fallback organization ID:', correctOrgId);
-        setOrganizationId(correctOrgId);
+        // Do not use hardcoded fallback - redirect to onboarding instead
+        window.location.href = '/onboarding';
       }
     };
     

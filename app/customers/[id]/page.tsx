@@ -74,7 +74,13 @@ export default function CustomerDetailPage() {
         .eq('user_id', user.id)
         .single()
 
-      const organizationId = userOrg?.organization_id || '63589490-8f55-4157-bd3a-e141594b748e'
+      if (!userOrg?.organization_id) {
+        console.error('No organization found for user');
+        router.push('/onboarding');
+        return;
+      }
+      
+      const organizationId = userOrg.organization_id
       
       // Try to get basic client data first (simplified query)
       let { data: clientData, error: clientError } = await supabase

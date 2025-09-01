@@ -2,27 +2,53 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/app/lib/supabase/server'
 import { getCurrentUserOrganization } from '@/app/lib/organization-server'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const { organizationId, error: orgError } = await getCurrentUserOrganization()
     if (orgError || !organizationId) {
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
     }
 
+    const { searchParams } = new URL(request.url)
+    const page = parseInt(searchParams.get('page') || '1')
+    const pageSize = parseInt(searchParams.get('page_size') || '25')
+    const status = searchParams.get('status')
+
     const supabase = await createClient()
     
-    const { data, error } = await supabase
+    // Calculate range for pagination
+    const from = (page - 1) * pageSize
+    const to = from + pageSize - 1
+    
+    // Build query with pagination
+    let query = supabase
       .from('workflows')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false })
+      .range(from, to)
+
+    // Apply status filter if provided
+    if (status && status !== 'all') {
+      query = query.eq('status', status)
+    }
+
+    const { data, error, count } = await query
 
     if (error) {
       console.error('Error fetching workflows:', error)
       return NextResponse.json({ error: 'Failed to fetch workflows' }, { status: 500 })
     }
 
-    return NextResponse.json({ workflows: data || [] })
+    return NextResponse.json({ 
+      workflows: data || [],
+      pagination: {
+        page,
+        pageSize,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / pageSize)
+      }
+    })
   } catch (error) {
     console.error('Error in GET /api/automations/workflows:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

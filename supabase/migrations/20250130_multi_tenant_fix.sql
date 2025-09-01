@@ -118,9 +118,11 @@ CREATE POLICY "Users can delete organization events" ON calendar_events
   );
 
 -- 8. Create Atlas Fitness organization if it doesn't exist
+-- WARNING: This creates a default organization with hardcoded ID for initial setup only
+-- In production, organizations should be created dynamically with unique IDs
 INSERT INTO organizations (id, name, subdomain, plan, status)
 VALUES (
-  '63589490-8f55-4157-bd3a-e141594b748e',
+  '63589490-8f55-4157-bd3a-e141594b748e', -- Initial demo organization
   'Atlas Fitness',
   'atlas-fitness',
   'pro',
@@ -134,6 +136,7 @@ SELECT
   id as user_id,
   COALESCE(
     (raw_user_meta_data->>'organization_id')::uuid,
+    -- WARNING: Fallback to hardcoded org ID for migration only
     '63589490-8f55-4157-bd3a-e141594b748e'::uuid
   ) as organization_id,
   'owner' as role

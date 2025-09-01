@@ -19,6 +19,8 @@ BEGIN
         ELSIF NOT EXISTS (SELECT FROM information_schema.columns 
                          WHERE table_name = 'clients' AND column_name = 'org_id') THEN
             -- Add org_id column
+            -- WARNING: This uses a hardcoded default organization ID for migration purposes only
+            -- In production, organization IDs should be dynamically assigned based on user context
             ALTER TABLE clients 
             ADD COLUMN org_id UUID NOT NULL DEFAULT '63589490-8f55-4157-bd3a-e141594b748e' REFERENCES organizations(id) ON DELETE CASCADE;
             RAISE NOTICE 'Added org_id column to clients table';

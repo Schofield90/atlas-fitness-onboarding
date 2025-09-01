@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { formatBritishDate } from '@/app/lib/utils/british-format'
 import { MessageComposer } from '@/app/components/messaging/MessageComposer'
 import { LeadScoringBadge, TemperatureIndicator } from './LeadScoringBadge'
@@ -32,7 +33,17 @@ interface LeadsTableProps {
   statusFilter?: string
 }
 
+interface PaginationInfo {
+  page: number
+  pageSize: number
+  total: number
+  totalPages: number
+}
+
 export function LeadsTable({ statusFilter = 'all' }: LeadsTableProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  
   const [leads, setLeads] = useState<Lead[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -41,20 +52,50 @@ export function LeadsTable({ statusFilter = 'all' }: LeadsTableProps) {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
   const [sortBy, setSortBy] = useState<string>('created_desc')
   const [temperatureFilter, setTemperatureFilter] = useState<string>('all')
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    page: parseInt(searchParams.get('page') || '1'),
+    pageSize: parseInt(searchParams.get('pageSize') || '25'),
+    total: 0,
+    totalPages: 0
+  })
 
   useEffect(() => {
     fetchLeads()
-  }, [statusFilter])
+  }, [statusFilter, pagination.page, pagination.pageSize])
+
+  // Update URL when pagination changes
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('page', pagination.page.toString())
+    params.set('pageSize', pagination.pageSize.toString())
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }, [pagination.page, pagination.pageSize, router, searchParams])
 
   const fetchLeads = async () => {
     try {
-      const url = statusFilter === 'all' 
-        ? '/api/leads' 
-        : `/api/leads?status=${statusFilter}`
+      const params = new URLSearchParams()
+      if (statusFilter && statusFilter !== 'all') {
+        params.set('status', statusFilter)
+      }
+      params.set('page', pagination.page.toString())
+      params.set('page_size', pagination.pageSize.toString())
+      
+      const url = `/api/leads?${params.toString()}`
       
       const res = await fetch(url)
       const data = await res.json()
-      setLeads(data.leads || [])
+      
+      if (data.success) {
+        setLeads(data.leads || [])
+        setPagination(prev => ({
+          ...prev,
+          total: data.pagination.total,
+          totalPages: data.pagination.totalPages
+        }))
+      } else {
+        console.error('API error:', data.error)
+        setLeads([])
+      }
     } catch (error) {
       console.error('Error fetching leads:', error)
       setLeads([])
@@ -139,7 +180,8 @@ export function LeadsTable({ statusFilter = 'all' }: LeadsTableProps) {
       })
     }
     
-    // Apply sorting
+    // Server-side sorting will be implemented later via API params
+    // For now, maintain client-side sorting for filtered results
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'score_desc':
@@ -161,6 +203,20 @@ export function LeadsTable({ statusFilter = 'all' }: LeadsTableProps) {
   }
   
   const processedLeads = filteredAndSortedLeads()
+  
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
+      setPagination(prev => ({ ...prev, page: newPage }))
+    }
+  }
+  
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPagination(prev => ({ 
+      ...prev, 
+      pageSize: newPageSize,
+      page: 1 // Reset to first page when changing page size
+    }))
+  }
   
   const recordActivity = async (leadId: string, activityType: string) => {
     try {
@@ -284,7 +340,7 @@ export function LeadsTable({ statusFilter = 'all' }: LeadsTableProps) {
           <tbody className="divide-y divide-gray-600">
             {processedLeads.length === 0 ? (
               <tr>
-                <td colSpan={7} className="p-8 text-center text-gray-400">
+                <td colSpan={9} className="p-8 text-center text-gray-400">
                   <div className="flex flex-col items-center">
                     <svg className="w-12 h-12 mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
@@ -406,14 +462,71 @@ export function LeadsTable({ statusFilter = 'all' }: LeadsTableProps) {
       </div>
 
       {/* Pagination */}
-      {processedLeads.length > 0 && (
-        <div className="flex justify-between items-center mt-6">
-          <p className="text-sm text-gray-400">
-            Showing {processedLeads.length} of {leads.length} leads
-          </p>
-          <div className="flex gap-2">
-            <button className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors">Previous</button>
-            <button className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors">Next</button>
+      {pagination.total > 0 && (
+        <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
+          <div className="flex items-center gap-4">
+            <p className="text-sm text-gray-400">
+              Showing {((pagination.page - 1) * pagination.pageSize) + 1} to{' '}
+              {Math.min(pagination.page * pagination.pageSize, pagination.total)} of{' '}
+              {pagination.total} leads
+            </p>
+            
+            {/* Page Size Selector */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-400">Show:</span>
+              <select
+                value={pagination.pageSize}
+                onChange={(e) => handlePageSizeChange(parseInt(e.target.value))}
+                className="bg-gray-700 text-white rounded px-2 py-1 text-sm"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handlePageChange(pagination.page - 1)}
+              disabled={pagination.page === 1}
+              className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            
+            {/* Page Numbers */}
+            <div className="flex gap-1">
+              {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                const startPage = Math.max(1, pagination.page - 2)
+                const pageNum = startPage + i
+                
+                if (pageNum > pagination.totalPages) return null
+                
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => handlePageChange(pageNum)}
+                    className={`px-3 py-1 rounded transition-colors ${
+                      pageNum === pagination.page
+                        ? 'bg-orange-500 text-white'
+                        : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                )
+              })}
+            </div>
+            
+            <button
+              onClick={() => handlePageChange(pagination.page + 1)}
+              disabled={pagination.page === pagination.totalPages}
+              className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
           </div>
         </div>
       )}

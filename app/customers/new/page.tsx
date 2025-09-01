@@ -47,27 +47,13 @@ export default function NewCustomerPage() {
         .single()
 
       if (!userOrg?.organization_id) {
-        // Use default Atlas Fitness organization as fallback
-        const defaultOrgId = '63589490-8f55-4157-bd3a-e141594b748e'
-        
-        // Create user_organizations entry with default org
-        const { error: orgError } = await supabase
-          .from('user_organizations')
-          .insert({
-            user_id: user.id,
-            organization_id: defaultOrgId,
-            role: 'member'
-          })
-        
-        // Ignore conflict errors (user might already have this org)
-        if (orgError && !orgError.message.includes('duplicate')) {
-          console.error('Error creating user organization:', orgError)
-        }
-        
-        organizationId = defaultOrgId
-      } else {
-        organizationId = userOrg.organization_id
+        // No organization found - redirect to onboarding
+        console.error('No organization found for user');
+        router.push('/onboarding');
+        return;
       }
+      
+      organizationId = userOrg.organization_id
 
       // Split name into first and last name
       const nameParts = formData.name.trim().split(' ')

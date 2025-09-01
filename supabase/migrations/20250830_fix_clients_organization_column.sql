@@ -52,6 +52,8 @@ WHERE name IS NOT NULL AND (first_name IS NULL OR last_name IS NULL);
 CREATE OR REPLACE FUNCTION ensure_user_has_organization()
 RETURNS TRIGGER AS $$
 DECLARE
+  -- WARNING: Hardcoded organization ID for migration purposes only
+  -- In production, organization assignment should be based on user context
   default_org_id UUID := '63589490-8f55-4157-bd3a-e141594b748e'; -- Atlas Fitness default
   existing_org_count INTEGER;
 BEGIN
@@ -82,6 +84,7 @@ CREATE TRIGGER ensure_user_organization_trigger
 INSERT INTO user_organizations (user_id, organization_id, role)
 SELECT 
   u.id,
+  -- WARNING: Hardcoded organization ID for initial migration only
   '63589490-8f55-4157-bd3a-e141594b748e',
   'member'
 FROM users u

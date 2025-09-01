@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import DashboardLayout from '@/app/components/DashboardLayout'
 import { 
   Play, 
@@ -33,23 +33,59 @@ interface Workflow {
   createdAt: string
 }
 
+interface PaginationInfo {
+  page: number
+  pageSize: number
+  total: number
+  totalPages: number
+}
+
 export default function AutomationsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  
   const [workflows, setWorkflows] = useState<Workflow[]>([])
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    page: parseInt(searchParams.get('page') || '1'),
+    pageSize: parseInt(searchParams.get('pageSize') || '25'),
+    total: 0,
+    totalPages: 0
+  })
 
   useEffect(() => {
     setMounted(true)
     fetchWorkflows()
-  }, [])
+  }, [pagination.page, pagination.pageSize, statusFilter])
+
+  // Update URL when pagination changes
+  useEffect(() => {
+    if (mounted) {
+      const params = new URLSearchParams(searchParams.toString())
+      params.set('page', pagination.page.toString())
+      params.set('pageSize', pagination.pageSize.toString())
+      router.replace(`?${params.toString()}`, { scroll: false })
+    }
+  }, [pagination.page, pagination.pageSize, router, searchParams, mounted])
 
   const fetchWorkflows = async () => {
     try {
-      const response = await fetch('/api/automations/workflows')
+      const params = new URLSearchParams()
+      params.set('page', pagination.page.toString())
+      params.set('page_size', pagination.pageSize.toString())
+      if (statusFilter && statusFilter !== 'all') {
+        params.set('status', statusFilter)
+      }
+      
+      const url = `/api/automations/workflows?${params.toString()}`
+      const response = await fetch(url)
+      
       if (response.ok) {
         const data = await response.json()
-        setWorkflows(data.workflows.map((w: any) => ({
+        
+        const mappedWorkflows = data.workflows.map((w: any) => ({
           id: w.id,
           name: w.name,
           description: w.description || '',
@@ -61,17 +97,29 @@ export default function AutomationsPage() {
             : 0,
           lastRun: w.last_run_at,
           createdAt: w.created_at
-        })))
+        }))
+        
+        setWorkflows(mappedWorkflows)
+        
+        if (data.pagination) {
+          setPagination(prev => ({
+            ...prev,
+            total: data.pagination.total,
+            totalPages: data.pagination.totalPages
+          }))
+        }
+      } else {
+        throw new Error('Failed to fetch workflows')
       }
     } catch (error) {
       console.error('Error fetching workflows:', error)
       // Fallback to sample data if no workflows exist
-      setWorkflows([
+      const sampleWorkflows = [
         {
           id: '1',
           name: 'New Lead Welcome Sequence',
           description: 'Automatically send welcome messages and schedule follow-ups for new leads',
-          status: 'active',
+          status: 'active' as const,
           trigger: 'New Lead',
           totalExecutions: 127,
           successRate: 98.4,
@@ -82,7 +130,7 @@ export default function AutomationsPage() {
           id: '2', 
           name: 'Lead Qualification Bot',
           description: 'Qualify leads with AI-powered questions and route to appropriate team members',
-          status: 'active',
+          status: 'active' as const,
           trigger: 'Form Submission',
           totalExecutions: 89,
           successRate: 94.7,
@@ -93,7 +141,7 @@ export default function AutomationsPage() {
           id: '3',
           name: 'Appointment Reminder Flow',
           description: 'Send automated reminders 24hrs and 1hr before scheduled appointments',
-          status: 'paused',
+          status: 'paused' as const,
           trigger: 'Calendar Event',
           totalExecutions: 45,
           successRate: 100,
@@ -104,13 +152,19 @@ export default function AutomationsPage() {
           id: '4',
           name: 'Membership Renewal Campaign',
           description: 'Target members 30 days before renewal with personalized offers',
-          status: 'draft',
+          status: 'draft' as const,
           trigger: 'Scheduled',
           totalExecutions: 0,
           successRate: 0,
           createdAt: '2024-01-20T11:20:00Z'
         }
-      ])
+      ]
+      setWorkflows(sampleWorkflows)
+      setPagination(prev => ({
+        ...prev,
+        total: sampleWorkflows.length,
+        totalPages: Math.ceil(sampleWorkflows.length / prev.pageSize)
+      }))
     }
     setLoading(false)
   }
@@ -151,6 +205,20 @@ export default function AutomationsPage() {
       ...w,
       status: currentStatus === 'active' ? 'paused' : 'active'
     } as Workflow : w))
+  }
+  
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
+      setPagination(prev => ({ ...prev, page: newPage }))
+    }
+  }
+  
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPagination(prev => ({ 
+      ...prev, 
+      pageSize: newPageSize,
+      page: 1 // Reset to first page when changing page size
+    }))
   }
 
   // Prevent hydration mismatch by not rendering until mounted
@@ -253,7 +321,27 @@ export default function AutomationsPage() {
         {/* Workflows List */}
         <div className="bg-gray-800 rounded-lg">
           <div className="p-6 border-b border-gray-700">
-            <h2 className="text-xl font-semibold">Your Workflows</h2>
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Your Workflows</h2>
+              
+              {/* Status Filter */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-400">Filter:</span>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value)
+                    setPagination(prev => ({ ...prev, page: 1 })) // Reset to first page
+                  }}
+                  className="bg-gray-700 text-white rounded px-3 py-1 text-sm"
+                >
+                  <option value="all">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="paused">Paused</option>
+                  <option value="draft">Draft</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           {loading ? (
@@ -339,6 +427,77 @@ export default function AutomationsPage() {
                 </div>
               ))}
             </div>
+            
+            {/* Pagination */}
+            {pagination.total > 0 && pagination.totalPages > 1 && (
+              <div className="p-6 border-t border-gray-700">
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                  <div className="flex items-center gap-4">
+                    <p className="text-sm text-gray-400">
+                      Showing {((pagination.page - 1) * pagination.pageSize) + 1} to{' '}
+                      {Math.min(pagination.page * pagination.pageSize, pagination.total)} of{' '}
+                      {pagination.total} workflows
+                    </p>
+                    
+                    {/* Page Size Selector */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-400">Show:</span>
+                      <select
+                        value={pagination.pageSize}
+                        onChange={(e) => handlePageSizeChange(parseInt(e.target.value))}
+                        className="bg-gray-700 text-white rounded px-2 py-1 text-sm"
+                      >
+                        <option value={10}>10</option>
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handlePageChange(pagination.page - 1)}
+                      disabled={pagination.page === 1}
+                      className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Previous
+                    </button>
+                    
+                    {/* Page Numbers */}
+                    <div className="flex gap-1">
+                      {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                        const startPage = Math.max(1, pagination.page - 2)
+                        const pageNum = startPage + i
+                        
+                        if (pageNum > pagination.totalPages) return null
+                        
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => handlePageChange(pageNum)}
+                            className={`px-3 py-1 rounded transition-colors ${
+                              pageNum === pagination.page
+                                ? 'bg-orange-500 text-white'
+                                : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    
+                    <button
+                      onClick={() => handlePageChange(pagination.page + 1)}
+                      disabled={pagination.page === pagination.totalPages}
+                      className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           )}
         </div>
 

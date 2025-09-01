@@ -1,23 +1,22 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/app/lib/supabase/server';
-import { getCurrentUserOrganization } from '@/app/lib/organization-server';
+import { requireOrgAccess } from '@/app/lib/auth/organization';
 
 export async function GET() {
   try {
     const supabase = await createClient();
     
-    // Use fallback to Atlas Fitness organization if getCurrentUserOrganization fails
-    let organizationId: string | null = null;
+    // Get organization ID - no fallback, must have valid org
+    let organizationId: string;
     try {
-      const result = await getCurrentUserOrganization();
-      organizationId = result.organizationId;
+      const { organizationId: orgId } = await requireOrgAccess();
+      organizationId = orgId;
     } catch (e) {
-      console.log('Organization lookup failed, using default');
-    }
-    
-    // Fallback to Atlas Fitness organization
-    if (!organizationId) {
-      organizationId = '63589490-8f55-4157-bd3a-e141594b748e';
+      console.error('Organization lookup failed:', e);
+      return NextResponse.json(
+        { error: 'No organization found. Please complete onboarding.' },
+        { status: 401 }
+      );
     }
 
     const now = new Date();

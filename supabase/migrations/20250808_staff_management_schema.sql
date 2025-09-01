@@ -733,6 +733,8 @@ CREATE TRIGGER update_payroll_batch_totals_trigger
 -- =============================================
 
 -- Insert default SOP categories and templates for Atlas Fitness
+-- WARNING: These sample SOPs use a hardcoded organization ID for demo data only
+-- In production, SOPs should be created with dynamic organization IDs based on user context
 INSERT INTO staff_sops (
   organization_id, 
   title, 
@@ -742,7 +744,7 @@ INSERT INTO staff_sops (
   effective_date
 ) VALUES 
 (
-  '63589490-8f55-4157-bd3a-e141594b748e',
+  '63589490-8f55-4157-bd3a-e141594b748e', -- Demo organization ID
   'Opening Procedures',
   'Daily Operations',
   E'OPENING CHECKLIST:\n\n1. Arrive 15 minutes before opening\n2. Unlock facility and turn on lights\n3. Check equipment for safety and cleanliness\n4. Set up reception area\n5. Check computer systems are operational\n6. Review daily schedule and staff assignments\n7. Ensure first aid kit is stocked\n8. Check temperature and ventilation\n9. Update daily specials board\n10. Greet first members with enthusiasm',

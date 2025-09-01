@@ -5,7 +5,7 @@ import { createClient } from '@/app/lib/supabase/client'
 import DashboardLayout from '@/app/components/DashboardLayout'
 import { Plus, Search, Download, Filter, ChevronDown, User, AlertCircle, Upload } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useToast } from '@/app/lib/hooks/useToast'
 import { isFeatureEnabled } from '@/app/lib/feature-flags'
 
@@ -42,16 +42,30 @@ export default function CustomersPage() {
   const [importPreview, setImportPreview] = useState<any[]>([])
   const [importLoading, setImportLoading] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
   const toast = useToast()
 
   useEffect(() => {
     fetchCustomers()
+    // Initialize pagination from URL params
+    const page = parseInt(searchParams.get('page') || '1')
+    const pageSize = parseInt(searchParams.get('pageSize') || '25')
+    setCurrentPage(page)
+    setItemsPerPage(pageSize)
   }, [])
 
   useEffect(() => {
     filterCustomers()
   }, [customers, searchTerm, statusFilter, membershipFilter, showOnlyNew, showOnlySlipping])
+
+  // Update URL when pagination changes
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('page', currentPage.toString())
+    params.set('pageSize', itemsPerPage.toString())
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }, [currentPage, itemsPerPage, router, searchParams])
 
   const fetchCustomers = async () => {
     try {
@@ -83,8 +97,10 @@ export default function CustomersPage() {
       }
 
       if (!organizationId) {
-        // Use default organization if no org found
-        organizationId = '63589490-8f55-4157-bd3a-e141594b748e'
+        // No organization found - redirect to onboarding
+        console.error('No organization found for user');
+        router.push('/onboarding');
+        return;
       }
 
       // Fetch only clients (actual customers, not leads)

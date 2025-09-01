@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/app/lib/supabase/admin';
+import { requireOrgAccess } from '@/app/lib/auth/organization';
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,7 +10,17 @@ export async function GET(request: NextRequest) {
     // Get date range from query params
     const startDate = searchParams.get('startDate') || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const endDate = searchParams.get('endDate') || new Date().toISOString();
-    const organizationId = '63589490-8f55-4157-bd3a-e141594b748e'; // Atlas Fitness
+    // Get organization ID from authenticated user
+    let organizationId: string;
+    try {
+      const { organizationId: orgId } = await requireOrgAccess();
+      organizationId = orgId;
+    } catch (e) {
+      return NextResponse.json(
+        { error: 'No organization found. Please complete onboarding.' },
+        { status: 401 }
+      );
+    }
     
     // Fetch revenue data from multiple sources
     const [membershipsResult, bookingsResult, transactionsResult] = await Promise.all([
