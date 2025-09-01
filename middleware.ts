@@ -7,12 +7,15 @@ const publicRoutes = [
   '/',
   '/landing',
   '/login',
+  '/signin',
   '/signup',
+  '/signup-simple',     // Add simplified signup page
   '/auth/callback',
   '/client-portal/login',
   '/client-portal/claim',
   '/client-access',
   '/onboarding',
+  '/portal',            // Add member portal routes
   '/dashboard-direct',  // Add simplified dashboard to public routes
   '/quick-dashboard',   // Add quick access dashboard (no auth)
   '/real-dashboard',    // Real dashboard with no auth checks
@@ -24,6 +27,7 @@ const publicRoutes = [
   '/api/webhooks',
   '/api/public-api',    // Public API endpoints
   '/api/booking-by-slug', // Public booking API endpoints for widget embedding
+  '/api/analytics',     // Add analytics endpoint as public
 ]
 
 // Client-only routes
