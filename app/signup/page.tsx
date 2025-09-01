@@ -81,7 +81,12 @@ export default function SignupPage() {
             }, 2000)
             return
           } else {
-            setError(result.error || 'Failed to create account')
+            // Show user-friendly error message
+            if (result.details?.message?.includes('Supabase Auth')) {
+              setError('The authentication service is temporarily unavailable. Please contact support or try again later.')
+            } else {
+              setError(result.error || 'Failed to create account')
+            }
             return
           }
         }

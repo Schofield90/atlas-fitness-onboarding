@@ -30,26 +30,16 @@ export async function POST(request: Request) {
     if (authError) {
       console.error('Admin create user error:', authError)
       
-      // If auth fails, create user directly in database
-      const userId = crypto.randomUUID()
-      
-      // Create user in public.users
-      const { error: userError } = await supabase
-        .from('users')
-        .insert({
-          id: userId,
-          email,
-          full_name: name || email.split('@')[0],
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-      
-      if (userError && userError.code !== '23505') {
-        return NextResponse.json({ 
-          error: 'Failed to create user record',
-          details: userError
-        }, { status: 500 })
-      }
+      // For now, we can't create users without auth working
+      // Return a clear message to the user
+      return NextResponse.json({ 
+        error: 'Authentication service is currently unavailable. Please try again later or contact support.',
+        details: {
+          message: 'Supabase Auth is returning 500 errors',
+          suggestion: 'The authentication service needs to be fixed in the Supabase dashboard'
+        }
+      }, { status: 503 })
+    }
       
       // Create organization if provided
       if (organizationName) {
