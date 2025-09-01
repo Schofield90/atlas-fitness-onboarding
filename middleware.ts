@@ -23,7 +23,7 @@ const publicRoutes = [
   '/api/client-access',
   '/api/webhooks',
   '/api/public-api',    // Public API endpoints
-  '/api/booking-by-slug' // Public booking API endpoints for widget embedding
+  '/api/booking-by-slug', // Public booking API endpoints for widget embedding
 ]
 
 // Client-only routes
