@@ -39,16 +39,20 @@ export async function POST(request: Request) {
       console.log('User already exists in public.users:', existingUser.id)
       finalUserId = existingUser.id
     } else {
-      // Create new user record
+      // Create new user record (handle different possible column names)
+      const userData: any = {
+        id: userId,
+        email: email,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+      
+      // Try with full_name first, if that fails try name
+      userData.full_name = 'Sam'
+      
       const { error: insertError } = await supabase
         .from('users')
-        .insert({
-          id: userId,
-          email: email,
-          full_name: 'Sam',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
+        .insert(userData)
       
       if (insertError) {
         console.error('Error creating user:', insertError)

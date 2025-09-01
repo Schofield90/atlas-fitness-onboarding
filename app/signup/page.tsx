@@ -18,6 +18,48 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const supabase = createClient()
+  
+  const handleEmergencySetup = async () => {
+    setLoading(true)
+    setError(null)
+    
+    try {
+      const response = await fetch('/api/auth/emergency-setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: 'sam@gymleadhub.co.uk',
+          password: 'TempPassword123'
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setSuccess(true)
+        setError(null)
+        
+        // Try to sign in with the created user  
+        const { data: signInData } = await supabase.auth.signInWithPassword({
+          email: 'sam@gymleadhub.co.uk',
+          password: 'TempPassword123'
+        })
+        
+        if (signInData?.user) {
+          router.push('/dashboard')
+        } else {
+          setError('User created. Please sign in manually.')
+          setTimeout(() => router.push('/login'), 2000)
+        }
+      } else {
+        setError(data.error || 'Emergency setup failed')
+      }
+    } catch (err: any) {
+      setError(`Emergency setup error: ${err.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -278,13 +320,23 @@ export default function SignupPage() {
             </div>
           </div>
 
-          <div>
+          <div className="space-y-3">
             <button
               type="submit"
               disabled={loading}
               className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? 'Creating your account...' : 'Start Free Trial'}
+            </button>
+            
+            {/* Emergency Setup Button - Always Visible */}
+            <button
+              type="button"
+              onClick={handleEmergencySetup}
+              disabled={loading}
+              className="group relative w-full flex justify-center py-3 px-4 border-2 border-red-600 text-sm font-medium rounded-md text-red-300 bg-red-900/50 hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              🚨 Emergency Setup for sam@gymleadhub.co.uk (Bypass Auth Issues)
             </button>
           </div>
 
