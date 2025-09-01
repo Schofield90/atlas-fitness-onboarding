@@ -126,17 +126,18 @@ export default function NewContactPage() {
 
       if (error) {
         console.error('Error creating contact:', error)
-        alert(`Failed to create contact: ${error.message}`)
+        const errorMessage = error?.message || error?.details || JSON.stringify(error) || 'Unknown error'
+        alert(`Failed to create contact: ${errorMessage}`)
         return
       }
 
       // Also create a lead record for compatibility
-      await supabase
+      const leadName = `${formData.first_name} ${formData.last_name}`.trim() || formData.email || 'Unknown'
+      const { error: leadError } = await supabase
         .from('leads')
         .insert({
           organization_id: organizationId,
-          first_name: formData.first_name,
-          last_name: formData.last_name,
+          name: leadName,
           email: formData.email,
           phone: formData.phone,
           source: formData.source,
@@ -148,12 +149,18 @@ export default function NewContactPage() {
             tags: formData.tags
           }
         })
+      
+      if (leadError) {
+        console.error('Error creating lead record:', leadError)
+        // Don't fail the contact creation if lead creation fails
+      }
 
       alert('Contact created successfully!')
       router.push('/contacts')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error:', error)
-      alert('Failed to create contact')
+      const errorMessage = error?.message || error?.toString() || 'Unknown error'
+      alert(`Failed to create contact: ${errorMessage}`)
     } finally {
       setLoading(false)
     }
