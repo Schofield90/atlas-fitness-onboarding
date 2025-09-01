@@ -5,6 +5,8 @@ import { Calendar, Clock, Users, Plus, Link, Settings, Video, Phone, Coffee } fr
 import Button from '@/app/components/ui/Button'
 import { createClient } from '@/app/lib/supabase/client'
 import toast from '@/app/lib/toast'
+import DashboardLayout from '@/app/components/DashboardLayout'
+import { useRouter } from 'next/navigation'
 
 interface Booking {
   id: string
@@ -31,6 +33,7 @@ export default function BookingPage() {
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past' | 'cancelled'>('upcoming')
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
     fetchBookings()
@@ -100,7 +103,7 @@ export default function BookingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <DashboardLayout>
       <div className="p-6">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
@@ -110,7 +113,7 @@ export default function BookingPage() {
           </div>
           <div className="flex gap-3">
             <Button
-              onClick={() => window.location.href = '/settings/booking'}
+              onClick={() => router.push('/settings/booking')}
               variant="outline"
               className="flex items-center gap-2"
             >
@@ -118,7 +121,7 @@ export default function BookingPage() {
               Settings
             </Button>
             <Button
-              onClick={() => window.location.href = '/calendar'}
+              onClick={() => router.push('/calendar')}
               className="bg-orange-600 hover:bg-orange-700 flex items-center gap-2"
             >
               <Calendar className="w-4 h-4" />
@@ -337,6 +340,6 @@ export default function BookingPage() {
           </ul>
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   )
 }

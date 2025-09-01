@@ -126,17 +126,37 @@ export default function BookingLinksManager() {
         return
       }
 
+      // Map formData to match database schema
+      const bookingLinkData = {
+        name: formData.name || formData.title, // Some schemas use 'name', others 'title'
+        title: formData.name || formData.title, // Include both for compatibility
+        slug: formData.slug,
+        description: formData.description,
+        type: formData.type,
+        appointment_type_ids: formData.appointment_type_ids || [],
+        is_public: formData.is_public ?? true,
+        is_active: true,
+        user_id: user.id,
+        organization_id: organizationId,
+        duration: 30 // Default duration if needed
+      }
+
+      console.log('Creating booking link with data:', bookingLinkData)
+
       const { data, error } = await supabase
         .from('booking_links')
-        .insert({
-          ...formData,
-          user_id: user.id,
-          organization_id: organizationId
-        })
+        .insert(bookingLinkData)
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('Database error creating booking link:', error)
+        throw error
+      }
+
+      if (!data) {
+        throw new Error('No data returned from booking link creation')
+      }
 
       setBookingLinks([data, ...bookingLinks])
       setShowCreateModal(false)
@@ -144,7 +164,10 @@ export default function BookingLinksManager() {
       alert('Booking link created successfully!')
     } catch (error) {
       console.error('Error creating booking link:', error)
-      alert('Failed to create booking link: ' + (error as any).message)
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : (error as any)?.message || 'An unknown error occurred'
+      alert('Failed to create booking link: ' + errorMessage)
     }
   }
 
