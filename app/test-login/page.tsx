@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 
 export default function TestLogin() {
-  const [email, setEmail] = useState('sam@atlas-gyms.co.uk');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('sam@gymleadhub.co.uk');
+  const [password, setPassword] = useState('@Aa80236661');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -70,6 +70,18 @@ export default function TestLogin() {
             className="w-full py-3 bg-orange-500 text-white font-medium rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Logging in...' : 'Login'}
+          </button>
+          
+          <button
+            onClick={() => {
+              // Store auth bypass for testing
+              localStorage.setItem('test_user_id', '64cbbca2-a091-4bb6-99c2-5b8e90a31c4e');
+              localStorage.setItem('test_user_email', 'sam@gymleadhub.co.uk');
+              window.location.href = '/dashboard';
+            }}
+            className="w-full py-3 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700"
+          >
+            Bypass Login (Go to Dashboard)
           </button>
           
           {message && (
