@@ -74,33 +74,41 @@ export default function NewCustomerPage() {
       const firstName = nameParts[0] || formData.name
       const lastName = nameParts.slice(1).join(' ') || ''
 
-      // Create the customer (clients table uses org_id, not organization_id)
-      const { data: customer, error: customerError } = await supabase
+      // Create the customer - try both org_id and organization_id columns
+      let customerData: any = {
+        first_name: firstName,
+        last_name: lastName,
+        name: formData.name, // Include name field as fallback
+        email: formData.email,
+        phone: formData.phone,
+        status: 'active',
+        created_at: new Date().toISOString()
+      }
+
+      // Try with org_id first
+      let { data: customer, error: customerError } = await supabase
         .from('clients')
         .insert({
-          first_name: firstName,
-          last_name: lastName,
-          email: formData.email,
-          phone: formData.phone,
-          org_id: organizationId, // clients table uses org_id
-          status: 'active',
-          created_at: new Date().toISOString(),
-          // Store additional data in metadata since these columns might not exist
-          metadata: {
-            name: formData.name,
-            date_of_birth: formData.date_of_birth,
-            gender: formData.gender,
-            address: {
-              line_1: formData.address_line_1,
-              line_2: formData.address_line_2,
-              city: formData.city,
-              postal_code: formData.postal_code,
-              country: formData.country || 'UK'
-            }
-          }
+          ...customerData,
+          org_id: organizationId
         })
         .select()
         .single()
+
+      // If org_id doesn't work, try organization_id
+      if (customerError?.message?.includes('column') || customerError?.message?.includes('org_id')) {
+        const result = await supabase
+          .from('clients')
+          .insert({
+            ...customerData,
+            organization_id: organizationId
+          })
+          .select()
+          .single()
+        
+        customer = result.data
+        customerError = result.error
+      }
 
       if (customerError) {
         // If there's still an error, log it and throw

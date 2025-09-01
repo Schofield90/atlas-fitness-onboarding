@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, TrendingUp, Users, ArrowRight, Bell } from 'lucide-react';
+import { Calendar, Clock, TrendingUp, Users, User, CreditCard, Gift, ArrowRight, Bell } from 'lucide-react';
 import Link from 'next/link';
 
 export default function ClientDashboard() {

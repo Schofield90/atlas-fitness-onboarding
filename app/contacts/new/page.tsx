@@ -96,15 +96,14 @@ export default function NewContactPage() {
         return
       }
 
-      // Create contact
-      const { data, error } = await supabase
-        .from('contacts')
-        .insert({
-          organization_id: organizationId,
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-          email: formData.email,
-          phone: formData.phone,
+      // Create contact - build the insert object conditionally
+      const contactData: any = {
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        email: formData.email,
+        phone: formData.phone,
+        tags: formData.tags,
+        metadata: {
           company: formData.company,
           position: formData.position,
           address: formData.address,
@@ -115,14 +114,39 @@ export default function NewContactPage() {
           website: formData.website,
           source: formData.source,
           status: formData.status,
-          tags: formData.tags,
           notes: formData.notes,
-          birthday: formData.birthday || null,
-          social_media: formData.social_media,
-          created_at: new Date().toISOString()
+          birthday: formData.birthday,
+          social_media: formData.social_media
+        },
+        sms_opt_in: true,
+        whatsapp_opt_in: true,
+        email_opt_in: true,
+        created_at: new Date().toISOString()
+      }
+      
+      // Try to add organization_id if the column exists
+      // First attempt with organization_id
+      let { data, error } = await supabase
+        .from('contacts')
+        .insert({
+          ...contactData,
+          organization_id: organizationId
         })
         .select()
         .single()
+      
+      // If organization_id column doesn't exist, try without it
+      if (error?.message?.includes('column') || error?.message?.includes('organization_id')) {
+        console.log('Contacts table missing organization_id, inserting without it')
+        const result = await supabase
+          .from('contacts')
+          .insert(contactData)
+          .select()
+          .single()
+        
+        data = result.data
+        error = result.error
+      }
 
       if (error) {
         console.error('Error creating contact:', error)

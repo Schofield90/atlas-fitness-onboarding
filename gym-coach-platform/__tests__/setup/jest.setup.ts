@@ -23,6 +23,17 @@ jest.mock('react-hot-toast', () => {
   }
 })
 
+// Mock sonner (used by WebhookTriggerConfig)
+jest.mock('sonner', () => ({
+  toast: {
+    success: jest.fn(),
+    error: jest.fn(),
+    info: jest.fn(),
+    warning: jest.fn(),
+  },
+  Toaster: () => null,
+}))
+
 // Global test utilities
 global.ResizeObserver = jest.fn().mockImplementation(() => ({
   observe: jest.fn(),
@@ -57,6 +68,20 @@ Object.defineProperty(window, 'confirm', {
   writable: true,
   value: jest.fn(() => true),
 })
+
+// Mock web APIs for Next.js
+global.Request = class MockRequest {
+  constructor(public url: string, public init: any = {}) {}
+  headers = new Map()
+} as any
+
+global.Response = class MockResponse {
+  constructor(public body: any, public init: any = {}) {}
+  status = 200
+  json = () => Promise.resolve(this.body)
+} as any
+
+global.Headers = Map as any
 
 // Mock console to reduce noise in tests
 const originalConsoleError = console.error

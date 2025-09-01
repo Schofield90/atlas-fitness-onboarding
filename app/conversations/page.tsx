@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/app/lib/supabase/client'
 import DashboardLayout from '@/app/components/DashboardLayout'
@@ -23,7 +23,7 @@ interface Conversation {
   total_messages: number
 }
 
-export default function ConversationsPage() {
+function ConversationsContent() {
   const [useEnhanced, setUseEnhanced] = useState(true)
 
   if (useEnhanced) {
@@ -347,5 +347,19 @@ export default function ConversationsPage() {
         )}
       </div>
     </DashboardLayout>
+  )
+}
+
+export default function ConversationsPage() {
+  return (
+    <Suspense fallback={
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="text-gray-400">Loading conversations...</div>
+        </div>
+      </DashboardLayout>
+    }>
+      <ConversationsContent />
+    </Suspense>
   )
 }

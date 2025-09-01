@@ -58,22 +58,83 @@ export default function ContactsPage() {
   const fetchContacts = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      console.log('Fetching contacts for user:', user?.id)
+      if (!user) {
+        console.error('No user authenticated')
+        return
+      }
 
       // Get user's organization
-      const { data: orgData } = await supabase
+      const { data: orgData, error: orgError } = await supabase
         .from('user_organizations')
         .select('organization_id')
         .eq('user_id', user.id)
         .single()
 
+      console.log('Organization data:', orgData, 'Error:', orgError)
+
       if (!orgData) {
-        console.error('No organization found for user')
+        console.error('No organization found for user, trying fallback')
+        // Try organization_members table as fallback
+        const { data: memberData } = await supabase
+          .from('organization_members')
+          .select('organization_id')
+          .eq('user_id', user.id)
+          .single()
+        
+        if (!memberData) {
+          console.error('No organization found in either table')
+          // Use default organization
+          const defaultOrgId = '63589490-8f55-4157-bd3a-e141594b748e'
+          console.log('Using default organization:', defaultOrgId)
+          
+          // Create a fake orgData object
+          const fakeOrgData = { organization_id: defaultOrgId }
+          
+          // Continue with default org
+          await fetchContactsWithOrg(fakeOrgData)
+          return
+        }
+        
+        await fetchContactsWithOrg(memberData)
         return
       }
+      
+      await fetchContactsWithOrg(orgData)
+    } catch (error) {
+      console.error('Error in fetchContacts:', error)
+      toast.showToast('Failed to load contacts', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+  
+  const fetchContactsWithOrg = async (orgData: { organization_id: string }) => {
+    console.log('Fetching contacts for organization:', orgData.organization_id)
 
-      // Fetch all contacts with their related lead information
-      const { data: contactsData, error: contactsError } = await supabase
+    // Fetch all contacts with their related lead information
+    // First try with organization_id filter
+    let { data: contactsData, error: contactsError } = await supabase
+      .from('contacts')
+      .select(`
+        *,
+        lead:leads (
+          id,
+          name,
+          source,
+          status,
+          score
+        )
+      `)
+      .eq('organization_id', orgData.organization_id)
+      .order('created_at', { ascending: false })
+    
+    console.log('Contacts query result:', { contactsData, contactsError })
+    
+    // If we get a column error, try without organization_id filter
+    if (contactsError?.message?.includes('column') || contactsError?.message?.includes('organization_id')) {
+      console.log('Contacts table missing organization_id column, fetching all contacts')
+      const result = await supabase
         .from('contacts')
         .select(`
           *,
@@ -85,97 +146,122 @@ export default function ContactsPage() {
             score
           )
         `)
-        .eq('organization_id', orgData.organization_id)
         .order('created_at', { ascending: false })
+      
+      contactsData = result.data
+      contactsError = result.error
+      console.log('Fallback contacts query result:', { contactsData, contactsError })
+    }
 
-      if (contactsError) {
-        console.error('Error fetching contacts:', contactsError)
-      }
+    if (contactsError) {
+      console.error('Error fetching contacts:', contactsError)
+    }
 
-      // Also fetch leads that might not have a contact record yet
-      const { data: leadsData, error: leadsError } = await supabase
+    // Also fetch leads that might not have a contact record yet
+    let { data: leadsData, error: leadsError } = await supabase
+      .from('leads')
+      .select('*')
+      .eq('organization_id', orgData.organization_id)
+      .order('created_at', { ascending: false })
+
+    // If leads query fails due to missing organization_id, try without filter
+    if (leadsError?.message?.includes('column') || leadsError?.message?.includes('organization_id')) {
+      console.log('Leads table missing organization_id column, fetching all leads')
+      const result = await supabase
         .from('leads')
         .select('*')
-        .eq('organization_id', orgData.organization_id)
         .order('created_at', { ascending: false })
-
-      if (leadsError) {
-        console.error('Error fetching leads:', leadsError)
-      }
-
-      // Create a map to avoid duplicates
-      const contactsMap = new Map()
       
-      // Add all contacts first
-      if (contactsData) {
-        contactsData.forEach(contact => {
-          contactsMap.set(contact.id, contact)
-        })
-      }
+      leadsData = result.data
+      leadsError = result.error
+    }
 
-      // Process leads and create contact records for those without one
-      if (leadsData) {
-        for (const lead of leadsData) {
-          // Check if this lead already has a contact record
-          const hasContact = contactsData?.some(c => c.lead_id === lead.id)
-          
-          if (!hasContact) {
-            // Create a contact-like object from the lead
-            const contactFromLead: Contact = {
-              id: `lead-${lead.id}`, // Temporary ID to distinguish from real contacts
-              first_name: lead.name?.split(' ')[0] || '',
-              last_name: lead.name?.split(' ').slice(1).join(' ') || '',
-              email: lead.email || '',
-              phone: lead.phone || '',
-              lead_id: lead.id,
-              client_id: undefined,
-              sms_opt_in: true,
-              whatsapp_opt_in: true,
-              email_opt_in: true,
-              tags: lead.metadata?.tags || [],
-              metadata: lead.metadata,
-              created_at: lead.created_at,
-              updated_at: lead.updated_at,
-              lead: {
-                id: lead.id,
-                name: lead.name || '',
-                source: lead.source || 'unknown',
-                status: lead.status || 'new',
-                score: lead.score
-              }
+    console.log('Leads query result:', { leadsData, leadsError })
+
+    if (leadsError) {
+      console.error('Error fetching leads:', leadsError)
+    }
+
+    // Create a map to avoid duplicates
+    const contactsMap = new Map()
+    console.log('Processing contacts and leads...')
+    
+    // Add all contacts first
+    if (contactsData) {
+      console.log(`Adding ${contactsData.length} direct contacts`)
+      contactsData.forEach(contact => {
+        contactsMap.set(contact.id, contact)
+      })
+    } else {
+      console.log('No direct contacts found')
+    }
+
+    // Process leads and create contact records for those without one
+    if (leadsData) {
+      console.log(`Processing ${leadsData.length} leads`)
+      for (const lead of leadsData) {
+        // Check if this lead already has a contact record
+        const hasContact = contactsData?.some(c => c.lead_id === lead.id)
+        
+        if (!hasContact) {
+          console.log(`Creating contact from lead: ${lead.name || lead.email}`)
+          // Create a contact-like object from the lead
+          const contactFromLead: Contact = {
+            id: `lead-${lead.id}`, // Temporary ID to distinguish from real contacts
+            first_name: lead.name?.split(' ')[0] || '',
+            last_name: lead.name?.split(' ').slice(1).join(' ') || '',
+            email: lead.email || '',
+            phone: lead.phone || '',
+            lead_id: lead.id,
+            client_id: undefined,
+            sms_opt_in: true,
+            whatsapp_opt_in: true,
+            email_opt_in: true,
+            tags: lead.metadata?.tags || [],
+            metadata: lead.metadata,
+            created_at: lead.created_at,
+            updated_at: lead.updated_at,
+            lead: {
+              id: lead.id,
+              name: lead.name || '',
+              source: lead.source || 'unknown',
+              status: lead.status || 'new',
+              score: lead.score
             }
-            
-            // Add Facebook-specific tags
-            if (lead.source === 'facebook' || lead.metadata?.facebook_lead_id) {
-              if (!contactFromLead.tags) contactFromLead.tags = []
-              if (!contactFromLead.tags.includes('facebook-lead')) {
-                contactFromLead.tags.push('facebook-lead')
-              }
-              if (lead.metadata?.page_name && !contactFromLead.tags.includes(lead.metadata.page_name)) {
-                contactFromLead.tags.push(lead.metadata.page_name)
-              }
-              if (lead.metadata?.form_name && !contactFromLead.tags.includes(lead.metadata.form_name)) {
-                contactFromLead.tags.push(lead.metadata.form_name)
-              }
-            }
-            
-            contactsMap.set(contactFromLead.id, contactFromLead)
           }
+          
+          // Add Facebook-specific tags
+          if (lead.source === 'facebook' || lead.metadata?.facebook_lead_id) {
+            if (!contactFromLead.tags) contactFromLead.tags = []
+            if (!contactFromLead.tags.includes('facebook-lead')) {
+              contactFromLead.tags.push('facebook-lead')
+            }
+            if (lead.metadata?.page_name && !contactFromLead.tags.includes(lead.metadata.page_name)) {
+              contactFromLead.tags.push(lead.metadata.page_name)
+            }
+            if (lead.metadata?.form_name && !contactFromLead.tags.includes(lead.metadata.form_name)) {
+              contactFromLead.tags.push(lead.metadata.form_name)
+            }
+          }
+          
+          contactsMap.set(contactFromLead.id, contactFromLead)
+        } else {
+          console.log(`Skipping lead ${lead.name || lead.email} - already has contact record`)
         }
       }
-
-      // Convert map to array and sort by created date
-      const allContacts = Array.from(contactsMap.values()).sort((a, b) => 
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      )
-
-      setContacts(allContacts)
-    } catch (error) {
-      console.error('Error:', error)
-      toast.showToast('Failed to load contacts', 'error')
-    } finally {
-      setLoading(false)
+    } else {
+      console.log('No leads found')
     }
+
+    // Convert map to array and sort by created date
+    const allContacts = Array.from(contactsMap.values()).sort((a, b) => 
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )
+
+    console.log(`Final contact count: ${allContacts.length}`)
+    console.log('Sample contacts:', allContacts.slice(0, 3))
+    
+    setContacts(allContacts)
   }
 
   const filterContacts = () => {

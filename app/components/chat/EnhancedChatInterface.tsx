@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/app/lib/supabase/client'
 import { 
   MessageSquare, 
@@ -88,6 +89,9 @@ interface AIResponse {
 }
 
 export default function EnhancedChatInterface() {
+  const searchParams = useSearchParams()
+  const contactParam = searchParams.get('contact')
+  
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
@@ -109,6 +113,13 @@ export default function EnhancedChatInterface() {
     fetchConversations()
   }, [])
 
+  // Handle contact parameter from URL
+  useEffect(() => {
+    if (contactParam && conversations.length > 0) {
+      handleContactParameter(contactParam)
+    }
+  }, [contactParam, conversations])
+
   useEffect(() => {
     if (selectedConversation) {
       fetchMessages(selectedConversation.id)
@@ -123,6 +134,82 @@ export default function EnhancedChatInterface() {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const handleContactParameter = async (contactId: string) => {
+    try {
+      // First check if we already have a conversation with this contact
+      const existingConversation = conversations.find(conv => 
+        conv.customer_id === contactId || 
+        conv.customer_id === contactId.replace('lead-', '') // Handle lead prefix from contacts page
+      )
+
+      if (existingConversation) {
+        setSelectedConversation(existingConversation)
+        return
+      }
+
+      // If no existing conversation, fetch contact details and create new conversation
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      // Try to fetch contact from contacts table first
+      let contact = null
+      let { data: contactData } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('id', contactId)
+        .single()
+
+      if (contactData) {
+        contact = contactData
+      } else {
+        // If not found in contacts, try leads table (handle lead- prefix)
+        const leadId = contactId.replace('lead-', '')
+        let { data: leadData } = await supabase
+          .from('leads')
+          .select('*')
+          .eq('id', leadId)
+          .single()
+
+        if (leadData) {
+          // Convert lead to contact format
+          contact = {
+            id: contactId, // Keep original ID with prefix
+            first_name: leadData.name?.split(' ')[0] || '',
+            last_name: leadData.name?.split(' ').slice(1).join(' ') || '',
+            email: leadData.email || '',
+            phone: leadData.phone || '',
+            lead_id: leadData.id
+          }
+        }
+      }
+
+      if (contact) {
+        // Create a new conversation
+        const newConversation: Conversation = {
+          id: `new-${Date.now()}`,
+          customer_id: contact.id,
+          customer_name: `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || contact.name || 'Unknown Contact',
+          customer_email: contact.email || '',
+          customer_phone: contact.phone || '',
+          last_message: 'Start a new conversation...',
+          last_message_type: 'sms',
+          last_message_time: new Date().toISOString(),
+          unread_count: 0,
+          total_messages: 0,
+          status: 'active',
+          tags: [],
+          priority: 'medium'
+        }
+
+        // Add to conversations list and select it
+        setConversations(prev => [newConversation, ...prev])
+        setSelectedConversation(newConversation)
+      }
+    } catch (error) {
+      console.error('Error handling contact parameter:', error)
+    }
   }
 
   const handleNewConversation = async () => {

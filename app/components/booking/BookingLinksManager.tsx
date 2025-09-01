@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Plus, Link, Copy, Trash2, Edit, Check, X, ExternalLink } from 'lucide-react'
 import Button from '@/app/components/ui/Button'
 import { createClient } from '@/app/lib/supabase/client'
+import { getCurrentUserOrganization } from '@/app/lib/organization-service'
 
 interface BookingLink {
   id: string
@@ -84,6 +85,20 @@ export default function BookingLinksManager() {
 
   const handleCreate = async () => {
     try {
+      console.log('Starting booking link creation...')
+      console.log('Form data:', formData)
+
+      // Validate required fields
+      if (!formData.name?.trim()) {
+        alert('Please enter a name for the booking link')
+        return
+      }
+
+      if (!formData.slug?.trim()) {
+        alert('Please enter a slug for the booking link')
+        return
+      }
+
       const supabase = await createClient()
       const { data: { user } } = await supabase.auth.getUser()
       
@@ -92,56 +107,51 @@ export default function BookingLinksManager() {
         return
       }
 
-      // Get organization ID - try multiple methods
-      let organizationId = null
+      console.log('User authenticated:', user.id)
 
-      // Method 1: Check organization_members table
-      const { data: orgMember } = await supabase
-        .from('organization_members')
-        .select('org_id')
-        .eq('user_id', user.id)
-        .single()
-
-      if (orgMember) {
-        organizationId = orgMember.org_id
-      } else {
-        // Method 2: Check users table for organization_id
-        const { data: userData } = await supabase
-          .from('users')
-          .select('organization_id')
-          .eq('id', user.id)
-          .single()
-
-        if (userData?.organization_id) {
-          organizationId = userData.organization_id
-        } else {
-          // Method 3: Use the known Atlas Fitness organization ID as fallback
-          organizationId = '63589490-8f55-4157-bd3a-e141594b748e'
-          console.log('Using fallback organization ID for booking link:', organizationId)
-        }
-      }
-
-      if (!organizationId) {
-        alert('Unable to determine organization. Please contact support.')
+      // Get organization ID using centralized service
+      const { organizationId, error: orgError } = await getCurrentUserOrganization()
+      
+      console.log('Organization lookup result:', { organizationId, orgError })
+      
+      if (orgError || !organizationId) {
+        console.error('Organization error:', orgError)
+        alert('Unable to determine organization: ' + (orgError || 'No organization found'))
         return
       }
 
-      // Map formData to match database schema
+      // Map formData to match the latest database schema (20250809)
       const bookingLinkData = {
-        name: formData.name || formData.title, // Some schemas use 'name', others 'title'
-        title: formData.name || formData.title, // Include both for compatibility
+        name: formData.name,
         slug: formData.slug,
-        description: formData.description,
-        type: formData.type,
-        appointment_type_ids: formData.appointment_type_ids || [],
-        is_public: formData.is_public ?? true,
+        description: formData.description || '',
+        type: formData.type || 'individual',
+        appointment_type_ids: Array.isArray(formData.appointment_type_ids) ? formData.appointment_type_ids : [],
         is_active: true,
         user_id: user.id,
         organization_id: organizationId,
-        duration: 30 // Default duration if needed
+        team_ids: formData.type === 'team' ? [] : null
       }
 
+      // Remove any undefined values
+      Object.keys(bookingLinkData).forEach(key => {
+        if (bookingLinkData[key] === undefined) {
+          delete bookingLinkData[key]
+        }
+      })
+
       console.log('Creating booking link with data:', bookingLinkData)
+
+      // First, let's check if the table exists by doing a simple select
+      const { error: tableError } = await supabase
+        .from('booking_links')
+        .select('id')
+        .limit(1)
+
+      if (tableError) {
+        console.error('Table access error:', tableError)
+        throw new Error(`Table access failed: ${tableError.message}`)
+      }
 
       const { data, error } = await supabase
         .from('booking_links')
@@ -151,12 +161,20 @@ export default function BookingLinksManager() {
 
       if (error) {
         console.error('Database error creating booking link:', error)
-        throw error
+        console.error('Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        })
+        throw new Error(`Database error: ${error.message} (Code: ${error.code})`)
       }
 
       if (!data) {
         throw new Error('No data returned from booking link creation')
       }
+
+      console.log('Successfully created booking link:', data)
 
       setBookingLinks([data, ...bookingLinks])
       setShowCreateModal(false)

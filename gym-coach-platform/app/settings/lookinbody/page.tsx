@@ -50,7 +50,7 @@ export default function LookInBodySettings() {
   const [usage, setUsage] = useState<UsageStats | null>(null);
   const [locations, setLocations] = useState<any[]>([]);
 
-  const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/api/webhooks/lookinbody/${organization?.id}`;
+  const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://gym-coach-platform.vercel.app')}/api/webhooks/lookinbody/${organization?.id}`;
 
   useEffect(() => {
     if (organization) {

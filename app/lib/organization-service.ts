@@ -29,7 +29,26 @@ export async function getCurrentUserOrganization() {
         .single()
 
       if (orgError || !orgData) {
-        return { organizationId: null, error: 'No organization found' }
+        // Use default Atlas Fitness organization as fallback
+        const defaultOrgId = '63589490-8f55-4157-bd3a-e141594b748e'
+        
+        // Create user_organizations entry with default org
+        await supabase
+          .from('user_organizations')
+          .insert({
+            user_id: user.id,
+            organization_id: defaultOrgId,
+            role: 'member'
+          })
+          .then(() => console.log('Created user_organizations entry with default org'))
+          .catch((error) => {
+            // Ignore duplicate key errors
+            if (!error.message?.includes('duplicate')) {
+              console.error('Error creating user organization:', error)
+            }
+          })
+
+        return { organizationId: defaultOrgId, error: null }
       }
 
       // Create user_organizations entry if they own an org but don't have the entry

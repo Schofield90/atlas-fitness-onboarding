@@ -17,7 +17,7 @@ const publicRoutes = [
   '/quick-dashboard',   // Add quick access dashboard (no auth)
   '/real-dashboard',    // Real dashboard with no auth checks
   '/test-auth',         // Add test auth page
-  '/book/public',       // Public booking pages for customers
+  '/book',              // Public booking pages for customers (all slugs)
   '/api/auth',
   '/api/client-portal',
   '/api/client-access',

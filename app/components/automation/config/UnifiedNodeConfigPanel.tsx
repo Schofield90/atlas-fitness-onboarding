@@ -291,6 +291,14 @@ export default function UnifiedNodeConfigPanel({
               organizationId={organizationId}
             />
           )
+        case 'website_form':
+          return (
+            <FormSubmittedTriggerConfig
+              config={config}
+              onChange={handleConfigChange}
+              organizationId={organizationId}
+            />
+          )
         default:
           return renderGenericTriggerConfig()
       }
