@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { addDays, startOfDay, endOfDay, format, addMinutes, setHours, setMinutes } from 'date-fns'
+import { getGoogleCalendarBusyTimes } from '@/app/lib/google-calendar'
 
 export async function GET(request: NextRequest) {
   try {
@@ -41,7 +42,34 @@ export async function GET(request: NextRequest) {
     const startDate = startDateParam ? new Date(startDateParam) : startOfDay(new Date())
     const endDate = endDateParam ? new Date(endDateParam) : endOfDay(addDays(new Date(), 7))
 
-    // Generate basic available slots - Monday to Friday 9 AM to 5 PM
+    // Get Google Calendar busy times if user is connected
+    let busyTimes: Array<{ start: string; end: string }> = []
+    if (bookingLink.user_id) {
+      try {
+        busyTimes = await getGoogleCalendarBusyTimes(
+          bookingLink.user_id, 
+          startDate.toISOString(), 
+          endDate.toISOString()
+        )
+        console.log(`Found ${busyTimes.length} busy times from Google Calendar`)
+      } catch (error) {
+        console.warn('Could not fetch Google Calendar busy times:', error)
+        // Continue without Google Calendar integration
+      }
+    }
+
+    // Helper function to check if a slot conflicts with busy times
+    const isSlotAvailable = (slotStart: Date, slotEnd: Date): boolean => {
+      return !busyTimes.some(busyTime => {
+        const busyStart = new Date(busyTime.start)
+        const busyEnd = new Date(busyTime.end)
+        
+        // Check for any overlap between slot and busy time
+        return (slotStart < busyEnd && slotEnd > busyStart)
+      })
+    }
+
+    // Generate available slots - Monday to Friday 9 AM to 5 PM
     const availableSlots = []
     const currentDate = new Date(startDate)
 
@@ -56,8 +84,8 @@ export async function GET(request: NextRequest) {
             const slotStart = setMinutes(setHours(new Date(currentDate), hour), minute)
             const slotEnd = addMinutes(slotStart, 30)
             
-            // Skip past slots
-            if (slotStart > new Date()) {
+            // Skip past slots and check Google Calendar availability
+            if (slotStart > new Date() && isSlotAvailable(slotStart, slotEnd)) {
               availableSlots.push({
                 start_time: slotStart.toISOString(),
                 end_time: slotEnd.toISOString(),
@@ -91,7 +119,12 @@ export async function GET(request: NextRequest) {
         slots
       })),
       timezone,
-      total_slots: availableSlots.length
+      total_slots: availableSlots.length,
+      google_calendar_integration: {
+        connected: busyTimes.length > 0 || bookingLink.user_id != null,
+        busy_times_found: busyTimes.length,
+        user_id: bookingLink.user_id
+      }
     })
 
   } catch (error) {
