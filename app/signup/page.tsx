@@ -57,19 +57,39 @@ export default function SignupPage() {
       }
 
       if (authData?.user) {
-        // Create organization if needed
-        const { data: org, error: orgError } = await supabase
-          .from('organizations')
-          .insert({
-            name: organizationName,
-            owner_id: authData.user.id
+        // Call API to properly set up user record
+        const response = await fetch('/api/auth/fix-signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: authData.user.email,
+            name,
+            organizationName
           })
-          .select()
-          .single()
-
-        if (orgError) {
-          console.error('Error creating organization:', orgError)
-          // Continue anyway - organization can be created later
+        })
+        
+        const result = await response.json()
+        
+        if (!response.ok) {
+          console.error('Error setting up user:', result)
+          // Try alternative approach - direct database insert
+          try {
+            const { error: userError } = await supabase
+              .from('users')
+              .insert({
+                id: authData.user.id,
+                email: authData.user.email,
+                full_name: name
+              })
+            
+            if (userError && userError.code !== '23505') { // Ignore duplicate key errors
+              console.error('Direct insert error:', userError)
+              setError('Database error saving new user')
+              return
+            }
+          } catch (e) {
+            console.error('Fallback error:', e)
+          }
         }
 
         // Show success message
