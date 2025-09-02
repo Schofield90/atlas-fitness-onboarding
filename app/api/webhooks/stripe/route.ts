@@ -10,6 +10,17 @@ const stripe = stripeKey ? new Stripe(stripeKey, {
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
 
+// GET endpoint for testing webhook availability
+export async function GET() {
+  return NextResponse.json({
+    status: 'ok',
+    message: 'Stripe webhook endpoint is active',
+    configured: !!stripe,
+    webhookSecretConfigured: !!webhookSecret,
+    timestamp: new Date().toISOString()
+  })
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.text()
