@@ -12,7 +12,8 @@ import {
   LogOut,
   RefreshCw,
   Database,
-  AlertCircle
+  AlertCircle,
+  DollarSign
 } from 'lucide-react'
 
 export default function SaasAdminDashboard() {
@@ -278,11 +279,11 @@ export default function SaasAdminDashboard() {
               Manage Tenants
             </button>
             <button
-              onClick={() => router.push('/saas-admin/billing')}
+              onClick={() => router.push('/saas-admin/plans')}
               className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 rounded-lg hover:bg-green-700 transition-colors text-sm"
             >
-              <DollarSign className="h-4 w-4" />
-              Billing & Revenue
+              <Settings className="h-4 w-4" />
+              Manage Plans
             </button>
             <button
               onClick={() => window.location.reload()}
