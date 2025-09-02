@@ -36,6 +36,7 @@ interface NutritionProfile {
   targetWeightUnit: 'kg' | 'lbs'
   height: number
   heightUnit: 'cm' | 'ft'
+  heightInches?: number // For feet and inches input
   age: number
   gender: 'male' | 'female' | 'other'
   activityLevel: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active'
@@ -51,6 +52,7 @@ interface NutritionProfile {
   }
   tdee?: number
   targetCalories?: number
+  bmr?: number
 }
 
 interface MealPlan {
@@ -318,9 +320,15 @@ export default function AINutritionCoach({ memberData }: { memberData: any }) {
     const weightInKg = profile.currentWeightUnit === 'lbs' 
       ? profile.currentWeight * 0.453592 
       : profile.currentWeight
-    const heightInCm = profile.heightUnit === 'ft' 
-      ? profile.height * 30.48 
-      : profile.height
+    
+    // Fix height conversion - properly handle feet and inches
+    let heightInCm: number
+    if (profile.heightUnit === 'ft') {
+      const totalInches = (profile.height * 12) + (profile.heightInches || 0)
+      heightInCm = totalInches * 2.54
+    } else {
+      heightInCm = profile.height
+    }
 
     if (profile.gender === 'male') {
       bmr = (10 * weightInKg) + (6.25 * heightInCm) - (5 * profile.age) + 5
@@ -328,23 +336,23 @@ export default function AINutritionCoach({ memberData }: { memberData: any }) {
       bmr = (10 * weightInKg) + (6.25 * heightInCm) - (5 * profile.age) - 161
     }
 
-    // Calculate TDEE based on activity level
+    // Calculate TDEE based on activity level with more conservative multipliers
     const activityMultipliers = {
       sedentary: 1.2,
-      light: 1.375,
-      moderate: 1.55,
-      active: 1.725,
-      very_active: 1.9
+      light: 1.35,  // Reduced from 1.375
+      moderate: 1.5, // Reduced from 1.55
+      active: 1.65,  // Reduced from 1.725
+      very_active: 1.8 // Reduced from 1.9
     }
 
     const tdee = Math.round(bmr * activityMultipliers[profile.activityLevel])
 
-    // Calculate target calories based on goal
+    // Calculate target calories based on goal with more moderate adjustments
     let targetCalories = tdee
     if (profile.goal === 'lose_weight') {
-      targetCalories = Math.round(tdee * 0.8) // 20% deficit
+      targetCalories = Math.round(tdee * 0.85) // 15% deficit (was 20%)
     } else if (profile.goal === 'gain_muscle') {
-      targetCalories = Math.round(tdee * 1.1) // 10% surplus
+      targetCalories = Math.round(tdee * 1.08) // 8% surplus (was 10%)
     }
 
     // Calculate macro split
@@ -381,7 +389,7 @@ export default function AINutritionCoach({ memberData }: { memberData: any }) {
   const generateMealPlan = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch('/api/nutrition/meal-plan', {
+      const response = await fetch('/api/nutrition/meal-plans', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -389,6 +397,11 @@ export default function AINutritionCoach({ memberData }: { memberData: any }) {
           memberData
         })
       })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to generate meal plan')
+      }
 
       const data = await response.json()
       if (data.mealPlan) {
@@ -681,26 +694,60 @@ export default function AINutritionCoach({ memberData }: { memberData: any }) {
                   Height
                 </label>
                 <div className="flex gap-2">
-                  <input
-                    type="number"
-                    value={nutritionProfile.height || ''}
-                    onChange={(e) => setNutritionProfile(prev => ({ 
-                      ...prev, 
-                      height: parseFloat(e.target.value) 
-                    }))}
-                    className="flex-1 px-3 py-2 bg-gray-700 text-white rounded-lg"
-                    placeholder="Height"
-                  />
+                  {nutritionProfile.heightUnit === 'ft' ? (
+                    <>
+                      <input
+                        type="number"
+                        value={nutritionProfile.height || ''}
+                        onChange={(e) => setNutritionProfile(prev => ({ 
+                          ...prev, 
+                          height: parseFloat(e.target.value) 
+                        }))}
+                        className="w-20 px-3 py-2 bg-gray-700 text-white rounded-lg"
+                        placeholder="Feet"
+                        min="3"
+                        max="8"
+                      />
+                      <span className="text-gray-400 self-center">ft</span>
+                      <input
+                        type="number"
+                        value={nutritionProfile.heightInches || ''}
+                        onChange={(e) => setNutritionProfile(prev => ({ 
+                          ...prev, 
+                          heightInches: parseFloat(e.target.value) 
+                        }))}
+                        className="w-20 px-3 py-2 bg-gray-700 text-white rounded-lg"
+                        placeholder="Inches"
+                        min="0"
+                        max="11"
+                      />
+                      <span className="text-gray-400 self-center">in</span>
+                    </>
+                  ) : (
+                    <input
+                      type="number"
+                      value={nutritionProfile.height || ''}
+                      onChange={(e) => setNutritionProfile(prev => ({ 
+                        ...prev, 
+                        height: parseFloat(e.target.value) 
+                      }))}
+                      className="flex-1 px-3 py-2 bg-gray-700 text-white rounded-lg"
+                      placeholder="Height in cm"
+                      min="100"
+                      max="250"
+                    />
+                  )}
                   <select
                     value={nutritionProfile.heightUnit}
                     onChange={(e) => setNutritionProfile(prev => ({ 
                       ...prev, 
-                      heightUnit: e.target.value as 'cm' | 'ft' 
+                      heightUnit: e.target.value as 'cm' | 'ft',
+                      heightInches: 0 // Reset inches when switching units
                     }))}
                     className="px-3 py-2 bg-gray-700 text-white rounded-lg"
                   >
                     <option value="cm">cm</option>
-                    <option value="ft">ft</option>
+                    <option value="ft">ft/in</option>
                   </select>
                 </div>
               </div>
@@ -969,27 +1016,41 @@ export default function AINutritionCoach({ memberData }: { memberData: any }) {
         <div className="bg-gray-700 rounded-lg p-4 mb-6">
           <h3 className="text-lg font-semibold text-white mb-2">Adjust Your Macros</h3>
           <p className="text-sm text-gray-400 mb-4">
-            These are recommendations based on your goals. You can adjust them to your preference.
+            These are recommendations based on your goals. Macros auto-balance to match your calorie target.
           </p>
           
           <div className="space-y-4">
             <div>
               <label className="flex justify-between text-sm text-gray-300 mb-1">
                 <span>Protein</span>
-                <span>{nutritionProfile.macroSplit?.protein}g</span>
+                <span>{nutritionProfile.macroSplit?.protein}g ({Math.round((nutritionProfile.macroSplit?.protein || 0) * 4 / (nutritionProfile.targetCalories || 1) * 100)}%)</span>
               </label>
               <input
                 type="range"
                 min="50"
                 max="300"
                 value={nutritionProfile.macroSplit?.protein || 100}
-                onChange={(e) => setNutritionProfile(prev => ({
-                  ...prev,
-                  macroSplit: {
-                    ...prev.macroSplit!,
-                    protein: parseInt(e.target.value)
-                  }
-                }))}
+                onChange={(e) => {
+                  const protein = parseInt(e.target.value)
+                  const targetCals = nutritionProfile.targetCalories || 2000
+                  const proteinCals = protein * 4
+                  const remainingCals = targetCals - proteinCals
+                  
+                  // Auto-balance carbs and fats (40/60 split of remaining)
+                  const carbCals = remainingCals * 0.6
+                  const fatCals = remainingCals * 0.4
+                  const carbs = Math.round(carbCals / 4)
+                  const fats = Math.round(fatCals / 9)
+                  
+                  setNutritionProfile(prev => ({
+                    ...prev,
+                    macroSplit: {
+                      protein,
+                      carbs: Math.max(50, carbs),
+                      fats: Math.max(20, fats)
+                    }
+                  }))
+                }}
                 className="w-full"
               />
             </div>
@@ -997,20 +1058,33 @@ export default function AINutritionCoach({ memberData }: { memberData: any }) {
             <div>
               <label className="flex justify-between text-sm text-gray-300 mb-1">
                 <span>Carbs</span>
-                <span>{nutritionProfile.macroSplit?.carbs}g</span>
+                <span>{nutritionProfile.macroSplit?.carbs}g ({Math.round((nutritionProfile.macroSplit?.carbs || 0) * 4 / (nutritionProfile.targetCalories || 1) * 100)}%)</span>
               </label>
               <input
                 type="range"
                 min="50"
                 max="400"
                 value={nutritionProfile.macroSplit?.carbs || 150}
-                onChange={(e) => setNutritionProfile(prev => ({
-                  ...prev,
-                  macroSplit: {
-                    ...prev.macroSplit!,
-                    carbs: parseInt(e.target.value)
-                  }
-                }))}
+                onChange={(e) => {
+                  const carbs = parseInt(e.target.value)
+                  const targetCals = nutritionProfile.targetCalories || 2000
+                  const protein = nutritionProfile.macroSplit?.protein || 100
+                  const proteinCals = protein * 4
+                  const carbCals = carbs * 4
+                  const remainingCals = targetCals - proteinCals - carbCals
+                  
+                  // Auto-adjust fats
+                  const fats = Math.round(remainingCals / 9)
+                  
+                  setNutritionProfile(prev => ({
+                    ...prev,
+                    macroSplit: {
+                      ...prev.macroSplit!,
+                      carbs,
+                      fats: Math.max(20, fats)
+                    }
+                  }))
+                }}
                 className="w-full"
               />
             </div>
@@ -1018,22 +1092,50 @@ export default function AINutritionCoach({ memberData }: { memberData: any }) {
             <div>
               <label className="flex justify-between text-sm text-gray-300 mb-1">
                 <span>Fats</span>
-                <span>{nutritionProfile.macroSplit?.fats}g</span>
+                <span>{nutritionProfile.macroSplit?.fats}g ({Math.round((nutritionProfile.macroSplit?.fats || 0) * 9 / (nutritionProfile.targetCalories || 1) * 100)}%)</span>
               </label>
               <input
                 type="range"
                 min="20"
                 max="150"
                 value={nutritionProfile.macroSplit?.fats || 50}
-                onChange={(e) => setNutritionProfile(prev => ({
-                  ...prev,
-                  macroSplit: {
-                    ...prev.macroSplit!,
-                    fats: parseInt(e.target.value)
-                  }
-                }))}
+                onChange={(e) => {
+                  const fats = parseInt(e.target.value)
+                  const targetCals = nutritionProfile.targetCalories || 2000
+                  const protein = nutritionProfile.macroSplit?.protein || 100
+                  const proteinCals = protein * 4
+                  const fatCals = fats * 9
+                  const remainingCals = targetCals - proteinCals - fatCals
+                  
+                  // Auto-adjust carbs
+                  const carbs = Math.round(remainingCals / 4)
+                  
+                  setNutritionProfile(prev => ({
+                    ...prev,
+                    macroSplit: {
+                      ...prev.macroSplit!,
+                      carbs: Math.max(50, carbs),
+                      fats
+                    }
+                  }))
+                }}
                 className="w-full"
               />
+            </div>
+            
+            <div className="pt-2 border-t border-gray-600">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-400">Total Calories:</span>
+                <span className="text-white font-semibold">
+                  {((nutritionProfile.macroSplit?.protein || 0) * 4) + 
+                   ((nutritionProfile.macroSplit?.carbs || 0) * 4) + 
+                   ((nutritionProfile.macroSplit?.fats || 0) * 9)} kcal
+                </span>
+              </div>
+              <div className="flex justify-between text-sm mt-1">
+                <span className="text-gray-400">Target:</span>
+                <span className="text-green-400 font-semibold">{nutritionProfile.targetCalories} kcal</span>
+              </div>
             </div>
           </div>
         </div>
