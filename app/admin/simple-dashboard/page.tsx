@@ -33,7 +33,7 @@ export default function SimpleAdminDashboard() {
       const { data: { user } } = await supabase.auth.getUser()
       
       if (!user) {
-        router.push('/signin')
+        router.push('/login')
         return
       }
 
