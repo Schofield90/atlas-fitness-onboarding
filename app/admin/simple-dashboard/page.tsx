@@ -39,24 +39,27 @@ export default function SimpleAdminDashboard() {
 
       setUser(user)
 
-      // Check if user is in super_admin_users table
-      const { data: adminUser, error: adminError } = await supabase
-        .from('super_admin_users')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .single()
-
-      const isAuthorized = !adminError && adminUser
-
-      // Also check by email as backup
+      // Simply check by email - bypass the problematic table for now
       const authorizedEmails = ['sam@atlas-gyms.co.uk', 'sam@gymleadhub.co.uk']
       const isAuthorizedByEmail = authorizedEmails.includes(user.email?.toLowerCase() || '')
 
-      if (!isAuthorized && !isAuthorizedByEmail) {
-        console.log('Not authorized:', { adminError, user: user.email })
+      if (!isAuthorizedByEmail) {
+        console.log('Not authorized by email:', user.email)
         router.push('/dashboard')
         return
+      }
+
+      // Try to check super_admin_users table but don't block if it fails
+      try {
+        const { data: adminUser } = await supabase
+          .from('super_admin_users')
+          .select('*')
+          .eq('user_id', user.id)
+          .single()
+        
+        console.log('Admin table check:', adminUser)
+      } catch (err) {
+        console.log('Admin table check failed (non-blocking):', err)
       }
 
       // Fetch stats
