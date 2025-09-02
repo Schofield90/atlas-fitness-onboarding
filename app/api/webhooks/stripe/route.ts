@@ -5,7 +5,7 @@ import { createAdminClient } from '@/app/lib/supabase/admin'
 
 const stripeKey = process.env.STRIPE_SECRET_KEY
 const stripe = stripeKey ? new Stripe(stripeKey, {
-  apiVersion: '2025-07-30.basil',
+  apiVersion: '2024-11-20.acacia',
 }) : null
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
