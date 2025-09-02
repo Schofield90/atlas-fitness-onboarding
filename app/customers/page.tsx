@@ -105,7 +105,7 @@ function CustomersContent() {
       }
 
       // Fetch only clients (actual customers, not leads)
-      // The clients table uses 'org_id' not 'organization_id'
+      // Try both org_id and organization_id fields
       const clientsResult = await supabase
         .from('clients')
         .select(`
@@ -118,7 +118,7 @@ function CustomersContent() {
             end_date
           )
         `)
-        .eq('org_id', organizationId)
+        .or(`org_id.eq.${organizationId},organization_id.eq.${organizationId}`)
         .order('created_at', { ascending: false })
 
       if (clientsResult.error) {

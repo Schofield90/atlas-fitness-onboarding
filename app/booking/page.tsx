@@ -30,7 +30,7 @@ interface Booking {
 }
 
 export default function BookingPage() {
-  const [activeTab, setActiveTab] = useState<'upcoming' | 'past' | 'cancelled'>('upcoming')
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'calls' | 'past' | 'cancelled'>('upcoming')
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
@@ -63,6 +63,12 @@ export default function BookingPage() {
         query = query
           .gte('start_time', new Date().toISOString())
           .in('booking_status', ['confirmed', 'pending'])
+          .neq('meeting_type', 'phone')
+      } else if (activeTab === 'calls') {
+        query = query
+          .gte('start_time', new Date().toISOString())
+          .eq('meeting_type', 'phone')
+          .in('booking_status', ['confirmed', 'pending'])
       } else if (activeTab === 'past') {
         query = query
           .lt('start_time', new Date().toISOString())
@@ -74,8 +80,9 @@ export default function BookingPage() {
       const { data, error } = await query
 
       if (error) {
+        console.error('Database error loading bookings:', error)
         toast.error('Failed to load bookings. Please try again.')
-        throw error
+        // Don't throw, just continue with empty data
       }
       setBookings(data || [])
     } catch (error) {
@@ -203,6 +210,16 @@ export default function BookingPage() {
               Upcoming
             </button>
             <button
+              onClick={() => setActiveTab('calls')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'calls'
+                  ? 'border-orange-500 text-orange-500'
+                  : 'border-transparent text-gray-400 hover:text-white hover:border-gray-600'
+              }`}
+            >
+              Calls
+            </button>
+            <button
               onClick={() => setActiveTab('past')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'past'
@@ -236,6 +253,7 @@ export default function BookingPage() {
               <Calendar className="w-12 h-12 text-gray-600 mx-auto mb-4" />
               <p className="text-gray-400 mb-4">
                 {activeTab === 'upcoming' && 'No upcoming bookings'}
+                {activeTab === 'calls' && 'No scheduled calls'}
                 {activeTab === 'past' && 'No past bookings'}
                 {activeTab === 'cancelled' && 'No cancelled bookings'}
               </p>

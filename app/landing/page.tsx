@@ -2,49 +2,123 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { analytics } from '@/app/lib/analytics/client'
+import { 
+  Users, MessageSquare, Brain, Calendar, TrendingUp, Phone, 
+  ChefHat, Dumbbell, Activity, CreditCard, BarChart3, Zap,
+  CheckCircle, Star, ArrowRight, Clock, Shield, Globe
+} from 'lucide-react'
 
 export default function LandingPage() {
   const [email, setEmail] = useState('')
 
-  const handleEmailSubmit = () => {
-    if (email) {
-      analytics.trackFormSubmit('hero-email-capture', { email: email })
-      analytics.trackCustomEvent('lead_capture', { source: 'hero_section' })
+  const features = [
+    {
+      icon: <Brain className="h-8 w-8" />,
+      title: "AI-Powered Lead Scoring",
+      description: "Automatically qualify and prioritize leads based on engagement and buying signals using advanced AI"
+    },
+    {
+      icon: <MessageSquare className="h-8 w-8" />,
+      title: "Omnichannel Communication",
+      description: "WhatsApp, SMS, Email, and Voice - reach your leads instantly on their preferred channels"
+    },
+    {
+      icon: <Calendar className="h-8 w-8" />,
+      title: "Smart Booking System",
+      description: "Automated scheduling with Google Calendar sync, waitlists, and intelligent time slot management"
+    },
+    {
+      icon: <ChefHat className="h-8 w-8" />,
+      title: "AI Nutrition Coach",
+      description: "Personalized meal plans, macro tracking, and real-time coaching powered by GPT-4"
+    },
+    {
+      icon: <Dumbbell className="h-8 w-8" />,
+      title: "Workout Programming",
+      description: "Custom workout plans with progress tracking and automated adjustments based on performance"
+    },
+    {
+      icon: <CreditCard className="h-8 w-8" />,
+      title: "Integrated Payments",
+      description: "Stripe Connect for seamless payments, recurring memberships, and automated billing"
     }
-  }
+  ]
 
-  const handleWatchDemo = () => {
-    analytics.trackClick('watch-demo-button', { location: 'hero' })
-    analytics.trackCustomEvent('demo_interest', { source: 'hero_section' })
-  }
+  const benefits = [
+    {
+      stat: "68%",
+      label: "Increase in Lead Conversion",
+      description: "AI-powered lead nurturing converts more prospects into paying members"
+    },
+    {
+      stat: "24/7",
+      label: "Always-On Lead Response",
+      description: "Never miss a lead with automated instant responses any time of day"
+    },
+    {
+      stat: "3x",
+      label: "Faster Response Time",
+      description: "Beat your competition by responding to leads in seconds, not hours"
+    },
+    {
+      stat: "45%",
+      label: "Reduction in Admin Time",
+      description: "Automate repetitive tasks and focus on what matters - your members"
+    }
+  ]
+
+  const integrations = [
+    "WhatsApp Business", "Twilio", "Stripe", "Google Calendar", 
+    "Facebook Ads", "Instagram", "Mailgun", "OpenAI GPT-4"
+  ]
+
+  const testimonials = [
+    {
+      name: "Sarah Mitchell",
+      role: "Owner, FitLife Gym",
+      content: "Atlas transformed how we handle leads. We've doubled our conversion rate and saved hours every day on admin work.",
+      rating: 5
+    },
+    {
+      name: "Marcus Chen",
+      role: "Head Coach, Elite Training",
+      content: "The AI nutrition coach alone is worth it. Our members love the personalized meal plans and we love the automated coaching.",
+      rating: 5
+    },
+    {
+      name: "Emma Rodriguez",
+      role: "Manager, CrossFit North",
+      content: "Finally, a CRM that actually understands the fitness industry. The booking system and class management are game-changers.",
+      rating: 5
+    }
+  ]
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
       {/* Header */}
       <header className="container mx-auto px-6 py-4">
         <div className="flex justify-between items-center">
-          <div className="text-2xl font-bold text-orange-500">
-            Gymleadhub
+          <div className="flex items-center space-x-2">
+            <Activity className="h-8 w-8 text-orange-500" />
+            <span className="text-2xl font-bold">Atlas Fitness</span>
           </div>
           <nav className="flex items-center space-x-6">
             <div className="hidden md:flex space-x-8">
               <a href="#features" className="hover:text-orange-400 transition-colors">Features</a>
+              <a href="#benefits" className="hover:text-orange-400 transition-colors">Benefits</a>
+              <a href="#testimonials" className="hover:text-orange-400 transition-colors">Testimonials</a>
               <a href="#pricing" className="hover:text-orange-400 transition-colors">Pricing</a>
-              <a href="#contact" className="hover:text-orange-400 transition-colors">Contact</a>
             </div>
             <div className="flex items-center space-x-4">
               <Link 
                 href="/login"
                 className="bg-gray-800 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg text-sm transition-colors border border-gray-600"
-                data-track="header-sign-in"
               >
                 Sign In
               </Link>
               <Link 
-                href="/get-started"
+                href="/signup"
                 className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors"
-                data-track="header-get-started"
               >
                 Start Free Trial
               </Link>
@@ -55,138 +129,209 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <main className="container mx-auto px-6 py-16">
-        <div className="text-center max-w-4xl mx-auto">
+        <div className="text-center max-w-5xl mx-auto">
+          <div className="inline-flex items-center gap-2 bg-orange-500/20 text-orange-400 px-4 py-2 rounded-full mb-6">
+            <Zap className="h-4 w-4" />
+            <span className="text-sm font-medium">AI-Powered Gym Management Platform</span>
+          </div>
+          
           <h1 className="text-5xl md:text-7xl font-bold mb-8 leading-tight">
-            Your Gym Leads Are{' '}
-            <span className="text-orange-500">Texting Your Competitors</span>
+            Turn Every Lead Into a{' '}
+            <span className="text-orange-500">Loyal Member</span>
           </h1>
           
-          <p className="text-xl md:text-2xl mb-12 text-gray-300 leading-relaxed">
-            Stop losing potential members to faster-responding gyms. Our AI-powered system 
-            captures, qualifies, and nurtures leads 24/7 so you never miss another opportunity.
+          <p className="text-xl md:text-2xl mb-12 text-gray-300 leading-relaxed max-w-3xl mx-auto">
+            The complete AI-powered platform for modern gyms. Capture leads, automate nurturing, 
+            manage memberships, and deliver personalized coaching - all in one place.
           </p>
 
-          <div className="flex flex-col md:flex-row gap-6 justify-center items-center mb-8">
+          <div className="flex flex-col md:flex-row gap-6 justify-center items-center mb-16">
             <Link 
               href="/signup"
-              className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 px-8 rounded-lg text-lg transition-all transform hover:scale-105 shadow-lg"
-              data-track="hero-start-trial"
+              className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 px-8 rounded-lg text-lg transition-all transform hover:scale-105 shadow-lg flex items-center gap-2"
             >
-              Start Free Trial
+              Start 14-Day Free Trial
+              <ArrowRight className="h-5 w-5" />
             </Link>
-            <button 
-              className="border-2 border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white font-bold py-4 px-8 rounded-lg text-lg transition-all"
-              onClick={handleWatchDemo}
-              data-track="hero-watch-demo"
+            <Link 
+              href="/demo"
+              className="border-2 border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white font-bold py-4 px-8 rounded-lg text-lg transition-all flex items-center gap-2"
             >
-              Watch Demo
-            </button>
-          </div>
-          
-          <div className="text-center mb-16">
-            <p className="text-gray-400 text-sm">
-              Already have an account?{' '}
-              <Link href="/login" className="text-orange-500 hover:text-orange-400 font-medium">
-                Sign in here
-              </Link>
-            </p>
+              <Phone className="h-5 w-5" />
+              Book a Demo
+            </Link>
           </div>
 
-          {/* Email Capture */}
-          <div className="max-w-md mx-auto mb-16">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="flex-1 px-4 py-3 rounded-lg bg-gray-800 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:border-orange-500"
-              />
-              <button 
-                className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg transition-colors"
-                onClick={handleEmailSubmit}
-                data-track="hero-email-submit"
-              >
-                Get Started
-              </button>
+          {/* Trust Badges */}
+          <div className="flex flex-wrap justify-center items-center gap-8 mb-16">
+            <div className="flex items-center gap-2 text-gray-400">
+              <Shield className="h-5 w-5" />
+              <span className="text-sm">SOC 2 Compliant</span>
+            </div>
+            <div className="flex items-center gap-2 text-gray-400">
+              <Globe className="h-5 w-5" />
+              <span className="text-sm">500+ Gyms Worldwide</span>
+            </div>
+            <div className="flex items-center gap-2 text-gray-400">
+              <Clock className="h-5 w-5" />
+              <span className="text-sm">99.9% Uptime</span>
             </div>
           </div>
         </div>
 
         {/* Features Section */}
         <section id="features" className="py-20">
-          <h2 className="text-4xl font-bold text-center mb-16">
-            Why Gym Owners Choose Gymleadhub
-          </h2>
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold mb-4">Everything You Need to Grow Your Gym</h2>
+            <p className="text-xl text-gray-400">Powerful features designed specifically for fitness businesses</p>
+          </div>
           
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-gray-800 p-8 rounded-lg">
-              <div className="text-orange-500 text-4xl mb-4">⚡</div>
-              <h3 className="text-xl font-bold mb-4">Instant Response</h3>
-              <p className="text-gray-300">
-                AI responds to leads within seconds, 24/7. Never lose a potential member to slow response times again.
-              </p>
-            </div>
-            
-            <div className="bg-gray-800 p-8 rounded-lg">
-              <div className="text-orange-500 text-4xl mb-4">🎯</div>
-              <h3 className="text-xl font-bold mb-4">Smart Qualification</h3>
-              <p className="text-gray-300">
-                Automatically qualify leads based on budget, goals, and commitment level before they reach your sales team.
-              </p>
-            </div>
-            
-            <div className="bg-gray-800 p-8 rounded-lg">
-              <div className="text-orange-500 text-4xl mb-4">📈</div>
-              <h3 className="text-xl font-bold mb-4">Conversion Tracking</h3>
-              <p className="text-gray-300">
-                Track every lead from first contact to membership signup with detailed analytics and insights.
-              </p>
-            </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {features.map((feature, index) => (
+              <div key={index} className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 hover:bg-gray-800/70 transition-all">
+                <div className="text-orange-500 mb-4">{feature.icon}</div>
+                <h3 className="text-xl font-bold mb-2">{feature.title}</h3>
+                <p className="text-gray-400">{feature.description}</p>
+              </div>
+            ))}
           </div>
         </section>
 
-        {/* Stats Section */}
-        <section className="py-20 text-center">
+        {/* Benefits Section */}
+        <section id="benefits" className="py-20">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold mb-4">Real Results for Real Gyms</h2>
+            <p className="text-xl text-gray-400">Join hundreds of gyms seeing incredible growth</p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {benefits.map((benefit, index) => (
+              <div key={index} className="text-center">
+                <div className="text-5xl font-bold text-orange-500 mb-2">{benefit.stat}</div>
+                <div className="text-lg font-semibold mb-2">{benefit.label}</div>
+                <p className="text-gray-400 text-sm">{benefit.description}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Testimonials Section */}
+        <section id="testimonials" className="py-20">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold mb-4">Loved by Gym Owners Worldwide</h2>
+            <p className="text-xl text-gray-400">See what our customers have to say</p>
+          </div>
+          
           <div className="grid md:grid-cols-3 gap-8">
-            <div>
-              <div className="text-5xl font-bold text-orange-500 mb-2">3x</div>
-              <div className="text-xl">Faster Response Time</div>
-            </div>
-            <div>
-              <div className="text-5xl font-bold text-orange-500 mb-2">85%</div>
-              <div className="text-xl">Lead Conversion Rate</div>
-            </div>
-            <div>
-              <div className="text-5xl font-bold text-orange-500 mb-2">24/7</div>
-              <div className="text-xl">Automated Follow-up</div>
-            </div>
+            {testimonials.map((testimonial, index) => (
+              <div key={index} className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6">
+                <div className="flex mb-4">
+                  {[...Array(testimonial.rating)].map((_, i) => (
+                    <Star key={i} className="h-5 w-5 text-yellow-500 fill-current" />
+                  ))}
+                </div>
+                <p className="text-gray-300 mb-4 italic">"{testimonial.content}"</p>
+                <div>
+                  <p className="font-semibold">{testimonial.name}</p>
+                  <p className="text-sm text-gray-400">{testimonial.role}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Integrations Section */}
+        <section className="py-20">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold mb-4">Seamlessly Integrated</h2>
+            <p className="text-xl text-gray-400">Works with all your favorite tools</p>
+          </div>
+          
+          <div className="flex flex-wrap justify-center gap-6">
+            {integrations.map((integration, index) => (
+              <div key={index} className="bg-gray-800/50 backdrop-blur-sm rounded-lg px-6 py-3">
+                <span className="text-gray-300">{integration}</span>
+              </div>
+            ))}
           </div>
         </section>
 
         {/* CTA Section */}
-        <section className="py-20 text-center bg-gray-800 rounded-lg">
-          <h2 className="text-4xl font-bold mb-8">
-            Ready to Stop Losing Leads?
-          </h2>
-          <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-            Join hundreds of gym owners who've transformed their lead management 
-            with Gymleadhub. Start your free trial today.
-          </p>
-          <Link 
-            href="/signup"
-            className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 px-8 rounded-lg text-lg transition-all transform hover:scale-105 shadow-lg inline-block"
-            data-track="cta-start-trial"
-          >
-            Start Free Trial - No Credit Card Required
-          </Link>
+        <section className="py-20">
+          <div className="bg-gradient-to-r from-orange-600 to-orange-500 rounded-2xl p-12 text-center">
+            <h2 className="text-4xl font-bold mb-4">Ready to Transform Your Gym?</h2>
+            <p className="text-xl mb-8 opacity-90">
+              Join 500+ gyms using Atlas to grow their business
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link 
+                href="/signup"
+                className="bg-white text-orange-600 hover:bg-gray-100 font-bold py-4 px-8 rounded-lg text-lg transition-all"
+              >
+                Start Free Trial
+              </Link>
+              <Link 
+                href="/contact"
+                className="border-2 border-white text-white hover:bg-white hover:text-orange-600 font-bold py-4 px-8 rounded-lg text-lg transition-all"
+              >
+                Talk to Sales
+              </Link>
+            </div>
+            <p className="mt-6 text-sm opacity-75">
+              No credit card required • 14-day free trial • Cancel anytime
+            </p>
+          </div>
         </section>
       </main>
 
       {/* Footer */}
-      <footer className="container mx-auto px-6 py-12 border-t border-gray-800">
-        <div className="text-center text-gray-400">
-          <p>&copy; 2024 Gymleadhub. All rights reserved.</p>
+      <footer className="border-t border-gray-800 py-12">
+        <div className="container mx-auto px-6">
+          <div className="grid md:grid-cols-4 gap-8">
+            <div>
+              <div className="flex items-center space-x-2 mb-4">
+                <Activity className="h-6 w-6 text-orange-500" />
+                <span className="text-xl font-bold">Atlas Fitness</span>
+              </div>
+              <p className="text-gray-400 text-sm">
+                The complete AI-powered platform for modern gyms
+              </p>
+            </div>
+            
+            <div>
+              <h4 className="font-semibold mb-4">Product</h4>
+              <ul className="space-y-2 text-gray-400 text-sm">
+                <li><Link href="/features" className="hover:text-white">Features</Link></li>
+                <li><Link href="/pricing" className="hover:text-white">Pricing</Link></li>
+                <li><Link href="/integrations" className="hover:text-white">Integrations</Link></li>
+                <li><Link href="/roadmap" className="hover:text-white">Roadmap</Link></li>
+              </ul>
+            </div>
+            
+            <div>
+              <h4 className="font-semibold mb-4">Company</h4>
+              <ul className="space-y-2 text-gray-400 text-sm">
+                <li><Link href="/about" className="hover:text-white">About</Link></li>
+                <li><Link href="/blog" className="hover:text-white">Blog</Link></li>
+                <li><Link href="/careers" className="hover:text-white">Careers</Link></li>
+                <li><Link href="/contact" className="hover:text-white">Contact</Link></li>
+              </ul>
+            </div>
+            
+            <div>
+              <h4 className="font-semibold mb-4">Support</h4>
+              <ul className="space-y-2 text-gray-400 text-sm">
+                <li><Link href="/help" className="hover:text-white">Help Center</Link></li>
+                <li><Link href="/docs" className="hover:text-white">Documentation</Link></li>
+                <li><Link href="/api" className="hover:text-white">API Reference</Link></li>
+                <li><Link href="/status" className="hover:text-white">System Status</Link></li>
+              </ul>
+            </div>
+          </div>
+          
+          <div className="border-t border-gray-800 mt-12 pt-8 text-center text-gray-400 text-sm">
+            <p>&copy; 2025 Atlas Fitness. All rights reserved.</p>
+          </div>
         </div>
       </footer>
     </div>
