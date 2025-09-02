@@ -29,6 +29,7 @@ const publicRoutes = [
   '/api/booking-by-slug', // Public booking API endpoints for widget embedding
   '/api/analytics',     // Add analytics endpoint as public
   '/admin-debug',       // Debug page for admin access
+  '/saas-admin',        // Standalone SaaS admin dashboard (bypasses all middleware)
 ]
 
 // Client-only routes
