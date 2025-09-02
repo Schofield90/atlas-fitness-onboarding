@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import DashboardLayout from '../components/DashboardLayout'
 import { createClient } from '@/app/lib/supabase/client'
-import { Calendar, Users, DollarSign, Activity, TrendingUp, MessageSquare, Settings, BarChart3 } from 'lucide-react'
+import { Calendar, Users, DollarSign, Activity, TrendingUp, MessageSquare, Settings, BarChart3, Shield } from 'lucide-react'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -12,6 +12,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [organizationId, setOrganizationId] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
     // Check if user is logged in and get organization
@@ -24,6 +25,12 @@ export default function DashboardPage() {
         }
       } else {
         setUser(user)
+        
+        // Check if user is admin
+        const adminEmails = ['sam@atlas-gyms.co.uk', 'sam@gymleadhub.co.uk']
+        if (user.email && adminEmails.includes(user.email.toLowerCase())) {
+          setIsAdmin(true)
+        }
         
         // Get user's organization dynamically using client-side query
         try {
@@ -81,8 +88,21 @@ export default function DashboardPage() {
     <DashboardLayout userData={user}>
       <div className="p-6">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Welcome to Atlas Fitness CRM</h1>
-          <p className="text-gray-300">Manage your gym operations from one central location</p>
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">Welcome to Atlas Fitness CRM</h1>
+              <p className="text-gray-300">Manage your gym operations from one central location</p>
+            </div>
+            {isAdmin && (
+              <button
+                onClick={() => router.push('/admin/simple-dashboard')}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+              >
+                <Shield className="h-5 w-5" />
+                Admin Dashboard
+              </button>
+            )}
+          </div>
         </div>
         
         {/* Quick Stats */}
