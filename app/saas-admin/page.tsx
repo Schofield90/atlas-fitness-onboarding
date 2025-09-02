@@ -278,6 +278,13 @@ export default function SaasAdminDashboard() {
               Manage Tenants
             </button>
             <button
+              onClick={() => router.push('/saas-admin/billing')}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 rounded-lg hover:bg-green-700 transition-colors text-sm"
+            >
+              <DollarSign className="h-4 w-4" />
+              Billing & Revenue
+            </button>
+            <button
               onClick={() => window.location.reload()}
               className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors text-sm"
             >
@@ -290,12 +297,6 @@ export default function SaasAdminDashboard() {
             >
               <Database className="h-4 w-4" />
               Debug Info
-            </button>
-            <button
-              className="px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors text-sm opacity-50 cursor-not-allowed"
-              disabled
-            >
-              View Billing
             </button>
           </div>
         </div>
