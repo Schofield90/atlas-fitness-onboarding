@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import DashboardLayout from '../components/DashboardLayout'
 import { Calendar } from '@/app/components/calendar/Calendar'
 import { GoogleStyleCalendar } from '@/app/components/calendar/GoogleStyleCalendar'
 import { CalendarSettings } from '@/app/components/calendar/CalendarSettings'
@@ -238,15 +237,14 @@ export default function CalendarPage() {
   }
 
   return (
-    <DashboardLayout>
-      <div className="p-6">
-        <div className="max-w-7xl mx-auto">
+    <div className="p-6">
+      <div className="max-w-7xl mx-auto">
 
-          {/* Page Title */}
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-white">Calendar & Booking Links</h1>
-            <p className="text-gray-400 mt-1">View calendar events and manage your booking links for customers</p>
-          </div>
+        {/* Page Title */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-white">Calendar & Booking Links</h1>
+          <p className="text-gray-400 mt-1">View calendar events and manage your booking links for customers</p>
+        </div>
 
       {/* Tabs */}
       <div className="border-b border-gray-700 mb-6">
@@ -430,8 +428,7 @@ export default function CalendarPage() {
         onOpenChange={setShowEditModal}
         onSave={handleSaveEvent}
       />
-        </div>
       </div>
-    </DashboardLayout>
+    </div>
   )
 }

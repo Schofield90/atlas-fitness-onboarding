@@ -342,25 +342,46 @@ export async function requireAdminAccess(): Promise<{
   adminUser?: any
   error?: string
 }> {
-  const supabase = await createClient()
-  
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) {
-    return { isAdmin: false, error: 'Unauthorized' }
+  try {
+    const supabase = await createClient()
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError) {
+      console.error('Auth error in requireAdminAccess:', authError)
+      return { isAdmin: false, error: 'Auth error: ' + authError.message }
+    }
+    
+    if (!user) {
+      console.error('No user found in requireAdminAccess')
+      return { isAdmin: false, error: 'No user session' }
+    }
+    
+    console.log('Checking admin access for user:', user.email, 'with ID:', user.id)
+    
+    const { data: adminUser, error: adminError } = await supabase
+      .from('super_admin_users')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .single()
+
+    if (adminError) {
+      console.error('Admin lookup error:', adminError)
+      return { isAdmin: false, error: 'Admin lookup failed: ' + adminError.message }
+    }
+    
+    if (!adminUser) {
+      console.error('User is not an admin:', user.email)
+      return { isAdmin: false, error: 'Not an admin user' }
+    }
+    
+    console.log('Admin access granted for:', user.email, 'with role:', adminUser.role)
+    return { isAdmin: true, adminUser }
+  } catch (error) {
+    console.error('Unexpected error in requireAdminAccess:', error)
+    return { isAdmin: false, error: 'Unexpected error' }
   }
-
-  const { data: adminUser, error: adminError } = await supabase
-    .from('super_admin_users')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('is_active', true)
-    .single()
-
-  if (adminError || !adminUser) {
-    return { isAdmin: false, error: 'Not an admin' }
-  }
-
-  return { isAdmin: true, adminUser }
 }
 
 /**

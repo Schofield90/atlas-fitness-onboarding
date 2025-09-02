@@ -41,10 +41,18 @@ export default function AdminDashboard() {
   const checkAuth = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     
+    // Check if user is logged in first
+    if (!user) {
+      router.push('/login')
+      return
+    }
+    
     // Check if user is authorized (allow both admin emails)
-    if (!user || (user.email !== 'sam@gymleadhub.co.uk' && user.email !== 'sam@atlas-gyms.co.uk')) {
-      toast.error('Unauthorized access')
-      router.push('/dashboard')
+    const authorizedEmails = ['sam@gymleadhub.co.uk', 'sam@atlas-gyms.co.uk']
+    if (!authorizedEmails.includes(user.email?.toLowerCase() || '')) {
+      toast.error('Unauthorized access - Admin only')
+      // Redirect to dashboard-direct to avoid auth loops
+      router.push('/dashboard-direct')
       return
     }
     
@@ -59,18 +67,20 @@ export default function AdminDashboard() {
         .select('id, name, created_at, subscription_status')
       
       const { data: users } = await supabase
-        .from('users')
-        .select('id')
+        .from('user_organizations')
+        .select('user_id')
+        .eq('is_active', true)
       
       const { data: leads } = await supabase
         .from('leads')
         .select('id')
       
-      // Calculate stats
+      // Calculate stats - count unique users
+      const uniqueUsers = new Set(users?.map(u => u.user_id) || [])
       setStats({
         totalOrgs: orgs?.length || 0,
         activeOrgs: orgs?.filter(o => o.subscription_status === 'active').length || 0,
-        totalUsers: users?.length || 0,
+        totalUsers: uniqueUsers.size,
         totalLeads: leads?.length || 0,
         totalRevenue: 0, // Would come from Stripe
         systemHealth: 'healthy',
