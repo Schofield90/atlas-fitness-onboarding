@@ -16,8 +16,22 @@
     "app/api/ai/**/*.ts": {
       "maxDuration": 45,
       "memory": 1536
+    },
+    "app/api/cron/**/*.ts": {
+      "maxDuration": 300,
+      "memory": 2048
+    },
+    "app/api/saas-admin/weekly-brief/**/*.ts": {
+      "maxDuration": 60,
+      "memory": 1536
     }
   },
+  "crons": [
+    {
+      "path": "/api/cron/weekly-brief",
+      "schedule": "0 * * * *"
+    }
+  ],
   "regions": ["lhr1"],
   "headers": [
     {

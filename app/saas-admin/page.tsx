@@ -13,7 +13,9 @@ import {
   RefreshCw,
   Database,
   AlertCircle,
-  DollarSign
+  DollarSign,
+  FileText,
+  Settings
 } from 'lucide-react'
 
 export default function SaasAdminDashboard() {
@@ -270,7 +272,14 @@ export default function SaasAdminDashboard() {
         {/* Quick Actions */}
         <div className="bg-gray-800 rounded-lg p-6">
           <h2 className="text-lg font-bold mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <button
+              onClick={() => router.push('/saas-admin/weekly-brief')}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+            >
+              <FileText className="h-4 w-4" />
+              Weekly Brief
+            </button>
             <button
               onClick={() => router.push('/saas-admin/tenants')}
               className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors text-sm"
