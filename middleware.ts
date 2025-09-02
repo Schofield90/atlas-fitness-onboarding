@@ -88,6 +88,11 @@ const adminRoutes = [
   '/integrations'  // Add integrations to admin routes
 ]
 
+// Super admin routes that bypass organization checks
+const superAdminRoutes = [
+  '/admin'
+]
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const res = NextResponse.next()
@@ -137,6 +142,17 @@ export async function middleware(request: NextRequest) {
     const redirectUrl = new URL('/login', request.url)
     redirectUrl.searchParams.set('redirect', pathname)
     return NextResponse.redirect(redirectUrl)
+  }
+
+  // Check if user is trying to access super admin routes
+  const isSuperAdminRoute = superAdminRoutes.some(route => 
+    pathname.startsWith(route)
+  )
+
+  if (isSuperAdminRoute) {
+    // For super admin routes, just check if user is authenticated
+    // The page itself will handle specific email checks
+    return res
   }
 
   // Check if user is trying to access client routes

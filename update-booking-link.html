@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Update Booking Link with Google Calendar</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            background: #3B82F6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #2563EB;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            display: none;
+        }
+        .success {
+            background: #D1FAE5;
+            border: 1px solid #10B981;
+            color: #065F46;
+        }
+        .error {
+            background: #FEE2E2;
+            border: 1px solid #EF4444;
+            color: #991B1B;
+        }
+        pre {
+            background: #F3F4F6;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Update Booking Link with Google Calendar</h1>
+    <p>This will update the test booking link to use your authenticated user account, enabling Google Calendar integration.</p>
+    
+    <button onclick="updateBookingLink()">Update Booking Link</button>
+    
+    <div id="result" class="result"></div>
+
+    <script>
+        async function updateBookingLink() {
+            const button = document.querySelector('button');
+            const resultDiv = document.getElementById('result');
+            
+            button.disabled = true;
+            button.textContent = 'Updating...';
+            
+            try {
+                const response = await fetch('https://atlas-fitness-onboarding.vercel.app/api/booking-links/update-user', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.style.display = 'block';
+                    resultDiv.innerHTML = `
+                        <h3>✅ Success!</h3>
+                        <p>Booking link updated successfully.</p>
+                        <p><strong>User:</strong> ${data.user.email}</p>
+                        <p><strong>Google Calendar:</strong> ${data.google_calendar.connected ? '✅ Connected' : '❌ Not Connected'}</p>
+                        <p><strong>Sync Enabled:</strong> ${data.google_calendar.sync_enabled ? 'Yes' : 'No'}</p>
+                        <p><strong>Booking URL:</strong> <a href="${data.booking_link.url}" target="_blank">${data.booking_link.url}</a></p>
+                        <details>
+                            <summary>Full Response</summary>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </details>
+                    `;
+                } else {
+                    throw new Error(data.error || 'Failed to update booking link');
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `
+                    <h3>❌ Error</h3>
+                    <p>${error.message}</p>
+                    <p>Make sure you're logged in at <a href="https://atlas-fitness-onboarding.vercel.app/login" target="_blank">https://atlas-fitness-onboarding.vercel.app/login</a></p>
+                `;
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Update Booking Link';
+            }
+        }
+    </script>
+</body>
+</html>
