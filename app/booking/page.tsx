@@ -5,7 +5,6 @@ import { Calendar, Clock, Users, Plus, Link, Settings, Video, Phone, Coffee } fr
 import Button from '@/app/components/ui/Button'
 import { createClient } from '@/app/lib/supabase/client'
 import toast from '@/app/lib/toast'
-import DashboardLayout from '@/app/components/DashboardLayout'
 import { useRouter } from 'next/navigation'
 
 interface Booking {
@@ -17,16 +16,10 @@ interface Booking {
   attendee_email: string
   attendee_phone?: string
   booking_status: string
-  appointment_type?: {
-    name: string
-    duration_minutes: number
-  }
-  staff?: {
-    full_name: string
-  }
   meeting_type?: 'video' | 'phone' | 'in_person'
   meeting_link?: string
   notes?: string
+  duration_minutes?: number
 }
 
 export default function BookingPage() {
@@ -51,11 +44,7 @@ export default function BookingPage() {
 
       let query = supabase
         .from('bookings')
-        .select(`
-          *,
-          appointment_type:appointment_types(*),
-          staff:users!assigned_to(full_name)
-        `)
+        .select('*')
         .order('start_time', { ascending: activeTab === 'upcoming' })
 
       // Filter based on tab
@@ -63,7 +52,6 @@ export default function BookingPage() {
         query = query
           .gte('start_time', new Date().toISOString())
           .in('booking_status', ['confirmed', 'pending'])
-          .neq('meeting_type', 'phone')
       } else if (activeTab === 'calls') {
         query = query
           .gte('start_time', new Date().toISOString())
@@ -84,7 +72,14 @@ export default function BookingPage() {
         toast.error('Failed to load bookings. Please try again.')
         // Don't throw, just continue with empty data
       }
-      setBookings(data || [])
+      
+      // Apply additional filtering for upcoming tab to exclude phone meetings
+      let filteredData = data || []
+      if (activeTab === 'upcoming' && filteredData.length > 0) {
+        filteredData = filteredData.filter(booking => booking.meeting_type !== 'phone')
+      }
+      
+      setBookings(filteredData)
     } catch (error) {
       console.error('Error fetching bookings:', error)
     } finally {
@@ -110,7 +105,7 @@ export default function BookingPage() {
   }
 
   return (
-    <DashboardLayout>
+    <div className="min-h-screen bg-gray-900 text-white">
       <div className="p-6">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
@@ -275,7 +270,7 @@ export default function BookingPage() {
                       <div className="flex items-center gap-3 mb-2">
                         {getBookingIcon(booking)}
                         <h3 className="font-semibold text-white">
-                          {booking.title || booking.appointment_type?.name || 'Sales Call'}
+                          {booking.title || 'Sales Call'}
                         </h3>
                         <span className={`text-xs px-2 py-1 rounded-full ${
                           booking.booking_status === 'confirmed' ? 'bg-green-900 text-green-300' :
@@ -291,7 +286,7 @@ export default function BookingPage() {
                         <p className="flex items-center gap-2">
                           <Clock className="w-4 h-4" />
                           {formatDateTime(booking.start_time)} - {new Date(booking.end_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-                          {booking.appointment_type && ` (${booking.appointment_type.duration_minutes} min)`}
+                          {booking.duration_minutes && ` (${booking.duration_minutes} min)`}
                         </p>
                         
                         <p className="flex items-center gap-2">
@@ -299,12 +294,6 @@ export default function BookingPage() {
                           {booking.attendee_name} • {booking.attendee_email}
                           {booking.attendee_phone && ` • ${booking.attendee_phone}`}
                         </p>
-                        
-                        {booking.staff && (
-                          <p className="text-gray-500">
-                            With {booking.staff.full_name}
-                          </p>
-                        )}
                         
                         {booking.notes && (
                           <p className="text-gray-500 mt-2">
@@ -358,6 +347,6 @@ export default function BookingPage() {
           </ul>
         </div>
       </div>
-    </DashboardLayout>
+    </div>
   )
 }
