@@ -76,82 +76,56 @@ export async function POST(request: NextRequest) {
     
     // Now save/update the selected lead forms
     if (config.selectedForms && config.selectedForms.length > 0) {
-      // Get existing forms to check which ones need to be created vs updated
-      const { data: existingForms } = await supabase
-        .from('facebook_lead_forms')
-        .select('id, facebook_form_id, form_name')
-        .eq('organization_id', organizationId)
-        .in('facebook_form_id', config.selectedForms)
-      
-      console.log('Existing forms found:', existingForms?.length || 0)
-      
-      const existingFormIds = new Set(existingForms?.map(f => f.facebook_form_id) || [])
-      
-      // Update existing forms to be active and update their names if provided
-      if (existingForms && existingForms.length > 0) {
-        // Update each form individually if we have name details
-        if (config.selectedFormDetails && config.selectedFormDetails.length > 0) {
-          for (const form of existingForms) {
-            const formDetail = config.selectedFormDetails.find((f: any) => f.id === form.facebook_form_id)
-            await supabase
-              .from('facebook_lead_forms')
-              .update({ 
-                is_active: true,
-                form_name: formDetail?.name || form.form_name,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', form.id)
-          }
-        } else {
-          // Bulk update without name changes
-          await supabase
-            .from('facebook_lead_forms')
-            .update({ 
-              is_active: true,
-              updated_at: new Date().toISOString()
-            })
-            .eq('organization_id', organizationId)
-            .in('facebook_form_id', config.selectedForms)
+      // Process ALL selected forms with upsert approach
+      const formsToSave = config.selectedForms.map((formId: string) => {
+        // Try to find the form name from selectedFormDetails
+        const formDetail = config.selectedFormDetails?.find((f: any) => f.id === formId)
+        return {
+          organization_id: organizationId,
+          page_id: pageInfo?.id || null, // UUID reference to facebook_pages table (can be null)
+          facebook_page_id: pageId || null, // The actual Facebook page ID
+          facebook_form_id: formId,
+          form_name: formDetail?.name || `Form ${formId}`,
+          form_status: 'active',
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         }
-      }
+      })
       
-      // Insert new forms
-      const newForms = config.selectedForms
-        .filter((formId: string) => !existingFormIds.has(formId))
-        .map((formId: string) => {
-          // Try to find the form name from selectedFormDetails
-          const formDetail = config.selectedFormDetails?.find((f: any) => f.id === formId)
-          return {
-            organization_id: organizationId,
-            page_id: pageInfo?.id || null, // UUID reference to facebook_pages table (can be null)
-            facebook_page_id: pageId || null, // The actual Facebook page ID
-            facebook_form_id: formId,
-            form_name: formDetail?.name || `Form ${formId}`,
-            form_status: 'active',
-            is_active: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }
-        })
-      
-      if (newForms.length > 0) {
-        console.log('Attempting to insert new forms:', JSON.stringify(newForms, null, 2))
-        const { data: insertedForms, error: insertError } = await supabase
+      if (formsToSave.length > 0) {
+        console.log('Attempting to save forms:', JSON.stringify(formsToSave, null, 2))
+        
+        // Use upsert to handle both insert and update cases
+        const { data: upsertedForms, error: upsertError } = await supabase
           .from('facebook_lead_forms')
-          .insert(newForms)
+          .upsert(
+            formsToSave,
+            { 
+              onConflict: 'organization_id,facebook_form_id',
+              ignoreDuplicates: false 
+            }
+          )
           .select()
         
-        if (insertError) {
-          console.error('Error inserting new forms - Full error:', JSON.stringify(insertError, null, 2))
-          console.error('Failed forms data:', newForms)
-          // Try to provide more detail about the error
-          if (insertError.code === '23505') {
-            console.error('Duplicate form detected - forms may already exist, updating instead')
-            // Try to update instead
-            console.log('Attempting to update existing forms due to duplicate key')
-            let updateCount = 0
-            for (const form of newForms) {
-              console.log(`Updating form ${form.facebook_form_id}...`)
+        if (upsertError) {
+          console.error('Error upserting forms - Full error:', JSON.stringify(upsertError, null, 2))
+          console.error('Failed forms data:', formsToSave)
+          
+          // If upsert fails, try individual operations
+          console.log('Upsert failed, trying individual operations...')
+          let successCount = 0
+          
+          for (const form of formsToSave) {
+            // First try to insert
+            const { data: insertData, error: insertError } = await supabase
+              .from('facebook_lead_forms')
+              .insert(form)
+              .select()
+            
+            if (insertError && insertError.code === '23505') {
+              // Duplicate key, try update
+              console.log(`Form ${form.facebook_form_id} exists, updating...`)
               const { data: updateData, error: updateError } = await supabase
                 .from('facebook_lead_forms')
                 .update({
@@ -166,21 +140,22 @@ export async function POST(request: NextRequest) {
                 .select()
               
               if (updateError) {
-                console.error(`Failed to update form ${form.facebook_form_id}:`, JSON.stringify(updateError))
-              } else if (updateData && updateData.length > 0) {
-                console.log(`Successfully updated existing form ${form.facebook_form_id}`)
-                updateCount++
+                console.error(`Failed to update form ${form.facebook_form_id}:`, updateError)
               } else {
-                console.log(`No rows updated for form ${form.facebook_form_id} - may not exist yet`)
+                console.log(`Updated form ${form.facebook_form_id}`)
+                successCount++
               }
+            } else if (insertError) {
+              console.error(`Failed to insert form ${form.facebook_form_id}:`, insertError)
+            } else {
+              console.log(`Inserted form ${form.facebook_form_id}`)
+              successCount++
             }
-            console.log(`Updated ${updateCount} existing forms`)
-          } else {
-            // Don't fail the entire request for insert errors - forms may be partially saved
-            console.error('Insert error occurred but continuing with response')
           }
+          
+          console.log(`Successfully saved ${successCount} out of ${formsToSave.length} forms`)
         } else {
-          console.log('Successfully inserted forms:', insertedForms)
+          console.log('Successfully upserted forms:', upsertedForms?.length || 0)
         }
       }
     }
