@@ -210,22 +210,6 @@ export default function FacebookIntegrationPage() {
     }
   }
 
-  const handlePageSelect = async (pageId: string) => {
-    setSelectedPageId(pageId)
-    // Fetch lead forms for the newly selected page
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    
-    const { data: orgData } = await supabase
-      .from('user_organizations')
-      .select('organization_id')
-      .eq('user_id', user.id)
-      .single()
-    
-    if (orgData?.organization_id) {
-      await fetchLeadForms(pageId, orgData.organization_id)
-    }
-  }
 
   const handleSetPrimaryPage = async () => {
     if (!selectedPageId || !connection) return
@@ -489,10 +473,16 @@ export default function FacebookIntegrationPage() {
                     <select
                       value={selectedPageId || ''}
                       onChange={(e) => {
-                        e.preventDefault()
                         const newPageId = e.target.value
-                        if (newPageId && newPageId !== selectedPageId) {
-                          handlePageSelect(newPageId)
+                        console.log('Page selection changed:', newPageId)
+                        if (newPageId) {
+                          setSelectedPageId(newPageId)
+                          // Clear existing forms and fetch new ones
+                          setLeadForms([])
+                          setSelectedForms(new Set())
+                          if (organizationId) {
+                            fetchLeadForms(newPageId, organizationId)
+                          }
                         }
                       }}
                       className="w-full bg-gray-800 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
