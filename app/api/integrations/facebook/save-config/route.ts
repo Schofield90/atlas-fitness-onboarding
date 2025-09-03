@@ -52,74 +52,116 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Save configuration to database
-    const configData = {
-      organization_id: organizationId,
-      facebook_integration_id: integration.id,
-      selected_pages: config.selectedPages,
-      selected_ad_accounts: config.selectedAdAccounts || [],
-      selected_forms: config.selectedForms,
-      sync_enabled: true,
-      last_sync_at: null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
+    // First, deactivate all existing lead forms for this organization
+    await supabase
+      .from('facebook_lead_forms')
+      .update({ is_active: false })
+      .eq('organization_id', organizationId)
     
-    // Check if configuration already exists
-    const { data: existingConfig } = await supabase
-      .from('facebook_sync_configs')
-      .select('id')
+    // Get the page info for the selected forms
+    const pageId = config.selectedPages[0] // Using the first selected page
+    
+    // Try to get page info but don't fail if it doesn't exist
+    const { data: pageInfo } = await supabase
+      .from('facebook_pages')
+      .select('id, page_name, facebook_page_id')
+      .eq('facebook_page_id', pageId)
       .eq('organization_id', organizationId)
       .single()
     
-    let saveResult
+    console.log('Page ID from request:', pageId)
+    console.log('Page info from DB:', pageInfo)
+    console.log('Organization ID:', organizationId)
+    console.log('Forms to save:', config.selectedForms)
     
-    if (existingConfig) {
-      // Update existing configuration
-      saveResult = await supabase
-        .from('facebook_sync_configs')
-        .update({
-          selected_pages: configData.selected_pages,
-          selected_ad_accounts: configData.selected_ad_accounts,
-          selected_forms: configData.selected_forms,
-          sync_enabled: configData.sync_enabled,
-          updated_at: configData.updated_at
-        })
-        .eq('id', existingConfig.id)
-        .select()
-    } else {
-      // Create new configuration
-      saveResult = await supabase
-        .from('facebook_sync_configs')
-        .insert(configData)
-        .select()
-    }
-    
-    if (saveResult.error) {
-      // If the table doesn't exist, we'll save it as metadata on the integration
-      console.log('facebook_sync_configs table may not exist, saving to integration metadata')
-      
-      const { error: updateError } = await supabase
-        .from('facebook_integrations')
-        .update({
-          sync_config: {
-            selected_pages: config.selectedPages,
-            selected_ad_accounts: config.selectedAdAccounts || [],
-            selected_forms: config.selectedForms,
-            sync_enabled: true
-          },
+    // Now save/update the selected lead forms
+    if (config.selectedForms && config.selectedForms.length > 0) {
+      // Process ALL selected forms with upsert approach
+      const formsToSave = config.selectedForms.map((formId: string) => {
+        // Try to find the form name from selectedFormDetails
+        const formDetail = config.selectedFormDetails?.find((f: any) => f.id === formId)
+        return {
+          organization_id: organizationId,
+          page_id: pageInfo?.id || null, // UUID reference to facebook_pages table (can be null)
+          facebook_page_id: pageId || null, // The actual Facebook page ID
+          facebook_form_id: formId,
+          form_name: formDetail?.name || `Form ${formId}`,
+          form_status: 'active',
+          is_active: true,
+          created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        })
-        .eq('id', integration.id)
+        }
+      })
       
-      if (updateError) {
-        console.error('Error saving configuration:', updateError)
-        return NextResponse.json(
-          { error: 'Failed to save configuration' },
-          { status: 500 }
-        )
+      if (formsToSave.length > 0) {
+        console.log('Attempting to save forms:', JSON.stringify(formsToSave, null, 2))
+        
+        // Use upsert to handle both insert and update cases
+        const { data: upsertedForms, error: upsertError } = await supabase
+          .from('facebook_lead_forms')
+          .upsert(
+            formsToSave,
+            { 
+              onConflict: 'organization_id,facebook_form_id',
+              ignoreDuplicates: false 
+            }
+          )
+          .select()
+        
+        if (upsertError) {
+          console.error('Error upserting forms - Full error:', JSON.stringify(upsertError, null, 2))
+          console.error('Failed forms data:', formsToSave)
+          
+          // If upsert fails, try individual operations
+          console.log('Upsert failed, trying individual operations...')
+          let successCount = 0
+          
+          for (const form of formsToSave) {
+            // First try to insert
+            const { data: insertData, error: insertError } = await supabase
+              .from('facebook_lead_forms')
+              .insert(form)
+              .select()
+            
+            if (insertError && insertError.code === '23505') {
+              // Duplicate key, try update
+              console.log(`Form ${form.facebook_form_id} exists, updating...`)
+              const { data: updateData, error: updateError } = await supabase
+                .from('facebook_lead_forms')
+                .update({
+                  form_name: form.form_name,
+                  facebook_page_id: form.facebook_page_id,
+                  page_id: form.page_id,
+                  is_active: true,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('organization_id', form.organization_id)
+                .eq('facebook_form_id', form.facebook_form_id)
+                .select()
+              
+              if (updateError) {
+                console.error(`Failed to update form ${form.facebook_form_id}:`, updateError)
+              } else {
+                console.log(`Updated form ${form.facebook_form_id}`)
+                successCount++
+              }
+            } else if (insertError) {
+              console.error(`Failed to insert form ${form.facebook_form_id}:`, insertError)
+            } else {
+              console.log(`Inserted form ${form.facebook_form_id}`)
+              successCount++
+            }
+          }
+          
+          console.log(`Successfully saved ${successCount} out of ${formsToSave.length} forms`)
+        } else {
+          console.log('Successfully upserted forms:', upsertedForms?.length || 0)
+        }
       }
     }
+    
+    // Note: Removed sync_config update as that column doesn't exist in the table
+    // The facebook_lead_forms table is the source of truth for selected forms
     
     console.log('💾 Saved Facebook sync configuration:', {
       organization: organizationId,
