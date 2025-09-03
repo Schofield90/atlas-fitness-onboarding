@@ -36,7 +36,9 @@ export default function FacebookIntegrationPage() {
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [connection, setConnection] = useState<FacebookConnection | null>(null)
+  const [selectedPageId, setSelectedPageId] = useState<string | null>(null)
   const [leadForms, setLeadForms] = useState<LeadForm[]>([])
+  const [savingPage, setSavingPage] = useState(false)
   const [stats, setStats] = useState({
     totalLeads: 0,
     syncedToday: 0,
@@ -117,11 +119,15 @@ export default function FacebookIntegrationPage() {
         
         setConnection(connectionWithPages)
         
-        // Fetch lead forms and stats for primary page if exists
+        // Set selected page - prefer primary, otherwise first page
         const primaryPage = pages?.find(p => p.is_primary)
-        if (primaryPage) {
+        const pageToSelect = primaryPage || pages?.[0]
+        
+        if (pageToSelect) {
+          setSelectedPageId(pageToSelect.facebook_page_id)
+          // Fetch lead forms for selected page
           try {
-            await fetchLeadForms(primaryPage.facebook_page_id, orgData.organization_id)
+            await fetchLeadForms(pageToSelect.facebook_page_id, orgData.organization_id)
           } catch (error) {
             console.error('Failed to fetch lead forms:', error)
           }
@@ -187,6 +193,56 @@ export default function FacebookIntegrationPage() {
       }
     } catch (error) {
       console.error('Error fetching stats:', error)
+    }
+  }
+
+  const handlePageSelect = async (pageId: string) => {
+    setSelectedPageId(pageId)
+    // Fetch lead forms for the newly selected page
+    if (connection) {
+      await fetchLeadForms(pageId, connection.id)
+    }
+  }
+
+  const handleSetPrimaryPage = async () => {
+    if (!selectedPageId || !connection) return
+    
+    setSavingPage(true)
+    try {
+      // First, unset any existing primary pages
+      const { error: unsetError } = await supabase
+        .from('facebook_pages')
+        .update({ is_primary: false })
+        .eq('integration_id', connection.id)
+      
+      if (unsetError) throw unsetError
+      
+      // Then set the selected page as primary
+      const { error: setError } = await supabase
+        .from('facebook_pages')
+        .update({ is_primary: true })
+        .eq('integration_id', connection.id)
+        .eq('facebook_page_id', selectedPageId)
+      
+      if (setError) throw setError
+      
+      // Update local state
+      const updatedPages = connection.pages?.map(page => ({
+        ...page,
+        is_primary: page.facebook_page_id === selectedPageId
+      }))
+      
+      setConnection({
+        ...connection,
+        pages: updatedPages
+      })
+      
+      toast.success('Primary page updated successfully')
+    } catch (error) {
+      console.error('Error updating primary page:', error)
+      toast.error('Failed to update primary page')
+    } finally {
+      setSavingPage(false)
     }
   }
 
@@ -350,6 +406,38 @@ export default function FacebookIntegrationPage() {
               </div>
             </div>
 
+            {/* Page Selector */}
+            {connection?.pages && connection.pages.length > 0 && (
+              <div className="p-4 bg-gray-700/50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <label className="block text-sm text-gray-400 mb-2">Selected Page</label>
+                    <select
+                      value={selectedPageId || ''}
+                      onChange={(e) => handlePageSelect(e.target.value)}
+                      className="w-full bg-gray-800 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
+                    >
+                      {connection.pages.map(page => (
+                        <option key={page.id} value={page.facebook_page_id}>
+                          {page.page_name} {page.is_primary ? '(Primary)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    onClick={handleSetPrimaryPage}
+                    disabled={savingPage || !selectedPageId || connection.pages.find(p => p.facebook_page_id === selectedPageId)?.is_primary}
+                    className="ml-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {savingPage ? 'Saving...' : 'Set as Primary'}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  The primary page will be used for lead syncing and automation
+                </p>
+              </div>
+            )}
+
             {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="bg-gray-700/50 rounded-lg p-4">
@@ -391,10 +479,17 @@ export default function FacebookIntegrationPage() {
       </div>
 
       {/* Lead Forms */}
-      {connection && (
+      {connection && selectedPageId && (
         <div className="bg-gray-800 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-white">Lead Forms</h2>
+            <h2 className="text-xl font-semibold text-white">
+              Lead Forms 
+              {connection.pages?.find(p => p.facebook_page_id === selectedPageId) && (
+                <span className="text-sm text-gray-400 ml-2">
+                  - {connection.pages.find(p => p.facebook_page_id === selectedPageId)?.page_name}
+                </span>
+              )}
+            </h2>
             <a
               href="https://business.facebook.com/latest/inbox/lead_forms"
               target="_blank"
