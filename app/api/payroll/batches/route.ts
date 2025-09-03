@@ -2,14 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { PayrollService } from '@/app/lib/services/xero/PayrollService';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 // GET /api/payroll/batches - Get all payroll batches
 export async function GET(request: NextRequest) {
   try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!supabaseUrl || !serviceKey) {
+      return NextResponse.json({ error: 'Service unavailable' }, { status: 503 })
+    }
+    const supabase = createClient(supabaseUrl, serviceKey)
     const { searchParams } = new URL(request.url);
     const organizationId = searchParams.get('organizationId');
     const status = searchParams.get('status');
@@ -55,6 +59,12 @@ export async function GET(request: NextRequest) {
 // POST /api/payroll/batches - Create new payroll batch
 export async function POST(request: NextRequest) {
   try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!supabaseUrl || !serviceKey) {
+      return NextResponse.json({ error: 'Service unavailable' }, { status: 503 })
+    }
+    const supabase = createClient(supabaseUrl, serviceKey)
     const body = await request.json();
     const {
       organizationId,

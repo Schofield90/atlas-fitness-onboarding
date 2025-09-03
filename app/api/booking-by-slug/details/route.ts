@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 import type { Database } from '@/app/lib/supabase/database.types'
 
 export async function GET(request: NextRequest) {
@@ -14,17 +16,15 @@ export async function GET(request: NextRequest) {
     
     // Create a direct Supabase client with service role key for public access
     // This bypasses RLS and authentication requirements
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.error('Missing Supabase environment variables')
-      return NextResponse.json({ 
-        error: 'Service configuration error',
-        message: 'Database connection not properly configured' 
-      }, { status: 500 })
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!supabaseUrl || !serviceKey) {
+      return NextResponse.json({ error: 'Service unavailable' }, { status: 503 })
     }
     
     const supabase = createClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      supabaseUrl,
+      serviceKey,
       {
         auth: {
           autoRefreshToken: false,

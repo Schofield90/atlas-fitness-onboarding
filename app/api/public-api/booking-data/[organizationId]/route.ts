@@ -5,22 +5,22 @@ interface Context {
   params: Promise<{ organizationId: string }>;
 }
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest, context: Context) {
   try {
     const params = await context.params;
     const { organizationId } = params;
 
-    // Use service role key to bypass RLS
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    if (!supabaseUrl || !serviceKey) {
+      return NextResponse.json({ error: 'Service unavailable' }, { status: 503 })
+    }
+    const supabase = createClient(supabaseUrl, serviceKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    })
 
     console.log('Fetching organization with ID:', organizationId);
     console.log('Using service role key:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
