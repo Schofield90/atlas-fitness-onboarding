@@ -362,6 +362,14 @@ export default function FacebookIntegrationPage() {
     
     setSavingForms(true)
     try {
+      // Get the form details for the selected forms
+      const selectedFormDetails = leadForms
+        .filter(form => selectedForms.has(form.id))
+        .map(form => ({
+          id: form.id,
+          name: form.name
+        }))
+      
       // Save selected forms configuration
       const response = await fetch('/api/integrations/facebook/save-config', {
         method: 'POST',
@@ -371,18 +379,21 @@ export default function FacebookIntegrationPage() {
         body: JSON.stringify({
           selectedPages: [selectedPageId],
           selectedForms: Array.from(selectedForms),
+          selectedFormDetails, // Include form names for better tracking
           selectedAdAccounts: []
         })
       })
 
       if (response.ok) {
         toast.success('Lead forms selection saved successfully')
+        // The forms are already selected in state, no need to refetch
       } else {
-        throw new Error('Failed to save configuration')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to save configuration')
       }
     } catch (error) {
       console.error('Error saving selected forms:', error)
-      toast.error('Failed to save selected forms')
+      toast.error(error instanceof Error ? error.message : 'Failed to save selected forms')
     } finally {
       setSavingForms(false)
     }

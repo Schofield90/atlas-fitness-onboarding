@@ -52,73 +52,106 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Save configuration to database
-    const configData = {
-      organization_id: organizationId,
-      facebook_integration_id: integration.id,
-      selected_pages: config.selectedPages,
-      selected_ad_accounts: config.selectedAdAccounts || [],
-      selected_forms: config.selectedForms,
-      sync_enabled: true,
-      last_sync_at: null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
+    // First, deactivate all existing lead forms for this organization
+    await supabase
+      .from('facebook_lead_forms')
+      .update({ is_active: false })
+      .eq('organization_id', organizationId)
     
-    // Check if configuration already exists
-    const { data: existingConfig } = await supabase
-      .from('facebook_sync_configs')
-      .select('id')
+    // Get the page info for the selected forms
+    const pageId = config.selectedPages[0] // Using the first selected page
+    const { data: pageInfo } = await supabase
+      .from('facebook_pages')
+      .select('id, page_name')
+      .eq('facebook_page_id', pageId)
       .eq('organization_id', organizationId)
       .single()
     
-    let saveResult
-    
-    if (existingConfig) {
-      // Update existing configuration
-      saveResult = await supabase
-        .from('facebook_sync_configs')
-        .update({
-          selected_pages: configData.selected_pages,
-          selected_ad_accounts: configData.selected_ad_accounts,
-          selected_forms: configData.selected_forms,
-          sync_enabled: configData.sync_enabled,
-          updated_at: configData.updated_at
+    // Now save/update the selected lead forms
+    if (config.selectedForms && config.selectedForms.length > 0) {
+      // Get existing forms to check which ones need to be created vs updated
+      const { data: existingForms } = await supabase
+        .from('facebook_lead_forms')
+        .select('id, facebook_form_id, form_name')
+        .eq('organization_id', organizationId)
+        .in('facebook_form_id', config.selectedForms)
+      
+      const existingFormIds = new Set(existingForms?.map(f => f.facebook_form_id) || [])
+      
+      // Update existing forms to be active and update their names if provided
+      if (existingForms && existingForms.length > 0) {
+        // Update each form individually if we have name details
+        if (config.selectedFormDetails && config.selectedFormDetails.length > 0) {
+          for (const form of existingForms) {
+            const formDetail = config.selectedFormDetails.find((f: any) => f.id === form.facebook_form_id)
+            await supabase
+              .from('facebook_lead_forms')
+              .update({ 
+                is_active: true,
+                form_name: formDetail?.name || form.form_name,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', form.id)
+          }
+        } else {
+          // Bulk update without name changes
+          await supabase
+            .from('facebook_lead_forms')
+            .update({ 
+              is_active: true,
+              updated_at: new Date().toISOString()
+            })
+            .eq('organization_id', organizationId)
+            .in('facebook_form_id', config.selectedForms)
+        }
+      }
+      
+      // Insert new forms
+      const newForms = config.selectedForms
+        .filter((formId: string) => !existingFormIds.has(formId))
+        .map((formId: string) => {
+          // Try to find the form name from selectedFormDetails
+          const formDetail = config.selectedFormDetails?.find((f: any) => f.id === formId)
+          return {
+            organization_id: organizationId,
+            integration_id: integration.id,
+            page_id: pageInfo?.id || null,
+            facebook_form_id: formId,
+            form_name: formDetail?.name || `Form ${formId}`,
+            is_active: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }
         })
-        .eq('id', existingConfig.id)
-        .select()
-    } else {
-      // Create new configuration
-      saveResult = await supabase
-        .from('facebook_sync_configs')
-        .insert(configData)
-        .select()
+      
+      if (newForms.length > 0) {
+        const { error: insertError } = await supabase
+          .from('facebook_lead_forms')
+          .insert(newForms)
+        
+        if (insertError) {
+          console.error('Error inserting new forms:', insertError)
+          // Continue anyway - some forms may have been saved
+        }
+      }
     }
     
-    if (saveResult.error) {
-      // If the table doesn't exist, we'll save it as metadata on the integration
-      console.log('facebook_sync_configs table may not exist, saving to integration metadata')
-      
-      const { error: updateError } = await supabase
-        .from('facebook_integrations')
-        .update({
-          sync_config: {
-            selected_pages: config.selectedPages,
-            selected_ad_accounts: config.selectedAdAccounts || [],
-            selected_forms: config.selectedForms,
-            sync_enabled: true
-          },
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', integration.id)
-      
-      if (updateError) {
-        console.error('Error saving configuration:', updateError)
-        return NextResponse.json(
-          { error: 'Failed to save configuration' },
-          { status: 500 }
-        )
-      }
+    // Also save to sync_config for backward compatibility
+    const { error: updateError } = await supabase
+      .from('facebook_integrations')
+      .update({
+        sync_config: {
+          selected_pages: config.selectedPages,
+          selected_ad_accounts: config.selectedAdAccounts || [],
+          selected_forms: config.selectedForms,
+          sync_enabled: true
+        },
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', integration.id)
+    
+    if (updateError) {
+      console.error('Error updating integration config:', updateError)
     }
     
     console.log('💾 Saved Facebook sync configuration:', {
