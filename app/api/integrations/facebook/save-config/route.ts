@@ -62,10 +62,12 @@ export async function POST(request: NextRequest) {
     const pageId = config.selectedPages[0] // Using the first selected page
     const { data: pageInfo } = await supabase
       .from('facebook_pages')
-      .select('id, page_name')
+      .select('id, page_name, facebook_page_id')
       .eq('facebook_page_id', pageId)
       .eq('organization_id', organizationId)
       .single()
+    
+    console.log('Page info for saving forms:', pageInfo)
     
     // Now save/update the selected lead forms
     if (config.selectedForms && config.selectedForms.length > 0) {
@@ -75,6 +77,8 @@ export async function POST(request: NextRequest) {
         .select('id, facebook_form_id, form_name')
         .eq('organization_id', organizationId)
         .in('facebook_form_id', config.selectedForms)
+      
+      console.log('Existing forms found:', existingForms?.length || 0)
       
       const existingFormIds = new Set(existingForms?.map(f => f.facebook_form_id) || [])
       
@@ -114,10 +118,11 @@ export async function POST(request: NextRequest) {
           const formDetail = config.selectedFormDetails?.find((f: any) => f.id === formId)
           return {
             organization_id: organizationId,
-            integration_id: integration.id,
-            page_id: pageInfo?.id || null,
+            page_id: pageInfo?.id || null, // UUID reference to facebook_pages table
+            facebook_page_id: pageId, // The actual Facebook page ID
             facebook_form_id: formId,
             form_name: formDetail?.name || `Form ${formId}`,
+            form_status: 'active',
             is_active: true,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
@@ -125,13 +130,21 @@ export async function POST(request: NextRequest) {
         })
       
       if (newForms.length > 0) {
-        const { error: insertError } = await supabase
+        console.log('Inserting new forms:', newForms)
+        const { data: insertedForms, error: insertError } = await supabase
           .from('facebook_lead_forms')
           .insert(newForms)
+          .select()
         
         if (insertError) {
           console.error('Error inserting new forms:', insertError)
+          // Try to provide more detail about the error
+          if (insertError.code === '23505') {
+            console.error('Duplicate form detected - forms may already exist')
+          }
           // Continue anyway - some forms may have been saved
+        } else {
+          console.log('Successfully inserted forms:', insertedForms?.length || 0)
         }
       }
     }

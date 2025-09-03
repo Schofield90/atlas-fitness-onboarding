@@ -218,15 +218,22 @@ export default function FacebookIntegrationPage() {
         setLeadForms(data.forms || [])
         
         // Check for selected forms from database
-        const { data: savedForms } = await supabase
+        console.log('Checking for saved forms for org:', organizationId, 'and page:', pageId)
+        const { data: savedForms, error: savedFormsError } = await supabase
           .from('facebook_lead_forms')
           .select('facebook_form_id')
           .eq('organization_id', organizationId)
+          .eq('facebook_page_id', pageId)
           .eq('is_active', true)
         
-        if (savedForms) {
+        if (savedFormsError) {
+          console.error('Error fetching saved forms:', savedFormsError)
+        } else if (savedForms && savedForms.length > 0) {
+          console.log('Found saved forms:', savedForms.length)
           const savedFormIds = new Set(savedForms.map(f => f.facebook_form_id))
           setSelectedForms(savedFormIds)
+        } else {
+          console.log('No saved forms found')
         }
         
         if (data.errors && data.errors.length > 0) {
@@ -360,6 +367,7 @@ export default function FacebookIntegrationPage() {
   const handleSaveSelectedForms = async () => {
     if (!selectedPageId || !connection) return
     
+    console.log('Saving forms - Page:', selectedPageId, 'Forms:', Array.from(selectedForms))
     setSavingForms(true)
     try {
       // Get the form details for the selected forms
@@ -369,6 +377,8 @@ export default function FacebookIntegrationPage() {
           id: form.id,
           name: form.name
         }))
+      
+      console.log('Form details to save:', selectedFormDetails)
       
       // Save selected forms configuration
       const response = await fetch('/api/integrations/facebook/save-config', {
@@ -384,12 +394,14 @@ export default function FacebookIntegrationPage() {
         })
       })
 
+      const responseData = await response.json()
+      console.log('Save response:', responseData)
+      
       if (response.ok) {
         toast.success('Lead forms selection saved successfully')
         // The forms are already selected in state, no need to refetch
       } else {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to save configuration')
+        throw new Error(responseData.error || 'Failed to save configuration')
       }
     } catch (error) {
       console.error('Error saving selected forms:', error)
