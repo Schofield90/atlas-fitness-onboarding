@@ -32,7 +32,7 @@ export default function EditMembershipPlanModal({ isOpen, onClose, onSuccess, pl
       setFormData({
         name: plan.name || '',
         description: plan.description || '',
-        price: plan.price ? (plan.price / 100).toFixed(2) : '',
+        price: plan.price_pennies ? (plan.price_pennies / 100).toFixed(2) : '',
         billing_period: plan.billing_period || 'monthly',
         features: plan.features && plan.features.length > 0 ? plan.features : [''],
         is_active: plan.is_active !== undefined ? plan.is_active : true,
@@ -83,7 +83,7 @@ export default function EditMembershipPlanModal({ isOpen, onClose, onSuccess, pl
         .update({
           name: formData.name,
           description: formData.description || null,
-          price: Math.round(parseFloat(formData.price) * 100), // Convert to pence
+          price_pennies: Math.round(parseFloat(formData.price) * 100), // Convert to pence
           billing_period: formData.billing_period,
           features: features.length > 0 ? features : null,
           is_active: formData.is_active,

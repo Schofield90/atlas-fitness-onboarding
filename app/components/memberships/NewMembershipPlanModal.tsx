@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { X, Save } from 'lucide-react';
 import { createClient } from '@/app/lib/supabase/client';
 import { getCurrentUserOrganization } from '@/app/lib/organization-service';
+import toast from '@/app/lib/toast';
 
 interface NewMembershipPlanModalProps {
   isOpen: boolean;
@@ -60,7 +61,8 @@ const NewMembershipPlanModal: React.FC<NewMembershipPlanModalProps> = ({ isOpen,
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        alert('You must be logged in to create a membership plan');
+        toast.error('You must be logged in to create a membership plan');
+        setIsSubmitting(false);
         return;
       }
       
@@ -68,7 +70,15 @@ const NewMembershipPlanModal: React.FC<NewMembershipPlanModalProps> = ({ isOpen,
       const { organizationId, error: orgError } = await getCurrentUserOrganization();
         
       if (orgError || !organizationId) {
-        alert(orgError || 'No organization found. Please contact support.');
+        toast.error(orgError || 'No organization found. Please contact support.');
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Validate price
+      if (!formData.price || isNaN(parseFloat(formData.price)) || parseFloat(formData.price) <= 0) {
+        toast.error('Please enter a valid price');
+        setIsSubmitting(false);
         return;
       }
       
@@ -101,15 +111,29 @@ const NewMembershipPlanModal: React.FC<NewMembershipPlanModalProps> = ({ isOpen,
       
       if (error) {
         console.error('Error creating membership plan:', error);
-        alert('Failed to create membership plan. Please try again.');
+        toast.error(`Failed to create membership plan: ${error.message}`);
+        setIsSubmitting(false);
         return;
       }
       
-      alert('Membership plan created successfully!');
+      toast.success('Membership plan created successfully!');
+      
+      // Reset form
+      setFormData({
+        name: '',
+        description: '',
+        price: '',
+        duration: '1',
+        durationType: 'month',
+        features: [''],
+        maxMembers: '',
+        trialDays: '0'
+      });
+      
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error:', error);
-      alert('An error occurred. Please try again.');
+      toast.error(`An error occurred: ${error.message || 'Please try again'}`);
     } finally {
       setIsSubmitting(false);
     }

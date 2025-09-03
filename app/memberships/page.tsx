@@ -107,7 +107,7 @@ export default function MembershipsPage() {
           organization_id: userData.organization_id,
           name: `${plan.name} (Copy)`,
           description: plan.description,
-          price: plan.price,
+          price_pennies: plan.price_pennies,
           billing_period: plan.billing_period,
           features: plan.features,
           is_active: false, // Start inactive
