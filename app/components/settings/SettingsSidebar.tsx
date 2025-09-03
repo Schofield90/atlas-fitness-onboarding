@@ -21,7 +21,8 @@ import {
   Database,
   ArrowLeft,
   MapPin,
-  Bot
+  Bot,
+  Facebook
 } from 'lucide-react'
 
 const settingsNavigation = [
@@ -38,6 +39,7 @@ const settingsNavigation = [
   {
     category: "INTEGRATIONS",
     items: [
+      { name: "Facebook & Meta Ads", href: "/settings/integrations/facebook", icon: Facebook },
       { name: "Email Services", href: "/settings/integrations/email", icon: Mail },
       { name: "Phone & SMS", href: "/settings/integrations/phone", icon: Phone },
       { name: "WhatsApp", href: "/settings/integrations/whatsapp", icon: MessageCircle },

@@ -267,15 +267,48 @@ function ContactsContent() {
       console.log('No leads found')
     }
 
-    // Convert map to array and sort by created date
-    const allContacts = Array.from(contactsMap.values()).sort((a, b) => 
+    // Convert map to array
+    let allContacts = Array.from(contactsMap.values())
+    
+    // Remove duplicates based on email, keeping the most recent
+    const uniqueContacts = allContacts.reduce((acc: Contact[], contact) => {
+      if (!contact.email) {
+        // If no email, keep the contact (can't deduplicate without email)
+        acc.push(contact)
+        return acc
+      }
+      
+      const existingIndex = acc.findIndex(c => 
+        c.email && c.email.toLowerCase() === contact.email.toLowerCase()
+      )
+      
+      if (existingIndex === -1) {
+        // No duplicate found, add the contact
+        acc.push(contact)
+      } else {
+        // Duplicate found, keep the most recent one
+        const existing = acc[existingIndex]
+        const existingDate = new Date(existing.updated_at || existing.created_at)
+        const currentDate = new Date(contact.updated_at || contact.created_at)
+        
+        if (currentDate > existingDate) {
+          // Current contact is more recent, replace the existing one
+          acc[existingIndex] = contact
+        }
+      }
+      
+      return acc
+    }, [])
+    
+    // Sort by created date (most recent first)
+    uniqueContacts.sort((a, b) => 
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     )
 
-    console.log(`Final contact count: ${allContacts.length}`)
-    console.log('Sample contacts:', allContacts.slice(0, 3))
+    console.log(`Final contact count: ${uniqueContacts.length} (deduplicated from ${allContacts.length})`)
+    console.log('Sample contacts:', uniqueContacts.slice(0, 3))
     
-    setContacts(allContacts)
+    setContacts(uniqueContacts)
   }
 
   const filterContacts = () => {

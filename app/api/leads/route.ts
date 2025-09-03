@@ -91,14 +91,41 @@ async function getLeads(request: NextRequest) {
       })
     }
     
+    // Remove duplicates based on email, keeping the most recent
+    const uniqueLeads = (leads || []).reduce((acc: any[], lead) => {
+      if (!lead.email) {
+        acc.push(lead)
+        return acc
+      }
+      
+      const existingIndex = acc.findIndex(l => 
+        l.email && l.email.toLowerCase() === lead.email.toLowerCase()
+      )
+      
+      if (existingIndex === -1) {
+        acc.push(lead)
+      } else {
+        // Keep the most recent lead (based on updated_at or created_at)
+        const existing = acc[existingIndex]
+        const existingDate = new Date(existing.updated_at || existing.created_at)
+        const currentDate = new Date(lead.updated_at || lead.created_at)
+        
+        if (currentDate > existingDate) {
+          acc[existingIndex] = lead
+        }
+      }
+      
+      return acc
+    }, [])
+    
   const response = {
     success: true,
-    leads: leads || [],
+    leads: uniqueLeads,
     pagination: {
       page,
       pageSize,
-      total: count || 0,
-      totalPages: Math.ceil((count || 0) / pageSize)
+      total: uniqueLeads.length,
+      totalPages: Math.ceil(uniqueLeads.length / pageSize)
     },
     organizationId: userWithOrg.organizationId
   }
@@ -136,6 +163,23 @@ async function createLead(request: NextRequest) {
       throw ValidationError.invalid('email', body.email, 'valid email address')
     }
     
+    // Check if a lead with this email already exists
+    const { data: existingLeads } = await supabase
+      .from('leads')
+      .select('id, name, email')
+      .eq('email', body.email.toLowerCase())
+      .eq('organization_id', userWithOrg.organizationId)
+    
+    if (existingLeads && existingLeads.length > 0) {
+      // Lead with this email already exists
+      const existing = existingLeads[0]
+      return NextResponse.json({
+        success: false,
+        error: `A lead with email ${body.email} already exists (${existing.name})`,
+        existingLeadId: existing.id
+      }, { status: 409 })
+    }
+    
     // Log the data we're trying to insert
     console.log('Creating lead with data:', {
       name: body.name,
@@ -148,7 +192,7 @@ async function createLead(request: NextRequest) {
     // Build insert data with only essential fields
     const insertData: any = {
       name: body.name,
-      email: body.email,
+      email: body.email.toLowerCase(), // Store email in lowercase for consistency
       phone: body.phone,
       organization_id: userWithOrg.organizationId
     }
@@ -174,6 +218,69 @@ async function createLead(request: NextRequest) {
         code: error.code,
         hint: error.hint
       })
+    }
+    
+    // Sync lead to contacts/clients table
+    try {
+      // Split name into first and last name for clients table
+      const nameParts = lead.name.trim().split(' ')
+      const firstName = nameParts[0] || lead.name
+      const lastName = nameParts.slice(1).join(' ') || ''
+      
+      // Check if client already exists with this email
+      const { data: existingClient } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('email', lead.email.toLowerCase())
+        .or(`org_id.eq.${userWithOrg.organizationId},organization_id.eq.${userWithOrg.organizationId}`)
+        .single()
+      
+      if (!existingClient) {
+        // Create client entry for the lead
+        const clientData: any = {
+          first_name: firstName,
+          last_name: lastName,
+          name: lead.name,
+          email: lead.email.toLowerCase(),
+          phone: lead.phone,
+          status: 'active',
+          source: lead.source || 'lead',
+          lead_id: lead.id, // Link back to lead
+          created_at: new Date().toISOString()
+        }
+        
+        // Try with org_id first
+        let { error: clientError } = await supabase
+          .from('clients')
+          .insert({
+            ...clientData,
+            org_id: userWithOrg.organizationId
+          })
+        
+        // If org_id doesn't work, try organization_id
+        if (clientError?.message?.includes('column') || clientError?.message?.includes('org_id')) {
+          const result = await supabase
+            .from('clients')
+            .insert({
+              ...clientData,
+              organization_id: userWithOrg.organizationId
+            })
+          
+          clientError = result.error
+        }
+        
+        if (clientError) {
+          console.error('Warning: Failed to sync lead to contacts:', clientError)
+          // Don't fail the lead creation if contact sync fails
+        } else {
+          console.log(`✅ Lead synced to contacts: ${lead.email}`)
+        }
+      } else {
+        console.log(`ℹ️  Contact already exists for email: ${lead.email}`)
+      }
+    } catch (syncError) {
+      console.error('Error syncing lead to contacts:', syncError)
+      // Don't fail the lead creation if sync fails
     }
     
     // Trigger workflow for new lead
