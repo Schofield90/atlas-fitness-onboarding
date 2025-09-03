@@ -1,5 +1,6 @@
 name: Cursor: On PR
 on:
+workflow_dispatch: {}
   pull_request:
     types: [opened, reopened, synchronize]
 
