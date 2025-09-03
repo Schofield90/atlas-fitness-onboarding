@@ -409,6 +409,8 @@ export function SaasBillingDashboard() {
   )
 }
 
+export default SaasBillingDashboard
+
 function UsageMetric({ icon: Icon, label, value, limit }: {
   icon: any
   label: string
