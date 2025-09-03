@@ -43,11 +43,20 @@ function FacebookCallbackContent() {
         setDetails('You can now sync Facebook pages and leads.')
       }
       
-      // Redirect to Facebook integration management page after 2 seconds
-      // This gives time for the database to be updated
-      setTimeout(() => {
-        router.push('/integrations/facebook?just_connected=true')
-      }, 2000)
+      // Redirect to appropriate page after 2 seconds
+      // Check if we came from settings page
+      const fromSettings = localStorage.getItem('facebook_connect_from_settings')
+      if (fromSettings === 'true') {
+        localStorage.removeItem('facebook_connect_from_settings')
+        setTimeout(() => {
+          router.push('/settings/integrations/facebook?just_connected=true')
+        }, 2000)
+      } else {
+        // Default to original integrations page
+        setTimeout(() => {
+          router.push('/integrations/facebook?just_connected=true')
+        }, 2000)
+      }
     } else if (error) {
       setStatus('error')
       setMessage('Failed to connect Facebook')

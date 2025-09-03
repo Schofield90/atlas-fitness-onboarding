@@ -38,7 +38,18 @@ export default function FacebookIntegrationPage() {
   const toast = useToast()
 
   useEffect(() => {
-    fetchConnectionStatus()
+    // Check if just connected from callback
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('just_connected') === 'true') {
+      // Clear the URL params
+      window.history.replaceState({}, document.title, window.location.pathname)
+      // Force refresh connection status
+      setTimeout(() => {
+        fetchConnectionStatus()
+      }, 500)
+    } else {
+      fetchConnectionStatus()
+    }
   }, [])
 
   const fetchConnectionStatus = async () => {
@@ -121,8 +132,17 @@ export default function FacebookIntegrationPage() {
   }
 
   const handleConnect = () => {
-    // Initiate OAuth flow
-    window.location.href = '/api/integrations/facebook/auth'
+    // Set flag to return to settings after connection
+    localStorage.setItem('facebook_connect_from_settings', 'true')
+    
+    // Initiate Facebook OAuth flow with proper permissions
+    const fbAppId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || '715100284200848'
+    const redirectUri = `${window.location.origin}/api/auth/facebook/callback`
+    const scopes = 'pages_show_list,pages_read_engagement,leads_retrieval,ads_management,ads_read,business_management'
+    
+    const oauthUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${fbAppId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&response_type=code&state=atlas_fitness_oauth`
+    
+    window.location.href = oauthUrl
   }
 
   const handleDisconnect = async () => {
@@ -131,14 +151,24 @@ export default function FacebookIntegrationPage() {
     }
 
     try {
-      const response = await fetch('/api/integrations/facebook/disconnect', {
+      const response = await fetch('/api/integrations/meta/disconnect', {
         method: 'POST'
       })
 
       if (response.ok) {
+        // Clear local storage
+        localStorage.removeItem('facebook_connected')
+        localStorage.removeItem('facebook_user_id')
+        localStorage.removeItem('facebook_user_name')
+        
         setConnection(null)
         setLeadForms([])
         toast.showToast('Facebook disconnected successfully', 'success')
+        
+        // Refresh the page to reset state
+        setTimeout(() => {
+          window.location.reload()
+        }, 1500)
       } else {
         throw new Error('Failed to disconnect')
       }
