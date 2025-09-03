@@ -1,15 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 import type { AnalyticsEvent } from './types';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! // Use service role for server-side
-);
-
 export class SupabaseAnalyticsStorage {
+  private static getAdminClient() {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!url || !serviceRole) return null
+    return createClient(url, serviceRole)
+  }
+
   static async storeEvents(events: AnalyticsEvent[]): Promise<void> {
+    const supabase = this.getAdminClient()
+    if (!supabase) return
     try {
-      // Batch insert events
       const { error } = await supabase
         .from('analytics_events')
         .insert(events.map(event => ({
@@ -29,7 +32,6 @@ export class SupabaseAnalyticsStorage {
 
       if (error) throw error;
 
-      // Update unique visitors count (optional - can be done with a scheduled job)
       await this.updateUniqueVisitors(events);
     } catch (error) {
       console.error('Failed to store analytics events:', error);
@@ -38,8 +40,9 @@ export class SupabaseAnalyticsStorage {
   }
 
   static async updateUniqueVisitors(events: AnalyticsEvent[]): Promise<void> {
+    const supabase = this.getAdminClient()
+    if (!supabase) return
     const uniqueVisitorsByDate = new Map<string, Set<string>>();
-    
     events.forEach(event => {
       const date = new Date(event.timestamp).toISOString().split('T')[0];
       if (!uniqueVisitorsByDate.has(date)) {
@@ -48,7 +51,6 @@ export class SupabaseAnalyticsStorage {
       uniqueVisitorsByDate.get(date)!.add(event.visitorId);
     });
 
-    // Update unique visitor counts
     for (const [date, visitors] of uniqueVisitorsByDate) {
       await supabase
         .from('analytics_aggregates')
@@ -65,29 +67,28 @@ export class SupabaseAnalyticsStorage {
   }
 
   static async getAnalytics(startDate: Date, endDate: Date, organizationId: string): Promise<any> {
+    const supabase = this.getAdminClient()
+    if (!supabase) throw new Error('Service Unavailable')
     try {
-      // SECURITY: Get raw events filtered by organization
       const { data: events, error: eventsError } = await supabase
         .from('analytics_events')
         .select('*')
-        .eq('organization_id', organizationId) // SECURITY: Filter by organization
+        .eq('organization_id', organizationId)
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString())
         .order('created_at', { ascending: false });
 
       if (eventsError) throw eventsError;
 
-      // SECURITY: Get aggregated data filtered by organization
       const { data: aggregates, error: aggregatesError } = await supabase
         .from('analytics_aggregates')
         .select('*')
-        .eq('organization_id', organizationId) // SECURITY: Filter by organization
+        .eq('organization_id', organizationId)
         .gte('date', startDate.toISOString().split('T')[0])
         .lte('date', endDate.toISOString().split('T')[0]);
 
       if (aggregatesError) throw aggregatesError;
 
-      // Process and return analytics data
       return this.processAnalyticsData(events || [], aggregates || []);
     } catch (error) {
       console.error('Failed to get analytics:', error);
@@ -96,24 +97,21 @@ export class SupabaseAnalyticsStorage {
   }
 
   static async getRealtimeAnalytics(organizationId: string): Promise<any> {
+    const supabase = this.getAdminClient()
+    if (!supabase) throw new Error('Service Unavailable')
     try {
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-      
-      // SECURITY: Get realtime events filtered by organization
       const { data: recentEvents, error } = await supabase
         .from('analytics_events')
         .select('*')
-        .eq('organization_id', organizationId) // SECURITY: Filter by organization
+        .eq('organization_id', organizationId)
         .gte('created_at', fiveMinutesAgo.toISOString())
         .order('created_at', { ascending: false })
         .limit(100);
 
       if (error) throw error;
 
-      // Count active users (unique visitors in last 5 minutes)
       const activeUsers = new Set(recentEvents?.map(e => e.visitor_id) || []).size;
-
-      // Group by current pages
       const currentPages = this.groupByPath(recentEvents || []);
 
       return {

@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createGoogleCalendarEvent } from '@/app/lib/google-calendar'
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
+// Read env inside handler to avoid build-time access
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,6 +38,11 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return NextResponse.json({ error: 'Service Unavailable' }, { status: 503 })
+    }
     const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
     // Get booking link details - try to get it even if there's an error

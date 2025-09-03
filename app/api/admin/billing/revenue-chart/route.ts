@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/app/lib/supabase/admin'
 import { requireAdminAccess } from '@/app/lib/admin/impersonation'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   try {
     const { isAdmin } = await requireAdminAccess()
@@ -14,6 +17,9 @@ export async function GET() {
     }
 
     const supabase = createAdminClient()
+    if (!supabase) {
+      return NextResponse.json({ error: 'Service Unavailable' }, { status: 503 })
+    }
     
     // Get last 6 months of revenue data
     const sixMonthsAgo = new Date()

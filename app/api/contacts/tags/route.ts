@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { handleApiRoute, supabaseAdmin } from '@/lib/api/middleware'
+import { handleApiRoute, getSupabaseAdmin } from '@/lib/api/middleware'
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 import { requireAuth, createOrgScopedClient } from '@/lib/auth-middleware'
 
 export async function GET(request: NextRequest) {
@@ -14,7 +16,9 @@ export async function GET(request: NextRequest) {
     const { user } = req
     
     // Fetch all tags with contact counts for the organization
-    const { data: tags, error } = await supabaseAdmin
+    const admin = getSupabaseAdmin()
+    if (!admin) return NextResponse.json({ error: 'Service Unavailable' }, { status: 503 })
+    const { data: tags, error } = await admin
       .from('contact_tags')
       .select(`
         id,

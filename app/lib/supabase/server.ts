@@ -4,10 +4,14 @@ import type { Database } from './database.types'
 
 export async function createClient() {
   const cookieStore = await cookies()
-
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!url || !anon) {
+    throw new Error('Service Unavailable')
+  }
   return createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    url,
+    anon,
     {
       cookies: {
         get(name: string) {
@@ -17,14 +21,12 @@ export async function createClient() {
           try {
             cookieStore.set({ name, value, ...options })
           } catch (error) {
-            // Handle error
           }
         },
         remove(name: string, options: CookieOptions) {
           try {
             cookieStore.set({ name, value: '', ...options })
           } catch (error) {
-            // Handle error
           }
         }
       }
@@ -35,14 +37,11 @@ export async function createClient() {
 export async function getAuthenticatedClient() {
   const supabase = await createClient()
   const { data: { user }, error } = await supabase.auth.getUser()
-  
   if (error || !user) {
     throw new Error('Not authenticated')
   }
-  
   return { supabase, user }
 }
 
-// Export aliases for backwards compatibility
 export { createClient as createServerClient }
 export { createClient as createServerSupabaseClient }

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { emailService } from '@/app/lib/services/unified-email.service';
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     // Get organization ID from auth or use default
@@ -11,10 +14,12 @@ export async function GET(request: NextRequest) {
     const authHeader = request.headers.get('authorization');
     if (authHeader) {
       const token = authHeader.replace('Bearer ', '');
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      if (!url || !anon) {
+        return NextResponse.json({ error: 'Service Unavailable' }, { status: 503 })
+      }
+      const supabase = createClient(url, anon);
       
       const { data: { user } } = await supabase.auth.getUser(token);
       if (user) {

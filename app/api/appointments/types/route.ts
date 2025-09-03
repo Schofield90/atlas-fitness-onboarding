@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { handleApiRoute, supabaseAdmin } from '@/lib/api/middleware'
+import { handleApiRoute, getSupabaseAdmin } from '@/lib/api/middleware'
 
 export async function GET(request: NextRequest) {
   return handleApiRoute(request, async (req) => {
     const { user } = req
     
     // Fetch all programs/appointment types for the organization
-    const { data: appointmentTypes, error } = await supabaseAdmin
+    const admin = getSupabaseAdmin()
+    if (!admin) return NextResponse.json({ error: 'Service Unavailable' }, { status: 503 })
+    const { data: appointmentTypes, error } = await admin
       .from('programs')
       .select(`
         id,

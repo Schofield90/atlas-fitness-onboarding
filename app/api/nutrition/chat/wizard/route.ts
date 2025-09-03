@@ -16,10 +16,8 @@ interface WizardResult {
   extractedData?: Partial<NutritionProfile>
 }
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 // System prompt for the nutrition wizard
 const SYSTEM_PROMPT = `You are a professional nutrition coach helping users set up their nutrition profile. 
@@ -49,6 +47,11 @@ async function handleConversationWizard(
   conversationHistory: ChatMessage[]
 ): Promise<WizardResult> {
   try {
+    const apiKey = process.env.OPENAI_API_KEY
+    if (!apiKey) {
+      throw new Error('Service Unavailable')
+    }
+    const openai = new OpenAI({ apiKey })
     // Prepare messages for OpenAI
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
       { role: 'system', content: SYSTEM_PROMPT },

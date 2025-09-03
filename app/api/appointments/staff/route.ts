@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { handleApiRoute, supabaseAdmin, parseSearchParams } from '@/lib/api/middleware'
+import { handleApiRoute, parseSearchParams, getSupabaseAdmin } from '@/lib/api/middleware'
 import { z } from 'zod'
 
 const staffQuerySchema = z.object({
@@ -16,7 +16,9 @@ export async function GET(request: NextRequest) {
     const { include_availability, role, is_available } = params
 
     // Build the query
-    let query = supabaseAdmin
+    const admin = getSupabaseAdmin()
+    if (!admin) return NextResponse.json({ error: 'Service Unavailable' }, { status: 503 })
+    let query = admin
       .from('organization_staff')
       .select(`
         id,
@@ -76,7 +78,7 @@ export async function GET(request: NextRequest) {
       // Get additional user details if user_id is a valid UUID
       let userDetails = null
       if (staff.user_id && staff.user_id.length === 36) {
-        const { data: user } = await supabaseAdmin
+        const { data: user } = await admin
           .from('users')
           .select('id, name, avatar_url')
           .eq('id', staff.user_id)
@@ -90,7 +92,7 @@ export async function GET(request: NextRequest) {
       // Get upcoming appointments/sessions for this staff member
       let upcomingAppointments: any[] = []
       if (include_availability) {
-        const { data: appointments } = await supabaseAdmin
+        const { data: appointments } = await admin
           .from('class_sessions')
           .select(`
             id,

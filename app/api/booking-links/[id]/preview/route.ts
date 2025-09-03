@@ -2,12 +2,23 @@ import { NextRequest, NextResponse } from 'next/server'
 import { bookingLinkService } from '@/app/lib/services/booking-link'
 import { createClient } from '@/app/lib/supabase/server'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createClient()
+    let supabase
+    try {
+      supabase = await createClient()
+    } catch (e: any) {
+      if (e?.message === 'Service Unavailable') {
+        return NextResponse.json({ error: 'Service Unavailable' }, { status: 503 })
+      }
+      throw e
+    }
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {

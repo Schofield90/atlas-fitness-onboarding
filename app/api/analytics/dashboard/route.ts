@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SupabaseAnalyticsStorage } from '@/app/lib/analytics/supabase-storage';
 import { requireAuth, createErrorResponse } from '@/app/lib/api/auth-check';
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     // SECURITY: Get authenticated user's organization - NO MORE HARDCODED PASSWORDS!
@@ -44,7 +47,10 @@ export async function GET(request: NextRequest) {
       realtime: realtimeData
     });
     
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.message === 'Service Unavailable') {
+      return NextResponse.json({ error: 'Service Unavailable' }, { status: 503 })
+    }
     console.error('Dashboard API error:', error);
     return createErrorResponse(error);
   }

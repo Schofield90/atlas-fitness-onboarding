@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { createMiddlewareClient } from '@/app/lib/supabase/middleware'
 
 // Public routes that don't require authentication
 const publicRoutes = [
@@ -132,16 +131,9 @@ export async function middleware(request: NextRequest) {
     return res
   }
 
-  // Create supabase client
-  const supabase = createMiddlewareClient(request, res)
-
-  // Get session
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-
-  // No session - redirect to login
-  if (!session) {
+  // Edge-safe auth check using cookies only (no Supabase client)
+  const accessToken = request.cookies.get('sb-access-token')?.value
+  if (!accessToken) {
     const redirectUrl = new URL('/login', request.url)
     redirectUrl.searchParams.set('redirect', pathname)
     return NextResponse.redirect(redirectUrl)
@@ -164,18 +156,6 @@ export async function middleware(request: NextRequest) {
   )
 
   if (isClientRoute) {
-    // Check if user is a client (has client_id in metadata or is linked to a client)
-    const { data: client } = await supabase
-      .from('clients')
-      .select('id')
-      .eq('user_id', session.user.id)
-      .single()
-
-    if (!client) {
-      // Not a client, redirect to main dashboard
-      return NextResponse.redirect(new URL('/dashboard', request.url))
-    }
-    
     return res
   }
 
@@ -185,56 +165,8 @@ export async function middleware(request: NextRequest) {
   )
 
   if (isAdminRoute) {
-    // Check if user has an organization
-    const { data: userOrg } = await supabase
-      .from('organization_members')
-      .select('organization_id, role')
-      .eq('user_id', session.user.id)
-      .eq('is_active', true)
-      .single()
-
-    if (!userOrg) {
-      // User doesn't have an organization
-      // For now, auto-create an association with the first available organization
-      // In production, this should properly onboard users
-      
-      // Get first available organization
-      const { data: firstOrg } = await supabase
-        .from('organizations')
-        .select('id')
-        .limit(1)
-        .single()
-      
-      if (firstOrg) {
-        // Create association
-        await supabase
-          .from('user_organizations')
-          .insert({
-            user_id: session.user.id,
-            organization_id: firstOrg.id,
-            role: 'member',
-            is_active: true
-          })
-        
-        // Continue to dashboard
-        if (pathname === '/onboarding') {
-          return NextResponse.redirect(new URL('/dashboard', request.url))
-        }
-      } else {
-        // No organizations exist - this is a critical error
-        console.error('No organizations exist in the system')
-        // Allow access to dashboard anyway
-        if (pathname === '/onboarding') {
-          return NextResponse.redirect(new URL('/dashboard', request.url))
-        }
-      }
-    }
-
-    // Store organization ID in headers for API routes
-    if (userOrg) {
-      res.headers.set('x-organization-id', userOrg.organization_id)
-      res.headers.set('x-user-role', userOrg.role)
-    }
+    // Skip DB lookups in Edge middleware — APIs/pages should enforce org checks
+    return res
   }
 
   return res

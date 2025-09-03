@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { handleApiRoute, supabaseAdmin } from '@/lib/api/middleware'
+import { handleApiRoute, getSupabaseAdmin } from '@/lib/api/middleware'
 import { z } from 'zod'
 
 const webhookEndpointSchema = z.object({
@@ -22,7 +22,9 @@ export async function GET(request: NextRequest) {
     const { user } = req
     
     // Fetch all webhook endpoints for the organization
-    const { data: webhooks, error } = await supabaseAdmin
+    const admin = getSupabaseAdmin()
+    if (!admin) return NextResponse.json({ error: 'Service Unavailable' }, { status: 503 })
+    const { data: webhooks, error } = await admin
       .from('webhook_endpoints')
       .select(`
         id,
@@ -71,7 +73,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the webhook endpoint
-    const { data: webhook, error } = await supabaseAdmin
+    const admin = getSupabaseAdmin()
+    if (!admin) return NextResponse.json({ error: 'Service Unavailable' }, { status: 503 })
+    const { data: webhook, error } = await admin
       .from('webhook_endpoints')
       .insert(webhookData)
       .select(`
@@ -96,7 +100,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Log analytics event
-    await supabaseAdmin.from('analytics_events').insert({
+    await admin.from('analytics_events').insert({
       organization_id: user.organization_id,
       event_type: 'webhook',
       event_name: 'webhook_endpoint_created',
@@ -130,7 +134,9 @@ export async function PUT(request: NextRequest) {
     }
 
     // Verify the webhook belongs to the user's organization
-    const { data: existingWebhook, error: fetchError } = await supabaseAdmin
+    const admin = getSupabaseAdmin()
+    if (!admin) return NextResponse.json({ error: 'Service Unavailable' }, { status: 503 })
+    const { data: existingWebhook, error: fetchError } = await admin
       .from('webhook_endpoints')
       .select('id, organization_id')
       .eq('id', id)
@@ -142,7 +148,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update the webhook endpoint
-    const { data: webhook, error } = await supabaseAdmin
+    const { data: webhook, error } = await admin
       .from('webhook_endpoints')
       .update(validatedData)
       .eq('id', id)
@@ -183,7 +189,9 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Verify the webhook belongs to the user's organization
-    const { data: existingWebhook, error: fetchError } = await supabaseAdmin
+    const admin = getSupabaseAdmin()
+    if (!admin) return NextResponse.json({ error: 'Service Unavailable' }, { status: 503 })
+    const { data: existingWebhook, error: fetchError } = await admin
       .from('webhook_endpoints')
       .select('id, organization_id, name')
       .eq('id', id)
@@ -195,7 +203,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete the webhook endpoint
-    const { error } = await supabaseAdmin
+    const { error } = await admin
       .from('webhook_endpoints')
       .delete()
       .eq('id', id)
@@ -206,7 +214,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Log analytics event
-    await supabaseAdmin.from('analytics_events').insert({
+    await admin.from('analytics_events').insert({
       organization_id: user.organization_id,
       event_type: 'webhook',
       event_name: 'webhook_endpoint_deleted',

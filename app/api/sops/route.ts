@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/app/lib/supabase/server'
-import { getOrganization } from '@/app/lib/organization-server'
+import { getOrganization } from '@/app/lib/api/auth-check'
 import { SOPInsert, SOPFilters, SOPWithDetails } from '@/app/lib/types/sop'
+
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
@@ -79,7 +82,10 @@ export async function GET(request: NextRequest) {
         pages: Math.ceil((count || 0) / limit)
       }
     })
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.message === 'Service Unavailable') {
+      return NextResponse.json({ error: 'Service Unavailable' }, { status: 503 })
+    }
     console.error('Error in SOPs GET:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
@@ -181,7 +187,10 @@ export async function POST(request: NextRequest) {
       })
 
     return NextResponse.json({ sop }, { status: 201 })
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.message === 'Service Unavailable') {
+      return NextResponse.json({ error: 'Service Unavailable' }, { status: 503 })
+    }
     console.error('Error in SOPs POST:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

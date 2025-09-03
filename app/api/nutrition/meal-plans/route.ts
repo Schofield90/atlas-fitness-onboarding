@@ -5,10 +5,8 @@ import { MealPlan } from '@/app/lib/types/nutrition'
 import OpenAI from 'openai'
 import { computeMacros } from '@/app/lib/services/nutrition/macro-calculator'
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
@@ -271,6 +269,11 @@ async function generateMealPlan(profile: any, macroTargets: any, weeks: number) 
   Provide variety while respecting preferences and restrictions.`
 
   try {
+    const apiKey = process.env.OPENAI_API_KEY
+    if (!apiKey) {
+      throw new Error('Service Unavailable')
+    }
+    const openai = new OpenAI({ apiKey })
     const completion = await openai.chat.completions.create({
       model: 'gpt-4-turbo-preview',
       messages: [

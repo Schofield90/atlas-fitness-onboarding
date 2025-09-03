@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { handleApiRoute, supabaseAdmin, parseSearchParams } from '@/lib/api/middleware'
+import { handleApiRoute, getSupabaseAdmin, parseSearchParams } from '@/lib/api/middleware'
 import { z } from 'zod'
 import { requireAuth, createOrgScopedClient } from '@/lib/auth-middleware'
 
@@ -28,7 +28,9 @@ export async function GET(request: NextRequest) {
     const endDate = new Date(today.getTime() + (days_ahead * 24 * 60 * 60 * 1000))
 
     // Query birthday reminders for the organization
-    const { data: birthdayReminders, error } = await supabaseAdmin
+    const admin = getSupabaseAdmin()
+    if (!admin) return NextResponse.json({ error: 'Service Unavailable' }, { status: 503 })
+    const { data: birthdayReminders, error } = await admin
       .from('birthday_reminders')
       .select(`
         id,

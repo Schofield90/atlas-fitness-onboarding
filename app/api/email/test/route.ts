@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { emailService } from '@/app/lib/services/unified-email.service';
 import { createClient } from '@supabase/supabase-js';
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -14,10 +17,12 @@ export async function POST(request: NextRequest) {
     const authHeader = request.headers.get('authorization');
     if (authHeader) {
       const token = authHeader.replace('Bearer ', '');
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      if (!url || !anon) {
+        return NextResponse.json({ success: false, error: 'Service Unavailable' }, { status: 503 })
+      }
+      const supabase = createClient(url, anon);
       
       const { data: { user } } = await supabase.auth.getUser(token);
       if (user) {

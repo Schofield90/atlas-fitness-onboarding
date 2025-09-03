@@ -2,11 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import cron from 'cron-parser';
 
-// Use service role key for cron operations
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 // This endpoint should be called by a cron service (like Vercel Cron or external cron job)
 export async function POST(request: NextRequest) {
@@ -20,6 +17,14 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Running weekly brief cron job...');
+
+    // Initialize Supabase at request time
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!supabaseUrl || !serviceRole) {
+      return NextResponse.json({ error: 'Service Unavailable' }, { status: 503 })
+    }
+    const supabase = createClient(supabaseUrl, serviceRole)
 
     // Get all active schedules that are due
     const now = new Date();
@@ -166,6 +171,10 @@ async function sendScheduledEmail(recipients: string[], briefData: any) {
     await sgMail.send(msg);
 
     // Log successful send
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!supabaseUrl || !serviceRole) return
+    const supabase = createClient(supabaseUrl, serviceRole)
     await supabase
       .from('email_logs')
       .insert({
