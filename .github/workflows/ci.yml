@@ -1,0 +1,45 @@
+name: CI
+on:
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'src/**'
+      - 'tests/**'
+      - '__tests__/**'
+      - 'gym-coach-platform/**'
+      - 'jest.config.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'pnpm-lock.yaml'
+      - 'scripts/**'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect code changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            code:
+              - 'app/**'
+              - 'src/**'
+              - 'tests/**'
+              - '__tests__/**'
+              - 'gym-coach-platform/**'
+              - 'jest.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'pnpm-lock.yaml'
+              - 'scripts/**'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - if: steps.changes.outputs.code == 'true'
+        run: npm ci
+      - if: steps.changes.outputs.code == 'true'
+        run: npx jest tests/unit/cron-weekly-brief.test.ts --runInBand
+      - name: Meta-only changes - skip tests
+        if: steps.changes.outputs.code != 'true'
+        run: echo "Meta-only PR (docs/workflows/etc). Skipping unit/integration tests."

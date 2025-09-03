@@ -37,11 +37,11 @@ jest.mock('@/app/components/DashboardLayout', () => {
   }
 })
 
-jest.mock('@/app/components/saas/SaasBillingDashboard', () => {
-  return function MockSaasBillingDashboard() {
+jest.mock('@/app/components/saas/SaasBillingDashboard', () => ({
+  SaasBillingDashboard: function MockSaasBillingDashboard() {
     return <div data-testid="saas-billing-dashboard">Billing Dashboard</div>
   }
-})
+}))
 
 jest.mock('@/app/components/billing/StripeConnect', () => {
   return function MockStripeConnect() {

@@ -1,12 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import type { NextRequest } from 'next/server';
 import cron from 'cron-parser';
 
-// Use service role key for cron operations
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 // This endpoint should be called by a cron service (like Vercel Cron or external cron job)
 export async function POST(request: NextRequest) {
@@ -16,8 +12,16 @@ export async function POST(request: NextRequest) {
     const cronSecret = process.env.CRON_SECRET || 'atlas-cron-secret-2024';
     
     if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return new Response(JSON.stringify({ error: 'Service unavailable' }), { status: 503 });
+    }
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     console.log('Running weekly brief cron job...');
 
@@ -35,11 +39,11 @@ export async function POST(request: NextRequest) {
 
     if (!dueSchedules || dueSchedules.length === 0) {
       console.log('No schedules due for execution');
-      return NextResponse.json({ 
+      return new Response(JSON.stringify({ 
         success: true, 
         message: 'No schedules due for execution',
         processed: 0
-      });
+      }));
     }
 
     console.log(`Found ${dueSchedules.length} schedules due for execution`);
@@ -70,7 +74,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Send email to recipients
-        await sendScheduledEmail(schedule.recipients, briefData);
+        await sendScheduledEmail(schedule.recipients, briefData, supabase);
 
         // Update schedule's last run and calculate next run
         const nextRun = calculateNextRun(schedule.cron_schedule);
@@ -119,15 +123,15 @@ export async function POST(request: NextRequest) {
     };
 
     console.log('Cron job completed:', response);
-    return NextResponse.json(response);
+    return new Response(JSON.stringify(response));
 
   } catch (error) {
     console.error('Error in weekly brief cron job:', error);
-    return NextResponse.json(
-      { 
+    return new Response(
+      JSON.stringify({ 
         error: 'Internal server error',
         message: error instanceof Error ? error.message : 'Unknown error'
-      },
+      }),
       { status: 500 }
     );
   }
@@ -147,7 +151,7 @@ function calculateNextRun(cronSchedule: string): Date {
   }
 }
 
-async function sendScheduledEmail(recipients: string[], briefData: any) {
+async function sendScheduledEmail(recipients: string[], briefData: any, supabase: ReturnType<typeof createClient>) {
   try {
     // Import SendGrid here to avoid loading it unless needed
     const sgMail = require('@sendgrid/mail');
