@@ -1,0 +1,17 @@
+name: "Cursor: Nightly QA"
+on:
+  schedule: [{ cron: "0 2 * * *" }]   # 02:00 UTC daily
+jobs:
+  nightly-cursor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send to Slack
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID_TESTS }}
+        run: |
+          TEXT='@Cursor run full test suite on main; raise coverage on changed modules to current thresholds; open a minimal PR with improvements and a summary.'
+          curl -s -X POST https://slack.com/api/chat.postMessage \
+            -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+            -H "Content-type: application/json" \
+            --data "{\"channel\":\"$SLACK_CHANNEL_ID\",\"text\":\"$TEXT\"}"
