@@ -60,6 +60,8 @@ export async function POST(request: NextRequest) {
     
     // Get the page info for the selected forms
     const pageId = config.selectedPages[0] // Using the first selected page
+    
+    // Try to get page info but don't fail if it doesn't exist
     const { data: pageInfo } = await supabase
       .from('facebook_pages')
       .select('id, page_name, facebook_page_id')
@@ -67,7 +69,8 @@ export async function POST(request: NextRequest) {
       .eq('organization_id', organizationId)
       .single()
     
-    console.log('Page info for saving forms:', pageInfo)
+    console.log('Page ID from request:', pageId)
+    console.log('Page info from DB:', pageInfo)
     console.log('Organization ID:', organizationId)
     console.log('Forms to save:', config.selectedForms)
     
@@ -120,8 +123,8 @@ export async function POST(request: NextRequest) {
           const formDetail = config.selectedFormDetails?.find((f: any) => f.id === formId)
           return {
             organization_id: organizationId,
-            page_id: pageInfo?.id || null, // UUID reference to facebook_pages table
-            facebook_page_id: pageId, // The actual Facebook page ID
+            page_id: pageInfo?.id || null, // UUID reference to facebook_pages table (can be null)
+            facebook_page_id: pageId || null, // The actual Facebook page ID
             facebook_form_id: formId,
             form_name: formDetail?.name || `Form ${formId}`,
             form_status: 'active',
