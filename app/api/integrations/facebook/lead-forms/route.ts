@@ -107,8 +107,8 @@ export async function GET(request: NextRequest) {
         if (formsData.data && formsData.data.length > 0) {
           console.log(`✅ Found ${formsData.data.length} forms for page ${pageName}`)
           
-          // For each form, fetch detailed information
-          for (const form of formsData.data) {
+          // Fetch all form details in parallel for speed
+          const formDetailsPromises = formsData.data.map(async (form) => {
             try {
               // Get form details including questions
               const formDetailResponse = await fetch(
