@@ -19,6 +19,20 @@ jest.mock('next/navigation', () => ({
   usePathname: () => '/test-path',
 }))
 
+// Mock Next.js headers/cookies used in route handlers
+jest.mock('next/headers', () => {
+  const cookieStore: Record<string, string> = {}
+  return {
+    headers: () => new Map<string, string>(),
+    cookies: () => ({
+      get: (name: string) => (cookieStore[name] ? { name, value: cookieStore[name] } : undefined),
+      set: (name: string, value: string) => { cookieStore[name] = value },
+      delete: (name: string) => { delete cookieStore[name] },
+      getAll: () => Object.entries(cookieStore).map(([name, value]) => ({ name, value }))
+    })
+  }
+})
+
 // Mock environment variables
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://localhost:54321'
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
@@ -44,3 +58,71 @@ afterAll(() => {
 
 // Global test utilities
 export const waitFor = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+// ---- Test environment defaults and external service mocks ----
+// Provide safe default environment variables to avoid real network/service calls
+process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_mock'
+process.env.STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || 'sk_test_mock'
+process.env.TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID || 'AC_test'
+process.env.TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN || 'test_token'
+process.env.TWILIO_SMS_FROM = process.env.TWILIO_SMS_FROM || '+10000000000'
+process.env.TWILIO_WHATSAPP_FROM = process.env.TWILIO_WHATSAPP_FROM || 'whatsapp:+10000000000'
+process.env.RESEND_API_KEY = process.env.RESEND_API_KEY || 're_test_mock'
+process.env.RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'test@example.com'
+
+// Mock Twilio SDK to prevent real API calls during tests
+jest.mock('twilio', () => {
+  const mockClient = {
+    messages: {
+      create: jest.fn().mockResolvedValue({ sid: 'SMxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' })
+    },
+    calls: {
+      list: jest.fn().mockResolvedValue([]),
+      create: jest.fn().mockResolvedValue({ sid: 'CAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' }),
+      update: jest.fn().mockResolvedValue({ status: 'completed' })
+    },
+    api: {
+      accounts: jest.fn().mockReturnThis(),
+      fetch: jest.fn().mockResolvedValue({ friendlyName: 'Test Account' })
+    },
+    incomingPhoneNumbers: {
+      list: jest.fn().mockResolvedValue([
+        { phoneNumber: process.env.TWILIO_SMS_FROM }
+      ])
+    }
+  }
+  const factory = () => mockClient
+  return factory
+})
+
+// Mock Stripe SDK to prevent real API calls during tests
+jest.mock('stripe', () => {
+  class MockStripe {
+    customers = { create: jest.fn().mockResolvedValue({ id: 'cus_test_123' }) }
+    checkout = { sessions: { create: jest.fn().mockResolvedValue({ id: 'cs_test_123' }) } }
+    accountLinks = { create: jest.fn().mockResolvedValue({ url: 'https://example.com/onboard' }) }
+    accounts = { create: jest.fn().mockResolvedValue({ id: 'acct_test_123' }) }
+  }
+  return { __esModule: true, default: MockStripe }
+})
+
+// Minimal Response polyfill for route handler unit tests
+if (typeof (global as any).Response === 'undefined') {
+  class SimpleResponse {
+    private _bodyText: string
+    status: number
+    headers: Map<string, string>
+    constructor(body?: any, init?: { status?: number; headers?: Record<string, string> }) {
+      this._bodyText = typeof body === 'string' ? body : body ? JSON.stringify(body) : ''
+      this.status = init?.status ?? 200
+      this.headers = new Map(Object.entries(init?.headers || {}))
+    }
+    async json() {
+      return this._bodyText ? JSON.parse(this._bodyText) : null
+    }
+    async text() {
+      return this._bodyText
+    }
+  }
+  ;(global as any).Response = SimpleResponse as any
+}

@@ -104,7 +104,7 @@ function BillingContent() {
         <div className="p-6">
           <div className="flex items-center justify-center">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              <div role="status" aria-label="loading" className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
               <p className="text-gray-400">Loading billing information...</p>
             </div>
           </div>
@@ -228,7 +228,7 @@ function BillingContent() {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    Demo Mode
+                    Demo Data
                   </div>
                   <button 
                     onClick={() => {
