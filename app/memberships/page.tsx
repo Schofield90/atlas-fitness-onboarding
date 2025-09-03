@@ -160,7 +160,7 @@ export default function MembershipsPage() {
 
   const handleViewMembers = (plan: MembershipPlan) => {
     setOpenDropdown(null)
-    router.push(`/members?plan=${plan.id}`)
+    router.push(`/customers?plan=${plan.id}`)
   }
   
   console.log('Render state:', { loading, membershipPlansCount: membershipPlans.length, activeTab })

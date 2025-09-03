@@ -19,6 +19,7 @@ interface Customer {
   status: 'active' | 'inactive' | 'slipping_away'
   membership_status: string
   membership_name?: string
+  membership_plan_id?: string
   tags?: string[]
   created_at: string
   last_visit?: string
@@ -34,6 +35,7 @@ function CustomersContent() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('Active Customers')
   const [membershipFilter, setMembershipFilter] = useState<string>('')
+  const [planIdFilter, setPlanIdFilter] = useState<string | null>(null)
   const [showOnlyNew, setShowOnlyNew] = useState(false)
   const [showOnlySlipping, setShowOnlySlipping] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
@@ -52,13 +54,20 @@ function CustomersContent() {
     // Initialize pagination from URL params
     const page = parseInt(searchParams.get('page') || '1')
     const pageSize = parseInt(searchParams.get('pageSize') || '25')
+    const planId = searchParams.get('plan')
+    
     setCurrentPage(page)
     setItemsPerPage(pageSize)
+    
+    // If plan parameter is present, set it for filtering
+    if (planId) {
+      setPlanIdFilter(planId)
+    }
   }, [])
 
   useEffect(() => {
     filterCustomers()
-  }, [customers, searchTerm, statusFilter, membershipFilter, showOnlyNew, showOnlySlipping])
+  }, [customers, searchTerm, statusFilter, membershipFilter, planIdFilter, showOnlyNew, showOnlySlipping])
 
   // Update URL when pagination changes
   useEffect(() => {
@@ -113,6 +122,7 @@ function CustomersContent() {
           memberships (
             id,
             membership_type,
+            membership_plan_id,
             status,
             start_date,
             end_date
@@ -135,6 +145,7 @@ function CustomersContent() {
         status: determineStatus(client),
         membership_status: client.memberships?.[0]?.status || 'No Membership',
         membership_name: client.memberships?.[0]?.membership_type,
+        membership_plan_id: client.memberships?.[0]?.membership_plan_id,
         tags: client.tags || [],
         created_at: client.created_at,
         last_visit: client.last_visit,
@@ -189,6 +200,11 @@ function CustomersContent() {
     // Membership filter
     if (membershipFilter) {
       filtered = filtered.filter(c => c.membership_name === membershipFilter)
+    }
+    
+    // Plan ID filter (from URL parameter)
+    if (planIdFilter) {
+      filtered = filtered.filter(c => c.membership_plan_id === planIdFilter)
     }
 
     // Show only filters
