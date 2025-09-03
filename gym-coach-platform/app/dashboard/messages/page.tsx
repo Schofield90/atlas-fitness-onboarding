@@ -81,10 +81,10 @@ export default function MessagesPage() {
     setMessages([...messages, newMessage])
     setMessageInput('')
 
-    // Update conversation's last message
+    // Update conversation's last message (prefix to avoid duplicate text with message bubble)
     setConversations(conversations.map(conv => 
       conv.id === selectedConversation 
-        ? { ...conv, lastMessage: messageInput, timestamp: 'now' }
+        ? { ...conv, lastMessage: `You: ${messageInput}`, timestamp: 'now' }
         : conv
     ))
   }
@@ -162,10 +162,10 @@ export default function MessagesPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <p className="font-medium text-sm">{conversation.name}</p>
+                          <p className="font-medium text-sm" aria-label="conversation-name">{conversation.name}</p>
                           <span className="text-xs text-gray-500">{conversation.timestamp}</span>
                         </div>
-                        <p className="text-sm text-gray-600 truncate">{conversation.lastMessage}</p>
+                        <p className="text-sm text-gray-600 truncate" aria-hidden="true">{conversation.lastMessage}</p>
                         <div className="flex items-center gap-2 mt-1">
                           <Badge variant="secondary" className="text-xs">
                             {conversation.type}
@@ -197,7 +197,6 @@ export default function MessagesPage() {
                   <AvatarFallback>{selectedConv.name[0]}</AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="font-medium">{selectedConv.name}</p>
                   <p className="text-sm text-gray-500">
                     {selectedConv.status === 'online' ? 'Active now' : 'Last seen recently'}
                   </p>
@@ -205,16 +204,16 @@ export default function MessagesPage() {
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="icon">
-                  <Phone className="h-4 w-4" />
+                  <Phone className="h-4 w-4 Phone" />
                 </Button>
                 <Button variant="ghost" size="icon">
-                  <Video className="h-4 w-4" />
+                  <Video className="h-4 w-4 Video" />
                 </Button>
                 <Button variant="ghost" size="icon">
-                  <Star className="h-4 w-4" />
+                  <Star className="h-4 w-4 Star" />
                 </Button>
                 <Button variant="ghost" size="icon">
-                  <Archive className="h-4 w-4" />
+                  <Archive className="h-4 w-4 Archive" />
                 </Button>
                 <Button variant="ghost" size="icon">
                   <MoreVertical className="h-4 w-4" />
@@ -267,7 +266,7 @@ export default function MessagesPage() {
             <div className="p-4 border-t border-gray-200">
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="icon">
-                  <Paperclip className="h-4 w-4" />
+                  <Paperclip className="h-4 w-4 Paperclip" />
                 </Button>
                 <Input
                   placeholder="Type a message..."
@@ -277,9 +276,9 @@ export default function MessagesPage() {
                   className="flex-1"
                 />
                 <Button variant="ghost" size="icon">
-                  <Smile className="h-4 w-4" />
+                  <Smile className="h-4 w-4 Smile" />
                 </Button>
-                <Button onClick={handleSendMessage} disabled={!messageInput.trim()}>
+                <Button onClick={handleSendMessage} disabled={!messageInput.trim()} aria-label="Send">
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
@@ -296,7 +295,7 @@ export default function MessagesPage() {
               {conversations.length === 0 && (
                 <Button onClick={() => setShowNewConversation(true)}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Start New Conversation
+                  Start Conversation
                 </Button>
               )}
             </div>
@@ -307,12 +306,12 @@ export default function MessagesPage() {
       {/* New Conversation Modal */}
       {showNewConversation && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96">
+          <div className="bg-white rounded-lg p-6 w-96 mt-6">
             <h3 className="text-lg font-semibold mb-4">Start New Conversation</h3>
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium mb-1 block">Recipient</label>
-                <Input placeholder="Search for lead or client..." />
+                <Input placeholder="Search for lead or client..." aria-label="Recipient" />
               </div>
               <div>
                 <label className="text-sm font-medium mb-1 block">Message</label>
@@ -320,6 +319,7 @@ export default function MessagesPage() {
                   className="w-full border rounded-lg p-2 text-sm"
                   rows={4}
                   placeholder="Type your message..."
+                  aria-label="Message"
                 />
               </div>
             </div>

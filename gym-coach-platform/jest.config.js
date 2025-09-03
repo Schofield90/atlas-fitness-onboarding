@@ -24,6 +24,7 @@ const config = {
     '\\.(css|less|scss)$': 'identity-obj-proxy',
   },
   setupFilesAfterEnv: ['<rootDir>/__tests__/setup/jest.setup.ts'],
+  setupFiles: ['whatwg-fetch'],
   collectCoverageFrom: [
     'components/**/*.{ts,tsx}',
     'app/**/*.{ts,tsx}',

@@ -19,6 +19,9 @@ jest.mock('react-hot-toast', () => {
   
   return {
     toast: mockToast,
+    success: mockToast.success,
+    error: mockToast.error,
+    loading: mockToast.loading,
     Toaster: () => null,
   }
 })
@@ -69,19 +72,7 @@ Object.defineProperty(window, 'confirm', {
   value: jest.fn(() => true),
 })
 
-// Mock web APIs for Next.js
-global.Request = class MockRequest {
-  constructor(public url: string, public init: any = {}) {}
-  headers = new Map()
-} as any
-
-global.Response = class MockResponse {
-  constructor(public body: any, public init: any = {}) {}
-  status = 200
-  json = () => Promise.resolve(this.body)
-} as any
-
-global.Headers = Map as any
+// Do not override Request/Response/Headers; NextRequest relies on native implementations
 
 // Mock console to reduce noise in tests
 const originalConsoleError = console.error

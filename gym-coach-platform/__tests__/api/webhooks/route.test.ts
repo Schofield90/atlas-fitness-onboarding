@@ -28,14 +28,9 @@ jest.mock('@supabase/ssr', () => ({
   createServerClient: jest.fn(() => mockSupabase)
 }))
 
-// Mock rate limiting
-const mockRateLimit = {
-  limit: jest.fn()
-}
-
-jest.mock('@/lib/rate-limit', () => ({
-  ratelimit: mockRateLimit
-}))
+// Mock rate limiting (define before jest.mock to avoid TDZ issues)
+const mockRateLimit = { limit: jest.fn() }
+jest.mock('@/lib/rate-limit', () => ({ ratelimit: mockRateLimit }))
 
 // Mock cookies
 jest.mock('next/headers', () => ({

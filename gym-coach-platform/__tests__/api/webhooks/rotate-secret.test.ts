@@ -21,15 +21,16 @@ const mockSupabase = {
     delete: jest.fn(() => ({
       eq: jest.fn()
     })),
-    gte: jest.fn(() => ({
-      single: jest.fn()
-    }))
   }))
 }
 
 jest.mock('@supabase/ssr', () => ({
   createServerClient: jest.fn(() => mockSupabase)
 }))
+
+// Provide minimal global Request for NextRequest to exist in Jest JSDOM
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+;(global as any).Request = (global as any).Request || require('node-fetch').Request
 
 // Mock cookies
 jest.mock('next/headers', () => ({
@@ -259,11 +260,23 @@ describe('/api/automations/webhooks/[workflowId]/[nodeId]/rotate-secret', () => 
     }
 
     beforeEach(() => {
-      mockSupabase.from().select().eq().eq().eq().gte().single.mockResolvedValue({
+      // Patch select chain to support additional eq and gte before single
+      const selectChain: any = { }
+      selectChain.eq = jest.fn(() => selectChain)
+      selectChain.gte = jest.fn(() => selectChain)
+      selectChain.single = jest.fn()
+
+      ;(mockSupabase.from as jest.Mock).mockReturnValueOnce({
+        select: jest.fn(() => selectChain),
+        delete: jest.fn(() => ({ eq: jest.fn() })),
+        insert: jest.fn()
+      })
+
+      selectChain.single.mockResolvedValue({
         data: mockSecretReveal,
         error: null
       })
-      mockSupabase.from().delete().eq.mockResolvedValue({
+      ;(mockSupabase.from as jest.Mock)().delete().eq.mockResolvedValue({
         data: null,
         error: null
       })

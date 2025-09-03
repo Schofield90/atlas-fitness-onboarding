@@ -5,11 +5,12 @@ import { toast } from 'react-hot-toast'
 import { IntegrationCard, IntegrationCardsDemo } from '@/components/dashboard/integration-cards'
 
 // Mock dependencies
-jest.mock('react-hot-toast', () => ({
-  toast: jest.fn(),
-  success: jest.fn(),
-  error: jest.fn(),
-}))
+jest.mock('react-hot-toast', () => {
+  const mockToast = jest.fn()
+  mockToast.success = jest.fn()
+  mockToast.error = jest.fn()
+  return { toast: mockToast }
+})
 
 // Mock window.confirm
 Object.defineProperty(window, 'confirm', {
