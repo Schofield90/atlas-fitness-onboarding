@@ -1,0 +1,52 @@
+name: "Cursor: Nightly QA"
+
+on:
+  # Runs nightly at 02:00 UTC (03:00 in London during BST).
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch: {}   # manual Run button
+
+concurrency:
+  group: cursor-nightly
+  cancel-in-progress: false
+
+jobs:
+  ping-cursor-nightly:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build message
+        id: build
+        run: |
+          REPO="${{ github.repository }}"
+          # Default branch for nightly. Change "main" if yours differs.
+          BRANCH="${{ github.event.repository.default_branch }}"
+          if [ -z "$BRANCH" ]; then BRANCH="main"; fi
+          {
+            echo "REPO=$REPO"
+            echo "BRANCH=$BRANCH"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Send to Slack
+        env:
+          SLACK_USER_TOKEN: ${{ secrets.SLACK_USER_TOKEN }}
+          # Prefer NIGHTLY channel; fall back to TESTS if not set
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID_NIGHTLY || secrets.SLACK_CHANNEL_ID_TESTS }}
+          CURSOR_USER_ID: ${{ secrets.CURSOR_USER_ID }}
+          REPO:   ${{ steps.build.outputs.REPO }}
+          BRANCH: ${{ steps.build.outputs.BRANCH }}
+        run: |
+          TEXT="<@${CURSOR_USER_ID}> [repo=${REPO}, branch=${BRANCH}] run full nightly QA: typecheck, lint, unit/integration tests with coverage, Playwright E2E if available; raise coverage on changed modules; open a minimal PR with fixes and a short summary. Keep the diff minimal; do not change RLS or payments; no prod migrations."
+
+          read -r -d '' PAYLOAD <<'JSON' || true
+          {
+            "channel": "'"$SLACK_CHANNEL_ID"'",
+            "text": "'"$TEXT"'",
+            "link_names": true,
+            "unfurl_links": false
+          }
+          JSON
+
+          curl -s -X POST https://slack.com/api/chat.postMessage \
+            -H "Authorization: Bearer $SLACK_USER_TOKEN" \
+            -H "Content-type: application/json; charset=utf-8" \
+            --data "$PAYLOAD"

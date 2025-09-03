@@ -7,10 +7,10 @@ export const runtime = 'nodejs'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { formId } = body
+    const { pageId, webhookUrl, organizationId: requestOrgId } = body
     
-    if (!formId) {
-      return NextResponse.json({ error: 'Form ID is required' }, { status: 400 })
+    if (!pageId) {
+      return NextResponse.json({ error: 'Page ID is required' }, { status: 400 })
     }
     
     // Get user and organization
@@ -40,43 +40,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Facebook not connected. Please reconnect your account.' }, { status: 401 })
     }
     
-    // Get the page that owns this form to get page access token
-    const { data: leadForm } = await supabase
-      .from('facebook_lead_forms')
-      .select('facebook_page_id, form_name')
-      .eq('facebook_form_id', formId)
-      .eq('organization_id', organizationId)
-      .single()
-    
-    if (!leadForm) {
-      console.error(`Lead form ${formId} not found in database`)
-      return NextResponse.json({ error: 'Lead form not found' }, { status: 404 })
-    }
-    
     // Get page access token
     const { data: page } = await supabase
       .from('facebook_pages')
       .select('access_token, page_name')
-      .eq('facebook_page_id', leadForm.facebook_page_id)
+      .eq('facebook_page_id', pageId)
       .eq('organization_id', organizationId)
       .single()
     
     if (!page || !page.access_token) {
-      console.error(`Page access token not found for form ${formId}`)
+      console.error(`Page access token not found for page ${pageId}`)
       return NextResponse.json({ error: 'Page access token not found' }, { status: 404 })
     }
     
-    console.log(`🔗 Registering webhook for form: ${formId} (${leadForm.form_name}) on page ${page.page_name}`)
+    console.log(`🔗 Registering webhook for page: ${pageId} (${page.page_name})`)
     
     // Subscribe the page to webhooks
     const fbAppId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || '715100284200848'
-    const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://atlas-fitness-onboarding.vercel.app'}/api/webhooks/facebook-leads`
-    const verifyToken = process.env.FACEBOOK_WEBHOOK_VERIFY_TOKEN || 'gym_webhook_verify_2024'
+    const finalWebhookUrl = webhookUrl || `${process.env.NEXT_PUBLIC_APP_URL || 'https://atlas-fitness-onboarding.vercel.app'}/api/webhooks/meta/leads`
+    const verifyToken = process.env.META_WEBHOOK_VERIFY_TOKEN || process.env.FACEBOOK_WEBHOOK_VERIFY_TOKEN || 'atlas_fitness_verify_token'
     
     try {
       // First, ensure the app is subscribed to the page
       const subscribeResponse = await fetch(
-        `https://graph.facebook.com/v18.0/${leadForm.facebook_page_id}/subscribed_apps`,
+        `https://graph.facebook.com/v18.0/${pageId}/subscribed_apps`,
         {
           method: 'POST',
           headers: {
@@ -98,13 +85,12 @@ export async function POST(request: NextRequest) {
       
       // Store webhook configuration in database
       const { error: updateError } = await supabase
-        .from('facebook_lead_forms')
+        .from('facebook_pages')
         .update({
-          webhook_enabled: true,
-          webhook_url: webhookUrl,
+          // Note: webhook_enabled and webhook_url columns don't exist in the table
           updated_at: new Date().toISOString()
         })
-        .eq('facebook_form_id', formId)
+        .eq('facebook_page_id', pageId)
         .eq('organization_id', organizationId)
       
       if (updateError) {
@@ -113,10 +99,9 @@ export async function POST(request: NextRequest) {
       
       return NextResponse.json({
         success: true,
-        formId,
-        formName: leadForm.form_name,
+        pageId,
         pageName: page.page_name,
-        webhookUrl,
+        webhookUrl: finalWebhookUrl,
         message: 'Real-time sync enabled successfully! New leads will now appear instantly.',
         subscribed: true
       })

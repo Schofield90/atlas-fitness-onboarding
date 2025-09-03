@@ -18,7 +18,20 @@ export async function GET(request: NextRequest) {
     const errorDescription = searchParams.get('error_description') || 'Unknown error'
     console.error('Facebook OAuth error:', error, errorDescription)
     
-    // Redirect to our callback page with error
+    // Check if connection was initiated from settings
+    const cookieStore = await cookies()
+    const fromSettings = cookieStore.get('facebook_connect_from_settings')?.value === 'true'
+    
+    if (fromSettings) {
+      // Clear the cookie and redirect to settings with error
+      cookieStore.delete('facebook_connect_from_settings')
+      const settingsUrl = new URL('/settings/integrations/facebook', request.url)
+      settingsUrl.searchParams.set('error', error)
+      settingsUrl.searchParams.set('error_description', errorDescription)
+      return NextResponse.redirect(settingsUrl)
+    }
+    
+    // Default redirect to integrations callback page with error
     const callbackUrl = new URL('/integrations/facebook/callback', request.url)
     callbackUrl.searchParams.set('error', error)
     callbackUrl.searchParams.set('error_description', errorDescription)
@@ -125,14 +138,28 @@ export async function GET(request: NextRequest) {
 
     console.log('✅ Facebook integration completed successfully')
 
-    // Success - redirect with user data
-    const callbackUrl = new URL('/integrations/facebook/callback', request.url)
-    callbackUrl.searchParams.set('success', 'true')
-    callbackUrl.searchParams.set('user_id', result.data.facebook_user_id)
-    callbackUrl.searchParams.set('user_name', result.data.facebook_user_name || '')
-    callbackUrl.searchParams.set('state', state || '')
+    // Check if connection was initiated from settings
+    const cookieStore = await cookies()
+    const fromSettings = cookieStore.get('facebook_connect_from_settings')?.value === 'true'
     
-    return NextResponse.redirect(callbackUrl)
+    if (fromSettings) {
+      // Clear the cookie
+      cookieStore.delete('facebook_connect_from_settings')
+      
+      // Redirect back to settings with success indicator
+      const settingsUrl = new URL('/settings/integrations/facebook', request.url)
+      settingsUrl.searchParams.set('just_connected', 'true')
+      return NextResponse.redirect(settingsUrl)
+    } else {
+      // Default redirect to integrations page
+      const callbackUrl = new URL('/integrations/facebook/callback', request.url)
+      callbackUrl.searchParams.set('success', 'true')
+      callbackUrl.searchParams.set('user_id', result.data.facebook_user_id)
+      callbackUrl.searchParams.set('user_name', result.data.facebook_user_name || '')
+      callbackUrl.searchParams.set('state', state || '')
+      
+      return NextResponse.redirect(callbackUrl)
+    }
     
   } catch (error) {
     console.error('Error processing Facebook OAuth:', error)
