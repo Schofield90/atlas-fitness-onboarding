@@ -63,31 +63,55 @@ export default function FacebookIntegrationPage() {
   const fetchConnectionStatus = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) {
+        console.warn('No authenticated user found')
+        setLoading(false)
+        return
+      }
 
       // Get user's organization
-      const { data: orgData } = await supabase
+      const { data: orgData, error: orgError } = await supabase
         .from('user_organizations')
         .select('organization_id')
         .eq('user_id', user.id)
         .single()
 
-      if (!orgData) return
+      if (orgError || !orgData) {
+        console.warn('No organization found for user:', orgError)
+        setLoading(false)
+        return
+      }
 
-      // Check for Facebook connection
-      const { data: fbConnection } = await supabase
+      // Check for Facebook connection - handle both single result and no result gracefully
+      const { data: fbConnection, error: fbError } = await supabase
         .from('facebook_connections')
         .select('*')
         .eq('organization_id', orgData.organization_id)
-        .single()
+        .maybeSingle()  // Use maybeSingle() instead of single() to handle no results gracefully
 
-      if (fbConnection) {
+      if (fbError) {
+        console.error('Error fetching Facebook connection:', fbError)
+        // Don't throw, just continue without connection data
+      } else if (fbConnection) {
         setConnection(fbConnection)
-        await fetchLeadForms(fbConnection.page_id, orgData.organization_id)
-        await fetchStats(orgData.organization_id)
+        // Fetch lead forms and stats in sequence to avoid race conditions
+        // Use try-catch to prevent one failure from breaking everything
+        try {
+          await fetchLeadForms(fbConnection.page_id, orgData.organization_id)
+        } catch (error) {
+          console.error('Failed to fetch lead forms:', error)
+        }
+        
+        try {
+          await fetchStats(orgData.organization_id)
+        } catch (error) {
+          console.error('Failed to fetch stats:', error)
+        }
       }
     } catch (error) {
       console.error('Error fetching connection status:', error)
+      // Still set loading to false but don't crash the page
+      toast.showToast('Failed to load Facebook connection status. Please refresh the page.', 'error')
     } finally {
       setLoading(false)
     }
@@ -95,8 +119,8 @@ export default function FacebookIntegrationPage() {
 
   const fetchLeadForms = async (pageId: string, organizationId: string) => {
     try {
-      // Fetch lead forms from Meta API
-      const response = await fetch('/api/integrations/facebook/lead-forms', {
+      // Fetch lead forms from Meta API with the required pageId parameter
+      const response = await fetch(`/api/integrations/facebook/lead-forms?pageId=${pageId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -106,6 +130,8 @@ export default function FacebookIntegrationPage() {
       if (response.ok) {
         const data = await response.json()
         setLeadForms(data.forms || [])
+      } else {
+        console.error('Failed to fetch lead forms:', response.status, response.statusText)
       }
     } catch (error) {
       console.error('Error fetching lead forms:', error)
@@ -127,12 +153,12 @@ export default function FacebookIntegrationPage() {
           new Date(l.created_at).toDateString() === today
         )
 
-        setStats({
+        setStats(prevStats => ({
           totalLeads: leads.length,
           syncedToday: todayLeads.length,
           activeForms: leadForms.filter(f => f.status === 'ACTIVE').length,
           lastSync: leads[0]?.created_at || null
-        })
+        }))
       }
     } catch (error) {
       console.error('Error fetching stats:', error)
@@ -159,7 +185,7 @@ export default function FacebookIntegrationPage() {
     }
 
     try {
-      const response = await fetch('/api/integrations/meta/disconnect', {
+      const response = await fetch('/api/integrations/facebook/disconnect', {
         method: 'POST'
       })
 
@@ -210,18 +236,20 @@ export default function FacebookIntegrationPage() {
 
   const handleTestConnection = async () => {
     try {
-      const response = await fetch('/api/integrations/facebook/test', {
+      // Use the correct test-connection endpoint that exists
+      const response = await fetch('/api/integrations/facebook/test-connection', {
         method: 'GET'
       })
 
       if (response.ok) {
         toast.showToast('Connection test successful!', 'success')
       } else {
-        throw new Error('Connection test failed')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Connection test failed')
       }
     } catch (error) {
       console.error('Error testing connection:', error)
-      toast.showToast('Connection test failed', 'error')
+      toast.showToast(error instanceof Error ? error.message : 'Connection test failed', 'error')
     }
   }
 
