@@ -43,10 +43,18 @@ export default function FacebookIntegrationPage() {
     if (params.get('just_connected') === 'true') {
       // Clear the URL params
       window.history.replaceState({}, document.title, window.location.pathname)
+      toast.showToast('Facebook connected successfully!', 'success')
       // Force refresh connection status
       setTimeout(() => {
         fetchConnectionStatus()
       }, 500)
+    } else if (params.get('error')) {
+      // Handle OAuth error
+      const error = params.get('error')
+      const errorDescription = params.get('error_description') || 'Failed to connect to Facebook'
+      window.history.replaceState({}, document.title, window.location.pathname)
+      toast.showToast(errorDescription, 'error')
+      fetchConnectionStatus()
     } else {
       fetchConnectionStatus()
     }
@@ -132,8 +140,8 @@ export default function FacebookIntegrationPage() {
   }
 
   const handleConnect = () => {
-    // Set flag to return to settings after connection
-    localStorage.setItem('facebook_connect_from_settings', 'true')
+    // Set cookie to return to settings after connection
+    document.cookie = 'facebook_connect_from_settings=true;path=/;max-age=300' // 5 minute expiry
     
     // Initiate Facebook OAuth flow with proper permissions
     const fbAppId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || '715100284200848'
