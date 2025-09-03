@@ -17,8 +17,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Detect code changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            code:
+              - 'app/**'
+              - 'src/**'
+              - 'tests/**'
+              - '__tests__/**'
+              - 'gym-coach-platform/**'
+              - 'jest.config.js'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'pnpm-lock.yaml'
+              - 'scripts/**'
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm ci
-      - run: npm test --silent -- --passWithNoTests
+      - if: steps.changes.outputs.code == 'true'
+        run: npm ci
+      - if: steps.changes.outputs.code == 'true'
+        run: npm test --silent -- --passWithNoTests
+      - name: Meta-only changes - skip tests
+        if: steps.changes.outputs.code != 'true'
+        run: echo "Meta-only PR (docs/workflows/etc). Skipping unit/integration tests."
