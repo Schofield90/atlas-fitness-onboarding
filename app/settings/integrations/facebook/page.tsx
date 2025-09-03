@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
 import { Facebook, CheckCircle, XCircle, RefreshCw, Plus, Trash2, ExternalLink, AlertCircle, Zap, Check } from 'lucide-react'
 import { useToast } from '@/app/lib/hooks/useToast'
@@ -53,6 +53,7 @@ export default function FacebookIntegrationPage() {
   
   const supabase = createClient()
   const toast = useToast()
+  const hasInitializedPage = useRef(false)
   
   // Derived state - check if Facebook is connected
   const isConnected = !!connection && connection.is_active
@@ -66,7 +67,7 @@ export default function FacebookIntegrationPage() {
       toast.success('Facebook connected successfully!')
       // Force refresh connection status
       setTimeout(() => {
-        fetchConnectionStatus()
+        fetchConnectionStatus(true) // Force refresh
       }, 500)
     } else if (params.get('error')) {
       // Handle OAuth error
@@ -74,13 +75,13 @@ export default function FacebookIntegrationPage() {
       const errorDescription = params.get('error_description') || 'Failed to connect to Facebook'
       window.history.replaceState({}, document.title, window.location.pathname)
       toast.error(errorDescription)
-      fetchConnectionStatus()
+      fetchConnectionStatus(false) // Don't force refresh
     } else {
-      fetchConnectionStatus()
+      fetchConnectionStatus(false) // Initial load
     }
-  }, [toast])
+  }, []) // Remove toast dependency to avoid re-runs
 
-  const fetchConnectionStatus = async () => {
+  const fetchConnectionStatus = async (forceRefresh = false) => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
@@ -130,17 +131,21 @@ export default function FacebookIntegrationPage() {
         
         setConnection(connectionWithPages)
         
-        // Set selected page - prefer primary, otherwise first page
-        const primaryPage = pages?.find(p => p.is_primary)
-        const pageToSelect = primaryPage || pages?.[0]
-        
-        if (pageToSelect) {
-          setSelectedPageId(pageToSelect.facebook_page_id)
-          // Fetch lead forms for selected page
-          try {
-            await fetchLeadForms(pageToSelect.facebook_page_id, orgData.organization_id)
-          } catch (error) {
-            console.error('Failed to fetch lead forms:', error)
+        // Only set selected page if we haven't initialized yet
+        if (!hasInitializedPage.current) {
+          // Set selected page - prefer primary, otherwise first page
+          const primaryPage = pages?.find(p => p.is_primary)
+          const pageToSelect = primaryPage || pages?.[0]
+          
+          if (pageToSelect) {
+            setSelectedPageId(pageToSelect.facebook_page_id)
+            hasInitializedPage.current = true
+            // Fetch lead forms for selected page
+            try {
+              await fetchLeadForms(pageToSelect.facebook_page_id, orgData.organization_id)
+            } catch (error) {
+              console.error('Failed to fetch lead forms:', error)
+            }
           }
         }
         
