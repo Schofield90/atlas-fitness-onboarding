@@ -68,6 +68,8 @@ export async function POST(request: NextRequest) {
       .single()
     
     console.log('Page info for saving forms:', pageInfo)
+    console.log('Organization ID:', organizationId)
+    console.log('Forms to save:', config.selectedForms)
     
     // Now save/update the selected lead forms
     if (config.selectedForms && config.selectedForms.length > 0) {
