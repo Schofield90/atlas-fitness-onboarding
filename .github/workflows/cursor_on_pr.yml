@@ -2,7 +2,7 @@ name: Cursor: On PR
 on:
   pull_request:
     types: [opened, reopened, synchronize]
-  workflow_dispatch: {}
+  workflow_dispatch: {}   # <-- sibling of pull_request
 
 jobs:
   ping-cursor:
@@ -11,8 +11,14 @@ jobs:
       - name: Build message
         id: build
         run: |
-          echo "REPO=${{ github.event.pull_request.head.repo.full_name }}" >> $GITHUB_OUTPUT
-          echo "BRANCH=${{ github.event.pull_request.head.ref }}" >> $GITHUB_OUTPUT
+          REPO="${{ github.event.pull_request.head.repo.full_name }}"
+          BRANCH="${{ github.event.pull_request.head.ref }}"
+          # Fallbacks for manual runs
+          if [ -z "$REPO" ]; then REPO="${{ github.repository }}"; fi
+          if [ -z "$BRANCH" ]; then BRANCH="${{ github.ref_name }}"; fi
+          echo "REPO=$REPO" >> $GITHUB_OUTPUT
+          echo "BRANCH=$BRANCH" >> $GITHUB_OUTPUT
+
       - name: Send to Slack
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
@@ -23,5 +29,5 @@ jobs:
           TEXT="@Cursor [repo=${REPO}, branch=${BRANCH}] run unit and integration tests; if anything fails, push a small fix and add a regression test to this PR. Keep the diff minimal; do not change RLS or payments."
           curl -s -X POST https://slack.com/api/chat.postMessage \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-            -H 'Content-type: application/json' \
+            -H "Content-type: application/json" \
             --data "{\"channel\":\"$SLACK_CHANNEL_ID\",\"text\":\"$TEXT\"}"
