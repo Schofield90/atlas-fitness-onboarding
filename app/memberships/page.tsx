@@ -3,16 +3,23 @@
 import DashboardLayout from '../components/DashboardLayout'
 import { useState, useEffect } from 'react'
 import NewMembershipPlanModal from '../components/memberships/NewMembershipPlanModal'
+import EditMembershipPlanModal from '../components/memberships/EditMembershipPlanModal'
 import { formatBritishCurrency, formatBritishDate } from '@/app/lib/utils/british-format'
 import { getMembershipPlans, type MembershipPlan } from '@/app/lib/services/membership-service'
 import { Settings, MoreVertical, Edit, Users, Copy, Trash } from 'lucide-react'
+import { createClient } from '@/app/lib/supabase/client'
+import toast from '@/app/lib/toast'
+import { useRouter } from 'next/navigation'
 
 export default function MembershipsPage() {
   const [activeTab, setActiveTab] = useState('plans')
   const [showNewPlanModal, setShowNewPlanModal] = useState(false)
+  const [showEditPlanModal, setShowEditPlanModal] = useState(false)
+  const [selectedPlan, setSelectedPlan] = useState<MembershipPlan | null>(null)
   const [membershipPlans, setMembershipPlans] = useState<MembershipPlan[]>([])
   const [loading, setLoading] = useState(true)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const router = useRouter()
 
   const handleNewPlan = () => {
     setShowNewPlanModal(true)
@@ -57,6 +64,103 @@ export default function MembershipsPage() {
   const handleModalClose = () => {
     setShowNewPlanModal(false)
     fetchMembershipPlans() // Refresh the list
+  }
+
+  const handleEditModalClose = () => {
+    setShowEditPlanModal(false)
+    setSelectedPlan(null)
+    fetchMembershipPlans() // Refresh the list
+  }
+
+  const handleEditPlan = (plan: MembershipPlan) => {
+    setSelectedPlan(plan)
+    setShowEditPlanModal(true)
+    setOpenDropdown(null)
+  }
+
+  const handleDuplicatePlan = async (plan: MembershipPlan) => {
+    const supabase = createClient()
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        toast.error('You must be logged in')
+        return
+      }
+
+      // Get organization ID
+      const { data: userData } = await supabase
+        .from('users')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single()
+
+      if (!userData?.organization_id) {
+        toast.error('Organization not found')
+        return
+      }
+
+      // Create duplicate with new name
+      const { error } = await supabase
+        .from('membership_plans')
+        .insert({
+          organization_id: userData.organization_id,
+          name: `${plan.name} (Copy)`,
+          description: plan.description,
+          price: plan.price,
+          billing_period: plan.billing_period,
+          features: plan.features,
+          is_active: false, // Start inactive
+          max_members: plan.max_members,
+          trial_days: plan.trial_days
+        })
+
+      if (error) {
+        console.error('Error duplicating plan:', error)
+        toast.error('Failed to duplicate plan')
+        return
+      }
+
+      toast.success('Plan duplicated successfully')
+      fetchMembershipPlans()
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('An unexpected error occurred')
+    }
+    setOpenDropdown(null)
+  }
+
+  const handleDeletePlan = async (plan: MembershipPlan) => {
+    if (!confirm(`Are you sure you want to delete "${plan.name}"? This action cannot be undone.`)) {
+      return
+    }
+
+    const supabase = createClient()
+    
+    try {
+      const { error } = await supabase
+        .from('membership_plans')
+        .delete()
+        .eq('id', plan.id)
+
+      if (error) {
+        console.error('Error deleting plan:', error)
+        toast.error('Failed to delete plan')
+        return
+      }
+
+      toast.success('Plan deleted successfully')
+      fetchMembershipPlans()
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('An unexpected error occurred')
+    }
+    setOpenDropdown(null)
+  }
+
+  const handleViewMembers = (plan: MembershipPlan) => {
+    setOpenDropdown(null)
+    router.push(`/members?plan=${plan.id}`)
   }
   
   console.log('Render state:', { loading, membershipPlansCount: membershipPlans.length, activeTab })
@@ -145,10 +249,7 @@ export default function MembershipsPage() {
                               <div className="absolute right-0 mt-2 w-56 bg-gray-800 rounded-md shadow-lg border border-gray-600 z-10">
                                 <div className="py-1">
                                   <button 
-                                    onClick={() => {
-                                      setOpenDropdown(null)
-                                      // Handle edit details
-                                    }}
+                                    onClick={() => handleEditPlan(plan)}
                                     className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors flex items-center gap-2"
                                   >
                                     <Edit className="h-4 w-4" />
@@ -158,10 +259,7 @@ export default function MembershipsPage() {
                                     </div>
                                   </button>
                                   <button 
-                                    onClick={() => {
-                                      setOpenDropdown(null)
-                                      // Handle view members
-                                    }}
+                                    onClick={() => handleViewMembers(plan)}
                                     className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors flex items-center gap-2"
                                   >
                                     <Users className="h-4 w-4" />
@@ -171,10 +269,7 @@ export default function MembershipsPage() {
                                     </div>
                                   </button>
                                   <button 
-                                    onClick={() => {
-                                      setOpenDropdown(null)
-                                      // Handle duplicate
-                                    }}
+                                    onClick={() => handleDuplicatePlan(plan)}
                                     className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors flex items-center gap-2"
                                   >
                                     <Copy className="h-4 w-4" />
@@ -184,10 +279,7 @@ export default function MembershipsPage() {
                                     </div>
                                   </button>
                                   <button 
-                                    onClick={() => {
-                                      setOpenDropdown(null)
-                                      // Handle settings
-                                    }}
+                                    onClick={() => handleEditPlan(plan)}
                                     className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors flex items-center gap-2"
                                   >
                                     <Settings className="h-4 w-4" />
@@ -197,12 +289,7 @@ export default function MembershipsPage() {
                                     </div>
                                   </button>
                                   <button 
-                                    onClick={() => {
-                                      setOpenDropdown(null)
-                                      if (confirm(`Are you sure you want to delete the "${plan.name}" plan?`)) {
-                                        // Handle delete
-                                      }
-                                    }}
+                                    onClick={() => handleDeletePlan(plan)}
                                     className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-700 transition-colors flex items-center gap-2"
                                   >
                                     <Trash className="h-4 w-4" />
@@ -283,6 +370,13 @@ export default function MembershipsPage() {
       <NewMembershipPlanModal 
         isOpen={showNewPlanModal}
         onClose={handleModalClose}
+      />
+      
+      <EditMembershipPlanModal
+        isOpen={showEditPlanModal}
+        onClose={handleEditModalClose}
+        onSuccess={handleEditModalClose}
+        plan={selectedPlan}
       />
     </DashboardLayout>
   )
