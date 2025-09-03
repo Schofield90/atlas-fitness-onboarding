@@ -30,6 +30,7 @@ interface LeadForm {
   status: string
   leads_count: number
   last_sync?: string
+  selected?: boolean
 }
 
 export default function FacebookIntegrationPage() {
@@ -38,7 +39,10 @@ export default function FacebookIntegrationPage() {
   const [connection, setConnection] = useState<FacebookConnection | null>(null)
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null)
   const [leadForms, setLeadForms] = useState<LeadForm[]>([])
+  const [selectedForms, setSelectedForms] = useState<Set<string>>(new Set())
   const [savingPage, setSavingPage] = useState(false)
+  const [savingForms, setSavingForms] = useState(false)
+  const [loadingForms, setLoadingForms] = useState(false)
   const [stats, setStats] = useState({
     totalLeads: 0,
     syncedToday: 0,
@@ -149,6 +153,7 @@ export default function FacebookIntegrationPage() {
   }
 
   const fetchLeadForms = async (pageId: string, organizationId: string) => {
+    setLoadingForms(true)
     try {
       // Fetch lead forms from Meta API with the required pageId parameter
       const response = await fetch(`/api/integrations/facebook/lead-forms?pageId=${pageId}`, {
@@ -166,6 +171,8 @@ export default function FacebookIntegrationPage() {
       }
     } catch (error) {
       console.error('Error fetching lead forms:', error)
+    } finally {
+      setLoadingForms(false)
     }
   }
 
@@ -199,8 +206,17 @@ export default function FacebookIntegrationPage() {
   const handlePageSelect = async (pageId: string) => {
     setSelectedPageId(pageId)
     // Fetch lead forms for the newly selected page
-    if (connection) {
-      await fetchLeadForms(pageId, connection.id)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    
+    const { data: orgData } = await supabase
+      .from('user_organizations')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .single()
+    
+    if (orgData?.organization_id) {
+      await fetchLeadForms(pageId, orgData.organization_id)
     }
   }
 
@@ -243,6 +259,57 @@ export default function FacebookIntegrationPage() {
       toast.error('Failed to update primary page')
     } finally {
       setSavingPage(false)
+    }
+  }
+
+  const handleFormToggle = (formId: string) => {
+    setSelectedForms(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(formId)) {
+        newSet.delete(formId)
+      } else {
+        newSet.add(formId)
+      }
+      return newSet
+    })
+  }
+
+  const handleSelectAllForms = () => {
+    if (selectedForms.size === leadForms.length) {
+      setSelectedForms(new Set())
+    } else {
+      setSelectedForms(new Set(leadForms.map(f => f.id)))
+    }
+  }
+
+  const handleSaveSelectedForms = async () => {
+    if (!selectedPageId || !connection) return
+    
+    setSavingForms(true)
+    try {
+      // Save selected forms configuration
+      const response = await fetch('/api/integrations/facebook/save-config', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          selectedPages: [selectedPageId],
+          selectedForms: Array.from(selectedForms),
+          selectedAdAccounts: []
+        })
+      })
+
+      if (response.ok) {
+        toast.success('Lead forms selection saved successfully')
+      } else {
+        throw new Error('Failed to save configuration')
+      }
+    } catch (error) {
+      console.error('Error saving selected forms:', error)
+      toast.error('Failed to save selected forms')
+    } finally {
+      setSavingForms(false)
     }
   }
 
@@ -414,11 +481,18 @@ export default function FacebookIntegrationPage() {
                     <label className="block text-sm text-gray-400 mb-2">Selected Page</label>
                     <select
                       value={selectedPageId || ''}
-                      onChange={(e) => handlePageSelect(e.target.value)}
+                      onChange={(e) => {
+                        e.preventDefault()
+                        const newPageId = e.target.value
+                        if (newPageId && newPageId !== selectedPageId) {
+                          handlePageSelect(newPageId)
+                        }
+                      }}
                       className="w-full bg-gray-800 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
                     >
+                      <option value="">Select a page...</option>
                       {connection.pages.map(page => (
-                        <option key={page.id} value={page.facebook_page_id}>
+                        <option key={page.facebook_page_id} value={page.facebook_page_id}>
                           {page.page_name} {page.is_primary ? '(Primary)' : ''}
                         </option>
                       ))}
@@ -501,43 +575,79 @@ export default function FacebookIntegrationPage() {
             </a>
           </div>
 
-          {leadForms.length > 0 ? (
-            <div className="space-y-3">
-              {leadForms.map(form => (
-                <div
-                  key={form.id}
-                  className="flex items-center justify-between p-4 bg-gray-700/50 rounded-lg"
+          {loadingForms ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
+              <p className="text-gray-400 mt-3">Loading lead forms...</p>
+            </div>
+          ) : leadForms.length > 0 ? (
+            <div className="space-y-4">
+              {/* Select All / Save Controls */}
+              <div className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg">
+                <label className="flex items-center gap-2 text-white cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedForms.size === leadForms.length && leadForms.length > 0}
+                    onChange={handleSelectAllForms}
+                    className="w-4 h-4 text-blue-500 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm">Select All ({selectedForms.size} selected)</span>
+                </label>
+                <button
+                  onClick={handleSaveSelectedForms}
+                  disabled={savingForms || selectedForms.size === 0}
+                  className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                 >
-                  <div>
-                    <p className="text-white font-medium">{form.name}</p>
-                    <div className="flex items-center gap-4 mt-1">
-                      <span className={`text-xs px-2 py-1 rounded ${
-                        form.status === 'ACTIVE' 
-                          ? 'bg-green-500/20 text-green-400' 
-                          : 'bg-gray-600 text-gray-400'
-                      }`}>
-                        {form.status}
-                      </span>
-                      <span className="text-sm text-gray-400">
-                        {form.leads_count} leads
-                      </span>
-                      {form.last_sync && (
-                        <span className="text-sm text-gray-400">
-                          Last sync: {new Date(form.last_sync).toLocaleString()}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <a
-                    href={`https://business.facebook.com/lead_center/forms/${form.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-400 hover:text-blue-300"
+                  {savingForms ? 'Saving...' : `Save Selected Forms (${selectedForms.size})`}
+                </button>
+              </div>
+              
+              {/* Lead Forms List */}
+              <div className="space-y-3">
+                {leadForms.map(form => (
+                  <div
+                    key={form.id}
+                    className="flex items-center justify-between p-4 bg-gray-700/50 rounded-lg hover:bg-gray-700/70 transition-colors"
                   >
-                    <ExternalLink className="h-4 w-4" />
-                  </a>
-                </div>
-              ))}
+                    <div className="flex items-center gap-3 flex-1">
+                      <input
+                        type="checkbox"
+                        checked={selectedForms.has(form.id)}
+                        onChange={() => handleFormToggle(form.id)}
+                        className="w-4 h-4 text-blue-500 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                      />
+                      <div>
+                        <p className="text-white font-medium">{form.name}</p>
+                        <div className="flex items-center gap-4 mt-1">
+                          <span className={`text-xs px-2 py-1 rounded ${
+                            form.status === 'ACTIVE' 
+                              ? 'bg-green-500/20 text-green-400' 
+                              : 'bg-gray-600 text-gray-400'
+                          }`}>
+                            {form.status}
+                          </span>
+                          <span className="text-sm text-gray-400">
+                            {form.leads_count} leads
+                          </span>
+                          {form.last_sync && (
+                            <span className="text-sm text-gray-400">
+                              Last sync: {new Date(form.last_sync).toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <a
+                      href={`https://business.facebook.com/lead_center/forms/${form.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:text-blue-300 ml-3"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </div>
+                ))}
+              </div>
             </div>
           ) : (
             <div className="text-center py-8 bg-gray-700/30 rounded-lg">
