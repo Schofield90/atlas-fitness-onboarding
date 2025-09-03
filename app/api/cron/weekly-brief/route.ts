@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import cron from 'cron-parser';
 
-// Use service role key for cron operations
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
+// Supabase is created at runtime inside the handler to avoid build-time env access
 
 // This endpoint should be called by a cron service (like Vercel Cron or external cron job)
 export async function POST(request: NextRequest) {
@@ -20,6 +19,16 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Running weekly brief cron job...');
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!supabaseUrl || !serviceRoleKey) {
+      return NextResponse.json({
+        error: 'Service Unavailable',
+        message: 'Missing Supabase service configuration'
+      }, { status: 503 })
+    }
+    const supabase = createClient(supabaseUrl, serviceRoleKey)
 
     // Get all active schedules that are due
     const now = new Date();
@@ -52,7 +61,7 @@ export async function POST(request: NextRequest) {
         console.log(`Processing schedule: ${schedule.name}`);
 
         // Generate brief data
-        const briefData = await generateWeeklyBriefData();
+        const briefData = await generateWeeklyBriefData(supabase);
 
         // Store the brief
         const { data: storedBrief, error: storeError } = await supabase
@@ -70,7 +79,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Send email to recipients
-        await sendScheduledEmail(schedule.recipients, briefData);
+        await sendScheduledEmail(supabase, schedule.recipients, briefData);
 
         // Update schedule's last run and calculate next run
         const nextRun = calculateNextRun(schedule.cron_schedule);
@@ -147,7 +156,7 @@ function calculateNextRun(cronSchedule: string): Date {
   }
 }
 
-async function sendScheduledEmail(recipients: string[], briefData: any) {
+async function sendScheduledEmail(supabase: any, recipients: string[], briefData: any) {
   try {
     // Import SendGrid here to avoid loading it unless needed
     const sgMail = require('@sendgrid/mail');
@@ -185,7 +194,7 @@ async function sendScheduledEmail(recipients: string[], briefData: any) {
 }
 
 // Copy the brief generation logic from the generate route
-async function generateWeeklyBriefData() {
+async function generateWeeklyBriefData(supabase: any) {
   const now = new Date();
   const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
@@ -251,8 +260,8 @@ async function generateWeeklyBriefData() {
         trends: generateRevenueTrends(currentMRR)
       },
       tenants: {
-        topPerforming: await getTopPerformingTenants(),
-        atRisk: await getAtRiskTenants()
+        topPerforming: await getTopPerformingTenants(supabase),
+        atRisk: await getAtRiskTenants(supabase)
       },
       incidents: [
         { id: '1', title: 'API Rate Limiting Issues', status: 'resolved' as const, impact: 'medium' as const, resolvedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() }
@@ -303,7 +312,7 @@ function generateRevenueTrends(currentMRR: number) {
   return trends;
 }
 
-async function getTopPerformingTenants() {
+async function getTopPerformingTenants(supabase: any) {
   try {
     const { data: orgs } = await supabase
       .from('organizations')
@@ -325,7 +334,7 @@ async function getTopPerformingTenants() {
   }
 }
 
-async function getAtRiskTenants() {
+async function getAtRiskTenants(supabase: any) {
   try {
     const { data: orgs } = await supabase
       .from('organizations')

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/app/lib/supabase/database.types'
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 export async function GET(request: NextRequest) {
   try {
     // This endpoint is public to allow embedding booking widgets
@@ -14,24 +17,20 @@ export async function GET(request: NextRequest) {
     
     // Create a direct Supabase client with service role key for public access
     // This bypasses RLS and authentication requirements
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.error('Missing Supabase environment variables')
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!supabaseUrl || !serviceRoleKey) {
       return NextResponse.json({ 
-        error: 'Service configuration error',
+        error: 'Service Unavailable',
         message: 'Database connection not properly configured' 
-      }, { status: 500 })
+      }, { status: 503 })
     }
-    
-    const supabase = createClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
+    const supabase = createClient<Database>(supabaseUrl, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
       }
-    )
+    })
     
     // Get booking link details
     const { data: bookingLink, error: linkError } = await supabase

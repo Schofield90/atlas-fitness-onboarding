@@ -1,15 +1,20 @@
 import { createClient } from '@supabase/supabase-js';
 import type { AnalyticsEvent } from './types';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! // Use service role for server-side
-);
+function getSupabase() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('Missing Supabase configuration');
+  }
+  return createClient(supabaseUrl, serviceRoleKey);
+}
 
 export class SupabaseAnalyticsStorage {
   static async storeEvents(events: AnalyticsEvent[]): Promise<void> {
     try {
       // Batch insert events
+      const supabase = getSupabase()
       const { error } = await supabase
         .from('analytics_events')
         .insert(events.map(event => ({
@@ -49,6 +54,7 @@ export class SupabaseAnalyticsStorage {
     });
 
     // Update unique visitor counts
+    const supabase = getSupabase()
     for (const [date, visitors] of uniqueVisitorsByDate) {
       await supabase
         .from('analytics_aggregates')
@@ -67,6 +73,7 @@ export class SupabaseAnalyticsStorage {
   static async getAnalytics(startDate: Date, endDate: Date, organizationId: string): Promise<any> {
     try {
       // SECURITY: Get raw events filtered by organization
+      const supabase = getSupabase()
       const { data: events, error: eventsError } = await supabase
         .from('analytics_events')
         .select('*')
@@ -100,6 +107,7 @@ export class SupabaseAnalyticsStorage {
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
       
       // SECURITY: Get realtime events filtered by organization
+      const supabase = getSupabase()
       const { data: recentEvents, error } = await supabase
         .from('analytics_events')
         .select('*')
