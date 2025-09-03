@@ -1,36 +1,13 @@
-name: "Cursor: On CI Fail"
-on:
-  workflow_run:
-    workflows: ["CI"]   # change if your CI workflow has a different name
-    types: [completed]
-
-jobs:
-  ping-cursor-on-fail:
-    if: >
-      ${{
-        github.event.workflow_run.conclusion != 'success' &&
-        github.event.workflow_run.event == 'pull_request' &&
-        github.event.workflow_run.actor != 'cursor[bot]'
-      }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Build message
-        id: msg
-        run: |
-          BRANCH="${{ github.event.workflow_run.head_branch }}"
-          REPO="${{ github.event.workflow_run.head_repository.full_name }}"
-          URL="${{ github.event.workflow_run.html_url }}"
-          echo "TEXT=[repo=${REPO}, branch=${BRANCH}] fetch the failing CI logs (${URL}), fix the failures, add a regression test, and update the PR. Keep the diff minimal; do not change RLS or payments." >> $GITHUB_OUTPUT
-
       - name: Send to Slack
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID_BUGFIX }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID_TESTS }}
           CURSOR_USER_ID: ${{ secrets.CURSOR_USER_ID }}
-          TEXT: ${{ steps.msg.outputs.TEXT }}
+          REPO: ${{ steps.build.outputs.REPO }}
+          BRANCH: ${{ steps.build.outputs.BRANCH }}
         run: |
-          FINAL_TEXT="<@${CURSOR_USER_ID}> ${TEXT}"
+          TEXT="<@${CURSOR_USER_ID}> [repo=${REPO}, branch=${BRANCH}] run unit and integration tests; if anything fails, push a small fix and add a regression test to this PR. Keep the diff minimal; do not change RLS or payments."
           curl -s -X POST https://slack.com/api/chat.postMessage \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
             -H 'Content-type: application/json' \
-            --data "{\"channel\":\"$SLACK_CHANNEL_ID\",\"text\":\"$FINAL_TEXT\",\"link_names\":true,\"unfurl_links\":false}"
+            --data "{\"channel\":\"$SLACK_CHANNEL_ID\",\"text\":\"$TEXT\",\"link_names\":true,\"unfurl_links\":false}"
