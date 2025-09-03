@@ -7,11 +7,21 @@ import { useToast } from '@/app/lib/hooks/useToast'
 
 interface FacebookConnection {
   id: string
-  page_id: string
+  facebook_user_id: string
+  facebook_user_name?: string
+  facebook_user_email?: string
+  is_active: boolean
+  created_at: string
+  pages?: FacebookPage[]
+}
+
+interface FacebookPage {
+  id: string
+  facebook_page_id: string
   page_name: string
-  page_access_token: string
-  connected_at: string
-  lead_forms?: LeadForm[]
+  access_token: string
+  is_active: boolean
+  is_primary: boolean
 }
 
 interface LeadForm {
@@ -84,7 +94,7 @@ export default function FacebookIntegrationPage() {
 
       // Check for Facebook connection - handle both single result and no result gracefully
       const { data: fbConnection, error: fbError } = await supabase
-        .from('facebook_connections')
+        .from('facebook_integrations')
         .select('*')
         .eq('organization_id', orgData.organization_id)
         .maybeSingle()  // Use maybeSingle() instead of single() to handle no results gracefully
@@ -93,13 +103,28 @@ export default function FacebookIntegrationPage() {
         console.error('Error fetching Facebook connection:', fbError)
         // Don't throw, just continue without connection data
       } else if (fbConnection) {
-        setConnection(fbConnection)
-        // Fetch lead forms and stats in sequence to avoid race conditions
-        // Use try-catch to prevent one failure from breaking everything
-        try {
-          await fetchLeadForms(fbConnection.page_id, orgData.organization_id)
-        } catch (error) {
-          console.error('Failed to fetch lead forms:', error)
+        // Fetch associated pages
+        const { data: pages } = await supabase
+          .from('facebook_pages')
+          .select('*')
+          .eq('integration_id', fbConnection.id)
+          .eq('is_active', true)
+        
+        const connectionWithPages = {
+          ...fbConnection,
+          pages: pages || []
+        }
+        
+        setConnection(connectionWithPages)
+        
+        // Fetch lead forms and stats for primary page if exists
+        const primaryPage = pages?.find(p => p.is_primary)
+        if (primaryPage) {
+          try {
+            await fetchLeadForms(primaryPage.facebook_page_id, orgData.organization_id)
+          } catch (error) {
+            console.error('Failed to fetch lead forms:', error)
+          }
         }
         
         try {
@@ -296,8 +321,15 @@ export default function FacebookIntegrationPage() {
               <div className="flex items-center gap-3">
                 <CheckCircle className="h-5 w-5 text-green-400" />
                 <div>
-                  <p className="text-white font-medium">{connection.page_name}</p>
-                  <p className="text-sm text-gray-400">Connected {new Date(connection.connected_at).toLocaleDateString()}</p>
+                  <p className="text-white font-medium">
+                    {connection.facebook_user_name || 'Facebook User'}
+                    {connection.pages && connection.pages.length > 0 && (
+                      <span className="text-sm text-gray-400 ml-2">
+                        ({connection.pages.find(p => p.is_primary)?.page_name || connection.pages[0]?.page_name})
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-sm text-gray-400">Connected {new Date(connection.created_at).toLocaleDateString()}</p>
                 </div>
               </div>
               <div className="flex gap-2">
