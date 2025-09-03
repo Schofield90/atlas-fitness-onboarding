@@ -9,6 +9,34 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const pageId = searchParams.get('pageId')
+    const checkSaved = searchParams.get('checkSaved') === 'true'
+    
+    // Special mode to check saved forms in database
+    if (checkSaved) {
+      const supabase = await createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+      }
+      
+      const { organizationId } = await getCurrentUserOrganization()
+      if (!organizationId) {
+        return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
+      }
+      
+      // Get all saved forms for this organization
+      const { data: savedForms, error } = await supabase
+        .from('facebook_lead_forms')
+        .select('*')
+        .eq('organization_id', organizationId)
+      
+      return NextResponse.json({
+        organizationId,
+        totalSavedForms: savedForms?.length || 0,
+        savedForms: savedForms || [],
+        error: error?.message
+      })
+    }
     
     if (!pageId) {
       return NextResponse.json({ error: 'Page ID required' }, { status: 400 })
