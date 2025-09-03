@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
         })
       
       if (newForms.length > 0) {
-        console.log('Inserting new forms:', newForms)
+        console.log('Attempting to insert new forms:', JSON.stringify(newForms, null, 2))
         const { data: insertedForms, error: insertError } = await supabase
           .from('facebook_lead_forms')
           .insert(newForms)
@@ -140,13 +140,36 @@ export async function POST(request: NextRequest) {
         
         if (insertError) {
           console.error('Error inserting new forms:', insertError)
+          console.error('Failed forms data:', newForms)
           // Try to provide more detail about the error
           if (insertError.code === '23505') {
             console.error('Duplicate form detected - forms may already exist')
+            // Try to update instead
+            for (const form of newForms) {
+              const { error: updateError } = await supabase
+                .from('facebook_lead_forms')
+                .update({
+                  form_name: form.form_name,
+                  facebook_page_id: form.facebook_page_id,
+                  page_id: form.page_id,
+                  is_active: true,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('organization_id', form.organization_id)
+                .eq('facebook_form_id', form.facebook_form_id)
+              
+              if (updateError) {
+                console.error(`Failed to update form ${form.facebook_form_id}:`, updateError)
+              } else {
+                console.log(`Updated existing form ${form.facebook_form_id}`)
+              }
+            }
+          } else {
+            // Don't return error here - continue with the response
+            console.error('Non-duplicate error, but continuing...')
           }
-          // Continue anyway - some forms may have been saved
         } else {
-          console.log('Successfully inserted forms:', insertedForms?.length || 0)
+          console.log('Successfully inserted forms:', insertedForms)
         }
       }
     }
