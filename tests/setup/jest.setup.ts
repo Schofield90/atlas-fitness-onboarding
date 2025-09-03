@@ -44,3 +44,50 @@ afterAll(() => {
 
 // Global test utilities
 export const waitFor = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+// ---- Test environment defaults and external service mocks ----
+// Provide safe default environment variables to avoid real network/service calls
+process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_mock'
+process.env.STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || 'sk_test_mock'
+process.env.TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID || 'AC_test'
+process.env.TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN || 'test_token'
+process.env.TWILIO_SMS_FROM = process.env.TWILIO_SMS_FROM || '+10000000000'
+process.env.TWILIO_WHATSAPP_FROM = process.env.TWILIO_WHATSAPP_FROM || 'whatsapp:+10000000000'
+process.env.RESEND_API_KEY = process.env.RESEND_API_KEY || 're_test_mock'
+process.env.RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'test@example.com'
+
+// Mock Twilio SDK to prevent real API calls during tests
+jest.mock('twilio', () => {
+  const mockClient = {
+    messages: {
+      create: jest.fn().mockResolvedValue({ sid: 'SMxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' })
+    },
+    calls: {
+      list: jest.fn().mockResolvedValue([]),
+      create: jest.fn().mockResolvedValue({ sid: 'CAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' }),
+      update: jest.fn().mockResolvedValue({ status: 'completed' })
+    },
+    api: {
+      accounts: jest.fn().mockReturnThis(),
+      fetch: jest.fn().mockResolvedValue({ friendlyName: 'Test Account' })
+    },
+    incomingPhoneNumbers: {
+      list: jest.fn().mockResolvedValue([
+        { phoneNumber: process.env.TWILIO_SMS_FROM }
+      ])
+    }
+  }
+  const factory = () => mockClient
+  return factory
+})
+
+// Mock Stripe SDK to prevent real API calls during tests
+jest.mock('stripe', () => {
+  class MockStripe {
+    customers = { create: jest.fn().mockResolvedValue({ id: 'cus_test_123' }) }
+    checkout = { sessions: { create: jest.fn().mockResolvedValue({ id: 'cs_test_123' }) } }
+    accountLinks = { create: jest.fn().mockResolvedValue({ url: 'https://example.com/onboard' }) }
+    accounts = { create: jest.fn().mockResolvedValue({ id: 'acct_test_123' }) }
+  }
+  return { __esModule: true, default: MockStripe }
+})
