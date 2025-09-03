@@ -49,16 +49,15 @@ export default function MembersPage() {
         return
       }
 
-      // Fetch all leads/clients for this organization
-      const { data: leads, error } = await supabase
-        .from('leads')
+      // Fetch all clients for this organization
+      const { data: clients, error } = await supabase
+        .from('clients')
         .select(`
           *,
-          lead_status:lead_statuses(name, color),
-          customer_memberships(
+          client_memberships(
             membership_plan:membership_plans(
               name,
-              price,
+              price_pennies,
               billing_period
             ),
             status,
@@ -71,20 +70,22 @@ export default function MembersPage() {
 
       if (error) {
         console.error('Error fetching members:', error)
-      } else if (leads) {
+      } else if (clients) {
         // Transform the data to match our Member interface
-        const transformedMembers: Member[] = leads.map(lead => ({
-          id: lead.id,
-          full_name: lead.name || lead.full_name || 'Unknown',
-          email: lead.email || '',
-          phone: lead.phone,
-          created_at: lead.created_at,
-          membership_status: lead.customer_memberships?.[0]?.status || 'none',
-          membership_type: lead.customer_memberships?.[0]?.membership_plan?.name || 'No membership',
-          lead_source: lead.source,
-          tags: lead.tags || [],
-          last_visit: lead.last_activity_at,
-          total_visits: lead.total_visits || 0
+        const transformedMembers: Member[] = clients.map(client => ({
+          id: client.id,
+          full_name: client.first_name && client.last_name 
+            ? `${client.first_name} ${client.last_name}` 
+            : client.full_name || client.name || 'Unknown',
+          email: client.email || '',
+          phone: client.phone,
+          created_at: client.created_at,
+          membership_status: client.client_memberships?.[0]?.status || 'none',
+          membership_type: client.client_memberships?.[0]?.membership_plan?.name || 'No membership',
+          lead_source: client.source || 'direct',
+          tags: client.tags || [],
+          last_visit: client.last_activity_at,
+          total_visits: client.total_visits || 0
         }))
         
         setMembers(transformedMembers)
@@ -131,7 +132,7 @@ export default function MembersPage() {
               <p className="text-gray-400 mt-1">Manage your gym members and clients</p>
             </div>
             <Link
-              href="/leads/new"
+              href="/members/new"
               className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
             >
               <Plus className="h-4 w-4" />
@@ -244,7 +245,7 @@ export default function MembersPage() {
                 </p>
                 {!searchTerm && filterStatus === 'all' && (
                   <Link
-                    href="/leads/new"
+                    href="/members/new"
                     className="inline-flex items-center gap-2 text-orange-500 hover:text-orange-400"
                   >
                     <Plus className="h-4 w-4" />
@@ -328,7 +329,7 @@ export default function MembersPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <Link
-                            href={`/leads/${member.id}`}
+                            href={`/members/${member.id}`}
                             className="text-orange-500 hover:text-orange-400 flex items-center gap-1"
                           >
                             View

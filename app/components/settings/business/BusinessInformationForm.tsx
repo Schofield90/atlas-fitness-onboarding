@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import { Building2, Globe, Upload, X } from 'lucide-react'
 import { createClient } from '@/app/lib/supabase/client'
+import toast from '@/app/lib/toast'
 
 interface BusinessInformationFormProps {
   settings: any
@@ -43,13 +44,13 @@ export default function BusinessInformationForm({ settings, onUpdate }: Business
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      alert('Please upload an image file')
+      toast.error('Please upload an image file')
       return
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      alert('Image size should be less than 5MB')
+      toast.error('Image size should be less than 5MB')
       return
     }
 
@@ -86,10 +87,11 @@ export default function BusinessInformationForm({ settings, onUpdate }: Business
       
       // Save to database
       await onUpdate({ logo_url: publicUrl })
+      toast.success('Logo uploaded successfully!')
       
     } catch (error) {
       console.error('Error uploading logo:', error)
-      alert('Failed to upload logo. Please try again.')
+      toast.error('Failed to upload logo. Please try again.')
     } finally {
       setUploadingLogo(false)
     }
@@ -118,14 +120,15 @@ export default function BusinessInformationForm({ settings, onUpdate }: Business
       
       if (result.success) {
         setFormData(processedData) // Update local state with processed data
-        // Show success message
-        alert('Business information saved successfully!')
+        toast.success('Business information saved successfully!')
       } else {
         setErrors({ general: 'Failed to save. Please try again.' })
+        toast.error('Failed to save. Please try again.')
       }
     } catch (error) {
       console.error('Form submission error:', error)
       setErrors({ general: 'An error occurred. Please try again.' })
+      toast.error('An error occurred. Please try again.')
     }
     
     setSaving(false)

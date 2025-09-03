@@ -5,6 +5,7 @@ import { Plus, Edit, Trash2, Users, CreditCard, Calendar, Clock, Check, X } from
 import DashboardLayout from '@/app/components/DashboardLayout';
 import { createClient } from '@/app/lib/supabase/client';
 import { useOrganization } from '@/app/hooks/useOrganization';
+import toast from '@/app/lib/toast';
 
 interface MembershipPlan {
   id: string;
@@ -69,7 +70,7 @@ export default function MembershipPlansPage() {
       setPlans(data || []);
     } catch (error) {
       console.error('Error loading membership plans:', error);
-      alert('Failed to load membership plans');
+      toast.error('Failed to load membership plans');
     } finally {
       setLoading(false);
     }
@@ -77,6 +78,17 @@ export default function MembershipPlansPage() {
 
   const handleSavePlan = async () => {
     try {
+      // Validate required fields
+      if (!formData.name || !formData.name.trim()) {
+        toast.error('Plan name is required');
+        return;
+      }
+      
+      if (!formData.price_pennies || formData.price_pennies <= 0) {
+        toast.error('Price must be greater than 0');
+        return;
+      }
+      
       const planData = {
         ...formData,
         organization_id: organizationId,
@@ -92,7 +104,7 @@ export default function MembershipPlansPage() {
           .eq('organization_id', organizationId);
 
         if (error) throw error;
-        alert('Membership plan updated successfully');
+        toast.success('Membership plan updated successfully');
       } else {
         // Create new plan
         const { error } = await supabase
@@ -103,7 +115,7 @@ export default function MembershipPlansPage() {
           });
 
         if (error) throw error;
-        alert('Membership plan created successfully');
+        toast.success('Membership plan created successfully');
       }
 
       await loadMembershipPlans();
@@ -111,7 +123,7 @@ export default function MembershipPlansPage() {
       resetForm();
     } catch (error) {
       console.error('Error saving membership plan:', error);
-      alert('Failed to save membership plan');
+      toast.error('Failed to save membership plan');
     }
   };
 
@@ -129,11 +141,11 @@ export default function MembershipPlansPage() {
 
       if (error) throw error;
 
-      alert('Membership plan deleted successfully');
+      toast.success('Membership plan deleted successfully');
       await loadMembershipPlans();
     } catch (error) {
       console.error('Error deleting membership plan:', error);
-      alert('Failed to delete membership plan');
+      toast.error('Failed to delete membership plan');
     }
   };
 

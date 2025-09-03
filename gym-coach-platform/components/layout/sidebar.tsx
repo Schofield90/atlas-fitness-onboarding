@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { 
   Home, Users, UserPlus, Settings, BarChart3, MessageSquare, Zap, Calendar, UserCog,
-  Megaphone, MessageCircle, Globe, Brain, CreditCard, FileText, Plug
+  Megaphone, MessageCircle, Globe, Brain, CreditCard, FileText, Plug, Apple
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -14,7 +14,9 @@ export function Sidebar() {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
     { name: 'Leads', href: '/dashboard/leads', icon: UserPlus },
-    { name: 'Clients', href: '/dashboard/clients', icon: Users },
+    { name: 'Members', href: '/dashboard/members', icon: Users },
+    { name: 'Clients', href: '/dashboard/clients', icon: UserCog },
+    { name: 'Nutrition', href: '/dashboard/nutrition', icon: Apple },
     { name: 'Calendar', href: '/dashboard/calendar', icon: Calendar },
     { name: 'Staff', href: '/dashboard/staff', icon: UserCog },
     { name: 'Marketing', href: '/dashboard/marketing', icon: Megaphone },

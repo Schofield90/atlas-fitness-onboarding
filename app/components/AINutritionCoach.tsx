@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
 import { 
   Send, 
@@ -148,6 +148,7 @@ export default function AINutritionCoach({ memberData }: { memberData: any }) {
   const [assignedCoach, setAssignedCoach] = useState<any>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     loadNutritionProfile()
@@ -312,6 +313,17 @@ export default function AINutritionCoach({ memberData }: { memberData: any }) {
     }
   }
 
+  // Debounced save function to prevent excessive API calls
+  const debouncedSave = useCallback(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+    }
+    
+    saveTimeoutRef.current = setTimeout(async () => {
+      await saveNutritionProfile()
+    }, 1000) // Save after 1 second of inactivity
+  }, [nutritionProfile, memberData.id, memberData.organization_id])
+
   const calculateMacros = () => {
     const profile = nutritionProfile as NutritionProfile
     
@@ -429,10 +441,13 @@ export default function AINutritionCoach({ memberData }: { memberData: any }) {
           .eq('id', memberData.id)
           
         toast.success('Meal plan generated and saved!')
+      } else {
+        toast.error('Failed to generate meal plan - no data received')
       }
     } catch (error) {
       console.error('Error generating meal plan:', error)
-      toast.error('Failed to generate meal plan')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate meal plan'
+      toast.error(errorMessage)
     } finally {
       setIsLoading(false)
     }
@@ -1050,6 +1065,9 @@ export default function AINutritionCoach({ memberData }: { memberData: any }) {
                       fats: Math.max(20, fats)
                     }
                   }))
+                  
+                  // Trigger debounced save
+                  debouncedSave()
                 }}
                 className="w-full"
               />
@@ -1084,6 +1102,9 @@ export default function AINutritionCoach({ memberData }: { memberData: any }) {
                       fats: Math.max(20, fats)
                     }
                   }))
+                  
+                  // Trigger debounced save
+                  debouncedSave()
                 }}
                 className="w-full"
               />
@@ -1118,6 +1139,9 @@ export default function AINutritionCoach({ memberData }: { memberData: any }) {
                       fats
                     }
                   }))
+                  
+                  // Trigger debounced save
+                  debouncedSave()
                 }}
                 className="w-full"
               />
