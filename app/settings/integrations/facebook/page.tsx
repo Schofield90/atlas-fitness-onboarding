@@ -146,6 +146,31 @@ export default function FacebookIntegrationPage() {
             } catch (error) {
               console.error('Failed to fetch lead forms:', error)
             }
+            
+            // Automatically register webhook for real-time sync
+            try {
+              const webhookUrl = `${window.location.origin}/api/webhooks/meta/leads`
+              console.log('🔄 Auto-registering webhook for real-time sync...')
+              
+              const response = await fetch('/api/integrations/facebook/register-webhook', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  pageId: pageToSelect.facebook_page_id,
+                  webhookUrl,
+                  organizationId: orgData.organization_id
+                })
+              })
+              
+              const result = await response.json()
+              if (result.success) {
+                console.log('✅ Real-time sync enabled automatically')
+              } else {
+                console.error('Failed to enable real-time sync:', result.error)
+              }
+            } catch (error) {
+              console.error('Error registering webhook:', error)
+            }
           }
         }
         
@@ -477,7 +502,7 @@ export default function FacebookIntegrationPage() {
                     <label className="block text-sm text-gray-400 mb-2">Selected Page</label>
                     <select
                       value={selectedPageId || ''}
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const newPageId = e.target.value
                         console.log('Page selection changed:', newPageId)
                         if (newPageId) {
@@ -486,7 +511,31 @@ export default function FacebookIntegrationPage() {
                           setLeadForms([])
                           setSelectedForms(new Set())
                           if (organizationId) {
-                            fetchLeadForms(newPageId, organizationId)
+                            await fetchLeadForms(newPageId, organizationId)
+                            
+                            // Auto-register webhook for the new page
+                            try {
+                              const webhookUrl = `${window.location.origin}/api/webhooks/meta/leads`
+                              console.log('🔄 Auto-registering webhook for new page...')
+                              
+                              const response = await fetch('/api/integrations/facebook/register-webhook', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  pageId: newPageId,
+                                  webhookUrl,
+                                  organizationId
+                                })
+                              })
+                              
+                              const result = await response.json()
+                              if (result.success) {
+                                console.log('✅ Real-time sync enabled for new page')
+                                toast.success('Real-time sync enabled automatically')
+                              }
+                            } catch (error) {
+                              console.error('Error registering webhook:', error)
+                            }
                           }
                         }
                       }}
@@ -663,65 +712,30 @@ export default function FacebookIntegrationPage() {
         </div>
       )}
 
-      {/* Webhook Registration Section */}
+      {/* Real-time Sync Status */}
       {isConnected && selectedPageId && (
-        <div className="mt-6 p-6 bg-gray-700/50 rounded-lg">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-lg font-semibold text-white">Real-time Lead Sync</h3>
-              <p className="text-sm text-gray-400 mt-1">
-                Enable instant lead capture when forms are submitted
+        <div className="mt-6 p-4 bg-green-900/20 border border-green-500/30 rounded-lg">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0">
+              <div className="p-2 bg-green-500/20 rounded-full">
+                <Zap className="h-5 w-5 text-green-400" />
+              </div>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-green-400">Real-time Sync Active</h3>
+              <p className="text-xs text-gray-400 mt-1">
+                Leads are automatically synced instantly when forms are submitted
               </p>
             </div>
-            <button
-              onClick={async () => {
-                try {
-                  // Register webhook with Facebook
-                  const webhookUrl = `${window.location.origin}/api/webhooks/meta/leads`
-                  
-                  toast.info('Registering webhook with Facebook...')
-                  
-                  const response = await fetch('/api/integrations/facebook/register-webhook', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      pageId: selectedPageId,
-                      webhookUrl,
-                      organizationId
-                    })
-                  })
-                  
-                  const result = await response.json()
-                  
-                  if (result.success) {
-                    toast.success('Real-time sync enabled! Leads will now sync instantly.')
-                  } else {
-                    throw new Error(result.error || 'Failed to register webhook')
-                  }
-                } catch (error) {
-                  console.error('Webhook registration error:', error)
-                  toast.error('Failed to enable real-time sync. Please try again.')
-                }
-              }}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-            >
-              <Zap className="h-4 w-4" />
-              Enable Real-time Sync
-            </button>
-          </div>
-          <div className="text-sm text-gray-400">
-            <p className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-green-400" />
-              Instant lead capture when forms are submitted
-            </p>
-            <p className="flex items-center gap-2 mt-1">
-              <Check className="h-4 w-4 text-green-400" />
-              No delay - leads appear immediately in your CRM
-            </p>
-            <p className="flex items-center gap-2 mt-1">
-              <Check className="h-4 w-4 text-green-400" />
-              Automatic retry if connection is temporarily lost
-            </p>
+            <div className="flex-shrink-0">
+              <span className="flex items-center gap-1 text-xs text-green-400">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+                Live
+              </span>
+            </div>
           </div>
         </div>
       )}
@@ -731,10 +745,10 @@ export default function FacebookIntegrationPage() {
         <h3 className="text-lg font-semibold text-white mb-3">How to Set Up Facebook Lead Forms</h3>
         <ol className="space-y-2 text-gray-300 text-sm">
           <li>1. Connect your Facebook Page using the button above</li>
-          <li>2. Create lead forms in Facebook Ads Manager or Business Suite</li>
-          <li>3. Enable real-time sync for instant lead capture</li>
+          <li>2. Select which page to use for lead collection</li>
+          <li>3. Create lead forms in Facebook Ads Manager or Business Suite</li>
           <li>4. Launch ads with your lead forms to start collecting leads</li>
-          <li>5. Leads will sync instantly or you can manually sync anytime</li>
+          <li>5. Leads automatically sync instantly when forms are submitted</li>
         </ol>
         <div className="mt-4 flex gap-3">
           <a
