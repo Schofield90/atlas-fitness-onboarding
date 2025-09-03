@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
               
               if (formDetails.error) {
                 console.error(`Error fetching details for form ${form.id}:`, formDetails.error)
-                allForms.push({
+                return {
                   ...form,
                   pageId,
                   pageName,
@@ -128,8 +128,7 @@ export async function GET(request: NextRequest) {
                   leads_count: 0,
                   created_time_formatted: 'Unknown',
                   is_active: form.status === 'ACTIVE'
-                })
-                continue
+                }
               }
               
               // Get the actual lead count with better error handling
@@ -235,12 +234,12 @@ export async function GET(request: NextRequest) {
                 }
               }
               
-              allForms.push(processedForm)
+              return processedForm
               
             } catch (detailError) {
               console.error(`Error fetching details for form ${form.id}:`, detailError)
               // Still include the form with basic info
-              allForms.push({
+              return {
                 ...form,
                 pageId,
                 pageName,
@@ -249,9 +248,13 @@ export async function GET(request: NextRequest) {
                 leads_count: 0,
                 created_time_formatted: 'Unknown',
                 is_active: form.status === 'ACTIVE'
-              })
+              }
             }
-          }
+          })
+          
+          // Wait for all promises and add results to allForms
+          const formResults = await Promise.all(formDetailsPromises)
+          allForms.push(...formResults)
         } else {
           console.log('⚠️ No forms found for page', pageName)
           errors.push({ 
