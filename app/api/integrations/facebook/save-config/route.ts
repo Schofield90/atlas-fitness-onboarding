@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
           facebook_page_id: pageId || null, // The actual Facebook page ID
           facebook_form_id: formId,
           form_name: formDetail?.name || `Form ${formId}`,
-          form_status: 'active',
+          form_status: 'active', // Using form_status instead of status
           is_active: true,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
