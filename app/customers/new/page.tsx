@@ -55,6 +55,26 @@ export default function NewCustomerPage() {
       
       organizationId = userOrg.organization_id
 
+      // Check if a customer with this email already exists
+      const { data: existingCustomers } = await supabase
+        .from('clients')
+        .select('id, email, first_name, last_name')
+        .eq('email', formData.email.toLowerCase())
+        .or(`org_id.eq.${organizationId},organization_id.eq.${organizationId}`)
+
+      if (existingCustomers && existingCustomers.length > 0) {
+        // Customer with this email already exists
+        const existing = existingCustomers[0]
+        setError(`A customer with email ${formData.email} already exists (${existing.first_name} ${existing.last_name})`)
+        setLoading(false)
+        
+        // Optionally redirect to the existing customer
+        setTimeout(() => {
+          router.push(`/customers/${existing.id}`)
+        }, 2000)
+        return
+      }
+
       // Split name into first and last name
       const nameParts = formData.name.trim().split(' ')
       const firstName = nameParts[0] || formData.name
@@ -65,7 +85,7 @@ export default function NewCustomerPage() {
         first_name: firstName,
         last_name: lastName,
         name: formData.name, // Include name field as fallback
-        email: formData.email,
+        email: formData.email.toLowerCase(), // Store email in lowercase for consistency
         phone: formData.phone,
         status: 'active',
         created_at: new Date().toISOString()

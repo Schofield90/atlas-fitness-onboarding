@@ -96,16 +96,7 @@ function MembersContent() {
         return
       }
 
-      // First, let's check if there are ANY clients at all
-      const { data: allClientsCheck, error: checkError } = await supabase
-        .from('clients')
-        .select('id, first_name, last_name, organization_id, org_id')
-        .limit(5)
-      
-      console.log('Sample of ALL clients in database:', allClientsCheck)
-      
       // Fetch clients with their memberships (simplified query)
-      console.log('Fetching members for organization:', organizationId)
       
       // Try both organization_id and org_id fields
       const { data: clientsByOrgId, error: error1 } = await supabase
@@ -124,16 +115,30 @@ function MembersContent() {
       const clients = [...(clientsByOrgId || []), ...(clientsByOrgIdAlt || [])]
       const error = error1 || error2
       
-      // Remove duplicates if any
-      const uniqueClients = clients.filter((client, index, self) =>
-        index === self.findIndex((c) => c.id === client.id)
-      )
-
-      console.log('Clients query result:', { 
-        clientsCount: uniqueClients?.length || 0, 
-        error: error?.message,
-        sample: uniqueClients?.[0]
-      })
+      // Remove duplicates based on email (primary identifier for members)
+      // Keep the most recently updated version if duplicates exist
+      const uniqueClients = clients.reduce((acc: any[], client) => {
+        const existingIndex = acc.findIndex(c => 
+          c.email && client.email && c.email.toLowerCase() === client.email.toLowerCase()
+        )
+        
+        if (existingIndex === -1) {
+          // No duplicate found, add the client
+          acc.push(client)
+        } else {
+          // Duplicate found, keep the more recent one
+          const existing = acc[existingIndex]
+          const existingDate = new Date(existing.updated_at || existing.created_at)
+          const currentDate = new Date(client.updated_at || client.created_at)
+          
+          if (currentDate > existingDate) {
+            acc[existingIndex] = client
+          }
+        }
+        
+        return acc
+      }, [])
+      
 
       if (error1 && error2) {
         console.error('Error fetching members:', error)
@@ -151,7 +156,6 @@ function MembersContent() {
           .in('client_id', clientIds)
         
         membershipsData = memberships || []
-        console.log('Memberships found:', membershipsData.length)
       }
 
       // Fetch membership plans
@@ -159,8 +163,6 @@ function MembersContent() {
         .from('membership_plans')
         .select('id, name, price_pennies')
         .eq('organization_id', organizationId)
-      
-      console.log('Membership plans found:', membershipPlans?.length || 0)
 
       // Transform to member format
       const transformedMembers: Member[] = (uniqueClients || []).map(client => {
@@ -290,7 +292,6 @@ function MembersContent() {
           <div>
             <h1 className="text-2xl font-bold text-white">Members</h1>
             <p className="text-gray-400 mt-1">Manage your gym members and their memberships</p>
-            {/* Force redeployment - members page v2 */}
           </div>
           <Link
             href="/members/add"
