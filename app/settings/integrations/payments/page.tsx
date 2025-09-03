@@ -11,9 +11,18 @@ export default function PaymentIntegrationPage() {
   const [saving, setSaving] = useState(false)
   const [connected, setConnected] = useState(false)
   const [accountStatus, setAccountStatus] = useState<any>(null)
+  const [successMessage, setSuccessMessage] = useState('')
   const supabase = createClient()
 
   useEffect(() => {
+    // Check for Stripe success/refresh params
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('stripe_success') === 'true') {
+      setSuccessMessage('Stripe account connected successfully!')
+      // Clear the URL params
+      window.history.replaceState({}, document.title, window.location.pathname)
+    }
+    
     fetchSettings()
     checkStripeConnection()
   }, [])
@@ -81,14 +90,21 @@ export default function PaymentIntegrationPage() {
       })
       
       if (response.ok) {
-        const { url } = await response.json()
-        window.location.href = url
+        const data = await response.json()
+        if (data.url) {
+          window.location.href = data.url
+        } else {
+          console.error('No URL in response:', data)
+          alert('Failed to get Stripe onboarding URL')
+        }
       } else {
-        alert('Failed to start Stripe Connect onboarding')
+        const errorData = await response.json().catch(() => null)
+        console.error('Stripe Connect error:', errorData)
+        alert(errorData?.error || 'Failed to start Stripe Connect onboarding')
       }
     } catch (error) {
       console.error('Error connecting Stripe:', error)
-      alert('Failed to connect Stripe account')
+      alert('Failed to connect Stripe account. Please check your internet connection and try again.')
     }
   }
 
@@ -174,6 +190,16 @@ export default function PaymentIntegrationPage() {
           </button>
         }
       />
+
+      {/* Success Message */}
+      {successMessage && (
+        <div className="bg-green-500/20 border border-green-500/30 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-5 w-5 text-green-400" />
+            <p className="text-green-400">{successMessage}</p>
+          </div>
+        </div>
+      )}
 
       {/* Stripe Connect Status */}
       <div className="bg-gray-800 rounded-lg p-6">
