@@ -3,7 +3,7 @@ import { createClient } from '@/app/lib/supabase/server'
 
 export async function POST(request: Request) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -11,14 +11,39 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get user's organization
+    // Get user's organization - try both tables
+    let organizationId: string | null = null
+    let userRole: string | null = null
+    
+    // Try user_organizations first (newer table)
     const { data: userOrg } = await supabase
       .from('user_organizations')
       .select('organization_id, role')
       .eq('user_id', user.id)
       .single()
     
-    if (!userOrg || !['owner', 'admin'].includes(userOrg.role)) {
+    if (userOrg) {
+      organizationId = userOrg.organization_id
+      userRole = userOrg.role
+    } else {
+      // Fallback to organization_members (older table)
+      const { data: orgMember } = await supabase
+        .from('organization_members')
+        .select('organization_id, role')
+        .eq('user_id', user.id)
+        .single()
+      
+      if (orgMember) {
+        organizationId = orgMember.organization_id
+        userRole = orgMember.role || 'admin' // Default to admin if no role
+      }
+    }
+    
+    if (!organizationId) {
+      return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
+    }
+    
+    if (userRole && !['owner', 'admin'].includes(userRole)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
@@ -26,7 +51,7 @@ export async function POST(request: Request) {
     const { data: checkData, error: checkError } = await supabase
       .from('membership_plans')
       .select('id, name, price, price_pennies')
-      .eq('organization_id', userOrg.organization_id)
+      .eq('organization_id', organizationId)
 
     if (checkError) {
       console.error('Error checking plans:', checkError)
@@ -64,7 +89,7 @@ export async function POST(request: Request) {
           updated_at: new Date().toISOString()
         })
         .eq('id', plan.id)
-        .eq('organization_id', userOrg.organization_id)
+        .eq('organization_id', organizationId)
 
       if (updateError) {
         console.error(`Error updating plan ${plan.id}:`, updateError)
@@ -83,7 +108,7 @@ export async function POST(request: Request) {
         cancellation_fee_pennies: 0,
         updated_at: new Date().toISOString()
       })
-      .eq('organization_id', userOrg.organization_id)
+      .eq('organization_id', organizationId)
       .or('signup_fee_pennies.is.null,cancellation_fee_pennies.is.null')
 
     if (feesError) {
@@ -95,7 +120,7 @@ export async function POST(request: Request) {
     const { data: verifyData, error: verifyError } = await supabase
       .from('membership_plans')
       .select('id, name, price, price_pennies')
-      .eq('organization_id', userOrg.organization_id)
+      .eq('organization_id', organizationId)
 
     if (verifyError) {
       console.error('Error verifying:', verifyError)
@@ -136,7 +161,7 @@ export async function POST(request: Request) {
 // GET endpoint to check current status
 export async function GET(request: Request) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -144,14 +169,33 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get user's organization
+    // Get user's organization - try both tables
+    let organizationId: string | null = null
+    
+    // Try user_organizations first (newer table)
     const { data: userOrg } = await supabase
       .from('user_organizations')
       .select('organization_id')
       .eq('user_id', user.id)
       .single()
     
-    if (!userOrg) {
+    if (userOrg) {
+      organizationId = userOrg.organization_id
+    } else {
+      // Fallback to organization_members (older table)
+      const { data: orgMember } = await supabase
+        .from('organization_members')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single()
+      
+      if (orgMember) {
+        organizationId = orgMember.organization_id
+      }
+    }
+    
+    if (!organizationId) {
+      console.error('No organization found for user:', user.id)
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
     }
 
@@ -159,7 +203,7 @@ export async function GET(request: Request) {
     const { data: plans, error: plansError } = await supabase
       .from('membership_plans')
       .select('id, name, price, price_pennies')
-      .eq('organization_id', userOrg.organization_id)
+      .eq('organization_id', organizationId)
       .order('created_at', { ascending: false })
 
     if (plansError) {

@@ -35,6 +35,8 @@ export default function MigratePricesPage() {
       const response = await fetch('/api/migrate-prices')
       const data = await response.json()
       
+      console.log('Status check response:', response.status, data)
+      
       if (response.ok && data.success) {
         setStatus(data)
         if (data.summary.needs_migration === 0) {
@@ -43,11 +45,18 @@ export default function MigratePricesPage() {
           toast.info(`${data.summary.needs_migration} plans need migration`)
         }
       } else {
-        toast.error(data.error || 'Failed to check status')
+        console.error('Status check failed:', data)
+        const errorMessage = data.error || 'Failed to check status'
+        toast.error(`Error: ${errorMessage}`)
+        
+        // Show more detail if available
+        if (data.details) {
+          console.error('Error details:', data.details)
+        }
       }
     } catch (error) {
       console.error('Error checking status:', error)
-      toast.error('Failed to check migration status')
+      toast.error(`Network error: ${error instanceof Error ? error.message : 'Failed to check migration status'}`)
     } finally {
       setCheckingStatus(false)
     }
