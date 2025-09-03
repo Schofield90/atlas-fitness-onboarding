@@ -73,17 +73,22 @@ async function processLeadgenWebhook(entry: MetaWebhookEntry) {
         return
       }
 
-      // Find the specific form
+      // Find the specific form and check if it's selected for sync
       const formRecord = await supabase
         .from('facebook_lead_forms')
-        .select('id, form_name')
+        .select('id, form_name, is_active')
         .eq('facebook_form_id', form_id)
         .eq('organization_id', pageRecord.organization_id)
-        .eq('is_active', true)
         .single()
 
       if (!formRecord.data) {
-        console.warn(`No active form record found for form ID: ${form_id}`)
+        console.warn(`No form record found for form ID: ${form_id}`)
+        return
+      }
+      
+      // Check if this form is selected for sync
+      if (!formRecord.data.is_active) {
+        console.log(`Form ${form_id} is not selected for sync, skipping`)
         return
       }
 
@@ -188,7 +193,7 @@ async function processLeadCapture({
   }
 
   // Store the Facebook lead record
-  const { error: fbLeadError } = await supabase
+  const { data: fbLead, error: fbLeadError } = await supabase
     .from('facebook_leads')
     .insert({
       form_id: formDbId,
@@ -202,9 +207,61 @@ async function processLeadCapture({
       },
       processing_status: 'pending'
     })
+    .select()
+    .single()
 
   if (fbLeadError && fbLeadError.code !== '23505') { // Ignore duplicates
     throw fbLeadError
+  }
+
+  // Create entry in main leads table for CRM visibility
+  if (fbLead) {
+    try {
+      // Extract standard lead fields
+      const firstName = transformedData.first_name || transformedData.full_name?.split(' ')[0] || ''
+      const lastName = transformedData.last_name || transformedData.full_name?.split(' ').slice(1).join(' ') || ''
+      const email = transformedData.email || transformedData.email_address || ''
+      const phone = transformedData.phone_number || transformedData.phone || ''
+      
+      // Create main lead entry
+      const { error: leadError } = await supabase
+        .from('leads')
+        .insert({
+          organization_id: organizationId,
+          first_name: firstName,
+          last_name: lastName,
+          email: email,
+          phone: phone,
+          source: 'Facebook Lead Form',
+          status: 'new',
+          metadata: {
+            facebook_lead_id: leadId,
+            facebook_form_id: formId,
+            facebook_page_id: pageId,
+            form_name: leadData.form_name || 'Facebook Form',
+            captured_at: leadData.created_time,
+            raw_data: transformedData
+          },
+          notes: `Lead captured from Facebook form "${leadData.form_name || formId}" via webhook`
+        })
+      
+      if (leadError && leadError.code !== '23505') { // Ignore duplicates
+        console.error('Failed to create main lead entry:', leadError)
+        // Don't throw - we still captured the Facebook lead
+      } else {
+        console.log(`Created main CRM lead for Facebook lead ${leadId}`)
+      }
+      
+      // Update Facebook lead processing status
+      await supabase
+        .from('facebook_leads')
+        .update({ processing_status: 'processed' })
+        .eq('id', fbLead.id)
+        
+    } catch (error) {
+      console.error('Error creating main lead entry:', error)
+      // Don't throw - we still captured the Facebook lead
+    }
   }
 
   console.log(`Successfully processed webhook lead ${leadId} for organization ${organizationId}`)

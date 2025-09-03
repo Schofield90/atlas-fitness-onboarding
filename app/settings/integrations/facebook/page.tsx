@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
-import { Facebook, CheckCircle, XCircle, RefreshCw, Plus, Trash2, ExternalLink, AlertCircle } from 'lucide-react'
+import { Facebook, CheckCircle, XCircle, RefreshCw, Plus, Trash2, ExternalLink, AlertCircle, Zap, Check } from 'lucide-react'
 import { useToast } from '@/app/lib/hooks/useToast'
 
 interface FacebookConnection {
@@ -661,15 +661,78 @@ export default function FacebookIntegrationPage() {
         </div>
       )}
 
+      {/* Webhook Registration Section */}
+      {isConnected && selectedPageId && (
+        <div className="mt-6 p-6 bg-gray-700/50 rounded-lg">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-white">Real-time Lead Sync</h3>
+              <p className="text-sm text-gray-400 mt-1">
+                Enable instant lead capture when forms are submitted
+              </p>
+            </div>
+            <button
+              onClick={async () => {
+                try {
+                  // Register webhook with Facebook
+                  const webhookUrl = `${window.location.origin}/api/webhooks/meta/leads`
+                  
+                  toast.info('Registering webhook with Facebook...')
+                  
+                  const response = await fetch('/api/integrations/facebook/register-webhook', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      pageId: selectedPageId,
+                      webhookUrl,
+                      organizationId
+                    })
+                  })
+                  
+                  const result = await response.json()
+                  
+                  if (result.success) {
+                    toast.success('Real-time sync enabled! Leads will now sync instantly.')
+                  } else {
+                    throw new Error(result.error || 'Failed to register webhook')
+                  }
+                } catch (error) {
+                  console.error('Webhook registration error:', error)
+                  toast.error('Failed to enable real-time sync. Please try again.')
+                }
+              }}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+            >
+              <Zap className="h-4 w-4" />
+              Enable Real-time Sync
+            </button>
+          </div>
+          <div className="text-sm text-gray-400">
+            <p className="flex items-center gap-2">
+              <Check className="h-4 w-4 text-green-400" />
+              Instant lead capture when forms are submitted
+            </p>
+            <p className="flex items-center gap-2 mt-1">
+              <Check className="h-4 w-4 text-green-400" />
+              No delay - leads appear immediately in your CRM
+            </p>
+            <p className="flex items-center gap-2 mt-1">
+              <Check className="h-4 w-4 text-green-400" />
+              Automatic retry if connection is temporarily lost
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Help Section */}
       <div className="mt-8 p-6 bg-blue-500/10 border border-blue-500/30 rounded-lg">
         <h3 className="text-lg font-semibold text-white mb-3">How to Set Up Facebook Lead Forms</h3>
         <ol className="space-y-2 text-gray-300 text-sm">
           <li>1. Connect your Facebook Page using the button above</li>
           <li>2. Create lead forms in Facebook Ads Manager or Business Suite</li>
-          <li>3. Launch ads with your lead forms to start collecting leads</li>
-          <li>4. Leads will automatically sync to your CRM every 15 minutes</li>
-          <li>5. You can manually sync anytime using the "Sync Now" button</li>
+          <li>3. Enable real-time sync for instant lead capture</li>
+          <li>4. Launch ads with your lead forms to start collecting leads</li>
+          <li>5. Leads will sync instantly or you can manually sync anytime</li>
         </ol>
         <div className="mt-4 flex gap-3">
           <a
