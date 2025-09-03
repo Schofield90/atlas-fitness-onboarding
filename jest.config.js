@@ -15,6 +15,9 @@ const config = {
       }
     }]
   },
+  transformIgnorePatterns: [
+    '/node_modules/(?!(react-dnd|react-dnd-html5-backend|@react-dnd)/)'
+  ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
     '^@/app/(.*)$': '<rootDir>/app/$1',

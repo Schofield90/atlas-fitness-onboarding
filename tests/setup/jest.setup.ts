@@ -105,3 +105,13 @@ jest.mock('stripe', () => {
   }
   return { __esModule: true, default: MockStripe }
 })
+
+// Mock react-dnd ESM to CommonJS-compatible stubs for Jest
+jest.mock('react-dnd', () => ({
+  DndProvider: ({ children }: any) => children,
+  useDrag: () => [{}, () => {}],
+  useDrop: () => [{}, () => {}]
+}))
+jest.mock('react-dnd-html5-backend', () => ({
+  HTML5Backend: {}
+}))
