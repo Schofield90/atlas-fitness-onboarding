@@ -96,26 +96,62 @@ function MembersContent() {
         return
       }
 
-      // Fetch clients with their memberships (simplified query)
-      const { data: clients, error } = await supabase
+      // First, let's check if there are ANY clients at all
+      const { data: allClientsCheck, error: checkError } = await supabase
         .from('clients')
-        .select(`
-          *,
-          memberships (
-            id,
-            membership_plan_id,
-            status,
-            start_date,
-            end_date
-          )
-        `)
-        .or(`org_id.eq.${organizationId},organization_id.eq.${organizationId}`)
+        .select('id, first_name, last_name, organization_id, org_id')
+        .limit(5)
+      
+      console.log('Sample of ALL clients in database:', allClientsCheck)
+      
+      // Fetch clients with their memberships (simplified query)
+      console.log('Fetching members for organization:', organizationId)
+      
+      // Try both organization_id and org_id fields
+      const { data: clientsByOrgId, error: error1 } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('organization_id', organizationId)
         .order('created_at', { ascending: false })
+      
+      const { data: clientsByOrgIdAlt, error: error2 } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('org_id', organizationId)
+        .order('created_at', { ascending: false })
+      
+      // Combine results from both queries
+      const clients = [...(clientsByOrgId || []), ...(clientsByOrgIdAlt || [])]
+      const error = error1 || error2
+      
+      // Remove duplicates if any
+      const uniqueClients = clients.filter((client, index, self) =>
+        index === self.findIndex((c) => c.id === client.id)
+      )
 
-      if (error) {
+      console.log('Clients query result:', { 
+        clientsCount: uniqueClients?.length || 0, 
+        error: error?.message,
+        sample: uniqueClients?.[0]
+      })
+
+      if (error1 && error2) {
         console.error('Error fetching members:', error)
         toast.error('Failed to load members')
         return
+      }
+
+      // If we have clients, fetch their memberships separately
+      let membershipsData: any[] = []
+      if (uniqueClients && uniqueClients.length > 0) {
+        const clientIds = uniqueClients.map(c => c.id)
+        const { data: memberships } = await supabase
+          .from('memberships')
+          .select('*')
+          .in('client_id', clientIds)
+        
+        membershipsData = memberships || []
+        console.log('Memberships found:', membershipsData.length)
       }
 
       // Fetch membership plans
@@ -123,10 +159,12 @@ function MembersContent() {
         .from('membership_plans')
         .select('id, name, price_pennies')
         .eq('organization_id', organizationId)
+      
+      console.log('Membership plans found:', membershipPlans?.length || 0)
 
       // Transform to member format
-      const transformedMembers: Member[] = (clients || []).map(client => {
-        const membership = client.memberships?.[0]
+      const transformedMembers: Member[] = (uniqueClients || []).map(client => {
+        const membership = membershipsData.find(m => m.client_id === client.id)
         const membershipPlan = membership && membershipPlans ? 
           membershipPlans.find((p: any) => p.id === membership.membership_plan_id) : null
         
@@ -365,16 +403,21 @@ function MembersContent() {
               <p className="text-gray-400">
                 {searchTerm || filterStatus !== 'all' || planFilter
                   ? 'No members found matching your filters'
-                  : 'No members yet'}
+                  : 'No members in your organization yet'}
               </p>
               {!searchTerm && !planFilter && filterStatus === 'all' && (
-                <Link
-                  href="/members/add"
-                  className="mt-4 inline-flex items-center text-orange-500 hover:text-orange-400"
-                >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add your first member
-                </Link>
+                <>
+                  <Link
+                    href="/customers/new"
+                    className="mt-4 inline-flex items-center text-orange-500 hover:text-orange-400"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add your first member
+                  </Link>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Members are created when customers sign up for a membership plan
+                  </p>
+                </>
               )}
             </div>
           ) : (
