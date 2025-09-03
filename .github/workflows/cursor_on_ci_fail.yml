@@ -1,0 +1,28 @@
+name: "Cursor: On CI Fail"
+on:
+  workflow_run:
+    workflows: ["CI"]        # change if your unit/integration workflow has a different name
+    types: [completed]
+
+jobs:
+  ping-cursor-on-fail:
+    if: ${{ github.event.workflow_run.conclusion != 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build message
+        id: msg
+        run: |
+          BRANCH="${{ github.event.workflow_run.head_branch }}"
+          REPO="${{ github.event.workflow_run.head_repository.full_name }}"
+          URL="${{ github.event.workflow_run.html_url }}"
+          echo "TEXT=@Cursor [repo=${REPO}, branch=${BRANCH}] fetch the failing CI logs (${URL}), fix the failures, add a regression test, and update the PR. Keep the diff minimal; do not change RLS or payments." >> $GITHUB_OUTPUT
+      - name: Send to Slack
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID_BUGFIX }}
+          TEXT: ${{ steps.msg.outputs.TEXT }}
+        run: |
+          curl -s -X POST https://slack.com/api/chat.postMessage \
+            -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+            -H "Content-type: application/json" \
+            --data "{\"channel\":\"$SLACK_CHANNEL_ID\",\"text\":\"$TEXT\"}"
