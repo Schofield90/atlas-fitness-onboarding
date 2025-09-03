@@ -87,8 +87,7 @@ export async function POST(request: NextRequest) {
       const { error: updateError } = await supabase
         .from('facebook_pages')
         .update({
-          webhook_enabled: true,
-          webhook_url: finalWebhookUrl,
+          // Note: webhook_enabled and webhook_url columns don't exist in the table
           updated_at: new Date().toISOString()
         })
         .eq('facebook_page_id', pageId)

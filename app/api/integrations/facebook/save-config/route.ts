@@ -146,8 +146,9 @@ export async function POST(request: NextRequest) {
           console.error('Failed forms data:', newForms)
           // Try to provide more detail about the error
           if (insertError.code === '23505') {
-            console.error('Duplicate form detected - forms may already exist')
+            console.error('Duplicate form detected - forms may already exist, updating instead')
             // Try to update instead
+            let updateCount = 0
             for (const form of newForms) {
               const { error: updateError } = await supabase
                 .from('facebook_lead_forms')
@@ -165,11 +166,13 @@ export async function POST(request: NextRequest) {
                 console.error(`Failed to update form ${form.facebook_form_id}:`, updateError)
               } else {
                 console.log(`Updated existing form ${form.facebook_form_id}`)
+                updateCount++
               }
             }
+            console.log(`Updated ${updateCount} existing forms`)
           } else {
-            // Don't return error here - continue with the response
-            console.error('Non-duplicate error, but continuing...')
+            // Don't fail the entire request for insert errors - forms may be partially saved
+            console.error('Insert error occurred but continuing with response')
           }
         } else {
           console.log('Successfully inserted forms:', insertedForms)
@@ -177,23 +180,8 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // Also save to sync_config for backward compatibility
-    const { error: updateError } = await supabase
-      .from('facebook_integrations')
-      .update({
-        sync_config: {
-          selected_pages: config.selectedPages,
-          selected_ad_accounts: config.selectedAdAccounts || [],
-          selected_forms: config.selectedForms,
-          sync_enabled: true
-        },
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', integration.id)
-    
-    if (updateError) {
-      console.error('Error updating integration config:', updateError)
-    }
+    // Note: Removed sync_config update as that column doesn't exist in the table
+    // The facebook_lead_forms table is the source of truth for selected forms
     
     console.log('💾 Saved Facebook sync configuration:', {
       organization: organizationId,
