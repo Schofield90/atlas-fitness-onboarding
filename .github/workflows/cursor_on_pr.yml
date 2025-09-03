@@ -1,4 +1,4 @@
-name: Cursor: On PR
+name: "Cursor: On PR"
 on:
   pull_request:
     types: [opened, reopened, synchronize]
@@ -13,6 +13,7 @@ jobs:
         run: |
           REPO="${{ github.event.pull_request.head.repo.full_name }}"
           BRANCH="${{ github.event.pull_request.head.ref }}"
+          # Fallbacks for manual runs
           if [ -z "$REPO" ]; then REPO="${{ github.repository }}"; fi
           if [ -z "$BRANCH" ]; then BRANCH="${{ github.ref_name }}"; fi
           echo "REPO=$REPO" >> $GITHUB_OUTPUT
