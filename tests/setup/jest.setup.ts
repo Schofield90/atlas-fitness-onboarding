@@ -105,3 +105,24 @@ jest.mock('stripe', () => {
   }
   return { __esModule: true, default: MockStripe }
 })
+
+// Minimal Response polyfill for route handler unit tests
+if (typeof (global as any).Response === 'undefined') {
+  class SimpleResponse {
+    private _bodyText: string
+    status: number
+    headers: Map<string, string>
+    constructor(body?: any, init?: { status?: number; headers?: Record<string, string> }) {
+      this._bodyText = typeof body === 'string' ? body : body ? JSON.stringify(body) : ''
+      this.status = init?.status ?? 200
+      this.headers = new Map(Object.entries(init?.headers || {}))
+    }
+    async json() {
+      return this._bodyText ? JSON.parse(this._bodyText) : null
+    }
+    async text() {
+      return this._bodyText
+    }
+  }
+  ;(global as any).Response = SimpleResponse as any
+}

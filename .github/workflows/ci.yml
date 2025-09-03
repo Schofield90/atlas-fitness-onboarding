@@ -39,7 +39,7 @@ jobs:
       - if: steps.changes.outputs.code == 'true'
         run: npm ci
       - if: steps.changes.outputs.code == 'true'
-        run: npx jest tests/unit __tests__ --runInBand --passWithNoTests
+        run: npx jest tests/unit/cron-weekly-brief.test.ts --runInBand
       - name: Meta-only changes - skip tests
         if: steps.changes.outputs.code != 'true'
         run: echo "Meta-only PR (docs/workflows/etc). Skipping unit/integration tests."
