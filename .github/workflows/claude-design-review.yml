@@ -2,8 +2,16 @@ name: Claude Design Review
 
 on:
   pull_request:
-    types: [opened, synchronize]
-  workflow_dispatch:
+    types: [opened, reopened, synchronize]
+    paths:
+      - 'app/**'
+      - 'components/**'
+      - 'lib/**'
+      - 'supabase/**'
+      - 'pages/**'
+      - 'package.json'
+      - 'next.config.*'
+      - 'tsconfig.*'
 
 jobs:
   design-review:
