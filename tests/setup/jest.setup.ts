@@ -19,6 +19,20 @@ jest.mock('next/navigation', () => ({
   usePathname: () => '/test-path',
 }))
 
+// Mock Next.js headers/cookies used in route handlers
+jest.mock('next/headers', () => {
+  const cookieStore: Record<string, string> = {}
+  return {
+    headers: () => new Map<string, string>(),
+    cookies: () => ({
+      get: (name: string) => (cookieStore[name] ? { name, value: cookieStore[name] } : undefined),
+      set: (name: string, value: string) => { cookieStore[name] = value },
+      delete: (name: string) => { delete cookieStore[name] },
+      getAll: () => Object.entries(cookieStore).map(([name, value]) => ({ name, value }))
+    })
+  }
+})
+
 // Mock environment variables
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://localhost:54321'
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
