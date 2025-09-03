@@ -1,339 +1,453 @@
 'use client'
 
+import { Suspense } from 'react'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
 import DashboardLayout from '../components/DashboardLayout'
-import { Users, Mail, Phone, Calendar, Activity, Search, Filter, Plus, ChevronRight } from 'lucide-react'
+import { Users, Mail, Phone, Calendar, Activity, Search, Filter, Plus, ChevronRight, UserCheck, UserX, Clock, CreditCard } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
+import toast from '@/app/lib/toast'
+import { formatBritishDate, formatBritishCurrency } from '@/app/lib/utils/british-format'
 
 interface Member {
   id: string
-  full_name: string
+  first_name: string
+  last_name: string
   email: string
   phone?: string
   created_at: string
   membership_status?: string
+  membership_plan_id?: string
+  membership_plan_name?: string
   last_visit?: string
   total_visits?: number
-  membership_type?: string
-  lead_source?: string
+  status: 'active' | 'inactive' | 'pending'
   tags?: string[]
+  notes?: string
 }
 
-export default function MembersPage() {
+function MembersContent() {
   const [members, setMembers] = useState<Member[]>([])
+  const [filteredMembers, setFilteredMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all')
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive' | 'pending'>('all')
+  const [planFilter, setPlanFilter] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(25)
   const supabase = createClient()
+  const router = useRouter()
+  const searchParams = useSearchParams()
 
   useEffect(() => {
+    // Check for plan filter from URL
+    const planId = searchParams.get('plan')
+    if (planId) {
+      setPlanFilter(planId)
+    }
+    
+    // Get page from URL
+    const page = parseInt(searchParams.get('page') || '1')
+    setCurrentPage(page)
+    
     fetchMembers()
-  }, [])
+  }, [searchParams])
+
+  useEffect(() => {
+    filterMembers()
+  }, [members, searchTerm, filterStatus, planFilter])
 
   const fetchMembers = async () => {
     try {
+      setLoading(true)
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
       // Get user's organization
+      let organizationId: string | null = null
+      
+      // Try new table first
       const { data: userOrg } = await supabase
         .from('user_organizations')
         .select('organization_id')
         .eq('user_id', user.id)
         .single()
 
-      if (!userOrg) {
+      if (userOrg) {
+        organizationId = userOrg.organization_id
+      } else {
+        // Fallback to users table
+        const { data: userData } = await supabase
+          .from('users')
+          .select('organization_id')
+          .eq('id', user.id)
+          .single()
+        
+        if (userData) {
+          organizationId = userData.organization_id
+        }
+      }
+
+      if (!organizationId) {
         console.error('No organization found')
+        toast.error('No organization found')
         setLoading(false)
         return
       }
 
-      // Fetch all clients for this organization
+      // Fetch clients with their memberships (simplified query)
       const { data: clients, error } = await supabase
         .from('clients')
         .select(`
           *,
-          client_memberships(
-            membership_plan:membership_plans(
-              name,
-              price_pennies,
-              billing_period
-            ),
+          memberships (
+            id,
+            membership_plan_id,
             status,
             start_date,
             end_date
           )
         `)
-        .eq('organization_id', userOrg.organization_id)
+        .or(`org_id.eq.${organizationId},organization_id.eq.${organizationId}`)
         .order('created_at', { ascending: false })
 
       if (error) {
         console.error('Error fetching members:', error)
-      } else if (clients) {
-        // Transform the data to match our Member interface
-        const transformedMembers: Member[] = clients.map(client => ({
-          id: client.id,
-          full_name: client.first_name && client.last_name 
-            ? `${client.first_name} ${client.last_name}` 
-            : client.full_name || client.name || 'Unknown',
-          email: client.email || '',
-          phone: client.phone,
-          created_at: client.created_at,
-          membership_status: client.client_memberships?.[0]?.status || 'none',
-          membership_type: client.client_memberships?.[0]?.membership_plan?.name || 'No membership',
-          lead_source: client.source || 'direct',
-          tags: client.tags || [],
-          last_visit: client.last_activity_at,
-          total_visits: client.total_visits || 0
-        }))
-        
-        setMembers(transformedMembers)
+        toast.error('Failed to load members')
+        return
       }
+
+      // Fetch membership plans
+      const { data: membershipPlans } = await supabase
+        .from('membership_plans')
+        .select('id, name, price_pennies')
+        .eq('organization_id', organizationId)
+
+      // Transform to member format
+      const transformedMembers: Member[] = (clients || []).map(client => {
+        const membership = client.memberships?.[0]
+        const membershipPlan = membership && membershipPlans ? 
+          membershipPlans.find((p: any) => p.id === membership.membership_plan_id) : null
+        
+        return {
+          id: client.id,
+          first_name: client.first_name || '',
+          last_name: client.last_name || '',
+          email: client.email || '',
+          phone: client.phone || '',
+          created_at: client.created_at,
+          membership_status: membership?.status || 'No Membership',
+          membership_plan_id: membership?.membership_plan_id,
+          membership_plan_name: membershipPlan?.name || 'No Plan',
+          last_visit: client.last_visit,
+          total_visits: client.total_visits || 0,
+          status: determineStatus(client, membership),
+          tags: client.tags || [],
+          notes: client.notes
+        }
+      })
+
+      setMembers(transformedMembers)
     } catch (error) {
-      console.error('Error in fetchMembers:', error)
+      console.error('Error:', error)
+      toast.error('Failed to load members')
     } finally {
       setLoading(false)
     }
   }
 
-  const filteredMembers = members.filter(member => {
-    const matchesSearch = member.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          member.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          member.phone?.includes(searchTerm)
+  const determineStatus = (client: any, membership: any): 'active' | 'inactive' | 'pending' => {
+    if (!membership) return 'inactive'
     
-    const matchesFilter = filterStatus === 'all' ||
-                          (filterStatus === 'active' && member.membership_status === 'active') ||
-                          (filterStatus === 'inactive' && member.membership_status !== 'active')
+    if (membership.status === 'active') {
+      // Check if membership is expired
+      if (membership.end_date && new Date(membership.end_date) < new Date()) {
+        return 'inactive'
+      }
+      return 'active'
+    }
     
-    return matchesSearch && matchesFilter
-  })
+    if (membership.status === 'pending') return 'pending'
+    
+    return 'inactive'
+  }
 
-  const stats = {
-    total: members.length,
-    active: members.filter(m => m.membership_status === 'active').length,
-    inactive: members.filter(m => m.membership_status !== 'active').length,
-    newThisMonth: members.filter(m => {
-      const createdDate = new Date(m.created_at)
-      const now = new Date()
-      return createdDate.getMonth() === now.getMonth() && 
-             createdDate.getFullYear() === now.getFullYear()
-    }).length
+  const filterMembers = () => {
+    let filtered = [...members]
+
+    // Search filter
+    if (searchTerm) {
+      filtered = filtered.filter(member => {
+        const fullName = `${member.first_name} ${member.last_name}`.toLowerCase()
+        const email = member.email.toLowerCase()
+        const search = searchTerm.toLowerCase()
+        return fullName.includes(search) || email.includes(search)
+      })
+    }
+
+    // Status filter
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter(m => m.status === filterStatus)
+    }
+
+    // Plan filter (from URL)
+    if (planFilter) {
+      filtered = filtered.filter(m => m.membership_plan_id === planFilter)
+    }
+
+    setFilteredMembers(filtered)
+  }
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'active':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+            <UserCheck className="w-3 h-3 mr-1" />
+            Active
+          </span>
+        )
+      case 'pending':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+            <Clock className="w-3 h-3 mr-1" />
+            Pending
+          </span>
+        )
+      default:
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+            <UserX className="w-3 h-3 mr-1" />
+            Inactive
+          </span>
+        )
+    }
+  }
+
+  // Pagination
+  const totalPages = Math.ceil(filteredMembers.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const paginatedMembers = filteredMembers.slice(startIndex, startIndex + itemsPerPage)
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('page', page.toString())
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }
+
+  const handleClearPlanFilter = () => {
+    setPlanFilter(null)
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete('plan')
+    router.replace(`?${params.toString()}`)
   }
 
   return (
-    <DashboardLayout>
-      <div className="p-6">
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="mb-6 flex justify-between items-center">
-            <div>
-              <h2 className="text-2xl font-bold text-white">Members</h2>
-              <p className="text-gray-400 mt-1">Manage your gym members and clients</p>
-            </div>
-            <Link
-              href="/members/new"
-              className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Add Member
-            </Link>
+    <div className="p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-6 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Members</h1>
+            <p className="text-gray-400 mt-1">Manage your gym members and their memberships</p>
           </div>
+          <Link
+            href="/members/add"
+            className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Member
+          </Link>
+        </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-gray-800 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm">Total Members</p>
-                  <p className="text-2xl font-bold text-white">{stats.total}</p>
-                </div>
-                <Users className="h-8 w-8 text-blue-500" />
-              </div>
-            </div>
-            <div className="bg-gray-800 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm">Active</p>
-                  <p className="text-2xl font-bold text-white">{stats.active}</p>
-                </div>
-                <Activity className="h-8 w-8 text-green-500" />
-              </div>
-            </div>
-            <div className="bg-gray-800 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm">Inactive</p>
-                  <p className="text-2xl font-bold text-white">{stats.inactive}</p>
-                </div>
-                <Users className="h-8 w-8 text-gray-500" />
-              </div>
-            </div>
-            <div className="bg-gray-800 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm">New This Month</p>
-                  <p className="text-2xl font-bold text-white">{stats.newThisMonth}</p>
-                </div>
-                <Calendar className="h-8 w-8 text-purple-500" />
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <div className="flex items-center">
+              <Users className="h-8 w-8 text-orange-500 mr-3" />
+              <div>
+                <p className="text-gray-400 text-sm">Total Members</p>
+                <p className="text-2xl font-bold text-white">{members.length}</p>
               </div>
             </div>
           </div>
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <div className="flex items-center">
+              <UserCheck className="h-8 w-8 text-green-500 mr-3" />
+              <div>
+                <p className="text-gray-400 text-sm">Active</p>
+                <p className="text-2xl font-bold text-white">
+                  {members.filter(m => m.status === 'active').length}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <div className="flex items-center">
+              <Clock className="h-8 w-8 text-yellow-500 mr-3" />
+              <div>
+                <p className="text-gray-400 text-sm">Pending</p>
+                <p className="text-2xl font-bold text-white">
+                  {members.filter(m => m.status === 'pending').length}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <div className="flex items-center">
+              <UserX className="h-8 w-8 text-gray-500 mr-3" />
+              <div>
+                <p className="text-gray-400 text-sm">Inactive</p>
+                <p className="text-2xl font-bold text-white">
+                  {members.filter(m => m.status === 'inactive').length}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
 
-          {/* Search and Filters */}
-          <div className="bg-gray-800 rounded-lg p-4 mb-6">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+        {/* Filters */}
+        <div className="bg-gray-800 rounded-lg p-4 mb-6">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                 <input
                   type="text"
-                  placeholder="Search members by name, email or phone..."
+                  placeholder="Search members..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-orange-500"
+                  className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
                 />
               </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setFilterStatus('all')}
-                  className={`px-4 py-2 rounded-lg transition-colors ${
-                    filterStatus === 'all' 
-                      ? 'bg-orange-600 text-white' 
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
-                >
-                  All ({stats.total})
-                </button>
-                <button
-                  onClick={() => setFilterStatus('active')}
-                  className={`px-4 py-2 rounded-lg transition-colors ${
-                    filterStatus === 'active' 
-                      ? 'bg-orange-600 text-white' 
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
-                >
-                  Active ({stats.active})
-                </button>
-                <button
-                  onClick={() => setFilterStatus('inactive')}
-                  className={`px-4 py-2 rounded-lg transition-colors ${
-                    filterStatus === 'inactive' 
-                      ? 'bg-orange-600 text-white' 
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
-                >
-                  Inactive ({stats.inactive})
-                </button>
-              </div>
             </div>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value as any)}
+              className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
+            >
+              <option value="all">All Members</option>
+              <option value="active">Active</option>
+              <option value="pending">Pending</option>
+              <option value="inactive">Inactive</option>
+            </select>
           </div>
+          
+          {planFilter && (
+            <div className="mt-4 flex items-center">
+              <span className="text-sm text-gray-400 mr-2">Filtering by plan:</span>
+              <span className="bg-orange-600 text-white px-3 py-1 rounded-full text-sm">
+                {members.find(m => m.membership_plan_id === planFilter)?.membership_plan_name || 'Unknown Plan'}
+              </span>
+              <button
+                onClick={handleClearPlanFilter}
+                className="ml-2 text-gray-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+        </div>
 
-          {/* Members List */}
-          <div className="bg-gray-800 rounded-lg overflow-hidden">
-            {loading ? (
-              <div className="p-8 text-center text-gray-400">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
-                <p className="mt-2">Loading members...</p>
-              </div>
-            ) : filteredMembers.length === 0 ? (
-              <div className="p-8 text-center">
-                <Users className="h-12 w-12 text-gray-600 mx-auto mb-4" />
-                <p className="text-gray-400 mb-4">
-                  {searchTerm || filterStatus !== 'all' 
-                    ? 'No members found matching your criteria' 
-                    : 'No members yet'}
-                </p>
-                {!searchTerm && filterStatus === 'all' && (
-                  <Link
-                    href="/members/new"
-                    className="inline-flex items-center gap-2 text-orange-500 hover:text-orange-400"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add your first member
-                  </Link>
-                )}
-              </div>
-            ) : (
+        {/* Members Table */}
+        <div className="bg-gray-800 rounded-lg overflow-hidden">
+          {loading ? (
+            <div className="p-8 text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
+              <p className="text-gray-400 mt-4">Loading members...</p>
+            </div>
+          ) : paginatedMembers.length === 0 ? (
+            <div className="p-8 text-center">
+              <Users className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+              <p className="text-gray-400">
+                {searchTerm || filterStatus !== 'all' || planFilter
+                  ? 'No members found matching your filters'
+                  : 'No members yet'}
+              </p>
+              {!searchTerm && !planFilter && filterStatus === 'all' && (
+                <Link
+                  href="/members/add"
+                  className="mt-4 inline-flex items-center text-orange-500 hover:text-orange-400"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add your first member
+                </Link>
+              )}
+            </div>
+          ) : (
+            <>
               <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-700 border-b border-gray-600">
+                <table className="min-w-full divide-y divide-gray-700">
+                  <thead className="bg-gray-900">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Member
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                        Contact
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Membership
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Status
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Joined
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                        Actions
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                        Last Visit
+                      </th>
+                      <th className="relative px-6 py-3">
+                        <span className="sr-only">Actions</span>
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-700">
-                    {filteredMembers.map((member) => (
-                      <tr key={member.id} className="hover:bg-gray-700 transition-colors">
+                  <tbody className="bg-gray-800 divide-y divide-gray-700">
+                    {paginatedMembers.map((member) => (
+                      <tr key={member.id} className="hover:bg-gray-750">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <div className="h-10 w-10 rounded-full bg-orange-600 flex items-center justify-center">
-                              <span className="text-white font-medium">
-                                {member.full_name.charAt(0).toUpperCase()}
-                              </span>
+                            <div className="flex-shrink-0 h-10 w-10">
+                              <div className="h-10 w-10 rounded-full bg-orange-600 flex items-center justify-center">
+                                <span className="text-white font-medium">
+                                  {member.first_name[0]}{member.last_name[0]}
+                                </span>
+                              </div>
                             </div>
-                            <div className="ml-3">
-                              <p className="text-white font-medium">{member.full_name}</p>
-                              {member.lead_source && (
-                                <p className="text-gray-400 text-sm">Source: {member.lead_source}</p>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-white">
+                                {member.first_name} {member.last_name}
+                              </div>
+                              <div className="text-sm text-gray-400">
+                                {member.email}
+                              </div>
+                              {member.phone && (
+                                <div className="text-sm text-gray-500">
+                                  {member.phone}
+                                </div>
                               )}
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm">
-                            <div className="flex items-center gap-2 text-gray-300">
-                              <Mail className="h-4 w-4" />
-                              {member.email}
-                            </div>
-                            {member.phone && (
-                              <div className="flex items-center gap-2 text-gray-400 mt-1">
-                                <Phone className="h-4 w-4" />
-                                {member.phone}
-                              </div>
-                            )}
-                          </div>
+                          <div className="text-sm text-white">{member.membership_plan_name}</div>
+                          <div className="text-sm text-gray-400">{member.membership_status}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <p className="text-white">{member.membership_type}</p>
+                          {getStatusBadge(member.status)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 text-xs rounded-full ${
-                            member.membership_status === 'active'
-                              ? 'bg-green-900 text-green-300'
-                              : member.membership_status === 'pending'
-                              ? 'bg-yellow-900 text-yellow-300'
-                              : 'bg-gray-700 text-gray-300'
-                          }`}>
-                            {member.membership_status || 'No membership'}
-                          </span>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                          {formatBritishDate(member.created_at)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-gray-300 text-sm">
-                          {new Date(member.created_at).toLocaleDateString('en-GB')}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                          {member.last_visit ? formatBritishDate(member.last_visit) : 'Never'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <Link
                             href={`/members/${member.id}`}
-                            className="text-orange-500 hover:text-orange-400 flex items-center gap-1"
+                            className="text-orange-500 hover:text-orange-400"
                           >
                             View
-                            <ChevronRight className="h-4 w-4" />
                           </Link>
                         </td>
                       </tr>
@@ -341,10 +455,90 @@ export default function MembersPage() {
                   </tbody>
                 </table>
               </div>
-            )}
-          </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="bg-gray-900 px-4 py-3 flex items-center justify-between sm:px-6">
+                  <div className="flex-1 flex justify-between sm:hidden">
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="relative inline-flex items-center px-4 py-2 border border-gray-600 text-sm font-medium rounded-md text-white bg-gray-700 hover:bg-gray-600 disabled:opacity-50"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-600 text-sm font-medium rounded-md text-white bg-gray-700 hover:bg-gray-600 disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                  <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm text-gray-400">
+                        Showing{' '}
+                        <span className="font-medium">{startIndex + 1}</span> to{' '}
+                        <span className="font-medium">
+                          {Math.min(startIndex + itemsPerPage, filteredMembers.length)}
+                        </span>{' '}
+                        of <span className="font-medium">{filteredMembers.length}</span> results
+                      </p>
+                    </div>
+                    <div>
+                      <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                        <button
+                          onClick={() => handlePageChange(currentPage - 1)}
+                          disabled={currentPage === 1}
+                          className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-600 bg-gray-700 text-sm font-medium text-gray-400 hover:bg-gray-600 disabled:opacity-50"
+                        >
+                          Previous
+                        </button>
+                        {[...Array(totalPages)].map((_, i) => (
+                          <button
+                            key={i + 1}
+                            onClick={() => handlePageChange(i + 1)}
+                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                              currentPage === i + 1
+                                ? 'z-10 bg-orange-600 border-orange-600 text-white'
+                                : 'bg-gray-700 border-gray-600 text-gray-400 hover:bg-gray-600'
+                            }`}
+                          >
+                            {i + 1}
+                          </button>
+                        ))}
+                        <button
+                          onClick={() => handlePageChange(currentPage + 1)}
+                          disabled={currentPage === totalPages}
+                          className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-600 bg-gray-700 text-sm font-medium text-gray-400 hover:bg-gray-600 disabled:opacity-50"
+                        >
+                          Next
+                        </button>
+                      </nav>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
+    </div>
+  )
+}
+
+export default function MembersPage() {
+  return (
+    <DashboardLayout>
+      <Suspense fallback={
+        <div className="p-8 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
+          <p className="text-gray-400 mt-4">Loading...</p>
+        </div>
+      }>
+        <MembersContent />
+      </Suspense>
     </DashboardLayout>
   )
 }
