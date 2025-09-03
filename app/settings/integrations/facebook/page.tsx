@@ -190,7 +190,9 @@ export default function FacebookIntegrationPage() {
   }
 
   const fetchLeadForms = async (pageId: string, organizationId: string) => {
+    console.log('📋 Fetching lead forms for page:', pageId)
     setLoadingForms(true)
+    setLeadForms([]) // Clear existing forms
     try {
       // Fetch lead forms from Meta API with the required pageId parameter
       const response = await fetch(`/api/integrations/facebook/lead-forms?pageId=${pageId}`, {
@@ -200,14 +202,25 @@ export default function FacebookIntegrationPage() {
         }
       })
 
+      console.log('Lead forms API response status:', response.status)
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('Lead forms received:', data.forms?.length || 0, 'forms')
         setLeadForms(data.forms || [])
+        
+        if (data.errors && data.errors.length > 0) {
+          console.warn('Lead forms API reported errors:', data.errors)
+          toast.error(`Could not fetch forms: ${data.errors[0].error}`)
+        }
       } else {
-        console.error('Failed to fetch lead forms:', response.status, response.statusText)
+        const errorText = await response.text()
+        console.error('Failed to fetch lead forms:', response.status, errorText)
+        toast.error('Failed to load lead forms. Please check your Facebook permissions.')
       }
     } catch (error) {
       console.error('Error fetching lead forms:', error)
+      toast.error('Error loading lead forms. Please try again.')
     } finally {
       setLoadingForms(false)
     }
@@ -505,37 +518,38 @@ export default function FacebookIntegrationPage() {
                       onChange={async (e) => {
                         const newPageId = e.target.value
                         console.log('Page selection changed:', newPageId)
-                        if (newPageId) {
+                        if (newPageId && newPageId !== selectedPageId) {
                           setSelectedPageId(newPageId)
-                          // Clear existing forms and fetch new ones
-                          setLeadForms([])
-                          setSelectedForms(new Set())
+                          setSelectedForms(new Set()) // Clear selected forms
+                          
                           if (organizationId) {
+                            // Fetch lead forms for the new page
                             await fetchLeadForms(newPageId, organizationId)
                             
-                            // Auto-register webhook for the new page
-                            try {
-                              const webhookUrl = `${window.location.origin}/api/webhooks/meta/leads`
-                              console.log('🔄 Auto-registering webhook for new page...')
-                              
-                              const response = await fetch('/api/integrations/facebook/register-webhook', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                  pageId: newPageId,
-                                  webhookUrl,
-                                  organizationId
-                                })
+                            // Auto-register webhook for the new page (in background)
+                            // Don't await this to avoid blocking the UI
+                            fetch('/api/integrations/facebook/register-webhook', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                pageId: newPageId,
+                                webhookUrl: `${window.location.origin}/api/webhooks/meta/leads`,
+                                organizationId
                               })
-                              
-                              const result = await response.json()
+                            })
+                            .then(response => response.json())
+                            .then(result => {
                               if (result.success) {
                                 console.log('✅ Real-time sync enabled for new page')
-                                toast.success('Real-time sync enabled automatically')
+                              } else {
+                                console.error('Failed to enable real-time sync:', result.error)
                               }
-                            } catch (error) {
+                            })
+                            .catch(error => {
                               console.error('Error registering webhook:', error)
-                            }
+                            })
+                          } else {
+                            console.warn('No organizationId available, cannot fetch lead forms')
                           }
                         }
                       }}
