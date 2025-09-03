@@ -1,6 +1,17 @@
 name: CI
 on:
   pull_request:
+    paths:
+      - 'app/**'
+      - 'src/**'
+      - 'tests/**'
+      - '__tests__/**'
+      - 'gym-coach-platform/**'
+      - 'jest.config.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'pnpm-lock.yaml'
+      - 'scripts/**'
 jobs:
   test:
     runs-on: ubuntu-latest
