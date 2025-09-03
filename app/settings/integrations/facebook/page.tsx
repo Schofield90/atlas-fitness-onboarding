@@ -189,19 +189,26 @@ export default function FacebookIntegrationPage() {
     }
   }
 
-  const fetchLeadForms = async (pageId: string, organizationId: string) => {
-    console.log('📋 Fetching lead forms for page:', pageId)
+  const fetchLeadForms = async (pageId: string, organizationId: string, retryCount = 0) => {
+    console.log('📋 Fetching lead forms for page:', pageId, `(attempt ${retryCount + 1})`)
     setLoadingForms(true)
-    setLeadForms([]) // Clear existing forms
+    
+    // Don't clear forms immediately - keep showing old data while loading
+    
     try {
-      // Fetch lead forms from Meta API with the required pageId parameter
+      // Add timeout to prevent hanging
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
+      
       const response = await fetch(`/api/integrations/facebook/lead-forms?pageId=${pageId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        signal: controller.signal
       })
-
+      
+      clearTimeout(timeoutId)
       console.log('Lead forms API response status:', response.status)
       
       if (response.ok) {
@@ -209,18 +216,51 @@ export default function FacebookIntegrationPage() {
         console.log('Lead forms received:', data.forms?.length || 0, 'forms')
         setLeadForms(data.forms || [])
         
+        // Check for selected forms from database
+        const { data: savedForms } = await supabase
+          .from('facebook_lead_forms')
+          .select('facebook_form_id')
+          .eq('organization_id', organizationId)
+          .eq('is_active', true)
+        
+        if (savedForms) {
+          const savedFormIds = new Set(savedForms.map(f => f.facebook_form_id))
+          setSelectedForms(savedFormIds)
+        }
+        
         if (data.errors && data.errors.length > 0) {
           console.warn('Lead forms API reported errors:', data.errors)
-          toast.error(`Could not fetch forms: ${data.errors[0].error}`)
+          // Only show error if no forms were loaded
+          if (!data.forms || data.forms.length === 0) {
+            toast.error(`Could not fetch forms: ${data.errors[0].error}`)
+          }
         }
+      } else if (response.status === 401 && retryCount < 2) {
+        // Token might be expired, try refreshing
+        console.log('Retrying with refreshed connection...')
+        await new Promise(resolve => setTimeout(resolve, 1000)) // Wait 1 second
+        return fetchLeadForms(pageId, organizationId, retryCount + 1)
       } else {
         const errorText = await response.text()
         console.error('Failed to fetch lead forms:', response.status, errorText)
-        toast.error('Failed to load lead forms. Please check your Facebook permissions.')
+        
+        // Only clear forms if we're sure there's an error
+        setLeadForms([])
+        toast.error('Failed to load lead forms. Please reconnect Facebook.')
       }
-    } catch (error) {
-      console.error('Error fetching lead forms:', error)
-      toast.error('Error loading lead forms. Please try again.')
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.error('Request timed out')
+        toast.error('Request timed out. Please try again.')
+      } else if (retryCount < 2) {
+        console.log('Retrying due to error...')
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        return fetchLeadForms(pageId, organizationId, retryCount + 1)
+      } else {
+        console.error('Error fetching lead forms:', error)
+        toast.error('Error loading lead forms. Please try again.')
+      }
+      setLeadForms([])
     } finally {
       setLoadingForms(false)
     }
@@ -523,11 +563,19 @@ export default function FacebookIntegrationPage() {
                           setSelectedForms(new Set()) // Clear selected forms
                           
                           if (organizationId) {
-                            // Fetch lead forms for the new page
-                            await fetchLeadForms(newPageId, organizationId)
+                            // Save the page selection immediately
+                            fetch('/api/integrations/facebook/save-page-selection', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ pageId: newPageId, organizationId })
+                            }).then(r => {
+                              if (r.ok) console.log('✅ Page selection saved')
+                            }).catch(e => console.error('Failed to save page selection:', e))
+                            
+                            // Fetch lead forms for the new page (with retry logic)
+                            fetchLeadForms(newPageId, organizationId)
                             
                             // Auto-register webhook for the new page (in background)
-                            // Don't await this to avoid blocking the UI
                             fetch('/api/integrations/facebook/register-webhook', {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
@@ -536,20 +584,14 @@ export default function FacebookIntegrationPage() {
                                 webhookUrl: `${window.location.origin}/api/webhooks/meta/leads`,
                                 organizationId
                               })
-                            })
-                            .then(response => response.json())
+                            }).then(r => r.json())
                             .then(result => {
                               if (result.success) {
-                                console.log('✅ Real-time sync enabled for new page')
-                              } else {
-                                console.error('Failed to enable real-time sync:', result.error)
+                                console.log('✅ Real-time sync enabled')
                               }
-                            })
-                            .catch(error => {
-                              console.error('Error registering webhook:', error)
-                            })
+                            }).catch(e => console.error('Webhook registration error:', e))
                           } else {
-                            console.warn('No organizationId available, cannot fetch lead forms')
+                            console.warn('No organizationId available')
                           }
                         }
                       }}
@@ -629,15 +671,29 @@ export default function FacebookIntegrationPage() {
                 </span>
               )}
             </h2>
-            <a
-              href="https://business.facebook.com/latest/inbox/lead_forms"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-blue-400 hover:text-blue-300 flex items-center gap-1"
-            >
-              Manage in Facebook
-              <ExternalLink className="h-3 w-3" />
-            </a>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  if (selectedPageId && organizationId) {
+                    fetchLeadForms(selectedPageId, organizationId)
+                  }
+                }}
+                disabled={loadingForms}
+                className="text-sm text-gray-400 hover:text-white flex items-center gap-1 px-3 py-1 rounded hover:bg-gray-700 transition-colors"
+              >
+                <RefreshCw className={`h-3 w-3 ${loadingForms ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+              <a
+                href="https://business.facebook.com/latest/inbox/lead_forms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-blue-400 hover:text-blue-300 flex items-center gap-1"
+              >
+                Manage in Facebook
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
           </div>
 
           {loadingForms ? (
