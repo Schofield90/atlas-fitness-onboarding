@@ -84,6 +84,7 @@ const adminRoutes = [
   '/settings',
   '/billing',
   '/memberships',
+  '/members',      // Add members route
   '/ai-config',
   '/classes',
   '/customers',

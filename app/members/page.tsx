@@ -252,6 +252,7 @@ function MembersContent() {
           <div>
             <h1 className="text-2xl font-bold text-white">Members</h1>
             <p className="text-gray-400 mt-1">Manage your gym members and their memberships</p>
+            {/* Force redeployment - members page v2 */}
           </div>
           <Link
             href="/members/add"
