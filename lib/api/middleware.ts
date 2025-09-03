@@ -3,17 +3,29 @@ import { createClient } from '@/app/lib/supabase/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 
-// Create Supabase admin client
-export const supabaseAdmin = createSupabaseClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
+// Lazily create Supabase admin client at runtime to avoid build-time env access
+let cachedSupabaseAdmin: ReturnType<typeof createSupabaseClient> | null = null
+function getSupabaseAdmin() {
+  if (cachedSupabaseAdmin) return cachedSupabaseAdmin
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !serviceRoleKey) {
+    throw new Error('Supabase admin configuration missing')
   }
-)
+  cachedSupabaseAdmin = createSupabaseClient(url, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+  return cachedSupabaseAdmin
+}
+
+// Backwards-compatible proxy so existing imports `supabaseAdmin` keep working
+export const supabaseAdmin = new Proxy({} as any, {
+  get(_target, prop) {
+    const client = getSupabaseAdmin() as any
+    const value = client[prop]
+    return typeof value === 'function' ? value.bind(client) : value
+  },
+}) as ReturnType<typeof createSupabaseClient>
 
 // Extended request type with user
 interface AuthenticatedRequest extends NextRequest {

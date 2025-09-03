@@ -3,11 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 
 const ADMIN_EMAILS = ['sam@atlas-gyms.co.uk', 'sam@gymleadhub.co.uk'];
 
-// Use service role key for admin operations
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+// Supabase client is created inside the handler
 
 interface WeeklyBriefData {
   kpis: {
@@ -49,6 +48,12 @@ interface WeeklyBriefData {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !serviceKey) {
+      return NextResponse.json({ error: 'Service unavailable' }, { status: 503 });
+    }
+    const supabase = createClient(supabaseUrl, serviceKey);
     // Check authentication
     const authHeader = request.headers.get('authorization');
     let user = null;
@@ -75,7 +80,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate brief data
-    const briefData = await generateWeeklyBriefData();
+    const briefData = await generateWeeklyBriefData(supabase);
 
     // Store the brief
     const { data: storedBrief, error: storeError } = await supabase
@@ -107,7 +112,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function generateWeeklyBriefData(): Promise<WeeklyBriefData> {
+async function generateWeeklyBriefData(supabase: ReturnType<typeof createClient>): Promise<WeeklyBriefData> {
   const now = new Date();
   const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
@@ -227,8 +232,8 @@ async function generateWeeklyBriefData(): Promise<WeeklyBriefData> {
         trends: generateRevenueTrends(currentMRR)
       },
       tenants: {
-        topPerforming: await getTopPerformingTenants(),
-        atRisk: await getAtRiskTenants()
+        topPerforming: await getTopPerformingTenants(supabase),
+        atRisk: await getAtRiskTenants(supabase)
       },
       incidents: [
         {
@@ -311,7 +316,7 @@ function generateRevenueTrends(currentMRR: number) {
   return trends;
 }
 
-async function getTopPerformingTenants() {
+async function getTopPerformingTenants(supabase: ReturnType<typeof createClient>) {
   try {
     const { data: orgs } = await supabase
       .from('organizations')
@@ -337,7 +342,7 @@ async function getTopPerformingTenants() {
   }
 }
 
-async function getAtRiskTenants() {
+async function getAtRiskTenants(supabase: ReturnType<typeof createClient>) {
   try {
     const { data: orgs } = await supabase
       .from('organizations')

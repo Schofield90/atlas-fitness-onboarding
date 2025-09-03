@@ -2,20 +2,26 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
   try {
     const { email, password, name, organizationName } = await request.json()
-    
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return NextResponse.json({ error: 'Service unavailable' }, { status: 503 })
+    }
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false
       }
     })
-    
+
     // First, try the normal auth flow
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
@@ -26,12 +32,9 @@ export async function POST(request: Request) {
         organization_name: organizationName
       }
     })
-    
+
     if (authError) {
       console.error('Admin create user error:', authError)
-      
-      // For now, we can't create users without auth working
-      // Return a clear message to the user
       return NextResponse.json({ 
         error: 'Authentication service is currently unavailable. Please try again later or contact support.',
         details: {
@@ -40,12 +43,10 @@ export async function POST(request: Request) {
         }
       }, { status: 503 })
     }
-    
+
     // Auth succeeded
     if (authData?.user) {
       const userId = authData.user.id
-      
-      // Ensure user exists in public.users (trigger should handle this)
       await supabase
         .from('users')
         .upsert({
@@ -53,14 +54,13 @@ export async function POST(request: Request) {
           email: authData.user.email,
           full_name: name || email.split('@')[0]
         })
-      
-      // Create organization if provided
+
       if (organizationName) {
         const orgSlug = organizationName
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/^-|-$/g, '')
-        
+
         const { data: org, error: orgError } = await supabase
           .from('organizations')
           .insert({
@@ -71,9 +71,8 @@ export async function POST(request: Request) {
           })
           .select()
           .single()
-        
+
         if (org && !orgError) {
-          // Link user to organization
           await supabase
             .from('organization_members')
             .insert({
@@ -83,18 +82,18 @@ export async function POST(request: Request) {
             })
         }
       }
-      
+
       return NextResponse.json({ 
         success: true,
         userId: userId,
         message: 'Account created successfully'
       })
     }
-    
+
     return NextResponse.json({ 
       error: 'Failed to create account'
     }, { status: 500 })
-    
+
   } catch (error: any) {
     console.error('Direct signup error:', error)
     return NextResponse.json({ 

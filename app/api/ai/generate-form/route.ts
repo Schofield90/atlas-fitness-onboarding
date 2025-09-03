@@ -4,20 +4,22 @@ import { createClient } from '@/app/lib/supabase/server';
 import { requireAuth } from '@/app/lib/api/auth-check';
 import { createAdminClient } from '@/app/lib/supabase/admin';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
-});
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
     // Check if API key is configured
     if (!process.env.OPENAI_API_KEY) {
-      console.error('OPENAI_API_KEY is not set');
       return NextResponse.json(
-        { error: 'AI service is not configured. Please set OPENAI_API_KEY.' },
-        { status: 500 }
+        { error: 'Service unavailable' },
+        { status: 503 }
       );
     }
+
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
 
     const userWithOrg = await requireAuth();
     const supabase = createAdminClient();

@@ -2,14 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PayrollService } from '@/app/lib/services/xero/PayrollService';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+// Supabase client is created inside handlers
 
 // GET /api/payroll/reports - Get payroll reports
 export async function GET(request: NextRequest) {
   try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !serviceKey) {
+      return NextResponse.json({ error: 'Service unavailable' }, { status: 503 });
+    }
+    const supabase = createClient(supabaseUrl, serviceKey);
     const { searchParams } = new URL(request.url);
     const organizationId = searchParams.get('organizationId');
     const batchId = searchParams.get('batchId');
@@ -73,6 +79,12 @@ export async function GET(request: NextRequest) {
 // POST /api/payroll/reports - Generate payroll report
 export async function POST(request: NextRequest) {
   try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !serviceKey) {
+      return NextResponse.json({ error: 'Service unavailable' }, { status: 503 });
+    }
+    const supabase = createClient(supabaseUrl, serviceKey);
     const body = await request.json();
     const {
       organizationId,
@@ -110,19 +122,19 @@ export async function POST(request: NextRequest) {
     let report;
     switch (reportType) {
       case 'banking_file':
-        report = await generateBankingFile(organizationId, batchId);
+        report = await generateBankingFile(supabase, organizationId, batchId);
         break;
       
       case 'audit_report':
-        report = await generateAuditReport(organizationId, batchId);
+        report = await generateAuditReport(supabase, organizationId, batchId);
         break;
       
       case 'cost_centre':
-        report = await generateCostCentreReport(organizationId, batchId, customParams);
+        report = await generateCostCentreReport(supabase, organizationId, batchId, customParams);
         break;
       
       case 'pay_advice':
-        report = await generatePayAdviceReport(organizationId, batchId, customParams.employeeId);
+        report = await generatePayAdviceReport(supabase, organizationId, batchId, customParams.employeeId);
         break;
       
       default:
@@ -164,7 +176,7 @@ export async function POST(request: NextRequest) {
 
 // Helper functions for specialized reports
 
-async function generateBankingFile(organizationId: string, batchId: string): Promise<any> {
+async function generateBankingFile(supabase: ReturnType<typeof createClient>, organizationId: string, batchId: string): Promise<any> {
   const { data: batch, error: batchError } = await supabase
     .from('payroll_batches')
     .select(`
@@ -207,7 +219,7 @@ async function generateBankingFile(organizationId: string, batchId: string): Pro
   };
 }
 
-async function generateAuditReport(organizationId: string, batchId: string): Promise<any> {
+async function generateAuditReport(supabase: ReturnType<typeof createClient>, organizationId: string, batchId: string): Promise<any> {
   // Get batch with all related data
   const { data: batch } = await supabase
     .from('payroll_batches')
@@ -260,6 +272,7 @@ async function generateAuditReport(organizationId: string, batchId: string): Pro
 }
 
 async function generateCostCentreReport(
+  supabase: ReturnType<typeof createClient>,
   organizationId: string, 
   batchId: string, 
   params: { costCentres?: string[] }
@@ -316,6 +329,7 @@ async function generateCostCentreReport(
 }
 
 async function generatePayAdviceReport(
+  supabase: ReturnType<typeof createClient>,
   organizationId: string, 
   batchId: string, 
   employeeId?: string

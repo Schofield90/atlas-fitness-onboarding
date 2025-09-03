@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import cron from 'cron-parser';
 
-// Use service role key for cron operations
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+// Supabase client is created inside the handler to avoid build-time env usage
 
 // This endpoint should be called by a cron service (like Vercel Cron or external cron job)
 export async function POST(request: NextRequest) {
@@ -20,6 +19,13 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Running weekly brief cron job...');
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !serviceKey) {
+      return NextResponse.json({ error: 'Service unavailable' }, { status: 503 });
+    }
+    const supabase = createClient(supabaseUrl, serviceKey);
 
     // Get all active schedules that are due
     const now = new Date();
@@ -52,7 +58,7 @@ export async function POST(request: NextRequest) {
         console.log(`Processing schedule: ${schedule.name}`);
 
         // Generate brief data
-        const briefData = await generateWeeklyBriefData();
+        const briefData = await generateWeeklyBriefData(supabase);
 
         // Store the brief
         const { data: storedBrief, error: storeError } = await supabase
@@ -70,7 +76,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Send email to recipients
-        await sendScheduledEmail(schedule.recipients, briefData);
+        await sendScheduledEmail(supabase, schedule.recipients, briefData);
 
         // Update schedule's last run and calculate next run
         const nextRun = calculateNextRun(schedule.cron_schedule);
@@ -147,7 +153,7 @@ function calculateNextRun(cronSchedule: string): Date {
   }
 }
 
-async function sendScheduledEmail(recipients: string[], briefData: any) {
+async function sendScheduledEmail(supabase: ReturnType<typeof createClient>, recipients: string[], briefData: any) {
   try {
     // Import SendGrid here to avoid loading it unless needed
     const sgMail = require('@sendgrid/mail');
@@ -185,7 +191,7 @@ async function sendScheduledEmail(recipients: string[], briefData: any) {
 }
 
 // Copy the brief generation logic from the generate route
-async function generateWeeklyBriefData() {
+async function generateWeeklyBriefData(supabase: ReturnType<typeof createClient>) {
   const now = new Date();
   const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);

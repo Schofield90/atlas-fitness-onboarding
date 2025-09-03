@@ -4,17 +4,19 @@ import sgMail from '@sendgrid/mail';
 
 const ADMIN_EMAILS = ['sam@atlas-gyms.co.uk', 'sam@gymleadhub.co.uk'];
 
-// Use service role key for admin operations
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
-// Configure SendGrid
-sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
+// Supabase client and SendGrid API key are configured inside the handler
 
 export async function POST(request: NextRequest) {
   try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !serviceKey) {
+      return NextResponse.json({ error: 'Service unavailable' }, { status: 503 });
+    }
+    const supabase = createClient(supabaseUrl, serviceKey);
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
@@ -25,6 +27,12 @@ export async function POST(request: NextRequest) {
     if (!ADMIN_EMAILS.includes(user.email?.toLowerCase() || '')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+
+    // Configure SendGrid
+    if (!process.env.SENDGRID_API_KEY) {
+      return NextResponse.json({ error: 'Service unavailable' }, { status: 503 });
+    }
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
     // Get the latest weekly brief
     const { data: briefData, error: briefError } = await supabase

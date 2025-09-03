@@ -3,6 +3,9 @@ import { createClient } from '@/app/lib/supabase/server'
 import { requireAuth, createErrorResponse } from '@/app/lib/api/auth-check'
 import { enhancedLeadProcessor } from '@/app/lib/ai/enhanced-lead-processor'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth()

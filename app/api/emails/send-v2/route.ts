@@ -3,6 +3,9 @@ import { emailService } from '@/app/lib/services/unified-email.service';
 import { z } from 'zod';
 import { createClient } from '@supabase/supabase-js';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 // Validation schemas
 const sendSingleEmailSchema = z.object({
   to: z.union([z.string().email(), z.array(z.string().email())]),
@@ -39,9 +42,14 @@ export async function POST(request: NextRequest) {
     
     if (authHeader) {
       const token = authHeader.replace('Bearer ', '');
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      if (!supabaseUrl || !anonKey) {
+        return NextResponse.json({ success: false, error: 'Service unavailable' }, { status: 503 });
+      }
       const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        supabaseUrl,
+        anonKey
       );
       
       const { data: { user } } = await supabase.auth.getUser(token);

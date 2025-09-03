@@ -3,6 +3,9 @@ import { createClient } from '@supabase/supabase-js'
 import { addDays, startOfDay, endOfDay, format, addMinutes, setHours, setMinutes } from 'date-fns'
 import { getGoogleCalendarBusyTimes } from '@/app/lib/google-calendar'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -17,9 +20,7 @@ export async function GET(request: NextRequest) {
 
     // Create Supabase client for database access
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      return NextResponse.json({ 
-        error: 'Service configuration error' 
-      }, { status: 500 })
+      return NextResponse.json({ error: 'Service unavailable' }, { status: 503 })
     }
     
     const supabase = createClient(
