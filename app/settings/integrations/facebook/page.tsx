@@ -43,7 +43,7 @@ export default function FacebookIntegrationPage() {
     if (params.get('just_connected') === 'true') {
       // Clear the URL params
       window.history.replaceState({}, document.title, window.location.pathname)
-      toast.showToast('Facebook connected successfully!', 'success')
+      toast.success('Facebook connected successfully!')
       // Force refresh connection status
       setTimeout(() => {
         fetchConnectionStatus()
@@ -53,12 +53,12 @@ export default function FacebookIntegrationPage() {
       const error = params.get('error')
       const errorDescription = params.get('error_description') || 'Failed to connect to Facebook'
       window.history.replaceState({}, document.title, window.location.pathname)
-      toast.showToast(errorDescription, 'error')
+      toast.error(errorDescription)
       fetchConnectionStatus()
     } else {
       fetchConnectionStatus()
     }
-  }, [])
+  }, [toast])
 
   const fetchConnectionStatus = async () => {
     try {
@@ -111,7 +111,7 @@ export default function FacebookIntegrationPage() {
     } catch (error) {
       console.error('Error fetching connection status:', error)
       // Still set loading to false but don't crash the page
-      toast.showToast('Failed to load Facebook connection status. Please refresh the page.', 'error')
+      toast.error('Failed to load Facebook connection status. Please refresh the page.')
     } finally {
       setLoading(false)
     }
@@ -197,7 +197,7 @@ export default function FacebookIntegrationPage() {
         
         setConnection(null)
         setLeadForms([])
-        toast.showToast('Facebook disconnected successfully', 'success')
+        toast.success('Facebook disconnected successfully')
         
         // Refresh the page to reset state
         setTimeout(() => {
@@ -208,7 +208,7 @@ export default function FacebookIntegrationPage() {
       }
     } catch (error) {
       console.error('Error disconnecting:', error)
-      toast.showToast('Failed to disconnect Facebook', 'error')
+      toast.error('Failed to disconnect Facebook')
     }
   }
 
@@ -221,14 +221,14 @@ export default function FacebookIntegrationPage() {
 
       if (response.ok) {
         const data = await response.json()
-        toast.showToast(`Synced ${data.count || 0} new leads`, 'success')
+        toast.success(`Synced ${data.count || 0} new leads`)
         await fetchConnectionStatus()
       } else {
         throw new Error('Sync failed')
       }
     } catch (error) {
       console.error('Error syncing:', error)
-      toast.showToast('Failed to sync leads', 'error')
+      toast.error('Failed to sync leads')
     } finally {
       setSyncing(false)
     }
@@ -242,14 +242,14 @@ export default function FacebookIntegrationPage() {
       })
 
       if (response.ok) {
-        toast.showToast('Connection test successful!', 'success')
+        toast.success('Connection test successful!')
       } else {
         const errorData = await response.json().catch(() => ({}))
         throw new Error(errorData.error || 'Connection test failed')
       }
     } catch (error) {
       console.error('Error testing connection:', error)
-      toast.showToast(error instanceof Error ? error.message : 'Connection test failed', 'error')
+      toast.error(error instanceof Error ? error.message : 'Connection test failed')
     }
   }
 
