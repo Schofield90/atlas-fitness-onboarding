@@ -142,15 +142,17 @@ export async function POST(request: NextRequest) {
           .select()
         
         if (insertError) {
-          console.error('Error inserting new forms:', insertError)
+          console.error('Error inserting new forms - Full error:', JSON.stringify(insertError, null, 2))
           console.error('Failed forms data:', newForms)
           // Try to provide more detail about the error
           if (insertError.code === '23505') {
             console.error('Duplicate form detected - forms may already exist, updating instead')
             // Try to update instead
+            console.log('Attempting to update existing forms due to duplicate key')
             let updateCount = 0
             for (const form of newForms) {
-              const { error: updateError } = await supabase
+              console.log(`Updating form ${form.facebook_form_id}...`)
+              const { data: updateData, error: updateError } = await supabase
                 .from('facebook_lead_forms')
                 .update({
                   form_name: form.form_name,
@@ -161,12 +163,15 @@ export async function POST(request: NextRequest) {
                 })
                 .eq('organization_id', form.organization_id)
                 .eq('facebook_form_id', form.facebook_form_id)
+                .select()
               
               if (updateError) {
-                console.error(`Failed to update form ${form.facebook_form_id}:`, updateError)
-              } else {
-                console.log(`Updated existing form ${form.facebook_form_id}`)
+                console.error(`Failed to update form ${form.facebook_form_id}:`, JSON.stringify(updateError))
+              } else if (updateData && updateData.length > 0) {
+                console.log(`Successfully updated existing form ${form.facebook_form_id}`)
                 updateCount++
+              } else {
+                console.log(`No rows updated for form ${form.facebook_form_id} - may not exist yet`)
               }
             }
             console.log(`Updated ${updateCount} existing forms`)
