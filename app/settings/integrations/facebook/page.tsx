@@ -43,6 +43,7 @@ export default function FacebookIntegrationPage() {
   const [savingPage, setSavingPage] = useState(false)
   const [savingForms, setSavingForms] = useState(false)
   const [loadingForms, setLoadingForms] = useState(false)
+  const [organizationId, setOrganizationId] = useState<string | null>(null)
   const [stats, setStats] = useState({
     totalLeads: 0,
     syncedToday: 0,
@@ -52,6 +53,9 @@ export default function FacebookIntegrationPage() {
   
   const supabase = createClient()
   const toast = useToast()
+  
+  // Derived state - check if Facebook is connected
+  const isConnected = !!connection && connection.is_active
 
   useEffect(() => {
     // Check if just connected from callback
@@ -97,6 +101,9 @@ export default function FacebookIntegrationPage() {
         setLoading(false)
         return
       }
+      
+      // Store the organization ID for later use
+      setOrganizationId(orgData.organization_id)
 
       // Check for Facebook connection - handle both single result and no result gracefully
       const { data: fbConnection, error: fbError } = await supabase
