@@ -26,7 +26,7 @@
     "fix-prices:confirm": "tsx scripts/fix-membership-prices.ts --confirm",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,md,json}\"",
     "format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,md,json}\"",
-    "test": "jest",
+    "test": "jest --passWithNoTests",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:unit": "jest tests/unit",

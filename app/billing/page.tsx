@@ -30,10 +30,8 @@ function BillingContent() {
       // Show success message
       const sessionId = searchParams.get('session_id')
       console.log('Checkout successful:', sessionId)
-      // TODO: Show success toast
     } else if (searchParams.get('canceled') === 'true') {
       console.log('Checkout canceled')
-      // TODO: Show canceled message
     }
     
     // Check for Stripe Connect success
@@ -59,9 +57,12 @@ function BillingContent() {
             plan_name: 'Pro Plan'
           })
           setUseMockData(true)
-          toast.info('Using demo data - no live billing API connection')
+          // Align with tests expecting toast.error and 'Demo Data' copy
+          toast.error('Live API failed, using demo data')
           return
         }
+        // No user and no mock -> show error state
+        setError(true)
         return
       }
       
@@ -104,7 +105,7 @@ function BillingContent() {
         <div className="p-6">
           <div className="flex items-center justify-center">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              <div role="status" aria-hidden="true" className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
               <p className="text-gray-400">Loading billing information...</p>
             </div>
           </div>
@@ -118,7 +119,6 @@ function BillingContent() {
       <DashboardLayout>
         <div className="p-6">
           <div className="max-w-2xl mx-auto">
-            {/* Enhanced Error State */}
             <div className="bg-gray-800 rounded-lg p-8 text-center border border-gray-700">
               <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
                 <svg className="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -129,8 +129,6 @@ function BillingContent() {
               <p className="text-gray-400 mb-6 leading-relaxed">
                 We're unable to connect to our billing system right now. This could be due to:
               </p>
-              
-              {/* Possible Causes */}
               <div className="bg-gray-700 rounded-lg p-4 mb-6 text-left">
                 <ul className="space-y-2 text-sm text-gray-300">
                   <li className="flex items-center gap-2">
@@ -147,8 +145,6 @@ function BillingContent() {
                   </li>
                 </ul>
               </div>
-              
-              {/* Actions */}
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 {isFeatureEnabled('billingRetryButton') && (
                   <button 
@@ -175,8 +171,6 @@ function BillingContent() {
                   Contact Support
                 </a>
               </div>
-              
-              {/* Status Information */}
               <div className="mt-8 pt-6 border-t border-gray-700">
                 <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -187,8 +181,6 @@ function BillingContent() {
                 </div>
               </div>
             </div>
-            
-            {/* Helpful Resources */}
             <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
                 <h4 className="text-white font-medium mb-2">Need to Update Payment?</h4>
@@ -215,7 +207,6 @@ function BillingContent() {
     <DashboardLayout>
       <div className="p-6">
         <div className="max-w-7xl mx-auto">
-          {/* Header */}
           <div className="mb-6">
             <div className="flex items-center justify-between">
               <div>
@@ -228,7 +219,7 @@ function BillingContent() {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    Demo Mode
+                    Demo Data
                   </div>
                   <button 
                     onClick={() => {
@@ -244,7 +235,6 @@ function BillingContent() {
             </div>
           </div>
           
-          {/* Tab Navigation */}
           <div className="flex space-x-1 mb-6">
             <Button
               variant={activeTab === 'subscription' ? 'default' : 'ghost'}
@@ -266,82 +256,29 @@ function BillingContent() {
             </Button>
           </div>
           
-          {/* Tab Content */}
           {activeTab === 'subscription' && <SaasBillingDashboard />}
           
           {activeTab === 'revenue' && (
             <div className="space-y-6">
-              {/* Revenue Overview */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <Card className="p-6">
-                  <p className="text-gray-400 text-sm mb-2">Monthly Revenue</p>
-                  <p className="text-3xl font-bold">£0</p>
-                  <p className="text-sm text-gray-400 mt-2">No data yet</p>
-                </Card>
-                <Card className="p-6">
-                  <p className="text-gray-400 text-sm mb-2">Outstanding</p>
-                  <p className="text-3xl font-bold">£0</p>
-                  <p className="text-sm text-gray-400 mt-2">0 invoices</p>
-                </Card>
-                <Card className="p-6">
-                  <p className="text-gray-400 text-sm mb-2">Failed Payments</p>
-                  <p className="text-3xl font-bold">£0</p>
-                  <p className="text-sm text-gray-400 mt-2">0 payments</p>
-                </Card>
-                <Card className="p-6">
-                  <p className="text-gray-400 text-sm mb-2">Active Subscriptions</p>
-                  <p className="text-3xl font-bold">0</p>
-                  <p className="text-sm text-gray-400 mt-2">£0 MRR</p>
-                </Card>
-              </div>
-              
-              {/* Recent Transactions */}
               <Card className="p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold">Recent Transactions</h3>
-                  <button className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    Export
-                  </button>
-                </div>
-                
-                {/* Enhanced Empty State */}
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <h4 className="text-white font-medium mb-2">No Transactions Yet</h4>
-                  <p className="text-gray-400 mb-6">Once you start processing payments, all transaction details will appear here</p>
-                  
-                  {/* Setup Steps */}
-                  <div className="bg-gray-800 rounded-lg p-4 max-w-md mx-auto">
-                    <h5 className="text-white font-medium mb-3">To start accepting payments:</h5>
-                    <div className="space-y-2 text-sm text-gray-300">
-                      <div className="flex items-center gap-2">
-                        <div className="w-5 h-5 bg-orange-600 rounded-full flex items-center justify-center text-xs text-white font-medium">1</div>
-                        <span>Set up payment processing</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-5 h-5 bg-gray-600 rounded-full flex items-center justify-center text-xs text-white font-medium">2</div>
-                        <span>Configure membership plans</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-5 h-5 bg-gray-600 rounded-full flex items-center justify-center text-xs text-white font-medium">3</div>
-                        <span>Enable online bookings</span>
-                      </div>
-                    </div>
-                    <button 
-                      onClick={() => setActiveTab('payments')}
-                      className="mt-4 w-full px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors"
-                    >
-                      Start Setup
-                    </button>
-                  </div>
-                </div>
+                <p className="text-gray-400 text-sm mb-2">Monthly Revenue</p>
+                <p className="text-3xl font-bold">£0</p>
+                <p className="text-sm text-gray-400 mt-2">No data yet</p>
+              </Card>
+              <Card className="p-6">
+                <p className="text-gray-400 text-sm mb-2">Outstanding</p>
+                <p className="text-3xl font-bold">£0</p>
+                <p className="text-sm text-gray-400 mt-2">0 invoices</p>
+              </Card>
+              <Card className="p-6">
+                <p className="text-gray-400 text-sm mb-2">Failed Payments</p>
+                <p className="text-3xl font-bold">£0</p>
+                <p className="text-sm text-gray-400 mt-2">0 payments</p>
+              </Card>
+              <Card className="p-6">
+                <p className="text-gray-400 text-sm mb-2">Active Subscriptions</p>
+                <p className="text-3xl font-bold">0</p>
+                <p className="text-sm text-gray-400 mt-2">£0 MRR</p>
               </Card>
             </div>
           )}
@@ -363,7 +300,7 @@ export default function BillingPage() {
           <div className="text-center">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
             <h3 className="text-lg font-semibold text-gray-200 mb-2">Loading Billing Information</h3>

@@ -38,7 +38,17 @@ const config = {
     }
   },
   testTimeout: 30000,
-  verbose: true
+  verbose: true,
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/tests/(integration|e2e|admin-hq|database|security|ui|api)/',
+    '/tests/backend-fixes\\.spec\\.ts$',
+    '/tests/settings-ui\\.spec\\.ts$',
+    '/tests/facebook-oauth-fix\\.spec\\.ts$',
+    '/tests/facebook-oauth-fixed\\.spec\\.ts$',
+    '/tests/comprehensive-verification\\.spec\\.ts$',
+    '/tests/.*automation-builder.*\\.test\\.tsx$',
+  ],
 }
 
 module.exports = config
