@@ -412,10 +412,11 @@ export function SaasBillingDashboard() {
 function UsageMetric({ icon: Icon, label, value, limit }: {
   icon: any
   label: string
-  value: number
+  value: number | undefined
   limit?: number | null
 }) {
-  const percentage = limit && limit > 0 ? (value / limit) * 100 : 0
+  const safeValue = typeof value === 'number' && !Number.isNaN(value) ? value : 0
+  const percentage = limit && limit > 0 ? (safeValue / limit) * 100 : 0
   const isUnlimited = limit === -1 || limit === null
   const isNearLimit = !isUnlimited && percentage > 80
   const isAtLimit = !isUnlimited && percentage >= 100
@@ -427,7 +428,7 @@ function UsageMetric({ icon: Icon, label, value, limit }: {
         <span className="text-sm text-gray-600">{label}</span>
       </div>
       <div className="text-2xl font-bold">
-        {value.toLocaleString()}
+        {safeValue.toLocaleString()}
         {!isUnlimited && (
           <span className="text-sm font-normal text-gray-600">
             {' '}/ {limit?.toLocaleString()}
