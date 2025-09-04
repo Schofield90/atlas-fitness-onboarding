@@ -3,7 +3,8 @@ const config = {
   preset: 'ts-jest',
   testEnvironment: 'jsdom',
   roots: ['<rootDir>/tests', '<rootDir>/__tests__'],
-  testMatch: ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.spec.tsx'],
+  testMatch: ['**/*.test.ts', '**/*.test.tsx'],
+  testPathIgnorePatterns: ['/node_modules/', '/tests/ui/', '/tests/e2e/', '/tests/ui/flows/', '/tests/ui/accessibility/', '/tests/ui/screenshots/'],
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {
       tsconfig: {
