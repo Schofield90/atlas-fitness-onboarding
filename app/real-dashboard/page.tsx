@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { AddLeadModal } from '@/app/components/leads/AddLeadModal';
 import { Calendar, DollarSign, Users, TrendingUp, Bell, Gift, CreditCard, Activity, Search, Plus, MessageSquare, Send } from 'lucide-react';
 import { LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 
@@ -9,6 +10,7 @@ export default function RealDashboard() {
   const router = useRouter();
   const [selectedClass, setSelectedClass] = useState<any>(null);
   const [showClassModal, setShowClassModal] = useState(false);
+  const [showAddLeadModal, setShowAddLeadModal] = useState(false);
   
   // All data is static to avoid any API calls
   const dashboardData = {
@@ -131,7 +133,7 @@ export default function RealDashboard() {
             </div>
             <div className="flex items-center gap-3">
               <button 
-                onClick={() => router.push('/leads/new')}
+                onClick={() => setShowAddLeadModal(true)}
                 className="p-2 hover:bg-gray-700 rounded-lg"
                 title="Add new lead"
               >
@@ -471,6 +473,16 @@ export default function RealDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Add Lead Modal */}
+      <AddLeadModal
+        isOpen={showAddLeadModal}
+        onClose={() => setShowAddLeadModal(false)}
+        onLeadAdded={() => {
+          setShowAddLeadModal(false)
+          // Optionally show success message or refresh data
+        }}
+      />
     </div>
   );
 }

@@ -86,20 +86,36 @@ class ToastManager {
     }, duration)
   }
 
-  success(message: string, duration?: number): void {
-    this.show({ message, type: 'success', duration })
+  success(message: string | any, duration?: number): void {
+    // Ensure message is a string
+    const msg = typeof message === 'string' 
+      ? message 
+      : message?.message || message?.error || JSON.stringify(message)
+    this.show({ message: msg, type: 'success', duration })
   }
 
-  error(message: string, duration?: number): void {
-    this.show({ message, type: 'error', duration })
+  error(message: string | any, duration?: number): void {
+    // Ensure message is a string
+    const msg = typeof message === 'string' 
+      ? message 
+      : message?.message || message?.error || JSON.stringify(message)
+    this.show({ message: msg, type: 'error', duration })
   }
 
-  warning(message: string, duration?: number): void {
-    this.show({ message, type: 'warning', duration })
+  warning(message: string | any, duration?: number): void {
+    // Ensure message is a string
+    const msg = typeof message === 'string' 
+      ? message 
+      : message?.message || message?.error || JSON.stringify(message)
+    this.show({ message: msg, type: 'warning', duration })
   }
 
-  info(message: string, duration?: number): void {
-    this.show({ message, type: 'info', duration })
+  info(message: string | any, duration?: number): void {
+    // Ensure message is a string
+    const msg = typeof message === 'string' 
+      ? message 
+      : message?.message || message?.error || JSON.stringify(message)
+    this.show({ message: msg, type: 'info', duration })
   }
 }
 

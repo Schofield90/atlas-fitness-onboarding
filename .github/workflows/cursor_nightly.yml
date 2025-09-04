@@ -1,56 +1,130 @@
-name: "Cursor: Nightly QA"
+name: Nightly QA (GitHub-only)
 
 on:
   schedule:
-    - cron: "0 2 * * *"   # 02:00 UTC nightly
+    - cron: "0 2 * * *"           # 02:00 UTC nightly
   workflow_dispatch: {}
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
-  ping-cursor-nightly:
+  nightly:
     runs-on: ubuntu-latest
     steps:
-      - name: Build message
-        id: build
+      - name: Checkout default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      # Heartbeat so there is always a content change
+      - name: Prepare host commit
         run: |
-          echo "REPO=${GITHUB_REPOSITORY}" >> "$GITHUB_OUTPUT"
-          echo "BRANCH=${GITHUB_REF_NAME:-main}" >> "$GITHUB_OUTPUT"
-          # If you have a dedicated nightly channel secret, swap this line:
-          echo "CHANNEL=${{ secrets.SLACK_CHANNEL_ID_TESTS }}" >> "$GITHUB_OUTPUT"
-          # echo "CHANNEL=${{ secrets.SLACK_CHANNEL_ID_NIGHTLY }}" >> "$GITHUB_OUTPUT"
+          mkdir -p .github/automation
+          date -u +"nightly: %Y-%m-%dT%H:%M:%SZ" > .github/automation/nightly-heartbeat.txt
 
-      - name: Sanity check token type
-        env:
-          SLACK_USER_TOKEN: ${{ secrets.SLACK_USER_TOKEN }}
+      # Open or update a sticky host PR on a fixed branch
+      - name: Open/Update Nightly Host PR
+        id: cpr
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: automation/nightly-qa
+          title: 'chore(nightly): full QA host PR'
+          commit-message: 'chore(nightly): trigger nightly QA'
+          body: |
+            **Nightly QA host PR**
+
+            This PR is updated nightly to run checks and give instructions to the tooling.
+
+            Nightly run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            _Change is a tiny heartbeat file to trigger checks._
+          labels: automation, nightly
+          draft: false
+
+      - name: Add routing label (optional)
+        if: ${{ steps.cpr.outputs['pull-request-number'] }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: Number('${{ steps.cpr.outputs['pull-request-number'] }}'),
+                labels: ['cursor:nightly']
+              });
+            } catch (e) {
+              core.info('Label add skipped: ' + e.message);
+            }
+
+      # Detect whether a user PAT is available; we avoid using secrets directly in `if:`
+      - name: Detect user token availability
         run: |
-          case "$SLACK_USER_TOKEN" in
-            xoxp-*) echo "User token detected (ok)";;
-            *) echo "ERROR: SLACK_USER_TOKEN must start with xoxp-"; exit 1;;
-          esac
+          if [ -n "${{ secrets.GH_USER_TOKEN }}" ]; then
+            echo "HAS_GH_USER_TOKEN=true" >> "$GITHUB_ENV"
+          else
+            echo "HAS_GH_USER_TOKEN=false" >> "$GITHUB_ENV"
+          fi
 
-      - name: Send to Slack
-        env:
-          SLACK_USER_TOKEN: ${{ secrets.SLACK_USER_TOKEN }}   # must be xoxp-
-          CURSOR_USER_ID:  ${{ secrets.CURSOR_USER_ID }}       # Uxxxx for @Cursor
-          CHANNEL:         ${{ steps.build.outputs.CHANNEL }}
-          REPO:            ${{ steps.build.outputs.REPO }}
-          BRANCH:          ${{ steps.build.outputs.BRANCH }}
-        run: |
-          set -euo pipefail
-          export TEXT="<@${CURSOR_USER_ID}> [repo=${REPO}, branch=${BRANCH}] run full nightly QA: typecheck, lint, unit/integration tests with coverage, Playwright E2E if available; raise coverage on changed modules; open a minimal PR with fixes and a short summary. Keep the diff minimal; do not change RLS or payments; no prod migrations."
+      # Post instruction as YOU (recommended so tools listen)
+      - name: Post instruction comment as user
+        if: ${{ steps.cpr.outputs['pull-request-number'] && env.HAS_GH_USER_TOKEN == 'true' }}
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GH_USER_TOKEN }}
+          script: |
+            const owner  = context.repo.owner;
+            const repo   = context.repo.repo;
+            const pr     = Number('${{ steps.cpr.outputs['pull-request-number'] }}');
+            const branch = '${{ github.event.repository.default_branch }}';
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/actions/runs/${process.env.GITHUB_RUN_ID}`;
 
-          # JSON-escape the text safely
-          ESCAPED_TEXT=$(python3 - <<'PY'
-          import os, json
-          print(json.dumps(os.environ["TEXT"]))
-          PY
-          )
+            const lines = [
+              '@cursoragent please run full QA for ' +
+                `${owner}/${repo} on branch ${branch}:`,
+              '',
+              '• Typecheck',
+              '• Lint',
+              '• Unit/Integration tests with coverage',
+              '• Playwright E2E (if present)',
+              '• Raise coverage on changed modules',
+              '• Open minimal PRs/commits with fixes and a short summary',
+              '• **Do not** modify RLS or payments; **no** prod DB migrations.',
+              '',
+              `Nightly run: ${runUrl}`
+            ];
+            await github.rest.issues.createComment({
+              owner, repo, issue_number: pr, body: lines.join('\n')
+            });
 
-          PAYLOAD=$(cat <<JSON
-          {"channel":"${CHANNEL}","text":${ESCAPED_TEXT},"link_names":true,"unfurl_links":false}
-          JSON
-          )
+      # Fallback: post with GITHUB_TOKEN if no user token (still works, just shows as bot)
+      - name: Post instruction comment (bot fallback)
+        if: ${{ steps.cpr.outputs['pull-request-number'] && env.HAS_GH_USER_TOKEN != 'true' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner  = context.repo.owner;
+            const repo   = context.repo.repo;
+            const pr     = Number('${{ steps.cpr.outputs['pull-request-number'] }}');
+            const branch = '${{ github.event.repository.default_branch }}';
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/actions/runs/${process.env.GITHUB_RUN_ID}`;
 
-          curl -sS -X POST https://slack.com/api/chat.postMessage \
-            -H "Authorization: Bearer $SLACK_USER_TOKEN" \
-            -H "Content-type: application/json; charset=utf-8" \
-            --data "$PAYLOAD"
+            const lines = [
+              '@cursoragent please run full QA for ' +
+                `${owner}/${repo} on branch ${branch}:`,
+              '',
+              '• Typecheck',
+              '• Lint',
+              '• Unit/Integration tests with coverage',
+              '• Playwright E2E (if present)',
+              '• Raise coverage on changed modules',
+              '• Open minimal PRs/commits with fixes and a short summary',
+              '• **Do not** modify RLS or payments; **no** prod DB migrations.',
+              '',
+              `Nightly run: ${runUrl}`
+            ];
+            await github.rest.issues.createComment({
+              owner, repo, issue_number: pr, body: lines.join('\n')
+            });

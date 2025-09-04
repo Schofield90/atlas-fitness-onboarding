@@ -21,6 +21,7 @@ export default function ClassCalendarPage() {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [selectedView, setSelectedView] = useState<'calendar' | 'list'>('calendar');
   const [classes, setClasses] = useState([]);
+  const [selectedClass, setSelectedClass] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [calendarView, setCalendarView] = useState<'day' | 'week' | 'month'>('week');
@@ -30,6 +31,16 @@ export default function ClassCalendarPage() {
   useEffect(() => {
     const initializeBooking = async () => {
       try {
+        // Enable test mode in non-production to bypass auth in E2E
+        if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
+          const params = new URLSearchParams(window.location.search);
+          if (params.get('test') === '1') {
+            console.log('[Test Mode] Bypassing org lookup');
+            setOrganizationId('test-org-id');
+            return;
+          }
+        }
+
         const { organizationId: orgId, error } = await getCurrentUserOrganization();
         console.log('Current user organization:', { orgId, error });
         
@@ -361,6 +372,7 @@ export default function ClassCalendarPage() {
             <PremiumCalendarGrid 
               classes={classes} 
               loading={loading}
+              onSelectClass={(cls) => setSelectedClass(cls)}
               view={calendarView}
               currentDate={currentDate}
               onClassUpdate={() => {
@@ -378,7 +390,7 @@ export default function ClassCalendarPage() {
         
         {/* Right Sidebar - Selected Class Details */}
         <div className="w-96 border-l border-gray-700 bg-gray-800/50 overflow-y-auto flex-shrink-0">
-          <SelectedClassDetails />
+          <SelectedClassDetails selectedClass={selectedClass} />
         </div>
       </div>
       

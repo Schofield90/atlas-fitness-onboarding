@@ -16,6 +16,8 @@
 .cache/
 .config/
 .cursor/
+!.cursor/commands/
+!.cursor/rules.md
 .expo/
 .npm/
 .npm-global/
@@ -83,6 +85,10 @@ dependencies.log
 .turbo
 analyze/
 .tsbuildinfo
+
+# Test artifacts
+test-results/
+playwright-report/
 
 # Temporary files
 *.tmp

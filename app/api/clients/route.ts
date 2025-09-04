@@ -35,39 +35,53 @@ async function createClientMember(request: NextRequest) {
     throw ValidationError.invalid('email', body.email, 'valid email address')
   }
   
-  // Check for existing client with same email or phone in this organization (support org_id or organization_id)
+  // Check for existing client with same email or phone in this organization
   const orgId = userWithOrg.organizationId
+  
+  // Check for duplicate email in the same organization
+  // We need to check both organization_id and org_id columns since both exist
   const { data: dupByEmail } = await supabase
     .from('clients')
     .select('id')
     .ilike('email', body.email)
     .or(`organization_id.eq.${orgId},org_id.eq.${orgId}`)
     .limit(1)
+  
   if (dupByEmail && dupByEmail.length > 0) {
     throw ValidationError.duplicate('email', body.email)
   }
+  
+  // Check for duplicate phone in the same organization
   if (body.phone) {
     const normalizedPhone = String(body.phone).replace(/\D/g, '')
-    const { data: dupByPhone } = await supabase
+    
+    // Query for clients in the same organization with phone numbers
+    const { data: clientsInOrg } = await supabase
       .from('clients')
       .select('id, phone')
       .or(`organization_id.eq.${orgId},org_id.eq.${orgId}`)
-      .ilike('phone', `%${normalizedPhone}`)
-      .limit(1)
-    if (dupByPhone && dupByPhone.length > 0) {
+      .not('phone', 'is', null)
+    
+    // Check if any of the returned clients have a matching phone
+    const hasMatchingPhone = clientsInOrg?.some(client => {
+      const clientPhone = String(client.phone || '').replace(/\D/g, '')
+      return clientPhone === normalizedPhone
+    })
+    
+    if (hasMatchingPhone) {
       throw ValidationError.duplicate('phone', body.phone)
     }
   }
   
-  // Build insert data - use org_id as primary field
+  // Build insert data - include both org_id and organization_id for compatibility
   const insertData: any = {
     first_name: body.first_name,
     last_name: body.last_name,
     full_name: `${body.first_name} ${body.last_name}`,
     email: body.email,
     phone: body.phone,
-    org_id: userWithOrg.organizationId,
-    organization_id: userWithOrg.organizationId, // Keep both for compatibility
+    organization_id: userWithOrg.organizationId,
+    org_id: userWithOrg.organizationId, // Include both fields for backward compatibility
     created_by: userWithOrg.id,
     status: 'active'
   }
@@ -108,41 +122,31 @@ async function createClientMember(request: NextRequest) {
 export const POST = withApiErrorBoundary(createClientMember)
 
 async function getClients(request: NextRequest) {
-  // Check authentication and get organization
-  const userWithOrg = await requireAuth()
+  try {
+    // Check authentication and get organization
+    const userWithOrg = await requireAuth()
+      
+    const { searchParams } = new URL(request.url)
+    const status = searchParams.get('status')
+    const page = parseInt(searchParams.get('page') || '1')
+    const pageSize = parseInt(searchParams.get('page_size') || '50')
     
-  const { searchParams } = new URL(request.url)
-  const status = searchParams.get('status')
-  const page = parseInt(searchParams.get('page') || '1')
-  const pageSize = parseInt(searchParams.get('page_size') || '50')
-  
-  const supabase = await createClient()
-  
-  // Calculate range for pagination
-  const from = (page - 1) * pageSize
-  const to = from + pageSize - 1
-  
-  // Build query - filter by organization (support both org_id and organization_id)
-  let query = supabase
-    .from('clients')
-    .select(`
-      *,
-      client_memberships (
-        id,
-        status,
-        start_date,
-        end_date,
-        membership_plan:membership_plans (
-          id,
-          name,
-          price_pennies,
-          billing_period
-        )
-      )
-    `, { count: 'exact' })
-    .or(`organization_id.eq.${userWithOrg.organizationId},org_id.eq.${userWithOrg.organizationId}`)
-    .order('created_at', { ascending: false })
-    .range(from, to)
+    const supabase = await createClient()
+    
+    // Calculate range for pagination
+    const from = (page - 1) * pageSize
+    const to = from + pageSize - 1
+    
+    console.log('Fetching clients for organization:', userWithOrg.organizationId)
+    
+    // Build query - filter by organization
+    // Using simplified approach to avoid OR clause issues
+    let query = supabase
+      .from('clients')
+      .select('*', { count: 'exact' })
+      .eq('organization_id', userWithOrg.organizationId)
+      .order('created_at', { ascending: false })
+      .range(from, to)
   
   // Apply status filter
   if (status && status !== 'all') {
@@ -160,18 +164,58 @@ async function getClients(request: NextRequest) {
     })
   }
   
-  return NextResponse.json({
-    success: true,
-    clients: clients || [],
-    pagination: {
-      page,
-      pageSize,
-      total: count || 0,
-      totalPages: Math.ceil((count || 0) / pageSize)
-    },
-    organizationId: userWithOrg.organizationId
-  })
+  // If we have clients, fetch their memberships separately to avoid join issues
+  let enrichedClients = clients || []
+  if (clients && clients.length > 0) {
+    const clientIds = clients.map(c => c.id)
+    
+    // Fetch memberships for these clients
+    const { data: memberships } = await supabase
+      .from('memberships')
+      .select('*')
+      .in('client_id', clientIds)
+    
+    // Fetch membership plans
+    const { data: membershipPlans } = await supabase
+      .from('membership_plans')
+      .select('*')
+      .eq('organization_id', userWithOrg.organizationId)
+    
+    // Combine the data
+    enrichedClients = clients.map(client => {
+      const clientMemberships = (memberships || [])
+        .filter(m => m.client_id === client.id)
+        .map(membership => {
+          const plan = (membershipPlans || []).find(p => p.id === membership.membership_plan_id)
+          return {
+            ...membership,
+            membership_plan: plan || null
+          }
+        })
+      
+      return {
+        ...client,
+        memberships: clientMemberships
+      }
+    })
+  }
+  
+    return NextResponse.json({
+      success: true,
+      clients: enrichedClients,
+      pagination: {
+        page,
+        pageSize,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / pageSize)
+      },
+      organizationId: userWithOrg.organizationId
+    })
+  } catch (error) {
+    console.error('Error in getClients:', error)
+    return handleApiError(error)
+  }
 }
 
-// Wrap with error boundary
-export const GET = withApiErrorBoundary(getClients)
+// Export directly without error boundary since we handle errors internally
+export const GET = getClients// Force rebuild Thu  4 Sep 2025 16:22:52 BST
