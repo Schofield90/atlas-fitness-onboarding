@@ -158,7 +158,7 @@ export default function SignupPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?signup=true`
+          redirectTo: `https://atlas-fitness-onboarding.vercel.app/auth/callback?signup=true`
         }
       })
       
