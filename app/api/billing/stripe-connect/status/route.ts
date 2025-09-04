@@ -7,6 +7,8 @@ const stripe = stripeKey ? new Stripe(stripeKey, {
   apiVersion: '2025-07-30.basil',
 }) : null
 
+const isStripeConfigured = !!stripeKey
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -85,7 +87,8 @@ export async function GET(request: NextRequest) {
         platform_commission_rate: settings?.platform_commission_rate || 0.03,
         payment_methods_enabled: settings?.payment_methods_enabled || { card: true, direct_debit: false },
         gocardless_merchant_id: settings?.gocardless_merchant_id,
-      }
+      },
+      stripeConfigured: isStripeConfigured
     })
   } catch (error) {
     console.error('Error fetching account status:', error)
