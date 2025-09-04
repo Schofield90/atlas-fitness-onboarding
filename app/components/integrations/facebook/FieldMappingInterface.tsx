@@ -132,6 +132,34 @@ export default function FieldMappingInterface({
     }
   }
 
+  const refreshFormQuestions = async () => {
+    try {
+      setLoading(true)
+      
+      const response = await fetch('/api/integrations/facebook/refresh-form-questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ formId })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success && data.questions) {
+        setFormFields(data.questions)
+        console.log(`Refreshed ${data.questions_count} form fields`)
+        // Reload the mappings after refreshing questions
+        await loadFieldMappings()
+      } else {
+        console.error('Failed to refresh form questions:', data.error)
+      }
+      
+    } catch (error) {
+      console.error('Error refreshing form questions:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const autoDetectMappings = async () => {
     try {
       setAutoDetecting(true)
@@ -267,19 +295,37 @@ export default function FieldMappingInterface({
           Map Facebook form fields to your CRM fields for: <strong>{formName}</strong>
         </p>
         
-        {/* Auto-detect button */}
-        <button
-          onClick={autoDetectMappings}
-          disabled={autoDetecting}
-          className="mt-4 inline-flex items-center px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-        >
-          {autoDetecting ? (
-            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-          ) : (
-            <Zap className="w-4 h-4 mr-2" />
+        {/* Action buttons */}
+        <div className="mt-4 flex gap-3">
+          <button
+            onClick={autoDetectMappings}
+            disabled={autoDetecting || loading}
+            className="inline-flex items-center px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50"
+          >
+            {autoDetecting ? (
+              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Zap className="w-4 h-4 mr-2" />
+            )}
+            Auto-Detect Fields
+          </button>
+          
+          {/* Refresh Form Fields button - shows when no fields are loaded */}
+          {formFields.length === 0 && (
+            <button
+              onClick={refreshFormQuestions}
+              disabled={loading}
+              className="inline-flex items-center px-4 py-2 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition-colors disabled:opacity-50"
+            >
+              {loading ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4 mr-2" />
+              )}
+              Refresh Form Fields
+            </button>
           )}
-          Auto-Detect Fields
-        </button>
+        </div>
       </div>
 
       {/* Validation Messages */}
@@ -304,6 +350,28 @@ export default function FieldMappingInterface({
       <div className="bg-white rounded-lg shadow-sm p-6">
         <h3 className="text-lg font-medium mb-4">Standard Field Mappings</h3>
         
+        {/* Show message when no form fields are available */}
+        {formFields.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <AlertCircle className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+            <p className="font-medium mb-2">No form fields found</p>
+            <p className="text-sm mb-4">
+              The form structure hasn't been loaded from Facebook yet.
+            </p>
+            <button
+              onClick={refreshFormQuestions}
+              disabled={loading}
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+            >
+              {loading ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4 mr-2" />
+              )}
+              Load Form Fields from Facebook
+            </button>
+          </div>
+        ) : (
         <div className="space-y-3">
           {mappings.map((mapping) => (
             <div key={mapping.facebook_field_name} className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
@@ -392,6 +460,7 @@ export default function FieldMappingInterface({
             </div>
           )}
         </div>
+        )}
       </div>
 
       {/* Custom Fields */}
