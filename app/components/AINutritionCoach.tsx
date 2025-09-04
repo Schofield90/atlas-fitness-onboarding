@@ -151,10 +151,11 @@ export default function AINutritionCoach({ memberData }: { memberData: any }) {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
+    if (!memberData || !memberData.id) return
     loadNutritionProfile()
     loadAssignedCoach()
     loadChatHistory()
-  }, [memberData])
+  }, [memberData?.id, memberData?.organization_id])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -396,6 +397,18 @@ export default function AINutritionCoach({ memberData }: { memberData: any }) {
     }))
 
     return { tdee, targetCalories, macros }
+  }
+
+  // If member data is not yet available, render a lightweight placeholder to avoid runtime errors
+  if (!memberData || !memberData.id) {
+    return (
+      <div className="p-4">
+        <div className="bg-gray-800 rounded-lg p-6 flex items-center gap-3">
+          <Loader2 className="w-5 h-5 animate-spin text-orange-500" />
+          <span className="text-sm text-gray-300">Loading your nutrition coach…</span>
+        </div>
+      </div>
+    )
   }
 
   const generateMealPlan = async () => {

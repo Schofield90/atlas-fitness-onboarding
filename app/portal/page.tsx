@@ -374,6 +374,16 @@ function BookingsTab({ memberData, router }: any) {
 
 // Nutrition Tab Component
 function NutritionTab({ memberData }: any) {
+  if (!memberData || !memberData.id) {
+    return (
+      <div className="p-4">
+        <div className="bg-gray-800 rounded-lg p-6 text-gray-300">
+          Loading your nutrition data…
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="p-4">
       <AINutritionCoach memberData={memberData} />
