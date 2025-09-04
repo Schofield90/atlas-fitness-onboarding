@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
 import { X } from 'lucide-react'
 import { getCurrentUserOrganization } from '@/app/lib/organization-service'
@@ -22,8 +22,29 @@ export default function CreateClassTypeModal({ onClose, onSuccess }: CreateClass
     allow_drop_ins: 'no', // no, yes
     age_restriction: 'no' // no, yes
   })
-  
+  const modalRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
+
+  // Handle Esc key press
+  useEffect(() => {
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose()
+      }
+    }
+
+    document.addEventListener('keydown', handleEscKey)
+    return () => {
+      document.removeEventListener('keydown', handleEscKey)
+    }
+  }, [onClose])
+
+  // Handle backdrop click
+  const handleBackdropClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget) {
+      onClose()
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -69,13 +90,22 @@ export default function CreateClassTypeModal({ onClose, onSuccess }: CreateClass
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div 
+      data-testid="modal-backdrop"
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+      onClick={handleBackdropClick}
+    >
+      <div 
+        ref={modalRef}
+        className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-semibold text-white">New Class Type</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-white"
+            aria-label="Close modal"
           >
             <X className="h-6 w-6" />
           </button>
