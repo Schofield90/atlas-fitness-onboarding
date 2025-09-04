@@ -1,0 +1,79 @@
+name: Rolling PR maintainer
+
+on:
+  push:
+    branches:
+      - cursor/rolling-fixes
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  ensure-rolling-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create or update rolling PR
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const head = 'cursor/rolling-fixes';
+            const base = 'main';
+            const title = 'chore: rolling Cursor fixes';
+
+            const ciLink = `https://github.com/${owner}/${repo}/actions?query=branch%3A${encodeURIComponent(head)}`;
+            const vercelPreview = 'TBD';
+
+            const body = [
+              'Rolling PR to accumulate small Cursor-driven fixes.',
+              '',
+              `- Vercel preview: ${vercelPreview}`,
+              `- Latest CI run: ${ciLink}`,
+              '',
+              'Running checklist:',
+              '- [x] Initialize rolling PR',
+              '',
+              'Manual review notes:',
+              '- N/A'
+            ].join('\n');
+
+            // Find existing open PR from head -> base
+            const { data: prs } = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: 'open',
+              head: `${owner}:${head}`,
+              base,
+            });
+
+            if (prs && prs.length > 0) {
+              const pr = prs[0];
+              await github.rest.pulls.update({
+                owner,
+                repo,
+                pull_number: pr.number,
+                title,
+                body,
+              });
+              core.setOutput('pr_url', pr.html_url);
+            } else {
+              const { data: pr } = await github.rest.pulls.create({
+                owner,
+                repo,
+                head,
+                base,
+                title,
+                body,
+                draft: false,
+              });
+              core.setOutput('pr_url', pr.html_url);
+            }
