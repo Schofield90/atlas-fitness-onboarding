@@ -107,7 +107,7 @@ export default function LandingPage() {
               <a href="#features" className="hover:text-orange-400 transition-colors">Features</a>
               <a href="#benefits" className="hover:text-orange-400 transition-colors">Benefits</a>
               <a href="#testimonials" className="hover:text-orange-400 transition-colors">Testimonials</a>
-              <a href="#pricing" className="hover:text-orange-400 transition-colors">Pricing</a>
+              <Link href="/pricing" className="hover:text-orange-400 transition-colors">Pricing</Link>
             </div>
             <div className="flex items-center space-x-4">
               <Link 

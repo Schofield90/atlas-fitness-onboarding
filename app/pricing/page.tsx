@@ -1,27 +1,35 @@
 'use client'
 
 import Link from 'next/link'
+import { useState } from 'react'
 import { ArrowLeft, Check } from 'lucide-react'
 
 export default function PricingPage() {
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly')
+
   const plans = [
     {
-      name: 'Starter',
-      price: '£99',
-      description: 'Perfect for small gyms just getting started',
+      name: 'Trial',
+      monthly: 0,
+      annual: 0,
+      description: 'Explore Atlas with full access for 14 days',
+      cta: 'Start 14-Day Free Trial',
+      ctaHref: '/signup',
       features: [
-        'Up to 100 active members',
-        'Basic lead management',
-        'Email & SMS messaging',
-        'Class scheduling',
-        'Basic reporting'
+        'Full platform access for 14 days',
+        'No credit card required',
+        'Onboarding checklist',
+        'Email & chat support'
       ]
     },
     {
       name: 'Professional',
-      price: '£299',
+      monthly: 299,
+      annual: 2990, // ~2 months free
       description: 'For growing gyms that need more power',
       popular: true,
+      cta: 'Book a Demo',
+      ctaHref: '/demo',
       features: [
         'Up to 500 active members',
         'AI-powered lead scoring',
@@ -34,8 +42,11 @@ export default function PricingPage() {
     },
     {
       name: 'Enterprise',
-      price: 'Custom',
-      description: 'For large gyms and chains',
+      monthly: null,
+      annual: null,
+      description: 'For large gyms and multi-location chains',
+      cta: 'Book a Demo',
+      ctaHref: '/demo',
       features: [
         'Unlimited members',
         'Multi-location support',
@@ -46,7 +57,7 @@ export default function PricingPage() {
         'White-label options'
       ]
     }
-  ]
+  ] as const
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
@@ -58,9 +69,27 @@ export default function PricingPage() {
         
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-4">Simple, Transparent Pricing</h1>
-          <p className="text-xl text-gray-300">
+          <p className="text-xl text-gray-300 mb-6">
             Choose the plan that fits your gym's needs
           </p>
+          <div className="inline-flex items-center bg-gray-800 rounded-full p-1">
+            <button
+              onClick={() => setBillingCycle('monthly')}
+              className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
+                billingCycle === 'monthly' ? 'bg-orange-500 text-white' : 'text-gray-300'
+              }`}
+            >
+              Monthly
+            </button>
+            <button
+              onClick={() => setBillingCycle('annual')}
+              className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
+                billingCycle === 'annual' ? 'bg-orange-500 text-white' : 'text-gray-300'
+              }`}
+            >
+              Annual
+            </button>
+          </div>
         </div>
         
         <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
@@ -81,8 +110,14 @@ export default function PricingPage() {
               
               <h2 className="text-2xl font-bold mb-2">{plan.name}</h2>
               <div className="mb-4">
-                <span className="text-4xl font-bold">{plan.price}</span>
-                {plan.price !== 'Custom' && <span className="text-gray-400">/month</span>}
+                {plan.monthly === null ? (
+                  <span className="text-4xl font-bold">Custom</span>
+                ) : (
+                  <>
+                    <span className="text-4xl font-bold">£{billingCycle === 'monthly' ? plan.monthly : plan.annual}</span>
+                    <span className="text-gray-400">/{billingCycle === 'monthly' ? 'month' : 'year'}</span>
+                  </>
+                )}
               </div>
               <p className="text-gray-400 mb-6">{plan.description}</p>
               
@@ -96,14 +131,14 @@ export default function PricingPage() {
               </ul>
               
               <Link
-                href="/signup"
+                href={plan.ctaHref}
                 className={`block text-center py-3 rounded-lg font-semibold transition-colors ${
                   plan.popular
                     ? 'bg-orange-500 hover:bg-orange-600 text-white'
                     : 'bg-gray-700 hover:bg-gray-600 text-white'
                 }`}
               >
-                {plan.price === 'Custom' ? 'Contact Sales' : 'Start Free Trial'}
+                {plan.cta}
               </Link>
             </div>
           ))}

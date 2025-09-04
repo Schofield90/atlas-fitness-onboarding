@@ -10,6 +10,7 @@ const publicRoutes = [
   '/signin',
   '/signup',
   '/signup-simple',     // Add simplified signup page
+  '/pricing',           // Public pricing page
   '/auth/callback',
   '/client-portal/login',
   '/client-portal/claim',
