@@ -16,6 +16,8 @@
 .cache/
 .config/
 .cursor/
+!.cursor/commands/
+!.cursor/rules.md
 .expo/
 .npm/
 .npm-global/

@@ -15,6 +15,8 @@ export default function StripeConnect({ organizationId }: StripeConnectProps) {
   const [connecting, setConnecting] = useState(false)
   const [accountData, setAccountData] = useState<any>(null)
   const [paymentSettings, setPaymentSettings] = useState<any>(null)
+  const [stripeConfigured, setStripeConfigured] = useState<boolean>(true)
+  const [error, setError] = useState<string | null>(null)
   
   useEffect(() => {
     fetchAccountStatus()
@@ -23,13 +25,19 @@ export default function StripeConnect({ organizationId }: StripeConnectProps) {
   const fetchAccountStatus = async () => {
     try {
       const response = await fetch('/api/billing/stripe-connect/status')
-      if (!response.ok) throw new Error('Failed to fetch account status')
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to fetch account status')
+      }
       
       const data = await response.json()
       setAccountData(data.account)
       setPaymentSettings(data.settings)
+      setStripeConfigured(data.stripeConfigured !== false)
+      setError(null)
     } catch (error) {
       console.error('Error fetching Stripe account:', error)
+      setError(error instanceof Error ? error.message : 'Failed to load payment settings')
     } finally {
       setLoading(false)
     }
@@ -39,12 +47,20 @@ export default function StripeConnect({ organizationId }: StripeConnectProps) {
     try {
       setConnecting(true)
       
+      if (!stripeConfigured) {
+        alert('Stripe is not configured. Please contact your administrator.')
+        return
+      }
+      
       // Create or retrieve Stripe Connect onboarding link
       const response = await fetch('/api/billing/stripe-connect/onboard', {
         method: 'POST'
       })
       
-      if (!response.ok) throw new Error('Failed to create onboarding link')
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to create onboarding link')
+      }
       
       const { url } = await response.json()
       
@@ -52,7 +68,7 @@ export default function StripeConnect({ organizationId }: StripeConnectProps) {
       window.location.href = url
     } catch (error) {
       console.error('Error connecting Stripe:', error)
-      alert('Failed to connect Stripe account. Please try again.')
+      alert(`Failed to connect Stripe account: ${error instanceof Error ? error.message : 'Please try again.'}`)
     } finally {
       setConnecting(false)
     }
@@ -82,6 +98,52 @@ export default function StripeConnect({ organizationId }: StripeConnectProps) {
       <Card className="p-6">
         <div className="flex items-center justify-center">
           <RefreshCw className="h-6 w-6 animate-spin text-gray-400" />
+        </div>
+      </Card>
+    )
+  }
+  
+  if (error) {
+    return (
+      <Card className="p-6">
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
+            <div>
+              <h3 className="font-semibold text-red-800">Payment System Unavailable</h3>
+              <p className="text-sm text-red-700 mt-1">{error}</p>
+            </div>
+          </div>
+          <Button onClick={fetchAccountStatus} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Try Again
+          </Button>
+        </div>
+      </Card>
+    )
+  }
+  
+  if (!stripeConfigured) {
+    return (
+      <Card className="p-6">
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
+            <div>
+              <h3 className="font-semibold text-yellow-800">Payment Processing Not Configured</h3>
+              <p className="text-sm text-yellow-700 mt-1">
+                Stripe payment processing is not set up for this environment. Contact your administrator to configure payment processing.
+              </p>
+            </div>
+          </div>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <h4 className="font-medium text-yellow-800 mb-2">What you can do:</h4>
+            <ul className="text-sm text-yellow-700 space-y-1">
+              <li>• Contact support to enable payment processing</li>
+              <li>• Manage existing memberships and bookings</li>
+              <li>• View customer information and reports</li>
+            </ul>
+          </div>
         </div>
       </Card>
     )
