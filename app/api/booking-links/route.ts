@@ -4,25 +4,39 @@ import { createClient } from '@/app/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get user's organization
-    const { data: orgMember, error: orgError } = await supabase
+    // Get user's organization (support both legacy and standardized columns)
+    let organizationId: string | null = null
+    const { data: orgMember } = await supabase
       .from('organization_members')
-      .select('org_id')
+      .select('org_id, organization_id')
       .eq('user_id', user.id)
       .single()
 
-    if (orgError || !orgMember) {
+    if ((orgMember as any)?.organization_id) organizationId = (orgMember as any).organization_id
+    else if ((orgMember as any)?.org_id) organizationId = (orgMember as any).org_id
+
+    if (!organizationId) {
+      const { data: userOrg } = await supabase
+        .from('user_organizations')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .single()
+      if (userOrg?.organization_id) organizationId = userOrg.organization_id
+    }
+
+    if (!organizationId) {
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
     }
 
-    const bookingLinks = await bookingLinkService.listBookingLinks(orgMember.org_id)
+    const bookingLinks = await bookingLinkService.listBookingLinks(organizationId)
     return NextResponse.json({ booking_links: bookingLinks })
 
   } catch (error) {
@@ -36,21 +50,35 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get user's organization
-    const { data: orgMember, error: orgError } = await supabase
+    // Get user's organization (support both column names and fallbacks)
+    let organizationId: string | null = null
+    const { data: orgMember } = await supabase
       .from('organization_members')
-      .select('org_id')
+      .select('org_id, organization_id')
       .eq('user_id', user.id)
       .single()
 
-    if (orgError || !orgMember) {
+    if ((orgMember as any)?.organization_id) organizationId = (orgMember as any).organization_id
+    else if ((orgMember as any)?.org_id) organizationId = (orgMember as any).org_id
+
+    if (!organizationId) {
+      const { data: userOrg } = await supabase
+        .from('user_organizations')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .single()
+      if (userOrg?.organization_id) organizationId = userOrg.organization_id
+    }
+
+    if (!organizationId) {
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
     }
 
@@ -59,7 +87,7 @@ export async function POST(request: NextRequest) {
     // Validate the configuration
     const validation = await bookingLinkService.validateBookingLinkConfig({
       ...body,
-      organization_id: orgMember.org_id,
+      organization_id: organizationId,
       user_id: user.id
     })
 
@@ -73,7 +101,7 @@ export async function POST(request: NextRequest) {
     // Create the booking link
     const bookingLink = await bookingLinkService.createBookingLink({
       ...body,
-      organization_id: orgMember.org_id,
+      organization_id: organizationId,
       user_id: user.id,
       // Set default values
       meeting_title_template: body.meeting_title_template || '{{contact.name}} - {{service}}',

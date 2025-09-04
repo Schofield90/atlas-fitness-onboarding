@@ -7,7 +7,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
@@ -21,13 +21,15 @@ export async function GET(
     }
 
     // Check if user has access to this booking link
-    const { data: orgMember, error: orgError } = await supabase
+    const { data: orgMember } = await supabase
       .from('organization_members')
-      .select('org_id')
+      .select('org_id, organization_id')
       .eq('user_id', user.id)
       .single()
 
-    if (orgError || !orgMember || bookingLink.organization_id !== orgMember.org_id) {
+    const orgId = (orgMember as any)?.organization_id || (orgMember as any)?.org_id
+
+    if (!orgId || bookingLink.organization_id !== orgId) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
@@ -47,7 +49,7 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
@@ -60,13 +62,15 @@ export async function PUT(
       return NextResponse.json({ error: 'Booking link not found' }, { status: 404 })
     }
 
-    const { data: orgMember, error: orgError } = await supabase
+    const { data: orgMember } = await supabase
       .from('organization_members')
-      .select('org_id')
+      .select('org_id, organization_id')
       .eq('user_id', user.id)
       .single()
 
-    if (orgError || !orgMember || existingLink.organization_id !== orgMember.org_id) {
+    const orgId = (orgMember as any)?.organization_id || (orgMember as any)?.org_id
+
+    if (!orgId || existingLink.organization_id !== orgId) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
@@ -104,7 +108,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
@@ -117,13 +121,15 @@ export async function DELETE(
       return NextResponse.json({ error: 'Booking link not found' }, { status: 404 })
     }
 
-    const { data: orgMember, error: orgError } = await supabase
+    const { data: orgMember } = await supabase
       .from('organization_members')
-      .select('org_id')
+      .select('org_id, organization_id')
       .eq('user_id', user.id)
       .single()
 
-    if (orgError || !orgMember || existingLink.organization_id !== orgMember.org_id) {
+    const orgId = (orgMember as any)?.organization_id || (orgMember as any)?.org_id
+
+    if (!orgId || existingLink.organization_id !== orgId) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
