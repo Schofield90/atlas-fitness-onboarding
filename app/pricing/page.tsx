@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { ArrowLeft, Check } from 'lucide-react'
+import { TRIAL_CTA_TEXT } from '@/app/lib/constants'
 
 export default function PricingPage() {
   const plans = [
@@ -103,7 +104,7 @@ export default function PricingPage() {
                     : 'bg-gray-700 hover:bg-gray-600 text-white'
                 }`}
               >
-                {plan.price === 'Custom' ? 'Contact Sales' : 'Start Free Trial'}
+                {plan.price === 'Custom' ? 'Contact Sales' : TRIAL_CTA_TEXT}
               </Link>
             </div>
           ))}

@@ -6,6 +6,7 @@ import Button from '@/app/components/ui/Button'
 import { formatBritishCurrency, formatBritishDate } from '@/app/lib/utils/british-format'
 import { AlertCircle, Check, CreditCard, TrendingUp, Users, MessageSquare, Mail, Calendar } from 'lucide-react'
 import { loadStripe } from '@stripe/stripe-js'
+import { TRIAL_CTA_TEXT } from '@/app/lib/constants'
 
 // Only load Stripe on the client side to avoid SSR/CSR mismatches
 const getStripePromise = () => {
@@ -378,7 +379,7 @@ export function SaasBillingDashboard() {
           <div className="bg-gray-50 rounded-lg p-6 text-center">
             <p className="text-gray-600 mb-4">No active subscription</p>
             <Button onClick={() => handleUpgrade(billingData.availablePlans[0].id)}>
-              Start Free Trial
+              {TRIAL_CTA_TEXT}
             </Button>
           </div>
         )}

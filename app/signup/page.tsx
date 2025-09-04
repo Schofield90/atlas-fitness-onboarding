@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/app/lib/supabase/client'
+import { TRIAL_CTA_TEXT } from '@/app/lib/constants'
 
 export default function SignupPage() {
   const router = useRouter()
@@ -205,7 +206,7 @@ export default function SignupPage() {
             Gymleadhub
           </Link>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
-            Start Your Free Trial
+            Start Your 14-Day Free Trial
           </h2>
           <p className="mt-2 text-center text-sm text-gray-300">
             No credit card required • 14-day free trial
@@ -323,7 +324,7 @@ export default function SignupPage() {
               disabled={loading}
               className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? 'Creating your account...' : 'Start Free Trial'}
+              {loading ? 'Creating your account...' : TRIAL_CTA_TEXT}
             </button>
           </div>
 
