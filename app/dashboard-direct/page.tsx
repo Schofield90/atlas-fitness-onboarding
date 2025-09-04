@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import DashboardLayout from '../components/DashboardLayout'
 import { createClient } from '@/app/lib/supabase/client'
+import { AddLeadModal } from '@/app/components/leads/AddLeadModal'
 import { Calendar, Users, DollarSign, Activity, TrendingUp, MessageSquare, Settings, BarChart3 } from 'lucide-react'
 
 export default function DirectDashboardPage() {
@@ -11,6 +12,7 @@ export default function DirectDashboardPage() {
   const supabase = createClient()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [showAddLeadModal, setShowAddLeadModal] = useState(false)
 
   useEffect(() => {
     // Set the organization ID in localStorage for the session
@@ -174,7 +176,7 @@ export default function DirectDashboardPage() {
           <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
           <div className="flex flex-wrap gap-3">
             <button 
-              onClick={() => router.push('/leads/new')}
+              onClick={() => setShowAddLeadModal(true)}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               Add New Lead
@@ -199,6 +201,16 @@ export default function DirectDashboardPage() {
             </button>
           </div>
         </div>
+
+        {/* Add Lead Modal */}
+        <AddLeadModal
+          isOpen={showAddLeadModal}
+          onClose={() => setShowAddLeadModal(false)}
+          onLeadAdded={() => {
+            setShowAddLeadModal(false)
+            // Optionally show success message or refresh data
+          }}
+        />
       </div>
     </DashboardLayout>
   )

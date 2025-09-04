@@ -1,10 +1,13 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { AddLeadModal } from '@/app/components/leads/AddLeadModal';
 import { Calendar, Users, DollarSign, Activity, TrendingUp, MessageSquare, Settings, BarChart3, LogOut } from 'lucide-react';
 
 export default function QuickDashboard() {
   const router = useRouter();
+  const [showAddLeadModal, setShowAddLeadModal] = useState(false);
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -164,7 +167,7 @@ export default function QuickDashboard() {
         <h3 className="text-xl font-semibold mb-4">Quick Actions</h3>
         <div className="flex flex-wrap gap-3 mb-8">
           <button 
-            onClick={() => router.push('/leads/new')}
+            onClick={() => setShowAddLeadModal(true)}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             + Add New Lead
@@ -203,6 +206,16 @@ export default function QuickDashboard() {
             <p>• Use the "Test Auth" button to debug login issues</p>
           </div>
         </div>
+
+        {/* Add Lead Modal */}
+        <AddLeadModal
+          isOpen={showAddLeadModal}
+          onClose={() => setShowAddLeadModal(false)}
+          onLeadAdded={() => {
+            setShowAddLeadModal(false)
+            // Optionally show success message or refresh data
+          }}
+        />
       </div>
     </div>
   );

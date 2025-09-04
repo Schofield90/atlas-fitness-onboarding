@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { AddLeadModal } from '@/app/components/leads/AddLeadModal';
 import { Calendar, DollarSign, Users, TrendingUp, Bell, Gift, CreditCard, Activity, Search, Plus, MessageSquare, Send } from 'lucide-react';
 import { LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { createClient } from '@/app/lib/supabase/client';
@@ -15,6 +16,7 @@ export default function DashboardOverview() {
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [selectedClass, setSelectedClass] = useState<any>(null);
   const [showClassModal, setShowClassModal] = useState(false);
+  const [showAddLeadModal, setShowAddLeadModal] = useState(false);
   const [dashboardData, setDashboardData] = useState({
     pendingPayments: { total: 0, count: 0 },
     confirmedRevenue: { total: 0, count: 0 },
@@ -258,7 +260,7 @@ export default function DashboardOverview() {
               <div className="flex items-center gap-3">
                 {/* Quick Actions */}
                 <button 
-                  onClick={() => router.push('/leads/new')}
+                  onClick={() => setShowAddLeadModal(true)}
                   className="p-2 hover:bg-gray-700 rounded-lg"
                   title="Add new lead"
                 >
@@ -659,6 +661,16 @@ export default function DashboardOverview() {
           classSession={selectedClass}
         />
       )}
+
+      {/* Add Lead Modal */}
+      <AddLeadModal
+        isOpen={showAddLeadModal}
+        onClose={() => setShowAddLeadModal(false)}
+        onLeadAdded={() => {
+          setShowAddLeadModal(false)
+          // Optionally show success message or refresh data
+        }}
+      />
     </DashboardLayout>
   );
 }
