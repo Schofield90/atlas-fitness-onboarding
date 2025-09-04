@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     
     const msg = {
       to: ADMIN_EMAILS,
-      from: 'noreply@atlas-gyms.co.uk',
+      from: 'sam@gymleadhub.co.uk',
       subject: `Weekly Executive Brief - ${new Date().toLocaleDateString()}`,
       html: emailContent,
       text: generateEmailText(briefData.data)

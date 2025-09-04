@@ -154,7 +154,7 @@ export const bookingNotificationWorker = new Worker<BookingConfirmationJob>(
     try {
       const emailTemplate = getEmailTemplate(type, booking, calendar);
       await emailTransporter.sendMail({
-        from: process.env.SMTP_FROM || 'bookings@atlas-fitness.com',
+        from: process.env.SMTP_FROM || 'sam@gymleadhub.co.uk',
         to: booking.contact_email,
         subject: emailTemplate.subject,
         html: emailTemplate.html

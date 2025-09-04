@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
         throw new Error('Email service not configured')
       }
       const { error: emailError } = await resend.emails.send({
-        from: 'Atlas Fitness <onboarding@resend.dev>',
+        from: 'GymLeadHub <sam@gymleadhub.co.uk>',
         to: customerEmail,
         subject: 'Your Login Link - Atlas Fitness',
         html: `
