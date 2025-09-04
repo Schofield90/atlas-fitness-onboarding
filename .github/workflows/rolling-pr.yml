@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 
 jobs:
@@ -54,9 +54,24 @@ jobs:
           )
           body=${body/CI_LINK/${ciLink}}
 
-          # If PR exists, update; else create
-          if gh pr view "${head}" >/dev/null 2>&1; then
-            gh pr edit "${head}" --title "$title" --body "$body"
+          # Check for existing PR by head branch
+          existing_json=$(gh pr list --state open --head "$head" --json number,url || echo '[]')
+          number=$(echo "$existing_json" | jq -r '.[0].number // empty')
+
+          if [ -n "$number" ]; then
+            gh api \
+              -X PATCH \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/${owner}/${repo}/pulls/${number}" \
+              -f title="$title" \
+              -f body="$body" >/dev/null
           else
-            gh pr create --title "$title" --body "$body" --base "$base" --head "$head"
+            gh api \
+              -X POST \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/${owner}/${repo}/pulls" \
+              -f title="$title" \
+              -f head="$head" \
+              -f base="$base" \
+              -f body="$body" >/dev/null
           fi
