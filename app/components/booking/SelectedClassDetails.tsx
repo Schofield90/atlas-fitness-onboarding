@@ -18,13 +18,15 @@ import {
   Info
 } from 'lucide-react';
 
-const SelectedClassDetails: React.FC = () => {
-  // No class selected by default
-  const selectedClass = null;
+interface SelectedClassDetailsProps {
+  selectedClass: any | null;
+}
+
+const SelectedClassDetails: React.FC<SelectedClassDetailsProps> = ({ selectedClass }) => {
   
   if (!selectedClass) {
     return (
-      <div className="p-6 h-full flex items-center justify-center">
+      <div className="p-6 h-full flex items-center justify-center" data-testid="selected-class-panel">
         <div className="text-center">
           <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
             <Info className="w-8 h-8 text-gray-400" />
@@ -38,17 +40,25 @@ const SelectedClassDetails: React.FC = () => {
     );
   }
   
-  const utilizationRate = (selectedClass.bookings / selectedClass.capacity) * 100;
+  const start = selectedClass.startTime ? new Date(selectedClass.startTime) : null;
+  const end = start && selectedClass.duration ? new Date(start.getTime() + selectedClass.duration * 60000) : null;
+  const dateString = start ? start.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' }) : '';
+  const timeString = start && end
+    ? `${start.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`
+    : (selectedClass.time || '');
+  const bookings = typeof selectedClass.bookings === 'number' ? selectedClass.bookings : 0;
+  const capacity = typeof selectedClass.capacity === 'number' ? selectedClass.capacity : 0;
+  const utilizationRate = capacity > 0 ? (bookings / capacity) * 100 : 0;
   
   return (
-    <div className="p-6 h-full overflow-y-auto">
+    <div className="p-6 h-full overflow-y-auto" data-testid="selected-class-panel">
       <div className="space-y-6">
         {/* Class Header */}
         <div>
           <div className="flex items-start justify-between mb-4">
             <div>
-              <h2 className="text-xl font-bold text-white">{selectedClass.title}</h2>
-              <p className="text-sm text-gray-300">{selectedClass.date}</p>
+              <h2 className="text-xl font-bold text-white" data-testid="selected-class-title">{selectedClass.title}</h2>
+              <p className="text-sm text-gray-300" data-testid="selected-class-time">{[dateString, timeString].filter(Boolean).join(' • ')}</p>
             </div>
             <div className="flex gap-2">
               <Button 
@@ -78,7 +88,9 @@ const SelectedClassDetails: React.FC = () => {
             </div>
           </div>
           
-          <p className="text-sm text-white opacity-80 mb-4">{selectedClass.description}</p>
+          {selectedClass.description && (
+            <p className="text-sm text-white opacity-80 mb-4">{selectedClass.description}</p>
+          )}
           
           {/* Quick Stats */}
           <div className="grid grid-cols-2 gap-3 mb-4">
@@ -98,13 +110,15 @@ const SelectedClassDetails: React.FC = () => {
               <p className="text-sm font-medium text-green-400">{selectedClass.earnings}</p>
             </div>
             
-            <div className="bg-gray-700/50 rounded-lg p-3">
-              <div className="flex items-center gap-2 mb-1">
-                <MapPin className="w-4 h-4 text-gray-400" />
-                <span className="text-xs text-gray-400">Location</span>
+            {selectedClass.room && (
+              <div className="bg-gray-700/50 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <MapPin className="w-4 h-4 text-gray-400" />
+                  <span className="text-xs text-gray-400">Location</span>
+                </div>
+                <p className="text-sm font-medium text-white">{selectedClass.room}</p>
               </div>
-              <p className="text-sm font-medium text-white">{selectedClass.room}</p>
-            </div>
+            )}
             
             <div className="bg-gray-700/50 rounded-lg p-3">
               <div className="flex items-center gap-2 mb-1">
@@ -119,22 +133,23 @@ const SelectedClassDetails: React.FC = () => {
         </div>
         
         {/* Instructor Info */}
+        {(selectedClass.instructor || selectedClass.instructor?.name) && (
         <Card>
           <CardHeader>
             <CardTitle>Instructor</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-3">
-              <div className="text-2xl">{selectedClass.instructor.avatar}</div>
+              <div className="text-2xl">{selectedClass.instructor?.avatar ?? ''}</div>
               <div className="flex-1">
-                <h4 className="font-medium text-white">{selectedClass.instructor.name}</h4>
+                <h4 className="font-medium text-white">{selectedClass.instructor?.name ?? selectedClass.instructor}</h4>
                 <div className="flex items-center gap-2 mt-1">
                   <div className="flex items-center gap-1">
                     <Star className="w-3 h-3 text-yellow-400 fill-current" />
-                    <span className="text-xs text-white opacity-70">{selectedClass.instructor.rating}</span>
+                    <span className="text-xs text-white opacity-70">{selectedClass.instructor?.rating ?? ''}</span>
                   </div>
                   <span className="text-xs text-gray-400">•</span>
-                  <span className="text-xs text-white opacity-70">{selectedClass.instructor.experience}</span>
+                  <span className="text-xs text-white opacity-70">{selectedClass.instructor?.experience ?? ''}</span>
                 </div>
               </div>
               <Button 
@@ -151,6 +166,7 @@ const SelectedClassDetails: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+        )}
         
         {/* Capacity Overview */}
         <Card>
@@ -187,6 +203,7 @@ const SelectedClassDetails: React.FC = () => {
         </Card>
         
         {/* Equipment */}
+        {Array.isArray(selectedClass.equipment) && selectedClass.equipment.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Equipment Needed</CardTitle>
@@ -201,8 +218,10 @@ const SelectedClassDetails: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+        )}
         
         {/* Recent Attendees */}
+        {Array.isArray(selectedClass.attendees) && (
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -244,6 +263,7 @@ const SelectedClassDetails: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+        )}
         
         {/* Quick Actions */}
         <div className="space-y-3">
