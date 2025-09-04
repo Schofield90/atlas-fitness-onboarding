@@ -35,16 +35,28 @@ async function createClientMember(request: NextRequest) {
     throw ValidationError.invalid('email', body.email, 'valid email address')
   }
   
-  // Check for existing client with same email in this organization
-  const { data: existingClient } = await supabase
+  // Check for existing client with same email or phone in this organization (support org_id or organization_id)
+  const orgId = userWithOrg.organizationId
+  const { data: dupByEmail } = await supabase
     .from('clients')
-    .select('id, email')
-    .eq('email', body.email)
-    .eq('organization_id', userWithOrg.organizationId)
-    .single()
-  
-  if (existingClient) {
+    .select('id')
+    .ilike('email', body.email)
+    .or(`organization_id.eq.${orgId},org_id.eq.${orgId}`)
+    .limit(1)
+  if (dupByEmail && dupByEmail.length > 0) {
     throw ValidationError.duplicate('email', body.email)
+  }
+  if (body.phone) {
+    const normalizedPhone = String(body.phone).replace(/\D/g, '')
+    const { data: dupByPhone } = await supabase
+      .from('clients')
+      .select('id, phone')
+      .or(`organization_id.eq.${orgId},org_id.eq.${orgId}`)
+      .ilike('phone', `%${normalizedPhone}`)
+      .limit(1)
+    if (dupByPhone && dupByPhone.length > 0) {
+      throw ValidationError.duplicate('phone', body.phone)
+    }
   }
   
   // Build insert data
