@@ -13,6 +13,8 @@ export default function MemberPortal() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [memberData, setMemberData] = useState<any>(null)
+  const [upcomingBookings, setUpcomingBookings] = useState<any[]>([])
+  const [bookingsLoading, setBookingsLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -44,6 +46,10 @@ export default function MemberPortal() {
 
       if (client) {
         setMemberData(client)
+        // Fetch upcoming bookings for this member (pending or confirmed)
+        if (authUser.email) {
+          fetchUpcomingBookings(authUser.email)
+        }
       }
     } catch (error) {
       console.error('Auth error:', error)
@@ -53,12 +59,30 @@ export default function MemberPortal() {
     }
   }
 
+  const fetchUpcomingBookings = async (email: string) => {
+    try {
+      setBookingsLoading(true)
+      const { data } = await supabase
+        .from('bookings')
+        .select('id, title, start_time, end_time, booking_status, cancellation_token, attendee_email')
+        .eq('attendee_email', email)
+        .in('booking_status', ['pending', 'confirmed'])
+        .gte('start_time', new Date().toISOString())
+        .order('start_time', { ascending: true })
+      setUpcomingBookings(data || [])
+    } catch (error) {
+      console.error('Error fetching upcoming bookings:', error)
+    } finally {
+      setBookingsLoading(false)
+    }
+  }
+
   const renderContent = () => {
     switch (activeTab) {
       case 'home':
-        return <HomeTab memberData={memberData} />
+        return <HomeTab memberData={memberData} upcomingBookings={upcomingBookings} bookingsLoading={bookingsLoading} onManage={() => setActiveTab('bookings')} />
       case 'bookings':
-        return <BookingsTab memberData={memberData} router={router} />
+        return <BookingsTab memberData={memberData} router={router} initialBookings={upcomingBookings} />
       case 'nutrition':
         return <NutritionTab memberData={memberData} />
       case 'messages':
@@ -174,7 +198,7 @@ function TabButton({ icon, label, active, onClick }: any) {
 }
 
 // Home Tab Component
-function HomeTab({ memberData }: any) {
+function HomeTab({ memberData, upcomingBookings, bookingsLoading, onManage }: any) {
   return (
     <div className="p-4 space-y-6">
       {/* Welcome Section */}
@@ -209,30 +233,40 @@ function HomeTab({ memberData }: any) {
       {/* Upcoming Classes */}
       <div className="bg-gray-800 rounded-lg p-4">
         <h3 className="font-bold mb-3">Upcoming Classes</h3>
-        <div className="space-y-2">
-          <div className="flex justify-between items-center py-2 border-b border-gray-700">
-            <div>
-              <div className="font-medium">HIIT Training</div>
-              <div className="text-sm text-gray-400">Tomorrow, 9:00 AM</div>
-            </div>
-            <button className="px-3 py-1 bg-orange-600 rounded text-sm">
-              View
-            </button>
+        {bookingsLoading ? (
+          <div className="text-gray-400">Loading...</div>
+        ) : upcomingBookings?.length > 0 ? (
+          <div className="space-y-2">
+            {upcomingBookings.slice(0, 3).map((b: any) => (
+              <div key={b.id} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
+                <div>
+                  <div className="font-medium">{b.title}</div>
+                  <div className="text-sm text-gray-400">{new Date(b.start_time).toLocaleString()}</div>
+                </div>
+                <button onClick={onManage} className="px-3 py-1 bg-orange-600 rounded text-sm">
+                  Manage
+                </button>
+              </div>
+            ))}
           </div>
-        </div>
+        ) : (
+          <p className="text-gray-400">No upcoming classes available</p>
+        )}
       </div>
     </div>
   )
 }
 
 // Bookings Tab Component
-function BookingsTab({ memberData, router }: any) {
+function BookingsTab({ memberData, router, initialBookings = [] }: any) {
   const [bookings, setBookings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showCalendar, setShowCalendar] = useState(false)
   const [classes, setClasses] = useState<any[]>([])
 
   useEffect(() => {
+    setBookings(initialBookings)
+    setLoading(false)
     fetchBookings()
     fetchAvailableClasses()
   }, [])
@@ -242,11 +276,11 @@ function BookingsTab({ memberData, router }: any) {
       const supabase = createClient()
       const { data } = await supabase
         .from('bookings')
-        .select('*')
+        .select('id, title, start_time, end_time, booking_status, cancellation_token, attendee_email')
         .eq('attendee_email', memberData?.email)
-        .order('start_time', { ascending: false })
+        .order('start_time', { ascending: true })
 
-      setBookings(data || [])
+      setBookings((data || []).filter(b => new Date(b.start_time) >= new Date()))
     } catch (error) {
       console.error('Error fetching bookings:', error)
     } finally {
@@ -259,9 +293,9 @@ function BookingsTab({ memberData, router }: any) {
       const supabase = createClient()
       const { data } = await supabase
         .from('class_sessions')
-        .select('*')
-        .gte('date', new Date().toISOString().split('T')[0])
-        .order('date', { ascending: true })
+        .select('id, name, start_time, max_capacity, current_bookings')
+        .gte('start_time', new Date().toISOString())
+        .order('start_time', { ascending: true })
         .limit(20)
 
       setClasses(data || [])
@@ -310,9 +344,9 @@ function BookingsTab({ memberData, router }: any) {
               {classes.map((cls) => (
                 <div key={cls.id} className="flex justify-between items-center p-3 bg-gray-700 rounded-lg">
                   <div>
-                    <div className="font-medium">{cls.title}</div>
+                    <div className="font-medium">{cls.name}</div>
                     <div className="text-sm text-gray-400">
-                      {new Date(cls.date + 'T' + cls.start_time).toLocaleString('en-GB', {
+                      {new Date(cls.start_time).toLocaleString('en-GB', {
                         weekday: 'short',
                         month: 'short',
                         day: 'numeric',
@@ -321,19 +355,19 @@ function BookingsTab({ memberData, router }: any) {
                       })}
                     </div>
                     <div className="text-xs text-gray-500">
-                      {cls.current_attendees}/{cls.max_attendees} spots filled
+                      {cls.current_bookings}/{cls.max_capacity} spots filled
                     </div>
                   </div>
                   <button 
                     onClick={() => handleBookClass(cls.id)}
-                    disabled={cls.current_attendees >= cls.max_attendees}
+                    disabled={cls.current_bookings >= cls.max_capacity}
                     className={`px-3 py-1 rounded text-sm ${
-                      cls.current_attendees >= cls.max_attendees
+                      cls.current_bookings >= cls.max_capacity
                         ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
                         : 'bg-orange-600 hover:bg-orange-700 text-white'
                     }`}
                   >
-                    {cls.current_attendees >= cls.max_attendees ? 'Full' : 'Book'}
+                    {cls.current_bookings >= cls.max_capacity ? 'Full' : 'Book'}
                   </button>
                 </div>
               ))}
@@ -365,7 +399,7 @@ function BookingsTab({ memberData, router }: any) {
         </div>
       ) : (
         <div className="text-center py-8 text-gray-400">
-          No bookings yet. Book your first class!
+          No upcoming classes available
         </div>
       )}
     </div>
