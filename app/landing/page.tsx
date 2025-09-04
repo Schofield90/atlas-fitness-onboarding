@@ -7,6 +7,7 @@ import {
   ChefHat, Dumbbell, Activity, CreditCard, BarChart3, Zap,
   CheckCircle, Star, ArrowRight, Clock, Shield, Globe, Menu, X
 } from 'lucide-react'
+import { TRIAL_CTA_TEXT } from '@/app/lib/constants'
 
 export default function LandingPage() {
   const [email, setEmail] = useState('')
@@ -121,7 +122,7 @@ export default function LandingPage() {
                 href="/signup"
                 className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors"
               >
-                Start Free Trial
+                {TRIAL_CTA_TEXT}
               </Link>
               <button
                 type="button"
@@ -174,7 +175,7 @@ export default function LandingPage() {
               href="/signup"
               className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 px-8 rounded-lg text-lg transition-all transform hover:scale-105 shadow-lg flex items-center gap-2"
             >
-              Start 14-Day Free Trial
+              {TRIAL_CTA_TEXT}
               <ArrowRight className="h-5 w-5" />
             </Link>
             <Link 
@@ -292,7 +293,7 @@ export default function LandingPage() {
                 href="/signup"
                 className="bg-white text-orange-600 hover:bg-gray-100 font-bold py-4 px-8 rounded-lg text-lg transition-all"
               >
-                Start Free Trial
+                {TRIAL_CTA_TEXT}
               </Link>
               <Link 
                 href="/contact"

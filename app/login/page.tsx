@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/app/lib/supabase/client'
+import { TRIAL_CTA_TEXT } from '@/app/lib/constants'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -200,7 +201,7 @@ export default function LoginPage() {
             <p className="text-sm text-gray-400">
               Don't have an account?{' '}
               <Link href="/signup" className="font-medium text-orange-500 hover:text-orange-400">
-                Start your free trial
+                {TRIAL_CTA_TEXT}
               </Link>
             </p>
           </div>
