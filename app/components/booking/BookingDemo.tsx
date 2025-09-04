@@ -5,6 +5,7 @@ import { Calendar, momentLocalizer, View } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './BookingCalendar.css';
+import { TRIAL_CTA_TEXT } from '@/app/lib/constants'
 
 const localizer = momentLocalizer(moment);
 
@@ -163,7 +164,7 @@ const BookingDemo: React.FC<BookingDemoProps> = ({ onSignupClick }) => {
               onClick={onSignupClick}
               className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded transition-colors"
             >
-              Start Free Trial for Real Bookings
+              {TRIAL_CTA_TEXT}
             </button>
           </div>
         </div>

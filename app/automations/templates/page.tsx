@@ -20,6 +20,7 @@ import {
   Eye,
   Copy
 } from 'lucide-react'
+import { TRIAL_CTA_TEXT } from '@/app/lib/constants'
 
 interface WorkflowTemplate {
   id: string
@@ -271,7 +272,7 @@ export default function WorkflowTemplatesPage() {
             onClick={() => router.push('/signup')}
             className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg transition-colors"
           >
-            Start Free Trial
+            {TRIAL_CTA_TEXT}
           </button>
         </div>
       </div>

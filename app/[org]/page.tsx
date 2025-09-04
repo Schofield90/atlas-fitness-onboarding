@@ -3,6 +3,7 @@ import { createAdminClient } from '@/app/lib/supabase/admin'
 import Image from 'next/image'
 import Link from 'next/link'
 import { MapPin, Phone, Mail, Clock, Users, Activity, Calendar } from 'lucide-react'
+import { TRIAL_CTA_TEXT } from '@/app/lib/constants'
 
 interface PageProps {
   params: Promise<{ org: string }>
@@ -126,7 +127,7 @@ export default async function OrganizationLandingPage({ params }: PageProps) {
                 href={`/${orgSlug}/free-trial`}
                 className="bg-white text-gray-900 px-8 py-4 rounded-md font-semibold hover:bg-gray-100 text-center"
               >
-                Start Free Trial
+                {TRIAL_CTA_TEXT}
               </Link>
               <Link
                 href="#classes"
