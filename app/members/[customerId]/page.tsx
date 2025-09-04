@@ -79,18 +79,39 @@ export default function CustomerProfilePage() {
   const loadCustomerProfile = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('leads')
+      // Prefer clients table; fallback to leads if not found
+      let { data, error } = await supabase
+        .from('clients')
         .select('*')
         .eq('id', customerId)
-        .eq('organization_id', organizationId)
         .single();
+
+      if (error || !data) {
+        const res = await supabase
+          .from('leads')
+          .select('*')
+          .eq('id', customerId)
+          .eq('organization_id', organizationId)
+          .single();
+        data = res.data as any
+        error = res.error as any
+      }
 
       if (error) throw error;
 
       if (data) {
-        setCustomer(data);
-        setEditForm(data);
+        // Normalize to CustomerProfile shape
+        const name = (data.name || `${data.first_name || ''} ${data.last_name || ''}`).trim()
+        const normalized: any = {
+          ...data,
+          name,
+          total_visits: data.total_visits || 0,
+          last_visit_date: data.last_visit || data.last_visit_date,
+          created_at: data.created_at,
+          updated_at: data.updated_at
+        }
+        setCustomer(normalized);
+        setEditForm(normalized);
       }
     } catch (error) {
       console.error('Error loading customer:', error);
@@ -143,18 +164,8 @@ export default function CustomerProfilePage() {
     try {
       const { data, error } = await supabase
         .from('bookings')
-        .select(`
-          *,
-          class_session:class_session_id (
-            name,
-            start_time,
-            end_time,
-            programs:program_id (
-              name
-            )
-          )
-        `)
-        .eq('customer_id', customerId)
+        .select('*')
+        .or(`customer_id.eq.${customerId},client_id.eq.${customerId}`)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -169,7 +180,7 @@ export default function CustomerProfilePage() {
       const { data, error } = await supabase
         .from('payment_transactions')
         .select('*')
-        .eq('customer_id', customerId)
+        .or(`customer_id.eq.${customerId},client_id.eq.${customerId}`)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -191,7 +202,7 @@ export default function CustomerProfilePage() {
             billing_period
           )
         `)
-        .eq('customer_id', customerId)
+        .or(`customer_id.eq.${customerId},client_id.eq.${customerId}`)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -212,7 +223,7 @@ export default function CustomerProfilePage() {
             email
           )
         `)
-        .eq('customer_id', customerId)
+        .or(`customer_id.eq.${customerId},client_id.eq.${customerId}`)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -224,14 +235,18 @@ export default function CustomerProfilePage() {
 
   const handleSaveProfile = async () => {
     try {
-      const { error } = await supabase
-        .from('leads')
-        .update({
-          ...editForm,
-          updated_at: new Date().toISOString()
-        })
+      // Update whichever record exists
+      const updates = { ...editForm, updated_at: new Date().toISOString() }
+      const { error: updateClientErr } = await supabase
+        .from('clients')
+        .update(updates)
         .eq('id', customerId)
-        .eq('organization_id', organizationId);
+      const { error: updateLeadErr } = await supabase
+        .from('leads')
+        .update(updates)
+        .eq('id', customerId)
+        .eq('organization_id', organizationId)
+      const error = updateClientErr && updateLeadErr ? (updateClientErr || updateLeadErr) : null
 
       if (error) throw error;
 
