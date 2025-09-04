@@ -126,7 +126,7 @@ export default async function OrganizationLandingPage({ params }: PageProps) {
                 href={`/${orgSlug}/free-trial`}
                 className="bg-white text-gray-900 px-8 py-4 rounded-md font-semibold hover:bg-gray-100 text-center"
               >
-                Start Free Trial
+                Start 14-Day Free Trial
               </Link>
               <Link
                 href="#classes"

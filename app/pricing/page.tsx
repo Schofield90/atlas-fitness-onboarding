@@ -103,7 +103,7 @@ export default function PricingPage() {
                     : 'bg-gray-700 hover:bg-gray-600 text-white'
                 }`}
               >
-                {plan.price === 'Custom' ? 'Contact Sales' : 'Start Free Trial'}
+                {plan.price === 'Custom' ? 'Contact Sales' : 'Start 14-Day Free Trial'}
               </Link>
             </div>
           ))}

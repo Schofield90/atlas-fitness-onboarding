@@ -102,25 +102,27 @@ export default function LandingPage() {
             <Activity className="h-8 w-8 text-orange-500" />
             <span className="text-2xl font-bold">Atlas Fitness</span>
           </div>
-          <nav className="flex items-center space-x-6">
-            <div className="hidden md:flex space-x-8">
-              <a href="#features" className="hover:text-orange-400 transition-colors">Features</a>
-              <a href="#benefits" className="hover:text-orange-400 transition-colors">Benefits</a>
-              <a href="#testimonials" className="hover:text-orange-400 transition-colors">Testimonials</a>
-              <a href="#pricing" className="hover:text-orange-400 transition-colors">Pricing</a>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Link 
+          <nav className="flex items-center">
+            <ul className="hidden md:flex items-center gap-8">
+              <li><a href="#features" className="hover:text-orange-400 transition-colors">Features</a></li>
+              <li><a href="#benefits" className="hover:text-orange-400 transition-colors">Benefits</a></li>
+              <li><a href="#testimonials" className="hover:text-orange-400 transition-colors">Testimonials</a></li>
+              <li><a href="#pricing" className="hover:text-orange-400 transition-colors">Pricing</a></li>
+              <li><Link href="/docs" className="hover:text-orange-400 transition-colors">Docs</Link></li>
+              <li><Link href="/about" className="hover:text-orange-400 transition-colors">About</Link></li>
+            </ul>
+            <div className="flex items-center gap-4 ml-6">
+              <Link
                 href="/login"
                 className="bg-gray-800 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg text-sm transition-colors border border-gray-600"
               >
                 Sign In
               </Link>
-              <Link 
+              <Link
                 href="/signup"
                 className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors"
               >
-                Start Free Trial
+                Start 14-Day Free Trial
               </Link>
             </div>
           </nav>
@@ -268,7 +270,7 @@ export default function LandingPage() {
                 href="/signup"
                 className="bg-white text-orange-600 hover:bg-gray-100 font-bold py-4 px-8 rounded-lg text-lg transition-all"
               >
-                Start Free Trial
+                Start 14-Day Free Trial
               </Link>
               <Link 
                 href="/contact"

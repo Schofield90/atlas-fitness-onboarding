@@ -190,7 +190,7 @@ export default function GetStartedPage() {
               disabled={loading}
               className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white font-bold py-3 px-4 rounded-lg transition-colors"
             >
-              {loading ? 'Creating Your Account...' : 'Start Free Trial'}
+              {loading ? 'Creating Your Account...' : 'Start 14-Day Free Trial'}
             </button>
           </form>
 

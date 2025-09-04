@@ -323,7 +323,7 @@ export default function SignupPage() {
               disabled={loading}
               className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? 'Creating your account...' : 'Start Free Trial'}
+              {loading ? 'Creating your account...' : 'Start 14-Day Free Trial'}
             </button>
           </div>
 

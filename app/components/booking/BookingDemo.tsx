@@ -163,7 +163,7 @@ const BookingDemo: React.FC<BookingDemoProps> = ({ onSignupClick }) => {
               onClick={onSignupClick}
               className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded transition-colors"
             >
-              Start Free Trial for Real Bookings
+              Start 14-Day Free Trial for Real Bookings
             </button>
           </div>
         </div>

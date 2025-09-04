@@ -378,7 +378,7 @@ export function SaasBillingDashboard() {
           <div className="bg-gray-50 rounded-lg p-6 text-center">
             <p className="text-gray-600 mb-4">No active subscription</p>
             <Button onClick={() => handleUpgrade(billingData.availablePlans[0].id)}>
-              Start Free Trial
+              Start 14-Day Free Trial
             </Button>
           </div>
         )}
