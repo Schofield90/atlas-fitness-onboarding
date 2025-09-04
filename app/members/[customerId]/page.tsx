@@ -14,9 +14,10 @@ import { useOrganization } from '@/app/hooks/useOrganization';
 
 interface CustomerProfile {
   id: string;
-  name: string;
+  first_name?: string;
+  last_name?: string;
   email: string;
-  phone: string;
+  phone?: string;
   date_of_birth?: string;
   emergency_contact_name?: string;
   emergency_contact_phone?: string;
@@ -26,13 +27,14 @@ interface CustomerProfile {
   preferred_contact_method?: string;
   communication_preferences?: any;
   tags?: string[];
-  last_visit_date?: string;
+  last_visit?: string;
   total_visits?: number;
   churn_risk_score?: number;
   churn_risk_factors?: any;
   lifetime_value?: number;
+  notes?: string;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
 }
 
 interface CustomerActivity {
@@ -116,7 +118,7 @@ export default function CustomerProfilePage() {
     } catch (error) {
       console.error('Error loading customer:', error);
       alert('Failed to load customer profile');
-      router.push('/customers');
+      router.push('/members');
     } finally {
       setLoading(false);
     }
@@ -307,13 +309,13 @@ export default function CustomerProfilePage() {
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => router.push('/customers')}
+                onClick={() => router.push('/members')}
                 className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
               >
                 <ArrowLeft className="w-5 h-5 text-gray-400" />
               </button>
               <div>
-                <h1 className="text-3xl font-bold text-white">{customer.name}</h1>
+                <h1 className="text-3xl font-bold text-white">{`${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Unknown Member'}</h1>
                 <p className="text-gray-400 mt-1">Customer Profile & Management</p>
               </div>
             </div>
@@ -386,8 +388,8 @@ export default function CustomerProfilePage() {
                 <span className="text-gray-400 text-sm">Last Visit</span>
               </div>
               <div className="text-2xl font-bold text-white">
-                {customer.last_visit_date 
-                  ? new Date(customer.last_visit_date).toLocaleDateString('en-GB')
+                {customer.last_visit 
+                  ? new Date(customer.last_visit).toLocaleDateString('en-GB')
                   : 'Never'
                 }
               </div>
@@ -428,16 +430,30 @@ export default function CustomerProfilePage() {
                 <h3 className="text-lg font-semibold text-white mb-4">Basic Information</h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">Name</label>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">First Name</label>
                     {isEditing ? (
                       <input
                         type="text"
-                        value={editForm.name || ''}
-                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                        value={editForm.first_name || ''}
+                        onChange={(e) => setEditForm({ ...editForm, first_name: e.target.value })}
                         className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
                       />
                     ) : (
-                      <p className="text-white">{customer.name}</p>
+                      <p className="text-white">{customer.first_name || 'Not provided'}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">Last Name</label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editForm.last_name || ''}
+                        onChange={(e) => setEditForm({ ...editForm, last_name: e.target.value })}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      />
+                    ) : (
+                      <p className="text-white">{customer.last_name || 'Not provided'}</p>
                     )}
                   </div>
 
