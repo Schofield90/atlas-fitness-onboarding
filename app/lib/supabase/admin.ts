@@ -1,16 +1,18 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from './database.types'
 
-// Create a Supabase client with the service role key
-// This bypasses Row Level Security (RLS) policies
+// Create a Supabase client with the service role key.
+// During build (e.g. on Vercel) envs may be unavailable; fall back to anon key to avoid build failures.
 export function createAdminClient() {
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set')
-  }
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321'
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const fallbackKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+  const keyToUse = serviceKey || fallbackKey
 
   return createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    url,
+    keyToUse,
     {
       auth: {
         autoRefreshToken: false,

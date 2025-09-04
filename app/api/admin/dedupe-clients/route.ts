@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/app/lib/supabase/admin'
 
+export const runtime = 'nodejs'
+
 export async function POST() {
   const supabase = await createAdminClient()
   try {

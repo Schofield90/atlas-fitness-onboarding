@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/app/lib/supabase/admin'
 import { requireAdminAccess } from '@/app/lib/admin/impersonation'
 
+export const runtime = 'nodejs'
+
 export async function GET() {
   try {
     const { isAdmin } = await requireAdminAccess()

@@ -4,6 +4,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { MapPin, Phone, Mail, Clock, Users, Activity, Calendar } from 'lucide-react'
 
+export const dynamic = 'force-dynamic'
+
 interface PageProps {
   params: Promise<{ org: string }>
 }
@@ -357,13 +359,21 @@ export default async function OrganizationLandingPage({ params }: PageProps) {
 
 // Generate static params for known organizations
 export async function generateStaticParams() {
-  const adminSupabase = createAdminClient()
-  const { data: organizations } = await adminSupabase
-    .from('organizations')
-    .select('slug, name')
-    .limit(100)
+  // Avoid requiring service role at build time. If missing, return no prebuilt params.
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY || !process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    return []
+  }
+  try {
+    const adminSupabase = createAdminClient()
+    const { data: organizations } = await adminSupabase
+      .from('organizations')
+      .select('slug, name')
+      .limit(100)
 
-  return (organizations || []).map((org) => ({
-    org: org.slug || org.name.toLowerCase().replace(/\s+/g, '-')
-  }))
+    return (organizations || []).map((org) => ({
+      org: org.slug || org.name.toLowerCase().replace(/\s+/g, '-')
+    }))
+  } catch {
+    return []
+  }
 }
