@@ -218,4 +218,4 @@ async function getClients(request: NextRequest) {
 }
 
 // Export directly without error boundary since we handle errors internally
-export const GET = getClients
+export const GET = getClients// Force rebuild Thu  4 Sep 2025 16:22:52 BST
