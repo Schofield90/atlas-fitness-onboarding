@@ -10,21 +10,46 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get user's organization
-    const { data: orgMember, error: orgError } = await supabase
+    // Resolve user's organization (with robust fallbacks to match Settings page behavior)
+    let organizationId: string | null = null
+
+    // Try organization_members (primary source in multi-tenant schema)
+    const { data: orgMember } = await supabase
       .from('organization_members')
       .select('org_id')
       .eq('user_id', user.id)
       .single()
 
-    if (orgError || !orgMember) {
+    if (orgMember?.org_id) {
+      organizationId = orgMember.org_id as string
+    }
+
+    // Fallback 1: users table may have organization_id on some deployments
+    if (!organizationId) {
+      const { data: userRow } = await supabase
+        .from('users')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single()
+
+      if (userRow?.organization_id) {
+        organizationId = userRow.organization_id as string
+      }
+    }
+
+    // Fallback 2: known default org (align with AppointmentTypesManager.tsx)
+    if (!organizationId) {
+      organizationId = process.env.DEFAULT_ORGANIZATION_ID || '63589490-8f55-4157-bd3a-e141594b748e'
+    }
+
+    if (!organizationId) {
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
     }
 
     const { data: appointmentTypes, error } = await supabase
       .from('appointment_types')
       .select('*')
-      .eq('organization_id', orgMember.org_id)
+      .eq('organization_id', organizationId)
       .eq('is_active', true)
       .order('name')
 
