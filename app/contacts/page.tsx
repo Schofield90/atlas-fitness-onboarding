@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
 import DashboardLayout from '@/app/components/DashboardLayout'
-import { Plus, Search, Download, Filter, UserPlus, Mail, Phone, MessageSquare, Upload, Tags } from 'lucide-react'
+import { Plus, Search, Download, Filter, UserPlus, Mail, Phone, MessageSquare, Upload, Tags, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useToast } from '@/app/lib/hooks/useToast'
@@ -43,6 +43,8 @@ function ContactsContent() {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(25)
   const [showImportModal, setShowImportModal] = useState(false)
+  const [sortKey, setSortKey] = useState<'name' | 'created'>('created')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
@@ -59,7 +61,7 @@ function ContactsContent() {
 
   useEffect(() => {
     filterContacts()
-  }, [contacts, searchTerm, sourceFilter, tagFilter, optInFilter])
+  }, [contacts, searchTerm, sourceFilter, tagFilter, optInFilter, sortKey, sortOrder])
 
   // Update URL when pagination changes
   useEffect(() => {
@@ -360,11 +362,36 @@ function ContactsContent() {
       }
     }
 
+    // Sorting
+    if (sortKey === 'name') {
+      filtered.sort((a, b) => {
+        const nameA = `${a.first_name || ''} ${a.last_name || ''}`.trim().toLowerCase()
+        const nameB = `${b.first_name || ''} ${b.last_name || ''}`.trim().toLowerCase()
+        if (nameA < nameB) return sortOrder === 'asc' ? -1 : 1
+        if (nameA > nameB) return sortOrder === 'asc' ? 1 : -1
+        return 0
+      })
+    } else if (sortKey === 'created') {
+      filtered.sort((a, b) => {
+        const diff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        return sortOrder === 'asc' ? diff : -diff
+      })
+    }
+
     setFilteredContacts(filtered)
     
     // Reset to first page when filtering changes
     if (currentPage > 1 && (searchTerm || sourceFilter !== 'all' || tagFilter || optInFilter !== 'all')) {
       setCurrentPage(1)
+    }
+  }
+
+  const handleSort = (key: 'name' | 'created') => {
+    if (sortKey === key) {
+      setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortKey(key)
+      setSortOrder(key === 'name' ? 'asc' : 'desc')
     }
   }
 
@@ -569,8 +596,23 @@ function ContactsContent() {
             <table className="w-full">
               <thead className="bg-gray-900">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Contact
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider select-none">
+                    <button
+                      type="button"
+                      onClick={() => handleSort('name')}
+                      className="inline-flex items-center gap-1 text-gray-300 hover:text-white"
+                    >
+                      Contact
+                      {sortKey === 'name' ? (
+                        sortOrder === 'asc' ? (
+                          <ChevronUp className="w-3 h-3" />
+                        ) : (
+                          <ChevronDown className="w-3 h-3" />
+                        )
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 text-gray-500" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Communication
@@ -584,8 +626,23 @@ function ContactsContent() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Opt-ins
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Created
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider select-none">
+                    <button
+                      type="button"
+                      onClick={() => handleSort('created')}
+                      className="inline-flex items-center gap-1 text-gray-300 hover:text-white"
+                    >
+                      Created
+                      {sortKey === 'created' ? (
+                        sortOrder === 'asc' ? (
+                          <ChevronUp className="w-3 h-3" />
+                        ) : (
+                          <ChevronDown className="w-3 h-3" />
+                        )
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 text-gray-500" />
+                      )}
+                    </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Actions
