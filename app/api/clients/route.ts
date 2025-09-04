@@ -122,28 +122,31 @@ async function createClientMember(request: NextRequest) {
 export const POST = withApiErrorBoundary(createClientMember)
 
 async function getClients(request: NextRequest) {
-  // Check authentication and get organization
-  const userWithOrg = await requireAuth()
+  try {
+    // Check authentication and get organization
+    const userWithOrg = await requireAuth()
+      
+    const { searchParams } = new URL(request.url)
+    const status = searchParams.get('status')
+    const page = parseInt(searchParams.get('page') || '1')
+    const pageSize = parseInt(searchParams.get('page_size') || '50')
     
-  const { searchParams } = new URL(request.url)
-  const status = searchParams.get('status')
-  const page = parseInt(searchParams.get('page') || '1')
-  const pageSize = parseInt(searchParams.get('page_size') || '50')
-  
-  const supabase = await createClient()
-  
-  // Calculate range for pagination
-  const from = (page - 1) * pageSize
-  const to = from + pageSize - 1
-  
-  // Build query - filter by organization (check both organization_id and org_id columns)
-  // Simplified query without nested joins to avoid database issues
-  let query = supabase
-    .from('clients')
-    .select('*', { count: 'exact' })
-    .or(`organization_id.eq.${userWithOrg.organizationId},org_id.eq.${userWithOrg.organizationId}`)
-    .order('created_at', { ascending: false })
-    .range(from, to)
+    const supabase = await createClient()
+    
+    // Calculate range for pagination
+    const from = (page - 1) * pageSize
+    const to = from + pageSize - 1
+    
+    console.log('Fetching clients for organization:', userWithOrg.organizationId)
+    
+    // Build query - filter by organization (check both organization_id and org_id columns)
+    // Simplified query without nested joins to avoid database issues
+    let query = supabase
+      .from('clients')
+      .select('*', { count: 'exact' })
+      .or(`organization_id.eq.${userWithOrg.organizationId},org_id.eq.${userWithOrg.organizationId}`)
+      .order('created_at', { ascending: false })
+      .range(from, to)
   
   // Apply status filter
   if (status && status !== 'all') {
@@ -197,18 +200,22 @@ async function getClients(request: NextRequest) {
     })
   }
   
-  return NextResponse.json({
-    success: true,
-    clients: enrichedClients,
-    pagination: {
-      page,
-      pageSize,
-      total: count || 0,
-      totalPages: Math.ceil((count || 0) / pageSize)
-    },
-    organizationId: userWithOrg.organizationId
-  })
+    return NextResponse.json({
+      success: true,
+      clients: enrichedClients,
+      pagination: {
+        page,
+        pageSize,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / pageSize)
+      },
+      organizationId: userWithOrg.organizationId
+    })
+  } catch (error) {
+    console.error('Error in getClients:', error)
+    return handleApiError(error)
+  }
 }
 
-// Wrap with error boundary
-export const GET = withApiErrorBoundary(getClients)
+// Export directly without error boundary since we handle errors internally
+export const GET = getClients
