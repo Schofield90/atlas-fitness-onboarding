@@ -6,6 +6,7 @@ import { createClient } from '@/app/lib/supabase/client'
 import toast from '@/app/lib/toast'
 import { formatBritishCurrency } from '@/app/lib/utils/british-format'
 import type { MembershipPlan } from '@/app/lib/services/membership-service'
+import { getCurrentUserOrganization } from '@/app/lib/organization-service'
 
 interface EditMembershipPlanModalProps {
   isOpen: boolean
@@ -62,15 +63,10 @@ export default function EditMembershipPlanModal({ isOpen, onClose, onSuccess, pl
         return
       }
 
-      // Get organization ID
-      const { data: userData } = await supabase
-        .from('users')
-        .select('organization_id')
-        .eq('id', user.id)
-        .single()
-
-      if (!userData?.organization_id) {
-        toast.error('Organization not found')
+      // Get organization ID via centralized resolver
+      const { organizationId, error: orgError } = await getCurrentUserOrganization()
+      if (orgError || !organizationId) {
+        toast.error(orgError || 'No organization found. Please contact support.')
         return
       }
 
@@ -92,7 +88,7 @@ export default function EditMembershipPlanModal({ isOpen, onClose, onSuccess, pl
           updated_at: new Date().toISOString()
         })
         .eq('id', plan.id)
-        .eq('organization_id', userData.organization_id)
+        .eq('organization_id', organizationId)
 
       if (error) {
         console.error('Error updating membership plan:', error)
