@@ -1,0 +1,88 @@
+name: Update rolling PR body on pushes
+
+on:
+  push:
+    branches: ["**"]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  update-body:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Update body of "chore: rolling Cursor fixes" PR
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Find the open PR with the exact title
+            const { data: prs } = await github.rest.pulls.list({ owner, repo, state: 'open', per_page: 100 });
+            const rolling = prs.find(pr => pr.title === 'chore: rolling Cursor fixes');
+            if (!rolling) {
+              core.info('No open PR titled "chore: rolling Cursor fixes" found. Skipping.');
+              return;
+            }
+
+            // Determine the head SHA for the PR
+            const headSha = rolling.head.sha;
+
+            // Try to find a Vercel preview link from commit statuses or check runs
+            let vercelUrl = '';
+            try {
+              const { data: statuses } = await github.rest.repos.listCommitStatusesForRef({ owner, repo, ref: headSha });
+              const vercelStatus = statuses.find(s => (s.context || '').toLowerCase().includes('vercel'));
+              if (vercelStatus && vercelStatus.target_url) {
+                vercelUrl = vercelStatus.target_url;
+              }
+            } catch (e) {
+              core.info('Could not fetch commit statuses for Vercel link.');
+            }
+
+            if (!vercelUrl) {
+              try {
+                const { data: checks } = await github.rest.checks.listForRef({ owner, repo, ref: headSha });
+                const vercelCheck = (checks.check_runs || []).find(c => (c.name || '').toLowerCase().includes('vercel'));
+                if (vercelCheck && vercelCheck.details_url) {
+                  vercelUrl = vercelCheck.details_url;
+                }
+              } catch (e) {
+                core.info('Could not fetch check runs for Vercel link.');
+              }
+            }
+
+            const ciUrl = `https://github.com/${owner}/${repo}/actions/runs/${context.runId}`;
+
+            const body = [
+              '## Summary',
+              'Keep this PR description aligned with the repository template.',
+              '',
+              '## Risk & scope',
+              '- [ ] No RLS or payments changes',
+              '- [ ] No prod DB migrations',
+              '- [ ] < 300 LOC (diffstat)',
+              '- [ ] Regression tests added/updated',
+              '',
+              '## Affected areas',
+              'Varies with commits in this rolling PR.',
+              '',
+              '## Preview / CI',
+              `- Vercel preview URL: ${vercelUrl || '<not found>'}`,
+              `- Latest CI run: ${ciUrl}`,
+              '',
+              '## Checklist',
+              '- [ ] Small, focused commits',
+              '- [ ] Secrets not logged',
+              '- [ ] Env reads only at request time (no build-time SUPABASE_* reads)'
+            ].join('\n');
+
+            await github.rest.pulls.update({ owner, repo, pull_number: rolling.number, body });
+            core.info(`Updated PR #${rolling.number} body.`);
+
