@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
   Settings,
@@ -20,6 +20,16 @@ export default function AdminSettingsPage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('general')
   const [isSaving, setIsSaving] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [message, setMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const [form, setForm] = useState({
+    business_name: '',
+    contact_email: '',
+    timezone: 'UTC',
+    language: 'en'
+  })
 
   const tabs = [
     { id: 'general', label: 'General', icon: Settings },
@@ -30,11 +40,62 @@ export default function AdminSettingsPage() {
     { id: 'system', label: 'System', icon: Database }
   ]
 
+  useEffect(() => {
+    let isMounted = true
+    async function loadSettings() {
+      try {
+        setIsLoading(true)
+        setError(null)
+        const res = await fetch('/api/settings', { cache: 'no-store' })
+        const json = await res.json()
+        if (!res.ok || !json?.success) {
+          throw new Error(json?.error || 'Failed to load settings')
+        }
+        if (isMounted && json.settings) {
+          setForm({
+            business_name: json.settings.business_name || '',
+            contact_email: json.settings.contact_email || '',
+            timezone: json.settings.timezone || 'UTC',
+            language: json.settings.language || 'en'
+          })
+        }
+      } catch (e: any) {
+        if (isMounted) setError(e?.message || 'Failed to load settings')
+      } finally {
+        if (isMounted) setIsLoading(false)
+      }
+    }
+    loadSettings()
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
   const handleSave = async () => {
     setIsSaving(true)
-    // Simulate save operation
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    setIsSaving(false)
+    setMessage(null)
+    setError(null)
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          business_name: form.business_name,
+          contact_email: form.contact_email,
+          timezone: form.timezone,
+          language: form.language
+        })
+      })
+      const json = await res.json()
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.error || 'Failed to save settings')
+      }
+      setMessage('Settings saved successfully')
+    } catch (e: any) {
+      setError(e?.message || 'Failed to save settings')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const GeneralSettings = () => (
@@ -48,7 +109,10 @@ export default function AdminSettingsPage() {
             </label>
             <input
               type="text"
-              defaultValue="Atlas Fitness Platform"
+              value={form.business_name}
+              onChange={(e) => setForm((prev) => ({ ...prev, business_name: e.target.value }))
+              }
+              disabled={isLoading || isSaving}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
             />
           </div>
@@ -58,7 +122,9 @@ export default function AdminSettingsPage() {
             </label>
             <input
               type="email"
-              defaultValue="support@atlas-fitness.com"
+              value={form.contact_email}
+              onChange={(e) => setForm((prev) => ({ ...prev, contact_email: e.target.value }))}
+              disabled={isLoading || isSaving}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
             />
           </div>
@@ -66,22 +132,32 @@ export default function AdminSettingsPage() {
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Default Timezone
             </label>
-            <select className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500">
-              <option>UTC</option>
-              <option>America/New_York</option>
-              <option>America/Los_Angeles</option>
-              <option>Europe/London</option>
+            <select
+              value={form.timezone}
+              onChange={(e) => setForm((prev) => ({ ...prev, timezone: e.target.value }))}
+              disabled={isLoading || isSaving}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
+            >
+              <option value="UTC">UTC</option>
+              <option value="America/New_York">America/New_York</option>
+              <option value="America/Los_Angeles">America/Los_Angeles</option>
+              <option value="Europe/London">Europe/London</option>
             </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Default Language
             </label>
-            <select className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500">
-              <option>English</option>
-              <option>Spanish</option>
-              <option>French</option>
-              <option>German</option>
+            <select
+              value={form.language}
+              onChange={(e) => setForm((prev) => ({ ...prev, language: e.target.value }))}
+              disabled={isLoading || isSaving}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
+            >
+              <option value="en">English</option>
+              <option value="es">Spanish</option>
+              <option value="fr">French</option>
+              <option value="de">German</option>
             </select>
           </div>
         </div>
@@ -274,6 +350,15 @@ export default function AdminSettingsPage() {
 
       {/* Content */}
       <div className="p-6">
+        {isLoading && (
+          <div className="mb-4 text-sm text-gray-400">Loading settings…</div>
+        )}
+        {message && (
+          <div className="mb-4 text-sm text-green-400">{message}</div>
+        )}
+        {error && (
+          <div className="mb-4 text-sm text-red-400">{error}</div>
+        )}
         {renderTabContent()}
       </div>
     </div>
