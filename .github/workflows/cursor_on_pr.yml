@@ -1,32 +1,61 @@
-name: "Cursor: On PR"
+name: Cursor: On PR (GitHub-only)
+
 on:
   pull_request:
     types: [opened, reopened, synchronize]
-  workflow_dispatch: {}   # manual Run button
+
+permissions:
+  pull-requests: write
+  contents: read
 
 jobs:
-  ping-cursor:
+  prompt-cursor:
     runs-on: ubuntu-latest
     steps:
-      - name: Build message
-        id: build
+      - name: Detect user token availability
         run: |
-          REPO="${{ github.event.pull_request.head.repo.full_name }}"
-          BRANCH="${{ github.event.pull_request.head.ref }}"
-          # Fallbacks for manual runs
-          if [ -z "$REPO" ]; then REPO="${{ github.repository }}"; fi
-          if [ -z "$BRANCH" ]; then BRANCH="${{ github.ref_name }}"; fi
-          echo "REPO=$REPO" >> $GITHUB_OUTPUT
-          echo "BRANCH=$BRANCH" >> $GITHUB_OUTPUT
-      - name: Send to Slack
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID_TESTS }}
-          REPO: ${{ steps.build.outputs.REPO }}
-          BRANCH: ${{ steps.build.outputs.BRANCH }}
-        run: |
-          TEXT="@Cursor [repo=${REPO}, branch=${BRANCH}] run unit and integration tests; if anything fails, push a small fix and add a regression test to this PR. Keep the diff minimal; do not change RLS or payments."
-          curl -s -X POST https://slack.com/api/chat.postMessage \
-            -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-            -H "Content-type: application/json" \
-            --data "{\"channel\":\"$SLACK_CHANNEL_ID\",\"text\":\"$TEXT\"}"
+          if [ -n "${{ secrets.GH_USER_TOKEN }}" ]; then
+            echo "HAS_GH_USER_TOKEN=true" >> "$GITHUB_ENV"
+          else
+            echo "HAS_GH_USER_TOKEN=false" >> "$GITHUB_ENV"
+          fi
+
+      # Post as YOU (if GH_USER_TOKEN is set)
+      - name: Upsert PR prompt comment (user)
+        if: ${{ env.HAS_GH_USER_TOKEN == 'true' }}
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          token: ${{ secrets.GH_USER_TOKEN }}
+          issue-number: ${{ github.event.pull_request.number }}
+          edit-mode: replace
+          comment-author: ${{ github.actor }}
+          body: |
+            <!-- cursor-pr-prompt -->
+            @cursoragent please review this PR for **${{ github.repository }}**  
+            PR **#${{ github.event.pull_request.number }}** on branch **${{ github.event.pull_request.head.ref }}**:
+
+            • Run typecheck and lint  
+            • Run unit/integration tests with coverage  
+            • If anything fails, push a minimal fix **and add a regression test** to this PR  
+            • **Do not** modify RLS or payments; **no** prod DB migrations
+
+            Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      # Fallback: post as GitHub Actions bot
+      - name: Upsert PR prompt comment (bot)
+        if: ${{ env.HAS_GH_USER_TOKEN != 'true' }}
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          edit-mode: replace
+          body: |
+            <!-- cursor-pr-prompt -->
+            @cursoragent please review this PR for **${{ github.repository }}**  
+            PR **#${{ github.event.pull_request.number }}** on branch **${{ github.event.pull_request.head.ref }}**:
+
+            • Run typecheck and lint  
+            • Run unit/integration tests with coverage  
+            • If anything fails, push a minimal fix **and add a regression test** to this PR  
+            • **Do not** modify RLS or payments; **no** prod DB migrations
+
+            Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

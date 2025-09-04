@@ -1,0 +1,280 @@
+# Atlas Fitness CRM — Cursor Rules
+
+## 0) Purpose
+This file is the permanent policy for Cursor background agents. It defines guardrails, coding standards, testing, security, and PR requirements for the Atlas Fitness multi-tenant SaaS platform.
+
+## 1) Architecture Constraints (from docs)
+- **Frontend**: Next.js 15 (App Router), TypeScript strict mode, Tailwind CSS
+- **Backend**: Supabase PostgreSQL with **Row Level Security** enabled on ALL tenant data tables
+- **Multi-tenant isolation**: Organization-based data segregation at database + routing layers
+- **Messaging**: Twilio (WhatsApp/SMS/Voice), Email via Resend/SendGrid/Mailgun
+- **Payments**: Stripe Connect (marketplace model with 3% platform fee)
+- **Queue System**: BullMQ/Redis for workflow execution and background jobs
+- **Deployment**: Vercel; `main` branch auto-deploys to production
+- **Automation Builder**: React Flow with strict validation pipeline (must remain intact)
+- **AI Services**: Anthropic Claude + OpenAI GPT-4 for conversational AI and content generation
+
+## 2) Directory & Conventions
+- `/app/api/*` for API routes using Next.js App Router conventions
+- `/app/components/*` for React UI components
+- `/app/lib/*` for utility functions, services, and shared logic
+- `/supabase/migrations/*` for ALL database changes (never inline raw SQL outside migrations)
+- `/tests/e2e/*` for Playwright E2E tests
+- `/tests/*` or co-located for unit/integration tests
+- **Conventional Commits**: `feat:`, `fix:`, `chore:`, `refactor:`, `test:`, `docs:`, `perf:`, `ci:`
+- **Branch naming**: `feat/<short-description>`, `fix/<issue-or-description>`, `chore/<task>`, `refactor/<component>`, `test/<feature>`
+- **File naming**: kebab-case for files, PascalCase for components, camelCase for utilities
+
+## 3) Agent Guardrails (Cursor must follow)
+- **Never modify RLS policies** without comprehensive tests proving tenant isolation still holds
+- **Never remove organization_id checks** from any query or API route
+- **Do not apply destructive DB migrations** (DROP TABLE, ALTER COLUMN TYPE, RENAME) without:
+  - Creating a reversible down migration
+  - Opening PR labeled `needs-approval` and `database-migration`
+- **Do not change payment logic** (Stripe Connect fees, account types, platform commission) without human approval
+- **Secrets**: Never log/print `.env` values; reference env var names only
+- **Performance**: No blocking calls in request handlers; use async patterns, server actions, or queue jobs
+- **Accessibility**: Preserve WCAG 2.1 AA compliance - keyboard navigation, contrast ratios (4.5:1), ARIA labels
+- **Never bypass authentication** or organization checks in API routes
+- **Do not modify webhook signature verification** for Facebook, Twilio, Stripe, or Resend
+- **Preserve automation builder validation**: Keep all 7 PR fixes intact (single-char input, node dragging, auto-save, etc.)
+
+## 4) Testing Policy (enforced before opening PR)
+- **Run existing tests**: `npm test` and `npm run test:e2e` must pass before any PR
+- **For Automation Builder changes**:
+  - Preserve validation pipeline: trigger detection, required fields, connection checks, variable syntax (`{{var}}` and `[var]`)
+  - Maintain tests for: single-character input fix, full-row dragging, auto-focus new nodes, minimap safety, schedule datetime, Facebook "All Forms"
+  - Add tests for any new node types or configuration options
+- **Add new tests when**:
+  - Modifying workflow execution engine or queue processors
+  - Touching RLS, auth middleware, or multi-tenant boundaries
+  - Changing API contracts or adding new endpoints
+  - Adding new UI components or pages
+- **E2E tests required for**:
+  - Sign-in/sign-up flows
+  - Workflow creation and test mode execution
+  - Booking flow (`/book/public/[organizationId]`)
+  - Lead creation and management
+  - Payment onboarding (Stripe Connect)
+- **Coverage requirements**: Maintain or increase coverage for touched files; never reduce below 80% for critical paths
+
+## 5) Security & Privacy
+- **RLS mandatory** on all tenant tables; new tables must include policies before merge:
+  ```sql
+  -- Example policy template
+  CREATE POLICY "org_isolation" ON table_name
+  FOR ALL USING (organization_id = auth.organization_id());
+  ```
+- **OAuth verification**: Validate signatures for Facebook webhooks, Twilio requests, Stripe webhooks
+- **Rate limiting**: Apply to all public APIs (`/api/public-api/*`, `/api/webhooks/*`)
+- **PII handling**: 
+  - No raw phone numbers/emails in logs beyond audit requirements
+  - Mask sensitive data in error messages
+  - Use Supabase vault for API keys and secrets
+- **Input validation**: Sanitize all user inputs; use Zod schemas for runtime validation
+- **CORS**: Restrict to known domains for production
+
+## 6) API & Integration Rules
+- **Twilio (SMS/WhatsApp/Voice)**:
+  - Validate E.164 format for all phone numbers
+  - Handle STOP/START/HELP keywords automatically
+  - Never send real messages in test environment
+  - Log all message attempts with delivery status
+- **Stripe Connect**:
+  - Preserve marketplace model with 3% platform fee
+  - Keep Express account onboarding flow intact
+  - Handle webhook events idempotently
+  - Never store raw card details
+- **Google Calendar**:
+  - Maintain bidirectional sync behavior
+  - Handle timezone conversions (Europe/London default)
+  - Test event creation, updates, and deletions
+- **Facebook/Meta**:
+  - Verify webhook signatures using X-Hub-Signature-256
+  - Handle lead form webhooks with proper deduplication
+  - Maintain OAuth token refresh logic
+- **Webhooks general**:
+  - Ensure idempotency using event IDs
+  - Implement exponential backoff for retries
+  - Log all webhook events for debugging
+
+## 7) Performance Expectations
+- **API latency**: Target < 200ms p50, < 1s p99 for standard routes
+- **Database queries**:
+  - Use indexes on foreign keys and commonly filtered columns
+  - Batch queries where possible; avoid N+1 queries
+  - Use `SELECT` with specific columns, not `SELECT *`
+  - Implement pagination for list endpoints (default 50 items)
+- **React Flow builder**:
+  - Maintain 60fps during drag operations
+  - Debounce auto-save to 2-second intervals
+  - Lazy load node configuration panels
+  - Virtual scrolling for workflows > 100 nodes
+- **Caching strategy**:
+  - Redis for session data and hot paths
+  - Implement cache invalidation on updates
+  - Use Vercel Edge caching for static assets
+
+## 8) Observability
+- **Structured logging**:
+  - Use consistent format: `[timestamp] [level] [component] message {metadata}`
+  - Include organization_id, user_id, request_id where applicable
+  - No secrets or PII in logs
+- **Error boundaries**:
+  - Wrap high-risk UI components
+  - Provide actionable error messages
+  - Include "Report Issue" link to GitHub
+- **Monitoring points**:
+  - Queue job success/failure rates
+  - Webhook delivery status
+  - API endpoint response times
+  - Database connection pool usage
+
+## 9) PR Requirements (Cursor must follow)
+- **Branch from `main`** and create PR with:
+  ```markdown
+  ## Summary
+  [Brief description of changes]
+  
+  ## Risk Level
+  - [ ] Low - UI/text changes only
+  - [ ] Medium - Logic changes, new features
+  - [ ] High - Database, auth, or payment changes
+  
+  ## Testing
+  - [ ] Unit tests pass
+  - [ ] E2E tests pass (if applicable)
+  - [ ] Manual testing completed
+  
+  ## Affected Areas
+  - Routes: [list affected routes]
+  - Tables: [list affected database tables]
+  - Integrations: [list affected third-party services]
+  
+  ## Migrations
+  [List any database migrations with rollback plan]
+  
+  ## Screenshots
+  [For UI changes]
+  ```
+- **Labels to add**:
+  - `needs-review` for all PRs
+  - `database-migration` if includes SQL changes
+  - `high-risk` for auth/payment/RLS changes
+  - `ui-change` for frontend modifications
+- **Required checks**: CI must pass (build, lint, test)
+
+## 10) Cursor Agent Workflow (how to operate)
+- **On test execution**: 
+  ```bash
+  npm install
+  npm test
+  npm run test:e2e -- --headed=false
+  ```
+- **On test failures**: 
+  - Attempt minimal fixes maintaining existing behavior
+  - Keep commits atomic with descriptive messages
+  - If > 5 files changed, split into multiple commits
+- **For DB changes**:
+  - Generate migration: `supabase migration new <descriptive_name>`
+  - Include down migration for reversibility
+  - Test locally with `supabase db reset`
+- **After fixes**:
+  - Push branch: `git push origin <branch-name>`
+  - Open PR using template above
+  - Tag with appropriate labels
+- **Ask for human approval when**:
+  - Changing RLS policies or auth middleware
+  - Modifying payment/billing code
+  - Introducing destructive migrations
+  - Altering queue execution semantics
+  - Touching webhook verification logic
+
+## 11) Environment & Tooling
+- **Required environment variables**:
+  ```
+  NEXT_PUBLIC_SUPABASE_URL
+  NEXT_PUBLIC_SUPABASE_ANON_KEY
+  SUPABASE_SERVICE_ROLE_KEY
+  TWILIO_ACCOUNT_SID
+  TWILIO_AUTH_TOKEN
+  STRIPE_SECRET_KEY
+  STRIPE_WEBHOOK_SECRET
+  RESEND_API_KEY
+  ANTHROPIC_API_KEY
+  OPENAI_API_KEY
+  REDIS_URL
+  ```
+- **Vercel**: Read-only access to deployment logs; no project settings modifications
+- **Supabase CLI**: Use for migrations; ensure compatibility with cloud instance
+- **Development tools**:
+  - Node.js 18+
+  - pnpm or npm for package management
+  - Docker for local Redis (BullMQ)
+
+## 12) Definitions of Done (per change type)
+- **Bug fix**: 
+  - Failing test reproduced and now passes
+  - Regression test added
+  - No new lint/type errors
+  - Related documentation updated
+- **Feature**:
+  - Unit + integration tests with > 80% coverage
+  - E2E test for user-facing flows
+  - API documentation if new endpoints
+  - README or docs/ updated with usage
+- **Refactor**:
+  - Zero behavior change (all tests still pass)
+  - Performance benchmark if optimization-focused
+  - Code complexity reduced (measured by cyclomatic complexity)
+- **Database migration**:
+  - Up and down migrations provided
+  - RLS policies maintained or enhanced
+  - Tested with `supabase db reset`
+  - Performance impact assessed for large tables
+
+## 13) Automation Builder Specific Rules
+- **Preserve all 8 critical fixes** from v1.3.3:
+  1. Single-character input handling in forms
+  2. Real-time node label synchronization
+  3. DateTime scheduling with timezone support
+  4. Dual variable syntax (`{{var}}` for WhatsApp/Email, `[var]` for SMS)
+  5. Sticky modal save button during scrolling
+  6. Full-row node dragging with visual feedback
+  7. Auto-focus and viewport centering for new nodes
+  8. Facebook "All Forms" dropdown option
+- **Validation pipeline integrity**:
+  - Never skip pre-execution validation
+  - Maintain all trigger detection rules
+  - Keep required field validation for all action types
+  - Preserve connection verification logic
+- **Performance requirements**:
+  - Input responsiveness < 50ms
+  - Auto-save within 2 seconds of changes
+  - Canvas operations at 60fps
+  - Support workflows with 100+ nodes
+
+## 14) Multi-Tenant Safeguards
+- **Every API route must**:
+  - Call `requireAuth()` or `checkAuthAndOrganization()`
+  - Include organization_id in all database queries
+  - Return 404 (not 403) for resources in other organizations
+- **Database queries must**:
+  - Include `.eq('organization_id', organizationId)` in Supabase queries
+  - Use RLS policies as backup, not primary security
+  - Never expose data across organization boundaries
+- **UI components must**:
+  - Show only organization-scoped data
+  - Include organization context in all API calls
+  - Handle organization switching cleanly
+
+## 15) British Localization Requirements
+- **Currency**: Always format as £ (GBP)
+- **Dates**: DD/MM/YYYY format
+- **Timezone**: Europe/London as default
+- **Phone numbers**: UK format validation (+44)
+- **Language**: British English spelling (colour, organised, centre)
+
+---
+*Generated for Atlas Fitness CRM - Production SaaS Platform*
+*Last Updated: September 2025*

@@ -62,116 +62,74 @@ function MembersContent() {
   const fetchMembers = async () => {
     try {
       setLoading(true)
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      // Get user's organization
-      let organizationId: string | null = null
       
-      // Try new table first
-      const { data: userOrg } = await supabase
-        .from('user_organizations')
-        .select('organization_id')
-        .eq('user_id', user.id)
-        .single()
-
-      if (userOrg) {
-        organizationId = userOrg.organization_id
-      } else {
-        // Fallback to users table
-        const { data: userData } = await supabase
-          .from('users')
-          .select('organization_id')
-          .eq('id', user.id)
-          .single()
-        
-        if (userData) {
-          organizationId = userData.organization_id
+      // Use the API endpoint instead of direct database queries - v2
+      console.log('Fetching members from API endpoint v2...')
+      const timestamp = Date.now()
+      const response = await fetch(`/api/clients?page=1&page_size=1000&t=${timestamp}`)
+      
+      if (!response.ok) {
+        let errorMessage = 'Failed to load members'
+        try {
+          const errorData = await response.json()
+          console.error('API Error:', errorData)
+          // Handle different error formats
+          if (typeof errorData === 'string') {
+            errorMessage = errorData
+          } else if (errorData.error) {
+            errorMessage = typeof errorData.error === 'string' 
+              ? errorData.error 
+              : errorData.error.message || 'Failed to load members'
+          } else if (errorData.message) {
+            errorMessage = errorData.message
+          }
+        } catch (e) {
+          console.error('Error parsing response:', e)
         }
-      }
-
-      if (!organizationId) {
-        console.error('No organization found')
-        toast.error('No organization found')
+        toast.error(errorMessage)
         setLoading(false)
         return
       }
-
-      // Fetch clients with their memberships (simplified query)
       
-      // Query once using OR to support both organization_id and org_id columns
-      const { data: clients, error } = await supabase
-        .from('clients')
-        .select('*')
-        .or(`organization_id.eq.${organizationId},org_id.eq.${organizationId}`)
-        .order('created_at', { ascending: false })
+      const data = await response.json()
       
-      // Remove duplicates based on lower(email) primarily, fallback to phone
-      // Keep the most recently updated version if duplicates exist
+      if (!data.success || !data.clients) {
+        console.error('Invalid API response:', data)
+        toast.error('Failed to load members')
+        setLoading(false)
+        return
+      }
+      
+      // Process the clients from the API
+      const clients = data.clients || []
+      
+      // Check for duplicates based on email
       const emailToClient: Record<string, any> = {}
       const dupEmails: Set<string> = new Set()
-      for (const client of (clients || [])) {
+      
+      for (const client of clients) {
         const emailKey = (client.email || '').toLowerCase().trim()
-        const compareDate = new Date(client.updated_at || client.created_at || 0)
-        if (!emailKey) {
-          // If email missing, use phone as weak key
-          const phoneKey = (client.phone || '').replace(/\D/g, '')
-          if (!phoneKey) {
-            // No reliable identifier, keep as-is
-            const tempKey = `${client.id}`
-            emailToClient[tempKey] = client
-            continue
-          }
-          if (!emailToClient[phoneKey]) {
-            emailToClient[phoneKey] = client
-          } else {
-            const existing = emailToClient[phoneKey]
-            const existingDate = new Date(existing.updated_at || existing.created_at || 0)
-            if (compareDate > existingDate) emailToClient[phoneKey] = client
-          }
-          continue
-        }
+        if (!emailKey) continue
+        
         if (!emailToClient[emailKey]) {
           emailToClient[emailKey] = client
         } else {
           dupEmails.add(emailKey)
+          // Keep the most recently updated one
           const existing = emailToClient[emailKey]
           const existingDate = new Date(existing.updated_at || existing.created_at || 0)
-          if (compareDate > existingDate) emailToClient[emailKey] = client
+          const currentDate = new Date(client.updated_at || client.created_at || 0)
+          if (currentDate > existingDate) {
+            emailToClient[emailKey] = client
+          }
         }
       }
-      const uniqueClients = Object.values(emailToClient)
       
-
-      if (error) {
-        console.error('Error fetching members:', error)
-        toast.error('Failed to load members')
-        return
-      }
-
-      // If we have clients, fetch their memberships separately
-      let membershipsData: any[] = []
-      if (uniqueClients && uniqueClients.length > 0) {
-        const clientIds = uniqueClients.map(c => c.id)
-        const { data: memberships } = await supabase
-          .from('memberships')
-          .select('*')
-          .in('client_id', clientIds)
-        
-        membershipsData = memberships || []
-      }
-
-      // Fetch membership plans
-      const { data: membershipPlans } = await supabase
-        .from('membership_plans')
-        .select('id, name, price_pennies')
-        .eq('organization_id', organizationId)
-
       // Transform to member format
-      const transformedMembers: Member[] = (uniqueClients || []).map(client => {
-        const membership = membershipsData.find(m => m.client_id === client.id)
-        const membershipPlan = membership && membershipPlans ? 
-          membershipPlans.find((p: any) => p.id === membership.membership_plan_id) : null
+      const transformedMembers: Member[] = clients.map((client: any) => {
+        // Get membership info from the nested memberships
+        const membership = client.memberships?.[0]
+        const membershipPlan = membership?.membership_plan
         
         return {
           id: client.id,
@@ -181,7 +139,7 @@ function MembersContent() {
           phone: client.phone || '',
           created_at: client.created_at,
           membership_status: membership?.status || 'No Membership',
-          membership_plan_id: membership?.membership_plan_id,
+          membership_plan_id: membership?.membership_plan?.id,
           membership_plan_name: membershipPlan?.name || 'No Plan',
           last_visit: client.last_visit,
           total_visits: client.total_visits || 0,

@@ -127,6 +127,7 @@ interface PremiumCalendarGridProps {
   classes?: any[];
   loading?: boolean;
   onClassUpdate?: () => void;
+  onSelectClass?: (cls: any) => void;
   view?: 'day' | 'week' | 'month';
   currentDate?: Date;
 }
@@ -135,6 +136,7 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({
   classes = [], 
   loading = false, 
   onClassUpdate,
+  onSelectClass,
   view = 'week',
   currentDate = new Date()
 }) => {
@@ -165,6 +167,10 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({
     console.log('handleClassClick called with:', cls);
     setSelectedClass(cls);
     setShowSessionDetail(true);
+    // Notify parent for side panel updates
+    if (onSelectClass) {
+      onSelectClass(cls);
+    }
   };
   
   if (loading) {

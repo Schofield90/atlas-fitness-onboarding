@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
 import { X } from 'lucide-react'
 import { getCurrentUserOrganization } from '@/app/lib/organization-client'
@@ -20,6 +20,28 @@ export default function AddClassTypeModal({ onClose, onSuccess }: AddClassTypeMo
     registrationSetting: 'default',
     defaultOccupancy: ''
   })
+  const modalRef = useRef<HTMLDivElement>(null)
+
+  // Handle Esc key press
+  useEffect(() => {
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose()
+      }
+    }
+
+    document.addEventListener('keydown', handleEscKey)
+    return () => {
+      document.removeEventListener('keydown', handleEscKey)
+    }
+  }, [onClose])
+
+  // Handle backdrop click
+  const handleBackdropClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget) {
+      onClose()
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -57,13 +79,22 @@ export default function AddClassTypeModal({ onClose, onSuccess }: AddClassTypeMo
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-700">
+    <div 
+      data-testid="modal-backdrop"
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={handleBackdropClick}
+    >
+      <div 
+        ref={modalRef}
+        className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-700"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-white">New Class Type</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-200"
+            aria-label="Close modal"
           >
             <X className="h-6 w-6" />
           </button>
@@ -71,10 +102,11 @@ export default function AddClassTypeModal({ onClose, onSuccess }: AddClassTypeMo
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
+            <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-1">
               Name:
             </label>
             <input
+              id="name"
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -84,7 +116,7 @@ export default function AddClassTypeModal({ onClose, onSuccess }: AddClassTypeMo
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
+            <label htmlFor="description" className="block text-sm font-medium text-gray-300 mb-1">
               Description:
             </label>
             <div className="border border-gray-600 rounded-md">
@@ -99,6 +131,7 @@ export default function AddClassTypeModal({ onClose, onSuccess }: AddClassTypeMo
                 <button type="button" className="p-1 hover:bg-gray-600 rounded text-gray-300">↪</button>
               </div>
               <textarea
+                id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="w-full px-3 py-2 min-h-[100px] bg-gray-700 text-white placeholder-gray-400 focus:outline-none"
@@ -108,10 +141,11 @@ export default function AddClassTypeModal({ onClose, onSuccess }: AddClassTypeMo
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
+            <label htmlFor="category" className="block text-sm font-medium text-gray-300 mb-1">
               Category:
             </label>
             <select
+              id="category"
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-orange-500"

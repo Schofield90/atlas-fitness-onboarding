@@ -1,16 +1,49 @@
-import { NextRequest } from 'next/server'
-import { handleApiRoute, supabaseAdmin, validateRequestBody } from '@/lib/api/middleware'
-import { clientUpdateSchema } from '@/lib/validations/api'
+import { NextRequest, NextResponse } from 'next/server'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
+import { z } from 'zod'
+
+const clientUpdateSchema = z.object({
+  name: z.string().min(1, 'Name is required').optional(),
+  email: z.string().email('Invalid email').optional(),
+  phone: z.string().optional(),
+  membership_type: z.string().optional(),
+  membership_status: z.enum(['active', 'paused', 'cancelled']).optional(),
+  start_date: z.string().optional(),
+  end_date: z.string().optional(),
+  total_revenue: z.number().optional(),
+  engagement_score: z.number().min(0).max(100).optional(),
+  preferences: z.any().optional(),
+})
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  return handleApiRoute(request, async (req) => {
-    const { user } = req
+  try {
+    const supabase = createRouteHandlerClient({ cookies })
+    
+    // Get the current user
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Get user's organization
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('organization_id')
+      .eq('id', user.id)
+      .single()
+
+    if (userError || !userData) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
     const { id: clientId } = await params
 
-    const { data: client, error } = await supabaseAdmin
+    const { data: client, error } = await supabase
       .from('clients')
       .select(`
         *,
@@ -27,52 +60,65 @@ export async function GET(
         )
       `)
       .eq('id', clientId)
-      .eq('organization_id', user.organization_id)
+      .eq('organization_id', userData.organization_id)
       .single()
 
     if (error) {
-      throw new Error('Client not found')
+      console.error('Error fetching client:', error)
+      return NextResponse.json({ error: 'Client not found' }, { status: 404 })
     }
 
-    return client
-  })
+    return NextResponse.json(client)
+  } catch (error) {
+    console.error('Client GET error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
 }
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  return handleApiRoute(request, async (req) => {
-    const { user } = req
-    const { id: clientId } = await params
-    const body = await request.json()
-
-    const { data: validatedData, error: validationError } = validateRequestBody(
-      body,
-      clientUpdateSchema
-    )
-
-    if (validationError || !validatedData) {
-      throw new Error(validationError || 'Invalid request body')
+  try {
+    const supabase = createRouteHandlerClient({ cookies })
+    
+    // Get the current user
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const clientUpdateData = validatedData as any
+    // Get user's organization
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('organization_id, role')
+      .eq('id', user.id)
+      .single()
+
+    if (userError || !userData) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    const { id: clientId } = await params
+    const body = await request.json()
+    const validatedData = clientUpdateSchema.parse(body)
 
     // Verify client belongs to user's organization
-    const { data: existingClient, error: fetchError } = await supabaseAdmin
+    const { data: existingClient, error: fetchError } = await supabase
       .from('clients')
       .select('id, membership_status, total_revenue')
       .eq('id', clientId)
-      .eq('organization_id', user.organization_id)
+      .eq('organization_id', userData.organization_id)
       .single()
 
     if (fetchError || !existingClient) {
-      throw new Error('Client not found')
+      return NextResponse.json({ error: 'Client not found' }, { status: 404 })
     }
 
-    const { data: updatedClient, error } = await supabaseAdmin
+    const { data: updatedClient, error } = await supabase
       .from('clients')
-      .update(clientUpdateData)
+      .update(validatedData)
       .eq('id', clientId)
       .select(`
         *,
@@ -81,21 +127,22 @@ export async function PUT(
       .single()
 
     if (error) {
-      throw new Error('Failed to update client')
+      console.error('Error updating client:', error)
+      return NextResponse.json({ error: 'Failed to update client' }, { status: 500 })
     }
 
     // Log analytics events for significant changes
     const events = []
 
-    if (clientUpdateData.membership_status && clientUpdateData.membership_status !== existingClient.membership_status) {
+    if (validatedData.membership_status && validatedData.membership_status !== existingClient.membership_status) {
       events.push({
-        organization_id: user.organization_id,
+        organization_id: userData.organization_id,
         event_type: 'client',
         event_name: 'membership_status_changed',
         properties: {
           client_id: clientId,
           old_status: existingClient.membership_status,
-          new_status: clientUpdateData.membership_status,
+          new_status: validatedData.membership_status,
           updated_by: user.id
         },
         user_id: user.id,
@@ -103,16 +150,16 @@ export async function PUT(
       })
     }
 
-    if (clientUpdateData.total_revenue && clientUpdateData.total_revenue !== existingClient.total_revenue) {
+    if (validatedData.total_revenue && validatedData.total_revenue !== existingClient.total_revenue) {
       events.push({
-        organization_id: user.organization_id,
+        organization_id: userData.organization_id,
         event_type: 'client',
         event_name: 'revenue_updated',
         properties: {
           client_id: clientId,
           old_revenue: existingClient.total_revenue,
-          new_revenue: clientUpdateData.total_revenue,
-          revenue_change: clientUpdateData.total_revenue - (existingClient.total_revenue || 0),
+          new_revenue: validatedData.total_revenue,
+          revenue_change: validatedData.total_revenue - (existingClient.total_revenue || 0),
           updated_by: user.id
         },
         user_id: user.id,
@@ -121,50 +168,80 @@ export async function PUT(
     }
 
     if (events.length > 0) {
-      await supabaseAdmin.from('analytics_events').insert(events)
+      await supabase.from('analytics_events').insert(events)
     }
 
-    return updatedClient
-  })
+    return NextResponse.json(updatedClient)
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ 
+        error: 'Validation error', 
+        details: error.errors 
+      }, { status: 400 })
+    }
+    
+    console.error('Client PUT error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
 }
 
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  return handleApiRoute(request, async (req) => {
-    const { user } = req
-    const { id: clientId } = await params
-
-    // Only owners and admins can delete clients
-    if (!['owner', 'admin'].includes(user.role)) {
-      throw new Error('Insufficient permissions')
+  try {
+    const supabase = createRouteHandlerClient({ cookies })
+    
+    // Get the current user
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Get user's organization and role
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('organization_id, role')
+      .eq('id', user.id)
+      .single()
+
+    if (userError || !userData) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    // Only owners and admins can delete clients
+    if (!['owner', 'admin'].includes(userData.role)) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+    }
+
+    const { id: clientId } = await params
+
     // Verify client belongs to user's organization
-    const { data: client, error: fetchError } = await supabaseAdmin
+    const { data: client, error: fetchError } = await supabase
       .from('clients')
       .select('id, total_revenue')
       .eq('id', clientId)
-      .eq('organization_id', user.organization_id)
+      .eq('organization_id', userData.organization_id)
       .single()
 
     if (fetchError || !client) {
-      throw new Error('Client not found')
+      return NextResponse.json({ error: 'Client not found' }, { status: 404 })
     }
 
-    const { error } = await supabaseAdmin
+    const { error } = await supabase
       .from('clients')
       .delete()
       .eq('id', clientId)
 
     if (error) {
-      throw new Error('Failed to delete client')
+      console.error('Error deleting client:', error)
+      return NextResponse.json({ error: 'Failed to delete client' }, { status: 500 })
     }
 
     // Log analytics event
-    await supabaseAdmin.from('analytics_events').insert({
-      organization_id: user.organization_id,
+    await supabase.from('analytics_events').insert({
+      organization_id: userData.organization_id,
       event_type: 'client',
       event_name: 'client_deleted',
       properties: {
@@ -175,6 +252,9 @@ export async function DELETE(
       user_id: user.id
     })
 
-    return { message: 'Client deleted successfully' }
-  }, { allowedRoles: ['owner', 'admin'] })
+    return NextResponse.json({ message: 'Client deleted successfully' })
+  } catch (error) {
+    console.error('Client DELETE error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
 }

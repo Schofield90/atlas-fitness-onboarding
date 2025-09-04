@@ -1,54 +1,80 @@
-name: "Cursor: On CI Fail"
+name: Cursor: On CI failure (GitHub-only)
 
 on:
   workflow_run:
-    workflows: ["CI"]          # change if your CI workflow has a different name
+    workflows: ["CI", "E2E Flow Tests", "Next.js App Router Lint"]
     types: [completed]
-  workflow_dispatch: {}        # manual Run button
+
+permissions:
+  pull-requests: write
+  contents: read
 
 jobs:
-  ping-cursor-on-fail:
+  prompt-on-failure:
+    runs-on: ubuntu-latest
     if: >
       ${{
-        github.event.workflow_run.conclusion != 'success' &&
+        github.event.workflow_run.conclusion == 'failure' &&
         github.event.workflow_run.event == 'pull_request' &&
-        github.event.workflow_run.actor != 'cursor[bot]'
+        github.event.workflow_run.pull_requests[0].number != null
       }}
-    runs-on: ubuntu-latest
     steps:
-      - name: Build message
-        id: build
+      - name: Extract PR / branch / URLs
+        id: info
         run: |
+          PR_NUMBER="${{ github.event.workflow_run.pull_requests[0].number }}"
           BRANCH="${{ github.event.workflow_run.head_branch }}"
-          REPO="${{ github.event.workflow_run.head_repository.full_name }}"
-          URL="${{ github.event.workflow_run.html_url }}"
-          {
-            echo "BRANCH=$BRANCH"
-            echo "REPO=$REPO"
-            echo "URL=$URL"
-          } >> "$GITHUB_OUTPUT"
+          REPO="${{ github.repository }}"
+          RUN_URL="${{ github.event.workflow_run.html_url }}"
+          echo "pr=$PR_NUMBER"   >> $GITHUB_OUTPUT
+          echo "branch=$BRANCH"  >> $GITHUB_OUTPUT
+          echo "repo=$REPO"      >> $GITHUB_OUTPUT
+          echo "run_url=$RUN_URL" >> $GITHUB_OUTPUT
 
-      - name: Send to Slack
-        env:
-          SLACK_USER_TOKEN: ${{ secrets.SLACK_USER_TOKEN }}
-          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID_BUGFIX }}
-          CURSOR_USER_ID: ${{ secrets.CURSOR_USER_ID }}
-          BRANCH: ${{ steps.build.outputs.BRANCH }}
-          REPO:   ${{ steps.build.outputs.REPO }}
-          URL:    ${{ steps.build.outputs.URL }}
+      - name: Detect user token availability
         run: |
-          TEXT="<@${CURSOR_USER_ID}> [repo=${REPO}, branch=${BRANCH}] fetch the failing CI logs (${URL}), fix the failures, add a regression test, and update the PR. Keep the diff minimal; do not change RLS or payments."
+          if [ -n "${{ secrets.GH_USER_TOKEN }}" ]; then
+            echo "HAS_GH_USER_TOKEN=true" >> "$GITHUB_ENV"
+          else
+            echo "HAS_GH_USER_TOKEN=false" >> "$GITHUB_ENV"
+          fi
 
-          read -r -d '' PAYLOAD <<'JSON' || true
-          {
-            "channel": "'"$SLACK_CHANNEL_ID"'",
-            "text": "'"$TEXT"'",
-            "link_names": true,
-            "unfurl_links": false
-          }
-          JSON
+      # Post as YOU (if GH_USER_TOKEN is set)
+      - name: Upsert CI fail prompt (user)
+        if: ${{ env.HAS_GH_USER_TOKEN == 'true' }}
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          token: ${{ secrets.GH_USER_TOKEN }}
+          issue-number: ${{ steps.info.outputs.pr }}
+          body-includes: "<!-- cursor-ci-fail -->"
+          edit-mode: replace
+          comment-author: ${{ github.actor }}
+          body: |
+            <!-- cursor-ci-fail -->
+            @cursoragent **CI failed** for **${{ steps.info.outputs.repo }}**, branch **${{ steps.info.outputs.branch }}** (PR #${{ steps.info.outputs.pr }}).
 
-          curl -s -X POST https://slack.com/api/chat.postMessage \
-            -H "Authorization: Bearer $SLACK_USER_TOKEN" \
-            -H "Content-type: application/json; charset=utf-8" \
-            --data "$PAYLOAD"
+            Failing run: ${{ steps.info.outputs.run_url }}
+
+            Please:
+            • Fetch the failing logs  
+            • Push a **minimal** fix and add a **regression test** to this PR  
+            • **Do not** change RLS or payments; **no** prod DB migrations
+
+      # Fallback: post as GitHub Actions bot
+      - name: Upsert CI fail prompt (bot)
+        if: ${{ env.HAS_GH_USER_TOKEN != 'true' }}
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ steps.info.outputs.pr }}
+          body-includes: "<!-- cursor-ci-fail -->"
+          edit-mode: replace
+          body: |
+            <!-- cursor-ci-fail -->
+            @cursoragent **CI failed** for **${{ steps.info.outputs.repo }}**, branch **${{ steps.info.outputs.branch }}** (PR #${{ steps.info.outputs.pr }}).
+
+            Failing run: ${{ steps.info.outputs.run_url }}
+
+            Please:
+            • Fetch the failing logs  
+            • Push a **minimal** fix and add a **regression test** to this PR  
+            • **Do not** change RLS or payments; **no** prod DB migrations
