@@ -23,7 +23,7 @@ export async function sendEmail(options: SendEmailOptions) {
     
     // Send email via Resend
     const { data, error } = await resend.emails.send({
-      from: 'Atlas Fitness <noreply@atlasfitness.com>',
+      from: 'GymLeadHub <sam@gymleadhub.co.uk>',
       to,
       subject,
       html

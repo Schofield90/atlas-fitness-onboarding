@@ -64,7 +64,7 @@ async function sendWithResend(to: string, subject: string, body: string) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: process.env.RESEND_FROM || 'Atlas Fitness <onboarding@resend.dev>',
+        from: process.env.RESEND_FROM || 'GymLeadHub <sam@gymleadhub.co.uk>',
         to: [to],
         subject: subject,
         html: body.replace(/\n/g, '<br/>')
@@ -170,7 +170,7 @@ export async function POST(request: NextRequest) {
     
     // Send email via SMTP
     const info = await transporter.sendMail({
-      from: process.env.SMTP_FROM || process.env.GMAIL_USER || 'Atlas Fitness <noreply@atlas-fitness.com>',
+      from: process.env.SMTP_FROM || process.env.GMAIL_USER || 'GymLeadHub <sam@gymleadhub.co.uk>',
       to: to,
       subject: subject,
       html: htmlContent

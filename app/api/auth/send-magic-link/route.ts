@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     if (sendEmail) {
       try {
         await resend.emails.send({
-          from: 'Atlas Fitness <noreply@atlas-gyms.co.uk>',
+          from: 'GymLeadHub <sam@gymleadhub.co.uk>',
           to: email,
           subject: 'Your Login Link - Atlas Fitness',
           html: `

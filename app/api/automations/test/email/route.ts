@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       to,
       subject,
       body: emailBody,
-      from: from || 'noreply@atlasfitness.com'
+      from: from || 'sam@gymleadhub.co.uk'
     })
     
     // Simulate API call delay
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     // sgMail.setApiKey(process.env.SENDGRID_API_KEY)
     // await sgMail.send({
     //   to,
-    //   from: from || 'noreply@atlasfitness.com',
+    //   from: from || 'sam@gymleadhub.co.uk',
     //   subject,
     //   text: emailBody,
     //   html: emailBody

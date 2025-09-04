@@ -161,7 +161,7 @@ async function sendScheduledEmail(recipients: string[], briefData: any, supabase
     
     const msg = {
       to: recipients,
-      from: 'noreply@atlas-gyms.co.uk',
+      from: 'sam@gymleadhub.co.uk',
       subject: `Weekly Executive Brief - ${new Date().toLocaleDateString()}`,
       html: emailContent,
       text: generateEmailText(briefData)
