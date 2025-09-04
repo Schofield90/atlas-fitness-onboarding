@@ -53,7 +53,7 @@ export default function ClientLayout({
     { name: 'Home', icon: Home, href: '/client' },
     { name: 'Schedule', icon: Calendar, href: '/client/schedule' },
     { name: 'My Classes', icon: Activity, href: '/client/bookings' },
-    { name: 'Nutrition', icon: Apple, href: '/client/nutrition' },
+    { name: 'Nutrition', icon: Apple, href: '/client/nutrition', comingSoon: true },
     { name: 'Membership', icon: CreditCard, href: '/client/membership' },
     { name: 'Profile', icon: User, href: '/client/profile' },
   ]
@@ -112,8 +112,15 @@ export default function ClientLayout({
                                   }
                                 `}
                               >
-                                <Icon className="h-6 w-6 shrink-0" aria-hidden="true" />
-                                {item.name}
+                                <div className="flex items-center gap-2">
+                                  <Icon className="h-6 w-6 shrink-0" aria-hidden="true" />
+                                  <span>{item.name}</span>
+                                  {item.comingSoon && (
+                                    <span className="ml-1 text-[10px] font-medium text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">
+                                      Coming Soon
+                                    </span>
+                                  )}
+                                </div>
                               </button>
                             </li>
                           )
@@ -162,8 +169,15 @@ export default function ClientLayout({
                             }
                           `}
                         >
-                          <Icon className="h-6 w-6 shrink-0" aria-hidden="true" />
-                          {item.name}
+                          <div className="flex items-center gap-2">
+                            <Icon className="h-6 w-6 shrink-0" aria-hidden="true" />
+                            <span>{item.name}</span>
+                            {item.comingSoon && (
+                              <span className="ml-1 text-[10px] font-medium text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">
+                                Coming Soon
+                              </span>
+                            )}
+                          </div>
                         </button>
                       </li>
                     )
