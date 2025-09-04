@@ -31,6 +31,7 @@ function MembersContent() {
   const [members, setMembers] = useState<Member[]>([])
   const [filteredMembers, setFilteredMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
+  const [duplicateEmails, setDuplicateEmails] = useState<string[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive' | 'pending'>('all')
   const [planFilter, setPlanFilter] = useState<string | null>(null)
@@ -98,49 +99,51 @@ function MembersContent() {
 
       // Fetch clients with their memberships (simplified query)
       
-      // Try both organization_id and org_id fields
-      const { data: clientsByOrgId, error: error1 } = await supabase
+      // Query once using OR to support both organization_id and org_id columns
+      const { data: clients, error } = await supabase
         .from('clients')
         .select('*')
-        .eq('organization_id', organizationId)
+        .or(`organization_id.eq.${organizationId},org_id.eq.${organizationId}`)
         .order('created_at', { ascending: false })
       
-      const { data: clientsByOrgIdAlt, error: error2 } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('org_id', organizationId)
-        .order('created_at', { ascending: false })
-      
-      // Combine results from both queries
-      const clients = [...(clientsByOrgId || []), ...(clientsByOrgIdAlt || [])]
-      const error = error1 || error2
-      
-      // Remove duplicates based on email (primary identifier for members)
+      // Remove duplicates based on lower(email) primarily, fallback to phone
       // Keep the most recently updated version if duplicates exist
-      const uniqueClients = clients.reduce((acc: any[], client) => {
-        const existingIndex = acc.findIndex(c => 
-          c.email && client.email && c.email.toLowerCase() === client.email.toLowerCase()
-        )
-        
-        if (existingIndex === -1) {
-          // No duplicate found, add the client
-          acc.push(client)
-        } else {
-          // Duplicate found, keep the more recent one
-          const existing = acc[existingIndex]
-          const existingDate = new Date(existing.updated_at || existing.created_at)
-          const currentDate = new Date(client.updated_at || client.created_at)
-          
-          if (currentDate > existingDate) {
-            acc[existingIndex] = client
+      const emailToClient: Record<string, any> = {}
+      const dupEmails: Set<string> = new Set()
+      for (const client of (clients || [])) {
+        const emailKey = (client.email || '').toLowerCase().trim()
+        const compareDate = new Date(client.updated_at || client.created_at || 0)
+        if (!emailKey) {
+          // If email missing, use phone as weak key
+          const phoneKey = (client.phone || '').replace(/\D/g, '')
+          if (!phoneKey) {
+            // No reliable identifier, keep as-is
+            const tempKey = `${client.id}`
+            emailToClient[tempKey] = client
+            continue
           }
+          if (!emailToClient[phoneKey]) {
+            emailToClient[phoneKey] = client
+          } else {
+            const existing = emailToClient[phoneKey]
+            const existingDate = new Date(existing.updated_at || existing.created_at || 0)
+            if (compareDate > existingDate) emailToClient[phoneKey] = client
+          }
+          continue
         }
-        
-        return acc
-      }, [])
+        if (!emailToClient[emailKey]) {
+          emailToClient[emailKey] = client
+        } else {
+          dupEmails.add(emailKey)
+          const existing = emailToClient[emailKey]
+          const existingDate = new Date(existing.updated_at || existing.created_at || 0)
+          if (compareDate > existingDate) emailToClient[emailKey] = client
+        }
+      }
+      const uniqueClients = Object.values(emailToClient)
       
 
-      if (error1 && error2) {
+      if (error) {
         console.error('Error fetching members:', error)
         toast.error('Failed to load members')
         return
@@ -189,6 +192,7 @@ function MembersContent() {
       })
 
       setMembers(transformedMembers)
+      setDuplicateEmails(Array.from(dupEmails))
     } catch (error) {
       console.error('Error:', error)
       toast.error('Failed to load members')
@@ -301,6 +305,34 @@ function MembersContent() {
             Add Member
           </Link>
         </div>
+
+        {/* Duplicate warning */}
+        {duplicateEmails.length > 0 && (
+          <div className="mb-4 p-4 rounded-lg bg-yellow-900/30 border border-yellow-600 text-yellow-200 flex items-center justify-between">
+            <div>
+              Detected {duplicateEmails.length} duplicate member{duplicateEmails.length > 1 ? 's' : ''} by email. You can merge them to keep your list clean.
+            </div>
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch('/api/admin/dedupe-clients', { method: 'POST' })
+                  if (res.ok) {
+                    toast.success('Duplicates merged')
+                    fetchMembers()
+                  } else {
+                    toast.error('Failed to merge duplicates')
+                  }
+                } catch (e) {
+                  console.error(e)
+                  toast.error('Failed to merge duplicates')
+                }
+              }}
+              className="px-3 py-1 rounded bg-yellow-600 text-black hover:bg-yellow-500"
+            >
+              Merge duplicates
+            </button>
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
