@@ -1,34 +1,3 @@
-name: "Cursor: Nightly QA"
-
-on:
-  schedule:
-    - cron: "0 2 * * *"   # 02:00 UTC nightly (adjust if you like)
-  workflow_dispatch: {}
-
-jobs:
-  ping-cursor-nightly:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Build message
-        id: build
-        run: |
-          echo "REPO=${GITHUB_REPOSITORY}" >> "$GITHUB_OUTPUT"
-          # default branch name if not provided by runner
-          echo "BRANCH=${GITHUB_REF_NAME:-main}" >> "$GITHUB_OUTPUT"
-          # Choose which Slack channel to post in:
-          echo "CHANNEL=${{ secrets.SLACK_CHANNEL_ID_TESTS }}" >> "$GITHUB_OUTPUT"
-          # If you later create a separate nightly channel/secret, swap the line above for:
-          # echo "CHANNEL=${{ secrets.SLACK_CHANNEL_ID_NIGHTLY }}" >> "$GITHUB_OUTPUT"
-
-      - name: Sanity check token type
-        env:
-          SLACK_USER_TOKEN: ${{ secrets.SLACK_USER_TOKEN }}
-        run: |
-          case "$SLACK_USER_TOKEN" in
-            xoxp-*) echo "User token detected (ok)";;
-            *) echo "ERROR: SLACK_USER_TOKEN must start with xoxp-"; exit 1;;
-          esac
-
       - name: Send to Slack
         env:
           SLACK_USER_TOKEN: ${{ secrets.SLACK_USER_TOKEN }}   # must be xoxp-
@@ -39,7 +8,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          TEXT="<@${CURSOR_USER_ID}> [repo=${REPO}, branch=${BRANCH}] run full nightly QA: typecheck, lint, unit/integration tests with coverage, Playwright E2E if available; raise coverage on changed modules; open a minimal PR with fixes and a short summary. Keep the diff minimal; do not change RLS or payments; no prod migrations."
+          # 👇 add export so Python can read it from env
+          export TEXT="<@${CURSOR_USER_ID}> [repo=${REPO}, branch=${BRANCH}] run full nightly QA: typecheck, lint, unit/integration tests with coverage, Playwright E2E if available; raise coverage on changed modules; open a minimal PR with fixes and a short summary. Keep the diff minimal; do not change RLS or payments; no prod migrations."
 
           # JSON-escape TEXT safely
           ESCAPED_TEXT=$(python3 - <<'PY'
