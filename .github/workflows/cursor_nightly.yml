@@ -1,3 +1,32 @@
+name: "Cursor: Nightly QA"
+
+on:
+  schedule:
+    - cron: "0 2 * * *"   # 02:00 UTC nightly
+  workflow_dispatch: {}
+
+jobs:
+  ping-cursor-nightly:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build message
+        id: build
+        run: |
+          echo "REPO=${GITHUB_REPOSITORY}" >> "$GITHUB_OUTPUT"
+          echo "BRANCH=${GITHUB_REF_NAME:-main}" >> "$GITHUB_OUTPUT"
+          # If you have a dedicated nightly channel secret, swap this line:
+          echo "CHANNEL=${{ secrets.SLACK_CHANNEL_ID_TESTS }}" >> "$GITHUB_OUTPUT"
+          # echo "CHANNEL=${{ secrets.SLACK_CHANNEL_ID_NIGHTLY }}" >> "$GITHUB_OUTPUT"
+
+      - name: Sanity check token type
+        env:
+          SLACK_USER_TOKEN: ${{ secrets.SLACK_USER_TOKEN }}
+        run: |
+          case "$SLACK_USER_TOKEN" in
+            xoxp-*) echo "User token detected (ok)";;
+            *) echo "ERROR: SLACK_USER_TOKEN must start with xoxp-"; exit 1;;
+          esac
+
       - name: Send to Slack
         env:
           SLACK_USER_TOKEN: ${{ secrets.SLACK_USER_TOKEN }}   # must be xoxp-
@@ -7,11 +36,9 @@
           BRANCH:          ${{ steps.build.outputs.BRANCH }}
         run: |
           set -euo pipefail
-
-          # 👇 add export so Python can read it from env
           export TEXT="<@${CURSOR_USER_ID}> [repo=${REPO}, branch=${BRANCH}] run full nightly QA: typecheck, lint, unit/integration tests with coverage, Playwright E2E if available; raise coverage on changed modules; open a minimal PR with fixes and a short summary. Keep the diff minimal; do not change RLS or payments; no prod migrations."
 
-          # JSON-escape TEXT safely
+          # JSON-escape the text safely
           ESCAPED_TEXT=$(python3 - <<'PY'
           import os, json
           print(json.dumps(os.environ["TEXT"]))
