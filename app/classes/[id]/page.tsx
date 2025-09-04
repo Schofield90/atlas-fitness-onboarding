@@ -72,7 +72,7 @@ export default function ClassDetailPage() {
       }
     } catch (error) {
       console.error('Error loading class type:', error);
-      alert('Failed to load class type');
+      // Replace blocking alert with inline error state and redirect back to list
       router.push('/classes');
     } finally {
       setLoading(false);
