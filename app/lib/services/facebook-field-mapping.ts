@@ -640,3 +640,49 @@ export function createDefaultMappings(): StoredFieldMappings {
     default_lead_source: 'Facebook'
   }
 }
+
+/**
+ * FacebookFieldMappingService class wrapper for API compatibility
+ */
+export class FacebookFieldMappingService {
+  async autoDetectFieldMappings(questions: FacebookQuestion[]): Promise<FieldMapping[]> {
+    return autoDetectFieldMappings(questions)
+  }
+
+  async applyFieldMappings(leadData: any, fieldMappings: StoredFieldMappings): Promise<any> {
+    return applyFieldMappings(leadData, fieldMappings)
+  }
+
+  async saveFieldMappings(
+    formId: string, 
+    organizationId: string, 
+    mappings: StoredFieldMappings
+  ): Promise<void> {
+    return saveFieldMappings(formId, organizationId, mappings)
+  }
+
+  async getFieldMappings(
+    formId: string, 
+    organizationId: string
+  ): Promise<StoredFieldMappings | null> {
+    return getFieldMappings(formId, organizationId)
+  }
+
+  validateMappings(mappings: any): { valid: boolean; errors?: string[]; warnings?: string[] } {
+    // Handle both array and StoredFieldMappings format
+    const mappingsArray = Array.isArray(mappings) ? mappings : mappings.mappings || []
+    return validateMappings(mappingsArray)
+  }
+
+  getSuggestedMappings(questions: FacebookQuestion[]): FieldMapping[] {
+    return getSuggestedMappings(questions)
+  }
+
+  mergeMappings(saved: FieldMapping[], autoDetected: FieldMapping[]): FieldMapping[] {
+    return mergeMappings(saved, autoDetected)
+  }
+
+  createDefaultMappings(): StoredFieldMappings {
+    return createDefaultMappings()
+  }
+}
