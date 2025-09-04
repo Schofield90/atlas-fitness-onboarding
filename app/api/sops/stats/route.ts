@@ -6,9 +6,9 @@ import { SOP_STATUSES, TRAINING_STATUSES } from '@/app/lib/types/sop'
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerClient()
-    const organization = await getOrganization()
+    const { organization } = await getOrganization()
 
-    if (!organization) {
+    if (!organization || !organization.id) {
       return NextResponse.json({ error: 'Organization not found' }, { status: 401 })
     }
 

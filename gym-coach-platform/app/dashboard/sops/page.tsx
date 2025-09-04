@@ -327,7 +327,7 @@ export default function SOPsPage() {
               </div>
             </div>
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="min-w-[12rem]">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
@@ -339,7 +339,7 @@ export default function SOPsPage() {
               </SelectContent>
             </Select>
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger className="w-32">
+              <SelectTrigger className="min-w-[10rem]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
