@@ -1048,9 +1048,7 @@ export class BookingLinkService {
       errors.push('URL slug is required')
     }
 
-    if (!config.appointment_type_ids || config.appointment_type_ids.length === 0) {
-      errors.push('At least one appointment type must be selected')
-    }
+    // Appointment types are optional now; links can be created without predefining types
 
     // Check slug format
     if (config.slug && !/^[a-z0-9-]+$/.test(config.slug)) {
