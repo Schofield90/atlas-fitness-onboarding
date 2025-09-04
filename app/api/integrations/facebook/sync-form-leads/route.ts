@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/app/lib/supabase/server'
 import { getCurrentUserOrganization } from '@/app/lib/organization-server'
+import { FacebookFieldMappingService } from '@/app/lib/services/facebook-field-mapping'
 import { leadsDB } from '@/app/lib/leads-store'
 
 export const runtime = 'nodejs'
@@ -93,43 +94,72 @@ export async function POST(request: NextRequest) {
               )
               const leadDetails = await leadDetailResponse.json()
               
-              // Extract field data
-              const fields: Record<string, string> = {}
-              let fullName = ''
-              let email = ''
-              let phone = ''
+              // Get field mappings for this form
+              const mappingService = new FacebookFieldMappingService()
+              const fieldMappings = await mappingService.getFieldMappings(formId, organizationId)
               
+              let processedLeadData: any = {}
+              const rawFields: Record<string, string> = {}
+              
+              // Collect raw field data
               leadDetails.field_data?.forEach((field: any) => {
                 const value = field.values?.[0] || ''
-                fields[field.name] = value
-                
-                // Common field mappings
-                const fieldNameLower = field.name.toLowerCase()
-                if (fieldNameLower.includes('name') && !fieldNameLower.includes('last')) {
-                  fullName = value
-                } else if (fieldNameLower === 'full_name') {
-                  fullName = value
-                } else if (fieldNameLower.includes('email')) {
-                  email = value
-                } else if (fieldNameLower.includes('phone') || fieldNameLower.includes('mobile')) {
-                  phone = value
-                }
+                rawFields[field.name] = value
               })
               
-              // If no full name, try to combine first and last
-              if (!fullName && (fields.first_name || fields.last_name)) {
-                fullName = `${fields.first_name || ''} ${fields.last_name || ''}`.trim()
+              if (fieldMappings && fieldMappings.mappings.length > 0) {
+                // Use saved field mappings
+                processedLeadData = await mappingService.applyFieldMappings(
+                  leadDetails.field_data || [],
+                  fieldMappings
+                )
+              } else {
+                // Auto-detect field mappings
+                const autoMappings = await mappingService.autoDetectFieldMappings({
+                  questions: leadDetails.field_data?.map((f: any) => ({
+                    key: f.name,
+                    label: f.name,
+                    type: f.type || 'SHORT_ANSWER',
+                    required: false
+                  })) || []
+                })
+                
+                const autoConfig = {
+                  version: '1.0',
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                  mappings: autoMappings,
+                  custom_mappings: [],
+                  auto_create_contact: true,
+                  default_lead_source: 'Facebook Lead Form'
+                }
+                
+                processedLeadData = await mappingService.applyFieldMappings(
+                  leadDetails.field_data || [],
+                  autoConfig
+                )
+                
+                // Save auto-detected mappings for future use
+                await mappingService.saveFieldMappings(organizationId, formId, autoConfig)
               }
+              
+              // Extract processed fields
+              const fullName = `${processedLeadData.standard_fields?.first_name || ''} ${processedLeadData.standard_fields?.last_name || ''}`.trim() 
+                || processedLeadData.standard_fields?.full_name || 'Unknown'
+              const email = processedLeadData.standard_fields?.email || 'Not provided'
+              const phone = processedLeadData.standard_fields?.phone || 'Not provided'
               
               allLeads.push({
                 facebook_lead_id: lead.id,
                 form_id: formId,
                 form_name: formName,
                 created_time: leadDetails.created_time,
-                name: fullName || 'Unknown',
-                email: email || fields.email || 'Not provided',
-                phone: phone || fields.phone_number || fields.phone || 'Not provided',
-                fields,
+                name: fullName,
+                email: email,
+                phone: phone,
+                fields: rawFields,
+                custom_fields: processedLeadData.custom_fields || {},
+                field_mappings_applied: !!fieldMappings,
                 campaign_id: leadDetails.campaign_id,
                 campaign_name: leadDetails.campaign_name,
                 ad_id: leadDetails.ad_id,
@@ -191,6 +221,8 @@ export async function POST(request: NextRequest) {
                 adset_name: lead.adset_name,
                 is_organic: lead.is_organic,
                 field_data: lead.fields,
+                custom_fields: lead.custom_fields,
+                field_mappings_applied: lead.field_mappings_applied,
                 synced_at: new Date().toISOString()
               },
               created_at: lead.created_time

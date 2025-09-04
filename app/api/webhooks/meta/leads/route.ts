@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/app/lib/supabase/server'
 import crypto from 'crypto'
+import { FacebookFieldMappingService } from '@/app/lib/services/facebook-field-mapping'
 
 interface MetaWebhookEntry {
   id: string; // Page ID
@@ -217,11 +218,56 @@ async function processLeadCapture({
   // Create entry in main leads table for CRM visibility
   if (fbLead) {
     try {
-      // Extract standard lead fields
-      const firstName = transformedData.first_name || transformedData.full_name?.split(' ')[0] || ''
-      const lastName = transformedData.last_name || transformedData.full_name?.split(' ').slice(1).join(' ') || ''
-      const email = transformedData.email || transformedData.email_address || ''
-      const phone = transformedData.phone_number || transformedData.phone || ''
+      // Get field mappings for this form
+      const mappingService = new FacebookFieldMappingService()
+      const fieldMappings = await mappingService.getFieldMappings(formId, organizationId)
+      
+      let processedLeadData: any = {}
+      
+      if (fieldMappings && fieldMappings.mappings.length > 0) {
+        // Use saved field mappings
+        console.log(`📋 Using saved field mappings for form ${formId}`)
+        processedLeadData = await mappingService.applyFieldMappings(
+          leadData.field_data || [],
+          fieldMappings
+        )
+      } else {
+        // Auto-detect field mappings if not configured
+        console.log(`🔍 Auto-detecting field mappings for form ${formId}`)
+        const autoMappings = await mappingService.autoDetectFieldMappings({
+          questions: leadData.field_data?.map((f: any) => ({
+            key: f.name,
+            label: f.name,
+            type: f.type || 'SHORT_ANSWER',
+            required: false
+          })) || []
+        })
+        
+        // Apply auto-detected mappings
+        const autoConfig = {
+          version: '1.0',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          mappings: autoMappings,
+          custom_mappings: [],
+          auto_create_contact: true,
+          default_lead_source: 'Facebook'
+        }
+        
+        processedLeadData = await mappingService.applyFieldMappings(
+          leadData.field_data || [],
+          autoConfig
+        )
+        
+        // Save auto-detected mappings for future use
+        await mappingService.saveFieldMappings(organizationId, formId, autoConfig)
+      }
+      
+      // Extract lead fields from processed data
+      const firstName = processedLeadData.standard_fields?.first_name || ''
+      const lastName = processedLeadData.standard_fields?.last_name || ''
+      const email = processedLeadData.standard_fields?.email || ''
+      const phone = processedLeadData.standard_fields?.phone || ''
       
       // Create main lead entry
       const { error: leadError } = await supabase
@@ -232,7 +278,7 @@ async function processLeadCapture({
           last_name: lastName,
           email: email,
           phone: phone,
-          source: 'Facebook Lead Form',
+          source: fieldMappings?.default_lead_source || 'Facebook Lead Form',
           status: 'new',
           metadata: {
             facebook_lead_id: leadId,
@@ -240,7 +286,9 @@ async function processLeadCapture({
             facebook_page_id: pageId,
             form_name: leadData.form_name || 'Facebook Form',
             captured_at: leadData.created_time,
-            raw_data: transformedData
+            raw_data: transformedData,
+            custom_fields: processedLeadData.custom_fields || {},
+            field_mappings_applied: !!fieldMappings
           },
           notes: `Lead captured from Facebook form "${leadData.form_name || formId}" via webhook`
         })
