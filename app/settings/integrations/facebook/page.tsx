@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
-import { Facebook, CheckCircle, XCircle, RefreshCw, Plus, Trash2, ExternalLink, AlertCircle, Zap, Check } from 'lucide-react'
+import { Facebook, CheckCircle, XCircle, RefreshCw, Plus, Trash2, ExternalLink, AlertCircle, Zap, Check, Settings } from 'lucide-react'
 import { useToast } from '@/app/lib/hooks/useToast'
+import FieldMappingModal from '@/app/components/integrations/facebook/FieldMappingModal'
 
 interface FacebookConnection {
   id: string
@@ -49,6 +50,15 @@ export default function FacebookIntegrationPage() {
     syncedToday: 0,
     activeForms: 0,
     lastSync: null as string | null
+  })
+  const [fieldMappingModal, setFieldMappingModal] = useState<{
+    isOpen: boolean
+    formId: string
+    formName: string
+  }>({
+    isOpen: false,
+    formId: '',
+    formName: ''
   })
   
   const supabase = createClient()
@@ -782,14 +792,27 @@ export default function FacebookIntegrationPage() {
                         </div>
                       </div>
                     </div>
-                    <a
-                      href={`https://business.facebook.com/lead_center/forms/${form.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-400 hover:text-blue-300 ml-3"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setFieldMappingModal({
+                          isOpen: true,
+                          formId: form.id,
+                          formName: form.name
+                        })}
+                        className="p-2 text-gray-400 hover:text-white hover:bg-gray-600 rounded-lg transition-colors"
+                        title="Configure field mappings"
+                      >
+                        <Settings className="h-4 w-4" />
+                      </button>
+                      <a
+                        href={`https://business.facebook.com/lead_center/forms/${form.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:text-blue-300"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -865,6 +888,19 @@ export default function FacebookIntegrationPage() {
           </a>
         </div>
       </div>
+      
+      {/* Field Mapping Modal */}
+      <FieldMappingModal
+        isOpen={fieldMappingModal.isOpen}
+        onClose={() => setFieldMappingModal({ isOpen: false, formId: '', formName: '' })}
+        formId={fieldMappingModal.formId}
+        formName={fieldMappingModal.formName}
+        organizationId={organizationId || ''}
+        onSave={() => {
+          toast.success('Field mappings saved successfully')
+          // Optionally refresh the lead forms list
+        }}
+      />
     </div>
   )
 }
