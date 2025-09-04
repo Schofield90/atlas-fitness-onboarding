@@ -481,9 +481,16 @@ function ProfileTab({ memberData, user }: any) {
     setSaving(true)
     try {
       const supabase = createClient()
+      // Only update columns that exist on clients
+      const updatePayload: any = {
+        first_name: formData.first_name?.trim() || null,
+        last_name: formData.last_name?.trim() || null,
+        phone: formData.phone?.trim() || null
+      }
+
       const { error } = await supabase
         .from('clients')
-        .update(formData)
+        .update(updatePayload)
         .eq('id', memberData?.id)
       
       if (error) throw error
