@@ -111,10 +111,12 @@ if (typeof (global as any).Response === 'undefined') {
   class SimpleResponse {
     private _bodyText: string
     status: number
+    ok: boolean
     headers: Map<string, string>
     constructor(body?: any, init?: { status?: number; headers?: Record<string, string> }) {
       this._bodyText = typeof body === 'string' ? body : body ? JSON.stringify(body) : ''
       this.status = init?.status ?? 200
+      this.ok = this.status >= 200 && this.status < 300
       this.headers = new Map(Object.entries(init?.headers || {}))
     }
     async json() {
@@ -125,4 +127,11 @@ if (typeof (global as any).Response === 'undefined') {
     }
   }
   ;(global as any).Response = SimpleResponse as any
+}
+
+// Provide a minimal global fetch mock for client components that call fetch
+if (typeof (global as any).fetch === 'undefined') {
+  ;(global as any).fetch = jest.fn(async () => {
+    return new (global as any).Response(JSON.stringify({ events: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+  })
 }
