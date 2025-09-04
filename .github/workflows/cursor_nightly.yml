@@ -1,104 +1,60 @@
-name: "Cursor: Nightly QA"
+name: Nightly QA (GitHub-only)
 
 on:
   schedule:
     - cron: "0 2 * * *"   # 02:00 UTC nightly
   workflow_dispatch: {}
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
-  ping-cursor-nightly:
+  nightly:
     runs-on: ubuntu-latest
     steps:
-      - name: Build message
-        id: build
-        env:
-          CH_NIGHTLY: ${{ secrets.SLACK_CHANNEL_ID_NIGHTLY }}   # optional
-          CH_TESTS:   ${{ secrets.SLACK_CHANNEL_ID_TESTS }}     # fallback
+      - uses: actions/checkout@v4
+
+      # Make a tiny, harmless change so a commit always exists
+      - name: Prepare host commit
         run: |
-          set -euo pipefail
-          echo "REPO=${GITHUB_REPOSITORY}" >> "$GITHUB_OUTPUT"
-          echo "BRANCH=${GITHUB_REF_NAME:-main}" >> "$GITHUB_OUTPUT"
-          CHANNEL="${CH_NIGHTLY:-$CH_TESTS}"
-          if [ -z "$CHANNEL" ]; then
-            echo "No Slack channel secret set. Provide SLACK_CHANNEL_ID_NIGHTLY or SLACK_CHANNEL_ID_TESTS"; exit 1;
-          fi
-          echo "CHANNEL=$CHANNEL" >> "$GITHUB_OUTPUT"
+          mkdir -p .github/automation
+          echo "nightly: $(date -u)" > .github/automation/nightly-heartbeat.txt
 
-      - name: Sanity check token type
-        env:
-          SLACK_USER_TOKEN: ${{ secrets.SLACK_USER_TOKEN }}
-        run: |
-          case "$SLACK_USER_TOKEN" in
-            xoxp-*) echo "User token detected (ok)";;
-            *) echo "ERROR: SLACK_USER_TOKEN must start with xoxp- (user token)"; exit 1;;
-          esac
+      # Open or update the sticky host PR on a fixed branch
+      - name: Open/Update Nightly Host PR
+        id: cpr
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: automation/nightly-qa
+          title: 'chore(nightly): full QA host PR'
+          commit-message: 'chore(nightly): trigger nightly QA'
+          body: |
+            **Nightly QA host PR**
 
-      - name: Send to Slack (message + threaded ping)
-        env:
-          SLACK_USER_TOKEN: ${{ secrets.SLACK_USER_TOKEN }}      # must be xoxp-
-          CURSOR_USER_ID:  ${{ secrets.CURSOR_USER_ID }}          # Uxxxx for @Cursor
-          CHANNEL:         ${{ steps.build.outputs.CHANNEL }}
-          REPO:            ${{ steps.build.outputs.REPO }}
-          BRANCH:          ${{ steps.build.outputs.BRANCH }}
-        run: |
-          set -euo pipefail
+            > Cursor, please run full QA for `${{ github.repository }}` on branch `${{ github.ref_name || 'main' }}`:
+            - Typecheck
+            - Lint
+            - Unit/Integration tests with coverage
+            - Playwright E2E (if present)
+            - Raise coverage on changed modules
+            - Open minimal PRs/commits with fixes and a short summary
+            - **Do not** modify RLS or payments; **no** prod DB migrations
 
-          # 1) Long instruction (export so Python can read it)
-          export TEXT="<@${CURSOR_USER_ID}> [repo=${REPO}, branch=${BRANCH}] run full nightly QA: typecheck, lint, unit/integration tests with coverage, Playwright E2E if available; raise coverage on changed modules; open a minimal PR with fixes and a short summary. Keep the diff minimal; do not change RLS or payments; no prod migrations."
-          ESCAPED_TEXT=$(python3 - <<'PY'
-          import os, json
-          print(json.dumps(os.environ["TEXT"]))
-          PY
-          )
+            Nightly run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-          # Post main message and capture ts without jq
-          RESP=$(curl -sS -X POST https://slack.com/api/chat.postMessage \
-            -H "Authorization: Bearer $SLACK_USER_TOKEN" \
-            -H "Content-type: application/json; charset=utf-8" \
-            --data "{\"channel\":\"$CHANNEL\",\"text\":${ESCAPED_TEXT},\"link_names\":true,\"unfurl_links\":false}")
+          labels: automation, nightly
+          draft: false
 
-          echo "$RESP"
-          TS=$(printf '%s' "$RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('ts',''))")
-
-          # 2) Minimal threaded ping to reliably wake the agent
-          if [ -n "$TS" ]; then
-            export PING="<@${CURSOR_USER_ID}> ping"
-            PING_ESC=$(python3 - <<'PY'
-            import os, json
-            print(json.dumps(os.environ["PING"]))
-            PY
-            )
-            curl -sS -X POST https://slack.com/api/chat.postMessage \
-              -H "Authorization: Bearer $SLACK_USER_TOKEN" \
-              -H "Content-type: application/json; charset=utf-8" \
-              --data "{\"channel\":\"$CHANNEL\",\"text\":${PING_ESC},\"link_names\":true,\"thread_ts\":\"$TS\"}"
-          else
-            echo "WARN: No ts returned from first post; skipping threaded ping."
-          fi
-
-      - name: DM Cursor fallback (open IM + ping)
-        env:
-          SLACK_USER_TOKEN: ${{ secrets.SLACK_USER_TOKEN }}      # xoxp-
-          CURSOR_USER_ID:  ${{ secrets.CURSOR_USER_ID }}          # Uxxxx
-        run: |
-          set -euo pipefail
-          # Requires user token with: chat:write, im:write
-          OPEN=$(curl -sS -X POST https://slack.com/api/conversations.open \
-            -H "Authorization: Bearer $SLACK_USER_TOKEN" \
-            -H "Content-type: application/json; charset=utf-8" \
-            --data "{\"users\":\"$CURSOR_USER_ID\"}")
-          echo "$OPEN"
-          IM=$(printf '%s' "$OPEN" | python3 -c "import sys,json; print(json.load(sys.stdin).get('channel',{}).get('id',''))")
-          if [ -z "$IM" ]; then
-            echo "WARN: Could not open IM (workspace may block app DMs or user id is wrong)."; exit 0;
-          fi
-          export DM_TEXT="ping"
-          DM_ESC=$(python3 - <<'PY'
-          import os, json
-          print(json.dumps(os.environ["DM_TEXT"]))
-          PY
-          )
-          curl -sS -X POST https://slack.com/api/chat.postMessage \
-            -H "Authorization: Bearer $SLACK_USER_TOKEN" \
-            -H "Content-type: application/json; charset=utf-8" \
-            --data "{\"channel\":\"$IM\",\"text\":${DM_ESC},\"link_names\":true}"
+      # Optional: add a label you use for routing in GitHub
+      - name: Add labels (optional)
+        if: steps.cpr.outputs.pull-request-number
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: Number('${{ steps.cpr.outputs.pull-request-number }}'),
+              labels: ['cursor:nightly']
+            });
