@@ -10,6 +10,7 @@ export default function NutritionPage() {
   const supabase = createClient()
   const [loading, setLoading] = useState(true)
   const [client, setClient] = useState<any>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     checkAuth()
@@ -32,7 +33,7 @@ export default function NutritionPage() {
 
       if (clientError || !clientData) {
         // Try by email
-        const { data: clientByEmail } = await supabase
+        const { data: clientByEmail, error: emailError } = await supabase
           .from('clients')
           .select('*')
           .eq('email', user.email)
@@ -40,12 +41,18 @@ export default function NutritionPage() {
         
         if (clientByEmail) {
           setClient(clientByEmail)
+        } else {
+          if (emailError) {
+            console.error('Client lookup by email failed:', emailError)
+          }
+          setClient(null)
         }
       } else {
         setClient(clientData)
       }
     } catch (error) {
       console.error('Error checking auth:', error)
+      setError('We could not load your nutrition at this time.')
     } finally {
       setLoading(false)
     }
@@ -55,6 +62,28 @@ export default function NutritionPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="bg-white shadow rounded-lg p-6 max-w-md text-center">
+          <h2 className="text-lg font-semibold mb-2">Nutrition temporarily unavailable</h2>
+          <p className="text-gray-600">{error}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!client) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="bg-white shadow rounded-lg p-6 max-w-md text-center">
+          <h2 className="text-lg font-semibold mb-2">Nutrition</h2>
+          <p className="text-gray-600">Your personalized meal plans will appear here once your profile is set up.</p>
+        </div>
       </div>
     )
   }
