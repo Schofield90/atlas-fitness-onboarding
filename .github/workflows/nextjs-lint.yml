@@ -14,6 +14,7 @@ on:
 jobs:
   nextjs-rules:
     runs-on: ubuntu-latest
+    if: ${{ hashFiles('package.json') != '' }}
     
     steps:
       - name: Checkout code
