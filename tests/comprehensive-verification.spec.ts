@@ -155,6 +155,7 @@ test.describe('Comprehensive System Verification', () => {
       '/api/locations',
       '/api/settings',
       '/api/membership-plans',
+      '/api/clients',
       '/api/email-templates',
       '/api/opportunities/pipelines',
       '/api/chat/ai-suggestions',
@@ -175,6 +176,41 @@ test.describe('Comprehensive System Verification', () => {
         expect(response.status()).not.toBe(500)
       })
     })
+  })
+
+  test('Members page should render when clients API returns data', async ({ page }) => {
+    await page.route('**/api/clients**', route => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          clients: [
+            {
+              id: 'client-1',
+              first_name: 'John',
+              last_name: 'Doe',
+              email: 'john@example.com',
+              phone: '+44 7123 456789',
+              created_at: new Date().toISOString(),
+              status: 'active',
+              memberships: [
+                { status: 'active', membership_plan_id: 'plan-1', membership_plan: { id: 'plan-1', name: 'Gold' } }
+              ]
+            }
+          ],
+          pagination: { page: 1, pageSize: 50, total: 1, totalPages: 1 }
+        })
+      })
+    })
+
+    const response = await page.goto(`${BASE_URL}/members`)
+    expect([200, 302, 307]).toContain(response?.status() || 0)
+
+    // Expect the mocked member to be visible in the table
+    await page.waitForSelector('text=Members', { timeout: 10000 })
+    await page.waitForSelector('text=John Doe', { timeout: 10000 })
+    await page.waitForSelector('text=john@example.com', { timeout: 10000 })
   })
 
   test.describe('Component Functionality', () => {
