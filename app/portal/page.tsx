@@ -7,6 +7,7 @@ import { Home, Calendar, MessageSquare, User, Activity, Dumbbell } from 'lucide-
 import toast from '@/app/lib/toast'
 import InterfaceSwitcher from '@/app/components/InterfaceSwitcher'
 import AINutritionCoach from '@/app/components/AINutritionCoach'
+import { format, parseISO } from 'date-fns'
 
 export default function MemberPortal() {
   const [activeTab, setActiveTab] = useState('home')
@@ -257,12 +258,24 @@ function BookingsTab({ memberData, router }: any) {
   const fetchAvailableClasses = async () => {
     try {
       const supabase = createClient()
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('class_sessions')
-        .select('*')
-        .gte('date', new Date().toISOString().split('T')[0])
-        .order('date', { ascending: true })
+        .select(`
+          id,
+          start_time,
+          end_time,
+          max_capacity,
+          current_capacity,
+          programs ( name )
+        `)
+        .gte('start_time', new Date().toISOString())
+        .eq('organization_id', memberData?.organization_id)
+        .order('start_time', { ascending: true })
         .limit(20)
+
+      if (error) {
+        console.error('Error fetching classes:', error)
+      }
 
       setClasses(data || [])
     } catch (error) {
@@ -310,30 +323,24 @@ function BookingsTab({ memberData, router }: any) {
               {classes.map((cls) => (
                 <div key={cls.id} className="flex justify-between items-center p-3 bg-gray-700 rounded-lg">
                   <div>
-                    <div className="font-medium">{cls.title}</div>
+                    <div className="font-medium">{cls.programs?.name || 'Class'}</div>
                     <div className="text-sm text-gray-400">
-                      {new Date(cls.date + 'T' + cls.start_time).toLocaleString('en-GB', {
-                        weekday: 'short',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
+                      {format(parseISO(cls.start_time), 'EEE, MMM d, HH:mm')} - {format(parseISO(cls.end_time), 'HH:mm')}
                     </div>
                     <div className="text-xs text-gray-500">
-                      {cls.current_attendees}/{cls.max_attendees} spots filled
+                      {Math.min(cls.current_capacity ?? 0, cls.max_capacity ?? 0)}/{cls.max_capacity ?? 0} spots filled
                     </div>
                   </div>
                   <button 
                     onClick={() => handleBookClass(cls.id)}
-                    disabled={cls.current_attendees >= cls.max_attendees}
+                    disabled={(cls.current_capacity ?? 0) >= (cls.max_capacity ?? 0)}
                     className={`px-3 py-1 rounded text-sm ${
-                      cls.current_attendees >= cls.max_attendees
+                      (cls.current_capacity ?? 0) >= (cls.max_capacity ?? 0)
                         ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
                         : 'bg-orange-600 hover:bg-orange-700 text-white'
                     }`}
                   >
-                    {cls.current_attendees >= cls.max_attendees ? 'Full' : 'Book'}
+                    {(cls.current_capacity ?? 0) >= (cls.max_capacity ?? 0) ? 'Full' : 'Book'}
                   </button>
                 </div>
               ))}
