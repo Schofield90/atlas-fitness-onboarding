@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
 import { X } from 'lucide-react'
 import { getCurrentUserOrganization } from '@/app/lib/organization-client'
@@ -20,6 +20,29 @@ export default function AddClassTypeModal({ onClose, onSuccess }: AddClassTypeMo
     registrationSetting: 'default',
     defaultOccupancy: ''
   })
+
+  const handleClose = () => {
+    setFormData({
+      name: '',
+      description: '',
+      category: '',
+      visibility: 'everyone',
+      registrationSetting: 'default',
+      defaultOccupancy: ''
+    })
+    onClose()
+  }
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        handleClose()
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -57,13 +80,22 @@ export default function AddClassTypeModal({ onClose, onSuccess }: AddClassTypeMo
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-700">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      data-testid="modal-overlay"
+      onClick={(e) => {
+        if (e.currentTarget === e.target) {
+          handleClose()
+        }
+      }}
+    >
+      <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-700" role="dialog" aria-modal="true">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-white">New Class Type</h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-400 hover:text-gray-200"
+            aria-label="Close"
           >
             <X className="h-6 w-6" />
           </button>
@@ -227,7 +259,7 @@ export default function AddClassTypeModal({ onClose, onSuccess }: AddClassTypeMo
           <div className="flex justify-end gap-4 pt-4">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="px-4 py-2 text-gray-400 hover:text-gray-200"
             >
               Cancel

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
 import { X } from 'lucide-react'
 import { getCurrentUserOrganization } from '@/app/lib/organization-service'
@@ -22,6 +22,31 @@ export default function CreateClassTypeModal({ onClose, onSuccess }: CreateClass
     allow_drop_ins: 'no', // no, yes
     age_restriction: 'no' // no, yes
   })
+  
+  const handleClose = () => {
+    setFormData({
+      name: '',
+      description: '',
+      category: '',
+      visibility: 'everyone',
+      registration_window_days: '180',
+      default_capacity: '',
+      allow_drop_ins: 'no',
+      age_restriction: 'no'
+    })
+    onClose()
+  }
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        handleClose()
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [])
   
   const supabase = createClient()
 
@@ -69,13 +94,22 @@ export default function CreateClassTypeModal({ onClose, onSuccess }: CreateClass
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+      data-testid="modal-overlay"
+      onClick={(e) => {
+        if (e.currentTarget === e.target) {
+          handleClose()
+        }
+      }}
+    >
+      <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-semibold text-white">New Class Type</h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-400 hover:text-white"
+            aria-label="Close"
           >
             <X className="h-6 w-6" />
           </button>

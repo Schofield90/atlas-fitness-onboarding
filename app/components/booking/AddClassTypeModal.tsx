@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, Save } from 'lucide-react';
 import { createClient } from '@/app/lib/supabase/client';
 
@@ -19,6 +19,22 @@ const AddClassTypeModal: React.FC<AddClassTypeModalProps> = ({ isOpen, onClose, 
   const [loading, setLoading] = useState(false);
   
   if (!isOpen) return null;
+
+  const handleClose = () => {
+    setFormData({ name: '', description: '', color: 'blue' });
+    onClose();
+  };
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        handleClose();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,13 +86,22 @@ const AddClassTypeModal: React.FC<AddClassTypeModalProps> = ({ isOpen, onClose, 
   ];
   
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4">
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      data-testid="modal-overlay"
+      onClick={(e) => {
+        if (e.currentTarget === e.target) {
+          handleClose();
+        }
+      }}
+    >
+      <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4" role="dialog" aria-modal="true">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
           <h3 className="text-lg font-semibold text-white">Add Class Type</h3>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-1 hover:bg-gray-700 rounded-lg transition-colors"
+            aria-label="Close"
           >
             <X className="h-5 w-5 text-gray-400" />
           </button>
@@ -138,7 +163,7 @@ const AddClassTypeModal: React.FC<AddClassTypeModalProps> = ({ isOpen, onClose, 
           <div className="flex items-center justify-end gap-3">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="px-4 py-2 text-gray-300 hover:text-white transition-colors"
               disabled={loading}
             >
