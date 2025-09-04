@@ -163,7 +163,7 @@ export default function AdminSettingsPage() {
               <div className="p-4 bg-gray-700 rounded-lg">
                 <h4 className="font-medium mb-2">Stripe Payment Gateway</h4>
                 <p className="text-sm text-gray-400 mb-3">Process payments and subscriptions</p>
-                <button className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm">
+                <button onClick={() => router.push('/settings/integrations/payments')} className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm">
                   Configure
                 </button>
               </div>
