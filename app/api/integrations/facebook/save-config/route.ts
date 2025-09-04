@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     if (config.selectedForms && config.selectedForms.length > 0) {
       // Process ALL selected forms with upsert approach
       const formsToSave = config.selectedForms.map((formId: string) => {
-        // Try to find the form name from selectedFormDetails
+        // Try to find the form name and questions from selectedFormDetails
         const formDetail = config.selectedFormDetails?.find((f: any) => f.id === formId)
         return {
           organization_id: organizationId,
@@ -88,6 +88,7 @@ export async function POST(request: NextRequest) {
           form_name: formDetail?.name || `Form ${formId}`,
           form_status: 'active', // Using form_status instead of status
           is_active: true,
+          questions: formDetail?.questions || [], // Include the questions field with form structure
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }
@@ -133,6 +134,7 @@ export async function POST(request: NextRequest) {
                   facebook_page_id: form.facebook_page_id,
                   page_id: form.page_id,
                   is_active: true,
+                  questions: form.questions, // Include questions in update
                   updated_at: new Date().toISOString()
                 })
                 .eq('organization_id', form.organization_id)
