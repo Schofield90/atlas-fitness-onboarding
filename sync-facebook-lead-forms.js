@@ -80,18 +80,19 @@ async function syncFacebookLeadForms() {
           const { data: existingForm } = await supabase
             .from('facebook_lead_forms')
             .select('id, updated_at')
-            .eq('form_id', form.id)
+            .eq('facebook_form_id', form.id)
             .eq('organization_id', orgId)
             .single();
           
           // Prepare form data
           const formData = {
             organization_id: orgId,
-            page_id: page.facebook_page_id,
+            page_id: page.id || null,
+            facebook_page_id: page.facebook_page_id,
             page_name: page.page_name,
-            form_id: form.id,
-            name: form.name || 'Unnamed Form',
-            status: form.status || 'ACTIVE',
+            facebook_form_id: form.id,
+            form_name: form.name || 'Unnamed Form',
+            form_status: form.status || 'ACTIVE',
             created_time: form.created_time,
             questions: form.questions || [],
             privacy_policy: form.privacy_policy || {},
@@ -138,7 +139,7 @@ async function syncFacebookLeadForms() {
     
     const { data: allStoredForms } = await supabase
       .from('facebook_lead_forms')
-      .select('id, form_id, name')
+      .select('id, facebook_form_id, form_name')
       .eq('organization_id', orgId);
     
     if (allStoredForms) {
@@ -159,7 +160,7 @@ async function syncFacebookLeadForms() {
         }
       }
       
-      const formsToDeactivate = allStoredForms.filter(f => !syncedFormIds.includes(f.form_id));
+      const formsToDeactivate = allStoredForms.filter(f => !syncedFormIds.includes(f.facebook_form_id));
       
       if (formsToDeactivate.length > 0) {
         const { error: deactivateError } = await supabase

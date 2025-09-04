@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
         id,
         facebook_form_id,
         form_name,
-        form_questions,
+        questions,
         is_active,
         last_sync_at,
         lead_count,
@@ -51,7 +51,8 @@ export async function GET(request: NextRequest) {
       name: form.form_name,
       pageId: Array.isArray(form.facebook_pages) ? (form.facebook_pages[0] as any)?.facebook_page_id : (form.facebook_pages as any)?.facebook_page_id,
       pageName: Array.isArray(form.facebook_pages) ? (form.facebook_pages[0] as any)?.page_name : (form.facebook_pages as any)?.page_name,
-      questions: form.form_questions || [],
+      form_structure: form.questions || [],
+      questions: form.questions || [],
       leadCount: form.lead_count || 0,
       lastSync: form.last_sync_at
     })) || []
@@ -100,7 +101,7 @@ export async function POST(request: NextRequest) {
       page_id: page.id,
       facebook_form_id: form.id,
       form_name: form.name,
-      form_questions: form.questions || [],
+      questions: form.questions || [],
       is_active: true
     }))
 
