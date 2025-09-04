@@ -18,7 +18,7 @@ jobs:
         with:
           ref: ${{ github.event.repository.default_branch }}
 
-      # Tiny heartbeat change so there is always a commit to trigger checks
+      # Tiny heartbeat so there is always a commit to trigger checks
       - name: Prepare host commit
         run: |
           mkdir -p .github/automation
@@ -29,7 +29,6 @@ jobs:
         id: cpr
         uses: peter-evans/create-pull-request@v6
         with:
-          # uses the default GITHUB_TOKEN; ensure repo allows Actions to create PRs
           branch: automation/nightly-qa
           title: 'chore(nightly): full QA host PR'
           commit-message: 'chore(nightly): trigger nightly QA'
@@ -45,7 +44,6 @@ jobs:
           labels: automation, nightly
           draft: false
 
-      # Optional: routing label used by your tooling
       - name: Add routing label (optional)
         if: ${{ steps.cpr.outputs.pull-request-number }}
         uses: actions/github-script@v7
@@ -62,30 +60,34 @@ jobs:
               core.info('Label add skipped: ' + e.message);
             }
 
-      # Human-authored instruction comment (posts as YOU if GH_USER_TOKEN is set)
-      # This avoids bot-to-bot ignoring and reliably wakes Cursor.
+      # Post the instruction as YOU (requires repo secret GH_USER_TOKEN)
       - name: Post instruction comment as user
         if: ${{ steps.cpr.outputs.pull-request-number && secrets.GH_USER_TOKEN != '' }}
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GH_USER_TOKEN }}   # PAT with PR write
+          github-token: ${{ secrets.GH_USER_TOKEN }}
           script: |
-            const owner = context.repo.owner;
-            const repo  = context.repo.repo;
-            const pr    = Number('${{ steps.cpr.outputs.pull-request-number }}');
-            const branch = '${{ github.event.repository.default_branch }}';
-            const runUrl = `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/actions/runs/${process.env.GITHUB_RUN_ID}`;
-            const body = `
-@Cursor please run full QA on this host PR for \`${owner}/${repo}\` (branch \`${branch}\`):
+            const owner   = context.repo.owner;
+            const repo    = context.repo.repo;
+            const pr      = Number('${{ steps.cpr.outputs.pull-request-number }}');
+            const branch  = '${{ github.event.repository.default_branch }}';
+            const runUrl  = `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/actions/runs/${process.env.GITHUB_RUN_ID}`;
 
-- Typecheck
-- Lint
-- Unit/Integration tests with coverage
-- Playwright E2E (if present)
-- Raise coverage on changed modules
-- Open minimal PRs/commits with fixes and a short summary
-- **Do not** change RLS or payments; **no** prod DB migrations.
+            const lines = [
+              `@Cursor please run full QA on this host PR for \`${owner}/${repo}\` (branch \`${branch}\`):`,
+              '',
+              '- Typecheck',
+              '- Lint',
+              '- Unit/Integration tests with coverage',
+              '- Playwright E2E (if present)',
+              '- Raise coverage on changed modules',
+              '- Open minimal PRs/commits with fixes and a short summary',
+              '- **Do not** change RLS or payments; **no** prod DB migrations.',
+              '',
+              `Run: ${runUrl}`
+            ];
+            const body = lines.join('\n');
 
-Run: ${runUrl}
-`;
-            await github.rest.issues.createComment({ owner, repo, issue_number: pr, body });
+            await github.rest.issues.createComment({
+              owner, repo, issue_number: pr, body
+            });
