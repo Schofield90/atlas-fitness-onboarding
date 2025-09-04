@@ -52,14 +52,14 @@ jobs:
           body=${body/CI_LINK/${ciLink}}
 
           # Find existing PR
-          existing=$(curl -s -H "Authorization: token ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+          existing=$(curl -s -H "Authorization: token ${GH_TOKEN}" -H "Accept: application/vnd.github+json" -H "Content-Type: application/json" \
             "https://api.github.com/repos/${owner}/${repo}/pulls?state=open&head=${owner}:${head}&base=${base}")
           number=$(echo "$existing" | jq -r '.[0].number // empty')
 
           if [ -n "${number}" ]; then
             data=$(jq -n --arg title "$title" --arg body "$body" '{title:$title, body:$body}')
             code=$(curl -s -o /tmp/pr_resp.json -w "%{http_code}" -X PATCH \
-              -H "Authorization: token ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+              -H "Authorization: token ${GH_TOKEN}" -H "Accept: application/vnd.github+json" -H "Content-Type: application/json" \
               -d "$data" \
               "https://api.github.com/repos/${owner}/${repo}/pulls/${number}")
             if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
@@ -68,7 +68,7 @@ jobs:
           else
             data=$(jq -n --arg title "$title" --arg head "$head" --arg base "$base" --arg body "$body" '{title:$title, head:$head, base:$base, body:$body, draft:false}')
             code=$(curl -s -o /tmp/pr_resp.json -w "%{http_code}" -X POST \
-              -H "Authorization: token ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+              -H "Authorization: token ${GH_TOKEN}" -H "Accept: application/vnd.github+json" -H "Content-Type: application/json" \
               -d "$data" \
               "https://api.github.com/repos/${owner}/${repo}/pulls")
             if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
