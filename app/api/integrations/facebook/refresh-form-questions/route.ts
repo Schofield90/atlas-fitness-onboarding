@@ -37,10 +37,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Facebook not connected' }, { status: 401 })
     }
     
-    // Get the form's page info
+    // Get the form's page info (include internal page_id for joining facebook_pages)
     const { data: formInfo } = await supabase
       .from('facebook_lead_forms')
-      .select('facebook_page_id, form_name')
+      .select('facebook_page_id, form_name, page_id')
       .eq('facebook_form_id', formId)
       .eq('organization_id', organizationId)
       .single()
@@ -49,15 +49,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Form not found' }, { status: 404 })
     }
     
-    // Get page access token
-    const { data: pageInfo } = await supabase
-      .from('facebook_pages')
-      .select('access_token')
-      .eq('facebook_page_id', formInfo.facebook_page_id)
-      .eq('organization_id', organizationId)
-      .single()
+    // Get page access token using internal page_id when available
+    let pageAccessToken: string | null = null
+    if (formInfo?.page_id) {
+      const { data: pageByInternal } = await supabase
+        .from('facebook_pages')
+        .select('access_token')
+        .eq('id', formInfo.page_id)
+        .eq('organization_id', organizationId)
+        .single()
+      pageAccessToken = pageByInternal?.access_token || null
+    }
+    if (!pageAccessToken && formInfo?.facebook_page_id) {
+      const { data: pageByFbId } = await supabase
+        .from('facebook_pages')
+        .select('access_token')
+        .eq('facebook_page_id', formInfo.facebook_page_id)
+        .eq('organization_id', organizationId)
+        .single()
+      pageAccessToken = pageByFbId?.access_token || null
+    }
     
-    const accessToken = pageInfo?.access_token || integration.access_token
+    const accessToken = pageAccessToken || integration.access_token
     
     console.log(`Fetching questions for form ${formId} (${formInfo.form_name})`)
     

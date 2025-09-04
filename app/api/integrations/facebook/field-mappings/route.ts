@@ -33,14 +33,41 @@ export async function GET(request: NextRequest) {
     const mappingService = new FacebookFieldMappingService()
     const mappings = await mappingService.getFieldMappings(formId, organizationId)
     
-    // Also get form structure from Facebook if available
+    // Also get form structure from database
     const { data: formRecord } = await supabase
       .from('facebook_lead_forms')
-      .select('questions, form_name')
+      .select('questions, form_name, facebook_form_id, facebook_page_id, page_id')
       .eq('facebook_form_id', formId)
       .eq('organization_id', organizationId)
       .single()
-    
+
+    // If no questions present, attempt to refresh from Facebook automatically
+    if (!formRecord?.questions || (Array.isArray(formRecord.questions) && formRecord.questions.length === 0)) {
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/integrations/facebook/refresh-form-questions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ formId })
+        })
+        // Re-fetch after refresh
+        const { data: refreshedForm } = await supabase
+          .from('facebook_lead_forms')
+          .select('questions, form_name')
+          .eq('facebook_form_id', formId)
+          .eq('organization_id', organizationId)
+          .single()
+        return NextResponse.json({
+          success: true,
+          mappings,
+          form_structure: refreshedForm?.questions || null,
+          form_name: refreshedForm?.form_name || null,
+          has_saved_mappings: !!mappings
+        })
+      } catch (e) {
+        console.error('Auto-refresh of form questions failed:', e)
+      }
+    }
+
     return NextResponse.json({
       success: true,
       mappings,

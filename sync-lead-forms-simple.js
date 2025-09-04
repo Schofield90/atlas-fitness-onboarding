@@ -74,16 +74,16 @@ async function syncLeadForms() {
         const { data: existing } = await supabase
           .from('facebook_lead_forms')
           .select('id')
-          .eq('form_id', form.id)
+          .eq('facebook_form_id', form.id)
           .single();
         
         const formData = {
           organization_id: orgId,
-          page_id: testPage.id,
+          facebook_page_id: testPage.id,
           page_name: testPage.name,
-          form_id: form.id,
-          name: form.name || 'Unnamed',
-          status: form.status || 'ACTIVE',
+          facebook_form_id: form.id,
+          form_name: form.name || 'Unnamed',
+          form_status: form.status || 'ACTIVE',
           is_active: form.status === 'ACTIVE'
         };
         
