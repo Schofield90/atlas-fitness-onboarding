@@ -1,6 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { apiClient } from '@/lib/api/client'
+// import { apiClient } from '@/lib/api/client' // Temporarily commented out
 import { toast } from 'react-hot-toast'
+
+// Temporary mock until API client is properly implemented
+const apiClient = {
+  getAIInsights: () => Promise.resolve([]),
+  getAIRecommendations: () => Promise.resolve([]),
+  actOnRecommendation: () => Promise.resolve({}),
+  analyzeLead: () => Promise.resolve({}),
+  bulkAnalyzeLeads: () => Promise.resolve({ summary: { analyzed: 0, skipped: 0, errors: 0 } }),
+  getAIJobStatus: () => Promise.resolve({ status: 'idle' }),
+  manageAIJob: () => Promise.resolve({}),
+  getLead: () => Promise.resolve({}),
+}
 
 // AI Insights hooks
 export function useAIInsights() {
