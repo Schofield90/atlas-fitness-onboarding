@@ -1,3 +1,24 @@
+## Summary
+Describe what changed and why (1–3 sentences).
+
+## Risk &amp; scope
+- [ ] No RLS or payments changes
+- [ ] No prod DB migrations
+- [ ] &lt; 300 LOC (diffstat)
+- [ ] Regression tests added/updated
+
+## Affected areas
+List routes/pages/APIs/components impacted.
+
+## Preview / CI
+- Vercel preview URL: &lt;paste link&gt;
+- Latest CI run: &lt;paste link&gt;
+
+## Checklist
+- [ ] Small, focused commits
+- [ ] Secrets not logged
+- [ ] Env reads only at request time (no build-time SUPABASE_* reads)
+
 ### Summary
 What changed and why (link to issue if any).
 
