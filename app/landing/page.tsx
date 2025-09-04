@@ -5,11 +5,12 @@ import { useState } from 'react'
 import { 
   Users, MessageSquare, Brain, Calendar, TrendingUp, Phone, 
   ChefHat, Dumbbell, Activity, CreditCard, BarChart3, Zap,
-  CheckCircle, Star, ArrowRight, Clock, Shield, Globe
+  CheckCircle, Star, ArrowRight, Clock, Shield, Globe, Menu, X
 } from 'lucide-react'
 
 export default function LandingPage() {
   const [email, setEmail] = useState('')
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const features = [
     {
@@ -102,12 +103,12 @@ export default function LandingPage() {
             <Activity className="h-8 w-8 text-orange-500" />
             <span className="text-2xl font-bold">Atlas Fitness</span>
           </div>
-          <nav className="flex items-center space-x-6">
-            <div className="hidden md:flex space-x-8">
-              <a href="#features" className="hover:text-orange-400 transition-colors">Features</a>
-              <a href="#benefits" className="hover:text-orange-400 transition-colors">Benefits</a>
-              <a href="#testimonials" className="hover:text-orange-400 transition-colors">Testimonials</a>
-              <a href="#pricing" className="hover:text-orange-400 transition-colors">Pricing</a>
+          <nav className="flex items-center gap-x-6">
+            <div className="hidden md:flex items-center gap-x-8">
+              <a href="#features" aria-label="Features" className="hover:text-orange-400 transition-colors">Features</a>
+              <a href="#benefits" aria-label="Benefits" className="hover:text-orange-400 transition-colors">Benefits</a>
+              <a href="#testimonials" aria-label="Testimonials" className="hover:text-orange-400 transition-colors">Testimonials</a>
+              <a href="#pricing" aria-label="Pricing" className="hover:text-orange-400 transition-colors">Pricing</a>
             </div>
             <div className="flex items-center space-x-4">
               <Link 
@@ -122,9 +123,32 @@ export default function LandingPage() {
               >
                 Start Free Trial
               </Link>
+              <button
+                type="button"
+                aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+                aria-expanded={mobileMenuOpen}
+                className="md:hidden inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-orange-500"
+                onClick={() => setMobileMenuOpen((v) => !v)}
+              >
+                {mobileMenuOpen ? (
+                  <X className="h-6 w-6" />
+                ) : (
+                  <Menu className="h-6 w-6" />
+                )}
+              </button>
             </div>
           </nav>
         </div>
+        {mobileMenuOpen && (
+          <div className="md:hidden mt-4">
+            <div className="flex flex-col space-y-2 rounded-lg border border-gray-700 bg-gray-900/80 p-3">
+              <a href="#features" aria-label="Features" className="block w-full rounded-md px-3 py-2 hover:bg-gray-800">Features</a>
+              <a href="#benefits" aria-label="Benefits" className="block w-full rounded-md px-3 py-2 hover:bg-gray-800">Benefits</a>
+              <a href="#testimonials" aria-label="Testimonials" className="block w-full rounded-md px-3 py-2 hover:bg-gray-800">Testimonials</a>
+              <a href="#pricing" aria-label="Pricing" className="block w-full rounded-md px-3 py-2 hover:bg-gray-800">Pricing</a>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Hero Section */}
