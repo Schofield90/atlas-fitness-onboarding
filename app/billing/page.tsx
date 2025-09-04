@@ -104,7 +104,7 @@ function BillingContent() {
         <div className="p-6">
           <div className="flex items-center justify-center">
             <div className="text-center">
-              <div role="status" aria-label="loading" className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              <div data-testid="loading-spinner" role="status" aria-label="loading" className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
               <p className="text-gray-400">Loading billing information...</p>
             </div>
           </div>
@@ -125,10 +125,9 @@ function BillingContent() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold text-gray-200 mb-3">Billing System Temporarily Unavailable</h3>
-              <p className="text-gray-400 mb-6 leading-relaxed">
-                We're unable to connect to our billing system right now. This could be due to:
-              </p>
+              <h3 className="text-xl font-semibold text-gray-200 mb-3">Unable to Load Billing Information</h3>
+              <p className="text-gray-400 mb-2 leading-relaxed">We couldn't fetch your billing details right now.</p>
+              <p className="text-gray-400 mb-6 leading-relaxed">This might be a temporary issue. You can try again in a moment.</p>
               
               {/* Possible Causes */}
               <div className="bg-gray-700 rounded-lg p-4 mb-6 text-left">
@@ -361,7 +360,7 @@ export default function BillingPage() {
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4" data-testid="loading-spinner">
               <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>

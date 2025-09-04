@@ -6,8 +6,25 @@ import Button from '@/app/components/ui/Button'
 import { formatBritishCurrency, formatBritishDate } from '@/app/lib/utils/british-format'
 import { AlertCircle, Check, CreditCard, TrendingUp, Users, MessageSquare, Mail, Calendar } from 'lucide-react'
 import { loadStripe } from '@stripe/stripe-js'
+import type { Stripe as StripeJs } from '@stripe/stripe-js'
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+// Lazy and guarded Stripe initialization to avoid crashes when key is missing
+let stripePromise: Promise<StripeJs | null> | null = null
+async function getStripe(): Promise<StripeJs | null> {
+  try {
+    const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+    if (!publishableKey) {
+      return null
+    }
+    if (!stripePromise) {
+      stripePromise = loadStripe(publishableKey)
+    }
+    return await stripePromise
+  } catch (err) {
+    // If loadStripe throws (e.g., invalid key), degrade gracefully
+    return null
+  }
+}
 
 interface Plan {
   id: string
@@ -212,8 +229,11 @@ export function SaasBillingDashboard() {
       
       if (!currentSubscription || currentSubscription.status === 'trialing') {
         // Redirect to Stripe Checkout for new subscriptions
-        const stripe = await stripePromise
-        if (!stripe) throw new Error('Stripe not loaded')
+        const stripe = await getStripe()
+        if (!stripe) {
+          alert('Stripe is not configured. Please connect Stripe in Payment Settings.')
+          return
+        }
         
         // Create checkout session
         const response = await fetch('/api/saas/checkout', {
