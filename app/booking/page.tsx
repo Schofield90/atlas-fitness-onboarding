@@ -138,12 +138,26 @@ export default function BookingPage() {
 							Settings
 						</Button>
 						<Button
-							onClick={() => router.push('/calendar')}
-							className="bg-orange-600 hover:bg-orange-700 flex items-center gap-2"
+							onClick={() => {
+								try {
+									router.push('/booking-links')
+								} catch (err) {
+									console.error((err as Error).message)
+								}
+							}}
+							className="border border-gray-300 text-white hover:bg-gray-700 hover:border-gray-500 px-4 py-2 text-sm flex items-center gap-2"
 						>
-							<Calendar className="w-4 h-4" />
-							View Calendar
+							<Link className="w-4 h-4" />
+							Manage Links
 						</Button>
+						<a
+							href="/booking-links/create"
+							onClick={(e) => { e.preventDefault(); try { router.push('/booking-links/create') } catch (err) { console.error((err as Error).message) } }}
+							className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-sm rounded-lg transition-colors flex items-center gap-2"
+						>
+							<Plus className="w-4 h-4" />
+							Create Booking Link
+						</a>
 					</div>
 				</div>
 
@@ -197,9 +211,7 @@ export default function BookingPage() {
 						<div className="flex items-center justify-between">
 							<div>
 								<p className="text-gray-400 text-sm">Booking Links</p>
-								<a href="/booking-links" className="text-orange-500 hover:text-orange-400 text-sm">
-									Manage Links →
-								</a>
+								<div className="text-orange-500 text-sm">&nbsp;</div>
 							</div>
 							<Link className="w-8 h-8 text-purple-500" />
 						</div>
@@ -269,10 +281,10 @@ export default function BookingPage() {
 							</p>
 							{activeTab === 'upcoming' && (
 								<Button
-									onClick={() => window.location.href = '/booking-links/create'}
+									onClick={() => router.push('/booking-links/create')}
 									className="bg-orange-600 hover:bg-orange-700"
 								>
-									Create Booking Link
+									New Booking Link
 								</Button>
 							)}
 						</div>
@@ -356,7 +368,7 @@ export default function BookingPage() {
 				<div className="mt-8 bg-blue-900 bg-opacity-20 border border-blue-800 rounded-lg p-4">
 					<h4 className="text-sm font-semibold text-blue-400 mb-2">Quick Tips</h4>
 					<ul className="text-sm text-gray-300 space-y-1">
-						<li>• Create booking links in the Calendar → Booking Links section</li>
+						<li>• Generate booking URLs in the Calendar → Booking Links section</li>
 						<li>• Set your availability in Settings → Booking → Availability Rules</li>
 						<li>• Appointment types define the duration and details of your calls</li>
 						<li>• Share booking links with prospects to let them self-schedule</li>
