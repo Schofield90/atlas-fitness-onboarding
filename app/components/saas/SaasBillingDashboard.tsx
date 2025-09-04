@@ -7,7 +7,13 @@ import { formatBritishCurrency, formatBritishDate } from '@/app/lib/utils/britis
 import { AlertCircle, Check, CreditCard, TrendingUp, Users, MessageSquare, Mail, Calendar } from 'lucide-react'
 import { loadStripe } from '@stripe/stripe-js'
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+// Only load Stripe on the client side to avoid SSR/CSR mismatches
+const getStripePromise = () => {
+  if (typeof window === 'undefined') return null
+  return process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY 
+    ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) 
+    : null
+}
 
 interface Plan {
   id: string
@@ -51,6 +57,8 @@ export function SaasBillingDashboard() {
   const [billingData, setBillingData] = useState<BillingData | null>(null)
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
+  const [stripeConfigured, setStripeConfigured] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   
   useEffect(() => {
     fetchBillingData()
@@ -58,8 +66,11 @@ export function SaasBillingDashboard() {
   
   const fetchBillingData = async () => {
     try {
+      setError(null)
       const response = await fetch('/api/saas/billing')
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.warn('Billing API error:', errorData)
         // Use mock data as fallback
         const mockData: BillingData = {
           organization: {
@@ -126,12 +137,15 @@ export function SaasBillingDashboard() {
           stripeCustomerId: null
         }
         setBillingData(mockData)
+        setStripeConfigured(false)
         return
       }
       const data = await response.json()
       setBillingData(data)
+      setStripeConfigured(data.stripeConfigured !== false)
     } catch (error) {
       console.error('Error fetching billing data:', error)
+      setError(error instanceof Error ? error.message : 'Failed to load billing data')
       // Set mock data on error
       const mockData: BillingData = {
         organization: {
@@ -198,6 +212,7 @@ export function SaasBillingDashboard() {
         stripeCustomerId: null
       }
       setBillingData(mockData)
+      setStripeConfigured(false)
     } finally {
       setLoading(false)
     }
@@ -212,6 +227,11 @@ export function SaasBillingDashboard() {
       
       if (!currentSubscription || currentSubscription.status === 'trialing') {
         // Redirect to Stripe Checkout for new subscriptions
+        const stripePromise = getStripePromise()
+        if (!stripePromise) {
+          alert('Stripe is not configured. Please contact support.')
+          return
+        }
         const stripe = await stripePromise
         if (!stripe) throw new Error('Stripe not loaded')
         
@@ -275,6 +295,26 @@ export function SaasBillingDashboard() {
     return <div className="flex items-center justify-center p-8">Loading billing information...</div>
   }
   
+  if (error && !billingData) {
+    return (
+      <Card className="p-6">
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
+            <div>
+              <h3 className="font-semibold text-red-800">Unable to Load Billing Information</h3>
+              <p className="text-sm text-red-700 mt-1">{error}</p>
+            </div>
+          </div>
+          <Button onClick={fetchBillingData} variant="outline">
+            <TrendingUp className="h-4 w-4 mr-2" />
+            Try Again
+          </Button>
+        </div>
+      </Card>
+    )
+  }
+  
   if (!billingData) {
     return <div className="p-8 text-red-500">Failed to load billing information</div>
   }
@@ -285,6 +325,21 @@ export function SaasBillingDashboard() {
   
   return (
     <div className="space-y-6">
+      {/* Stripe Configuration Warning */}
+      {!stripeConfigured && (
+        <Card className="p-6 bg-yellow-50 border-yellow-200">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
+            <div>
+              <h3 className="font-semibold text-yellow-800">Payment Processing Not Available</h3>
+              <p className="text-sm text-yellow-700 mt-1">
+                Stripe payment processing is not configured. Some features may be limited to demo data.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
+      
       {/* Current Plan */}
       <Card className="p-6">
         <h2 className="text-2xl font-bold mb-4">Current Plan</h2>
