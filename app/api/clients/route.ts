@@ -140,7 +140,8 @@ async function getClients(request: NextRequest) {
     console.log('Fetching clients for organization:', userWithOrg.organizationId)
     
     // Build query - filter by organization
-    // Using simplified approach to avoid OR clause issues
+    // Prefer organization_id, but some records may still use legacy org_id
+    // We fetch by organization_id first; if zero, fallback to org_id
     let query = supabase
       .from('clients')
       .select('*', { count: 'exact' })
@@ -153,7 +154,7 @@ async function getClients(request: NextRequest) {
     query = query.eq('status', status)
   }
   
-  const { data: clients, error, count } = await query
+  let { data: clients, error, count } = await query
   
   if (error) {
     throw DatabaseError.queryError('clients', 'select', {
@@ -164,6 +165,22 @@ async function getClients(request: NextRequest) {
     })
   }
   
+  // Fallback: if no results by organization_id, try legacy org_id column
+  if ((!clients || clients.length === 0) && (count === 0 || count === null)) {
+    const fallbackQuery = supabase
+      .from('clients')
+      .select('*', { count: 'exact' })
+      .eq('org_id', userWithOrg.organizationId)
+      .order('created_at', { ascending: false })
+      .range(from, to)
+
+    const fallbackResult = await fallbackQuery
+    if (!fallbackResult.error && fallbackResult.data) {
+      clients = fallbackResult.data
+      count = fallbackResult.count ?? 0
+    }
+  }
+
   // If we have clients, fetch their memberships separately to avoid join issues
   let enrichedClients = clients || []
   if (clients && clients.length > 0) {
