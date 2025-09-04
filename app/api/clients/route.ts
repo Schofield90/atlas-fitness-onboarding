@@ -139,12 +139,12 @@ async function getClients(request: NextRequest) {
     
     console.log('Fetching clients for organization:', userWithOrg.organizationId)
     
-    // Build query - filter by organization (check both organization_id and org_id columns)
-    // Simplified query without nested joins to avoid database issues
+    // Build query - filter by organization
+    // Using simplified approach to avoid OR clause issues
     let query = supabase
       .from('clients')
       .select('*', { count: 'exact' })
-      .or(`organization_id.eq.${userWithOrg.organizationId},org_id.eq.${userWithOrg.organizationId}`)
+      .eq('organization_id', userWithOrg.organizationId)
       .order('created_at', { ascending: false })
       .range(from, to)
   
