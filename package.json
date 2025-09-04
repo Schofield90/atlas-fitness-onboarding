@@ -48,6 +48,7 @@
     "test:security": "jest tests/security",
     "test:api": "jest tests/api",
     "test:db": "jest tests/database",
+    "prepare": "husky install",
     "test:perf": "jest tests/database/performance.test.ts",
     "test:integration": "tsx scripts/run-integration-tests.ts",
     "test:suite": "tsx scripts/run-tests.ts",
@@ -247,8 +248,14 @@
     "typescript": "^5.7.2"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx}": [
+    "app/**/*.{js,jsx,ts,tsx}": [
       "eslint --fix",
+      "prettier --write"
+    ],
+    "src/**/*.{js,jsx,ts,tsx}": [
+      "prettier --write"
+    ],
+    "e2e/**/*.{js,jsx,ts,tsx}": [
       "prettier --write"
     ],
     "*.{json,md,css,scss}": [
