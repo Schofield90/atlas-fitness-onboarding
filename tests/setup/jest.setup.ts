@@ -135,3 +135,13 @@ if (typeof (global as any).fetch === 'undefined') {
     return new (global as any).Response(JSON.stringify({ events: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } })
   })
 }
+
+// Polyfill ResizeObserver used by components like recharts ResponsiveContainer
+if (typeof (global as any).ResizeObserver === 'undefined') {
+  class MockResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  ;(global as any).ResizeObserver = MockResizeObserver as any
+}

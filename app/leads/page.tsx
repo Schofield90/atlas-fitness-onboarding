@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { LeadsTable } from '@/app/components/leads/LeadsTable'
 import { AddLeadModal } from '@/app/components/leads/AddLeadModal'
@@ -17,6 +18,8 @@ function LeadsContent() {
   const [exporting, setExporting] = useState(false)
   const [organizationId, setOrganizationId] = useState<string | null>(null)
   const supabase = createClient()
+  const router = useRouter()
+  const searchParams = useSearchParams()
 
   useEffect(() => {
     const storedData = localStorage.getItem('gymleadhub_trial_data')
@@ -25,6 +28,13 @@ function LeadsContent() {
     }
     fetchOrganization()
   }, [])
+
+  useEffect(() => {
+    const action = searchParams?.get('action')
+    if (action === 'new') {
+      setShowAddModal(true)
+    }
+  }, [searchParams])
 
   const fetchOrganization = async () => {
     try {
@@ -154,7 +164,7 @@ function LeadsContent() {
               {exporting ? 'Exporting...' : 'Export'}
             </button>
             <button 
-              onClick={() => setShowAddModal(true)}
+              onClick={() => router.push('/leads?action=new')}
               className="bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded-lg flex items-center gap-2 transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -213,7 +223,11 @@ function LeadsContent() {
         {/* Add Lead Modal */}
         <AddLeadModal
           isOpen={showAddModal}
-          onClose={() => setShowAddModal(false)}
+          onClose={() => {
+            setShowAddModal(false)
+            // Clear the action param if present
+            router.push('/leads')
+          }}
           onLeadAdded={() => {
             setRefreshKey(prev => prev + 1)
             setShowAddModal(false)

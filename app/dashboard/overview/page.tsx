@@ -258,7 +258,7 @@ export default function DashboardOverview() {
               <div className="flex items-center gap-3">
                 {/* Quick Actions */}
                 <button 
-                  onClick={() => router.push('/leads/new')}
+                  onClick={() => router.push('/leads?action=new')}
                   className="p-2 hover:bg-gray-700 rounded-lg"
                   title="Add new lead"
                 >

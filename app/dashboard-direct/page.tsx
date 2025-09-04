@@ -174,7 +174,7 @@ export default function DirectDashboardPage() {
           <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
           <div className="flex flex-wrap gap-3">
             <button 
-              onClick={() => router.push('/leads/new')}
+              onClick={() => router.push('/leads?action=new')}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               Add New Lead
