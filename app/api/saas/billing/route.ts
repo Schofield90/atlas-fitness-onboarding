@@ -7,6 +7,9 @@ const stripe = stripeKey ? new Stripe(stripeKey, {
   apiVersion: '2025-07-30.basil',
 }) : null
 
+// Check if Stripe is properly configured
+const isStripeConfigured = !!stripeKey
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -29,12 +32,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No organization found' }, { status: 404 })
     }
     
-    // Get organization details with subscription
-    const { data: organization } = await supabase
+    // Get organization details with subscription (left join to handle missing subscriptions)
+    const { data: organization, error: orgError } = await supabase
       .from('organizations')
       .select(`
         *,
-        saas_subscriptions!inner (
+        saas_subscriptions (
           *,
           saas_plans (*)
         ),
@@ -43,6 +46,40 @@ export async function GET(request: NextRequest) {
       `)
       .eq('id', userOrg.organization_id)
       .single()
+    
+    if (orgError || !organization) {
+      // Return minimal organization data if not found
+      const { data: basicOrg } = await supabase
+        .from('organizations')
+        .select('id, name, created_at')
+        .eq('id', userOrg.organization_id)
+        .single()
+      
+      if (!basicOrg) {
+        return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
+      }
+      
+      // Create a minimal organization response
+      return NextResponse.json({
+        organization: {
+          ...basicOrg,
+          saas_subscriptions: [],
+          organization_settings: [],
+          organization_payment_settings: []
+        },
+        usageSummary: {
+          sms_sent: 0,
+          emails_sent: 0,
+          whatsapp_sent: 0,
+          bookings_created: 0,
+          active_customers: 0,
+          active_staff: 1
+        },
+        availablePlans: [],
+        canManageBilling: userOrg.role === 'owner' || userOrg.role === 'admin',
+        stripeConfigured: isStripeConfigured
+      })
+    }
     
     // Get current month's usage metrics
     const startOfMonth = new Date()
@@ -77,9 +114,17 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json({
       organization,
-      usageSummary,
-      availablePlans,
-      canManageBilling: userOrg.role === 'owner' || userOrg.role === 'admin'
+      usageSummary: usageSummary || {
+        sms_sent: 0,
+        emails_sent: 0,
+        whatsapp_sent: 0,
+        bookings_created: 0,
+        active_customers: 0,
+        active_staff: 1
+      },
+      availablePlans: availablePlans || [],
+      canManageBilling: userOrg.role === 'owner' || userOrg.role === 'admin',
+      stripeConfigured: isStripeConfigured
     })
   } catch (error) {
     console.error('Error fetching billing data:', error)
