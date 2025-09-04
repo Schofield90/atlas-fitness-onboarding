@@ -86,6 +86,10 @@ dependencies.log
 analyze/
 .tsbuildinfo
 
+# Test artifacts
+test-results/
+playwright-report/
+
 # Temporary files
 *.tmp
 *.temp

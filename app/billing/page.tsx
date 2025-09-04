@@ -65,22 +65,28 @@ function BillingContent() {
         return
       }
       
-      const { data: userOrg } = await supabase
+      const { data: userOrg, error: orgError } = await supabase
         .from('user_organizations')
         .select('organization_id, organizations(*)')
         .eq('user_id', user.id)
         .eq('is_active', true)
         .single()
       
-      if (userOrg) {
+      if (orgError || !userOrg) {
+        console.warn('No organization found for user:', user.id, orgError)
+        throw new Error('No organization found')
+      }
+      
+      if (userOrg && userOrg.organizations) {
         setOrganization(userOrg.organizations)
       } else {
-        throw new Error('No organization found')
+        throw new Error('Organization data incomplete')
       }
     } catch (error) {
       console.error('Error fetching organization:', error)
       
-      if (isFeatureEnabled('billingMswStub') && process.env.NODE_ENV === 'development') {
+      // Always provide fallback for graceful degradation
+      if (isFeatureEnabled('billingMswStub') || process.env.NODE_ENV === 'development') {
         // Fallback to mock data
         setOrganization({
           id: 'mock-org-id',
@@ -91,6 +97,7 @@ function BillingContent() {
         setUseMockData(true)
         toast.error('Live API failed, using demo data')
       } else {
+        // In production, still show a user-friendly error state instead of crashing
         setError(true)
       }
     } finally {
