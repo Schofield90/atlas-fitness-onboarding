@@ -1,0 +1,29 @@
+{
+  "timestamp": "2025-09-04T08:24:57.416Z",
+  "summary": {
+    "total": 3,
+    "passed": 0,
+    "failed": 3,
+    "duration": 3371
+  },
+  "results": [
+    {
+      "suite": "booking-workflow",
+      "passed": false,
+      "duration": 1188,
+      "details": "Command failed: npx jest /workspace/tests/integration/booking-workflow.test.ts --passWithNoTests\nFAIL tests/integration/booking-workflow.test.ts\n  ● Test suite failed to run\n\n    Jest encountered an unexpected token\n\n    Jest failed to parse a file. This happens e.g. when your code or its dependencies use non-standard JavaScript syntax, or when Jest is not configured to support such syntax.\n\n    Out of the box Jest supports Babel, which will be used to transform your files into valid JS based on your Babel configuration.\n\n    By default \"node_modules\" folder is ignored by transformers.\n\n    Here's what you can do:\n     • If you are trying to use ECMAScript Modules, see https://jestjs.io/docs/ecmascript-modules for how to enable it.\n     • If you are trying to use TypeScript, see https://jestjs.io/docs/getting-started#using-typescript\n     • To have some of your \"node_modules\" files transformed, you can specify a custom \"transformIgnorePatterns\" in your config.\n     • If you need a cust"
+    },
+    {
+      "suite": "lead-workflow",
+      "passed": false,
+      "duration": 1076,
+      "details": "Command failed: npx jest /workspace/tests/integration/lead-workflow.test.ts --passWithNoTests\nFAIL tests/integration/lead-workflow.test.ts\n  ● Test suite failed to run\n\n    Jest encountered an unexpected token\n\n    Jest failed to parse a file. This happens e.g. when your code or its dependencies use non-standard JavaScript syntax, or when Jest is not configured to support such syntax.\n\n    Out of the box Jest supports Babel, which will be used to transform your files into valid JS based on your Babel configuration.\n\n    By default \"node_modules\" folder is ignored by transformers.\n\n    Here's what you can do:\n     • If you are trying to use ECMAScript Modules, see https://jestjs.io/docs/ecmascript-modules for how to enable it.\n     • If you are trying to use TypeScript, see https://jestjs.io/docs/getting-started#using-typescript\n     • To have some of your \"node_modules\" files transformed, you can specify a custom \"transformIgnorePatterns\" in your config.\n     • If you need a custom tra"
+    },
+    {
+      "suite": "messaging-workflow",
+      "passed": false,
+      "duration": 1107,
+      "details": "Command failed: npx jest /workspace/tests/integration/messaging-workflow.test.ts --passWithNoTests\nFAIL tests/integration/messaging-workflow.test.ts\n  ● Test suite failed to run\n\n    Jest encountered an unexpected token\n\n    Jest failed to parse a file. This happens e.g. when your code or its dependencies use non-standard JavaScript syntax, or when Jest is not configured to support such syntax.\n\n    Out of the box Jest supports Babel, which will be used to transform your files into valid JS based on your Babel configuration.\n\n    By default \"node_modules\" folder is ignored by transformers.\n\n    Here's what you can do:\n     • If you are trying to use ECMAScript Modules, see https://jestjs.io/docs/ecmascript-modules for how to enable it.\n     • If you are trying to use TypeScript, see https://jestjs.io/docs/getting-started#using-typescript\n     • To have some of your \"node_modules\" files transformed, you can specify a custom \"transformIgnorePatterns\" in your config.\n     • If you need a "
+    }
+  ]
+}
