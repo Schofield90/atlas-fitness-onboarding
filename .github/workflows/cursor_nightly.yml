@@ -2,7 +2,7 @@ name: Nightly QA (GitHub-only)
 
 on:
   schedule:
-    - cron: "0 2 * * *"     # 02:00 UTC nightly
+    - cron: "0 2 * * *"           # 02:00 UTC nightly
   workflow_dispatch: {}
 
 permissions:
@@ -18,7 +18,7 @@ jobs:
         with:
           ref: ${{ github.event.repository.default_branch }}
 
-      # Tiny heartbeat so there is always a commit to trigger checks
+      # Heartbeat so there is always a content change
       - name: Prepare host commit
         run: |
           mkdir -p .github/automation
@@ -35,17 +35,16 @@ jobs:
           body: |
             **Nightly QA host PR**
 
-            This is a sticky PR that automation updates nightly to run checks and
-            give instructions to the tooling.
+            This PR is updated nightly to run checks and give instructions to the tooling.
 
             Nightly run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-            _The content change is only a heartbeat file to trigger checks._
+            _Change is a tiny heartbeat file to trigger checks._
           labels: automation, nightly
           draft: false
 
       - name: Add routing label (optional)
-        if: ${{ steps.cpr.outputs.pull-request-number }}
+        if: ${{ steps.cpr.outputs['pull-request-number'] }}
         uses: actions/github-script@v7
         with:
           script: |
@@ -53,41 +52,79 @@ jobs:
               await github.rest.issues.addLabels({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: Number('${{ steps.cpr.outputs.pull-request-number }}'),
+                issue_number: Number('${{ steps.cpr.outputs['pull-request-number'] }}'),
                 labels: ['cursor:nightly']
               });
             } catch (e) {
               core.info('Label add skipped: ' + e.message);
             }
 
-      # Post the instruction as YOU (requires repo secret GH_USER_TOKEN)
+      # Detect whether a user PAT is available; we avoid using secrets directly in `if:`
+      - name: Detect user token availability
+        run: |
+          if [ -n "${{ secrets.GH_USER_TOKEN }}" ]; then
+            echo "HAS_GH_USER_TOKEN=true" >> "$GITHUB_ENV"
+          else
+            echo "HAS_GH_USER_TOKEN=false" >> "$GITHUB_ENV"
+          fi
+
+      # Post instruction as YOU (recommended so tools listen)
       - name: Post instruction comment as user
-        if: ${{ steps.cpr.outputs.pull-request-number && secrets.GH_USER_TOKEN != '' }}
+        if: ${{ steps.cpr.outputs['pull-request-number'] && env.HAS_GH_USER_TOKEN == 'true' }}
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GH_USER_TOKEN }}
           script: |
-            const owner   = context.repo.owner;
-            const repo    = context.repo.repo;
-            const pr      = Number('${{ steps.cpr.outputs.pull-request-number }}');
-            const branch  = '${{ github.event.repository.default_branch }}';
-            const runUrl  = `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const owner  = context.repo.owner;
+            const repo   = context.repo.repo;
+            const pr     = Number('${{ steps.cpr.outputs['pull-request-number'] }}');
+            const branch = '${{ github.event.repository.default_branch }}';
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/actions/runs/${process.env.GITHUB_RUN_ID}`;
 
             const lines = [
-              `@Cursor please run full QA on this host PR for \`${owner}/${repo}\` (branch \`${branch}\`):`,
+              '@cursoragent please run full QA for ' +
+                `${owner}/${repo} on branch ${branch}:`,
               '',
-              '- Typecheck',
-              '- Lint',
-              '- Unit/Integration tests with coverage',
-              '- Playwright E2E (if present)',
-              '- Raise coverage on changed modules',
-              '- Open minimal PRs/commits with fixes and a short summary',
-              '- **Do not** change RLS or payments; **no** prod DB migrations.',
+              '• Typecheck',
+              '• Lint',
+              '• Unit/Integration tests with coverage',
+              '• Playwright E2E (if present)',
+              '• Raise coverage on changed modules',
+              '• Open minimal PRs/commits with fixes and a short summary',
+              '• **Do not** modify RLS or payments; **no** prod DB migrations.',
               '',
-              `Run: ${runUrl}`
+              `Nightly run: ${runUrl}`
             ];
-            const body = lines.join('\n');
-
             await github.rest.issues.createComment({
-              owner, repo, issue_number: pr, body
+              owner, repo, issue_number: pr, body: lines.join('\n')
+            });
+
+      # Fallback: post with GITHUB_TOKEN if no user token (still works, just shows as bot)
+      - name: Post instruction comment (bot fallback)
+        if: ${{ steps.cpr.outputs['pull-request-number'] && env.HAS_GH_USER_TOKEN != 'true' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner  = context.repo.owner;
+            const repo   = context.repo.repo;
+            const pr     = Number('${{ steps.cpr.outputs['pull-request-number'] }}');
+            const branch = '${{ github.event.repository.default_branch }}';
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+
+            const lines = [
+              '@cursoragent please run full QA for ' +
+                `${owner}/${repo} on branch ${branch}:`,
+              '',
+              '• Typecheck',
+              '• Lint',
+              '• Unit/Integration tests with coverage',
+              '• Playwright E2E (if present)',
+              '• Raise coverage on changed modules',
+              '• Open minimal PRs/commits with fixes and a short summary',
+              '• **Do not** modify RLS or payments; **no** prod DB migrations.',
+              '',
+              `Nightly run: ${runUrl}`
+            ];
+            await github.rest.issues.createComment({
+              owner, repo, issue_number: pr, body: lines.join('\n')
             });
