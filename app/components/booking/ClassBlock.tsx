@@ -58,6 +58,7 @@ const ClassBlock: React.FC<ClassBlockProps> = ({
         console.log('ClassBlock clicked:', { title, bookings, capacity });
         if (onSelect) onSelect();
       }}
+      data-testid={`class-block-${title}`}
       className={`
         relative px-2 py-1 rounded cursor-pointer
         border transition-all duration-200 hover:shadow-md
