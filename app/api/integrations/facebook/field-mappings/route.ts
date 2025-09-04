@@ -33,19 +33,59 @@ export async function GET(request: NextRequest) {
     const mappingService = new FacebookFieldMappingService()
     const mappings = await mappingService.getFieldMappings(formId, organizationId)
     
-    // Also get form structure from Facebook if available
-    const { data: formRecord } = await supabase
-      .from('facebook_lead_forms')
-      .select('questions, form_name')
-      .eq('facebook_form_id', formId)
-      .eq('organization_id', organizationId)
-      .single()
-    
+    // Also get form structure; if missing, try to refresh from Facebook
+    let formRecord: { questions?: any[]; form_name?: string } | null = null
+    try {
+      const { data } = await supabase
+        .from('facebook_lead_forms')
+        .select('questions, form_name')
+        .eq('facebook_form_id', formId)
+        .eq('organization_id', organizationId)
+        .single()
+      formRecord = data as any
+    } catch (e: any) {
+      const message = e?.message || String(e)
+      if (message.includes('column') && message.includes('questions')) {
+        console.warn('FB_MAP migration guard: questions column missing on facebook_lead_forms')
+        return NextResponse.json({
+          error: 'Database migration missing. Please apply migration 20250904075315_facebook_field_mappings_complete.sql.'
+        }, { status: 500 })
+      }
+      throw e
+    }
+
+    if (!formRecord?.questions || (Array.isArray(formRecord.questions) && formRecord.questions.length === 0)) {
+      console.warn(`FB_MAP guard: questions missing for form ${formId}, attempting refresh`)
+      try {
+        const origin = new URL(request.url).origin
+        await fetch(`${origin}/api/integrations/facebook/refresh-form-questions`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ formId })
+        })
+        const { data: reloaded } = await supabase
+          .from('facebook_lead_forms')
+          .select('questions, form_name')
+          .eq('facebook_form_id', formId)
+          .eq('organization_id', organizationId)
+          .single()
+        formRecord = reloaded as any
+      } catch (e) {
+        console.warn(`FB_MAP guard: refresh failed for form ${formId}`)
+      }
+    }
+
+    if (!formRecord?.questions || (Array.isArray(formRecord.questions) && formRecord.questions.length === 0)) {
+      return NextResponse.json({
+        error: "Form structure not available. Please click 'Load Form Fields from Facebook'."
+      }, { status: 400 })
+    }
+
     return NextResponse.json({
       success: true,
       mappings,
-      form_structure: formRecord?.questions || null,
-      form_name: formRecord?.form_name || null,
+      form_structure: formRecord.questions || null,
+      form_name: formRecord.form_name || null,
       has_saved_mappings: !!mappings
     })
     

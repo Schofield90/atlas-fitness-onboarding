@@ -21,10 +21,11 @@ export async function GET(request: NextRequest) {
         id,
         facebook_form_id,
         form_name,
-        form_questions,
+        questions,
         is_active,
         last_sync_at,
-        lead_count,
+        total_leads_count,
+        processed_leads_count,
         facebook_pages!inner(
           facebook_page_id,
           page_name
@@ -46,13 +47,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform data for the frontend
-    const transformedForms = forms?.map(form => ({
+    const transformedForms = forms?.map((form: any) => ({
       id: form.facebook_form_id,
       name: form.form_name,
       pageId: Array.isArray(form.facebook_pages) ? (form.facebook_pages[0] as any)?.facebook_page_id : (form.facebook_pages as any)?.facebook_page_id,
       pageName: Array.isArray(form.facebook_pages) ? (form.facebook_pages[0] as any)?.page_name : (form.facebook_pages as any)?.page_name,
-      questions: form.form_questions || [],
-      leadCount: form.lead_count || 0,
+      questions: form.questions || [],
+      leadCount: typeof form.total_leads_count === 'number' ? form.total_leads_count : (typeof form.processed_leads_count === 'number' ? form.processed_leads_count : 0),
       lastSync: form.last_sync_at
     })) || []
 
@@ -100,7 +101,7 @@ export async function POST(request: NextRequest) {
       page_id: page.id,
       facebook_form_id: form.id,
       form_name: form.name,
-      form_questions: form.questions || [],
+      questions: form.questions || [],
       is_active: true
     }))
 

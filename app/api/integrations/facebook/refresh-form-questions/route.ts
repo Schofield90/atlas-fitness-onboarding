@@ -37,10 +37,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Facebook not connected' }, { status: 401 })
     }
     
-    // Get the form's page info
+    // Get the form's page info (use page_id FK, not facebook_page_id)
     const { data: formInfo } = await supabase
       .from('facebook_lead_forms')
-      .select('facebook_page_id, form_name')
+      .select('page_id, form_name')
       .eq('facebook_form_id', formId)
       .eq('organization_id', organizationId)
       .single()
@@ -49,17 +49,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Form not found' }, { status: 404 })
     }
     
-    // Get page access token
+    // Load the page record using the page_id FK
     const { data: pageInfo } = await supabase
       .from('facebook_pages')
-      .select('access_token')
-      .eq('facebook_page_id', formInfo.facebook_page_id)
+      .select('facebook_page_id, access_token')
+      .eq('id', formInfo.page_id)
       .eq('organization_id', organizationId)
       .single()
     
     const accessToken = pageInfo?.access_token || integration.access_token
     
-    console.log(`Fetching questions for form ${formId} (${formInfo.form_name})`)
+    console.log(`FB_MAP refresh-form-questions: fetching questions for form ${formId} (${formInfo.form_name})`)
     
     // Fetch form details from Facebook including questions
     const formResponse = await fetch(
