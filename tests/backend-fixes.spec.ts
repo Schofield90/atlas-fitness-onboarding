@@ -146,8 +146,21 @@ test.describe('Backend Fixes Verification', () => {
     
     if (response.status() === 200) {
       const data = await response.json()
-      expect(data).toHaveProperty('plans')
-      expect(Array.isArray(data.plans)).toBeTruthy()
+      // Accept either new key membershipPlans or legacy alias plans
+      const plans = data.membershipPlans || data.plans
+      expect(Array.isArray(plans)).toBeTruthy()
+    }
+  })
+
+  test('Clients API should respond successfully or require auth', async ({ request }) => {
+    const response = await request.get(`${BASE_URL}/api/clients`, {
+      headers: authToken ? { 'Cookie': authToken } : {}
+    })
+    expect([200, 401, 404]).toContain(response.status())
+    if (response.status() === 200) {
+      const data = await response.json()
+      expect(data).toHaveProperty('clients')
+      expect(Array.isArray(data.clients)).toBeTruthy()
     }
   })
 
