@@ -151,12 +151,14 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({
         membershipPlans: plansWithStats,
+        plans: plansWithStats, // alias for backward compatibility
         total: plansWithStats.length
       });
     }
 
     return NextResponse.json({
       membershipPlans: membershipPlans || [],
+      plans: membershipPlans || [], // alias for backward compatibility
       total: (membershipPlans || []).length
     });
 

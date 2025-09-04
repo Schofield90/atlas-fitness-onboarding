@@ -139,9 +139,9 @@ async function getClients(request: NextRequest) {
     
     console.log('Fetching clients for organization:', userWithOrg.organizationId)
     
-    // Build query - filter by organization
-    // Using simplified approach to avoid OR clause issues
-    let query = supabase
+    // Build base query - filter by organization_id (primary)
+    // We will add a fallback query for legacy org_id if no results are found
+    let primaryQuery = supabase
       .from('clients')
       .select('*', { count: 'exact' })
       .eq('organization_id', userWithOrg.organizationId)
@@ -150,10 +150,31 @@ async function getClients(request: NextRequest) {
   
   // Apply status filter
   if (status && status !== 'all') {
-    query = query.eq('status', status)
+    primaryQuery = primaryQuery.eq('status', status)
   }
   
-  const { data: clients, error, count } = await query
+  // Execute primary query
+  let { data: clients, error, count } = await primaryQuery
+  
+  // Fallback: if no clients found (or organization_id not populated), try legacy org_id column
+  if (!error && (!clients || clients.length === 0)) {
+    let fallbackQuery = supabase
+      .from('clients')
+      .select('*', { count: 'exact' })
+      .eq('org_id', userWithOrg.organizationId)
+      .order('created_at', { ascending: false })
+      .range(from, to)
+
+    if (status && status !== 'all') {
+      fallbackQuery = fallbackQuery.eq('status', status)
+    }
+
+    const fallbackResult = await fallbackQuery
+    if (!fallbackResult.error && fallbackResult.data) {
+      clients = fallbackResult.data
+      count = fallbackResult.count
+    }
+  }
   
   if (error) {
     throw DatabaseError.queryError('clients', 'select', {
