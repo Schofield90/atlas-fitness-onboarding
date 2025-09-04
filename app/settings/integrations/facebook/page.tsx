@@ -44,6 +44,7 @@ export default function FacebookIntegrationPage() {
   const [savingPage, setSavingPage] = useState(false)
   const [savingForms, setSavingForms] = useState(false)
   const [loadingForms, setLoadingForms] = useState(false)
+  const [formsError, setFormsError] = useState<string | null>(null)
   const [organizationId, setOrganizationId] = useState<string | null>(null)
   const [stats, setStats] = useState({
     totalLeads: 0,
@@ -202,6 +203,7 @@ export default function FacebookIntegrationPage() {
   const fetchLeadForms = async (pageId: string, organizationId: string, retryCount = 0) => {
     console.log('📋 Fetching lead forms for page:', pageId, `(attempt ${retryCount + 1})`)
     setLoadingForms(true)
+    setFormsError(null)
     
     // Don't clear forms immediately - keep showing old data while loading
     
@@ -250,7 +252,9 @@ export default function FacebookIntegrationPage() {
           console.warn('Lead forms API reported errors:', data.errors)
           // Only show error if no forms were loaded
           if (!data.forms || data.forms.length === 0) {
-            toast.error(`Could not fetch forms: ${data.errors[0].error}`)
+            const errMsg = `Could not fetch forms: ${data.errors[0].error}`
+            setFormsError(errMsg)
+            toast.error(errMsg)
           }
         }
       } else if (response.status === 401 && retryCount < 2) {
@@ -264,19 +268,25 @@ export default function FacebookIntegrationPage() {
         
         // Only clear forms if we're sure there's an error
         setLeadForms([])
-        toast.error('Failed to load lead forms. Please reconnect Facebook.')
+        const errMsg = 'Failed to load lead forms. Please reconnect Facebook.'
+        setFormsError(errMsg)
+        toast.error(errMsg)
       }
     } catch (error: any) {
       if (error.name === 'AbortError') {
         console.error('Request timed out')
-        toast.error('Request timed out. Please try again.')
+        const errMsg = 'Request timed out. Please try again.'
+        setFormsError(errMsg)
+        toast.error(errMsg)
       } else if (retryCount < 2) {
         console.log('Retrying due to error...')
         await new Promise(resolve => setTimeout(resolve, 1000))
         return fetchLeadForms(pageId, organizationId, retryCount + 1)
       } else {
         console.error('Error fetching lead forms:', error)
-        toast.error('Error loading lead forms. Please try again.')
+        const errMsg = 'Error loading lead forms. Please try again.'
+        setFormsError(errMsg)
+        toast.error(errMsg)
       }
       setLeadForms([])
     } finally {
