@@ -10,6 +10,7 @@ on:
 jobs:
   flows-e2e:
     runs-on: ubuntu-latest
+    if: ${{ hashFiles('package.json') != '' && hashFiles('tests/ui/flows/**') != '' }}
     
     steps:
       - name: Checkout code

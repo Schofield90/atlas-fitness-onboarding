@@ -1,6 +1,5 @@
-#\!/usr/bin/env sh
+#!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-# Skip pre-commit hooks for this critical security fix
-echo "⏩ Skipping pre-commit checks for critical security fixes..."
-exit 0
+# Run lint-staged for auto-formatting
+npx lint-staged

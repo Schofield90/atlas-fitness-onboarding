@@ -214,6 +214,83 @@ describe('Billing Fallback Tests', () => {
     })
 
     const supportLink = screen.getByText('Contact Support')
-    expect(supportLink).toHaveAttribute('href', 'mailto:support@atlasfitness.com')
+    expect(supportLink).toHaveAttribute('href', 'mailto:support@atlasfitness.com?subject=Billing System Issue')
+  })
+
+  it('handles missing Stripe configuration gracefully', async () => {
+    // Mock successful auth but no Stripe keys
+    delete process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+    
+    mockSupabase.auth.getUser.mockResolvedValue({
+      data: { user: { id: 'test-user' } }
+    })
+    
+    mockSupabase.from.mockReturnValue({
+      select: () => ({
+        eq: () => ({
+          eq: () => ({
+            single: jest.fn().mockResolvedValue({
+              data: {
+                organizations: {
+                  id: 'org-1',
+                  name: 'Test Gym'
+                }
+              }
+            })
+          })
+        })
+      })
+    })
+
+    render(<BillingPage />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Billing & Subscription')).toBeInTheDocument()
+    })
+
+    // Should still show the billing page but with appropriate warnings
+    expect(screen.getByText('Billing & Subscription')).toBeInTheDocument()
+  })
+
+  it('handles organization data fetch errors', async () => {
+    mockSupabase.auth.getUser.mockResolvedValue({
+      data: { user: { id: 'test-user' } }
+    })
+    
+    // Mock organization fetch error
+    mockSupabase.from.mockReturnValue({
+      select: () => ({
+        eq: () => ({
+          eq: () => ({
+            single: jest.fn().mockResolvedValue({ data: null, error: { message: 'Organization not found' } })
+          })
+        })
+      })
+    })
+
+    render(<BillingPage />)
+
+    await waitFor(() => {
+      expect(mockToast.error).toHaveBeenCalledWith('Live API failed, using demo data')
+    })
+  })
+
+  it('shows appropriate loading states', async () => {
+    let resolveAuth: any
+    const authPromise = new Promise(resolve => { resolveAuth = resolve })
+    
+    mockSupabase.auth.getUser.mockReturnValue(authPromise)
+
+    render(<BillingPage />)
+
+    // Should show loading state
+    expect(screen.getByText('Loading billing information...')).toBeInTheDocument()
+    
+    // Resolve auth
+    resolveAuth({ data: { user: { id: 'test-user' } } })
+    
+    await waitFor(() => {
+      expect(screen.queryByText('Loading billing information...')).not.toBeInTheDocument()
+    })
   })
 })
