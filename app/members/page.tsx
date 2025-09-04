@@ -298,7 +298,7 @@ function MembersContent() {
             <p className="text-gray-400 mt-1">Manage your gym members and their memberships</p>
           </div>
           <Link
-            href="/members/add"
+            href="/members/new"
             className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center"
           >
             <Plus className="w-4 h-4 mr-2" />
