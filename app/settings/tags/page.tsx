@@ -192,7 +192,10 @@ export default function TagsPage() {
                     autoFocus
                   />
                 ) : (
-                  <h3 className="font-medium text-white">{tag.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-medium text-white">{tag.name}</h3>
+                    <span className="text-xs text-gray-400">– {(tag.usage_count ?? 0)} {tag.usage_count === 1 ? 'use' : 'uses'}</span>
+                  </div>
                 )}
               </div>
               <div className="flex items-center gap-1">
@@ -231,9 +234,7 @@ export default function TagsPage() {
               <p className="text-sm text-gray-400 mb-2">{tag.description}</p>
             )}
             
-            <p className="text-xs text-gray-500">
-              Used {tag.usage_count} time{tag.usage_count !== 1 ? 's' : ''}
-            </p>
+            
           </div>
         ))}
       </div>
