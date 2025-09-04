@@ -267,11 +267,16 @@ export default function SOPsPage() {
 
 // Quick Stats Component
 function QuickStats() {
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<any>({
     total: 0,
     approved: 0,
     draft: 0,
-    training_required: 0
+    training_required: 0,
+    training: {
+      assigned: 0,
+      completed: 0,
+      overdue: 0
+    }
   })
 
   useEffect(() => {
@@ -295,20 +300,20 @@ function QuickStats() {
       <h3 className="text-lg font-semibold text-white mb-4">Quick Stats</h3>
       <div className="space-y-3">
         <div className="flex justify-between items-center">
-          <span className="text-gray-400">Total SOPs</span>
+          <span className="text-gray-400">All SOPs</span>
           <span className="font-semibold text-white">{stats.total}</span>
         </div>
         <div className="flex justify-between items-center">
-          <span className="text-gray-400">Approved</span>
-          <span className="font-semibold text-green-400">{stats.approved}</span>
+          <span className="text-gray-400">Assigned</span>
+          <span className="font-semibold text-blue-400">{stats?.training?.assigned || 0}</span>
         </div>
         <div className="flex justify-between items-center">
-          <span className="text-gray-400">Drafts</span>
-          <span className="font-semibold text-yellow-400">{stats.draft}</span>
+          <span className="text-gray-400">Completed</span>
+          <span className="font-semibold text-green-400">{stats?.training?.completed || 0}</span>
         </div>
         <div className="flex justify-between items-center">
-          <span className="text-gray-400">Require Training</span>
-          <span className="font-semibold text-purple-400">{stats.training_required}</span>
+          <span className="text-gray-400">Overdue</span>
+          <span className="font-semibold text-red-400">{stats?.training?.overdue || 0}</span>
         </div>
       </div>
     </Card>
