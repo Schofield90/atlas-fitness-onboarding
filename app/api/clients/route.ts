@@ -59,14 +59,15 @@ async function createClientMember(request: NextRequest) {
     }
   }
   
-  // Build insert data
+  // Build insert data - use org_id as primary field
   const insertData: any = {
     first_name: body.first_name,
     last_name: body.last_name,
     full_name: `${body.first_name} ${body.last_name}`,
     email: body.email,
     phone: body.phone,
-    organization_id: userWithOrg.organizationId,
+    org_id: userWithOrg.organizationId,
+    organization_id: userWithOrg.organizationId, // Keep both for compatibility
     created_by: userWithOrg.id,
     status: 'active'
   }
@@ -121,7 +122,7 @@ async function getClients(request: NextRequest) {
   const from = (page - 1) * pageSize
   const to = from + pageSize - 1
   
-  // Build query - filter by organization
+  // Build query - filter by organization (support both org_id and organization_id)
   let query = supabase
     .from('clients')
     .select(`
@@ -139,7 +140,7 @@ async function getClients(request: NextRequest) {
         )
       )
     `, { count: 'exact' })
-    .eq('organization_id', userWithOrg.organizationId)
+    .or(`organization_id.eq.${userWithOrg.organizationId},org_id.eq.${userWithOrg.organizationId}`)
     .order('created_at', { ascending: false })
     .range(from, to)
   
