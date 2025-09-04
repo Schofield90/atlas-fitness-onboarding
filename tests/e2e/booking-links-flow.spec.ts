@@ -63,6 +63,30 @@ test.describe('Booking Links Management Flow', () => {
       }
     })
 
+    // Mock appointment types endpoint used by create editor
+    await page.route('**/api/appointment-types', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          appointment_types: [
+            { id: 'at-1', name: 'Consultation', duration_minutes: 30, session_type: 'consultation', max_capacity: 1 },
+            { id: 'at-2', name: 'Group Training', duration_minutes: 60, session_type: 'group_class', max_capacity: 10 },
+            { id: 'at-3', name: 'Nutrition Coaching', duration_minutes: 45, session_type: 'nutrition_consult', max_capacity: 1 }
+          ]
+        })
+      })
+    })
+
+    // Mock staff endpoint to avoid empty state noise
+    await page.route('**/api/staff', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ staff: [] })
+      })
+    })
+
     // Navigate to booking links page
     await page.goto('/booking-links')
   })
@@ -283,5 +307,17 @@ test.describe('Booking Links Management Flow', () => {
     await page.goBack()
     expect(page.url()).toContain('/booking-links')
     expect(page.url()).not.toContain('/create')
+  })
+
+  test('create page lists available appointment types from settings', async ({ page }) => {
+    await page.goto('/booking-links/create')
+
+    // Verify the appointment types header appears
+    await expect(page.locator('text=Available Appointment Types *')).toBeVisible()
+
+    // Ensure the mocked types are visible as options
+    await expect(page.locator('text=Consultation')).toBeVisible()
+    await expect(page.locator('text=Group Training')).toBeVisible()
+    await expect(page.locator('text=Nutrition Coaching')).toBeVisible()
   })
 })
