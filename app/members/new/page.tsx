@@ -38,8 +38,10 @@ export default function NewMemberPage() {
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to create member')
+        const errorData = await response.json()
+        // Handle the structured error response from the error handler
+        const errorMessage = errorData.error?.userMessage || errorData.error?.message || errorData.message || 'Failed to create member'
+        throw new Error(errorMessage)
       }
 
       const data = await response.json()
