@@ -290,41 +290,208 @@ export default function EnhancedChatInterface() {
 
       setOrganizationId(userOrg.organization_id)
 
-      // Mock conversation data for now - replace with actual API call
-      const mockConversations: Conversation[] = [
-        {
-          id: '1',
-          customer_id: '1',
-          customer_name: 'Sarah Johnson',
-          customer_email: 'sarah@example.com',
-          customer_phone: '+447123456789',
-          last_message: 'Hi! I\'d like to book a class for tomorrow',
-          last_message_type: 'whatsapp',
-          last_message_time: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-          unread_count: 2,
-          total_messages: 8,
-          tags: ['new-member', 'interested'],
-          priority: 'high',
-          status: 'active'
-        },
-        {
-          id: '2',
-          customer_id: '2',
-          customer_name: 'Mike Wilson',
-          customer_email: 'mike@example.com',
-          customer_phone: '+447987654321',
-          last_message: 'Thanks for the membership info!',
-          last_message_type: 'sms',
-          last_message_time: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-          unread_count: 0,
-          total_messages: 12,
-          tags: ['member'],
-          priority: 'medium',
-          status: 'resolved'
-        }
+      // Fetch recent contacts (leads and clients)
+      const [leadsResult, clientsResult] = await Promise.all([
+        supabase
+          .from('leads')
+          .select('id, first_name, last_name, email, phone')
+          .eq('org_id', userOrg.organization_id)
+          .order('updated_at', { ascending: false })
+          .limit(100),
+        supabase
+          .from('clients')
+          .select('id, first_name, last_name, email, phone')
+          .eq('org_id', userOrg.organization_id)
+          .order('updated_at', { ascending: false })
+          .limit(100)
+      ])
+
+      const customers = [
+        ...(leadsResult.data || []).map(l => ({
+          id: l.id,
+          name: `${l.first_name || ''} ${l.last_name || ''}`.trim() || 'Unknown',
+          email: l.email,
+          phone: l.phone
+        })),
+        ...(clientsResult.data || []).map(c => ({
+          id: c.id,
+          name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
+          email: c.email,
+          phone: c.phone
+        }))
       ]
 
-      setConversations(mockConversations)
+      if (!customers || customers.length === 0) {
+        setConversations([])
+        return
+      }
+
+      // Create lookup maps and phone/email variations
+      const customerById = new Map(customers.map(c => [c.id, c]))
+      const customerByPhone = new Map<string, typeof customers[0]>()
+      const customerByEmail = new Map<string, typeof customers[0]>()
+
+      const phoneNumbers: string[] = []
+      const emailAddresses: string[] = []
+
+      for (const customer of customers) {
+        if (customer.phone) {
+          const raw = customer.phone
+          // Normalize simple UK format variations
+          const normalized = raw.startsWith('+')
+            ? raw
+            : raw.startsWith('0')
+              ? `+44${raw.substring(1)}`
+              : raw.match(/^44\d+$/)
+                ? `+${raw}`
+                : raw
+          phoneNumbers.push(raw, normalized)
+          customerByPhone.set(raw, customer)
+          customerByPhone.set(normalized, customer)
+        }
+        if (customer.email) {
+          emailAddresses.push(customer.email)
+          customerByEmail.set(customer.email, customer)
+        }
+      }
+
+      // Fetch unified messages and legacy logs
+      const { data: messages } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('organization_id', userOrg.organization_id)
+        .order('created_at', { ascending: false })
+        .limit(500)
+
+      const [smsResults, whatsappResults, emailResults] = await Promise.all([
+        phoneNumbers.length > 0
+          ? supabase
+              .from('sms_logs')
+              .select('*')
+              .or(phoneNumbers.map(p => `to.eq.${p}`).concat(phoneNumbers.map(p => `from_number.eq.${p}`)).join(','))
+              .order('created_at', { ascending: false })
+              .limit(300)
+          : Promise.resolve({ data: [] as any[] }),
+        phoneNumbers.length > 0
+          ? supabase
+              .from('whatsapp_logs')
+              .select('*')
+              .or(phoneNumbers.map(p => `to.eq.${p}`).concat(phoneNumbers.map(p => `from_number.eq.${p}`)).join(','))
+              .order('created_at', { ascending: false })
+              .limit(300)
+          : Promise.resolve({ data: [] as any[] }),
+        emailAddresses.length > 0
+          ? supabase
+              .from('email_logs')
+              .select('*')
+              .in('to_email', emailAddresses)
+              .order('created_at', { ascending: false })
+              .limit(300)
+          : Promise.resolve({ data: [] as any[] })
+      ])
+
+      type Unified = {
+        created_at: string
+        direction: 'inbound' | 'outbound'
+        type: 'sms' | 'whatsapp' | 'email'
+        body: string
+        subject?: string
+        customer_id: string
+      }
+
+      const byCustomer = new Map<string, Unified[]>()
+
+      // Messages table (has direction directly)
+      if (messages && messages.length > 0) {
+        for (const msg of messages) {
+          const customerId = msg.lead_id
+          if (!customerId) continue
+          if (!customerById.has(customerId)) continue
+          const list = byCustomer.get(customerId) || []
+          list.push({
+            created_at: msg.created_at,
+            direction: msg.direction,
+            type: (msg.type || 'sms') as 'sms' | 'whatsapp' | 'email',
+            body: msg.body || msg.message || msg.content || '',
+            subject: msg.subject || undefined,
+            customer_id: customerId
+          })
+          byCustomer.set(customerId, list)
+        }
+      }
+
+      // Helper to add from logs
+      const addFromLog = (log: any, type: 'sms' | 'whatsapp') => {
+        const candidate = customerByPhone.get(log.to) || customerByPhone.get(log.from_number)
+        if (!candidate) return
+        const direction: 'inbound' | 'outbound' =
+          log.from_number && (log.from_number === candidate.phone || log.from_number === `+44${(candidate.phone || '').replace(/^0/, '')}`)
+            ? 'inbound'
+            : 'outbound'
+        const list = byCustomer.get(candidate.id) || []
+        list.push({
+          created_at: log.created_at,
+          direction,
+          type,
+          body: log.message || log.body || '',
+          customer_id: candidate.id
+        })
+        byCustomer.set(candidate.id, list)
+      }
+
+      for (const m of (smsResults.data as any[]) || []) addFromLog(m, 'sms')
+      for (const m of (whatsappResults.data as any[]) || []) addFromLog(m, 'whatsapp')
+
+      // Emails (outbound only for now)
+      for (const m of (emailResults.data as any[]) || []) {
+        const candidate = customerByEmail.get(m.to_email)
+        if (!candidate) continue
+        const list = byCustomer.get(candidate.id) || []
+        list.push({
+          created_at: m.created_at,
+          direction: 'outbound',
+          type: 'email',
+          body: m.message || m.body || '',
+          subject: m.subject || undefined,
+          customer_id: candidate.id
+        })
+        byCustomer.set(candidate.id, list)
+      }
+
+      // Build conversations with unread counts = inbound after last outbound
+      const built: Conversation[] = []
+      for (const [customerId, events] of byCustomer) {
+        const customer = customerById.get(customerId)
+        if (!customer) continue
+
+        events.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        const latest = events[0]
+        const lastOutboundTime = events
+          .filter(e => e.direction === 'outbound')
+          .reduce<string | null>((acc, e) => {
+            if (!acc) return e.created_at
+            return new Date(e.created_at).getTime() > new Date(acc).getTime() ? e.created_at : acc
+          }, null)
+
+        const unread = events.filter(e => e.direction === 'inbound' && (!lastOutboundTime || new Date(e.created_at) > new Date(lastOutboundTime))).length
+
+        built.push({
+          id: customer.id,
+          customer_id: customer.id,
+          customer_name: customer.name || 'Unknown',
+          customer_email: customer.email || '',
+          customer_phone: customer.phone || '',
+          last_message: latest?.body || latest?.subject || 'No content',
+          last_message_type: latest?.type || 'sms',
+          last_message_time: latest?.created_at || new Date().toISOString(),
+          unread_count: unread,
+          total_messages: events.length,
+          status: 'active'
+        })
+      }
+
+      built.sort((a, b) => new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime())
+      setConversations(built)
     } catch (error) {
       console.error('Error fetching conversations:', error)
     } finally {
