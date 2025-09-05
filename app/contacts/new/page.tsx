@@ -3,6 +3,147 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import DashboardLayout from '@/app/components/DashboardLayout'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+import { zodResolver } from '@hookform/resolvers/zod'
+
+const schema = z.object({
+  name: z.string().min(1, 'Full name is required'),
+  email: z.string().email('Enter a valid email').optional().or(z.literal('').transform(() => undefined)),
+  phone: z.string().optional(),
+}).superRefine((data, ctx) => {
+  const hasEmail = typeof data.email === 'string' && data.email.trim().length > 0
+  const hasPhone = typeof data.phone === 'string' && data.phone.trim().length > 0
+  if (!hasEmail && !hasPhone) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['email'], message: 'Provide email or phone' })
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['phone'], message: 'Provide email or phone' })
+  }
+  if (hasPhone) {
+    const digits = (data.phone || '').replace(/[^0-9]/g, '')
+    if (digits.length < 7) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['phone'], message: 'Phone looks invalid' })
+    }
+  }
+})
+
+type FormValues = z.infer<typeof schema>
+
+export default function NewContactPage() {
+  const router = useRouter()
+  const [submitError, setSubmitError] = useState('')
+  const { register, handleSubmit, formState: { errors, isSubmitting }, setError, reset } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { name: '', email: '', phone: '' }
+  })
+
+  const onSubmit = async (values: FormValues) => {
+    setSubmitError('')
+    try {
+      const payload = {
+        name: values.name,
+        email: values.email,
+        phone: values.phone,
+        membership_type: 'Standard',
+        membership_status: 'active',
+        start_date: new Date().toISOString(),
+        total_revenue: 0,
+        engagement_score: 50,
+      }
+      const res = await fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        const message = data?.error || 'Failed to create contact'
+        if (/email/i.test(message)) {
+          setError('email', { type: 'manual', message })
+        } else if (/phone/i.test(message)) {
+          setError('phone', { type: 'manual', message })
+        }
+        throw new Error(message)
+      }
+      reset()
+      router.push('/contacts')
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Failed to create contact')
+    }
+  }
+
+  return (
+    <DashboardLayout>
+      <div className="p-6 max-w-2xl mx-auto">
+        <h1 className="text-3xl font-bold text-white mb-2">Add Contact</h1>
+        <p className="text-gray-400 mb-6">Create a new contact with a valid name and either email or phone.</p>
+
+        {submitError && (
+          <div className="bg-red-900/50 border border-red-600 rounded-lg p-3 mb-4">
+            <p className="text-sm text-red-200">{submitError}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Full Name *</label>
+            <input
+              type="text"
+              {...register('name')}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
+              placeholder="Jane Doe"
+            />
+            {errors.name && <p className="text-sm text-red-400 mt-1">{errors.name.message}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Email</label>
+            <input
+              type="email"
+              {...register('email')}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
+              placeholder="jane@example.com"
+            />
+            {errors.email && <p className="text-sm text-red-400 mt-1">{errors.email.message}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Phone</label>
+            <input
+              type="tel"
+              {...register('phone')}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
+              placeholder="+1 (555) 123-4567"
+            />
+            {errors.phone && <p className="text-sm text-red-400 mt-1">{errors.phone.message}</p>}
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => router.push('/contacts')}
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg disabled:opacity-50"
+            >
+              {isSubmitting ? 'Saving...' : 'Create Contact'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </DashboardLayout>
+  )
+}
+
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import DashboardLayout from '@/app/components/DashboardLayout'
 import { ArrowLeft, Save, User, Mail, Phone, Building, Tag, Calendar, MapPin, Globe, MessageSquare } from 'lucide-react'
 import { createClient } from '@/app/lib/supabase/client'
 

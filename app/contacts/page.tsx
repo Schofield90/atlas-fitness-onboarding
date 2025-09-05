@@ -272,33 +272,31 @@ function ContactsContent() {
     // Convert map to array
     let allContacts = Array.from(contactsMap.values())
     
-    // Remove duplicates based on email, keeping the most recent
+    // Remove duplicates based on email OR normalized phone, keeping the most recent
+    const normalizePhone = (phone?: string) => (phone || '').replace(/[^0-9]/g, '')
     const uniqueContacts = allContacts.reduce((acc: Contact[], contact) => {
-      if (!contact.email) {
-        // If no email, keep the contact (can't deduplicate without email)
-        acc.push(contact)
-        return acc
-      }
-      
-      const existingIndex = acc.findIndex(c => 
-        c.email && c.email.toLowerCase() === contact.email.toLowerCase()
-      )
-      
+      const email = (contact.email || '').toLowerCase()
+      const phoneDigits = normalizePhone(contact.phone)
+
+      const existingIndex = acc.findIndex(c => {
+        const cEmail = (c.email || '').toLowerCase()
+        const cPhone = normalizePhone(c.phone)
+        const emailMatch = email && cEmail && cEmail === email
+        const phoneMatch = phoneDigits && cPhone && (cPhone.endsWith(phoneDigits) || phoneDigits.endsWith(cPhone))
+        return emailMatch || phoneMatch
+      })
+
       if (existingIndex === -1) {
-        // No duplicate found, add the contact
         acc.push(contact)
       } else {
-        // Duplicate found, keep the most recent one
         const existing = acc[existingIndex]
         const existingDate = new Date(existing.updated_at || existing.created_at)
         const currentDate = new Date(contact.updated_at || contact.created_at)
-        
         if (currentDate > existingDate) {
-          // Current contact is more recent, replace the existing one
           acc[existingIndex] = contact
         }
       }
-      
+
       return acc
     }, [])
     

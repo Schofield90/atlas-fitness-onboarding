@@ -150,34 +150,67 @@ async function createLead(request: NextRequest) {
     if (!body.name) {
       throw ValidationError.required('name', { body })
     }
-    if (!body.email) {
-      throw ValidationError.required('email', { body })
-    }
-    if (!body.phone) {
-      throw ValidationError.required('phone', { body })
-    }
     
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(body.email)) {
-      throw ValidationError.invalid('email', body.email, 'valid email address')
+    // At least one of email or phone must be provided
+    const hasEmail = typeof body.email === 'string' && body.email.trim().length > 0
+    const hasPhone = typeof body.phone === 'string' && body.phone.trim().length > 0
+    if (!hasEmail && !hasPhone) {
+      throw ValidationError.custom('Either email or phone is required', {
+        field: 'contact',
+        body
+      })
     }
     
-    // Check if a lead with this email already exists
-    const { data: existingLeads } = await supabase
-      .from('leads')
-      .select('id, name, email')
-      .eq('email', body.email.toLowerCase())
-      .eq('organization_id', userWithOrg.organizationId)
+    // Validate email format if provided
+    if (hasEmail) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(String(body.email).toLowerCase())) {
+        throw ValidationError.invalid('email', body.email, 'valid email address')
+      }
+    }
     
-    if (existingLeads && existingLeads.length > 0) {
-      // Lead with this email already exists
-      const existing = existingLeads[0]
-      return NextResponse.json({
-        success: false,
-        error: `A lead with email ${body.email} already exists (${existing.name})`,
-        existingLeadId: existing.id
-      }, { status: 409 })
+    // Basic phone validation if provided (digits, spaces, symbols allowed but must contain 7+ digits)
+    const normalizePhone = (phone: string) => phone.replace(/[^0-9]/g, '')
+    let normalizedPhone: string | undefined
+    if (hasPhone) {
+      normalizedPhone = normalizePhone(body.phone)
+      if (!normalizedPhone || normalizedPhone.length < 7) {
+        throw ValidationError.invalid('phone', body.phone, 'valid phone number')
+      }
+    }
+    
+    // Check if a lead with this email or phone already exists
+    if (hasEmail || hasPhone) {
+      let query = supabase
+        .from('leads')
+        .select('id, name, email, phone')
+        .eq('organization_id', userWithOrg.organizationId)
+      
+      // Build OR filter for email/phone duplicates
+      if (hasEmail && hasPhone) {
+        query = query.or(`email.eq.${String(body.email).toLowerCase()},phone.ilike.%${normalizedPhone}%`)
+      } else if (hasEmail) {
+        query = query.eq('email', String(body.email).toLowerCase())
+      } else if (hasPhone && normalizedPhone) {
+        // Loose match by phone digits using ilike to catch formatting differences
+        query = query.ilike('phone', `%${normalizedPhone.slice(-7)}%`)
+      }
+      
+      const { data: existingLeads } = await query
+      if (existingLeads && existingLeads.length > 0) {
+        const existing = existingLeads[0]
+        const duplicateField = hasEmail && existing.email?.toLowerCase() === String(body.email).toLowerCase()
+          ? 'email'
+          : 'phone'
+        return NextResponse.json({
+          success: false,
+          error: duplicateField === 'email'
+            ? `A lead with email ${body.email} already exists (${existing.name})`
+            : `A lead with this phone number already exists (${existing.name})`,
+          duplicateField,
+          existingLeadId: existing.id
+        }, { status: 409 })
+      }
     }
     
     // Log the data we're trying to insert
@@ -192,10 +225,10 @@ async function createLead(request: NextRequest) {
     // Build insert data with only essential fields
     const insertData: any = {
       name: body.name,
-      email: body.email.toLowerCase(), // Store email in lowercase for consistency
-      phone: body.phone,
       organization_id: userWithOrg.organizationId
     }
+    if (hasEmail) insertData.email = String(body.email).toLowerCase()
+    if (hasPhone) insertData.phone = body.phone
     
     // Add optional fields only if they're provided
     if (body.source) insertData.source = body.source
