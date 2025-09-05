@@ -106,6 +106,7 @@ export default function EnhancedChatInterface() {
   const [organizationId, setOrganizationId] = useState<string | null>(null)
   const [showNewConversationModal, setShowNewConversationModal] = useState(false)
   const [availableContacts, setAvailableContacts] = useState<any[]>([])
+  const [hideRead, setHideRead] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
 
@@ -134,6 +135,23 @@ export default function EnhancedChatInterface() {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const markConversationAsRead = async (conversation: Conversation) => {
+    // Optimistic UI update
+    setConversations(prev => prev.map(c => c.id === conversation.id ? { ...c, unread_count: 0 } : c))
+    setSelectedConversation(prev => prev && prev.id === conversation.id ? { ...prev, unread_count: 0 } as Conversation : prev)
+
+    // Best-effort backend update
+    try {
+      await fetch('/api/chat/mark-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId: conversation.customer_id })
+      })
+    } catch (error) {
+      // No-op on failure; UI already updated
+    }
   }
 
   const handleContactParameter = async (contactId: string) => {
@@ -512,13 +530,15 @@ export default function EnhancedChatInterface() {
     }
   }
 
-  const filteredConversations = conversations.filter(conv => {
-    const search = searchTerm.toLowerCase()
-    return conv.customer_name.toLowerCase().includes(search) ||
-           conv.customer_email.toLowerCase().includes(search) ||
-           conv.customer_phone.includes(search) ||
-           conv.last_message.toLowerCase().includes(search)
-  })
+  const filteredConversations = conversations
+    .filter(conv => {
+      const search = searchTerm.toLowerCase()
+      return conv.customer_name.toLowerCase().includes(search) ||
+             conv.customer_email.toLowerCase().includes(search) ||
+             conv.customer_phone.includes(search) ||
+             conv.last_message.toLowerCase().includes(search)
+    })
+    .filter(conv => !hideRead || conv.unread_count > 0)
 
   return (
     <div className="flex h-screen bg-gray-900">
@@ -541,6 +561,12 @@ export default function EnhancedChatInterface() {
               </button>
               <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg">
                 <SortAsc className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setHideRead(!hideRead)}
+                className={`px-2 py-1 rounded-lg text-sm ${hideRead ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
+              >
+                Hide read
               </button>
             </div>
           </div>
@@ -616,9 +642,17 @@ export default function EnhancedChatInterface() {
                       </div>
                     </div>
                     {conversation.unread_count > 0 && (
-                      <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
-                        {conversation.unread_count}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
+                          {conversation.unread_count}
+                        </span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); markConversationAsRead(conversation) }}
+                          className="text-xs text-gray-300 hover:text-white underline"
+                        >
+                          Mark as read
+                        </button>
+                      </div>
                     )}
                   </div>
                   <p className="text-sm text-gray-300 truncate mb-2">
