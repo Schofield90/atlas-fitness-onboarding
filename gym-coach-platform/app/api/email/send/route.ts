@@ -3,7 +3,8 @@ import { Resend } from 'resend';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Initialize Resend client with conditional check for API key
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,6 +42,14 @@ export async function POST(request: NextRequest) {
     const fromName = organization?.name || 'Atlas Fitness';
 
     // Send email via Resend
+    if (!resend) {
+      console.error('Resend API key not configured');
+      return NextResponse.json(
+        { error: 'Email service not configured' },
+        { status: 503 }
+      );
+    }
+
     const { data, error } = await resend.emails.send({
       from: `${fromName} <${fromEmail}>`,
       to: Array.isArray(to) ? to : [to],
