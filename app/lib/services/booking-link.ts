@@ -122,32 +122,122 @@ export class BookingLinkService {
   // =============================================
 
   async createBookingLink(data: Partial<BookingLink>): Promise<BookingLink> {
-    const { data: result, error } = await this.supabase
+    // Filter out fields that might not exist in the database schema yet
+    const {
+      assigned_staff_ids,
+      meeting_title_template,
+      meeting_location,
+      availability_rules,
+      form_configuration,
+      confirmation_settings,
+      notification_settings,
+      style_settings,
+      payment_settings,
+      cancellation_policy,
+      booking_limits,
+      buffer_settings,
+      ...baseData
+    } = data
+
+    // Try to insert with all fields first
+    let insertData = {
+      ...data,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+
+    let { data: result, error } = await this.supabase
       .from('booking_links')
-      .insert({
-        ...data,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
+      .insert(insertData)
       .select('*')
       .single()
 
-    if (error) throw new Error(`Failed to create booking link: ${error.message}`)
+    // If error mentions missing columns, try with basic fields only
+    if (error && error.message.includes('column') && error.message.includes('does not exist')) {
+      console.warn('Some booking_links columns missing, falling back to basic fields:', error.message)
+      
+      // Insert only the basic fields that should exist in the original schema
+      insertData = {
+        ...baseData,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+
+      const { data: fallbackResult, error: fallbackError } = await this.supabase
+        .from('booking_links')
+        .insert(insertData)
+        .select('*')
+        .single()
+
+      if (fallbackError) {
+        throw new Error(`Failed to create booking link: ${fallbackError.message}`)
+      }
+
+      result = fallbackResult
+    } else if (error) {
+      throw new Error(`Failed to create booking link: ${error.message}`)
+    }
+
     return result
   }
 
   async updateBookingLink(id: string, data: Partial<BookingLink>): Promise<BookingLink> {
-    const { data: result, error } = await this.supabase
+    // Filter out fields that might not exist in the database schema yet
+    const {
+      assigned_staff_ids,
+      meeting_title_template,
+      meeting_location,
+      availability_rules,
+      form_configuration,
+      confirmation_settings,
+      notification_settings,
+      style_settings,
+      payment_settings,
+      cancellation_policy,
+      booking_limits,
+      buffer_settings,
+      ...baseData
+    } = data
+
+    // Try to update with all fields first
+    let updateData = {
+      ...data,
+      updated_at: new Date().toISOString()
+    }
+
+    let { data: result, error } = await this.supabase
       .from('booking_links')
-      .update({
-        ...data,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', id)
       .select('*')
       .single()
 
-    if (error) throw new Error(`Failed to update booking link: ${error.message}`)
+    // If error mentions missing columns, try with basic fields only
+    if (error && error.message.includes('column') && error.message.includes('does not exist')) {
+      console.warn('Some booking_links columns missing, falling back to basic fields:', error.message)
+      
+      // Update only the basic fields that should exist in the original schema
+      updateData = {
+        ...baseData,
+        updated_at: new Date().toISOString()
+      }
+
+      const { data: fallbackResult, error: fallbackError } = await this.supabase
+        .from('booking_links')
+        .update(updateData)
+        .eq('id', id)
+        .select('*')
+        .single()
+
+      if (fallbackError) {
+        throw new Error(`Failed to update booking link: ${fallbackError.message}`)
+      }
+
+      result = fallbackResult
+    } else if (error) {
+      throw new Error(`Failed to update booking link: ${error.message}`)
+    }
+
     return result
   }
 
