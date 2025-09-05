@@ -24,7 +24,10 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    const realtimeData = await SupabaseAnalyticsStorage.getRealtimeAnalytics();
+    // For now, use a default organization ID since this is an admin endpoint
+    // In a real implementation, you'd extract this from the request or auth
+    const organizationId = 'default'; // Or extract from auth header/query params
+    const realtimeData = await SupabaseAnalyticsStorage.getRealtimeAnalytics(organizationId);
     
     return NextResponse.json(realtimeData);
     

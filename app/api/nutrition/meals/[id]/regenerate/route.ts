@@ -3,10 +3,20 @@ import { createClient } from '@/app/lib/supabase/server'
 import { requireAuth, createErrorResponse } from '@/app/lib/api/auth-check'
 import OpenAI from 'openai'
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+// Lazy initialization to avoid build-time errors
+let openai: OpenAI | null = null
+
+function getOpenAI(): OpenAI {
+  if (!openai && process.env.OPENAI_API_KEY) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    })
+  }
+  if (!openai) {
+    throw new Error('OpenAI API key not configured')
+  }
+  return openai
+}
 
 export async function POST(
   request: NextRequest,
@@ -210,7 +220,7 @@ async function regenerateMeal(existingMeal: any, profile: any, additionalConstra
   }`
   
   try {
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: 'gpt-4-turbo-preview',
       messages: [
         { role: 'system', content: systemPrompt },
