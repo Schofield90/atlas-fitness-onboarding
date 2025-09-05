@@ -3,11 +3,17 @@ import { Resend } from 'resend';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 
-// Initialize Resend client with conditional check for API key
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+// Initialize Resend with a fallback for build time
+const resendApiKey = process.env.RESEND_API_KEY || 'placeholder-key';
+const resend = new Resend(resendApiKey);
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if we have a valid API key at runtime
+    if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 'placeholder-key') {
+      return NextResponse.json({ error: 'Email service not configured' }, { status: 500 });
+    }
+
     const supabase = createRouteHandlerClient({ cookies });
     
     // Get current user

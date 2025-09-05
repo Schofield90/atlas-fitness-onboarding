@@ -156,7 +156,7 @@ export default function MembersPage() {
   }
 
   const handleViewMember = (member: Member) => {
-    window.location.href = `/dashboard/clients/${member.id}`
+    window.location.href = `/members/${member.id}`
   }
 
   const handleDeleteMember = async (member: Member) => {

@@ -28,6 +28,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { toast } from 'react-hot-toast';
 import { formatBritishDate, formatBritishDateTime } from '@/lib/utils/british-format';
 import { BodyCompositionSection } from '@/components/clients/BodyCompositionSection';
+import ClientMessaging from '@/components/messaging/ClientMessaging';
 
 interface Client {
   id: string;
@@ -499,6 +500,13 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
 
       {/* Body Composition */}
       <BodyCompositionSection clientId={client.id} clientPhone={client.phone} />
+
+      {/* Client Messages */}
+      <ClientMessaging 
+        clientId={client.id}
+        clientName={client.name}
+        clientEmail={client.email}
+      />
 
       {/* Waivers */}
       <Card>
