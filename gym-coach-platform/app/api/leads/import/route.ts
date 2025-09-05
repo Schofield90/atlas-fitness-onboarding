@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { LeadInsert } from '@/types/database'
-import { validateApiRequest } from '@/lib/api/middleware'
+import { authenticateRequest, createApiResponse } from '@/lib/api/middleware'
 
 interface BulkImportRequest {
   leads: Partial<LeadInsert>[]
@@ -21,12 +21,13 @@ interface BulkImportResponse {
 
 export async function POST(request: NextRequest) {
   try {
-    const validation = await validateApiRequest(request)
-    if (!validation.success) {
-      return NextResponse.json({ error: validation.error }, { status: validation.status })
+    const authResult = await authenticateRequest(request)
+    if (authResult.error) {
+      return createApiResponse(null, authResult.error, authResult.status)
     }
 
-    const { user, organization } = validation
+    const user = authResult.user!
+    const supabase = await createClient()
 
     const body: BulkImportRequest = await request.json()
 
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
       const { data: existingLeads } = await supabase
         .from('leads')
         .select('email')
-        .eq('organization_id', organization.id)
+        .eq('organization_id', user.organization_id)
         .in('email', emails)
 
       existingEmails = existingLeads?.map(lead => lead.email.toLowerCase()) || []
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest) {
 
         // Prepare lead for insertion
         const lead: LeadInsert = {
-          organization_id: organization.id,
+          organization_id: user.organization_id,
           name: leadData.name.trim(),
           email: emailLower,
           phone: leadData.phone || null,
