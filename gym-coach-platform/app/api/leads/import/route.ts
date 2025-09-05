@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { LeadInsert } from '@/types/database'
-import { validateApiRequest } from '@/lib/api/middleware'
+import { handleApiRoute } from '@/lib/api/middleware'
 
 interface BulkImportRequest {
   leads: Partial<LeadInsert>[]
