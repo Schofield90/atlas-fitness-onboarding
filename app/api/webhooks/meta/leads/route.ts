@@ -241,7 +241,7 @@ async function processLeadCapture({
             type: f.type || 'SHORT_ANSWER',
             required: false
           })) || []
-        })
+        } as any)
         
         // Apply auto-detected mappings
         const autoConfig = {
@@ -264,10 +264,11 @@ async function processLeadCapture({
       }
       
       // Extract lead fields from processed data
-      const firstName = processedLeadData.standard_fields?.first_name || ''
-      const lastName = processedLeadData.standard_fields?.last_name || ''
-      const email = processedLeadData.standard_fields?.email || ''
-      const phone = processedLeadData.standard_fields?.phone || ''
+      // Accept both flattened fields and grouped standard_fields
+      const firstName = processedLeadData.standard_fields?.first_name ?? processedLeadData.first_name ?? ''
+      const lastName = processedLeadData.standard_fields?.last_name ?? processedLeadData.last_name ?? ''
+      const email = processedLeadData.standard_fields?.email ?? processedLeadData.email ?? ''
+      const phone = processedLeadData.standard_fields?.phone ?? processedLeadData.phone ?? ''
       
       // Create main lead entry
       const { error: leadError } = await supabase
