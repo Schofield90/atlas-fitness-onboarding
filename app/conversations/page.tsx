@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/app/lib/supabase/client'
 import DashboardLayout from '@/app/components/DashboardLayout'
+import { createClient as createSupabaseClient } from '@/app/lib/supabase/client'
 import EnhancedChatInterface from '@/app/components/chat/EnhancedChatInterface'
 import CoachMessaging from '@/app/components/CoachMessaging'
 import { MessageSquare, Mail, Phone, Clock, User, Search, Bot, MessageCircle } from 'lucide-react'
@@ -146,9 +147,33 @@ function ConversationsContent() {
   const [organizationId, setOrganizationId] = useState<string | null>(null)
   const [contactsCount, setContactsCount] = useState(0)
   const router = useRouter()
+  const supabaseClientForRead = createSupabaseClient()
 
   useEffect(() => {
     fetchConversations()
+  }, [])
+
+  useEffect(() => {
+    // When landing on conversations, mark inbound messages as read for this org
+    const markOrgMessagesRead = async () => {
+      try {
+        const { data: { user } } = await supabaseClientForRead.auth.getUser()
+        if (!user) return
+        const { data: userOrg } = await supabaseClientForRead
+          .from('user_organizations')
+          .select('organization_id')
+          .eq('user_id', user.id)
+          .single()
+        if (!userOrg?.organization_id) return
+        await supabaseClientForRead
+          .from('messages')
+          .update({ read_at: new Date().toISOString(), status: 'read' })
+          .eq('organization_id', userOrg.organization_id)
+          .eq('direction', 'inbound')
+          .is('read_at', null)
+      } catch (_) {}
+    }
+    markOrgMessagesRead()
   }, [])
 
   const fetchConversations = async () => {
