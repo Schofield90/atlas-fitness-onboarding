@@ -182,7 +182,7 @@ export default function DirectDashboardPage() {
               Add New Lead
             </button>
             <button 
-              onClick={() => router.push('/booking/new')}
+              onClick={() => router.push('/booking-links/create')}
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
             >
               Schedule Class
