@@ -737,6 +737,22 @@ const RichTextField: React.FC<{
 }
 
 export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onChange, organizationId }: DynamicConfigPanelProps) {
+  // Initialize all hooks before any conditional returns
+  const [config, setConfig] = useState(node?.data?.config || {})
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [isValid, setIsValid] = useState(false)
+  const [facebookPages, setFacebookPages] = useState<Array<{ value: string; label: string }>>([])
+  const [facebookForms, setFacebookForms] = useState<Array<{ value: string; label: string; pageId?: string }>>([])
+  const [loadingFacebookPages, setLoadingFacebookPages] = useState(false)
+  const [loadingFacebookForms, setLoadingFacebookForms] = useState(false)
+  const [forms, setForms] = useState<Array<{ value: string; label: string }>>([])
+  const [loadingForms, setLoadingForms] = useState(false)
+  const [userPhone, setUserPhone] = useState('')
+  const [userWhatsApp, setUserWhatsApp] = useState('')
+  
+  // Feature flags
+  const useControlledConfig = useFeatureFlag('automationBuilderControlledConfig')
+
   // Validate node exists and has required properties
   if (!node) {
     console.error('DynamicConfigPanelEnhanced: No node provided')
@@ -758,21 +774,6 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
   if (!node.data) {
     node.data = { config: {} }
   }
-  
-  const [config, setConfig] = useState(node.data?.config || {})
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [isValid, setIsValid] = useState(false)
-  const [facebookPages, setFacebookPages] = useState<Array<{ value: string; label: string }>>([])
-  const [facebookForms, setFacebookForms] = useState<Array<{ value: string; label: string; pageId?: string }>>([])
-  const [loadingFacebookPages, setLoadingFacebookPages] = useState(false)
-  const [loadingFacebookForms, setLoadingFacebookForms] = useState(false)
-  const [forms, setForms] = useState<Array<{ value: string; label: string }>>([])
-  const [loadingForms, setLoadingForms] = useState(false)
-  const [userPhone, setUserPhone] = useState('')
-  const [userWhatsApp, setUserWhatsApp] = useState('')
-  
-  // Feature flags
-  const useControlledConfig = useFeatureFlag('automationBuilderControlledConfig')
   
   // CRITICAL FIX: Sync config state when node changes
   useEffect(() => {
