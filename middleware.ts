@@ -7,29 +7,23 @@ const publicRoutes = [
   '/',
   '/landing',
   '/login',
+  '/simple-login',
   '/signin',
   '/signup',
-  '/signup-simple',     // Add simplified signup page
+  '/signup-simple',     // Simplified signup page
   '/auth/callback',
   '/client-portal/login',
   '/client-portal/claim',
   '/client-access',
-  '/onboarding',
-  '/portal',            // Add member portal routes
-  '/dashboard-direct',  // Add simplified dashboard to public routes
-  '/quick-dashboard',   // Add quick access dashboard (no auth)
-  '/real-dashboard',    // Real dashboard with no auth checks
-  '/test-auth',         // Add test auth page
   '/book',              // Public booking pages for customers (all slugs)
+  // Public API endpoints
   '/api/auth',
   '/api/client-portal',
   '/api/client-access',
   '/api/webhooks',
-  '/api/public-api',    // Public API endpoints
-  '/api/booking-by-slug', // Public booking API endpoints for widget embedding
-  '/api/analytics',     // Add analytics endpoint as public
-  '/admin-debug',       // Debug page for admin access
-  '/saas-admin',        // Standalone SaaS admin dashboard (bypasses all middleware)
+  '/api/public-api',
+  '/api/booking-by-slug',
+  '/api/analytics'
 ]
 
 // Client-only routes
@@ -140,8 +134,11 @@ export async function middleware(request: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession()
 
-  // No session - redirect to login
+  // No session - return 401 for API, redirect to login for pages
   if (!session) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const redirectUrl = new URL('/login', request.url)
     redirectUrl.searchParams.set('redirect', pathname)
     return NextResponse.redirect(redirectUrl)
