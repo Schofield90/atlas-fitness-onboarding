@@ -3,11 +3,32 @@ import { cookies } from 'next/headers'
 import type { Database } from './database.types'
 
 export async function createClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  // During build time, return a mock client to prevent errors
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.warn('Supabase environment variables missing, using mock client for build')
+    return {
+      auth: {
+        getUser: () => Promise.resolve({ data: { user: null }, error: new Error('Mock client') })
+      },
+      from: () => ({
+        select: () => ({ 
+          eq: () => ({ 
+            single: () => Promise.resolve({ data: null, error: new Error('Mock client') })
+          }),
+          in: () => Promise.resolve({ data: [], error: new Error('Mock client') })
+        })
+      })
+    } as any
+  }
+
   const cookieStore = await cookies()
 
   return createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         get(name: string) {

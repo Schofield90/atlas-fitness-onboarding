@@ -4,9 +4,20 @@ import { createClient } from '@/app/lib/supabase/server'
 import OpenAI from 'openai'
 import * as cheerio from 'cheerio'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-})
+// Lazy initialization to avoid build-time errors
+let openai: OpenAI | null = null
+
+function getOpenAI(): OpenAI {
+  if (!openai && process.env.OPENAI_API_KEY) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY
+    })
+  }
+  if (!openai) {
+    throw new Error('OpenAI API key not configured')
+  }
+  return openai
+}
 
 // Function to fetch and parse webpage
 async function fetchAndParseWebpage(url: string) {
@@ -183,7 +194,7 @@ Return ONLY valid JSON, no additional text.
 `
 
   try {
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: 'gpt-4-turbo-preview',
       messages: [
         {
