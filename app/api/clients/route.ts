@@ -39,12 +39,12 @@ async function createClientMember(request: NextRequest) {
   const orgId = userWithOrg.organizationId
   
   // Check for duplicate email in the same organization
-  // We need to check both organization_id and org_id columns since both exist
+  // Only org_id column exists in the database
   const { data: dupByEmail } = await supabase
     .from('clients')
     .select('id')
     .ilike('email', body.email)
-    .or(`organization_id.eq.${orgId},org_id.eq.${orgId}`)
+    .eq('org_id', orgId)
     .limit(1)
   
   if (dupByEmail && dupByEmail.length > 0) {
@@ -59,7 +59,7 @@ async function createClientMember(request: NextRequest) {
     const { data: clientsInOrg } = await supabase
       .from('clients')
       .select('id, phone')
-      .or(`organization_id.eq.${orgId},org_id.eq.${orgId}`)
+      .eq('org_id', orgId)
       .not('phone', 'is', null)
     
     // Check if any of the returned clients have a matching phone
@@ -73,15 +73,13 @@ async function createClientMember(request: NextRequest) {
     }
   }
   
-  // Build insert data - include both org_id and organization_id for compatibility
+  // Build insert data - only org_id column exists
   const insertData: any = {
     first_name: body.first_name,
     last_name: body.last_name,
-    full_name: `${body.first_name} ${body.last_name}`,
     email: body.email,
     phone: body.phone,
-    organization_id: userWithOrg.organizationId,
-    org_id: userWithOrg.organizationId, // Include both fields for backward compatibility
+    org_id: userWithOrg.organizationId,
     created_by: userWithOrg.id,
     status: 'active'
   }
@@ -139,42 +137,21 @@ async function getClients(request: NextRequest) {
     
     console.log('Fetching clients for organization:', userWithOrg.organizationId)
     
-    // Build base query - filter by organization_id (primary)
-    // We will add a fallback query for legacy org_id if no results are found
-    let primaryQuery = supabase
-      .from('clients')
-      .select('*', { count: 'exact' })
-      .eq('organization_id', userWithOrg.organizationId)
-      .order('created_at', { ascending: false })
-      .range(from, to)
-  
-  // Apply status filter
-  if (status && status !== 'all') {
-    primaryQuery = primaryQuery.eq('status', status)
-  }
-  
-  // Execute primary query
-  let { data: clients, error, count } = await primaryQuery
-  
-  // Fallback: if no clients found (or organization_id not populated), try legacy org_id column
-  if (!error && (!clients || clients.length === 0)) {
-    let fallbackQuery = supabase
+    // Build base query - filter by org_id (only this column exists)
+    let query = supabase
       .from('clients')
       .select('*', { count: 'exact' })
       .eq('org_id', userWithOrg.organizationId)
       .order('created_at', { ascending: false })
       .range(from, to)
-
+  
+    // Apply status filter
     if (status && status !== 'all') {
-      fallbackQuery = fallbackQuery.eq('status', status)
+      query = query.eq('status', status)
     }
-
-    const fallbackResult = await fallbackQuery
-    if (!fallbackResult.error && fallbackResult.data) {
-      clients = fallbackResult.data
-      count = fallbackResult.count
-    }
-  }
+    
+    // Execute query
+    let { data: clients, error, count } = await query
   
   if (error) {
     throw DatabaseError.queryError('clients', 'select', {
@@ -200,7 +177,7 @@ async function getClients(request: NextRequest) {
     const { data: membershipPlans } = await supabase
       .from('membership_plans')
       .select('*')
-      .eq('organization_id', userWithOrg.organizationId)
+      .eq('org_id', userWithOrg.organizationId)
     
     // Combine the data
     enrichedClients = clients.map(client => {
