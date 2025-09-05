@@ -2,14 +2,33 @@ import { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { Database } from '@/lib/supabase/database.types'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+// Create service role client for server-side operations (lazy initialization)
+let _supabaseAdmin: ReturnType<typeof createClient<Database>> | null = null
 
-// Create service role client for server-side operations
-export const supabaseAdmin = createClient<Database>(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
+export function getSupabaseAdmin() {
+  if (!_supabaseAdmin) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Missing Supabase environment variables')
+    }
+    
+    _supabaseAdmin = createClient<Database>(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+  }
+  
+  return _supabaseAdmin
+}
+
+// Backward compatibility export
+export const supabaseAdmin = new Proxy({} as any, {
+  get(target, prop) {
+    return getSupabaseAdmin()[prop as keyof typeof _supabaseAdmin]
   }
 })
 
@@ -30,15 +49,16 @@ export async function authenticateRequest(request: NextRequest) {
     }
 
     const token = authHeader.split(' ')[1]
+    const admin = getSupabaseAdmin()
     
     // Verify the JWT token
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
+    const { data: { user }, error: authError } = await admin.auth.getUser(token)
     if (authError || !user) {
       return { error: 'Invalid or expired token', status: 401 }
     }
 
     // Get user details from our users table
-    const { data: userDetails, error: userError } = await supabaseAdmin
+    const { data: userDetails, error: userError } = await admin
       .from('users')
       .select('id, email, organization_id, role')
       .eq('id', user.id)
