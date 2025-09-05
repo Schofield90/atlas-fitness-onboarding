@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { checkAuthAndOrganization } from '@/app/lib/api/auth-check-org'
+import { requireAuthWithOrg } from '@/app/lib/api/auth-check-org'
 import { createClient } from '@/app/lib/supabase/server'
 
 // GET - Get single landing page
@@ -7,13 +7,15 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const authResult = await checkAuthAndOrganization(request)
-  if (!authResult.success) {
-    return NextResponse.json({ error: authResult.error }, { status: 401 })
+  let user
+  try {
+    user = await requireAuthWithOrg()
+  } catch (error) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { organizationId } = authResult
-  const supabase = createClient()
+  const { organizationId } = user
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('landing_pages')
@@ -34,14 +36,16 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const authResult = await checkAuthAndOrganization(request)
-  if (!authResult.success) {
-    return NextResponse.json({ error: authResult.error }, { status: 401 })
+  let authUser
+  try {
+    authUser = await requireAuthWithOrg()
+  } catch (error) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { user, organizationId } = authResult
+  const { id: userId, organizationId } = authUser
   const body = await request.json()
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const updates = {
     name: body.name,
@@ -53,7 +57,7 @@ export async function PUT(
     settings: body.settings,
     meta_title: body.meta_title,
     meta_description: body.meta_description,
-    updated_by: user.id,
+    updated_by: userId,
     updated_at: new Date().toISOString()
   }
 
@@ -77,13 +81,15 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const authResult = await checkAuthAndOrganization(request)
-  if (!authResult.success) {
-    return NextResponse.json({ error: authResult.error }, { status: 401 })
+  let user
+  try {
+    user = await requireAuthWithOrg()
+  } catch (error) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { organizationId } = authResult
-  const supabase = createClient()
+  const { organizationId } = user
+  const supabase = await createClient()
 
   const { error } = await supabase
     .from('landing_pages')

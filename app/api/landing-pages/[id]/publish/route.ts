@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { checkAuthAndOrganization } from '@/app/lib/api/auth-check-org'
+import { requireAuthWithOrg } from '@/app/lib/api/auth-check-org'
 import { createClient } from '@/app/lib/supabase/server'
 
 // POST - Publish landing page
@@ -7,18 +7,20 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const authResult = await checkAuthAndOrganization(request)
-  if (!authResult.success) {
-    return NextResponse.json({ error: authResult.error }, { status: 401 })
+  let authUser
+  try {
+    authUser = await requireAuthWithOrg()
+  } catch (error) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { user, organizationId } = authResult
-  const supabase = createClient()
+  const { id: userId, organizationId } = authUser
+  const supabase = await createClient()
 
   const updates = {
     status: 'published',
     published_at: new Date().toISOString(),
-    updated_by: user.id,
+    updated_by: userId,
     updated_at: new Date().toISOString()
   }
 
@@ -45,18 +47,20 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const authResult = await checkAuthAndOrganization(request)
-  if (!authResult.success) {
-    return NextResponse.json({ error: authResult.error }, { status: 401 })
+  let authUser
+  try {
+    authUser = await requireAuthWithOrg()
+  } catch (error) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { user, organizationId } = authResult
-  const supabase = createClient()
+  const { id: userId, organizationId } = authUser
+  const supabase = await createClient()
 
   const updates = {
     status: 'draft',
     unpublished_at: new Date().toISOString(),
-    updated_by: user.id,
+    updated_by: userId,
     updated_at: new Date().toISOString()
   }
 

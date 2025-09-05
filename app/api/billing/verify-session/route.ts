@@ -2,11 +2,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@/app/lib/supabase/server';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2024-12-18.acacia',
-});
+const stripeKey = process.env.STRIPE_SECRET_KEY;
+let stripe: Stripe | null = null;
+
+if (stripeKey) {
+  stripe = new Stripe(stripeKey, {
+    apiVersion: '2024-12-18.acacia',
+  });
+}
 
 export async function GET(request: NextRequest) {
+  if (!stripe) {
+    console.error('Stripe is not configured. Please set STRIPE_SECRET_KEY.');
+    return NextResponse.json(
+      { error: 'Payment system not configured' },
+      { status: 503 }
+    );
+  }
+
   try {
     const searchParams = request.nextUrl.searchParams;
     const sessionId = searchParams.get('session_id');
