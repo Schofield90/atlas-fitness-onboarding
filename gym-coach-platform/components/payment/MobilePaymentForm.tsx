@@ -11,7 +11,9 @@ import { CreditCard, Smartphone, Shield, CheckCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import moment from 'moment';
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY 
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+  : null;
 
 interface Session {
   id: string;
