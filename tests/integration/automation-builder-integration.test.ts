@@ -11,7 +11,7 @@ import '@testing-library/jest-dom'
 // Mock ReactFlow
 jest.mock('reactflow', () => ({
   ...jest.requireActual('reactflow'),
-  ReactFlowProvider: ({ children }: { children: React.ReactNode }) => <div data-testid="reactflow-provider">{children}</div>,
+  ReactFlowProvider: ({ children }: { children: React.ReactNode }) => React.createElement('div', { 'data-testid': 'reactflow-provider' }, children),
   useReactFlow: () => ({
     project: jest.fn((point) => point),
     getViewport: jest.fn(() => ({ x: 0, y: 0, zoom: 1 })),
@@ -38,8 +38,8 @@ jest.mock('reactflow', () => ({
   MarkerType: {
     ArrowClosed: 'arrowclosed',
   },
-  Background: () => <div data-testid="background" />,
-  Controls: () => <div data-testid="controls" />,
+  Background: () => React.createElement('div', { 'data-testid': 'background' }),
+  Controls: () => React.createElement('div', { 'data-testid': 'controls' }),
   MiniMap: ({ maskColor, className }: any) => (
     <div 
       data-testid="minimap" 
@@ -73,8 +73,8 @@ jest.mock('reactflow', () => ({
       </div>
     )
   },
-  NodeToolbar: ({ children }: { children: React.ReactNode }) => <div data-testid="node-toolbar">{children}</div>,
-  Panel: ({ children }: { children: React.ReactNode }) => <div data-testid="panel">{children}</div>,
+  NodeToolbar: ({ children }: { children: React.ReactNode }) => React.createElement('div', { 'data-testid': 'node-toolbar' }, children),
+  Panel: ({ children }: { children: React.ReactNode }) => React.createElement('div', { 'data-testid': 'panel' }, children),
 }))
 
 // Mock fetch for API calls
