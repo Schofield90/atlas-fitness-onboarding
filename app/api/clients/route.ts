@@ -107,40 +107,102 @@ async function createClientMember(request: NextRequest) {
     }
   }
   
-  // Build insert data - only org_id column exists
+  // Build insert data with core required fields only
   const insertData: any = {
     first_name: body.first_name.trim(),
     last_name: body.last_name.trim(),
     email: normalizedEmail,
     phone: body.phone,
     org_id: userWithOrg.organizationId,
-    created_by: userWithOrg.id,
     status: 'active'
   }
   
-  // Add optional fields if provided
-  if (body.date_of_birth) insertData.date_of_birth = body.date_of_birth
-  if (body.address) insertData.address = body.address
-  if (body.emergency_contact_name) insertData.emergency_contact_name = body.emergency_contact_name
-  if (body.emergency_contact_phone) insertData.emergency_contact_phone = body.emergency_contact_phone
-  if (body.goals) insertData.goals = body.goals
-  if (body.medical_conditions) insertData.medical_conditions = body.medical_conditions
-  if (body.source) insertData.source = body.source
+  // Store additional data in metadata if columns don't exist
+  const metadata: any = {}
   
-  // Create the client
-  const { data: client, error } = await supabase
+  // Try to add optional fields directly, fall back to metadata
+  const optionalFields = [
+    { key: 'created_by', value: userWithOrg.id },
+    { key: 'date_of_birth', value: body.date_of_birth },
+    { key: 'address', value: body.address },
+    { key: 'emergency_contact_name', value: body.emergency_contact_name },
+    { key: 'emergency_contact_phone', value: body.emergency_contact_phone },
+    { key: 'goals', value: body.goals },
+    { key: 'medical_conditions', value: body.medical_conditions },
+    { key: 'source', value: body.source }
+  ]
+  
+  for (const field of optionalFields) {
+    if (field.value !== undefined && field.value !== null && field.value !== '') {
+      // For now, add all fields directly - if table has missing columns, 
+      // the error will be caught and handled by the error boundary
+      insertData[field.key] = field.value
+    }
+  }
+  
+  // Create the client - try with all fields first
+  let { data: client, error } = await supabase
     .from('clients')
     .insert(insertData)
     .select()
     .single()
   
+  // If error is due to missing columns, try with minimal data
+  if (error && (error.code === '42703' || error.message?.includes('column') || error.message?.includes('does not exist'))) {
+    console.log('Retrying with minimal client data due to missing columns:', error.message)
+    
+    // Minimal insert data with only core columns
+    const minimalData = {
+      first_name: body.first_name,
+      last_name: body.last_name,
+      email: body.email,
+      phone: body.phone,
+      org_id: userWithOrg.organizationId,
+      status: 'active'
+    }
+    
+    // Store extra data in metadata if it exists
+    const metadata: any = {}
+    if (body.date_of_birth) metadata.date_of_birth = body.date_of_birth
+    if (body.address) metadata.address = body.address
+    if (body.emergency_contact_name) metadata.emergency_contact_name = body.emergency_contact_name
+    if (body.emergency_contact_phone) metadata.emergency_contact_phone = body.emergency_contact_phone
+    if (body.goals) metadata.goals = body.goals
+    if (body.medical_conditions) metadata.medical_conditions = body.medical_conditions
+    if (body.source) metadata.source = body.source
+    metadata.created_by = userWithOrg.id
+    
+    if (Object.keys(metadata).length > 0) {
+      minimalData.metadata = metadata
+    }
+    
+    // Try again with minimal data
+    const result = await supabase
+      .from('clients')
+      .insert(minimalData)
+      .select()
+      .single()
+    
+    client = result.data
+    error = result.error
+  }
+  
   if (error) {
+    console.error('Database error when creating client:', {
+      error: error.message,
+      code: error.code,
+      hint: error.hint,
+      details: error.details,
+      insertData: insertData
+    })
+    
     throw DatabaseError.queryError('clients', 'insert', {
       organizationId: userWithOrg.organizationId,
       insertData,
       originalError: error.message,
       code: error.code,
-      hint: error.hint
+      hint: error.hint,
+      details: error.details
     })
   }
   
