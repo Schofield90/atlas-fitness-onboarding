@@ -16,10 +16,20 @@ interface WizardResult {
   extractedData?: Partial<NutritionProfile>
 }
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+// Lazy initialization to avoid build-time errors
+let openai: OpenAI | null = null
+
+function getOpenAI(): OpenAI {
+  if (!openai && process.env.OPENAI_API_KEY) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    })
+  }
+  if (!openai) {
+    throw new Error('OpenAI API key not configured')
+  }
+  return openai
+}
 
 // System prompt for the nutrition wizard
 const SYSTEM_PROMPT = `You are a professional nutrition coach helping users set up their nutrition profile. 
@@ -60,7 +70,7 @@ async function handleConversationWizard(
     ]
 
     // Get response from OpenAI
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: 'gpt-4-turbo-preview',
       messages,
       temperature: 0.7,
@@ -93,7 +103,7 @@ async function handleConversationWizard(
         }
       ]
 
-      const extractionCompletion = await openai.chat.completions.create({
+      const extractionCompletion = await getOpenAI().chat.completions.create({
         model: 'gpt-4-turbo-preview',
         messages: extractionMessages,
         temperature: 0,

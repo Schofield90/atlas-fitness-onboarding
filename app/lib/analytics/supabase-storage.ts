@@ -1,16 +1,46 @@
 import { createClient } from '@supabase/supabase-js';
 import type { AnalyticsEvent } from './types';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! // Use service role for server-side
-);
+// Lazy initialization to avoid build-time errors
+let supabase: any = null;
+
+function getSupabaseClient() {
+  if (!supabase) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.warn('Supabase environment variables not configured, using mock client');
+      // Return a mock client for build time
+      return {
+        from: () => ({
+          insert: () => Promise.resolve({ error: null }),
+          select: () => ({ 
+            eq: () => ({ 
+              gte: () => ({ 
+                lte: () => ({ 
+                  order: () => ({ 
+                    limit: () => Promise.resolve({ data: [], error: null })
+                  })
+                })
+              })
+            })
+          }),
+          upsert: () => Promise.resolve({ error: null })
+        })
+      };
+    }
+    
+    supabase = createClient(supabaseUrl, serviceRoleKey);
+  }
+  return supabase;
+}
 
 export class SupabaseAnalyticsStorage {
   static async storeEvents(events: AnalyticsEvent[]): Promise<void> {
     try {
       // Batch insert events
-      const { error } = await supabase
+      const { error } = await getSupabaseClient()
         .from('analytics_events')
         .insert(events.map(event => ({
           type: event.type,
@@ -50,7 +80,7 @@ export class SupabaseAnalyticsStorage {
 
     // Update unique visitor counts
     for (const [date, visitors] of uniqueVisitorsByDate) {
-      await supabase
+      await getSupabaseClient()
         .from('analytics_aggregates')
         .upsert({
           date,
@@ -67,7 +97,7 @@ export class SupabaseAnalyticsStorage {
   static async getAnalytics(startDate: Date, endDate: Date, organizationId: string): Promise<any> {
     try {
       // SECURITY: Get raw events filtered by organization
-      const { data: events, error: eventsError } = await supabase
+      const { data: events, error: eventsError } = await getSupabaseClient()
         .from('analytics_events')
         .select('*')
         .eq('organization_id', organizationId) // SECURITY: Filter by organization
@@ -78,7 +108,7 @@ export class SupabaseAnalyticsStorage {
       if (eventsError) throw eventsError;
 
       // SECURITY: Get aggregated data filtered by organization
-      const { data: aggregates, error: aggregatesError } = await supabase
+      const { data: aggregates, error: aggregatesError } = await getSupabaseClient()
         .from('analytics_aggregates')
         .select('*')
         .eq('organization_id', organizationId) // SECURITY: Filter by organization
@@ -100,7 +130,7 @@ export class SupabaseAnalyticsStorage {
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
       
       // SECURITY: Get realtime events filtered by organization
-      const { data: recentEvents, error } = await supabase
+      const { data: recentEvents, error } = await getSupabaseClient()
         .from('analytics_events')
         .select('*')
         .eq('organization_id', organizationId) // SECURITY: Filter by organization

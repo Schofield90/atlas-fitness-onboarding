@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   ArrowLeft, 
   Mail, 
@@ -19,7 +18,11 @@ import {
   Send,
   Key,
   ExternalLink,
-  Apple
+  FileText,
+  Plus,
+  Clock,
+  CheckCircle,
+  AlertTriangle
 } from 'lucide-react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { toast } from 'react-hot-toast';
@@ -52,18 +55,55 @@ interface PortalAccess {
   welcome_email_sent_at?: string;
 }
 
+interface Waiver {
+  id: string;
+  title: string;
+  content: string;
+  version: number;
+  is_active: boolean;
+  required_for: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+interface CustomerWaiver {
+  id: string;
+  customer_id: string;
+  waiver_id: string;
+  signed_at: string;
+  signature_data?: string;
+  ip_address?: string;
+  waiver: Waiver;
+}
+
+interface PendingWaiverAssignment {
+  id: string;
+  client_id: string;
+  waiver_id: string;
+  assigned_at: string;
+  expires_at: string;
+  status: string;
+  waiver: Waiver;
+}
+
 export default function ClientDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const [client, setClient] = useState<Client | null>(null);
   const [portalAccess, setPortalAccess] = useState<PortalAccess | null>(null);
+  const [customerWaivers, setCustomerWaivers] = useState<CustomerWaiver[]>([]);
+  const [pendingWaivers, setPendingWaivers] = useState<PendingWaiverAssignment[]>([]);
+  const [availableWaivers, setAvailableWaivers] = useState<Waiver[]>([]);
   const [loading, setLoading] = useState(true);
+  const [waiversLoading, setWaiversLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [assigningWaiver, setAssigningWaiver] = useState(false);
   const supabase = createClientComponentClient();
 
   useEffect(() => {
     if (params.id) {
       loadClient();
+      loadWaivers();
     }
   }, [params.id]);
 
@@ -149,6 +189,118 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
     }
   };
 
+  const loadWaivers = async () => {
+    setWaiversLoading(true);
+    try {
+      // Load customer waivers (signed)
+      const { data: customerWaiversData, error: customerWaiversError } = await supabase
+        .from('customer_waivers')
+        .select(`
+          id,
+          customer_id,
+          waiver_id,
+          signed_at,
+          signature_data,
+          ip_address,
+          waivers:waiver_id (
+            id,
+            title,
+            content,
+            version,
+            is_active,
+            required_for,
+            created_at,
+            updated_at
+          )
+        `)
+        .eq('customer_id', params.id);
+
+      if (customerWaiversError) throw customerWaiversError;
+
+      // Transform the data to match our interface
+      const transformedWaivers = customerWaiversData?.map(cw => ({
+        ...cw,
+        waiver: Array.isArray(cw.waivers) ? cw.waivers[0] : cw.waivers
+      })) || [];
+
+      setCustomerWaivers(transformedWaivers);
+
+      // Load pending waiver assignments
+      const { data: pendingWaiversData, error: pendingWaiversError } = await supabase
+        .from('pending_waiver_assignments')
+        .select(`
+          id,
+          client_id,
+          waiver_id,
+          assigned_at,
+          expires_at,
+          status,
+          waivers:waiver_id (
+            id,
+            title,
+            content,
+            version,
+            is_active,
+            required_for,
+            created_at,
+            updated_at
+          )
+        `)
+        .eq('client_id', params.id)
+        .eq('status', 'pending');
+
+      if (pendingWaiversError) throw pendingWaiversError;
+
+      // Transform the data
+      const transformedPendingWaivers = pendingWaiversData?.map(pw => ({
+        ...pw,
+        waiver: Array.isArray(pw.waivers) ? pw.waivers[0] : pw.waivers
+      })) || [];
+
+      setPendingWaivers(transformedPendingWaivers);
+
+      // Load available waivers
+      const { data: availableWaiversData, error: availableWaiversError } = await supabase
+        .from('waivers')
+        .select('*')
+        .eq('is_active', true);
+
+      if (availableWaiversError) throw availableWaiversError;
+      setAvailableWaivers(availableWaiversData || []);
+
+    } catch (error) {
+      console.error('Error loading waivers:', error);
+      toast.error('Failed to load waivers');
+    } finally {
+      setWaiversLoading(false);
+    }
+  };
+
+  const assignWaiver = async (waiverId: string) => {
+    setAssigningWaiver(true);
+    try {
+      const response = await fetch(`/api/clients/${params.id}/assign-waiver`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ waiverId }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to assign waiver');
+      }
+
+      toast.success('Waiver assigned successfully! Push notification sent to client.');
+      await loadWaivers(); // Reload waivers
+    } catch (error) {
+      console.error('Error assigning waiver:', error);
+      toast.error('Failed to assign waiver');
+    } finally {
+      setAssigningWaiver(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -189,215 +341,334 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
         </div>
       </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="nutrition">
-            <Apple className="w-4 h-4 mr-2" />
-            Nutrition
-          </TabsTrigger>
-          <TabsTrigger value="body-composition">Body Composition</TabsTrigger>
-          <TabsTrigger value="portal">Portal Access</TabsTrigger>
-        </TabsList>
+      {/* Contact Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Contact Information</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-center gap-3">
+              <Mail className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm text-muted-foreground">Email</p>
+                <p className="font-medium">{client.email || 'Not provided'}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Phone className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm text-muted-foreground">Phone</p>
+                <p className="font-medium">{client.phone || 'Not provided'}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Calendar className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm text-muted-foreground">Member Since</p>
+                <p className="font-medium">{formatBritishDate(client.created_at)}</p>
+              </div>
+            </div>
+            {client.date_of_birth && (
+              <div className="flex items-center gap-3">
+                <User className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Date of Birth</p>
+                  <p className="font-medium">{formatBritishDate(client.date_of_birth)}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-6">
-          {/* Contact Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Contact Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center gap-3">
-                  <Mail className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Email</p>
-                    <p className="font-medium">{client.email || 'Not provided'}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Phone className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Phone</p>
-                    <p className="font-medium">{client.phone || 'Not provided'}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Calendar className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Member Since</p>
-                    <p className="font-medium">{formatBritishDate(client.created_at)}</p>
-                  </div>
-                </div>
-                {client.date_of_birth && (
+      {/* Portal Access */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Key className="h-5 w-5" />
+            Client Portal Access
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {portalAccess ? (
+            <div className="space-y-6">
+              {/* Access Code */}
+              <div className="bg-gray-50 p-6 rounded-lg space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">Access Code</p>
                   <div className="flex items-center gap-3">
-                    <User className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">Date of Birth</p>
-                      <p className="font-medium">{formatBritishDate(client.date_of_birth)}</p>
-                    </div>
+                    <code className="text-2xl font-mono bg-white px-4 py-2 rounded border">
+                      {portalAccess.access_code}
+                    </code>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => copyToClipboard(portalAccess.access_code)}
+                    >
+                      {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Client can use this code at: {portalUrl}
+                  </p>
+                </div>
+
+                {/* Status */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Status</p>
+                    <Badge variant={portalAccess.is_claimed ? 'default' : 'secondary'}>
+                      {portalAccess.is_claimed ? 'Claimed' : 'Unclaimed'}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Welcome Email</p>
+                    <Badge variant={portalAccess.welcome_email_sent ? 'default' : 'secondary'}>
+                      {portalAccess.welcome_email_sent ? 'Sent' : 'Not Sent'}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Expires</p>
+                    <p className="text-sm font-medium">{formatBritishDate(portalAccess.expires_at)}</p>
+                  </div>
+                </div>
+
+                {portalAccess.claimed_at && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Claimed At</p>
+                    <p className="text-sm">{formatBritishDateTime(portalAccess.claimed_at)}</p>
+                  </div>
+                )}
+
+                {portalAccess.welcome_email_sent_at && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Email Sent At</p>
+                    <p className="text-sm">{formatBritishDateTime(portalAccess.welcome_email_sent_at)}</p>
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
 
-          {/* Additional Information */}
-          {client.notes && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Notes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="whitespace-pre-wrap">{client.notes}</p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
+              {/* Actions */}
+              <div className="flex gap-3">
+                {!portalAccess.welcome_email_sent && client.email && (
+                  <Button
+                    onClick={sendWelcomeEmail}
+                    disabled={sendingEmail}
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    {sendingEmail ? 'Sending...' : 'Send Welcome Email'}
+                  </Button>
+                )}
+                {portalAccess.welcome_email_sent && client.email && !portalAccess.is_claimed && (
+                  <Button
+                    variant="outline"
+                    onClick={resendWelcomeEmail}
+                    disabled={sendingEmail}
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    {sendingEmail ? 'Sending...' : 'Resend Welcome Email'}
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={() => window.open(portalUrl, '_blank')}
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  View Portal Login
+                </Button>
+              </div>
 
-        {/* Nutrition Tab */}
-        <TabsContent value="nutrition" className="space-y-6">
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <Apple className="w-16 h-16 text-gray-300 mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Client Nutrition Coach</h3>
-              <p className="text-gray-600 text-center mb-6 max-w-md">
-                Manage {client.name}'s nutrition plan and recommendations.
-              </p>
-              <Button 
-                onClick={() => window.location.href = `/dashboard/clients/${client.id}/nutrition`}
-              >
-                <Apple className="h-4 w-4 mr-2" />
-                Open Nutrition Coach
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Body Composition Tab */}
-        <TabsContent value="body-composition" className="space-y-6">
-          <BodyCompositionSection clientId={client.id} clientPhone={client.phone} />
-        </TabsContent>
-
-        {/* Portal Access Tab */}
-        <TabsContent value="portal" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Key className="h-5 w-5" />
-                Client Portal Access
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {portalAccess ? (
-                <div className="space-y-6">
-                  {/* Access Code */}
-                  <div className="bg-gray-50 p-6 rounded-lg space-y-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-2">Access Code</p>
-                      <div className="flex items-center gap-3">
-                        <code className="text-2xl font-mono bg-white px-4 py-2 rounded border">
-                          {portalAccess.access_code}
-                        </code>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => copyToClipboard(portalAccess.access_code)}
-                        >
-                          {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                        </Button>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Client can use this code at: {portalUrl}
-                      </p>
-                    </div>
-
-                    {/* Status */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Status</p>
-                        <Badge variant={portalAccess.is_claimed ? 'default' : 'secondary'}>
-                          {portalAccess.is_claimed ? 'Claimed' : 'Unclaimed'}
-                        </Badge>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Welcome Email</p>
-                        <Badge variant={portalAccess.welcome_email_sent ? 'default' : 'secondary'}>
-                          {portalAccess.welcome_email_sent ? 'Sent' : 'Not Sent'}
-                        </Badge>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Expires</p>
-                        <p className="text-sm font-medium">{formatBritishDate(portalAccess.expires_at)}</p>
-                      </div>
-                    </div>
-
-                    {portalAccess.claimed_at && (
-                      <div>
-                        <p className="text-sm text-muted-foreground">Claimed At</p>
-                        <p className="text-sm">{formatBritishDateTime(portalAccess.claimed_at)}</p>
-                      </div>
-                    )}
-
-                    {portalAccess.welcome_email_sent_at && (
-                      <div>
-                        <p className="text-sm text-muted-foreground">Email Sent At</p>
-                        <p className="text-sm">{formatBritishDateTime(portalAccess.welcome_email_sent_at)}</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-3">
-                    {!portalAccess.welcome_email_sent && client.email && (
-                      <Button
-                        onClick={sendWelcomeEmail}
-                        disabled={sendingEmail}
-                      >
-                        <Send className="h-4 w-4 mr-2" />
-                        {sendingEmail ? 'Sending...' : 'Send Welcome Email'}
-                      </Button>
-                    )}
-                    {portalAccess.welcome_email_sent && client.email && !portalAccess.is_claimed && (
-                      <Button
-                        variant="outline"
-                        onClick={resendWelcomeEmail}
-                        disabled={sendingEmail}
-                      >
-                        <Send className="h-4 w-4 mr-2" />
-                        {sendingEmail ? 'Sending...' : 'Resend Welcome Email'}
-                      </Button>
-                    )}
-                    <Button
-                      variant="outline"
-                      onClick={() => window.open(portalUrl, '_blank')}
-                    >
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      View Portal Login
-                    </Button>
-                  </div>
-
-                  {!client.email && (
-                    <Alert>
-                      <AlertDescription>
-                        Add an email address to this client's profile to send welcome emails.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </div>
-              ) : (
+              {!client.email && (
                 <Alert>
                   <AlertDescription>
-                    No portal access found. Creating access code...
+                    Add an email address to this client's profile to send welcome emails.
                   </AlertDescription>
                 </Alert>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            </div>
+          ) : (
+            <Alert>
+              <AlertDescription>
+                No portal access found. Creating access code...
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Body Composition */}
+      <BodyCompositionSection clientId={client.id} clientPhone={client.phone} />
+
+      {/* Waivers */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Waivers
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {waiversLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Signed Waivers */}
+              {customerWaivers.length > 0 && (
+                <div>
+                  <h4 className="text-lg font-semibold mb-3">Signed Waivers</h4>
+                  <div className="space-y-3">
+                    {customerWaivers.map((customerWaiver) => (
+                      <div key={customerWaiver.id} className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
+                        <div className="flex items-center gap-3">
+                          <CheckCircle className="h-5 w-5 text-green-600" />
+                          <div>
+                            <p className="font-medium">{customerWaiver.waiver.title}</p>
+                            <p className="text-sm text-muted-foreground">
+                              Signed on {formatBritishDateTime(customerWaiver.signed_at)}
+                            </p>
+                            <div className="flex gap-2 mt-1">
+                              {customerWaiver.waiver.required_for?.map((req) => (
+                                <Badge key={req} variant="secondary" className="text-xs">
+                                  {req}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        <Badge variant="default" className="bg-green-600">
+                          Signed
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Pending Waivers */}
+              {pendingWaivers.length > 0 && (
+                <div>
+                  <h4 className="text-lg font-semibold mb-3">Pending Waivers</h4>
+                  <div className="space-y-3">
+                    {pendingWaivers.map((pendingWaiver) => (
+                      <div key={pendingWaiver.id} className="flex items-center justify-between p-4 bg-orange-50 rounded-lg border border-orange-200">
+                        <div className="flex items-center gap-3">
+                          <Clock className="h-5 w-5 text-orange-600" />
+                          <div>
+                            <p className="font-medium">{pendingWaiver.waiver.title}</p>
+                            <p className="text-sm text-muted-foreground">
+                              Assigned on {formatBritishDateTime(pendingWaiver.assigned_at)}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Expires on {formatBritishDate(pendingWaiver.expires_at)}
+                            </p>
+                            <div className="flex gap-2 mt-1">
+                              {pendingWaiver.waiver.required_for?.map((req) => (
+                                <Badge key={req} variant="secondary" className="text-xs">
+                                  {req}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="text-orange-600 border-orange-600">
+                          Pending Signature
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Available Waivers to Assign */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-lg font-semibold">Available Waivers</h4>
+                  <Button
+                    onClick={() => window.open('/dashboard/settings/waivers', '_blank')}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Manage Templates
+                  </Button>
+                </div>
+
+                {availableWaivers.length === 0 ? (
+                  <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      No waiver templates available. Create waiver templates first to assign them to clients.
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <div className="space-y-3">
+                    {availableWaivers
+                      .filter(waiver => 
+                        !customerWaivers.some(cw => cw.waiver_id === waiver.id) &&
+                        !pendingWaivers.some(pw => pw.waiver_id === waiver.id)
+                      )
+                      .map((waiver) => (
+                        <div key={waiver.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border">
+                          <div className="flex items-center gap-3">
+                            <Clock className="h-5 w-5 text-orange-600" />
+                            <div>
+                              <p className="font-medium">{waiver.title}</p>
+                              <p className="text-sm text-muted-foreground">
+                                Version {waiver.version} • Created {formatBritishDate(waiver.created_at)}
+                              </p>
+                              <div className="flex gap-2 mt-1">
+                                {waiver.required_for?.map((req) => (
+                                  <Badge key={req} variant="secondary" className="text-xs">
+                                    {req}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                          <Button
+                            onClick={() => assignWaiver(waiver.id)}
+                            disabled={assigningWaiver}
+                            size="sm"
+                          >
+                            <Send className="h-4 w-4 mr-2" />
+                            {assigningWaiver ? 'Assigning...' : 'Assign & Notify'}
+                          </Button>
+                        </div>
+                      ))}
+                    
+                    {availableWaivers.every(waiver => 
+                      customerWaivers.some(cw => cw.waiver_id === waiver.id) ||
+                      pendingWaivers.some(pw => pw.waiver_id === waiver.id)
+                    ) && (
+                      <Alert>
+                        <CheckCircle className="h-4 w-4" />
+                        <AlertDescription>
+                          All available waivers have been assigned to this client.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Additional Information */}
+      {client.notes && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Notes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="whitespace-pre-wrap">{client.notes}</p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
