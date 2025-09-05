@@ -2,16 +2,18 @@ import { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { Database } from '@/lib/supabase/database.types'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
-// Create service role client for server-side operations
-export const supabaseAdmin = createClient<Database>(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-})
+// Create service role client for server-side operations (lazy initialization)
+export const supabaseAdmin = supabaseUrl && supabaseServiceKey
+  ? createClient<Database>(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+  : null as any
 
 export type AuthenticatedRequest = NextRequest & {
   user: {
