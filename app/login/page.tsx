@@ -1,5 +1,13 @@
 'use client'
 
+import SimpleLoginPage from '@/app/simple-login/page'
+
+export default function LoginPage() {
+	return <SimpleLoginPage />
+}
+
+'use client'
+
 export const dynamic = 'force-dynamic'
 
 import { useState } from 'react'
