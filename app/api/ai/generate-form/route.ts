@@ -4,9 +4,20 @@ import { createClient } from '@/app/lib/supabase/server';
 import { requireAuth } from '@/app/lib/api/auth-check';
 import { createAdminClient } from '@/app/lib/supabase/admin';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
-});
+// Create OpenAI client lazily to avoid build-time errors
+let openai: OpenAI | null = null;
+
+function getOpenAIClient(): OpenAI {
+  if (!openai) {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY is not set');
+    }
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return openai;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -59,7 +70,8 @@ Focus on creating comprehensive, legally sound forms for gym operations.`;
 
     console.log('Calling OpenAI API...');
     
-    const response = await openai.chat.completions.create({
+    const openaiClient = getOpenAIClient();
+    const response = await openaiClient.chat.completions.create({
       model: 'gpt-3.5-turbo',
       temperature: 0.7,
       messages: [

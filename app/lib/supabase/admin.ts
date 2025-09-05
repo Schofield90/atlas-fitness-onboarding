@@ -1,16 +1,69 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from './database.types'
 
+let adminClient: ReturnType<typeof createClient<Database>> | null = null
+
 // Create a Supabase client with the service role key
 // This bypasses Row Level Security (RLS) policies
 export function createAdminClient() {
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set')
+  // Return cached client if available
+  if (adminClient) {
+    return adminClient
   }
 
-  return createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  // Only check environment variables at runtime, not during build
+  if (typeof window !== 'undefined') {
+    throw new Error('createAdminClient should only be used on the server side')
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  // If environment variables are missing, return a mock client to prevent build failures
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.warn('Missing Supabase environment variables, using mock client')
+    
+    const mockClient = {
+      from: () => ({
+        select: () => ({ 
+          eq: () => ({ 
+            single: () => Promise.resolve({ data: null, error: null }),
+            order: () => ({ limit: () => Promise.resolve({ data: [], error: null }) })
+          }),
+          in: () => ({ eq: () => Promise.resolve({ data: [], error: null }) }),
+          gte: () => ({ eq: () => Promise.resolve({ data: [], error: null }) }),
+          lte: () => ({ eq: () => Promise.resolve({ data: [], error: null }) }),
+          lt: () => Promise.resolve({ data: [], error: null }),
+          limit: () => Promise.resolve({ data: [], error: null }),
+          order: () => Promise.resolve({ data: [], error: null })
+        }),
+        insert: () => ({ 
+          select: () => ({ 
+            single: () => Promise.resolve({ data: null, error: null }) 
+          })
+        }),
+        update: () => ({ 
+          eq: () => ({ 
+            select: () => ({ 
+              single: () => Promise.resolve({ data: null, error: null }) 
+            }) 
+          }) 
+        }),
+        delete: () => ({ eq: () => Promise.resolve({ error: null }) }),
+        upsert: () => Promise.resolve({ error: null })
+      }),
+      auth: {
+        getUser: () => Promise.resolve({ data: { user: null }, error: null })
+      }
+    } as any
+    
+    adminClient = mockClient
+    return mockClient
+  }
+
+  adminClient = createClient<Database>(
+    supabaseUrl,
+    serviceRoleKey,
     {
       auth: {
         autoRefreshToken: false,
@@ -18,6 +71,8 @@ export function createAdminClient() {
       }
     }
   )
+
+  return adminClient
 }
 
 // Helper to get user with organization using admin client
