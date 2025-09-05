@@ -2,11 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { randomBytes } from 'crypto'
 
-const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID!
+const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID || ''
 const FACEBOOK_REDIRECT_URI = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://atlas-fitness-onboarding.vercel.app'}/api/auth/facebook/callback`
 
 export async function GET(request: NextRequest) {
   try {
+    if (!FACEBOOK_APP_ID) {
+      return NextResponse.json(
+        { error: 'Facebook integration not configured' },
+        { status: 503 }
+      )
+    }
+
     // Generate CSRF state parameter
     const state = randomBytes(32).toString('hex')
     
