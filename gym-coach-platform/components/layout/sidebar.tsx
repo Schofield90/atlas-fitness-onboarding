@@ -4,11 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { 
   Home, Users, UserPlus, Settings, BarChart3, MessageSquare, Zap, Calendar, UserCog,
-<<<<<<< HEAD
-  Megaphone, MessageCircle, Globe, Brain, CreditCard, FileText, Plug, Apple, Layout
-=======
-  Megaphone, MessageCircle, Globe, Brain, CreditCard, FileText, Plug, Apple, Link2
->>>>>>> 35e822e (Refactor calendar page, add Google Calendar and Booking Links pages)
+  Megaphone, MessageCircle, Globe, Brain, CreditCard, FileText, Plug, Apple, Layout, Link2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
