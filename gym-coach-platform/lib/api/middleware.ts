@@ -33,6 +33,10 @@ export async function authenticateRequest(request: NextRequest) {
 
     const token = authHeader.split(' ')[1]
     
+    if (!supabaseAdmin) {
+      return { error: 'Service not configured', status: 503 }
+    }
+    
     // Verify the JWT token
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
     if (authError || !user) {

@@ -1,0 +1,27 @@
+[
+  {
+    "content": "Resolve conflicts in PR #77",
+    "status": "in_progress",
+    "activeForm": "Resolving conflicts in PR #77"
+  },
+  {
+    "content": "Resolve conflicts in PR #81",
+    "status": "pending",
+    "activeForm": "Resolving conflicts in PR #81"
+  },
+  {
+    "content": "Resolve conflicts in PR #82",
+    "status": "pending",
+    "activeForm": "Resolving conflicts in PR #82"
+  },
+  {
+    "content": "Skip PR #75 (has secrets)",
+    "status": "completed",
+    "activeForm": "Skipped PR #75 with secrets"
+  },
+  {
+    "content": "Attempt to merge resolved PRs",
+    "status": "pending",
+    "activeForm": "Merging resolved PRs"
+  }
+]
