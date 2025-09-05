@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase/server'
-import { validateApiRequest } from '@/lib/api/middleware'
+import { createClient } from '@/lib/supabase/server'
+import { handleApiRoute } from '@/lib/api/middleware'
 import { leadsToCSV, generateExportFilename } from '@/lib/utils/csv-export'
 import { Lead } from '@/types/database'
 
@@ -15,12 +15,25 @@ interface ExportQuery {
 
 export async function GET(request: NextRequest) {
   try {
-    const validation = await validateApiRequest(request)
-    if (!validation.success) {
-      return NextResponse.json({ error: validation.error }, { status: validation.status })
+    // For now, create a simple supabase client - this should be replaced with proper auth
+    const supabase = await createClient()
+    
+    // Get user from supabase auth
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { user, organization } = validation
+    // Get user organization
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('organization_id')
+      .eq('id', user.id)
+      .single()
+
+    if (userError || !userData) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
     const { searchParams } = new URL(request.url)
 
     // Parse query parameters
@@ -46,7 +59,7 @@ export async function GET(request: NextRequest) {
     let supabaseQuery = supabase
       .from('leads')
       .select('*')
-      .eq('organization_id', organization.id)
+      .eq('organization_id', userData.organization_id)
       .limit(limit)
       .order('created_at', { ascending: false })
 
@@ -86,7 +99,7 @@ export async function GET(request: NextRequest) {
         meta: {
           total: leads.length,
           exported_at: new Date().toISOString(),
-          organization_id: organization.id
+          organization_id: userData.organization_id
         }
       })
     }
@@ -148,12 +161,25 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const validation = await validateApiRequest(request)
-    if (!validation.success) {
-      return NextResponse.json({ error: validation.error }, { status: validation.status })
+    // For now, create a simple supabase client - this should be replaced with proper auth
+    const supabase = await createClient()
+    
+    // Get user from supabase auth
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { user, organization } = validation
+    // Get user organization
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('organization_id')
+      .eq('id', user.id)
+      .single()
+
+    if (userError || !userData) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
     const body = await request.json()
 
     // Extract lead IDs from request body
@@ -177,7 +203,7 @@ export async function POST(request: NextRequest) {
     const { data: leads, error } = await supabase
       .from('leads')
       .select('*')
-      .eq('organization_id', organization.id)
+      .eq('organization_id', userData.organization_id)
       .in('id', leadIds)
       .order('created_at', { ascending: false })
 
@@ -204,7 +230,7 @@ export async function POST(request: NextRequest) {
           total: leads.length,
           requested: leadIds.length,
           exported_at: new Date().toISOString(),
-          organization_id: organization.id
+          organization_id: userData.organization_id
         }
       })
     }
