@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
+    
+    // If Resend is not configured, just log and return success
+    if (!resend) {
+      console.log('Contact sales form submission (Resend not configured):', data);
+      return NextResponse.json({
+        success: true,
+        message: 'Thank you for your interest. We will contact you soon.'
+      });
+    }
     
     // Send email to sales team
     await resend.emails.send({
