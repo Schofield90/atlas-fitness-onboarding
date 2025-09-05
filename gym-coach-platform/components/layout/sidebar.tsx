@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { 
   Home, Users, UserPlus, Settings, BarChart3, MessageSquare, Zap, Calendar, UserCog,
-  Megaphone, MessageCircle, Globe, Brain, CreditCard, FileText, Plug, Apple, Layout
+  Megaphone, MessageCircle, Globe, Brain, CreditCard, FileText, Plug, Apple, Layout, Link2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -17,7 +17,8 @@ export function Sidebar() {
     { name: 'Members', href: '/dashboard/members', icon: Users },
     { name: 'Clients', href: '/dashboard/clients', icon: UserCog },
     { name: 'Nutrition', href: '/dashboard/nutrition', icon: Apple },
-    { name: 'Calendar', href: '/dashboard/calendar', icon: Calendar },
+    { name: 'Google Calendar', href: '/dashboard/google-calendar', icon: Calendar },
+    { name: 'Booking Links', href: '/dashboard/booking-links', icon: Link2 },
     { name: 'Staff', href: '/dashboard/staff', icon: UserCog },
     { name: 'Marketing', href: '/dashboard/marketing', icon: Megaphone },
     { name: 'Surveys', href: '/dashboard/surveys', icon: MessageCircle },
