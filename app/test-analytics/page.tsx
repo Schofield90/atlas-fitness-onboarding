@@ -1,5 +1,5 @@
 'use client';
-
+import Link from 'next/link'
 import { useState } from 'react';
 import { analytics } from '@/app/lib/analytics/client';
 import Button from '@/app/components/ui/Button';
@@ -141,7 +141,7 @@ export default function TestAnalyticsPage() {
                 onClick={(e) => e.preventDefault()}
               >
                 Tracked Link
-              </a>
+              </Link>
               
               <div 
                 className="w-full px-4 py-2 bg-gray-200 text-center rounded cursor-pointer hover:bg-gray-300"
@@ -198,9 +198,9 @@ export default function TestAnalyticsPage() {
         <div className="mt-8 text-center text-gray-600">
           <p>Visitor ID: <code className="bg-gray-200 px-2 py-1 rounded">Check localStorage._analytics_vid</code></p>
           <p className="mt-2">
-            <a href="/analytics-dashboard" className="text-blue-600 hover:underline">
+            <Link href="/analytics-dashboard" className="text-blue-600 hover:underline">
               View Analytics Dashboard →
-            </a>
+            </Link>
           </p>
         </div>
 

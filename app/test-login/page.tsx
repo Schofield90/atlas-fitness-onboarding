@@ -1,5 +1,5 @@
 'use client';
-
+import Link from 'next/link'
 import { useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 
@@ -110,9 +110,9 @@ export default function TestLogin() {
         </div>
         
         <div className="mt-6 text-center">
-          <a href="/login" className="text-blue-400 hover:text-blue-300">
+          <Link href="/login" className="text-blue-400 hover:text-blue-300">
             ← Back to normal login
-          </a>
+          </Link>
         </div>
       </div>
     </div>

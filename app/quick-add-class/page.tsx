@@ -1,5 +1,5 @@
 'use client';
-
+import Link from 'next/link'
 import { useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { getCurrentUserOrganization } from '@/app/lib/organization-service';
@@ -57,9 +57,9 @@ export default function QuickAddClass() {
         )}
         
         <div className="mt-4">
-          <a href="/dashboard/overview" className="text-blue-400 hover:text-blue-300">
+          <Link href="/dashboard/overview" className="text-blue-400 hover:text-blue-300">
             ← Back to Dashboard
-          </a>
+          </Link>
         </div>
       </div>
     </div>

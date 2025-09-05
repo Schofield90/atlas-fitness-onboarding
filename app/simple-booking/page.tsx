@@ -1,5 +1,5 @@
 'use client';
-
+import Link from 'next/link'
 import { useState, useEffect } from 'react';
 
 export default function SimpleBooking() {
@@ -40,7 +40,7 @@ export default function SimpleBooking() {
             <div className="bg-blue-50 p-4 rounded">
               <p className="font-medium mb-2">To complete your booking setup:</p>
               <ol className="list-decimal list-inside space-y-2 text-sm">
-                <li>Go to your <a href="/emergency" className="text-blue-600 underline">Emergency Access page</a></li>
+                <li>Go to your <Link href="/emergency" className="text-blue-600 underline">Emergency Access page</Link></li>
                 <li>Click "Step 2: Create Sample Data" to add fitness programs and classes</li>
                 <li>Then return here to view available classes</li>
               </ol>

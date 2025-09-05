@@ -1,5 +1,5 @@
 'use client'
-
+import Link from 'next/link'
 import { useState } from 'react'
 import { CheckCircle, Loader2, AlertCircle, Brain } from 'lucide-react'
 
@@ -107,19 +107,19 @@ export default function SeedKnowledgePage() {
             <h3 className="text-sm font-medium text-gray-900 mb-2">Next Steps</h3>
             <ul className="text-sm text-gray-600 space-y-2">
               <li>
-                <a href="/test-whatsapp-ai" className="text-purple-600 hover:text-purple-800">
+                <Link href="/test-whatsapp-ai" className="text-purple-600 hover:text-purple-800">
                   → Test WhatsApp AI Responses
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="/whatsapp-debug" className="text-purple-600 hover:text-purple-800">
+                <Link href="/whatsapp-debug" className="text-purple-600 hover:text-purple-800">
                   → Debug WhatsApp Integration
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="/ai-training" className="text-purple-600 hover:text-purple-800">
+                <Link href="/ai-training" className="text-purple-600 hover:text-purple-800">
                   → Train AI Responses
-                </a>
+                </Link>
               </li>
             </ul>
           </div>

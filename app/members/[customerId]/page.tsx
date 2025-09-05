@@ -12,6 +12,7 @@ import DashboardLayout from '@/app/components/DashboardLayout';
 import { createClient } from '@/app/lib/supabase/client';
 import { useOrganization } from '@/app/hooks/useOrganization';
 import MembershipsTab from '@/app/components/customers/tabs/MembershipsTab';
+import NotesTab from '@/app/components/customers/tabs/NotesTab';
 
 interface CustomerProfile {
   id: string;
@@ -233,6 +234,30 @@ export default function CustomerProfilePage() {
       setNotes(data || []);
     } catch (error) {
       console.error('Error loading notes:', error);
+    }
+  };
+
+  const handleAddNote = async (noteContent: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { error } = await supabase
+        .from('customer_notes')
+        .insert({
+          customer_id: customerId,
+          organization_id: organizationId,
+          content: noteContent,
+          created_by: user.id,
+          is_internal: true
+        });
+
+      if (error) throw error;
+      await loadNotes();
+      alert('Note added successfully');
+    } catch (error) {
+      console.error('Error adding note:', error);
+      alert('Failed to add note');
     }
   };
 
@@ -667,8 +692,17 @@ export default function CustomerProfilePage() {
             </div>
           )}
 
+          {/* Notes Tab */}
+          {activeTab === 'notes' && (
+            <NotesTab 
+              notes={notes}
+              onAddNote={handleAddNote}
+              onRefresh={loadNotes}
+            />
+          )}
+
           {/* Other tabs would be implemented similarly */}
-          {activeTab !== 'profile' && activeTab !== 'activity' && activeTab !== 'memberships' && (
+          {activeTab !== 'profile' && activeTab !== 'activity' && activeTab !== 'memberships' && activeTab !== 'notes' && (
             <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
               <h3 className="text-lg font-semibold text-white mb-4 capitalize">{activeTab}</h3>
               <div className="text-center py-8 text-gray-400">

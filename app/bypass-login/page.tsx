@@ -1,5 +1,5 @@
 'use client';
-
+import Link from 'next/link'
 import { useEffect, useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 
@@ -47,9 +47,9 @@ export default function BypassLogin() {
         <p className="text-white text-lg">{message}</p>
         
         <div className="mt-8">
-          <a href="/test-login" className="text-blue-400 hover:text-blue-300">
+          <Link href="/test-login" className="text-blue-400 hover:text-blue-300">
             Go to test login page
-          </a>
+          </Link>
         </div>
       </div>
     </div>

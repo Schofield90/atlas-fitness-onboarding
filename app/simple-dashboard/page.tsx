@@ -96,37 +96,37 @@ export default function SimpleDashboard() {
 
           {/* Quick Links Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <a href="/leads" className="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition-colors">
+            <Link href="/leads" className="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition-colors">
               <h3 className="text-lg font-semibold text-white mb-2">Leads</h3>
               <p className="text-gray-400">Manage your leads and contacts</p>
             </a>
 
-            <a href="/campaigns" className="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition-colors">
+            <Link href="/campaigns" className="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition-colors">
               <h3 className="text-lg font-semibold text-white mb-2">Campaigns</h3>
               <p className="text-gray-400">Create and manage campaigns</p>
             </a>
 
-            <a href="/test-whatsapp" className="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition-colors">
+            <Link href="/test-whatsapp" className="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition-colors">
               <h3 className="text-lg font-semibold text-white mb-2">WhatsApp</h3>
               <p className="text-gray-400">Send test messages</p>
             </a>
 
-            <a href="/ai-config" className="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition-colors">
+            <Link href="/ai-config" className="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition-colors">
               <h3 className="text-lg font-semibold text-white mb-2">AI Config</h3>
               <p className="text-gray-400">Configure AI responses</p>
             </a>
 
-            <a href="/forms" className="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition-colors">
+            <Link href="/forms" className="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition-colors">
               <h3 className="text-lg font-semibold text-white mb-2">Forms</h3>
               <p className="text-gray-400">Create lead capture forms</p>
             </a>
 
-            <a href="/landing-pages" className="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition-colors">
+            <Link href="/landing-pages" className="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition-colors">
               <h3 className="text-lg font-semibold text-white mb-2">Landing Pages</h3>
               <p className="text-gray-400">Build and manage landing pages</p>
             </a>
 
-            <a href="/settings" className="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition-colors">
+            <Link href="/settings" className="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition-colors">
               <h3 className="text-lg font-semibold text-white mb-2">Settings</h3>
               <p className="text-gray-400">Manage your account</p>
             </a>

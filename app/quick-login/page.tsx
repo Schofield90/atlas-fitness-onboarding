@@ -94,13 +94,13 @@ export default function QuickLoginPage() {
         </button>
         
         <div className="mt-6 space-y-2">
-          <a href="/automations" className="block text-center text-blue-400 hover:text-blue-300">
+          <Link href="/automations" className="block text-center text-blue-400 hover:text-blue-300">
             Go to Automations →
           </a>
-          <a href="/automations/builder" className="block text-center text-blue-400 hover:text-blue-300">
+          <Link href="/automations/builder" className="block text-center text-blue-400 hover:text-blue-300">
             Go to Workflow Builder →
           </a>
-          <a href="/dashboard" className="block text-center text-blue-400 hover:text-blue-300">
+          <Link href="/dashboard" className="block text-center text-blue-400 hover:text-blue-300">
             Go to Dashboard →
           </a>
         </div>

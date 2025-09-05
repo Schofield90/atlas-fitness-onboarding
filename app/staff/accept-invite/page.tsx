@@ -127,7 +127,7 @@ function AcceptInviteContent() {
             <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-white mb-2">Invalid Invitation</h2>
             <p className="text-gray-400 mb-6">This invitation link is invalid or has been used.</p>
-            <a href="/" className="text-orange-500 hover:text-orange-400">
+            <Link href="/" className="text-orange-500 hover:text-orange-400">
               Go to homepage
             </a>
           </div>
@@ -139,7 +139,7 @@ function AcceptInviteContent() {
             <XCircle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-white mb-2">Invitation Expired</h2>
             <p className="text-gray-400 mb-6">This invitation has expired. Please contact the person who invited you.</p>
-            <a href="/" className="text-orange-500 hover:text-orange-400">
+            <Link href="/" className="text-orange-500 hover:text-orange-400">
               Go to homepage
             </a>
           </div>
@@ -151,7 +151,7 @@ function AcceptInviteContent() {
             <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-white mb-2">Already Accepted</h2>
             <p className="text-gray-400 mb-6">This invitation has already been accepted.</p>
-            <a href="/dashboard" className="text-orange-500 hover:text-orange-400">
+            <Link href="/dashboard" className="text-orange-500 hover:text-orange-400">
               Go to dashboard
             </a>
           </div>

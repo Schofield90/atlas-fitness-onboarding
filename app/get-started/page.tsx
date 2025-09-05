@@ -1,5 +1,5 @@
 'use client'
-
+import Link from 'next/link'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
@@ -198,9 +198,9 @@ export default function GetStartedPage() {
           <div className="mt-6 text-center">
             <p className="text-gray-400 text-sm">
               Already have an account?{' '}
-              <a href="/login" className="text-orange-500 hover:text-orange-400">
+              <Link href="/login" className="text-orange-500 hover:text-orange-400">
                 Sign in
-              </a>
+              </Link>
             </p>
           </div>
 
