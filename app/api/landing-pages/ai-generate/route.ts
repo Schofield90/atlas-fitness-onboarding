@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { checkAuthAndOrganization } from '@/app/lib/api/auth-check-org'
+import { requireAuthWithOrg } from '@/app/lib/api/auth-check-org'
 import { createClient } from '@/app/lib/supabase/server'
 import OpenAI from 'openai'
 import * as cheerio from 'cheerio'
@@ -212,19 +212,21 @@ Return ONLY valid JSON, no additional text.
 
 // POST - Generate landing page from URL
 export async function POST(request: NextRequest) {
-  const authResult = await checkAuthAndOrganization(request)
-  if (!authResult.success) {
-    return NextResponse.json({ error: authResult.error }, { status: 401 })
+  let authUser
+  try {
+    authUser = await requireAuthWithOrg()
+  } catch (error) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { user, organizationId } = authResult
+  const { id: userId, organizationId } = authUser
   const { url } = await request.json()
   
   if (!url) {
     return NextResponse.json({ error: 'URL is required' }, { status: 400 })
   }
   
-  const supabase = createClient()
+  const supabase = await createClient()
   
   try {
     // Create AI generation record
@@ -234,7 +236,7 @@ export async function POST(request: NextRequest) {
         organization_id: organizationId,
         source_url: url,
         status: 'processing',
-        created_by: user.id,
+        created_by: userId,
         ai_model: 'gpt-4-turbo-preview'
       })
       .select()
@@ -275,7 +277,7 @@ export async function POST(request: NextRequest) {
         meta_title: generatedTemplate.meta?.title,
         meta_description: generatedTemplate.meta?.description,
         status: 'draft',
-        created_by: user.id,
+        created_by: userId,
         updated_by: user.id
       })
       .select()
