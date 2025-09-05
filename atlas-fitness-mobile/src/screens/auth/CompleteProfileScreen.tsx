@@ -217,7 +217,7 @@ export default function CompleteProfileScreen() {
               labelStyle={styles.dateButtonLabel}
             >
               {dateOfBirth
-                ? format(dateOfBirth, 'MMMM d, yyyy')
+                ? format(dateOfBirth, 'dd/MM/yyyy')
                 : 'Select Date of Birth'}
             </Button>
 
@@ -226,6 +226,7 @@ export default function CompleteProfileScreen() {
                 value={dateOfBirth || new Date()}
                 mode="date"
                 display="default"
+                locale={Platform.OS === 'ios' ? 'en_GB' : undefined}
                 onChange={(event, selectedDate) => {
                   setShowDatePicker(false);
                   if (selectedDate) {
