@@ -17,15 +17,19 @@ export class UnifiedAIClient {
   private anthropic: Anthropic | null = null
   
   constructor() {
-    // Initialize OpenAI if API key exists
-    if (process.env.OPENAI_API_KEY) {
+    // Clients will be initialized lazily when needed
+  }
+
+  private initializeOpenAI(): void {
+    if (!this.openai && process.env.OPENAI_API_KEY) {
       this.openai = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY
       })
     }
-    
-    // Initialize Anthropic as backup if API key exists
-    if (process.env.ANTHROPIC_API_KEY) {
+  }
+
+  private initializeAnthropic(): void {
+    if (!this.anthropic && process.env.ANTHROPIC_API_KEY) {
       this.anthropic = new Anthropic({
         apiKey: process.env.ANTHROPIC_API_KEY
       })
@@ -48,6 +52,7 @@ export class UnifiedAIClient {
     const model = AIModelManager.getBestChatModel()
     
     // Try OpenAI first
+    this.initializeOpenAI()
     if (this.openai && model.provider === 'openai') {
       try {
         const response = await this.openai.chat.completions.create({
@@ -72,6 +77,7 @@ export class UnifiedAIClient {
         
         // Try fallback to Anthropic if available
         const fallbackModel = AIModelManager.getFallbackChatModel()
+        this.initializeAnthropic()
         if (fallbackModel && this.anthropic) {
           return this.createAnthropicCompletion(params, fallbackModel.id)
         }
@@ -87,6 +93,7 @@ export class UnifiedAIClient {
    * Create embeddings using OpenAI
    */
   async createEmbedding(text: string): Promise<number[]> {
+    this.initializeOpenAI()
     if (!this.openai) {
       throw new Error('OpenAI not initialized')
     }

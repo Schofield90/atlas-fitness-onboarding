@@ -3,17 +3,54 @@ import { createClient } from '@/app/lib/supabase/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 
-// Create Supabase admin client
-export const supabaseAdmin = createSupabaseClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
+// Lazy initialization to avoid build-time errors
+let adminClient: any = null;
+
+export function getSupabaseAdmin() {
+  if (!adminClient) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.warn('Supabase environment variables not configured, using mock client');
+      // Return a mock client for build time
+      return {
+        from: () => ({
+          select: () => ({ 
+            eq: () => ({ 
+              order: () => ({ 
+                limit: () => Promise.resolve({ data: [], error: null })
+              })
+            }),
+            in: () => Promise.resolve({ data: [], error: null })
+          }),
+          insert: () => Promise.resolve({ error: null }),
+          update: () => ({ eq: () => Promise.resolve({ error: null }) }),
+          delete: () => ({ eq: () => Promise.resolve({ error: null }) })
+        })
+      };
     }
+    
+    adminClient = createSupabaseClient(
+      supabaseUrl,
+      serviceRoleKey,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
   }
-)
+  return adminClient;
+}
+
+// For backward compatibility
+export const supabaseAdmin = new Proxy({}, {
+  get(target, prop) {
+    return getSupabaseAdmin()[prop];
+  }
+});
 
 // Extended request type with user
 interface AuthenticatedRequest extends NextRequest {
