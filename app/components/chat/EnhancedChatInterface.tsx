@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/app/lib/supabase/client'
 import { 
   MessageSquare, 
@@ -91,6 +91,7 @@ interface AIResponse {
 export default function EnhancedChatInterface() {
   const searchParams = useSearchParams()
   const contactParam = searchParams.get('contact')
+  const router = useRouter()
   
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
@@ -252,6 +253,14 @@ export default function EnhancedChatInterface() {
   }
 
   const startNewConversation = (contact: any) => {
+    const existing = conversations.find(c => c.customer_id === contact.id)
+    if (existing) {
+      setSelectedConversation(existing)
+      setShowNewConversationModal(false)
+      setMessages([])
+      return
+    }
+
     const newConv: Conversation = {
       id: Date.now().toString(),
       customer_id: contact.id,
@@ -266,7 +275,8 @@ export default function EnhancedChatInterface() {
       status: 'active'
     }
 
-    setConversations([newConv, ...conversations])
+    const next = dedupeConversations([newConv, ...conversations])
+    setConversations(next)
     setSelectedConversation(newConv)
     setShowNewConversationModal(false)
     setMessages([])
@@ -324,12 +334,28 @@ export default function EnhancedChatInterface() {
         }
       ]
 
-      setConversations(mockConversations)
+      // Ensure uniqueness by customer_id and keep the most recent by last_message_time
+      const deduped = dedupeConversations(mockConversations)
+      setConversations(deduped)
     } catch (error) {
       console.error('Error fetching conversations:', error)
     } finally {
       setLoading(false)
     }
+  }
+
+  const dedupeConversations = (items: Conversation[]): Conversation[] => {
+    const byCustomerId = new Map<string, Conversation>()
+    for (const item of items) {
+      const existing = byCustomerId.get(item.customer_id)
+      if (!existing) {
+        byCustomerId.set(item.customer_id, item)
+      } else {
+        const newer = new Date(item.last_message_time).getTime() > new Date(existing.last_message_time).getTime()
+        byCustomerId.set(item.customer_id, newer ? item : existing)
+      }
+    }
+    return Array.from(byCustomerId.values()).sort((a, b) => new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime())
   }
 
   const fetchMessages = async (conversationId: string) => {
@@ -585,7 +611,7 @@ export default function EnhancedChatInterface() {
             <div className="space-y-1 p-2">
               {filteredConversations.map((conversation) => (
                 <div
-                  key={conversation.id}
+                  key={conversation.customer_id}
                   onClick={() => setSelectedConversation(conversation)}
                   className={`p-3 rounded-lg cursor-pointer transition-colors ${
                     selectedConversation?.id === conversation.id
@@ -893,11 +919,11 @@ export default function EnhancedChatInterface() {
 
               {/* Quick Actions */}
               <div className="space-y-2 pt-4 border-t border-gray-700">
-                <button className="w-full flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm">
+                <button onClick={() => selectedContact && router.push(`/calendar/new?contactId=${selectedContact.id}`)} className="w-full flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm">
                   <Calendar className="h-4 w-4" />
                   Book Class
                 </button>
-                <button className="w-full flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white text-sm">
+                <button onClick={() => selectedContact && router.push(`/customers/${selectedContact.id}`)} className="w-full flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white text-sm">
                   <BookOpen className="h-4 w-4" />
                   View Profile
                 </button>
