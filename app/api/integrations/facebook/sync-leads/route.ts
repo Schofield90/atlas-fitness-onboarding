@@ -257,7 +257,7 @@ export async function POST(request: NextRequest) {
           } else {
             savedCount++
             
-            // Also create or update contact record
+            // Also create or update contact record (ensure organization scoping)
             // Extract first and last name
             const nameParts = lead.name ? lead.name.split(' ') : ['', '']
             const firstName = nameParts[0] || ''
@@ -288,6 +288,7 @@ export async function POST(request: NextRequest) {
               const { error: contactError } = await supabase
                 .from('contacts')
                 .insert({
+                  organization_id: organizationId as any,
                   phone: lead.phone !== 'Not provided' ? lead.phone : null,
                   email: lead.email !== 'Not provided' ? lead.email : null,
                   first_name: firstName,
