@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
 
 const clientCreateSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  email: z.string().email('Invalid email'),
+  email: z.string().email('Invalid email').optional(),
   phone: z.string().optional(),
   membership_type: z.string().default('Standard'),
   membership_status: z.enum(['active', 'paused', 'cancelled']).default('active'),
@@ -117,6 +117,19 @@ const clientCreateSchema = z.object({
   engagement_score: z.number().min(0).max(100).default(50),
   lead_id: z.string().optional(),
   preferences: z.any().optional(),
+}).superRefine((data, ctx) => {
+  const hasEmail = typeof data.email === 'string' && data.email.trim().length > 0
+  const hasPhone = typeof data.phone === 'string' && data.phone.trim().length > 0
+  if (!hasEmail && !hasPhone) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Provide email or phone', path: ['email'] })
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Provide email or phone', path: ['phone'] })
+  }
+  if (hasPhone) {
+    const digits = (data.phone || '').replace(/[^0-9]/g, '')
+    if (digits.length < 7) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Phone number looks invalid', path: ['phone'] })
+    }
+  }
 })
 
 export async function POST(request: NextRequest) {
@@ -145,16 +158,26 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = clientCreateSchema.parse(body)
 
-    // Check if client with this email already exists in the organization
-    const { data: existingClient } = await supabase
-      .from('clients')
-      .select('id')
-      .eq('organization_id', userData.organization_id)
-      .eq('email', validatedData.email)
-      .single()
-
-    if (existingClient) {
-      return NextResponse.json({ error: 'A client with this email already exists' }, { status: 400 })
+    // Check duplicates by email or phone
+    if (validatedData.email || validatedData.phone) {
+      let query = supabase
+        .from('clients')
+        .select('id, name, email, phone')
+        .eq('organization_id', userData.organization_id)
+      
+      const email = validatedData.email?.toLowerCase()
+      const normalizedPhone = (validatedData.phone || '').replace(/[^0-9]/g, '')
+      if (email && normalizedPhone) {
+        query = query.or(`email.eq.${email},phone.ilike.%${normalizedPhone.slice(-7)}%`)
+      } else if (email) {
+        query = query.eq('email', email)
+      } else if (normalizedPhone) {
+        query = query.ilike('phone', `%${normalizedPhone.slice(-7)}%`)
+      }
+      const { data: dup } = await query.limit(1)
+      if (dup && dup.length > 0) {
+        return NextResponse.json({ error: 'A client with this email or phone already exists' }, { status: 400 })
+      }
     }
 
     // If lead_id is provided, verify it belongs to the organization and update status
@@ -179,6 +202,7 @@ export async function POST(request: NextRequest) {
 
     const clientData = {
       ...validatedData,
+      ...(validatedData.email ? { email: validatedData.email.toLowerCase() } : {}),
       organization_id: userData.organization_id,
     }
 

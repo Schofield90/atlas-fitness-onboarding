@@ -10,10 +10,39 @@ import { Lead } from '@/types/database'
 
 const leadFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  email: z.string().email('Invalid email address'),
+  email: z
+    .string()
+    .email('Invalid email address')
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
   phone: z.string().optional(),
   source: z.string().min(1, 'Source is required'),
   qualification_notes: z.string().optional(),
+}).superRefine((data, ctx) => {
+  const hasEmail = typeof data.email === 'string' && data.email.trim().length > 0
+  const hasPhone = typeof data.phone === 'string' && data.phone.trim().length > 0
+  if (!hasEmail && !hasPhone) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Provide a valid email or phone number',
+      path: ['email']
+    })
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Provide a valid email or phone number',
+      path: ['phone']
+    })
+  }
+  if (hasPhone) {
+    const digits = (data.phone || '').replace(/[^0-9]/g, '')
+    if (digits.length < 7) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Phone number looks invalid',
+        path: ['phone']
+      })
+    }
+  }
 })
 
 type LeadFormData = z.infer<typeof leadFormSchema>
@@ -100,7 +129,7 @@ export function LeadForm({ lead, isOpen, onClose }: LeadFormProps) {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email *
+              Email
             </label>
             <input
               type="email"
@@ -123,6 +152,9 @@ export function LeadForm({ lead, isOpen, onClose }: LeadFormProps) {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Enter phone number"
             />
+            {errors.phone && (
+              <p className="text-red-600 text-sm mt-1">{errors.phone.message}</p>
+            )}
           </div>
 
           <div>
