@@ -9,6 +9,8 @@ import { ComingSoonBadge } from '@/app/components/ComingSoon'
 import LocationSwitcher from './LocationSwitcher'
 import OrganizationSwitcher from './OrganizationSwitcher'
 import InterfaceSwitcher from './InterfaceSwitcher'
+import { Mail } from 'lucide-react'
+import toast from '@/app/lib/toast'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -25,6 +27,8 @@ export default function DashboardLayout({ children, userData }: DashboardLayoutP
   const [user, setUser] = useState<any>(null)
   const [systemMode, setSystemMode] = useState<SystemMode>('crm')
   const [staffPermissions, setStaffPermissions] = useState<any>(null)
+  const [organizationId, setOrganizationId] = useState<string | null>(null)
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState<number>(0)
   const supabase = createClient()
   
   useEffect(() => {
@@ -32,7 +36,72 @@ export default function DashboardLayout({ children, userData }: DashboardLayoutP
     checkUser()
     loadSystemPreference()
     loadStaffPermissions()
+    loadOrganization()
   }, [])
+
+  useEffect(() => {
+    if (!organizationId) return
+
+    // Initial fetch
+    fetchUnreadMessagesCount(organizationId)
+
+    // Subscribe to new inbound messages for this org
+    const channel = supabase
+      .channel(`messages-org-${organizationId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `organization_id=eq.${organizationId}`
+      }, async (payload: any) => {
+        const newMsg = payload.new
+        if (newMsg?.direction === 'inbound') {
+          setUnreadMessagesCount((c) => c + 1)
+
+          // Try to fetch sender name via lead
+          try {
+            if (newMsg.lead_id) {
+              const { data: lead } = await supabase
+                .from('leads')
+                .select('first_name,last_name,phone,email')
+                .eq('id', newMsg.lead_id)
+                .single()
+              const senderName = [lead?.first_name, lead?.last_name].filter(Boolean).join(' ') || lead?.phone || lead?.email || 'Unknown contact'
+              const preview = (newMsg.body || newMsg.message || '').toString().slice(0, 80)
+              toast.info(`New message from ${senderName}: ${preview}`)
+            } else {
+              const preview = (newMsg.body || newMsg.message || '').toString().slice(0, 80)
+              toast.info(`New message: ${preview}`)
+            }
+          } catch (_) {
+            const preview = (newMsg?.body || newMsg?.message || '').toString().slice(0, 80)
+            toast.info(`New message: ${preview}`)
+          }
+        }
+      })
+      // Recompute on updates that mark read
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'messages',
+        filter: `organization_id=eq.${organizationId}`
+      }, () => {
+        fetchUnreadMessagesCount(organizationId)
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [organizationId])
+
+  // Mark unread as read when on conversations page
+  useEffect(() => {
+    if (!organizationId) return
+    if (pathname?.startsWith('/conversations')) {
+      markAllMessagesRead(organizationId)
+    }
+  }, [pathname, organizationId])
 
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -59,6 +128,47 @@ export default function DashboardLayout({ children, userData }: DashboardLayoutP
       if (data) {
         setStaffPermissions(data.permissions)
       }
+    }
+  }
+
+  const loadOrganization = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { data: userOrg } = await supabase
+      .from('user_organizations')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .single()
+    if (userOrg?.organization_id) {
+      setOrganizationId(userOrg.organization_id)
+    }
+  }
+
+  const fetchUnreadMessagesCount = async (orgId: string) => {
+    try {
+      const { count } = await supabase
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('organization_id', orgId)
+        .eq('direction', 'inbound')
+        .is('read_at', null)
+      setUnreadMessagesCount(count || 0)
+    } catch (e) {
+      // noop
+    }
+  }
+
+  const markAllMessagesRead = async (orgId: string) => {
+    try {
+      await supabase
+        .from('messages')
+        .update({ read_at: new Date().toISOString(), status: 'read' })
+        .eq('organization_id', orgId)
+        .eq('direction', 'inbound')
+        .is('read_at', null)
+      setUnreadMessagesCount(0)
+    } catch (e) {
+      // noop
     }
   }
 
@@ -552,6 +662,22 @@ export default function DashboardLayout({ children, userData }: DashboardLayoutP
               <OrganizationSwitcher />
               <LocationSwitcher />
               <InterfaceSwitcher currentInterface="gym" />
+              <button
+                type="button"
+                aria-label="Messages"
+                onClick={() => router.push('/conversations')}
+                className="relative p-2 rounded-md hover:bg-gray-700 transition-colors"
+              >
+                <Mail className={`h-5 w-5 ${unreadMessagesCount > 0 ? 'text-red-500' : 'text-gray-400'}`} />
+                {unreadMessagesCount > 0 && (
+                  <span
+                    className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center"
+                    data-testid="messages-unread-badge"
+                  >
+                    {unreadMessagesCount}
+                  </span>
+                )}
+              </button>
               {user && (
                 <span className="text-sm text-gray-400">
                   {user.email}
