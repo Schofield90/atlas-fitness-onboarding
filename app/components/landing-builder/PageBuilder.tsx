@@ -66,12 +66,30 @@ const ComponentRenderer: React.FC<{ component: Component }> = ({ component }) =>
       return <Components.FormComponent {...props} />
     case COMPONENT_TYPES.FEATURES:
       return <Components.FeaturesComponent {...props} />
+    case COMPONENT_TYPES.TESTIMONIALS:
+      return <Components.TestimonialsComponent {...props} />
+    case COMPONENT_TYPES.PRICING:
+      return <Components.PricingComponent {...props} />
+    case COMPONENT_TYPES.FAQ:
+      return <Components.FAQComponent {...props} />
     case COMPONENT_TYPES.CTA:
       return <Components.CTAComponent {...props} />
+    case COMPONENT_TYPES.VIDEO:
+      return <Components.VideoComponent {...props} />
+    case COMPONENT_TYPES.FOOTER:
+      return <Components.FooterComponent {...props} />
+    case COMPONENT_TYPES.COLUMNS:
+      return <Components.ColumnsComponent {...props} />
     case COMPONENT_TYPES.SPACER:
       return <div className="py-8" style={{ height: props.height || '64px' }} />
     case COMPONENT_TYPES.DIVIDER:
       return <hr className="my-8 border-gray-200" />
+    case COMPONENT_TYPES.COUNTDOWN:
+      return <Components.CountdownComponent {...props} />
+    case COMPONENT_TYPES.SOCIAL:
+      return <Components.SocialIconsComponent {...props} />
+    case COMPONENT_TYPES.HTML:
+      return <Components.HTMLComponent {...props} />
     default:
       return (
         <div className="p-8 bg-gray-100 text-center text-gray-500">
@@ -526,21 +544,86 @@ const ComponentProperties: React.FC<{
   component: Component
   onUpdate: (props: any) => void
 }> = ({ component, onUpdate }) => {
-  // This would be expanded with specific property editors for each component type
+  const props = component.props || {}
+
+  const updateProp = (key: string, value: any) => {
+    onUpdate({ [key]: value })
+  }
+
+  const renderEditor = (key: string, value: any) => {
+    if (typeof value === 'string') {
+      const isLongText = key.toLowerCase().includes('content') || key.toLowerCase().includes('subtitle') || key.toLowerCase().includes('html') || value.length > 60
+      if (isLongText) {
+        return (
+          <textarea
+            className="w-full px-3 py-2 border border-gray-300 rounded"
+            rows={4}
+            value={value}
+            onChange={(e) => updateProp(key, e.target.value)}
+          />
+        )
+      }
+      return (
+        <input
+          className="w-full px-3 py-2 border border-gray-300 rounded"
+          value={value}
+          onChange={(e) => updateProp(key, e.target.value)}
+        />
+      )
+    }
+    if (typeof value === 'number') {
+      return (
+        <input
+          type="number"
+          className="w-full px-3 py-2 border border-gray-300 rounded"
+          value={value}
+          onChange={(e) => updateProp(key, Number(e.target.value))}
+        />
+      )
+    }
+    if (typeof value === 'boolean') {
+      return (
+        <label className="inline-flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={value}
+            onChange={(e) => updateProp(key, e.target.checked)}
+          />
+          <span className="text-sm text-gray-700">Enabled</span>
+        </label>
+      )
+    }
+    // Fallback for arrays/objects
+    return (
+      <textarea
+        className="w-full px-3 py-2 border border-gray-300 rounded font-mono text-xs"
+        rows={6}
+        value={JSON.stringify(value, null, 2)}
+        onChange={(e) => {
+          try {
+            const parsed = JSON.parse(e.target.value)
+            updateProp(key, parsed)
+          } catch {
+            // ignore parse errors while typing
+          }
+        }}
+      />
+    )
+  }
+
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Component Type
-        </label>
-        <input
-          type="text"
-          value={component.type}
-          disabled
-          className="w-full px-3 py-2 border border-gray-300 rounded bg-gray-50"
-        />
+        <label className="block text-sm font-medium text-gray-700 mb-1">Component Type</label>
+        <input type="text" value={component.type} disabled className="w-full px-3 py-2 border border-gray-300 rounded bg-gray-50" />
       </div>
-      {/* Add more property editors based on component type */}
+
+      {Object.keys(props).map((key) => (
+        <div key={key} className="space-y-1">
+          <label className="block text-sm font-medium text-gray-700">{key}</label>
+          {renderEditor(key, props[key])}
+        </div>
+      ))}
     </div>
   )
 }
@@ -606,6 +689,53 @@ const getDefaultProps = (type: string): any => {
       return { height: 50 }
     case COMPONENT_TYPES.DIVIDER:
       return { style: 'solid', color: '#e5e7eb' }
+    case COMPONENT_TYPES.TESTIMONIALS:
+      return {
+        title: 'What our customers say',
+        subtitle: 'Real stories from real users',
+        testimonials: [
+          { name: 'Alex Johnson', role: 'Founder, Acme Inc.', quote: 'This product transformed our marketing!' },
+          { name: 'Maria Garcia', role: 'Head of Growth', quote: 'Incredibly easy to use and very effective.' },
+          { name: 'Sam Patel', role: 'Entrepreneur', quote: 'Best landing page builder I have tried.' }
+        ],
+        columns: 3
+      }
+    case COMPONENT_TYPES.PRICING:
+      return {
+        title: 'Simple, transparent pricing',
+        subtitle: 'Choose the plan that fits your needs',
+        plans: [
+          { name: 'Starter', price: '$19', period: '/mo', features: ['Basic builder', 'Email support'], ctaText: 'Get Starter', ctaUrl: '#', highlighted: false },
+          { name: 'Pro', price: '$49', period: '/mo', features: ['All Starter features', 'AI import', 'Custom domains'], ctaText: 'Get Pro', ctaUrl: '#', highlighted: true },
+          { name: 'Business', price: '$99', period: '/mo', features: ['Everything in Pro', 'Team collaboration', 'Priority support'], ctaText: 'Get Business', ctaUrl: '#', highlighted: false }
+        ]
+      }
+    case COMPONENT_TYPES.FAQ:
+      return {
+        title: 'Frequently Asked Questions',
+        items: [
+          { question: 'How does the builder work?', answer: 'Drag and drop components to build your page, then customize in the Properties panel.' },
+          { question: 'Can I import an existing page?', answer: 'Yes, use the Import from URL option to generate a template from any website.' },
+          { question: 'Is there a free trial?', answer: 'You can start for free and upgrade anytime.' }
+        ]
+      }
+    case COMPONENT_TYPES.VIDEO:
+      return { url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }
+    case COMPONENT_TYPES.COUNTDOWN:
+      return { targetDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString(), showLabels: true }
+    case COMPONENT_TYPES.SOCIAL:
+      return { links: [
+        { platform: 'twitter', url: '#' },
+        { platform: 'facebook', url: '#' },
+        { platform: 'instagram', url: '#' },
+        { platform: 'linkedin', url: '#' }
+      ]}
+    case COMPONENT_TYPES.HTML:
+      return { html: '<div style="padding:16px;border:1px dashed #d1d5db;border-radius:8px;background:#fafafa">Custom HTML block</div>' }
+    case COMPONENT_TYPES.FOOTER:
+      return { text: '© Your Company', links: [ { label: 'Privacy', url: '#' }, { label: 'Terms', url: '#' }, { label: 'Contact', url: '#' } ] }
+    case COMPONENT_TYPES.COLUMNS:
+      return { columns: 3, items: [ { title: 'Column 1', content: 'Add your content' }, { title: 'Column 2', content: 'Add your content' }, { title: 'Column 3', content: 'Add your content' } ] }
     default:
       return {}
   }
