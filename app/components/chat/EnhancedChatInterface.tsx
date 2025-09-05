@@ -275,7 +275,7 @@ export default function EnhancedChatInterface() {
   const fetchConversations = async () => {
     try {
       setLoading(true)
-      
+
       // Get current user's organization
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
@@ -290,41 +290,78 @@ export default function EnhancedChatInterface() {
 
       setOrganizationId(userOrg.organization_id)
 
-      // Mock conversation data for now - replace with actual API call
-      const mockConversations: Conversation[] = [
-        {
-          id: '1',
-          customer_id: '1',
-          customer_name: 'Sarah Johnson',
-          customer_email: 'sarah@example.com',
-          customer_phone: '+447123456789',
-          last_message: 'Hi! I\'d like to book a class for tomorrow',
-          last_message_type: 'whatsapp',
-          last_message_time: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-          unread_count: 2,
-          total_messages: 8,
-          tags: ['new-member', 'interested'],
-          priority: 'high',
-          status: 'active'
-        },
-        {
-          id: '2',
-          customer_id: '2',
-          customer_name: 'Mike Wilson',
-          customer_email: 'mike@example.com',
-          customer_phone: '+447987654321',
-          last_message: 'Thanks for the membership info!',
-          last_message_type: 'sms',
-          last_message_time: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-          unread_count: 0,
-          total_messages: 12,
-          tags: ['member'],
-          priority: 'medium',
-          status: 'resolved'
-        }
-      ]
+      // Fetch recent leads and clients for name/email/phone mapping
+      const [leadsResult, clientsResult] = await Promise.all([
+        supabase
+          .from('leads')
+          .select('id, first_name, last_name, email, phone')
+          .eq('org_id', userOrg.organization_id)
+          .order('updated_at', { ascending: false })
+          .limit(200),
+        supabase
+          .from('clients')
+          .select('id, first_name, last_name, email, phone')
+          .eq('org_id', userOrg.organization_id)
+          .order('updated_at', { ascending: false })
+          .limit(200)
+      ])
 
-      setConversations(mockConversations)
+      const customerMap = new Map<string, { id: string; name: string; email: string; phone: string }>()
+      for (const l of leadsResult.data || []) {
+        customerMap.set(l.id, {
+          id: l.id,
+          name: `${l.first_name || ''} ${l.last_name || ''}`.trim() || 'Unknown',
+          email: l.email || '',
+          phone: l.phone || ''
+        })
+      }
+      for (const c of clientsResult.data || []) {
+        customerMap.set(c.id, {
+          id: c.id,
+          name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
+          email: c.email || '',
+          phone: c.phone || ''
+        })
+      }
+
+      // Fetch latest messages for org and group by lead_id
+      const { data: msgs } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('organization_id', userOrg.organization_id)
+        .order('created_at', { ascending: false })
+        .limit(500)
+
+      const grouped = new Map<string, any[]>()
+      for (const m of msgs || []) {
+        if (!m.lead_id) continue
+        if (!grouped.has(m.lead_id)) grouped.set(m.lead_id, [])
+        grouped.get(m.lead_id)!.push(m)
+      }
+
+      const convs: Conversation[] = []
+      for (const [leadId, arr] of grouped) {
+        const customer = customerMap.get(leadId)
+        if (!customer) continue
+        arr.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        const latest = arr[0]
+        convs.push({
+          id: leadId,
+          customer_id: leadId,
+          customer_name: customer.name,
+          customer_email: customer.email,
+          customer_phone: customer.phone,
+          last_message: latest.subject || latest.body || 'No content',
+          last_message_type: latest.type,
+          last_message_time: latest.created_at,
+          unread_count: 0,
+          total_messages: arr.length,
+          status: 'active'
+        })
+      }
+
+      convs.sort((a, b) => new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime())
+      setConversations(convs)
     } catch (error) {
       console.error('Error fetching conversations:', error)
     } finally {
@@ -334,45 +371,24 @@ export default function EnhancedChatInterface() {
 
   const fetchMessages = async (conversationId: string) => {
     try {
-      // Mock message data - replace with actual API call
-      const mockMessages: Message[] = [
-        {
-          id: '1',
-          content: 'Hi! I\'m interested in joining your gym. What membership plans do you have?',
-          type: 'whatsapp',
-          direction: 'inbound',
-          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          read: true
-        },
-        {
-          id: '2',
-          content: 'Hi Sarah! Great to hear from you. We have several membership options including monthly, 6-month, and annual plans. Would you like me to send you our current pricing?',
-          type: 'whatsapp',
-          direction: 'outbound',
-          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000 + 5 * 60 * 1000).toISOString(),
-          read: true,
-          ai_generated: false
-        },
-        {
-          id: '3',
-          content: 'Yes please! Also, do you offer trial sessions?',
-          type: 'whatsapp',
-          direction: 'inbound',
-          timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-          read: true
-        },
-        {
-          id: '4',
-          content: 'Absolutely! We offer a complimentary trial session for all new members. I can book you in for tomorrow if you\'d like?',
-          type: 'whatsapp',
-          direction: 'outbound',
-          timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000 + 3 * 60 * 1000).toISOString(),
-          read: true,
-          ai_generated: true
-        }
-      ]
+      // conversationId is the lead_id
+      const { data } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('lead_id', conversationId)
+        .order('created_at', { ascending: true })
+        .limit(500)
 
-      setMessages(mockMessages)
+      const mapped: Message[] = (data || []).map((m: any) => ({
+        id: m.id,
+        content: m.body || m.subject || '',
+        type: m.type,
+        direction: m.direction,
+        timestamp: m.created_at,
+        read: m.status === 'read'
+      }))
+
+      setMessages(mapped)
     } catch (error) {
       console.error('Error fetching messages:', error)
     }
@@ -380,29 +396,40 @@ export default function EnhancedChatInterface() {
 
   const fetchContact = async (contactId: string) => {
     try {
-      // Mock contact data - replace with actual API call
-      const mockContact: Contact = {
-        id: contactId,
-        name: 'Sarah Johnson',
-        email: 'sarah@example.com',
-        phone: '+447123456789',
-        avatar: undefined,
-        membership_status: 'Prospective Member',
-        last_visit: null,
-        total_visits: 0,
-        tags: ['new-member', 'interested', 'trial-booked'],
-        notes: 'Interested in personal training. Prefers morning sessions.',
-        emergency_contact: {
-          name: 'John Johnson',
-          phone: '+447123456790'
-        },
-        preferences: {
-          contact_method: 'whatsapp',
-          communication_frequency: 'weekly'
-        }
+      // Try leads first
+      const { data: lead } = await supabase
+        .from('leads')
+        .select('id, first_name, last_name, email, phone')
+        .eq('id', contactId)
+        .single()
+
+      if (lead) {
+        setSelectedContact({
+          id: lead.id,
+          name: `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || 'Unknown',
+          email: lead.email || '',
+          phone: lead.phone || '',
+          membership_status: 'Lead'
+        })
+        return
       }
 
-      setSelectedContact(mockContact)
+      // Then clients
+      const { data: client } = await supabase
+        .from('clients')
+        .select('id, first_name, last_name, email, phone')
+        .eq('id', contactId)
+        .single()
+
+      if (client) {
+        setSelectedContact({
+          id: client.id,
+          name: `${client.first_name || ''} ${client.last_name || ''}`.trim() || 'Unknown',
+          email: client.email || '',
+          phone: client.phone || '',
+          membership_status: 'Customer'
+        })
+      }
     } catch (error) {
       console.error('Error fetching contact:', error)
     }
@@ -410,25 +437,8 @@ export default function EnhancedChatInterface() {
 
   const generateAIInsights = async (conversation: Conversation) => {
     try {
-      // Mock AI insights - replace with actual API call
-      const mockAI: AIResponse = {
-        suggestions: [
-          'Would you like me to book your trial session for tomorrow at 10am?',
-          'I can also arrange a tour of our facilities if you\'d like to see everything we offer.',
-          'Our personal trainer Emma would be perfect for your fitness goals - shall I introduce you?'
-        ],
-        summary: 'Sarah is a prospective member interested in joining. She\'s asked about membership plans and trial sessions. She seems enthusiastic and ready to book.',
-        next_actions: [
-          'Book trial session',
-          'Send membership pricing',
-          'Schedule facility tour',
-          'Assign to personal trainer'
-        ],
-        sentiment: 'positive',
-        urgency: 'medium'
-      }
-
-      setAiSuggestions(mockAI)
+      // Placeholder until AI suggestions API is wired
+      setAiSuggestions(null)
     } catch (error) {
       console.error('Error generating AI insights:', error)
     }
@@ -440,7 +450,28 @@ export default function EnhancedChatInterface() {
     try {
       setIsTyping(true)
 
-      // Add message optimistically
+      const toTarget = messageType === 'email' 
+        ? selectedConversation.customer_email 
+        : selectedConversation.customer_phone
+
+      const res = await fetch('/api/messages/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leadId: selectedConversation.customer_id,
+          type: messageType,
+          to: toTarget,
+          subject: messageType === 'email' ? 'Message from Atlas Fitness' : undefined,
+          body: newMessage.trim()
+        })
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to send message')
+      }
+
+      // Optimistically append to UI
       const newMsg: Message = {
         id: Date.now().toString(),
         content: newMessage.trim(),
@@ -453,9 +484,8 @@ export default function EnhancedChatInterface() {
       setMessages(prev => [...prev, newMsg])
       setNewMessage('')
 
-      // Here you would send the message via your API
-      // await sendMessageAPI(newMsg)
-
+      // Refresh conversations list to reflect latest message
+      fetchConversations()
     } catch (error) {
       console.error('Error sending message:', error)
     } finally {

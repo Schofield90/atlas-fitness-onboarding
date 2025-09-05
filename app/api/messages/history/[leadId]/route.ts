@@ -1,5 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/app/lib/supabase/server'
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { leadId: string } }
+) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const leadId = params.leadId
+    if (!leadId) return NextResponse.json({ error: 'Missing leadId' }, { status: 400 })
+
+    const { data: rows, error } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('lead_id', leadId)
+      .order('created_at', { ascending: true })
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
+    // Return a simple flat array for components
+    return NextResponse.json({ messages: rows || [] })
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Failed to fetch messages' }, { status: 500 })
+  }
+}
+
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/app/lib/supabase/server'
 import { createAdminClient } from '@/app/lib/supabase/admin'
 import { requireAuth, createErrorResponse } from '@/app/lib/api/auth-check'
 

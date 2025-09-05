@@ -1,5 +1,70 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/app/lib/supabase/server'
+
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+
+    // Auth
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const body = await request.json()
+    const { leadId, type, to, subject, body: messageBody } = body
+
+    if (!leadId || !type || !to || !messageBody) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    // Get org id
+    const { data: userOrg } = await supabase
+      .from('user_organizations')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .single()
+
+    if (!userOrg?.organization_id) {
+      return NextResponse.json({ error: 'Organization not found' }, { status: 400 })
+    }
+
+    // Prepare insert payload based on type
+    const insertPayload: any = {
+      organization_id: userOrg.organization_id,
+      lead_id: leadId,
+      user_id: user.id,
+      type,
+      direction: 'outbound',
+      status: 'pending',
+      body: type === 'email' ? (messageBody as string) : (messageBody as string),
+      created_at: new Date().toISOString()
+    }
+
+    if (type === 'email') {
+      insertPayload.subject = subject || 'Message from Atlas Fitness'
+      insertPayload.to_email = to
+    } else {
+      // sms or whatsapp
+      insertPayload.to_number = to
+    }
+
+    const { data: inserted, error } = await supabase
+      .from('messages')
+      .insert(insertPayload)
+      .select('id')
+      .single()
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
+
+    return NextResponse.json({ success: true, id: inserted?.id })
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Failed to send message' }, { status: 500 })
+  }
+}
+
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/app/lib/supabase/server'
 import { createAdminClient } from '@/app/lib/supabase/admin'
 import { requireAuth, createErrorResponse } from '@/app/lib/api/auth-check'
 import { sendSMS, sendWhatsAppMessage } from '@/app/lib/services/twilio'
