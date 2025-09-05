@@ -48,6 +48,7 @@ export default function AdminUsersPage() {
               email: authUser?.email || 'Unknown',
               name: authUser?.user_metadata?.name || authUser?.email?.split('@')[0] || 'Unknown',
               role: uo.role,
+              organization_id: uo.organization_id,
               organization_name: 'Atlas Fitness',
               created_at: uo.created_at,
               last_sign_in_at: authUser?.last_sign_in_at || null
@@ -62,6 +63,7 @@ export default function AdminUsersPage() {
           email: uo.user?.email || 'Unknown',
           name: uo.user?.raw_user_meta_data?.name || uo.user?.email?.split('@')[0] || 'Unknown',
           role: uo.role,
+          organization_id: uo.organization_id,
           organization_name: uo.organization?.name || 'No Organization',
           created_at: uo.created_at,
           last_sign_in_at: uo.user?.last_sign_in_at || null
@@ -73,6 +75,36 @@ export default function AdminUsersPage() {
       console.error('Error fetching users:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleView = async (user: any) => {
+    if (!user?.organization_id) {
+      alert('No organization found for this user')
+      return
+    }
+
+    try {
+      const res = await fetch('/api/admin/impersonation/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          organizationId: user.organization_id,
+          scope: 'write',
+          reason: 'Admin quick view via Users Management',
+          durationMinutes: 30
+        })
+      })
+
+      const data = await res.json()
+      if (data?.success) {
+        router.push(`/dashboard?org=${user.organization_id}`)
+      } else {
+        alert(data?.error || 'Failed to start impersonation')
+      }
+    } catch (err) {
+      console.error('Failed to start impersonation:', err)
+      alert('Failed to start impersonation')
     }
   }
 
@@ -160,7 +192,7 @@ export default function AdminUsersPage() {
                     {new Date(user.created_at).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 text-sm">
-                    <button className="text-purple-400 hover:text-purple-300">View</button>
+                    <button className="text-purple-400 hover:text-purple-300" onClick={() => handleView(user)}>View</button>
                   </td>
                 </tr>
               ))}
