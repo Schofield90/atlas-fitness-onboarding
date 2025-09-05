@@ -124,7 +124,7 @@ export default function EnhancedChatInterface() {
 
   useEffect(() => {
     if (selectedConversation) {
-      fetchMessages(selectedConversation.id)
+      fetchMessages(selectedConversation.customer_id)
       fetchContact(selectedConversation.customer_id)
       generateAIInsights(selectedConversation)
     }

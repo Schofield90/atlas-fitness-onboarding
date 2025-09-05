@@ -48,6 +48,14 @@ export async function POST(request: NextRequest) {
     const fromName = organization?.name || 'Atlas Fitness';
 
     // Send email via Resend
+    if (!resend) {
+      console.error('Resend API key not configured');
+      return NextResponse.json(
+        { error: 'Email service not configured' },
+        { status: 503 }
+      );
+    }
+
     const { data, error } = await resend.emails.send({
       from: `${fromName} <${fromEmail}>`,
       to: Array.isArray(to) ? to : [to],

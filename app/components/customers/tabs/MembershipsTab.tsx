@@ -31,17 +31,33 @@ export default function MembershipsTab({ customerId }: MembershipsTabProps) {
 
   const fetchCustomerName = async () => {
     try {
-      const { data, error } = await supabase
-        .from('leads')
-        .select('name')
+      // Try clients table first, then leads table
+      let { data, error } = await supabase
+        .from('clients')
+        .select('first_name, last_name')
         .eq('id', customerId)
         .single()
       
       if (!error && data) {
-        setCustomerName(data.name)
+        const name = `${data.first_name || ''} ${data.last_name || ''}`.trim()
+        setCustomerName(name || 'Unknown Member')
+        return
+      }
+
+      // Fallback to leads table
+      const leadResult = await supabase
+        .from('leads')
+        .select('name, first_name, last_name')
+        .eq('id', customerId)
+        .single()
+      
+      if (!leadResult.error && leadResult.data) {
+        const name = leadResult.data.name || `${leadResult.data.first_name || ''} ${leadResult.data.last_name || ''}`.trim()
+        setCustomerName(name || 'Unknown Member')
       }
     } catch (error) {
       console.error('Error fetching customer name:', error)
+      setCustomerName('Unknown Member')
     }
   }
 
@@ -54,7 +70,7 @@ export default function MembershipsTab({ customerId }: MembershipsTabProps) {
           *,
           membership_plan:membership_plans(*)
         `)
-        .eq('customer_id', customerId)
+        .or(`customer_id.eq.${customerId},client_id.eq.${customerId}`)
         .order('created_at', { ascending: false })
 
       if (error && error.code !== 'PGRST116') throw error

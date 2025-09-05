@@ -11,6 +11,7 @@ import {
 import DashboardLayout from '@/app/components/DashboardLayout';
 import { createClient } from '@/app/lib/supabase/client';
 import { useOrganization } from '@/app/hooks/useOrganization';
+import MembershipsTab from '@/app/components/customers/tabs/MembershipsTab';
 
 interface CustomerProfile {
   id: string;
@@ -659,8 +660,15 @@ export default function CustomerProfilePage() {
             </div>
           )}
 
+          {/* Memberships Tab */}
+          {activeTab === 'memberships' && (
+            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+              <MembershipsTab customerId={customerId} />
+            </div>
+          )}
+
           {/* Other tabs would be implemented similarly */}
-          {activeTab !== 'profile' && activeTab !== 'activity' && (
+          {activeTab !== 'profile' && activeTab !== 'activity' && activeTab !== 'memberships' && (
             <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
               <h3 className="text-lg font-semibold text-white mb-4 capitalize">{activeTab}</h3>
               <div className="text-center py-8 text-gray-400">

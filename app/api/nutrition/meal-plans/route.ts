@@ -6,9 +6,20 @@ import OpenAI from 'openai'
 import { computeMacros } from '@/app/lib/services/nutrition/macro-calculator'
 
 // Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+// Lazy initialization to avoid build-time errors
+let openai: OpenAI | null = null
+
+function getOpenAI(): OpenAI {
+  if (!openai && process.env.OPENAI_API_KEY) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    })
+  }
+  if (!openai) {
+    throw new Error('OpenAI API key not configured')
+  }
+  return openai
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -271,7 +282,7 @@ async function generateMealPlan(profile: any, macroTargets: any, weeks: number) 
   Provide variety while respecting preferences and restrictions.`
 
   try {
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: 'gpt-4-turbo-preview',
       messages: [
         { role: 'system', content: systemPrompt },
