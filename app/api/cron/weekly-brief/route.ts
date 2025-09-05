@@ -208,7 +208,7 @@ async function generateWeeklyBriefData() {
       supabase.from('organizations').select('id').gte('created_at', twoWeeksAgo.toISOString()).lt('created_at', oneWeekAgo.toISOString()),
       supabase.from('users').select('id, created_at, last_sign_in_at, organization_id').gte('created_at', oneWeekAgo.toISOString()),
       supabase.from('users').select('id').gte('created_at', twoWeeksAgo.toISOString()).lt('created_at', oneWeekAgo.toISOString()),
-      supabase.from('leads').select('id, created_at, organization_id').gte('created_at', oneWeekAgo.toISOString()),
+      supabase.from('leads').select('id, created_at, org_id').gte('created_at', oneWeekAgo.toISOString()),
       supabase.from('leads').select('id').gte('created_at', twoWeeksAgo.toISOString()).lt('created_at', oneWeekAgo.toISOString())
     ]);
 
