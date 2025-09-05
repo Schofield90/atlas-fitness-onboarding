@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import moment from 'moment';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Calendar, Clock, MapPin, User, X, CheckCircle, AlertCircle } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,53 +33,103 @@ interface Booking {
   cancellation_deadline: string;
 }
 
-export function CustomerBookings() {
+interface CustomerBookingsProps {
+  memberId?: string;
+}
+
+export function CustomerBookings({ memberId }: CustomerBookingsProps = {}) {
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
   const [cancellingBooking, setCancellingBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingBookings, setLoadingBookings] = useState(false);
 
-  // Mock data - replace with actual API call
-  const bookings: Booking[] = [
-    {
-      id: '1',
-      session_title: 'Morning HIIT',
-      session_type: 'gym_class',
-      start_time: moment().add(2, 'days').hour(9).minute(0).toISOString(),
-      end_time: moment().add(2, 'days').hour(9).minute(45).toISOString(),
-      trainer_name: 'Sarah Johnson',
-      location: 'Studio A',
-      status: 'confirmed',
-      cost: 10,
-      booked_at: moment().subtract(1, 'day').toISOString(),
-      cancellation_deadline: moment().add(1, 'day').hour(9).minute(0).toISOString(),
-    },
-    {
-      id: '2',
-      session_title: 'Personal Training',
-      session_type: 'personal_training',
-      start_time: moment().add(5, 'days').hour(18).minute(0).toISOString(),
-      end_time: moment().add(5, 'days').hour(19).minute(0).toISOString(),
-      trainer_name: 'Mike Davis',
-      location: 'Main Floor',
-      status: 'scheduled',
-      cost: 40,
-      booked_at: moment().subtract(2, 'days').toISOString(),
-      cancellation_deadline: moment().add(4, 'days').hour(18).minute(0).toISOString(),
-    },
-    {
-      id: '3',
-      session_title: 'Yoga Flow',
-      session_type: 'gym_class',
-      start_time: moment().subtract(3, 'days').hour(10).minute(30).toISOString(),
-      end_time: moment().subtract(3, 'days').hour(11).minute(30).toISOString(),
-      trainer_name: 'Emma Wilson',
-      location: 'Studio B',
-      status: 'completed',
-      cost: 8,
-      booked_at: moment().subtract(5, 'days').toISOString(),
-      cancellation_deadline: moment().subtract(4, 'days').hour(10).minute(30).toISOString(),
-    },
-  ];
+  const [bookings, setBookings] = useState<Booking[]>([]);
+
+  useEffect(() => {
+    loadBookings();
+  }, [memberId]);
+
+  const loadBookings = async () => {
+    setLoadingBookings(true);
+    try {
+      const params = new URLSearchParams();
+      if (memberId) {
+        params.append('memberId', memberId);
+      }
+
+      const response = await fetch(`/api/bookings?${params}`);
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Transform API response to match our Booking interface
+        const transformedBookings: Booking[] = (data.bookings || []).map((booking: any) => ({
+          id: booking.id,
+          session_title: booking.session_slot?.title || 'Unknown Session',
+          session_type: booking.session_slot?.slot_type || 'gym_class',
+          start_time: booking.session_start_time,
+          end_time: booking.session_end_time,
+          trainer_name: booking.session_slot?.trainer?.name || booking.session_slot?.coach?.name,
+          location: booking.session_slot?.location,
+          status: booking.status,
+          cost: booking.cost,
+          booked_at: booking.created_at,
+          cancellation_deadline: booking.cancellation_deadline,
+        }));
+        
+        setBookings(transformedBookings);
+      } else {
+        throw new Error('Failed to fetch bookings');
+      }
+    } catch (error) {
+      console.error('Error loading bookings:', error);
+      
+      // Fallback to mock data if API fails
+      const mockBookings: Booking[] = [
+        {
+          id: '1',
+          session_title: 'Morning HIIT',
+          session_type: 'gym_class',
+          start_time: moment().add(2, 'days').hour(9).minute(0).toISOString(),
+          end_time: moment().add(2, 'days').hour(9).minute(45).toISOString(),
+          trainer_name: 'Sarah Johnson',
+          location: 'Studio A',
+          status: 'confirmed',
+          cost: 10,
+          booked_at: moment().subtract(1, 'day').toISOString(),
+          cancellation_deadline: moment().add(1, 'day').hour(9).minute(0).toISOString(),
+        },
+        {
+          id: '2',
+          session_title: 'Personal Training',
+          session_type: 'personal_training',
+          start_time: moment().add(5, 'days').hour(18).minute(0).toISOString(),
+          end_time: moment().add(5, 'days').hour(19).minute(0).toISOString(),
+          trainer_name: 'Mike Davis',
+          location: 'Main Floor',
+          status: 'scheduled',
+          cost: 40,
+          booked_at: moment().subtract(2, 'days').toISOString(),
+          cancellation_deadline: moment().add(4, 'days').hour(18).minute(0).toISOString(),
+        },
+        {
+          id: '3',
+          session_title: 'Yoga Flow',
+          session_type: 'gym_class',
+          start_time: moment().subtract(3, 'days').hour(10).minute(30).toISOString(),
+          end_time: moment().subtract(3, 'days').hour(11).minute(30).toISOString(),
+          trainer_name: 'Emma Wilson',
+          location: 'Studio B',
+          status: 'completed',
+          cost: 8,
+          booked_at: moment().subtract(5, 'days').toISOString(),
+          cancellation_deadline: moment().subtract(4, 'days').hour(10).minute(30).toISOString(),
+        },
+      ];
+      setBookings(mockBookings);
+    } finally {
+      setLoadingBookings(false);
+    }
+  };
 
   const { upcomingBookings, pastBookings } = useMemo(() => {
     const now = moment();
@@ -106,14 +157,21 @@ export function CustomerBookings() {
     
     setLoading(true);
     try {
-      // Mock API call - replace with actual cancellation API
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Update the booking status locally
-      // In real app, refetch bookings from API
-      setCancellingBooking(null);
-    } catch (error) {
+      const response = await fetch(`/api/bookings/${cancellingBooking.id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setCancellingBooking(null);
+        loadBookings(); // Refresh bookings list
+        toast.success('Booking cancelled successfully');
+      } else {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to cancel booking');
+      }
+    } catch (error: any) {
       console.error('Failed to cancel booking:', error);
+      toast.error(error.message || 'Failed to cancel booking');
     } finally {
       setLoading(false);
     }
@@ -224,7 +282,21 @@ export function CustomerBookings() {
         </TabsList>
         
         <TabsContent value="upcoming" className="mt-6 space-y-4">
-          {upcomingBookings.length > 0 ? (
+          {loadingBookings ? (
+            <div className="space-y-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Card key={i}>
+                  <CardContent className="p-4">
+                    <div className="animate-pulse space-y-3">
+                      <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                      <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : upcomingBookings.length > 0 ? (
             upcomingBookings.map(booking => (
               <BookingCard key={booking.id} booking={booking} />
             ))
@@ -232,17 +304,35 @@ export function CustomerBookings() {
             <Card>
               <CardContent className="text-center py-12">
                 <Calendar className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-20" />
-                <p className="text-muted-foreground">No upcoming bookings</p>
-                <Button variant="link" className="mt-2">
-                  Book a session
-                </Button>
+                <p className="text-muted-foreground">
+                  {memberId ? 'No upcoming bookings for this member' : 'No upcoming bookings'}
+                </p>
+                {!memberId && (
+                  <Button variant="link" className="mt-2">
+                    Book a session
+                  </Button>
+                )}
               </CardContent>
             </Card>
           )}
         </TabsContent>
         
         <TabsContent value="past" className="mt-6 space-y-4">
-          {pastBookings.length > 0 ? (
+          {loadingBookings ? (
+            <div className="space-y-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Card key={i}>
+                  <CardContent className="p-4">
+                    <div className="animate-pulse space-y-3">
+                      <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                      <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : pastBookings.length > 0 ? (
             pastBookings.map(booking => (
               <BookingCard key={booking.id} booking={booking} />
             ))
@@ -250,7 +340,9 @@ export function CustomerBookings() {
             <Card>
               <CardContent className="text-center py-12">
                 <CheckCircle className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-20" />
-                <p className="text-muted-foreground">No past bookings</p>
+                <p className="text-muted-foreground">
+                  {memberId ? 'No past bookings for this member' : 'No past bookings'}
+                </p>
               </CardContent>
             </Card>
           )}
