@@ -402,6 +402,41 @@ export interface Database {
           created_at?: string
         }
       }
+      client_nutrition_plans: {
+        Row: {
+          id: string
+          client_id: string
+          organization_id: string
+          macro_targets: Json
+          profile_data: Json
+          meal_plan: Json | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          organization_id?: string
+          macro_targets: Json
+          profile_data: Json
+          meal_plan?: Json | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          organization_id?: string
+          macro_targets?: Json
+          profile_data?: Json
+          meal_plan?: Json | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
