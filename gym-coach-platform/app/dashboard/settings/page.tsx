@@ -16,7 +16,8 @@ import {
   Database,
   Plug,
   ArrowRight,
-  Check
+  Check,
+  FileText
 } from 'lucide-react'
 
 interface SettingsSection {
@@ -50,6 +51,15 @@ export default function SettingsPage() {
       href: '/dashboard/settings/membership-plans',
       status: 'incomplete',
       badges: ['Plans', 'Pricing']
+    },
+    {
+      id: 'waivers',
+      title: 'Waiver Templates',
+      description: 'Create and manage digital waiver templates for liability, medical, and photo releases',
+      icon: FileText,
+      href: '/dashboard/settings/waivers',
+      status: 'incomplete',
+      badges: ['Templates', 'Digital Signatures']
     },
     {
       id: 'lookinbody',
