@@ -48,7 +48,7 @@
     "test:security": "jest tests/security",
     "test:api": "jest tests/api",
     "test:db": "jest tests/database",
-    "prepare": "husky install",
+    "prepare": "husky",
     "test:perf": "jest tests/database/performance.test.ts",
     "test:integration": "tsx scripts/run-integration-tests.ts",
     "test:suite": "tsx scripts/run-tests.ts",
@@ -85,8 +85,7 @@
     "validate-env": "node scripts/validate-env.js",
     "analyze": "cross-env ANALYZE=true next build",
     "storybook": "storybook dev -p 6006",
-    "storybook:build": "storybook build",
-    "prepare": "husky"
+    "storybook:build": "storybook build"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.57.0",
