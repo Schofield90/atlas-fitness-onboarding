@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
 import DashboardLayout from '@/app/components/DashboardLayout'
+import DragDropFormBuilder from '@/app/components/FormBuilder/DragDropFormBuilder'
 
 export default function LeadFormsPage() {
   const [embedCode, setEmbedCode] = useState('')
@@ -22,7 +23,7 @@ export default function LeadFormsPage() {
   const [generatingForm, setGeneratingForm] = useState(false)
   const [customForms, setCustomForms] = useState<any[]>([])
   const [editingForm, setEditingForm] = useState<any>(null)
-  const [showEditModal, setShowEditModal] = useState(false)
+  const [showDragDropBuilder, setShowDragDropBuilder] = useState(false)
   
   const supabase = createClient()
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://atlas-fitness-onboarding.vercel.app'
@@ -90,7 +91,7 @@ export default function LeadFormsPage() {
 
   const handleEditForm = (form: any) => {
     setEditingForm(form)
-    setShowEditModal(true)
+    setShowDragDropBuilder(true)
   }
 
   const handleDeleteForm = async (formId: string) => {
@@ -130,7 +131,7 @@ export default function LeadFormsPage() {
       
       if (response.ok) {
         alert(editingForm ? 'Form updated successfully' : 'Form created successfully')
-        setShowEditModal(false)
+        setShowDragDropBuilder(false)
         setEditingForm(null)
         // Add a small delay to ensure database write completes
         setTimeout(() => {
@@ -144,6 +145,11 @@ export default function LeadFormsPage() {
       console.error('Error saving form:', error)
       alert('Failed to save form')
     }
+  }
+
+  const handleCancelEdit = () => {
+    setShowDragDropBuilder(false)
+    setEditingForm(null)
   }
 
   const generateForm = async () => {
@@ -189,7 +195,7 @@ export default function LeadFormsPage() {
 
         // Open edit modal so user can name and tweak the form
         setEditingForm(saveData.form)
-        setShowEditModal(true)
+        setShowDragDropBuilder(true)
 
         // Close builder modal and reset input
         setShowFormBuilder(false)
@@ -306,12 +312,29 @@ export default function LeadFormsPage() {
           <div className="bg-gray-800 rounded-lg p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-semibold">Your Forms</h2>
-              <button 
-                onClick={() => setShowFormBuilder(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                Create New Form
-              </button>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => {
+                    setEditingForm(null)
+                    setShowDragDropBuilder(true)
+                  }}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Visual Form Builder
+                </button>
+                <button 
+                  onClick={() => setShowFormBuilder(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  AI Form Builder
+                </button>
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -641,102 +664,13 @@ export default function LeadFormsPage() {
           </div>
         )}
 
-        {/* Edit Form Modal */}
-        {showEditModal && editingForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-              <h3 className="text-xl font-bold mb-4">Edit Form</h3>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Form Title</label>
-                  <input
-                    type="text"
-                    value={editingForm.title || ''}
-                    onChange={(e) => setEditingForm({...editingForm, title: e.target.value})}
-                    className="w-full px-4 py-2 bg-gray-700 rounded-lg text-white"
-                    placeholder="Enter form title"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Description</label>
-                  <textarea
-                    value={editingForm.description || ''}
-                    onChange={(e) => setEditingForm({...editingForm, description: e.target.value})}
-                    className="w-full px-4 py-2 bg-gray-700 rounded-lg text-white"
-                    rows={3}
-                    placeholder="Enter form description"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Form Type</label>
-                  <select
-                    value={editingForm.type || 'custom'}
-                    onChange={(e) => setEditingForm({...editingForm, type: e.target.value})}
-                    className="w-full px-4 py-2 bg-gray-700 rounded-lg text-white"
-                  >
-                    <option value="custom">Custom</option>
-                    <option value="waiver">Waiver</option>
-                    <option value="contract">Contract</option>
-                    <option value="health">Health</option>
-                    <option value="policy">Policy</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Form Fields (JSON Schema)</label>
-                  <textarea
-                    value={JSON.stringify(editingForm.schema, null, 2)}
-                    onChange={(e) => {
-                      try {
-                        const schema = JSON.parse(e.target.value)
-                        setEditingForm({...editingForm, schema})
-                      } catch (error) {
-                        // Invalid JSON, don't update
-                      }
-                    }}
-                    className="w-full px-4 py-2 bg-gray-700 rounded-lg text-white font-mono text-sm"
-                    rows={10}
-                    placeholder="Enter form schema as JSON"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">
-                    Edit the JSON schema to add, remove, or modify form fields
-                  </p>
-                </div>
-
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="isActive"
-                    checked={editingForm.is_active !== false}
-                    onChange={(e) => setEditingForm({...editingForm, is_active: e.target.checked})}
-                    className="mr-2"
-                  />
-                  <label htmlFor="isActive" className="text-sm">Form is active</label>
-                </div>
-              </div>
-
-              <div className="flex gap-4 mt-6">
-                <button
-                  onClick={() => handleSaveForm(editingForm)}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded transition-colors"
-                >
-                  Save Changes
-                </button>
-                <button
-                  onClick={() => {
-                    setShowEditModal(false)
-                    setEditingForm(null)
-                  }}
-                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
+        {/* Drag & Drop Form Builder */}
+        {showDragDropBuilder && (
+          <DragDropFormBuilder
+            initialFormData={editingForm}
+            onSave={handleSaveForm}
+            onCancel={handleCancelEdit}
+          />
         )}
         </div>
       </div>
