@@ -611,25 +611,6 @@ const getDefaultProps = (type: string): any => {
   }
 }
 
-// Empty canvas placeholder
-const EmptyCanvas: React.FC<{ onAddComponent: (type: string) => void }> = ({ onAddComponent }) => {
-  return (
-    <div className="flex flex-col items-center justify-center h-96 border-2 border-dashed border-gray-300 rounded-lg">
-      <div className="text-center">
-        <Plus className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">Start Building Your Page</h3>
-        <p className="text-gray-500 mb-4">Drag components from the left panel or click below</p>
-        <button
-          onClick={() => onAddComponent(COMPONENT_TYPES.HERO)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-        >
-          Add Hero Section
-        </button>
-      </div>
-    </div>
-  )
-}
-
 // Properties Panel
 const PropertiesPanel: React.FC<{
   component: Component | undefined
