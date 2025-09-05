@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { 
   ArrowLeft, 
   Mail, 
@@ -14,14 +17,22 @@ import {
   Calendar, 
   CreditCard, 
   User, 
+  Copy, 
+  Check,
+  Send,
+  Key,
+  ExternalLink,
   Users,
   Clock,
   MapPin,
-  Plus
+  Plus,
+  Edit,
+  FileText
 } from 'lucide-react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { toast } from 'react-hot-toast';
 import { formatBritishDate, formatBritishDateTime } from '@/lib/utils/british-format';
+import { BodyCompositionSection } from '@/components/clients/BodyCompositionSection';
 import { CustomerBookings } from '@/components/booking/CustomerBookings';
 import { MemberBookingForm } from '@/components/booking/MemberBookingForm';
 
@@ -30,6 +41,7 @@ interface Member {
   name: string;
   email: string;
   phone: string;
+  status?: string;
   membership_status: 'active' | 'paused' | 'cancelled';
   membership_type?: string;
   membership_plan?: {
@@ -52,12 +64,29 @@ interface Member {
   organization_id: string;
 }
 
+interface PortalAccess {
+  id: string;
+  access_code: string;
+  magic_link_token: string;
+  is_claimed: boolean;
+  claimed_at?: string;
+  expires_at: string;
+  welcome_email_sent: boolean;
+  welcome_email_sent_at?: string;
+}
+
 export default function MemberDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const [member, setMember] = useState<Member | null>(null);
+  const [portalAccess, setPortalAccess] = useState<PortalAccess | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [showBookingForm, setShowBookingForm] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [showNotesDialog, setShowNotesDialog] = useState(false);
+  const [notesText, setNotesText] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
   const supabase = createClientComponentClient();
 
   useEffect(() => {
@@ -68,19 +97,116 @@ export default function MemberDetailPage({ params }: { params: { id: string } })
 
   const loadMember = async () => {
     try {
+      // Get member details via API
       const response = await fetch(`/api/clients/${params.id}`);
       if (response.ok) {
         const data = await response.json();
-        setMember(data.client);
+        setMember(data);
       } else {
         console.error('Failed to load member:', response.status, response.statusText);
         toast.error('Failed to load member details');
+      }
+
+      // Get portal access via Supabase
+      const { data: accessData, error: accessError } = await supabase
+        .from('client_portal_access')
+        .select('*')
+        .eq('client_id', params.id)
+        .single();
+
+      if (!accessError && accessData) {
+        setPortalAccess(accessData);
       }
     } catch (error) {
       console.error('Error loading member:', error);
       toast.error('Error loading member details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      toast.success('Copied to clipboard');
+    } catch (error) {
+      toast.error('Failed to copy');
+    }
+  };
+
+  const sendWelcomeEmail = async () => {
+    setSendingEmail(true);
+    try {
+      const response = await fetch(`/api/clients/${params.id}/send-welcome`, {
+        method: 'POST'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send email');
+      }
+
+      toast.success('Welcome email sent successfully');
+      await loadMember(); // Reload to get updated status
+    } catch (error) {
+      console.error('Error sending email:', error);
+      toast.error('Failed to send welcome email');
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
+  const resendWelcomeEmail = async () => {
+    setSendingEmail(true);
+    try {
+      const response = await fetch(`/api/clients/${params.id}/resend-welcome`, {
+        method: 'POST'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to resend email');
+      }
+
+      toast.success('Welcome email resent successfully');
+    } catch (error) {
+      console.error('Error resending email:', error);
+      toast.error('Failed to resend welcome email');
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
+  const handleAddNote = () => {
+    setNotesText(member?.notes || '');
+    setShowNotesDialog(true);
+  };
+
+  const handleSaveNotes = async () => {
+    setSavingNotes(true);
+    try {
+      const response = await fetch(`/api/clients/${params.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          notes: notesText
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save notes');
+      }
+
+      toast.success('Notes saved successfully');
+      setShowNotesDialog(false);
+      await loadMember(); // Reload to get updated notes
+    } catch (error) {
+      console.error('Error saving notes:', error);
+      toast.error('Failed to save notes');
+    } finally {
+      setSavingNotes(false);
     }
   };
 
@@ -124,6 +250,8 @@ export default function MemberDetailPage({ params }: { params: { id: string } })
     );
   }
 
+  const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/client-portal/login`;
+
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       {/* Header */}
@@ -144,10 +272,11 @@ export default function MemberDetailPage({ params }: { params: { id: string } })
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="bookings">Class Bookings</TabsTrigger>
+          <TabsTrigger value="bookings">Bookings</TabsTrigger>
           <TabsTrigger value="membership">Membership</TabsTrigger>
+          <TabsTrigger value="portal">Portal Access</TabsTrigger>
           <TabsTrigger value="notes">Notes</TabsTrigger>
         </TabsList>
 
@@ -223,9 +352,12 @@ export default function MemberDetailPage({ params }: { params: { id: string } })
               </div>
             </CardContent>
           </Card>
+
+          {/* Body Composition */}
+          <BodyCompositionSection clientId={member.id} clientPhone={member.phone} />
         </TabsContent>
 
-        {/* Class Bookings Tab */}
+        {/* Bookings Tab */}
         <TabsContent value="bookings" className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -293,17 +425,156 @@ export default function MemberDetailPage({ params }: { params: { id: string } })
           </Card>
         </TabsContent>
 
+        {/* Portal Access Tab */}
+        <TabsContent value="portal" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Key className="h-5 w-5" />
+                Client Portal Access
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {portalAccess ? (
+                <div className="space-y-6">
+                  {/* Access Code */}
+                  <div className="bg-gray-50 p-6 rounded-lg space-y-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-2">Access Code</p>
+                      <div className="flex items-center gap-3">
+                        <code className="text-2xl font-mono bg-white px-4 py-2 rounded border">
+                          {portalAccess.access_code}
+                        </code>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => copyToClipboard(portalAccess.access_code)}
+                        >
+                          {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Client can use this code at: {portalUrl}
+                      </p>
+                    </div>
+
+                    {/* Status */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Status</p>
+                        <Badge variant={portalAccess.is_claimed ? 'default' : 'secondary'}>
+                          {portalAccess.is_claimed ? 'Claimed' : 'Unclaimed'}
+                        </Badge>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Welcome Email</p>
+                        <Badge variant={portalAccess.welcome_email_sent ? 'default' : 'secondary'}>
+                          {portalAccess.welcome_email_sent ? 'Sent' : 'Not Sent'}
+                        </Badge>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Expires</p>
+                        <p className="text-sm font-medium">{formatBritishDate(portalAccess.expires_at)}</p>
+                      </div>
+                    </div>
+
+                    {portalAccess.claimed_at && (
+                      <div>
+                        <p className="text-sm text-muted-foreground">Claimed At</p>
+                        <p className="text-sm">{formatBritishDateTime(portalAccess.claimed_at)}</p>
+                      </div>
+                    )}
+
+                    {portalAccess.welcome_email_sent_at && (
+                      <div>
+                        <p className="text-sm text-muted-foreground">Email Sent At</p>
+                        <p className="text-sm">{formatBritishDateTime(portalAccess.welcome_email_sent_at)}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-3">
+                    {!portalAccess.welcome_email_sent && member.email && (
+                      <Button
+                        onClick={sendWelcomeEmail}
+                        disabled={sendingEmail}
+                      >
+                        <Send className="h-4 w-4 mr-2" />
+                        {sendingEmail ? 'Sending...' : 'Send Welcome Email'}
+                      </Button>
+                    )}
+                    {portalAccess.welcome_email_sent && member.email && !portalAccess.is_claimed && (
+                      <Button
+                        variant="outline"
+                        onClick={resendWelcomeEmail}
+                        disabled={sendingEmail}
+                      >
+                        <Send className="h-4 w-4 mr-2" />
+                        {sendingEmail ? 'Sending...' : 'Resend Welcome Email'}
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      onClick={() => window.open(portalUrl, '_blank')}
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      View Portal Login
+                    </Button>
+                  </div>
+
+                  {!member.email && (
+                    <Alert>
+                      <AlertDescription>
+                        Add an email address to this member's profile to send welcome emails.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              ) : (
+                <Alert>
+                  <AlertDescription>
+                    No portal access found. Creating access code...
+                  </AlertDescription>
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Notes Tab */}
         <TabsContent value="notes" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Member Notes</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Member Notes
+                </CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddNote}
+                >
+                  {member.notes ? (
+                    <>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Notes
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Notes
+                    </>
+                  )}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {member.notes ? (
-                <p className="whitespace-pre-wrap">{member.notes}</p>
+                <p className="whitespace-pre-wrap text-sm leading-relaxed">{member.notes}</p>
               ) : (
-                <p className="text-muted-foreground">No notes available for this member.</p>
+                <p className="text-muted-foreground text-sm">No notes added yet. Click "Add Notes" to get started.</p>
               )}
             </CardContent>
           </Card>
@@ -320,6 +591,48 @@ export default function MemberDetailPage({ params }: { params: { id: string } })
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Notes Dialog */}
+      <Dialog open={showNotesDialog} onOpenChange={setShowNotesDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {member?.notes ? 'Edit Notes' : 'Add Notes'} for {member?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea
+                id="notes"
+                value={notesText}
+                onChange={(e) => setNotesText(e.target.value)}
+                placeholder="Add any relevant notes about this member..."
+                className="min-h-[200px] resize-none"
+              />
+              <p className="text-xs text-muted-foreground">
+                These notes are private and only visible to staff members.
+              </p>
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowNotesDialog(false)}
+                disabled={savingNotes}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveNotes}
+                disabled={savingNotes}
+              >
+                {savingNotes ? 'Saving...' : 'Save Notes'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Booking Form Modal */}
       {showBookingForm && (

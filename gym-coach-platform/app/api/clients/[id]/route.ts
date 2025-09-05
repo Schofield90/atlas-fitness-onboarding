@@ -14,6 +14,7 @@ const clientUpdateSchema = z.object({
   total_revenue: z.number().optional(),
   engagement_score: z.number().min(0).max(100).optional(),
   preferences: z.any().optional(),
+  notes: z.string().optional(),
 })
 
 export async function GET(
