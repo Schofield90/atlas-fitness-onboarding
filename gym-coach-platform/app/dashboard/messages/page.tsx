@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -21,16 +21,27 @@ import {
   Trash2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toast } from 'react-hot-toast'
+import MessageThread from '@/components/messaging/MessageThread'
 
 interface Conversation {
   id: string
-  name: string
-  avatar?: string
-  lastMessage: string
-  timestamp: string
-  unread: number
-  status: 'online' | 'offline' | 'away'
-  type: 'lead' | 'client' | 'staff'
+  title: string
+  status: string
+  last_message_at: string
+  created_at: string
+  last_message: string
+  unread_count: number
+  clients: {
+    id: string
+    name: string
+    email: string
+  }
+  users: {
+    id: string
+    name: string
+    email: string
+  }
 }
 
 interface Message {
@@ -44,52 +55,49 @@ interface Message {
 export default function MessagesPage() {
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [messageInput, setMessageInput] = useState('')
   const [showNewConversation, setShowNewConversation] = useState(false)
-
-  // Mock data - in production this would come from API
   const [conversations, setConversations] = useState<Conversation[]>([])
-  const [messages, setMessages] = useState<Message[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const handleStartConversation = () => {
-    // Create a new mock conversation
-    const newConversation: Conversation = {
-      id: `conv-${Date.now()}`,
-      name: 'New Lead',
-      lastMessage: 'Start your conversation...',
-      timestamp: 'now',
-      unread: 0,
-      status: 'online',
-      type: 'lead'
+  useEffect(() => {
+    loadConversations()
+  }, [])
+
+  const loadConversations = async () => {
+    setLoading(true)
+    try {
+      const response = await fetch('/api/conversations')
+      if (response.ok) {
+        const data = await response.json()
+        setConversations(data.conversations || [])
+      } else {
+        toast.error('Failed to load conversations')
+      }
+    } catch (error) {
+      console.error('Error loading conversations:', error)
+      toast.error('Error loading conversations')
+    } finally {
+      setLoading(false)
     }
-    setConversations([newConversation, ...conversations])
-    setSelectedConversation(newConversation.id)
-    setShowNewConversation(false)
-  }
-
-  const handleSendMessage = () => {
-    if (!messageInput.trim() || !selectedConversation) return
-
-    const newMessage: Message = {
-      id: `msg-${Date.now()}`,
-      content: messageInput,
-      sender: 'You',
-      timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-      isOwn: true
-    }
-
-    setMessages([...messages, newMessage])
-    setMessageInput('')
-
-    // Update conversation's last message
-    setConversations(conversations.map(conv => 
-      conv.id === selectedConversation 
-        ? { ...conv, lastMessage: messageInput, timestamp: 'now' }
-        : conv
-    ))
   }
 
   const selectedConv = conversations.find(c => c.id === selectedConversation)
+
+  const formatTime = (timestamp: string) => {
+    const date = new Date(timestamp)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 1) return 'Just now'
+    if (diffMins < 60) return `${diffMins}m ago`
+    if (diffHours < 24) return `${diffHours}h ago`
+    if (diffDays < 7) return `${diffDays}d ago`
+    
+    return date.toLocaleDateString()
+  }
 
   return (
     <div className="flex h-[calc(100vh-8rem)] bg-white rounded-lg shadow-sm border border-gray-200">
@@ -120,23 +128,25 @@ export default function MessagesPage() {
 
         {/* Conversations List */}
         <ScrollArea className="flex-1">
-          {conversations.length === 0 ? (
+          {loading ? (
+            <div className="flex flex-col items-center justify-center h-full p-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+              <p className="text-sm text-gray-500">Loading conversations...</p>
+            </div>
+          ) : conversations.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full p-8 text-center">
               <MessageSquare className="h-12 w-12 text-gray-300 mb-4" />
               <h3 className="text-sm font-medium text-gray-900 mb-2">No conversations yet</h3>
               <p className="text-sm text-gray-500 mb-4">
-                Start a conversation with your leads or clients
+                Conversations will appear here when you start messaging with clients
               </p>
-              <Button onClick={() => setShowNewConversation(true)} size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Start Conversation
-              </Button>
             </div>
           ) : (
             <div className="p-2">
               {conversations
                 .filter(conv => 
-                  conv.name.toLowerCase().includes(searchQuery.toLowerCase())
+                  conv.clients?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  conv.title?.toLowerCase().includes(searchQuery.toLowerCase())
                 )
                 .map((conversation) => (
                   <button
@@ -150,29 +160,25 @@ export default function MessagesPage() {
                     <div className="flex items-start gap-3">
                       <div className="relative">
                         <Avatar className="h-10 w-10">
-                          <AvatarImage src={conversation.avatar} />
-                          <AvatarFallback>{conversation.name[0]}</AvatarFallback>
+                          <AvatarFallback>{conversation.clients?.name?.[0] || 'C'}</AvatarFallback>
                         </Avatar>
-                        <div className={cn(
-                          "absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white",
-                          conversation.status === 'online' && "bg-green-500",
-                          conversation.status === 'away' && "bg-yellow-500",
-                          conversation.status === 'offline' && "bg-gray-300"
-                        )} />
+                        <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <p className="font-medium text-sm">{conversation.name}</p>
-                          <span className="text-xs text-gray-500">{conversation.timestamp}</span>
+                          <p className="font-medium text-sm">{conversation.clients?.name || conversation.title}</p>
+                          <span className="text-xs text-gray-500">{formatTime(conversation.last_message_at)}</span>
                         </div>
-                        <p className="text-sm text-gray-600 truncate">{conversation.lastMessage}</p>
+                        <p className="text-sm text-gray-600 truncate">
+                          {conversation.last_message || 'No messages yet'}
+                        </p>
                         <div className="flex items-center gap-2 mt-1">
                           <Badge variant="secondary" className="text-xs">
-                            {conversation.type}
+                            client
                           </Badge>
-                          {conversation.unread > 0 && (
+                          {conversation.unread_count > 0 && (
                             <Badge className="h-5 px-1.5 text-xs">
-                              {conversation.unread}
+                              {conversation.unread_count}
                             </Badge>
                           )}
                         </div>
@@ -186,160 +192,26 @@ export default function MessagesPage() {
       </div>
 
       {/* Conversation View */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1">
         {selectedConv ? (
-          <>
-            {/* Conversation Header */}
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={selectedConv.avatar} />
-                  <AvatarFallback>{selectedConv.name[0]}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="font-medium">{selectedConv.name}</p>
-                  <p className="text-sm text-gray-500">
-                    {selectedConv.status === 'online' ? 'Active now' : 'Last seen recently'}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon">
-                  <Phone className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon">
-                  <Video className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon">
-                  <Star className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon">
-                  <Archive className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Messages Area */}
-            <ScrollArea className="flex-1 p-4">
-              {messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-center">
-                  <MessageSquare className="h-12 w-12 text-gray-300 mb-4" />
-                  <p className="text-sm text-gray-500">
-                    No messages yet. Start the conversation!
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={cn(
-                        "flex",
-                        message.isOwn ? "justify-end" : "justify-start"
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "max-w-[70%] rounded-lg px-4 py-2",
-                          message.isOwn
-                            ? "bg-blue-600 text-white"
-                            : "bg-gray-100 text-gray-900"
-                        )}
-                      >
-                        <p className="text-sm">{message.content}</p>
-                        <p className={cn(
-                          "text-xs mt-1",
-                          message.isOwn ? "text-blue-100" : "text-gray-500"
-                        )}>
-                          {message.timestamp}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
-
-            {/* Message Input */}
-            <div className="p-4 border-t border-gray-200">
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon">
-                  <Paperclip className="h-4 w-4" />
-                </Button>
-                <Input
-                  placeholder={selectedConversation ? "Type a message..." : "Select a conversation to start"}
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      handleSendMessage()
-                    }
-                  }}
-                  disabled={!selectedConversation}
-                  className="flex-1"
-                />
-                <Button variant="ghost" size="icon">
-                  <Smile className="h-4 w-4" />
-                </Button>
-                <Button onClick={handleSendMessage} disabled={!messageInput.trim() || !selectedConversation}>
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </>
+          <MessageThread
+            conversationId={selectedConv.id}
+            clientName={selectedConv.clients?.name || selectedConv.title}
+            clientAvatar={undefined}
+            className="h-full"
+          />
         ) : (
-          <div className="flex-1 flex items-center justify-center">
+          <div className="flex-1 flex items-center justify-center h-full">
             <div className="text-center">
               <MessageSquare className="h-16 w-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">Select a conversation</h3>
               <p className="text-gray-500 mb-4">
-                Choose a conversation from the list or start a new one
+                Choose a conversation from the list to start messaging
               </p>
-              {conversations.length === 0 && (
-                <Button onClick={() => setShowNewConversation(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Start New Conversation
-                </Button>
-              )}
             </div>
           </div>
         )}
       </div>
-
-      {/* New Conversation Modal */}
-      {showNewConversation && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96">
-            <h3 className="text-lg font-semibold mb-4">Start New Conversation</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-1 block">Recipient</label>
-                <Input placeholder="Search for lead or client..." />
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-1 block">Message</label>
-                <textarea
-                  className="w-full border rounded-lg p-2 text-sm"
-                  rows={4}
-                  placeholder="Type your message..."
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 mt-6">
-              <Button variant="outline" onClick={() => setShowNewConversation(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleStartConversation}>
-                Start Conversation
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
