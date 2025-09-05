@@ -38,17 +38,51 @@ async function createClientMember(request: NextRequest) {
   // Check for existing client with same email or phone in this organization
   const orgId = userWithOrg.organizationId
   
+  // Normalize email for comparison
+  const normalizedEmail = body.email.toLowerCase().trim()
+  
   // Check for duplicate email in the same organization
   // Only org_id column exists in the database
   const { data: dupByEmail } = await supabase
     .from('clients')
     .select('id')
-    .ilike('email', body.email)
+    .ilike('email', normalizedEmail)
     .eq('org_id', orgId)
     .limit(1)
   
   if (dupByEmail && dupByEmail.length > 0) {
     throw ValidationError.duplicate('email', body.email)
+  }
+  
+  // Check for duplicate by name (to prevent creating multiple entries for same person)
+  const normalizedFirstName = body.first_name.toLowerCase().trim()
+  const normalizedLastName = body.last_name.toLowerCase().trim()
+  
+  const { data: dupByName } = await supabase
+    .from('clients')
+    .select('id, email, phone')
+    .ilike('first_name', normalizedFirstName)
+    .ilike('last_name', normalizedLastName)
+    .eq('org_id', orgId)
+    .limit(1)
+  
+  if (dupByName && dupByName.length > 0) {
+    // If same name exists, check if it might be the same person
+    const existing = dupByName[0]
+    const existingPhone = String(existing.phone || '').replace(/\D/g, '')
+    const newPhone = String(body.phone || '').replace(/\D/g, '')
+    
+    // If phone matches or email domain matches, likely same person
+    const existingEmailDomain = existing.email?.split('@')[1]
+    const newEmailDomain = normalizedEmail.split('@')[1]
+    
+    if (existingPhone === newPhone || existingEmailDomain === newEmailDomain) {
+      throw new ValidationError(
+        `A member named ${body.first_name} ${body.last_name} already exists. If this is a different person, please add a middle initial or other distinguishing information.`,
+        'duplicate_person',
+        { existing: existing.email }
+      )
+    }
   }
   
   // Check for duplicate phone in the same organization
@@ -75,9 +109,9 @@ async function createClientMember(request: NextRequest) {
   
   // Build insert data with core required fields only
   const insertData: any = {
-    first_name: body.first_name,
-    last_name: body.last_name,
-    email: body.email,
+    first_name: body.first_name.trim(),
+    last_name: body.last_name.trim(),
+    email: normalizedEmail,
     phone: body.phone,
     org_id: userWithOrg.organizationId,
     status: 'active'
