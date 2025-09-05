@@ -1,0 +1,8 @@
+export { HeaderComponent } from './HeaderComponent'
+export { HeroComponent } from './HeroComponent'
+export { TextComponent } from './TextComponent'
+export { ImageComponent } from './ImageComponent'
+export { ButtonComponent } from './ButtonComponent'
+export { FormComponent } from './FormComponent'
+export { FeaturesComponent } from './FeaturesComponent'
+export { CTAComponent } from './CTAComponent'

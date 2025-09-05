@@ -121,6 +121,11 @@ export default function SimpleDashboard() {
               <p className="text-gray-400">Create lead capture forms</p>
             </a>
 
+            <a href="/landing-pages" className="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition-colors">
+              <h3 className="text-lg font-semibold text-white mb-2">Landing Pages</h3>
+              <p className="text-gray-400">Build and manage landing pages</p>
+            </a>
+
             <a href="/settings" className="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition-colors">
               <h3 className="text-lg font-semibold text-white mb-2">Settings</h3>
               <p className="text-gray-400">Manage your account</p>
