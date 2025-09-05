@@ -2,9 +2,14 @@ import Stripe from 'stripe';
 import { createAdminClient } from '../supabase/admin';
 
 // Initialize Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2024-12-18.acacia',
-});
+const stripeKey = process.env.STRIPE_SECRET_KEY;
+let stripe: Stripe | null = null;
+
+if (stripeKey) {
+  stripe = new Stripe(stripeKey, {
+    apiVersion: '2024-12-18.acacia',
+  });
+}
 
 interface CreateSubscriptionParams {
   organizationId: string;
@@ -25,6 +30,13 @@ interface UpdateSubscriptionParams {
 
 export class StripeBillingService {
   private supabase = createAdminClient();
+  private stripe = stripe;
+
+  private checkStripeConfigured(): void {
+    if (!this.stripe) {
+      throw new Error('Stripe is not configured. Please set STRIPE_SECRET_KEY.');
+    }
+  }
 
   /**
    * Create or get Stripe customer for an organization
@@ -42,7 +54,8 @@ export class StripeBillingService {
     }
 
     // Create new Stripe customer
-    const customer = await stripe.customers.create({
+    this.checkStripeConfigured();
+    const customer = await this.stripe!.customers.create({
       email,
       name,
       metadata: {
@@ -85,11 +98,11 @@ export class StripeBillingService {
 
     // Attach payment method if provided
     if (paymentMethodId) {
-      await stripe.paymentMethods.attach(paymentMethodId, {
+      await this.stripe!.paymentMethods.attach(paymentMethodId, {
         customer: customerId,
       });
 
-      await stripe.customers.update(customerId, {
+      await this.stripe!.customers.update(customerId, {
         invoice_settings: {
           default_payment_method: paymentMethodId,
         },
@@ -132,7 +145,7 @@ export class StripeBillingService {
       }
     }
 
-    const subscription = await stripe.subscriptions.create(subscriptionParams);
+    const subscription = await this.stripe!.subscriptions.create(subscriptionParams);
 
     // Save subscription to database
     await this.supabase.from('billing_subscriptions').upsert({
@@ -163,13 +176,14 @@ export class StripeBillingService {
    * Update existing subscription
    */
   async updateSubscription(params: UpdateSubscriptionParams) {
+    this.checkStripeConfigured();
     const { subscriptionId, newPlanId, newBillingCycle, cancelAtPeriodEnd } = params;
 
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    const subscription = await this.stripe!.subscriptions.retrieve(subscriptionId);
 
     if (cancelAtPeriodEnd !== undefined) {
       // Cancel or uncancel at period end
-      await stripe.subscriptions.update(subscriptionId, {
+      await this.stripe!.subscriptions.update(subscriptionId, {
         cancel_at_period_end: cancelAtPeriodEnd,
       });
 
@@ -205,7 +219,7 @@ export class StripeBillingService {
       }
 
       // Update subscription in Stripe
-      const updatedSubscription = await stripe.subscriptions.update(subscriptionId, {
+      const updatedSubscription = await this.stripe!.subscriptions.update(subscriptionId, {
         items: [{
           id: subscription.items.data[0].id,
           price: newPriceId,
@@ -236,8 +250,9 @@ export class StripeBillingService {
    * Cancel subscription
    */
   async cancelSubscription(subscriptionId: string, immediately = false) {
+    this.checkStripeConfigured();
     if (immediately) {
-      await stripe.subscriptions.cancel(subscriptionId);
+      await this.stripe!.subscriptions.cancel(subscriptionId);
       
       await this.supabase
         .from('billing_subscriptions')
@@ -247,7 +262,7 @@ export class StripeBillingService {
         })
         .eq('stripe_subscription_id', subscriptionId);
     } else {
-      await stripe.subscriptions.update(subscriptionId, {
+      await this.stripe!.subscriptions.update(subscriptionId, {
         cancel_at_period_end: true,
       });
 
@@ -300,7 +315,7 @@ export class StripeBillingService {
       ? plan.stripe_annual_price_id 
       : plan.stripe_monthly_price_id;
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await this.stripe!.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'subscription',
       customer_email: org?.contact_email,
@@ -333,6 +348,7 @@ export class StripeBillingService {
    * Create customer portal session
    */
   async createPortalSession(organizationId: string, returnUrl: string) {
+    this.checkStripeConfigured();
     // Get customer ID
     const { data: subscription } = await this.supabase
       .from('billing_subscriptions')
@@ -344,7 +360,7 @@ export class StripeBillingService {
       throw new Error('No subscription found');
     }
 
-    const session = await stripe.billingPortal.sessions.create({
+    const session = await this.stripe!.billingPortal.sessions.create({
       customer: subscription.stripe_customer_id,
       return_url: returnUrl,
     });
@@ -362,7 +378,7 @@ export class StripeBillingService {
     let productId = plan.stripe_product_id;
     
     if (!productId) {
-      const product = await stripe.products.create({
+      const product = await this.stripe!.products.create({
         name: plan.name,
         description: plan.description,
         metadata: {
@@ -381,7 +397,7 @@ export class StripeBillingService {
 
     // Create prices
     if (plan.monthly_price && !plan.stripe_monthly_price_id) {
-      const monthlyPrice = await stripe.prices.create({
+      const monthlyPrice = await this.stripe!.prices.create({
         product: productId,
         unit_amount: Math.round(plan.monthly_price * 100), // Convert to pence
         currency: plan.currency || 'gbp',
@@ -401,7 +417,7 @@ export class StripeBillingService {
     }
 
     if (plan.annual_price && !plan.stripe_annual_price_id) {
-      const annualPrice = await stripe.prices.create({
+      const annualPrice = await this.stripe!.prices.create({
         product: productId,
         unit_amount: Math.round(plan.annual_price * 100), // Convert to pence
         currency: plan.currency || 'gbp',
@@ -436,7 +452,7 @@ export class StripeBillingService {
    * Get promotion code
    */
   private async getPromotionCode(code: string): Promise<Stripe.PromotionCode | null> {
-    const promotionCodes = await stripe.promotionCodes.list({
+    const promotionCodes = await this.stripe!.promotionCodes.list({
       code: code,
       active: true,
       limit: 1,
