@@ -146,13 +146,13 @@ export default function EditWorkflowPage() {
         
         if (!response.ok) throw new Error('Failed to create workflow')
         
-        // Get the new ID and redirect to automations page
+        // Get the new ID and stay in the builder (replace URL to new id)
         const data = await response.json()
         if (data.workflow?.id) {
-          router.push('/automations')
+          router.replace(`/automations/builder/${data.workflow.id}`)
         }
       } else {
-        // Update existing workflow
+        // Update existing workflow (stay on page)
         const response = await fetch(`/api/automations/workflows/${params.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -161,9 +161,6 @@ export default function EditWorkflowPage() {
         
         if (!response.ok) throw new Error('Failed to update workflow')
       }
-      
-      // Always redirect after manual save
-      router.push('/automations')
     } catch (error) {
       console.error('Failed to save workflow:', error)
       alert('Failed to save workflow. Please try again.')

@@ -68,19 +68,30 @@ function AutomationsContent() {
       setLoading(true)
       const params = new URLSearchParams({
         page: pagination.page.toString(),
-        pageSize: pagination.pageSize.toString(),
+        page_size: pagination.pageSize.toString(),
         ...(statusFilter !== 'all' && { status: statusFilter })
       })
       
-      const response = await fetch(`/api/automations?${params}`)
+      const response = await fetch(`/api/automations/workflows?${params}`)
       const data = await response.json()
       
-      if (data.success) {
-        setWorkflows(data.workflows || [])
+      if (response.ok) {
+        const list = (data.workflows || []).map((w: any) => ({
+          id: w.id,
+          name: w.name,
+          description: w.description || '',
+          status: w.status || 'draft',
+          trigger: w.trigger_type || 'manual',
+          totalExecutions: w.total_executions || 0,
+          lastExecuted: w.last_executed,
+          created_at: w.created_at,
+          updated_at: w.updated_at,
+        }))
+        setWorkflows(list)
         setPagination(prev => ({
           ...prev,
-          total: data.total || 0,
-          totalPages: Math.ceil((data.total || 0) / prev.pageSize)
+          total: data.pagination?.total || 0,
+          totalPages: data.pagination?.totalPages || Math.ceil(((data.pagination?.total || 0)) / prev.pageSize)
         }))
       }
     } catch (error) {
@@ -361,7 +372,7 @@ function AutomationsContent() {
                   </button>
                   
                   <Link
-                    href={`/automations/builder?id=${workflow.id}`}
+                    href={`/automations/builder/${workflow.id}`}
                     className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-gray-400 hover:text-white"
                     title="Edit Workflow"
                   >
