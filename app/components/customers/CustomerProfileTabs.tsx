@@ -64,7 +64,7 @@ export default function CustomerProfileTabs({ customer, onUpdate }: CustomerProf
         {activeTab === 'registrations' && <RegistrationsTab customerId={customer.id} />}
         {activeTab === 'waivers' && <WaiversTab customerId={customer.id} />}
         {activeTab === 'family' && <FamilyTab customerId={customer.id} organizationId={customer.organization_id} />}
-        {activeTab === 'payments' && <PaymentsTab customerId={customer.id} />}
+        {activeTab === 'payments' && <PaymentsTab customerId={customer.id} organizationId={customer.organization_id} />}
         {activeTab === 'memberships' && <MembershipsTab customerId={customer.id} />}
         {activeTab === 'forms' && <FormsTab customerId={customer.id} />}
         {activeTab === 'issues' && <IssuesTab customerId={customer.id} />}
