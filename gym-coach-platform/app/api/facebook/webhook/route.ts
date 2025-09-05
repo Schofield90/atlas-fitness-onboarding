@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/api/middleware'
 import { createHmac } from 'crypto'
 
 const FACEBOOK_WEBHOOK_VERIFY_TOKEN = process.env.FACEBOOK_WEBHOOK_VERIFY_TOKEN || 'atlas-fitness-webhook-2024'
-const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET!
+const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET || ''
 
 interface FacebookLeadGenEvent {
   object: 'page'
