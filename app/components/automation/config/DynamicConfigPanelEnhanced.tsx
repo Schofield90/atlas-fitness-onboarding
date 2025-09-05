@@ -150,13 +150,14 @@ const getTriggerFields = (subtype: string, dynamicData?: any): FormField[] => {
 
   switch (subtype) {
     case 'facebook_lead_form':
-      const { facebookPages = [], facebookForms = [], loadingFacebookData = false } = dynamicData || {}
+      const { facebookPages = [], facebookForms = [], loadingFacebookPages = false, loadingFacebookForms = false } = dynamicData || {}
       
       // Debug logging
       console.log('Facebook Lead Form Config:', {
         pagesCount: facebookPages.length,
         formsCount: facebookForms.length,
-        loading: loadingFacebookData,
+        loadingPages: loadingFacebookPages,
+        loadingForms: loadingFacebookForms,
         currentPageId: dynamicData?.config?.pageId
       })
       
@@ -172,7 +173,7 @@ const getTriggerFields = (subtype: string, dynamicData?: any): FormField[] => {
           label: 'Facebook Page',
           type: 'select' as const,
           required: true,
-          options: loadingFacebookData 
+          options: loadingFacebookPages 
             ? [{ value: 'loading', label: 'Loading pages...' }]
             : facebookPages.length > 0 
               ? facebookPages
@@ -199,7 +200,7 @@ const getTriggerFields = (subtype: string, dynamicData?: any): FormField[] => {
           label: 'Select Lead Forms',
           type: 'multi-select' as const,
           required: true,
-          options: loadingFacebookData
+          options: loadingFacebookForms
             ? [{ value: 'loading', label: 'Loading forms...' }]
             : availableForms.length > 0
               ? availableForms
@@ -225,7 +226,7 @@ const getTriggerFields = (subtype: string, dynamicData?: any): FormField[] => {
           buttonText: '🔗 Connect Facebook Account',
           onClick: () => window.open('/settings/integrations', '_blank'),
           description: 'Connect your Facebook account to use this trigger',
-          showWhen: (config: any) => facebookPages.length === 0 && !loadingFacebookData
+          showWhen: (config: any) => facebookPages.length === 0 && !loadingFacebookPages
         }
       ]
 
@@ -763,7 +764,8 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
   const [isValid, setIsValid] = useState(false)
   const [facebookPages, setFacebookPages] = useState<Array<{ value: string; label: string }>>([])
   const [facebookForms, setFacebookForms] = useState<Array<{ value: string; label: string; pageId?: string }>>([])
-  const [loadingFacebookData, setLoadingFacebookData] = useState(false)
+  const [loadingFacebookPages, setLoadingFacebookPages] = useState(false)
+  const [loadingFacebookForms, setLoadingFacebookForms] = useState(false)
   const [forms, setForms] = useState<Array<{ value: string; label: string }>>([])
   const [loadingForms, setLoadingForms] = useState(false)
   const [userPhone, setUserPhone] = useState('')
@@ -810,7 +812,8 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
   // Fetch Facebook data
   const fetchFacebookData = async () => {
     console.log('fetchFacebookData called')
-    setLoadingFacebookData(true)
+    setLoadingFacebookPages(true)
+    setLoadingFacebookForms(false)
     try {
       // Fetch pages with organization context
       const pagesResponse = await fetch('/api/integrations/facebook/pages')
@@ -825,6 +828,7 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
           console.log('No Facebook connection found')
           setFacebookPages([])
           setFacebookForms([])
+          setLoadingFacebookPages(false)
           toast.error('Please connect your Facebook account first in Settings > Integrations')
           return
         }
@@ -835,12 +839,14 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
             label: page.name
           }))
           setFacebookPages(pageOptions)
+          setLoadingFacebookPages(false)
           
           // Now fetch forms for ALL pages using the lead-forms endpoint
           const pageIds = pagesData.pages.map((p: any) => p.id).join(',')
           console.log('Fetching lead forms for pages:', pageIds)
           
           try {
+            setLoadingFacebookForms(true)
             const formsResponse = await fetch(`/api/integrations/facebook/lead-forms?pageIds=${pageIds}`)
             if (formsResponse.ok) {
               const formsData = await formsResponse.json()
@@ -873,21 +879,25 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
           } catch (error) {
             console.error('Error fetching lead forms:', error)
             setFacebookForms([])
+          } finally {
+            setLoadingFacebookForms(false)
           }
         } else {
           setFacebookPages([])
           setFacebookForms([])
+          setLoadingFacebookPages(false)
         }
       } else {
         const errorData = await pagesResponse.json()
         console.error('Failed to fetch pages:', errorData)
+        setLoadingFacebookPages(false)
         toast.error(errorData.message || 'Failed to load Facebook pages')
       }
     } catch (error) {
       console.error('Error fetching Facebook data:', error)
+      setLoadingFacebookPages(false)
+      setLoadingFacebookForms(false)
       toast.error('Failed to load Facebook data. Please check your Facebook integration.')
-    } finally {
-      setLoadingFacebookData(false)
     }
   }
   
@@ -1099,7 +1109,8 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
   const formSchema = getNodeConfigSchema(node, { 
     facebookPages, 
     facebookForms, 
-    loadingFacebookData, 
+    loadingFacebookPages,
+    loadingFacebookForms,
     config,
     forms,
     loadingForms,
