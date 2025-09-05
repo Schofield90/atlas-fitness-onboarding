@@ -259,7 +259,7 @@ async function getOrganizationContext(supabase: any, organizationId: string): Pr
       { data: recentBookings },
       { data: recentPayments }
     ] = await Promise.all([
-      supabase.from('leads').select('*', { count: 'exact', head: true }).eq('organization_id', organizationId).eq('status', 'customer'),
+      supabase.from('leads').select('*', { count: 'exact', head: true }).eq('org_id', organizationId).eq('status', 'customer'),
       supabase.from('staff').select('*', { count: 'exact', head: true }).eq('organization_id', organizationId).eq('status', 'active'),
       supabase.from('class_sessions').select('*', { count: 'exact', head: true }).eq('organization_id', organizationId),
       supabase.from('bookings').select('*').eq('organization_id', organizationId).order('created_at', { ascending: false }).limit(100),
