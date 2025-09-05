@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, use } from 'react'
+import { useState } from 'react'
 
 interface FormParams {
-  params: Promise<{ id: string }>
+  params: { id: string }
 }
 
 export default function EmbedForm({ params }: FormParams) {
-  const { id } = use(params)
+  const { id } = params
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
