@@ -257,13 +257,20 @@ function mapFacebookFieldType(type: string): FieldMapping['facebook_field_type']
  * Apply field mappings to transform Facebook lead data to CRM format
  */
 export async function applyFieldMappings(
-  leadData: Record<string, any>,
+  leadData: Record<string, any> | Array<{ name: string; values?: any[]; value?: any }>,
   mappings: FieldMapping[]
 ): Promise<Record<string, any>> {
   const transformed: Record<string, any> = {}
   
   for (const mapping of mappings) {
-    const rawValue = leadData[mapping.facebook_field_name]
+    let rawValue: any
+    if (Array.isArray(leadData)) {
+      // Support Meta lead payload array format: [{ name, values }]
+      const match = leadData.find((f) => (f as any).name === mapping.facebook_field_name) as any
+      rawValue = match ? (Array.isArray(match.values) ? match.values[0] : match.value) : undefined
+    } else {
+      rawValue = (leadData as Record<string, any>)[mapping.facebook_field_name]
+    }
     
     if (rawValue === undefined || rawValue === null || rawValue === '') {
       continue
@@ -401,24 +408,27 @@ export async function saveFieldMappings(
   try {
     const supabase = await createClient()
     
-    // Store in facebook_field_mappings table
+    // Persist mappings on the facebook_lead_forms row for this organization + form
+    // Use upsert in case the form row doesn't exist yet
+    const now = new Date().toISOString()
     const { error } = await supabase
-      .from('facebook_field_mappings')
-      .upsert({
-        organization_id: organizationId,
-        form_id: formId,
-        mappings: mappings.mappings,
-        custom_mappings: mappings.custom_mappings,
-        auto_create_contact: mappings.auto_create_contact,
-        default_lead_source: mappings.default_lead_source,
-        version: mappings.version,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'organization_id,form_id'
-      })
+      .from('facebook_lead_forms')
+      .upsert(
+        {
+          organization_id: organizationId,
+          facebook_form_id: formId,
+          // Store mapping payload into dedicated columns
+          field_mappings: mappings.mappings,
+          custom_field_mappings: mappings.custom_mappings,
+          field_mappings_configured: true,
+          field_mappings_version: mappings.version,
+          updated_at: now,
+        },
+        { onConflict: 'organization_id,facebook_form_id' }
+      )
 
     if (error) {
-      console.error('Error saving field mappings:', error)
+      console.error('Error saving field mappings to facebook_lead_forms:', error)
       return { success: false, error: error.message }
     }
 
@@ -443,29 +453,29 @@ export async function getFieldMappings(
     const supabase = await createClient()
     
     const { data, error } = await supabase
-      .from('facebook_field_mappings')
-      .select('*')
+      .from('facebook_lead_forms')
+      .select('created_at, updated_at, field_mappings, custom_field_mappings, field_mappings_version')
       .eq('organization_id', organizationId)
-      .eq('form_id', formId)
-      .single()
+      .eq('facebook_form_id', formId)
+      .maybeSingle()
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        // No mapping found
-        return null
-      }
       console.error('Error retrieving field mappings:', error)
       return null
     }
 
+    if (!data) {
+      return null
+    }
+
     return {
-      version: data.version || '1.0',
-      created_at: data.created_at,
-      updated_at: data.updated_at,
-      mappings: data.mappings || [],
-      custom_mappings: data.custom_mappings || [],
-      auto_create_contact: data.auto_create_contact ?? true,
-      default_lead_source: data.default_lead_source || 'Facebook'
+      version: (data as any).field_mappings_version || '1.0',
+      created_at: (data as any).created_at,
+      updated_at: (data as any).updated_at,
+      mappings: (data as any).field_mappings || [],
+      custom_mappings: (data as any).custom_field_mappings || [],
+      auto_create_contact: true,
+      default_lead_source: 'Facebook Lead Form'
     }
   } catch (error) {
     console.error('Error retrieving field mappings:', error)
@@ -654,11 +664,11 @@ export class FacebookFieldMappingService {
   }
 
   async saveFieldMappings(
+    organizationId: string,
     formId: string, 
-    organizationId: string, 
     mappings: StoredFieldMappings
   ): Promise<void> {
-    return saveFieldMappings(formId, organizationId, mappings)
+    return saveFieldMappings(organizationId, formId, mappings)
   }
 
   async getFieldMappings(
