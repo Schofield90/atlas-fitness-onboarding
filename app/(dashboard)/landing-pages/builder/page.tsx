@@ -14,24 +14,33 @@ export default function LandingPageBuilderPage() {
   const [showBuilder, setShowBuilder] = useState(false)
 
   const handleSave = async (content: any[]) => {
+    // Prompt for page details first; abort if user cancels at any step
+    const name = prompt('Enter a name for this landing page:')
+    if (name === null) {
+      return
+    }
+    const finalName = name.trim() === '' ? 'Untitled Page' : name
+
+    const description = prompt('Enter a description (optional):')
+    if (description === null) {
+      return
+    }
+    const finalDescription = description || ''
+
     setSaving(true)
     try {
-      // Prompt for page details
-      const name = prompt('Enter a name for this landing page:') || 'Untitled Page'
-      const description = prompt('Enter a description (optional):') || ''
-      
       const response = await fetch('/api/landing-pages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          name,
-          description,
+          name: finalName,
+          description: finalDescription,
           content,
-          title: name,
-          meta_title: name,
-          meta_description: description
+          title: finalName,
+          meta_title: finalName,
+          meta_description: finalDescription
         })
       })
       
