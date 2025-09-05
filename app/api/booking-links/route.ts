@@ -145,6 +145,27 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // Persist availability rules into booking_availability if provided
+    try {
+      const availabilityRules: any = body.availability_rules || {}
+      for (const staffId of Object.keys(availabilityRules)) {
+        const weekly = availabilityRules[staffId]?.weekly || {}
+        const flatRules: Array<{ day_of_week: number; start_time: string; end_time: string; is_available: boolean }> = []
+        for (const dayKey of Object.keys(weekly)) {
+          const dayNum = Number(dayKey)
+          const intervals = weekly[dayKey] || []
+          for (const intv of intervals) {
+            flatRules.push({ day_of_week: dayNum, start_time: intv.start, end_time: intv.end, is_available: true })
+          }
+        }
+        if (flatRules.length > 0) {
+          await bookingLinkService.setAvailabilityRules(bookingLink.id, staffId, flatRules)
+        }
+      }
+    } catch (e) {
+      console.error('Failed to persist availability rules for booking link', e)
+    }
+
     return NextResponse.json({ booking_link: bookingLink }, { status: 201 })
 
   } catch (error) {

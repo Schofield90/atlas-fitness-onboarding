@@ -50,6 +50,8 @@ export default function BookingLinkEditor({ bookingLinkId, onSave, onCancel }: B
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([])
   const [showPreview, setShowPreview] = useState(false)
   const [previewUrl, setPreviewUrl] = useState('')
+  const [slugCheck, setSlugCheck] = useState<{ available: boolean; checking: boolean; message: string }>({ available: true, checking: false, message: '' })
+  const [availabilityValidationErrors, setAvailabilityValidationErrors] = useState<string[]>([])
 
   const [formData, setFormData] = useState<Partial<BookingLink>>({
     name: '',
@@ -116,6 +118,35 @@ export default function BookingLinkEditor({ bookingLinkId, onSave, onCancel }: B
     }
   }, [bookingLinkId])
 
+  // Debounced slug availability check
+  useEffect(() => {
+    if (!formData.slug || (formData.slug || '').trim().length === 0) {
+      setSlugCheck({ available: false, checking: false, message: 'URL slug is required' })
+      return
+    }
+
+    const sanitized = (formData.slug || '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '')
+    if (sanitized !== formData.slug) {
+      setFormData({ ...formData, slug: sanitized })
+      return
+    }
+
+    setSlugCheck(prev => ({ ...prev, checking: true }))
+    const handle = setTimeout(async () => {
+      try {
+        const url = `/api/booking-links/check-slug?slug=${encodeURIComponent(formData.slug!)}${bookingLinkId ? `&exclude_id=${bookingLinkId}` : ''}`
+        const response = await fetch(url)
+        if (!response.ok) throw new Error('Failed to check slug')
+        const data = await response.json()
+        setSlugCheck({ available: !!data.available, checking: false, message: data.available ? '' : 'This slug is already taken' })
+      } catch (e) {
+        setSlugCheck({ available: false, checking: false, message: 'Unable to validate slug' })
+      }
+    }, 400)
+
+    return () => clearTimeout(handle)
+  }, [formData.slug, bookingLinkId])
+
   const fetchBookingLink = async () => {
     try {
       const response = await fetch(`/api/booking-links/${bookingLinkId}`)
@@ -148,16 +179,68 @@ export default function BookingLinkEditor({ bookingLinkId, onSave, onCancel }: B
       const response = await fetch('/api/staff')
       if (response.ok) {
         const { staff } = await response.json()
-        setStaffMembers(staff || [])
+        const mapped: StaffMember[] = (staff || []).map((s: any) => ({
+          id: s.user_id || s.id,
+          full_name: s.full_name || s.name || s.user_details?.name || s.email || 'Staff Member',
+          avatar_url: s.avatar_url,
+          title: s.role || s.title,
+          specializations: s.specializations || []
+        }))
+        // Deduplicate by id and filter falsy ids
+        const uniqueById = new Map<string, StaffMember>()
+        for (const m of mapped) {
+          if (m.id) uniqueById.set(m.id, m)
+        }
+        setStaffMembers(Array.from(uniqueById.values()))
       }
     } catch (error) {
       console.error('Error fetching staff:', error)
     }
   }
 
+  const validateAvailability = (): string[] => {
+    const errors: string[] = []
+    const rules: any = formData.availability_rules || {}
+    const isValidTime = (t: string) => /^\d{2}:\d{2}$/.test(t)
+    Object.keys(rules || {}).forEach((staffId) => {
+      const cfg = rules[staffId] || {}
+      const weekly = cfg.weekly || {}
+      Object.keys(weekly).forEach((dayKey) => {
+        const day = weekly[dayKey] || []
+        // validate format and ordering
+        const intervals = day.map((i: any) => ({ start: i.start, end: i.end }))
+        for (const i of intervals) {
+          if (!isValidTime(i.start) || !isValidTime(i.end)) {
+            errors.push(`Invalid time format for staff ${staffId} on day ${dayKey}`)
+          } else if (i.start >= i.end) {
+            errors.push(`Start time must be before end time for staff ${staffId} on day ${dayKey}`)
+          }
+        }
+        // overlap check
+        const sorted = intervals
+          .slice()
+          .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0))
+        for (let i = 1; i < sorted.length; i++) {
+          if (sorted[i].start < sorted[i - 1].end) {
+            errors.push(`Overlapping intervals for staff ${staffId} on day ${dayKey}`)
+            break
+          }
+        }
+      })
+    })
+    return errors
+  }
+
   const handleSave = async () => {
     setSaving(true)
     try {
+      // Client-side validation for availability
+      const availabilityErrors = validateAvailability()
+      setAvailabilityValidationErrors(availabilityErrors)
+      if (availabilityErrors.length > 0) {
+        throw new Error('Please fix availability configuration errors before saving.')
+      }
+
       const url = bookingLinkId ? `/api/booking-links/${bookingLinkId}` : '/api/booking-links'
       const method = bookingLinkId ? 'PUT' : 'POST'
       
@@ -261,7 +344,7 @@ export default function BookingLinkEditor({ bookingLinkId, onSave, onCancel }: B
           )}
           <Button
             onClick={handleSave}
-            disabled={saving || !formData.name || !formData.slug}
+            disabled={saving || !formData.name || !formData.slug || slugCheck.checking || !slugCheck.available}
             className="bg-orange-600 hover:bg-orange-700"
           >
             <Save className="w-4 h-4 mr-2" />
@@ -292,6 +375,9 @@ export default function BookingLinkEditor({ bookingLinkId, onSave, onCancel }: B
               <Copy className="w-4 h-4" />
             </Button>
           </div>
+          {!slugCheck.available && !slugCheck.checking && (
+            <div className="text-red-400 text-xs mt-2">{slugCheck.message || 'This slug is unavailable'}</div>
+          )}
         </div>
       )}
 
@@ -320,7 +406,7 @@ export default function BookingLinkEditor({ bookingLinkId, onSave, onCancel }: B
 
       {/* Tab Content */}
       <div className="bg-gray-800 rounded-lg p-6">
-        {activeTab === 'details' && <DetailsTab formData={formData} setFormData={setFormData} appointmentTypes={appointmentTypes} staffMembers={staffMembers} generateSlug={generateSlug} />}
+        {activeTab === 'details' && <DetailsTab formData={formData} setFormData={setFormData} appointmentTypes={appointmentTypes} staffMembers={staffMembers} generateSlug={generateSlug} slugCheck={slugCheck} />}
         {activeTab === 'availability' && <AvailabilityTab formData={formData} setFormData={setFormData} staffMembers={staffMembers} />}
         {activeTab === 'form' && <FormTab formData={formData} setFormData={setFormData} />}
         {activeTab === 'notifications' && <NotificationsTab formData={formData} setFormData={setFormData} />}
@@ -356,12 +442,13 @@ export default function BookingLinkEditor({ bookingLinkId, onSave, onCancel }: B
 // TAB COMPONENTS
 // =============================================
 
-const DetailsTab = ({ formData, setFormData, appointmentTypes, staffMembers, generateSlug }: {
+const DetailsTab = ({ formData, setFormData, appointmentTypes, staffMembers, generateSlug, slugCheck }: {
   formData: Partial<BookingLink>
   setFormData: (data: Partial<BookingLink>) => void
   appointmentTypes: AppointmentType[]
   staffMembers: StaffMember[]
   generateSlug: (name: string) => string
+  slugCheck: { available: boolean; checking: boolean; message: string }
 }) => {
   return (
     <div className="space-y-6">
@@ -397,7 +484,7 @@ const DetailsTab = ({ formData, setFormData, appointmentTypes, staffMembers, gen
             <label className="block text-sm font-medium text-gray-300 mb-2">
               URL Slug *
             </label>
-            <div className="flex items-center">
+            <div className="flex items-center gap-2">
               <span className="text-gray-400 text-sm mr-1">/book/</span>
               <input
                 type="text"
@@ -406,6 +493,9 @@ const DetailsTab = ({ formData, setFormData, appointmentTypes, staffMembers, gen
                 className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
                 placeholder="consultation"
               />
+              <span className={`text-xs ${slugCheck.checking ? 'text-gray-400' : slugCheck.available ? 'text-green-400' : 'text-red-400'}`}>
+                {slugCheck.checking ? 'Checking…' : slugCheck.available ? 'Available' : slugCheck.message || 'Unavailable'}
+              </span>
             </div>
           </div>
 
@@ -727,6 +817,74 @@ const AvailabilityTab = ({ formData, setFormData, staffMembers }: {
   staffMembers: StaffMember[]
 }) => {
   const [selectedStaff, setSelectedStaff] = useState<string>('')
+  const [localBuffer, setLocalBuffer] = useState<{ before: number; after: number }>(() => ({
+    before: formData.buffer_settings?.before_minutes ?? 0,
+    after: formData.buffer_settings?.after_minutes ?? 15
+  }))
+
+  const days = [
+    { key: 0, label: 'Sun' },
+    { key: 1, label: 'Mon' },
+    { key: 2, label: 'Tue' },
+    { key: 3, label: 'Wed' },
+    { key: 4, label: 'Thu' },
+    { key: 5, label: 'Fri' },
+    { key: 6, label: 'Sat' }
+  ]
+
+  const getWeeklyForStaff = (staffId: string) => {
+    const rules: any = formData.availability_rules || {}
+    const cfg = rules[staffId] || {}
+    return cfg.weekly || {}
+  }
+
+  const updateWeeklyForStaff = (staffId: string, updater: (prev: any) => any) => {
+    const rules: any = formData.availability_rules || {}
+    const prevCfg = rules[staffId] || {}
+    const nextWeekly = updater(prevCfg.weekly || {})
+    const nextRules = {
+      ...rules,
+      [staffId]: {
+        ...prevCfg,
+        weekly: nextWeekly
+      }
+    }
+    setFormData({ ...formData, availability_rules: nextRules })
+  }
+
+  const addInterval = (staffId: string, dayKey: number) => {
+    updateWeeklyForStaff(staffId, (prev: any) => {
+      const day = prev[dayKey] || []
+      return { ...prev, [dayKey]: [...day, { start: '09:00', end: '17:00' }] }
+    })
+  }
+
+  const updateInterval = (staffId: string, dayKey: number, index: number, field: 'start' | 'end', value: string) => {
+    updateWeeklyForStaff(staffId, (prev: any) => {
+      const day = prev[dayKey] || []
+      const next = day.slice()
+      next[index] = { ...next[index], [field]: value }
+      return { ...prev, [dayKey]: next }
+    })
+  }
+
+  const removeInterval = (staffId: string, dayKey: number, index: number) => {
+    updateWeeklyForStaff(staffId, (prev: any) => {
+      const day = prev[dayKey] || []
+      const next = day.filter((_: any, i: number) => i !== index)
+      return { ...prev, [dayKey]: next }
+    })
+  }
+
+  const applyBuffer = () => {
+    setFormData({
+      ...formData,
+      buffer_settings: {
+        before_minutes: localBuffer.before,
+        after_minutes: localBuffer.after
+      }
+    })
+  }
 
   return (
     <div className="space-y-6">
@@ -735,66 +893,141 @@ const AvailabilityTab = ({ formData, setFormData, staffMembers }: {
         Availability Settings
       </h3>
       
-      <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-4">
-        <p className="text-yellow-300 text-sm">
-          <strong>Note:</strong> Full availability management will be implemented in the next phase. 
-          For now, staff availability is managed through individual calendar settings.
-        </p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Staff Availability
+          </label>
+          <p className="text-sm text-gray-400 mb-4">
+            Select staff and configure weekly working hours with optional buffers.
+          </p>
+          {staffMembers.length === 0 ? (
+            <p className="text-sm text-gray-400">No staff members found</p>
+          ) : (
+            <div className="space-y-2">
+              {staffMembers.map((staff) => (
+                <div key={staff.id} className="flex items-center justify-between p-3 bg-gray-700 rounded">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.assigned_staff_ids?.includes(staff.id) || false}
+                      onChange={(e) => {
+                        const currentIds = formData.assigned_staff_ids || []
+                        if (e.target.checked) {
+                          setFormData({
+                            ...formData,
+                            assigned_staff_ids: [...currentIds, staff.id]
+                          })
+                        } else {
+                          setFormData({
+                            ...formData,
+                            assigned_staff_ids: currentIds.filter(id => id !== staff.id)
+                          })
+                        }
+                      }}
+                      className="mr-3"
+                    />
+                    <div>
+                      <span className="text-sm text-gray-300">{staff.full_name}</span>
+                      {staff.title && (
+                        <div className="text-xs text-gray-500">{staff.title}</div>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedStaff(staff.id)}
+                  >
+                    Configure Schedule
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">Global Buffers</label>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-400">Before</span>
+              <input
+                type="number"
+                min={0}
+                max={120}
+                value={localBuffer.before}
+                onChange={(e) => setLocalBuffer({ ...localBuffer, before: Number(e.target.value) })}
+                className="w-20 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+              />
+              <span className="text-sm text-gray-400">min</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-400">After</span>
+              <input
+                type="number"
+                min={0}
+                max={120}
+                value={localBuffer.after}
+                onChange={(e) => setLocalBuffer({ ...localBuffer, after: Number(e.target.value) })}
+                className="w-20 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+              />
+              <span className="text-sm text-gray-400">min</span>
+            </div>
+            <Button variant="outline" size="sm" onClick={applyBuffer}>Apply</Button>
+          </div>
+        </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
-          Staff Availability
-        </label>
-        <p className="text-sm text-gray-400 mb-4">
-          Configure which staff members are available for this booking link and their schedules.
-        </p>
-        
-        {staffMembers.length === 0 ? (
-          <p className="text-sm text-gray-400">No staff members found</p>
-        ) : (
-          <div className="space-y-2">
-            {staffMembers.map((staff) => (
-              <div key={staff.id} className="flex items-center justify-between p-3 bg-gray-700 rounded">
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={formData.assigned_staff_ids?.includes(staff.id) || false}
-                    onChange={(e) => {
-                      const currentIds = formData.assigned_staff_ids || []
-                      if (e.target.checked) {
-                        setFormData({
-                          ...formData,
-                          assigned_staff_ids: [...currentIds, staff.id]
-                        })
-                      } else {
-                        setFormData({
-                          ...formData,
-                          assigned_staff_ids: currentIds.filter(id => id !== staff.id)
-                        })
-                      }
-                    }}
-                    className="mr-3"
-                  />
-                  <div>
-                    <span className="text-sm text-gray-300">{staff.full_name}</span>
-                    {staff.title && (
-                      <div className="text-xs text-gray-500">{staff.title}</div>
-                    )}
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedStaff(staff.id)}
-                >
-                  Configure Schedule
-                </Button>
-              </div>
-            ))}
+      {selectedStaff && (
+        <div className="border border-gray-700 rounded p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-sm text-gray-300">
+              Configure weekly hours for {staffMembers.find(s => s.id === selectedStaff)?.full_name || 'Staff'}
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setSelectedStaff('')}>Close</Button>
           </div>
-        )}
-      </div>
+          <div className="space-y-3">
+            {days.map((d) => {
+              const weekly = getWeeklyForStaff(selectedStaff)
+              const intervals: Array<{ start: string; end: string }> = weekly[d.key] || []
+              return (
+                <div key={d.key} className="bg-gray-700 rounded p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-gray-200">{d.label}</span>
+                    <Button variant="outline" size="sm" onClick={() => addInterval(selectedStaff, d.key)}>Add interval</Button>
+                  </div>
+                  {intervals.length === 0 ? (
+                    <div className="text-xs text-gray-400">No intervals</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {intervals.map((intv, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <input
+                            type="time"
+                            value={intv.start}
+                            onChange={(e) => updateInterval(selectedStaff, d.key, idx, 'start', e.target.value)}
+                            className="px-2 py-1 bg-gray-600 border border-gray-500 rounded text-white text-sm"
+                          />
+                          <span className="text-gray-400 text-sm">to</span>
+                          <input
+                            type="time"
+                            value={intv.end}
+                            onChange={(e) => updateInterval(selectedStaff, d.key, idx, 'end', e.target.value)}
+                            className="px-2 py-1 bg-gray-600 border border-gray-500 rounded text-white text-sm"
+                          />
+                          <Button variant="outline" size="sm" onClick={() => removeInterval(selectedStaff, d.key, idx)}>
+                            Remove
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -805,11 +1038,24 @@ const FormTab = ({ formData, setFormData }: {
 }) => {
   const [customFields, setCustomFields] = useState(formData.form_configuration?.fields || [])
 
+  const generateFieldId = (base: string) => {
+    const sanitized = base.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
+    let candidate = sanitized || 'custom_field'
+    const existing = new Set((customFields || []).map((f: any) => f.id))
+    let i = 1
+    while (existing.has(candidate)) {
+      candidate = `${sanitized || 'custom_field'}_${i++}`
+    }
+    return candidate
+  }
+
   const addCustomField = () => {
+    const label = 'Custom Field'
+    const id = generateFieldId(label)
     const newField = {
-      id: Date.now().toString(),
-      name: 'custom_field',
-      label: 'Custom Field',
+      id,
+      name: id,
+      label,
       type: 'text' as const,
       required: false,
       display_order: customFields.length
@@ -822,6 +1068,22 @@ const FormTab = ({ formData, setFormData }: {
         ...formData.form_configuration,
         fields: updatedFields
       }
+    })
+  }
+
+  const sanitizeLabel = (value: string) => value.replace(/\s+/g, ' ').trim().slice(0, 120)
+  const ensureUniqueIds = (fields: any[]) => {
+    const seen = new Set<string>()
+    return fields.map((f) => {
+      let id = (f.id || f.name || 'custom_field').toString()
+      id = id.toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '')
+      let candidate = id || 'custom_field'
+      let i = 1
+      while (seen.has(candidate)) {
+        candidate = `${id || 'custom_field'}_${i++}`
+      }
+      seen.add(candidate)
+      return { ...f, id: candidate, name: candidate }
     })
   }
 
@@ -881,13 +1143,18 @@ const FormTab = ({ formData, setFormData }: {
                     value={field.label}
                     onChange={(e) => {
                       const updatedFields = [...customFields]
-                      updatedFields[index] = { ...field, label: e.target.value }
-                      setCustomFields(updatedFields)
+                      const newLabel = sanitizeLabel(e.target.value)
+                      // if name/id still defaulting to previous label, keep them in sync
+                      const wasDefault = !field.name || field.name === field.id || field.name.includes('custom_field')
+                      const nextId = wasDefault ? generateFieldId(newLabel) : field.id
+                      updatedFields[index] = { ...field, label: newLabel, id: nextId, name: nextId }
+                      const normalized = ensureUniqueIds(updatedFields)
+                      setCustomFields(normalized)
                       setFormData({
                         ...formData,
                         form_configuration: {
                           ...formData.form_configuration,
-                          fields: updatedFields
+                          fields: normalized
                         }
                       })
                     }}
@@ -899,12 +1166,13 @@ const FormTab = ({ formData, setFormData }: {
                     onChange={(e) => {
                       const updatedFields = [...customFields]
                       updatedFields[index] = { ...field, type: e.target.value as any }
-                      setCustomFields(updatedFields)
+                      const normalized = ensureUniqueIds(updatedFields)
+                      setCustomFields(normalized)
                       setFormData({
                         ...formData,
                         form_configuration: {
                           ...formData.form_configuration,
-                          fields: updatedFields
+                          fields: normalized
                         }
                       })
                     }}
@@ -925,12 +1193,13 @@ const FormTab = ({ formData, setFormData }: {
                       onChange={(e) => {
                         const updatedFields = [...customFields]
                         updatedFields[index] = { ...field, required: e.target.checked }
-                        setCustomFields(updatedFields)
+                        const normalized = ensureUniqueIds(updatedFields)
+                        setCustomFields(normalized)
                         setFormData({
                           ...formData,
                           form_configuration: {
                             ...formData.form_configuration,
-                            fields: updatedFields
+                            fields: normalized
                           }
                         })
                       }}
@@ -944,12 +1213,13 @@ const FormTab = ({ formData, setFormData }: {
                   size="sm"
                   onClick={() => {
                     const updatedFields = customFields.filter((_, i) => i !== index)
-                    setCustomFields(updatedFields)
+                    const normalized = ensureUniqueIds(updatedFields).map((f, i) => ({ ...f, display_order: i }))
+                    setCustomFields(normalized)
                     setFormData({
                       ...formData,
                       form_configuration: {
                         ...formData.form_configuration,
-                        fields: updatedFields
+                        fields: normalized
                       }
                     })
                   }}

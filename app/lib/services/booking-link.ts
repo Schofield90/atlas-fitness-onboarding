@@ -1063,6 +1063,53 @@ export class BookingLinkService {
       }
     }
 
+    // Validate availability weekly rules do not overlap per staff per day
+    const rules: any = config.availability_rules || {}
+    const isValidTime = (t: string) => /^\d{2}:\d{2}$/.test(t)
+    Object.keys(rules || {}).forEach((staffId) => {
+      const cfg = rules[staffId] || {}
+      const weekly = cfg.weekly || {}
+      Object.keys(weekly).forEach((dayKey) => {
+        const day = weekly[dayKey] || []
+        const intervals = day.map((i: any) => ({ start: i.start, end: i.end }))
+        for (const i of intervals) {
+          if (!isValidTime(i.start) || !isValidTime(i.end)) {
+            errors.push(`Invalid time format for staff ${staffId} on day ${dayKey}`)
+          } else if (i.start >= i.end) {
+            errors.push(`Start time must be before end time for staff ${staffId} on day ${dayKey}`)
+          }
+        }
+        const sorted = intervals
+          .slice()
+          .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0))
+        for (let i = 1; i < sorted.length; i++) {
+          if (sorted[i].start < sorted[i - 1].end) {
+            errors.push(`Overlapping intervals for staff ${staffId} on day ${dayKey}`)
+            break
+          }
+        }
+      })
+    })
+
+    // Validate custom form fields uniqueness and allowed types
+    const fields = config.form_configuration?.fields || []
+    const allowedTypes = new Set(['text','email','phone','textarea','select','checkbox','radio','date','time'])
+    const seenIds = new Set<string>()
+    for (const f of fields) {
+      if (!f.id || !/^[a-z0-9_]+$/.test(f.id)) {
+        errors.push('Each custom field must have a valid unique id (a-z,0-9,_)')
+      } else if (seenIds.has(f.id)) {
+        errors.push(`Duplicate custom field id: ${f.id}`)
+      }
+      seenIds.add(f.id)
+      if (!allowedTypes.has(f.type as any)) {
+        errors.push(`Invalid field type for ${f.id}`)
+      }
+      if (typeof f.required !== 'boolean') {
+        errors.push(`Required must be boolean for ${f.id}`)
+      }
+    }
+
     return {
       valid: errors.length === 0,
       errors
