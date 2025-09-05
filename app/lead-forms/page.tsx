@@ -170,11 +170,30 @@ export default function LeadFormsPage() {
       }
       
       if (data.success) {
-        // For now, we'll show the form was generated
-        alert('Form generated successfully! Form saving functionality will be implemented.');
-        setShowFormBuilder(false);
-        setFormDescription('');
-        // In the future, this will save the form and redirect to form editor
+        // Save the generated form immediately
+        const saveResponse = await fetch('/api/forms/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data.form)
+        })
+        const saveData = await saveResponse.json()
+
+        if (!saveResponse.ok || !saveData?.form) {
+          throw new Error(saveData?.error || 'Failed to save generated form')
+        }
+
+        // Refresh forms list so it appears straight away
+        setTimeout(() => {
+          loadCustomForms()
+        }, 300)
+
+        // Open edit modal so user can name and tweak the form
+        setEditingForm(saveData.form)
+        setShowEditModal(true)
+
+        // Close builder modal and reset input
+        setShowFormBuilder(false)
+        setFormDescription('')
       }
     } catch (error: any) {
       console.error('Error generating form:', error);
