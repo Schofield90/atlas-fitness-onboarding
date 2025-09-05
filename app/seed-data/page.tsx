@@ -1,5 +1,5 @@
 'use client'
-
+import Link from 'next/link'
 import { useState } from 'react'
 import { CheckCircle, Loader2, AlertCircle } from 'lucide-react'
 
@@ -101,19 +101,19 @@ export default function SeedDataPage() {
             <h3 className="text-sm font-medium text-gray-900 mb-2">Next Steps</h3>
             <ul className="text-sm text-gray-600 space-y-2">
               <li>
-                <a href="/booking" className="text-blue-600 hover:text-blue-800">
+                <Link href="/booking" className="text-blue-600 hover:text-blue-800">
                   → View Booking Calendar
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="/client/booking" className="text-blue-600 hover:text-blue-800">
+                <Link href="/client/booking" className="text-blue-600 hover:text-blue-800">
                   → Test Client Booking
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="/test-client" className="text-blue-600 hover:text-blue-800">
+                <Link href="/test-client" className="text-blue-600 hover:text-blue-800">
                   → View Test Client Portal
-                </a>
+                </Link>
               </li>
             </ul>
           </div>

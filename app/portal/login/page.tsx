@@ -1,5 +1,5 @@
 'use client'
-
+import Link from 'next/link'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/app/lib/supabase/client'
@@ -234,9 +234,9 @@ export default function MemberPortalLogin() {
           {!codeSent && (
             <div className="mt-6 text-center text-sm text-gray-400">
               Don't have an account?{' '}
-              <a href="/signup" className="text-orange-500 hover:text-orange-400">
+              <Link href="/signup" className="text-orange-500 hover:text-orange-400">
                 Contact your gym
-              </a>
+              </Link>
             </div>
           )}
         </div>

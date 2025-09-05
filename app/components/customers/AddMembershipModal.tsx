@@ -85,6 +85,24 @@ export default function AddMembershipModal({
 
       if (!userOrg) throw new Error('No organization found')
 
+      // First check if customer already has an active membership with this plan
+      const { data: existingMemberships, error: checkError } = await supabase
+        .from('customer_memberships')
+        .select('*')
+        .eq('customer_id', customerId)
+        .eq('membership_plan_id', selectedPlanId)
+        .eq('status', 'active')
+
+      if (checkError) {
+        console.error('Error checking existing memberships:', checkError)
+      }
+
+      if (existingMemberships && existingMemberships.length > 0) {
+        setError('This customer already has an active membership with this plan. Please cancel or modify the existing membership first.')
+        setLoading(false)
+        return
+      }
+
       // Calculate end date based on billing period
       const selectedPlan = membershipPlans.find(p => p.id === selectedPlanId)
       let endDate = null
@@ -112,14 +130,27 @@ export default function AddMembershipModal({
           created_by: user.id
         })
 
-      if (insertError) throw insertError
+      if (insertError) {
+        // Handle specific error cases
+        if (insertError.code === '23505') {
+          setError('This customer already has this membership. Please check the existing memberships.')
+        } else if (insertError.message?.includes('violates foreign key constraint')) {
+          setError('Invalid customer or membership plan. Please refresh and try again.')
+        } else {
+          setError(insertError.message || 'Failed to add membership')
+        }
+        throw insertError
+      }
 
       onSuccess()
       onClose()
       resetForm()
     } catch (error: any) {
       console.error('Error adding membership:', error)
-      setError(error.message || 'Failed to add membership')
+      // Error is already set in the if block above
+      if (!error.code) {
+        setError(error.message || 'Failed to add membership')
+      }
     } finally {
       setLoading(false)
     }

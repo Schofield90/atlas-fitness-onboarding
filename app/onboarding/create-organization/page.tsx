@@ -1,5 +1,5 @@
 'use client'
-
+import Link from 'next/link'
 import { useState } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -225,13 +225,13 @@ export default function CreateOrganizationPage() {
 
         <p className="text-center text-sm text-gray-500">
           By creating an organization, you agree to our{' '}
-          <a href="/terms" className="text-orange-500 hover:text-orange-400">
+          <Link href="/terms" className="text-orange-500 hover:text-orange-400">
             Terms of Service
-          </a>{' '}
+          </Link>{' '}
           and{' '}
-          <a href="/privacy" className="text-orange-500 hover:text-orange-400">
+          <Link href="/privacy" className="text-orange-500 hover:text-orange-400">
             Privacy Policy
-          </a>
+          </Link>
         </p>
       </div>
     </div>

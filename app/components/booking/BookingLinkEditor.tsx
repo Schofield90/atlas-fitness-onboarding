@@ -559,9 +559,9 @@ const DetailsTab = ({ formData, setFormData, appointmentTypes, staffMembers, gen
             {appointmentTypes.length === 0 ? (
               <div className="text-sm text-gray-400 p-3 bg-gray-700 rounded">
                 <p>No appointment types found.</p>
-                <a href="/settings/booking" className="text-orange-500 hover:text-orange-400 underline">
+                <Link href="/settings/booking" className="text-orange-500 hover:text-orange-400 underline">
                   Create appointment types first →
-                </a>
+                </Link>
               </div>
             ) : (
               <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-600 rounded p-3">

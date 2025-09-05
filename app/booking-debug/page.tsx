@@ -1,5 +1,5 @@
 'use client'
-
+import Link from 'next/link'
 import { useState } from 'react'
 import DashboardLayout from '@/app/components/DashboardLayout'
 import { getCurrentUserOrganization } from '@/app/lib/organization-service'
@@ -133,7 +133,7 @@ export default function BookingDebugPage() {
               <li>Click "Check Organization" to verify your organization ID</li>
               <li>Click "Seed Classes" to create sample programs and class sessions</li>
               <li>Click "Fetch Classes" to see what classes exist</li>
-              <li>Go to the <a href="/booking" className="text-blue-400 hover:text-blue-300">Booking page</a> to see the calendar view</li>
+              <li>Go to the <Link href="/booking" className="text-blue-400 hover:text-blue-300">Booking page</Link> to see the calendar view</li>
             </ol>
           </div>
         </div>
