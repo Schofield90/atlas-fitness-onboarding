@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       .from('leads')
       .select('*')
       .eq('id', leadId)
-      .eq('organization_id', userWithOrg.organizationId)
+      .eq('org_id', userWithOrg.organizationId)
       .single()
 
     if (leadError || !lead) {

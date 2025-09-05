@@ -5,6 +5,44 @@
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning'
 
+/**
+ * Extract error message from various error response formats
+ */
+export function extractErrorMessage(error: any): string {
+  if (typeof error === 'string') {
+    return error
+  }
+  
+  if (error instanceof Error) {
+    return error.message
+  }
+  
+  // Handle structured error response from our error handler
+  if (error?.error) {
+    if (typeof error.error === 'string') {
+      return error.error
+    }
+    return error.error.userMessage || error.error.message || 'An error occurred'
+  }
+  
+  // Handle direct message properties
+  if (error?.message) {
+    return error.message
+  }
+  
+  // Handle userMessage property
+  if (error?.userMessage) {
+    return error.userMessage
+  }
+  
+  // Fallback to JSON string representation
+  try {
+    return JSON.stringify(error)
+  } catch {
+    return 'An unknown error occurred'
+  }
+}
+
 export interface ToastOptions {
   message: string
   type?: ToastType
@@ -95,10 +133,7 @@ class ToastManager {
   }
 
   error(message: string | any, duration?: number): void {
-    // Ensure message is a string
-    const msg = typeof message === 'string' 
-      ? message 
-      : message?.message || message?.error || JSON.stringify(message)
+    const msg = extractErrorMessage(message)
     this.show({ message: msg, type: 'error', duration })
   }
 
