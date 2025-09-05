@@ -40,13 +40,12 @@ jest.mock('reactflow', () => ({
   },
   Background: () => React.createElement('div', { 'data-testid': 'background' }),
   Controls: () => React.createElement('div', { 'data-testid': 'controls' }),
-  MiniMap: ({ maskColor, className }: any) => (
-    <div 
-      data-testid="minimap" 
-      className={className}
-      style={{ maskColor }}
-    />
-  ),
+  MiniMap: ({ maskColor, className }: any) => 
+    React.createElement('div', {
+      'data-testid': 'minimap',
+      className,
+      style: { maskColor }
+    }),
   ReactFlow: ({ 
     children, 
     onInit, 
@@ -63,15 +62,11 @@ jest.mock('reactflow', () => ({
         })
       }
     }, [onInit])
-    return (
-      <div 
-        data-testid="reactflow" 
-        data-pan-on-drag={panOnDrag}
-        {...props}
-      >
-        {children}
-      </div>
-    )
+    return React.createElement('div', {
+      'data-testid': 'reactflow',
+      'data-pan-on-drag': panOnDrag,
+      ...props
+    }, children)
   },
   NodeToolbar: ({ children }: { children: React.ReactNode }) => React.createElement('div', { 'data-testid': 'node-toolbar' }, children),
   Panel: ({ children }: { children: React.ReactNode }) => React.createElement('div', { 'data-testid': 'panel' }, children),
