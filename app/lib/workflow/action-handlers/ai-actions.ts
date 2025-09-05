@@ -2,13 +2,27 @@ import { ActionConfig, ExecutionContext, NodeExecutionResult } from '../types';
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+// Lazy initialization to avoid build-time errors
+let openai: OpenAI | null = null;
+let anthropic: Anthropic | null = null;
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY
-});
+function getOpenAI(): OpenAI {
+  if (!openai && process.env.OPENAI_API_KEY) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY
+    });
+  }
+  return openai!;
+}
+
+function getAnthropic(): Anthropic {
+  if (!anthropic && process.env.ANTHROPIC_API_KEY) {
+    anthropic = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY
+    });
+  }
+  return anthropic!;
+}
 
 export async function aiGenerateAction(
   config: ActionConfig,
@@ -40,7 +54,7 @@ export async function aiGenerateAction(
       
       messages.push({ role: 'user', content: prompt });
       
-      const completion = await openai.chat.completions.create({
+      const completion = await getOpenAI().chat.completions.create({
         model,
         messages,
         temperature,

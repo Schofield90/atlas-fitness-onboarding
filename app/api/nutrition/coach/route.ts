@@ -3,14 +3,33 @@ import { createClient } from '@/app/lib/supabase/server'
 import OpenAI from 'openai'
 import Anthropic from '@anthropic-ai/sdk'
 
-// Initialize AI clients
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!
-})
+// Lazy initialization to avoid build-time errors
+let openai: OpenAI | null = null
+let anthropic: Anthropic | null = null
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY!
-})
+function getOpenAI(): OpenAI {
+  if (!openai && process.env.OPENAI_API_KEY) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY
+    })
+  }
+  if (!openai) {
+    throw new Error('OpenAI API key not configured')
+  }
+  return openai
+}
+
+function getAnthropic(): Anthropic {
+  if (!anthropic && process.env.ANTHROPIC_API_KEY) {
+    anthropic = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY
+    })
+  }
+  if (!anthropic) {
+    throw new Error('Anthropic API key not configured')
+  }
+  return anthropic
+}
 
 // System prompt for nutrition coaching
 const NUTRITION_COACH_PROMPT = `You are an expert AI nutrition coach with deep knowledge of:
@@ -93,7 +112,7 @@ Today's Progress:
     // Use Claude for complex reasoning, OpenAI for structured data
     if (isAskingForMealPlan) {
       // Generate structured meal plan with OpenAI
-      const completion = await openai.chat.completions.create({
+      const completion = await getOpenAI().chat.completions.create({
         model: 'gpt-4-turbo-preview',
         messages: [
           {
@@ -143,7 +162,7 @@ Today's Progress:
         console.error('Claude API error:', claudeError)
         
         // Fallback to OpenAI
-        const completion = await openai.chat.completions.create({
+        const completion = await getOpenAI().chat.completions.create({
           model: 'gpt-3.5-turbo',
           messages: [
             {
@@ -229,7 +248,7 @@ function extractMealsFromResponse(response: string): any {
 // Helper function to parse food from natural language
 async function parseFoodFromMessage(message: string): Promise<any> {
   try {
-    const completion = await openai.chat.completions.create({
+            const completion = await getOpenAI().chat.completions.create({
       model: 'gpt-3.5-turbo',
       messages: [
         {
