@@ -1,9 +1,20 @@
 import OpenAI from 'openai'
 import { SOPAnalysisResult, SOPDocumentUpload } from '@/app/lib/types/sop'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+// Lazy initialization to avoid build-time errors
+let openai: OpenAI | null = null
+
+function getOpenAI(): OpenAI {
+  if (!openai && process.env.OPENAI_API_KEY) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    })
+  }
+  if (!openai) {
+    throw new Error('OpenAI API key not configured')
+  }
+  return openai
+}
 
 export class SOPProcessor {
   private static instance: SOPProcessor
@@ -93,7 +104,7 @@ Please provide a comprehensive analysis in the following JSON format:
 Focus on practical insights that would help gym staff understand and follow the procedure effectively.
 `
 
-      const response = await openai.chat.completions.create({
+      const response = await getOpenAI().chat.completions.create({
         model: 'gpt-4',
         messages: [
           {
@@ -206,7 +217,7 @@ Respond in JSON format:
 }
 `
 
-      const response = await openai.chat.completions.create({
+      const response = await getOpenAI().chat.completions.create({
         model: 'gpt-4',
         messages: [
           {
@@ -279,7 +290,7 @@ Generate questions in this JSON format:
 Focus on practical knowledge that staff need to follow the procedure correctly.
 `
 
-      const response = await openai.chat.completions.create({
+      const response = await getOpenAI().chat.completions.create({
         model: 'gpt-4',
         messages: [
           {
