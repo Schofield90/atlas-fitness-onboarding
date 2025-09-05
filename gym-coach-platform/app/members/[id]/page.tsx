@@ -56,7 +56,7 @@ interface PortalAccess {
   welcome_email_sent_at?: string;
 }
 
-export default function ClientDetailPage({ params }: { params: { id: string } }) {
+export default function MemberDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const [client, setClient] = useState<Client | null>(null);
   const [portalAccess, setPortalAccess] = useState<PortalAccess | null>(null);
@@ -98,7 +98,7 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
       }
     } catch (error) {
       console.error('Error loading client:', error);
-      toast.error('Failed to load client details');
+      toast.error('Failed to load member details');
     } finally {
       setLoading(false);
     }
@@ -201,7 +201,7 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
     return (
       <div className="p-6">
         <Alert variant="destructive">
-          <AlertDescription>Client not found</AlertDescription>
+          <AlertDescription>Member not found</AlertDescription>
         </Alert>
       </div>
     );
@@ -217,10 +217,10 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => router.push('/dashboard/clients')}
+            onClick={() => router.push('/members')}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Clients
+            Back to Members
           </Button>
           <h1 className="text-3xl font-bold">{client.name}</h1>
           <Badge variant={client.status === 'active' ? 'default' : 'secondary'}>
@@ -370,7 +370,7 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
               {!client.email && (
                 <Alert>
                   <AlertDescription>
-                    Add an email address to this client's profile to send welcome emails.
+                    Add an email address to this member's profile to send welcome emails.
                   </AlertDescription>
                 </Alert>
               )}
@@ -439,7 +439,7 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
                 id="notes"
                 value={notesText}
                 onChange={(e) => setNotesText(e.target.value)}
-                placeholder="Add any relevant notes about this client..."
+                placeholder="Add any relevant notes about this member..."
                 className="min-h-[200px] resize-none"
               />
               <p className="text-xs text-muted-foreground">
