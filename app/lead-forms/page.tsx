@@ -106,7 +106,8 @@ export default function LeadFormsPage() {
         loadCustomForms()
       } else {
         const error = await response.json()
-        alert(`Failed to delete form: ${error.error}`)
+        const errorMsg = error?.error?.userMessage || error?.error?.message || error?.message || 'Failed to delete form'
+        alert(`Failed to delete form: ${errorMsg}`)
       }
     } catch (error) {
       console.error('Error deleting form:', error)
@@ -138,7 +139,8 @@ export default function LeadFormsPage() {
         }, 500)
       } else {
         const error = await response.json()
-        alert(`Failed to save form: ${error.error}`)
+        const errorMsg = error?.error?.userMessage || error?.error?.message || error?.message || 'Failed to save form'
+        alert(`Failed to save form: ${errorMsg}`)
       }
     } catch (error) {
       console.error('Error saving form:', error)
