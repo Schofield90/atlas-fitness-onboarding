@@ -1,6 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+import { zodResolver } from '@hookform/resolvers/zod'
 
 interface AddLeadModalProps {
   isOpen: boolean
@@ -11,44 +14,69 @@ interface AddLeadModalProps {
 export function AddLeadModal({ isOpen, onClose, onLeadAdded }: AddLeadModalProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    source: 'manual',
-    form_name: ''
+
+  const schema = z.object({
+    name: z.string().min(1, 'Full name is required'),
+    email: z
+      .string()
+      .email('Enter a valid email')
+      .optional()
+      .or(z.literal('').transform(() => undefined)),
+    phone: z.string().optional(),
+    source: z.string().default('manual'),
+    form_name: z.string().optional(),
+  }).superRefine((data, ctx) => {
+    const hasEmail = typeof data.email === 'string' && data.email.trim().length > 0
+    const hasPhone = typeof data.phone === 'string' && data.phone.trim().length > 0
+    if (!hasEmail && !hasPhone) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['email'], message: 'Provide email or phone' })
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['phone'], message: 'Provide email or phone' })
+    }
+    if (hasPhone) {
+      const digits = (data.phone || '').replace(/[^0-9]/g, '')
+      if (digits.length < 7) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['phone'], message: 'Phone looks invalid' })
+      }
+    }
   })
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  type FormValues = z.infer<typeof schema>
+
+  const { register, handleSubmit, formState: { errors }, reset, setError: setFieldError } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      name: '',
+      email: '',
+      phone: '',
+      source: 'manual',
+      form_name: ''
+    }
+  })
+
+  const onSubmit = async (values: FormValues) => {
     setLoading(true)
     setError('')
-
     try {
       const response = await fetch('/api/leads', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
       })
 
       if (!response.ok) {
-        const data = await response.json()
-        const errorMessage = data.details 
-          ? `${data.error}: ${data.details}` 
-          : data.error || 'Failed to add lead'
+        const data = await response.json().catch(() => ({}))
+        if (response.status === 409 && data?.duplicateField) {
+          const field = data.duplicateField as 'email' | 'phone'
+          setFieldError(field, { type: 'manual', message: data.error || 'Duplicate record' })
+          throw new Error(data.error || 'Duplicate record')
+        }
+        const errorMessage = data?.details
+          ? `${data.error}: ${data.details}`
+          : data?.error || 'Failed to add lead'
         throw new Error(errorMessage)
       }
 
-      // Reset form and close modal
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        source: 'manual',
-        form_name: ''
-      })
+      reset()
       onLeadAdded()
       onClose()
     } catch (err) {
@@ -81,47 +109,50 @@ export function AddLeadModal({ isOpen, onClose, onLeadAdded }: AddLeadModalProps
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
               Full Name *
             </label>
             <input
               type="text"
-              required
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              {...register('name')}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
               placeholder="John Smith"
             />
+            {errors.name && (
+              <p className="text-sm text-red-400 mt-1">{errors.name.message}</p>
+            )}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
-              Email *
+              Email
             </label>
             <input
               type="email"
-              required
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              {...register('email')}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
               placeholder="john@example.com"
             />
+            {errors.email && (
+              <p className="text-sm text-red-400 mt-1">{errors.email.message}</p>
+            )}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
-              Phone *
+              Phone
             </label>
             <input
               type="tel"
-              required
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              {...register('phone')}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
               placeholder="+1 (555) 123-4567"
             />
+            {errors.phone && (
+              <p className="text-sm text-red-400 mt-1">{errors.phone.message}</p>
+            )}
           </div>
 
           <div>
@@ -129,8 +160,7 @@ export function AddLeadModal({ isOpen, onClose, onLeadAdded }: AddLeadModalProps
               Source
             </label>
             <select
-              value={formData.source}
-              onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+              {...register('source')}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
             >
               <option value="manual">Manual Entry</option>
@@ -147,8 +177,7 @@ export function AddLeadModal({ isOpen, onClose, onLeadAdded }: AddLeadModalProps
             </label>
             <input
               type="text"
-              value={formData.form_name}
-              onChange={(e) => setFormData({ ...formData, form_name: e.target.value })}
+              {...register('form_name')}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
               placeholder="e.g., Free Trial Sign Up"
             />
