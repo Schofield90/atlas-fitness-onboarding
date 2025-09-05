@@ -547,12 +547,40 @@ export default function FacebookIntegrationPage() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-white">Connection Status</h2>
           {connection && (
-            <button
-              onClick={handleTestConnection}
-              className="text-sm text-blue-400 hover:text-blue-300"
-            >
-              Test Connection
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  try {
+                    toast.info('Refreshing Facebook connection...')
+                    const response = await fetch('/api/integrations/facebook/refresh-and-sync', {
+                      method: 'POST'
+                    })
+                    const data = await response.json()
+                    
+                    if (response.ok && data.success) {
+                      toast.success(`Synced ${data.summary.forms_synced} forms from ${data.summary.primary_page}`)
+                      await fetchConnectionStatus(true)
+                      if (selectedPageId && organizationId) {
+                        await fetchLeadForms(selectedPageId, organizationId)
+                      }
+                    } else {
+                      toast.error(data.error || 'Failed to refresh connection')
+                    }
+                  } catch (error) {
+                    toast.error('Failed to refresh connection')
+                  }
+                }}
+                className="text-sm bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded transition-colors"
+              >
+                Fix & Sync All
+              </button>
+              <button
+                onClick={handleTestConnection}
+                className="text-sm text-blue-400 hover:text-blue-300"
+              >
+                Test Connection
+              </button>
+            </div>
           )}
         </div>
 
