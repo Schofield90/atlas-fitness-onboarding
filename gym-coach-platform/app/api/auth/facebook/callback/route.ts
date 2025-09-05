@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/api/middleware'
 import { cookies } from 'next/headers'
 
-const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID!
-const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET!
+const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID || ''
+const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET || ''
 const FACEBOOK_REDIRECT_URI = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://atlas-fitness-onboarding.vercel.app'}/api/auth/facebook/callback`
 
 interface FacebookAccessTokenResponse {
@@ -47,6 +47,13 @@ interface FacebookPageResponse {
 
 export async function GET(request: NextRequest) {
   try {
+    if (!FACEBOOK_APP_ID || !FACEBOOK_APP_SECRET) {
+      return NextResponse.json(
+        { error: 'Facebook integration not configured' },
+        { status: 503 }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const code = searchParams.get('code')
     const state = searchParams.get('state')
