@@ -270,16 +270,22 @@ export default function MessagesPage() {
                   <Paperclip className="h-4 w-4" />
                 </Button>
                 <Input
-                  placeholder="Type a message..."
+                  placeholder={selectedConversation ? "Type a message..." : "Select a conversation to start"}
                   value={messageInput}
                   onChange={(e) => setMessageInput(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      handleSendMessage()
+                    }
+                  }}
+                  disabled={!selectedConversation}
                   className="flex-1"
                 />
                 <Button variant="ghost" size="icon">
                   <Smile className="h-4 w-4" />
                 </Button>
-                <Button onClick={handleSendMessage} disabled={!messageInput.trim()}>
+                <Button onClick={handleSendMessage} disabled={!messageInput.trim() || !selectedConversation}>
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
