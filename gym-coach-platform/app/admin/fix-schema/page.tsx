@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import Button from '@/app/components/ui/Button'
+import { Button } from '@/components/ui/button'
 
 export default function FixSchemaPage() {
   const [loading, setLoading] = useState(false)
