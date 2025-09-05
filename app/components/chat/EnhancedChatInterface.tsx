@@ -406,29 +406,105 @@ export default function EnhancedChatInterface() {
 
   const fetchContact = async (contactId: string) => {
     try {
-      // Mock contact data - replace with actual API call
-      const mockContact: Contact = {
-        id: contactId,
-        name: 'Sarah Johnson',
-        email: 'sarah@example.com',
-        phone: '+447123456789',
-        avatar: undefined,
-        membership_status: 'Prospective Member',
-        last_visit: null,
-        total_visits: 0,
-        tags: ['new-member', 'interested', 'trial-booked'],
-        notes: 'Interested in personal training. Prefers morning sessions.',
-        emergency_contact: {
-          name: 'John Johnson',
-          phone: '+447123456790'
-        },
-        preferences: {
-          contact_method: 'whatsapp',
-          communication_frequency: 'weekly'
+      // Try contacts table first
+      const { data: contactData } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('id', contactId)
+        .single()
+
+      if (contactData) {
+        const contact: Contact = {
+          id: contactData.id,
+          name: `${contactData.first_name || ''} ${contactData.last_name || ''}`.trim() || contactData.name || 'Unknown Contact',
+          email: contactData.email || '',
+          phone: contactData.phone || '',
+          avatar: undefined,
+          membership_status: contactData.membership_status || 'Contact',
+          last_visit: contactData.last_visit || undefined,
+          total_visits: contactData.total_visits || 0,
+          tags: contactData.tags || [],
+          notes: contactData.notes || '',
+          emergency_contact: contactData.emergency_contact || undefined,
+          preferences: contactData.preferences || { contact_method: 'whatsapp', communication_frequency: 'weekly' }
         }
+        setSelectedContact(contact)
+        return
       }
 
-      setSelectedContact(mockContact)
+      // Try leads table (handle potential "lead-" prefix)
+      const leadId = contactId.replace('lead-', '')
+      const { data: leadData } = await supabase
+        .from('leads')
+        .select('*')
+        .eq('id', leadId)
+        .single()
+
+      if (leadData) {
+        const contact: Contact = {
+          id: contactId,
+          name: `${leadData.first_name || ''} ${leadData.last_name || ''}`.trim() || leadData.name || 'Unknown Lead',
+          email: leadData.email || '',
+          phone: leadData.phone || '',
+          avatar: undefined,
+          membership_status: 'Lead',
+          last_visit: undefined,
+          total_visits: 0,
+          tags: leadData.tags || [],
+          notes: leadData.notes || '',
+          emergency_contact: undefined,
+          preferences: { contact_method: 'whatsapp', communication_frequency: 'weekly' }
+        }
+        setSelectedContact(contact)
+        return
+      }
+
+      // Try clients table
+      const { data: clientData } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('id', contactId)
+        .single()
+
+      if (clientData) {
+        const contact: Contact = {
+          id: clientData.id,
+          name: `${clientData.first_name || ''} ${clientData.last_name || ''}`.trim() || clientData.name || 'Unknown Client',
+          email: clientData.email || '',
+          phone: clientData.phone || '',
+          avatar: undefined,
+          membership_status: 'Member',
+          last_visit: clientData.last_visit || undefined,
+          total_visits: clientData.total_visits || 0,
+          tags: clientData.tags || [],
+          notes: clientData.notes || '',
+          emergency_contact: clientData.emergency_contact || undefined,
+          preferences: clientData.preferences || { contact_method: 'whatsapp', communication_frequency: 'weekly' }
+        }
+        setSelectedContact(contact)
+        return
+      }
+
+      // Fallback to conversation data if available
+      const conv = conversations.find(c => c.customer_id === contactId)
+      if (conv) {
+        const fallbackContact: Contact = {
+          id: contactId,
+          name: conv.customer_name,
+          email: conv.customer_email,
+          phone: conv.customer_phone,
+          avatar: undefined,
+          membership_status: 'Contact',
+          last_visit: undefined,
+          total_visits: 0,
+          tags: [],
+          notes: '',
+          emergency_contact: undefined,
+          preferences: { contact_method: 'whatsapp', communication_frequency: 'weekly' }
+        }
+        setSelectedContact(fallbackContact)
+        return
+      }
     } catch (error) {
       console.error('Error fetching contact:', error)
     }
@@ -443,7 +519,7 @@ export default function EnhancedChatInterface() {
           'I can also arrange a tour of our facilities if you\'d like to see everything we offer.',
           'Our personal trainer Emma would be perfect for your fitness goals - shall I introduce you?'
         ],
-        summary: 'Sarah is a prospective member interested in joining. She\'s asked about membership plans and trial sessions. She seems enthusiastic and ready to book.',
+        summary: `${conversation.customer_name || 'This contact'} is a prospective member interested in joining. They have asked about membership plans and trial sessions.`,
         next_actions: [
           'Book trial session',
           'Send membership pricing',
