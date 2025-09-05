@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/app/lib/supabase/client'
 import DashboardLayout from '@/app/components/DashboardLayout'
 import { createClient as createSupabaseClient } from '@/app/lib/supabase/client'
@@ -30,32 +30,39 @@ function ConversationsContent() {
   const [activeTab, setActiveTab] = useState<'conversations' | 'coaching'>('conversations')
   const [userData, setUserData] = useState<any>(null)
   const supabase = createClient()
+  const searchParams = useSearchParams()
+  const contactParam = searchParams.get('contact')
 
   useEffect(() => {
     loadUserData()
   }, [])
 
   const loadUserData = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      const { data: userData } = await supabase
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data: userDataRow } = await supabase
         .from('users')
         .select('*')
         .eq('id', user.id)
         .single()
-      
-      if (userData) {
-        // Get organization data too
-        const { data: userOrg } = await supabase
-          .from('user_organizations')
-          .select('organization_id')
-          .eq('user_id', user.id)
-          .single()
-        
-        setUserData({
-          ...userData,
-          organization_id: userOrg?.organization_id
-        })
+      const { data: userOrg } = await supabase
+        .from('user_organizations')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single()
+      // Provide a minimal fallback shape to keep coaching UI working
+      setUserData({
+        ...(userDataRow || {}),
+        id: user.id,
+        full_name: userDataRow?.full_name || user.email?.split('@')[0] || 'Coach',
+        organization_id: userOrg?.organization_id || null
+      })
+    } catch (_) {
+      // If anything fails, still set a minimal user so the UI renders
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setUserData({ id: user.id, full_name: user.email?.split('@')[0] || 'Coach', organization_id: null })
       }
     }
   }
@@ -135,7 +142,9 @@ function ConversationsContent() {
             </nav>
           </div>
         </div>
-        {userData && <CoachMessaging coachData={userData} />}
+        {userData && (
+          <CoachMessaging coachData={userData} initialMemberId={contactParam || undefined} />
+        )}
       </DashboardLayout>
     )
   }
