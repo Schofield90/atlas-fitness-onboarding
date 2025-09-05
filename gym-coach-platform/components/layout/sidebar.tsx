@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { 
   Home, Users, UserPlus, Settings, BarChart3, MessageSquare, Zap, Calendar, UserCog,
-  Megaphone, MessageCircle, Globe, Brain, CreditCard, FileText, Plug, Apple
+  Megaphone, MessageCircle, Globe, Brain, CreditCard, FileText, Plug, Apple, Layout
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -22,6 +22,7 @@ export function Sidebar() {
     { name: 'Marketing', href: '/dashboard/marketing', icon: Megaphone },
     { name: 'Surveys', href: '/dashboard/surveys', icon: MessageCircle },
     { name: 'Website', href: '/dashboard/website', icon: Globe },
+    { name: 'Landing Pages', href: '/dashboard/landing-pages', icon: Layout },
     { name: 'AI Insights', href: '/dashboard/ai', icon: Brain },
     { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
     { name: 'Billing', href: '/dashboard/billing', icon: CreditCard },

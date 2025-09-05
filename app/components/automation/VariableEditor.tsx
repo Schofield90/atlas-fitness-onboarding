@@ -541,7 +541,7 @@ export default function VariableEditor({
           <div className="p-3 border-b border-gray-200">
             <h3 className="font-medium text-gray-900">Available Variables</h3>
             <p className="text-sm text-gray-500 mt-1">
-              Click to insert or type {{ to search
+              Click to insert or type {'{{ '} to search
             </p>
           </div>
 
@@ -611,7 +611,7 @@ export default function VariableEditor({
       <div className="mt-2 text-xs text-gray-500">
         <div className="flex items-center">
           <Lightbulb className="w-3 h-3 mr-1" />
-          Type <code className="bg-gray-100 px-1 rounded">{{</code> to search variables or click variables above to insert
+          Type <code className="bg-gray-100 px-1 rounded">{'{{'}</code> to search variables or click variables above to insert
         </div>
       </div>
     </div>
