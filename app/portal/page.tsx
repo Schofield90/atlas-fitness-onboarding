@@ -32,19 +32,55 @@ export default function MemberPortal() {
 
       setUser(authUser)
 
-      // Fetch member data
-      const { data: client } = await supabase
-        .from('clients')
-        .select(`
-          *,
-          organization:organizations(name, logo_url),
-          membership:memberships(*)
-        `)
-        .eq('email', authUser.email)
-        .single()
+      // Fetch member data with robust fallbacks
+      // 1) Prefer linking by user_id
+      // 2) Fallback to auth user id in clients.id (common in older seeds)
+      // 3) Fallback to email
+      // 4) Fallback to phone (normalized)
+      let client: any = null
+
+      // Helper to select client with relationships
+      const selectClientBy = async (column: string, value: any) => {
+        const { data } = await supabase
+          .from('clients')
+          .select(`
+            *,
+            organization:organizations(name, logo_url),
+            membership:memberships(*)
+          `)
+          .eq(column as any, value)
+          .maybeSingle()
+        return data
+      }
+
+      // Try user_id
+      client = await selectClientBy('user_id', authUser.id)
+
+      // Try id equals auth user id
+      if (!client) {
+        client = await selectClientBy('id', authUser.id)
+      }
+
+      // Try email
+      if (!client && authUser.email) {
+        client = await selectClientBy('email', authUser.email)
+      }
+
+      // Try phone
+      if (!client && authUser.phone) {
+        const normalized = String(authUser.phone).replace(/\D/g, '')
+        // Try exact phone first
+        client = await selectClientBy('phone', normalized)
+        // If still not found, try unnormalized
+        if (!client) {
+          client = await selectClientBy('phone', authUser.phone)
+        }
+      }
 
       if (client) {
         setMemberData(client)
+      } else {
+        console.warn('No client record found for authenticated user')
       }
     } catch (error) {
       console.error('Auth error:', error)
