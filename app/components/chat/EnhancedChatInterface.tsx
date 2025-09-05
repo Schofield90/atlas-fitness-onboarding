@@ -318,45 +318,70 @@ export default function EnhancedChatInterface() {
 
       setOrganizationId(userOrg.organization_id)
 
-      // Mock conversation data for now - replace with actual API call
-      const mockConversations: Conversation[] = [
-        {
-          id: '1',
-          customer_id: '1',
-          customer_name: 'Sarah Johnson',
-          customer_email: 'sarah@example.com',
-          customer_phone: '+447123456789',
-          last_message: 'Hi! I\'d like to book a class for tomorrow',
-          last_message_type: 'whatsapp',
-          last_message_time: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-          unread_count: 2,
-          total_messages: 8,
-          tags: ['new-member', 'interested'],
-          priority: 'high',
-          status: 'active'
-        },
-        {
-          id: '2',
-          customer_id: '2',
-          customer_name: 'Mike Wilson',
-          customer_email: 'mike@example.com',
-          customer_phone: '+447987654321',
-          last_message: 'Thanks for the membership info!',
-          last_message_type: 'sms',
-          last_message_time: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-          unread_count: 0,
-          total_messages: 12,
-          tags: ['member'],
-          priority: 'medium',
-          status: 'resolved'
-        }
-      ]
+      // Fetch real conversations from leads with messages
+      const { data: leads } = await supabase
+        .from('leads')
+        .select('*')
+        .eq('org_id', userOrg.organization_id)
+        .order('updated_at', { ascending: false })
+        .limit(50)
 
+      if (!leads) {
+        setConversations([])
+        return
+      }
+
+      // For each lead, fetch their latest message activity
+      const conversationPromises = leads.map(async (lead) => {
+        // Fetch message history to get counts and latest message
+        const response = await fetch(`/api/messages/history/${lead.id}`)
+        let messageData = { messages: { emails: [], sms: [], whatsapp: [], calls: [] } }
+        
+        if (response.ok) {
+          messageData = await response.json()
+        }
+
+        const allMessages = [
+          ...messageData.messages.emails,
+          ...messageData.messages.sms,
+          ...messageData.messages.whatsapp,
+          ...messageData.messages.calls
+        ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
+        const lastMessage = allMessages[0]
+        const unreadCount = allMessages.filter(m => m.direction === 'inbound' && !m.read).length
+
+        return {
+          id: lead.id,
+          customer_id: lead.id,
+          customer_name: `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || lead.name || 'Unknown',
+          customer_email: lead.email || '',
+          customer_phone: lead.phone || '',
+          last_message: lastMessage?.body || lastMessage?.subject || 'No messages yet',
+          last_message_type: (lastMessage?.type || 'sms') as 'email' | 'sms' | 'whatsapp' | 'call',
+          last_message_time: lastMessage?.created_at || lead.created_at,
+          unread_count: unreadCount,
+          total_messages: allMessages.length,
+          tags: lead.tags || [],
+          priority: lead.priority || 'medium',
+          status: lead.status === 'converted' ? 'resolved' : 'active'
+        } as Conversation
+      })
+
+      const conversationsData = await Promise.all(conversationPromises)
+      
+      // Filter to only show conversations with messages or recent leads
+      const relevantConversations = conversationsData.filter(conv => 
+        conv.total_messages > 0 || 
+        new Date(conv.last_message_time).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000
+      )
+      
       // Ensure uniqueness by customer_id and keep the most recent by last_message_time
-      const deduped = dedupeConversations(mockConversations)
+      const deduped = dedupeConversations(relevantConversations)
       setConversations(deduped)
     } catch (error) {
       console.error('Error fetching conversations:', error)
+      setConversations([])
     } finally {
       setLoading(false)
     }
@@ -378,47 +403,62 @@ export default function EnhancedChatInterface() {
 
   const fetchMessages = async (conversationId: string) => {
     try {
-      // Mock message data - replace with actual API call
-      const mockMessages: Message[] = [
-        {
-          id: '1',
-          content: 'Hi! I\'m interested in joining your gym. What membership plans do you have?',
-          type: 'whatsapp',
-          direction: 'inbound',
-          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          read: true
-        },
-        {
-          id: '2',
-          content: 'Hi Sarah! Great to hear from you. We have several membership options including monthly, 6-month, and annual plans. Would you like me to send you our current pricing?',
-          type: 'whatsapp',
-          direction: 'outbound',
-          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000 + 5 * 60 * 1000).toISOString(),
+      // Fetch real message history from the API
+      const response = await fetch(`/api/messages/history/${conversationId}`)
+      
+      if (!response.ok) {
+        console.error('Failed to fetch messages')
+        setMessages([])
+        return
+      }
+
+      const data = await response.json()
+      
+      // Combine all message types and format them
+      const allMessages = [
+        ...data.messages.emails.map((msg: any) => ({
+          id: msg.id,
+          content: msg.body,
+          type: 'email' as const,
+          direction: msg.direction || 'outbound',
+          timestamp: msg.created_at,
+          read: msg.status !== 'unread',
+          ai_generated: msg.metadata?.ai_generated || false,
+          subject: msg.subject
+        })),
+        ...data.messages.sms.map((msg: any) => ({
+          id: msg.id,
+          content: msg.body,
+          type: 'sms' as const,
+          direction: msg.direction,
+          timestamp: msg.created_at,
+          read: msg.status !== 'unread',
+          ai_generated: msg.metadata?.ai_generated || false
+        })),
+        ...data.messages.whatsapp.map((msg: any) => ({
+          id: msg.id,
+          content: msg.body,
+          type: 'whatsapp' as const,
+          direction: msg.direction,
+          timestamp: msg.created_at,
+          read: msg.status !== 'unread',
+          ai_generated: msg.metadata?.ai_generated || false
+        })),
+        ...data.messages.calls.map((msg: any) => ({
+          id: msg.id,
+          content: msg.body || 'Phone call',
+          type: 'call' as const,
+          direction: msg.direction,
+          timestamp: msg.created_at,
           read: true,
           ai_generated: false
-        },
-        {
-          id: '3',
-          content: 'Yes please! Also, do you offer trial sessions?',
-          type: 'whatsapp',
-          direction: 'inbound',
-          timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-          read: true
-        },
-        {
-          id: '4',
-          content: 'Absolutely! We offer a complimentary trial session for all new members. I can book you in for tomorrow if you\'d like?',
-          type: 'whatsapp',
-          direction: 'outbound',
-          timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000 + 3 * 60 * 1000).toISOString(),
-          read: true,
-          ai_generated: true
-        }
-      ]
+        }))
+      ].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
 
-      setMessages(mockMessages)
+      setMessages(allMessages)
     } catch (error) {
       console.error('Error fetching messages:', error)
+      setMessages([])
     }
   }
 
@@ -560,9 +600,18 @@ export default function EnhancedChatInterface() {
     try {
       setIsTyping(true)
 
+      // Prepare the message payload
+      const messagePayload = {
+        leadId: selectedConversation.customer_id,
+        type: messageType,
+        to: messageType === 'email' ? selectedConversation.customer_email : selectedConversation.customer_phone,
+        subject: messageType === 'email' ? `Message from Atlas Fitness` : undefined,
+        body: newMessage.trim()
+      }
+
       // Add message optimistically
-      const newMsg: Message = {
-        id: Date.now().toString(),
+      const optimisticMsg: Message = {
+        id: `temp-${Date.now()}`,
         content: newMessage.trim(),
         type: messageType,
         direction: 'outbound',
@@ -570,14 +619,51 @@ export default function EnhancedChatInterface() {
         read: false
       }
 
-      setMessages(prev => [...prev, newMsg])
+      setMessages(prev => [...prev, optimisticMsg])
+      const messageText = newMessage
       setNewMessage('')
 
-      // Here you would send the message via your API
-      // await sendMessageAPI(newMsg)
+      // Send the message via the API
+      const response = await fetch('/api/messages/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(messagePayload),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to send message')
+      }
+
+      const result = await response.json()
+
+      // Update the optimistic message with the real ID
+      setMessages(prev => prev.map(msg => 
+        msg.id === optimisticMsg.id 
+          ? { ...msg, id: result.message.id, read: true }
+          : msg
+      ))
+
+      // Update conversation's last message
+      setConversations(prev => prev.map(conv => 
+        conv.id === selectedConversation.id
+          ? {
+              ...conv,
+              last_message: messageText,
+              last_message_type: messageType,
+              last_message_time: new Date().toISOString(),
+              total_messages: conv.total_messages + 1
+            }
+          : conv
+      ))
 
     } catch (error) {
       console.error('Error sending message:', error)
+      // Remove the optimistic message on error
+      setMessages(prev => prev.filter(msg => !msg.id.startsWith('temp-')))
+      // Restore the message text so user can try again
+      setNewMessage(newMessage)
     } finally {
       setIsTyping(false)
     }
@@ -745,7 +831,7 @@ export default function EnhancedChatInterface() {
                     </div>
                     {conversation.unread_count > 0 && (
                       <div className="flex items-center gap-2">
-                        <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
+                        <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full animate-pulse">
                           {conversation.unread_count}
                         </span>
                         <button
