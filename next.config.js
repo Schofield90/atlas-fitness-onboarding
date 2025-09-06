@@ -89,12 +89,6 @@ const nextConfig = {
   // TODO: Fix remaining type errors in automation components
   typescript: {
     ignoreBuildErrors: true,
-  },
-  
-  // Temporarily ignore ESLint errors during builds to deploy successfully
-  // TODO: Fix ESLint errors in various pages
-  eslint: {
-    ignoreDuringBuilds: true,
   }
 };
 
