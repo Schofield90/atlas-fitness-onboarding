@@ -408,30 +408,54 @@ export async function saveFieldMappings(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createClient();
-
-    // Persist mappings on the facebook_lead_forms row for this organization + form
-    // Use upsert in case the form row doesn't exist yet
     const now = new Date().toISOString();
-    const { error } = await supabase.from("facebook_lead_forms").upsert(
-      {
+
+    // First check if record exists
+    const { data: existing } = await supabase
+      .from("facebook_lead_forms")
+      .select("id")
+      .eq("organization_id", organizationId)
+      .eq("facebook_form_id", formId)
+      .single();
+
+    if (existing) {
+      // Update existing record
+      const { error } = await supabase
+        .from("facebook_lead_forms")
+        .update({
+          field_mappings: mappings.mappings,
+          custom_field_mappings: mappings.custom_mappings,
+          field_mappings_configured: true,
+          field_mappings_version: mappings.version,
+          updated_at: now,
+        })
+        .eq("organization_id", organizationId)
+        .eq("facebook_form_id", formId);
+
+      if (error) {
+        console.error("Error updating field mappings:", error);
+        return { success: false, error: error.message };
+      }
+      console.log(`✅ Updated field mappings for form ${formId}`);
+    } else {
+      // Insert new record with minimal required fields
+      const { error } = await supabase.from("facebook_lead_forms").insert({
         organization_id: organizationId,
         facebook_form_id: formId,
-        // Store mapping payload into dedicated columns
+        form_name: "Unmapped Form", // Will be updated when form is synced
         field_mappings: mappings.mappings,
         custom_field_mappings: mappings.custom_mappings,
         field_mappings_configured: true,
         field_mappings_version: mappings.version,
+        created_at: now,
         updated_at: now,
-      },
-      { onConflict: "organization_id,facebook_form_id" },
-    );
+      });
 
-    if (error) {
-      console.error(
-        "Error saving field mappings to facebook_lead_forms:",
-        error,
-      );
-      return { success: false, error: error.message };
+      if (error) {
+        console.error("Error inserting field mappings:", error);
+        return { success: false, error: error.message };
+      }
+      console.log(`✅ Created new field mappings for form ${formId}`);
     }
 
     return { success: true };
