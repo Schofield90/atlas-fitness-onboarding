@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useRef } from 'react';
-import { format, isToday, isYesterday } from 'date-fns';
-import { MoreVertical, Reply, Edit, Trash, Download, Eye } from 'lucide-react';
-import type { Database } from '../../lib/supabase/database.types';
+import { useState, useEffect, useRef } from "react";
+import { format, isToday, isYesterday } from "date-fns";
+import { MoreVertical, Reply, Edit, Trash, Download, Eye } from "lucide-react";
+import type { Database } from "../../lib/supabase/database.types";
 
-type TeamMessage = Database['public']['Tables']['team_messages']['Row'] & {
+type TeamMessage = Database["public"]["Tables"]["team_messages"]["Row"] & {
   user: {
     id: string;
     full_name: string | null;
@@ -37,13 +37,13 @@ interface TeamChatMessagesProps {
   typingUsers: string[];
 }
 
-const COMMON_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '😡', '🎉', '🚀'];
+const COMMON_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "😡", "🎉", "🚀"];
 
 export default function TeamChatMessages({
   messages,
   currentUserId,
   onReaction,
-  typingUsers
+  typingUsers,
 }: TeamChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState<string | null>(null);
@@ -51,7 +51,7 @@ export default function TeamChatMessages({
 
   // Auto-scroll to bottom
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   // Close menus on click outside
@@ -61,73 +61,100 @@ export default function TeamChatMessages({
       setShowMessageMenu(null);
     };
 
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
   const formatMessageTime = (createdAt: string) => {
     const date = new Date(createdAt);
-    
+
     if (isToday(date)) {
-      return format(date, 'h:mm a');
+      return format(date, "h:mm a");
     } else if (isYesterday(date)) {
-      return `Yesterday ${format(date, 'h:mm a')}`;
+      return `Yesterday ${format(date, "h:mm a")}`;
     } else {
-      return format(date, 'MMM d, h:mm a');
+      return format(date, "MMM d, h:mm a");
     }
   };
 
-  const getDateSeparator = (currentMessage: TeamMessage, previousMessage: TeamMessage | null) => {
+  const getDateSeparator = (
+    currentMessage: TeamMessage,
+    previousMessage: TeamMessage | null,
+  ) => {
     const currentDate = new Date(currentMessage.created_at);
-    const previousDate = previousMessage ? new Date(previousMessage.created_at) : null;
+    const previousDate = previousMessage
+      ? new Date(previousMessage.created_at)
+      : null;
 
-    if (!previousDate || currentDate.toDateString() !== previousDate.toDateString()) {
+    if (
+      !previousDate ||
+      currentDate.toDateString() !== previousDate.toDateString()
+    ) {
       if (isToday(currentDate)) {
-        return 'Today';
+        return "Today";
       } else if (isYesterday(currentDate)) {
-        return 'Yesterday';
+        return "Yesterday";
       } else {
-        return format(currentDate, 'MMMM d, yyyy');
+        return format(currentDate, "MMMM d, yyyy");
       }
     }
 
     return null;
   };
 
-  const shouldGroupWithPrevious = (currentMessage: TeamMessage, previousMessage: TeamMessage | null) => {
+  const shouldGroupWithPrevious = (
+    currentMessage: TeamMessage,
+    previousMessage: TeamMessage | null,
+  ) => {
     if (!previousMessage) return false;
-    
-    const timeDiff = new Date(currentMessage.created_at).getTime() - new Date(previousMessage.created_at).getTime();
+
+    const timeDiff =
+      new Date(currentMessage.created_at).getTime() -
+      new Date(previousMessage.created_at).getTime();
     const isSameUser = currentMessage.user_id === previousMessage.user_id;
     const withinGroupingTime = timeDiff < 5 * 60 * 1000; // 5 minutes
-    
+
     return isSameUser && withinGroupingTime;
   };
 
-  const getUserAvatarUrl = (user: TeamMessage['user']) => {
+  const getUserAvatarUrl = (user: TeamMessage["user"]) => {
     if (user.avatar_url) return user.avatar_url;
-    
+
     // Generate a color based on user ID
     const colors = [
-      'bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500',
-      'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500'
+      "bg-red-500",
+      "bg-blue-500",
+      "bg-green-500",
+      "bg-yellow-500",
+      "bg-purple-500",
+      "bg-pink-500",
+      "bg-indigo-500",
+      "bg-teal-500",
     ];
     const colorIndex = user.id.charCodeAt(0) % colors.length;
-    const initials = user.full_name?.split(' ').map(n => n[0]).join('') || user.email[0].toUpperCase();
-    
+    const initials =
+      user.full_name
+        ?.split(" ")
+        .map((n) => n[0])
+        .join("") || user.email[0].toUpperCase();
+
     return { color: colors[colorIndex], initials };
   };
 
-  const handleEmojiClick = (messageId: string, emoji: string, e: React.MouseEvent) => {
+  const handleEmojiClick = (
+    messageId: string,
+    emoji: string,
+    e: React.MouseEvent,
+  ) => {
     e.stopPropagation();
     onReaction(messageId, emoji);
     setShowEmojiPicker(null);
   };
 
-  const renderAttachment = (attachment: TeamMessage['attachments'][0]) => {
-    const isImage = attachment.file_type.startsWith('image/');
-    const isVideo = attachment.file_type.startsWith('video/');
-    const isAudio = attachment.file_type.startsWith('audio/');
+  const renderAttachment = (attachment: TeamMessage["attachments"][0]) => {
+    const isImage = attachment.file_type.startsWith("image/");
+    const isVideo = attachment.file_type.startsWith("video/");
+    const isAudio = attachment.file_type.startsWith("audio/");
 
     if (isImage) {
       return (
@@ -136,7 +163,7 @@ export default function TeamChatMessages({
             src={attachment.thumbnail_url || attachment.file_url}
             alt={attachment.file_name}
             className="max-w-sm rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-            onClick={() => window.open(attachment.file_url, '_blank')}
+            onClick={() => window.open(attachment.file_url, "_blank")}
           />
         </div>
       );
@@ -158,7 +185,11 @@ export default function TeamChatMessages({
     if (isAudio) {
       return (
         <div key={attachment.id} className="mt-2">
-          <audio src={attachment.file_url} controls className="w-full max-w-sm" />
+          <audio
+            src={attachment.file_url}
+            controls
+            className="w-full max-w-sm"
+          />
         </div>
       );
     }
@@ -169,7 +200,7 @@ export default function TeamChatMessages({
         <div className="flex items-center space-x-3 p-3 bg-gray-700 rounded-lg max-w-sm">
           <div className="w-10 h-10 bg-gray-600 rounded flex items-center justify-center">
             <span className="text-xs font-semibold">
-              {attachment.file_name.split('.').pop()?.toUpperCase() || 'FILE'}
+              {attachment.file_name.split(".").pop()?.toUpperCase() || "FILE"}
             </span>
           </div>
           <div className="flex-1 min-w-0">
@@ -192,32 +223,39 @@ export default function TeamChatMessages({
     );
   };
 
-  const renderReactions = (reactions: TeamMessage['reactions']) => {
+  const renderReactions = (reactions: TeamMessage["reactions"]) => {
     if (reactions.length === 0) return null;
 
     // Group reactions by emoji
-    const groupedReactions = reactions.reduce((acc, reaction) => {
-      if (!acc[reaction.emoji]) {
-        acc[reaction.emoji] = [];
-      }
-      acc[reaction.emoji].push(reaction);
-      return acc;
-    }, {} as Record<string, typeof reactions>);
+    const groupedReactions = reactions.reduce(
+      (acc, reaction) => {
+        if (!acc[reaction.emoji]) {
+          acc[reaction.emoji] = [];
+        }
+        acc[reaction.emoji].push(reaction);
+        return acc;
+      },
+      {} as Record<string, typeof reactions>,
+    );
 
     return (
       <div className="flex flex-wrap gap-1 mt-2">
         {Object.entries(groupedReactions).map(([emoji, reactionList]) => {
-          const hasUserReacted = reactionList.some(r => r.user_id === currentUserId);
-          const users = reactionList.map(r => r.user.full_name || 'Someone').join(', ');
-          
+          const hasUserReacted = reactionList.some(
+            (r) => r.user_id === currentUserId,
+          );
+          const users = reactionList
+            .map((r) => r.user.full_name || "Someone")
+            .join(", ");
+
           return (
             <button
               key={emoji}
               onClick={() => onReaction(reactionList[0].message_id, emoji)}
               className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs transition-colors ${
                 hasUserReacted
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
               }`}
               title={users}
             >
@@ -251,18 +289,24 @@ export default function TeamChatMessages({
         )}
 
         {/* Message */}
-        <div className={`group relative ${groupWithPrevious ? 'mt-1' : 'mt-4'}`}>
+        <div
+          className={`group relative ${groupWithPrevious ? "mt-1" : "mt-4"}`}
+        >
           <div className="flex items-start space-x-3">
             {/* Avatar */}
-            <div className={`w-8 h-8 rounded-full flex-shrink-0 ${groupWithPrevious ? 'invisible' : ''}`}>
-              {typeof avatarData === 'string' ? (
+            <div
+              className={`w-8 h-8 rounded-full flex-shrink-0 ${groupWithPrevious ? "invisible" : ""}`}
+            >
+              {typeof avatarData === "string" ? (
                 <img
                   src={avatarData}
                   alt={message.user.full_name || message.user.email}
                   className="w-8 h-8 rounded-full object-cover"
                 />
               ) : (
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold ${avatarData.color}`}>
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold ${avatarData.color}`}
+                >
                   {avatarData.initials}
                 </div>
               )}
@@ -286,7 +330,9 @@ export default function TeamChatMessages({
               )}
 
               {/* Message Text */}
-              <div className={`text-gray-200 break-words ${groupWithPrevious ? 'hover:bg-gray-800 rounded px-2 py-1 -mx-2 -my-1' : ''}`}>
+              <div
+                className={`text-gray-200 break-words ${groupWithPrevious ? "hover:bg-gray-800 rounded px-2 py-1 -mx-2 -my-1" : ""}`}
+              >
                 {message.content}
               </div>
 
@@ -320,12 +366,14 @@ export default function TeamChatMessages({
                       {emoji}
                     </button>
                   ))}
-                  
+
                   {/* More Reactions */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      setShowEmojiPicker(showEmojiPicker === message.id ? null : message.id);
+                      setShowEmojiPicker(
+                        showEmojiPicker === message.id ? null : message.id,
+                      );
                     }}
                     className="hover:bg-gray-700 rounded p-1 transition-colors"
                   >
@@ -337,7 +385,9 @@ export default function TeamChatMessages({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    setShowMessageMenu(showMessageMenu === message.id ? null : message.id);
+                    setShowMessageMenu(
+                      showMessageMenu === message.id ? null : message.id,
+                    );
                   }}
                   className="p-1 hover:bg-gray-700 rounded transition-colors"
                 >
@@ -407,30 +457,35 @@ export default function TeamChatMessages({
         ) : (
           <div className="space-y-1">
             {messages.map(renderMessage)}
-            
+
             {/* Typing Indicators */}
             {typingUsers.length > 0 && (
               <div className="flex items-center space-x-3 mt-4 opacity-60">
                 <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center">
                   <div className="flex space-x-1">
                     <div className="w-1 h-1 bg-gray-400 rounded-full animate-pulse"></div>
-                    <div className="w-1 h-1 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                    <div className="w-1 h-1 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                    <div
+                      className="w-1 h-1 bg-gray-400 rounded-full animate-pulse"
+                      style={{ animationDelay: "0.2s" }}
+                    ></div>
+                    <div
+                      className="w-1 h-1 bg-gray-400 rounded-full animate-pulse"
+                      style={{ animationDelay: "0.4s" }}
+                    ></div>
                   </div>
                 </div>
                 <div className="text-sm text-gray-400">
                   {typingUsers.length === 1
                     ? `${typingUsers[0]} is typing...`
                     : typingUsers.length === 2
-                    ? `${typingUsers[0]} and ${typingUsers[1]} are typing...`
-                    : `${typingUsers[0]} and ${typingUsers.length - 1} others are typing...`
-                  }
+                      ? `${typingUsers[0]} and ${typingUsers[1]} are typing...`
+                      : `${typingUsers[0]} and ${typingUsers.length - 1} others are typing...`}
                 </div>
               </div>
             )}
           </div>
         )}
-        
+
         <div ref={messagesEndRef} />
       </div>
     </div>

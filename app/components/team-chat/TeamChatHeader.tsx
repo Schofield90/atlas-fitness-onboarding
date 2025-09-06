@@ -1,10 +1,22 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Hash, Lock, Users, Search, Settings, Star, Pin, MoreVertical, UserPlus, Bell, BellOff } from 'lucide-react';
-import type { Database } from '../../lib/supabase/database.types';
+import { useState } from "react";
+import {
+  Hash,
+  Lock,
+  Users,
+  Search,
+  Settings,
+  Star,
+  Pin,
+  MoreVertical,
+  UserPlus,
+  Bell,
+  BellOff,
+} from "lucide-react";
+import type { Database } from "../../lib/supabase/database.types";
 
-type TeamChannel = Database['public']['Tables']['team_channels']['Row'];
+type TeamChannel = Database["public"]["Tables"]["team_channels"]["Row"];
 
 interface TeamChatHeaderProps {
   channel: TeamChannel;
@@ -19,15 +31,15 @@ export default function TeamChatHeader({
   memberCount,
   onInviteMembers,
   onToggleNotifications,
-  onOpenSettings
+  onOpenSettings,
 }: TeamChatHeaderProps) {
   const [showChannelMenu, setShowChannelMenu] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   const getChannelIcon = () => {
-    if (channel.type === 'direct_message') {
+    if (channel.type === "direct_message") {
       return <div className="w-5 h-5 bg-green-500 rounded-full" />;
     }
     if (channel.is_private) {
@@ -37,9 +49,9 @@ export default function TeamChatHeader({
   };
 
   const getChannelTypeLabel = () => {
-    if (channel.type === 'direct_message') return 'Direct Message';
-    if (channel.is_private) return 'Private Channel';
-    return 'Public Channel';
+    if (channel.type === "direct_message") return "Direct Message";
+    if (channel.is_private) return "Private Channel";
+    return "Public Channel";
   };
 
   const handleToggleNotifications = () => {
@@ -48,8 +60,8 @@ export default function TeamChatHeader({
   };
 
   const formatMemberCount = (count: number) => {
-    if (count === 0) return 'No members';
-    if (count === 1) return '1 member';
+    if (count === 0) return "No members";
+    if (count === 1) return "1 member";
     return `${count} members`;
   };
 
@@ -76,10 +88,10 @@ export default function TeamChatHeader({
         <div className="flex items-center space-x-2">
           {/* Starred */}
           <Star className="w-4 h-4 text-yellow-400 fill-current" />
-          
+
           {/* Pinned Messages */}
           <Pin className="w-4 h-4 text-gray-400" />
-          
+
           {/* Member Count */}
           <div className="flex items-center space-x-1 text-sm text-gray-400">
             <Users className="w-4 h-4" />
@@ -112,13 +124,13 @@ export default function TeamChatHeader({
           onClick={() => {
             setShowSearch(!showSearch);
             if (showSearch) {
-              setSearchQuery('');
+              setSearchQuery("");
             }
           }}
           className={`p-2 rounded-lg transition-colors ${
-            showSearch 
-              ? 'bg-blue-600 text-white' 
-              : 'text-gray-400 hover:text-white hover:bg-gray-700'
+            showSearch
+              ? "bg-blue-600 text-white"
+              : "text-gray-400 hover:text-white hover:bg-gray-700"
           }`}
           title="Search messages"
         >
@@ -129,7 +141,9 @@ export default function TeamChatHeader({
         <button
           onClick={handleToggleNotifications}
           className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
-          title={notificationsEnabled ? 'Mute notifications' : 'Enable notifications'}
+          title={
+            notificationsEnabled ? "Mute notifications" : "Enable notifications"
+          }
         >
           {notificationsEnabled ? (
             <Bell className="w-5 h-5" />
@@ -139,7 +153,7 @@ export default function TeamChatHeader({
         </button>
 
         {/* Invite Members */}
-        {channel.type !== 'direct_message' && (
+        {channel.type !== "direct_message" && (
           <button
             onClick={onInviteMembers}
             className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
@@ -166,7 +180,9 @@ export default function TeamChatHeader({
               <div className="px-4 py-2 border-b border-gray-600">
                 <div className="flex items-center space-x-2 mb-1">
                   {getChannelIcon()}
-                  <span className="font-semibold text-white">{channel.name}</span>
+                  <span className="font-semibold text-white">
+                    {channel.name}
+                  </span>
                 </div>
                 <p className="text-xs text-gray-400">{getChannelTypeLabel()}</p>
               </div>
@@ -175,7 +191,9 @@ export default function TeamChatHeader({
               <div className="py-1">
                 <button
                   onClick={() => {
-                    navigator.clipboard.writeText(`${window.location.origin}/team-chat?channel=${channel.id}`);
+                    navigator.clipboard.writeText(
+                      `${window.location.origin}/team-chat?channel=${channel.id}`,
+                    );
                     setShowChannelMenu(false);
                     // TODO: Show toast
                   }}
@@ -184,7 +202,7 @@ export default function TeamChatHeader({
                   <span>Copy link</span>
                 </button>
 
-                {channel.type !== 'direct_message' && (
+                {channel.type !== "direct_message" && (
                   <>
                     <button
                       onClick={() => {
@@ -233,7 +251,7 @@ export default function TeamChatHeader({
                   <span>Add to starred</span>
                 </button>
 
-                {channel.type !== 'direct_message' && (
+                {channel.type !== "direct_message" && (
                   <>
                     <hr className="my-1 border-gray-600" />
 

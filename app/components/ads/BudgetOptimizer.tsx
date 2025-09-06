@@ -1,19 +1,24 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/Card';
-import { Button } from '@/app/components/ui/Button';
-import { Badge } from '@/app/components/ui/Badge';
-import { 
-  LightBulbIcon, 
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/app/components/ui/Card";
+import { Button } from "@/app/components/ui/Button";
+import { Badge } from "@/app/components/ui/Badge";
+import {
+  LightBulbIcon,
   TrendingUpIcon,
   TrendingDownIcon,
   ArrowRightIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
   ClockIcon,
-  CurrencyDollarIcon
-} from '@heroicons/react/24/outline';
+  CurrencyDollarIcon,
+} from "@heroicons/react/24/outline";
 
 interface Campaign {
   id: string;
@@ -34,8 +39,8 @@ interface BudgetRecommendation {
   current_budget: number;
   recommended_budget: number;
   reason: string;
-  impact: 'increase' | 'decrease' | 'maintain';
-  priority: 'high' | 'medium' | 'low';
+  impact: "increase" | "decrease" | "maintain";
+  priority: "high" | "medium" | "low";
   potential_leads_change: number;
   confidence: number;
 }
@@ -57,8 +62,12 @@ interface BudgetOptimizerProps {
   campaigns: Campaign[];
 }
 
-export function BudgetOptimizer({ accountId, campaigns }: BudgetOptimizerProps) {
-  const [optimizationData, setOptimizationData] = useState<BudgetOptimizationData | null>(null);
+export function BudgetOptimizer({
+  accountId,
+  campaigns,
+}: BudgetOptimizerProps) {
+  const [optimizationData, setOptimizationData] =
+    useState<BudgetOptimizationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState<string[]>([]);
   const [showDetails, setShowDetails] = useState<string[]>([]);
@@ -72,21 +81,21 @@ export function BudgetOptimizer({ accountId, campaigns }: BudgetOptimizerProps) 
   const fetchOptimizationData = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/ads/budget-optimization', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+      const response = await fetch("/api/ads/budget-optimization", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           account_id: accountId,
-          campaigns: campaigns.map(c => ({
+          campaigns: campaigns.map((c) => ({
             id: c.id,
             facebook_campaign_id: c.facebook_campaign_id,
             current_budget: c.daily_budget || c.lifetime_budget || 0,
             spend: c.spend,
             leads: c.leads_count,
             clicks: c.clicks,
-            impressions: c.impressions
-          }))
-        })
+            impressions: c.impressions,
+          })),
+        }),
       });
 
       if (response.ok) {
@@ -94,75 +103,86 @@ export function BudgetOptimizer({ accountId, campaigns }: BudgetOptimizerProps) 
         setOptimizationData(data);
       }
     } catch (error) {
-      console.error('Failed to fetch optimization data:', error);
+      console.error("Failed to fetch optimization data:", error);
     } finally {
       setLoading(false);
     }
   };
 
   const applyRecommendation = async (recommendation: BudgetRecommendation) => {
-    setApplying(prev => [...prev, recommendation.campaign_id]);
-    
+    setApplying((prev) => [...prev, recommendation.campaign_id]);
+
     try {
-      const response = await fetch(`/api/ads/campaigns/${recommendation.campaign_id}/budget`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          daily_budget: recommendation.recommended_budget * 100 // Convert to cents
-        })
-      });
+      const response = await fetch(
+        `/api/ads/campaigns/${recommendation.campaign_id}/budget`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            daily_budget: recommendation.recommended_budget * 100, // Convert to cents
+          }),
+        },
+      );
 
       if (response.ok) {
         // Remove the applied recommendation from the list
-        setOptimizationData(prev => prev ? {
-          ...prev,
-          recommendations: prev.recommendations.filter(r => r.campaign_id !== recommendation.campaign_id)
-        } : null);
+        setOptimizationData((prev) =>
+          prev
+            ? {
+                ...prev,
+                recommendations: prev.recommendations.filter(
+                  (r) => r.campaign_id !== recommendation.campaign_id,
+                ),
+              }
+            : null,
+        );
       } else {
-        throw new Error('Failed to apply budget change');
+        throw new Error("Failed to apply budget change");
       }
     } catch (error) {
-      console.error('Failed to apply recommendation:', error);
-      alert('Failed to apply budget change. Please try again.');
+      console.error("Failed to apply recommendation:", error);
+      alert("Failed to apply budget change. Please try again.");
     } finally {
-      setApplying(prev => prev.filter(id => id !== recommendation.campaign_id));
+      setApplying((prev) =>
+        prev.filter((id) => id !== recommendation.campaign_id),
+      );
     }
   };
 
   const toggleDetails = (campaignId: string) => {
-    setShowDetails(prev => 
-      prev.includes(campaignId) 
-        ? prev.filter(id => id !== campaignId)
-        : [...prev, campaignId]
+    setShowDetails((prev) =>
+      prev.includes(campaignId)
+        ? prev.filter((id) => id !== campaignId)
+        : [...prev, campaignId],
     );
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
     }).format(amount);
   };
 
-  const getImpactIcon = (impact: 'increase' | 'decrease' | 'maintain') => {
+  const getImpactIcon = (impact: "increase" | "decrease" | "maintain") => {
     switch (impact) {
-      case 'increase':
+      case "increase":
         return <TrendingUpIcon className="h-4 w-4 text-green-400" />;
-      case 'decrease':
+      case "decrease":
         return <TrendingDownIcon className="h-4 w-4 text-red-400" />;
       default:
         return <ClockIcon className="h-4 w-4 text-yellow-400" />;
     }
   };
 
-  const getPriorityColor = (priority: 'high' | 'medium' | 'low') => {
+  const getPriorityColor = (priority: "high" | "medium" | "low") => {
     switch (priority) {
-      case 'high':
-        return 'bg-red-600';
-      case 'medium':
-        return 'bg-yellow-600';
+      case "high":
+        return "bg-red-600";
+      case "medium":
+        return "bg-yellow-600";
       default:
-        return 'bg-blue-600';
+        return "bg-blue-600";
     }
   };
 
@@ -234,7 +254,9 @@ export function BudgetOptimizer({ accountId, campaigns }: BudgetOptimizerProps) 
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-red-400">
-                {formatCurrency(optimizationData.performance_insights.budget_waste_amount)}
+                {formatCurrency(
+                  optimizationData.performance_insights.budget_waste_amount,
+                )}
               </div>
               <div className="text-sm text-gray-400">Potential Waste</div>
             </div>
@@ -247,11 +269,16 @@ export function BudgetOptimizer({ accountId, campaigns }: BudgetOptimizerProps) 
                 Top Performers
               </h4>
               <div className="space-y-2">
-                {optimizationData.performance_insights.best_performing_campaigns.slice(0, 3).map((campaignName) => (
-                  <div key={campaignName} className="text-sm text-gray-300 bg-green-600/10 p-2 rounded">
-                    {campaignName}
-                  </div>
-                ))}
+                {optimizationData.performance_insights.best_performing_campaigns
+                  .slice(0, 3)
+                  .map((campaignName) => (
+                    <div
+                      key={campaignName}
+                      className="text-sm text-gray-300 bg-green-600/10 p-2 rounded"
+                    >
+                      {campaignName}
+                    </div>
+                  ))}
               </div>
             </div>
 
@@ -261,11 +288,16 @@ export function BudgetOptimizer({ accountId, campaigns }: BudgetOptimizerProps) 
                 Needs Attention
               </h4>
               <div className="space-y-2">
-                {optimizationData.performance_insights.underperforming_campaigns.slice(0, 3).map((campaignName) => (
-                  <div key={campaignName} className="text-sm text-gray-300 bg-red-600/10 p-2 rounded">
-                    {campaignName}
-                  </div>
-                ))}
+                {optimizationData.performance_insights.underperforming_campaigns
+                  .slice(0, 3)
+                  .map((campaignName) => (
+                    <div
+                      key={campaignName}
+                      className="text-sm text-gray-300 bg-red-600/10 p-2 rounded"
+                    >
+                      {campaignName}
+                    </div>
+                  ))}
               </div>
             </div>
           </div>
@@ -287,23 +319,32 @@ export function BudgetOptimizer({ accountId, campaigns }: BudgetOptimizerProps) 
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
-                      <h4 className="font-medium text-white">{rec.campaign_name}</h4>
+                      <h4 className="font-medium text-white">
+                        {rec.campaign_name}
+                      </h4>
                       <Badge className={getPriorityColor(rec.priority)}>
                         {rec.priority} priority
                       </Badge>
                       <div className="flex items-center text-gray-400">
                         {getImpactIcon(rec.impact)}
-                        <span className="ml-1 text-sm capitalize">{rec.impact}</span>
+                        <span className="ml-1 text-sm capitalize">
+                          {rec.impact}
+                        </span>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center space-x-4 text-sm text-gray-300 mb-2">
                       <span>Current: {formatCurrency(rec.current_budget)}</span>
                       <ArrowRightIcon className="h-4 w-4" />
-                      <span className={
-                        rec.impact === 'increase' ? 'text-green-400' :
-                        rec.impact === 'decrease' ? 'text-red-400' : 'text-yellow-400'
-                      }>
+                      <span
+                        className={
+                          rec.impact === "increase"
+                            ? "text-green-400"
+                            : rec.impact === "decrease"
+                              ? "text-red-400"
+                              : "text-yellow-400"
+                        }
+                      >
                         Recommended: {formatCurrency(rec.recommended_budget)}
                       </span>
                     </div>
@@ -341,12 +382,16 @@ export function BudgetOptimizer({ accountId, campaigns }: BudgetOptimizerProps) 
                       onClick={() => applyRecommendation(rec)}
                       disabled={applying.includes(rec.campaign_id)}
                       className={
-                        rec.impact === 'increase' ? 'bg-green-600 hover:bg-green-700' :
-                        rec.impact === 'decrease' ? 'bg-red-600 hover:bg-red-700' :
-                        'bg-blue-600 hover:bg-blue-700'
+                        rec.impact === "increase"
+                          ? "bg-green-600 hover:bg-green-700"
+                          : rec.impact === "decrease"
+                            ? "bg-red-600 hover:bg-red-700"
+                            : "bg-blue-600 hover:bg-blue-700"
                       }
                     >
-                      {applying.includes(rec.campaign_id) ? 'Applying...' : 'Apply'}
+                      {applying.includes(rec.campaign_id)
+                        ? "Applying..."
+                        : "Apply"}
                     </Button>
                   </div>
                 </div>
@@ -358,24 +403,36 @@ export function BudgetOptimizer({ accountId, campaigns }: BudgetOptimizerProps) 
                       <div>
                         <div className="text-gray-400">Budget Change</div>
                         <div className="font-medium text-white">
-                          {rec.impact === 'increase' ? '+' : rec.impact === 'decrease' ? '-' : ''}
-                          {formatCurrency(Math.abs(rec.recommended_budget - rec.current_budget))}
+                          {rec.impact === "increase"
+                            ? "+"
+                            : rec.impact === "decrease"
+                              ? "-"
+                              : ""}
+                          {formatCurrency(
+                            Math.abs(
+                              rec.recommended_budget - rec.current_budget,
+                            ),
+                          )}
                         </div>
                       </div>
                       <div>
                         <div className="text-gray-400">Expected Impact</div>
                         <div className="font-medium text-white">
-                          {rec.potential_leads_change > 0 ? '+' : ''}
+                          {rec.potential_leads_change > 0 ? "+" : ""}
                           {rec.potential_leads_change} leads/day
                         </div>
                       </div>
                       <div>
                         <div className="text-gray-400">Confidence Level</div>
-                        <div className="font-medium text-white">{rec.confidence}%</div>
+                        <div className="font-medium text-white">
+                          {rec.confidence}%
+                        </div>
                       </div>
                       <div>
                         <div className="text-gray-400">Priority</div>
-                        <div className="font-medium text-white capitalize">{rec.priority}</div>
+                        <div className="font-medium text-white capitalize">
+                          {rec.priority}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -389,7 +446,9 @@ export function BudgetOptimizer({ accountId, campaigns }: BudgetOptimizerProps) 
             <Button
               onClick={async () => {
                 // Apply all high and medium priority recommendations
-                const toApply = optimizationData.recommendations.filter(r => r.priority !== 'low');
+                const toApply = optimizationData.recommendations.filter(
+                  (r) => r.priority !== "low",
+                );
                 for (const rec of toApply) {
                   await applyRecommendation(rec);
                 }
@@ -416,29 +475,49 @@ export function BudgetOptimizer({ accountId, campaigns }: BudgetOptimizerProps) 
             <div className="flex items-start space-x-3">
               <div className="w-2 h-2 bg-blue-400 rounded-full mt-2"></div>
               <div>
-                <div className="text-white font-medium">Monitor Performance Daily</div>
-                <div className="text-gray-400">Check your campaign metrics daily and adjust budgets based on performance.</div>
+                <div className="text-white font-medium">
+                  Monitor Performance Daily
+                </div>
+                <div className="text-gray-400">
+                  Check your campaign metrics daily and adjust budgets based on
+                  performance.
+                </div>
               </div>
             </div>
             <div className="flex items-start space-x-3">
               <div className="w-2 h-2 bg-green-400 rounded-full mt-2"></div>
               <div>
-                <div className="text-white font-medium">Increase Budgets for Winners</div>
-                <div className="text-gray-400">Scale up spending on campaigns with low cost-per-lead and high conversion rates.</div>
+                <div className="text-white font-medium">
+                  Increase Budgets for Winners
+                </div>
+                <div className="text-gray-400">
+                  Scale up spending on campaigns with low cost-per-lead and high
+                  conversion rates.
+                </div>
               </div>
             </div>
             <div className="flex items-start space-x-3">
               <div className="w-2 h-2 bg-red-400 rounded-full mt-2"></div>
               <div>
-                <div className="text-white font-medium">Pause Underperforming Ads</div>
-                <div className="text-gray-400">Stop spending on ads that aren't generating quality leads or conversions.</div>
+                <div className="text-white font-medium">
+                  Pause Underperforming Ads
+                </div>
+                <div className="text-gray-400">
+                  Stop spending on ads that aren't generating quality leads or
+                  conversions.
+                </div>
               </div>
             </div>
             <div className="flex items-start space-x-3">
               <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2"></div>
               <div>
-                <div className="text-white font-medium">Test Different Budget Levels</div>
-                <div className="text-gray-400">A/B test different budget amounts to find the optimal spend for each campaign.</div>
+                <div className="text-white font-medium">
+                  Test Different Budget Levels
+                </div>
+                <div className="text-gray-400">
+                  A/B test different budget amounts to find the optimal spend
+                  for each campaign.
+                </div>
               </div>
             </div>
           </div>

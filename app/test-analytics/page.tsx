@@ -1,42 +1,50 @@
-'use client';
-import Link from 'next/link'
-import { useState } from 'react';
-import { analytics } from '@/app/lib/analytics/client';
-import Button from '@/app/components/ui/Button';
-import { Card, CardHeader, CardTitle, CardContent } from '@/app/components/ui/Card';
+"use client";
+import Link from "next/link";
+import { useState } from "react";
+import { analytics } from "@/app/lib/analytics/client";
+import Button from "@/app/components/ui/Button";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from "@/app/components/ui/Card";
 
 export default function TestAnalyticsPage() {
   const [eventLog, setEventLog] = useState<string[]>([]);
 
   const addLog = (message: string) => {
-    setEventLog(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`]);
+    setEventLog((prev) => [
+      ...prev,
+      `${new Date().toLocaleTimeString()}: ${message}`,
+    ]);
   };
 
   const testPageView = () => {
-    analytics.trackPageView('/test/custom-page');
-    addLog('Tracked custom pageview: /test/custom-page');
+    analytics.trackPageView("/test/custom-page");
+    addLog("Tracked custom pageview: /test/custom-page");
   };
 
   const testClick = () => {
-    analytics.trackClick('test-button', { section: 'testing', value: 'high' });
-    addLog('Tracked click: test-button');
+    analytics.trackClick("test-button", { section: "testing", value: "high" });
+    addLog("Tracked click: test-button");
   };
 
   const testFormSubmit = () => {
-    analytics.trackFormSubmit('test-form', { 
-      fields: ['name', 'email', 'phone'],
-      formType: 'contact'
+    analytics.trackFormSubmit("test-form", {
+      fields: ["name", "email", "phone"],
+      formType: "contact",
     });
-    addLog('Tracked form submission: test-form');
+    addLog("Tracked form submission: test-form");
   };
 
   const testCustomEvent = () => {
-    analytics.trackCustomEvent('test_conversion', {
+    analytics.trackCustomEvent("test_conversion", {
       value: 99.99,
-      currency: 'USD',
-      product: 'premium-membership'
+      currency: "USD",
+      product: "premium-membership",
     });
-    addLog('Tracked custom event: test_conversion');
+    addLog("Tracked custom event: test_conversion");
   };
 
   const testBatchEvents = () => {
@@ -44,18 +52,19 @@ export default function TestAnalyticsPage() {
     for (let i = 1; i <= 5; i++) {
       analytics.trackClick(`batch-test-${i}`, { batch: true, index: i });
     }
-    addLog('Triggered 5 events for batch testing');
+    addLog("Triggered 5 events for batch testing");
   };
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4">
         <h1 className="text-3xl font-bold mb-8">Analytics Testing Page</h1>
-        
+
         <div className="mb-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-blue-800">
-            This page helps you test the analytics implementation. Click the buttons below to trigger different types of events.
-            Open your browser's Network tab to see the events being sent to the API.
+            This page helps you test the analytics implementation. Click the
+            buttons below to trigger different types of events. Open your
+            browser's Network tab to see the events being sent to the API.
           </p>
         </div>
 
@@ -65,15 +74,15 @@ export default function TestAnalyticsPage() {
               <CardTitle>Tracking Events</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button 
+              <Button
                 onClick={testPageView}
                 className="w-full"
                 data-track="test-pageview-button"
               >
                 Test Custom Page View
               </Button>
-              
-              <Button 
+
+              <Button
                 onClick={testClick}
                 variant="outline"
                 className="w-full"
@@ -81,8 +90,8 @@ export default function TestAnalyticsPage() {
               >
                 Test Click Event
               </Button>
-              
-              <Button 
+
+              <Button
                 onClick={testFormSubmit}
                 variant="outline"
                 className="w-full"
@@ -90,8 +99,8 @@ export default function TestAnalyticsPage() {
               >
                 Test Form Submit
               </Button>
-              
-              <Button 
+
+              <Button
                 onClick={testCustomEvent}
                 variant="outline"
                 className="w-full"
@@ -99,8 +108,8 @@ export default function TestAnalyticsPage() {
               >
                 Test Custom Event
               </Button>
-              
-              <Button 
+
+              <Button
                 onClick={testBatchEvents}
                 variant="outline"
                 className="w-full"
@@ -117,33 +126,34 @@ export default function TestAnalyticsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-gray-600 mb-4">
-                These elements have data-track attributes and will be tracked automatically when clicked.
+                These elements have data-track attributes and will be tracked
+                automatically when clicked.
               </p>
-              
-              <button 
+
+              <button
                 className="w-full px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
                 data-track="green-action-button"
               >
                 Green Action Button
               </button>
-              
-              <button 
+
+              <button
                 className="w-full px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
                 data-track="purple-action-button"
               >
                 Purple Action Button
               </button>
-              
-              <a 
-                href="#" 
+
+              <a
+                href="#"
                 className="block w-full text-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                 data-track="blue-link"
                 onClick={(e) => e.preventDefault()}
               >
                 Tracked Link
               </a>
-              
-              <div 
+
+              <div
                 className="w-full px-4 py-2 bg-gray-200 text-center rounded cursor-pointer hover:bg-gray-300"
                 data-track="gray-div-element"
               >
@@ -160,7 +170,9 @@ export default function TestAnalyticsPage() {
           <CardContent>
             <div className="bg-gray-900 text-green-400 p-4 rounded font-mono text-sm max-h-96 overflow-y-auto">
               {eventLog.length === 0 ? (
-                <p className="text-gray-500">No events tracked yet. Click buttons above to start testing.</p>
+                <p className="text-gray-500">
+                  No events tracked yet. Click buttons above to start testing.
+                </p>
               ) : (
                 eventLog.map((log, index) => (
                   <div key={index} className="mb-1">
@@ -170,7 +182,7 @@ export default function TestAnalyticsPage() {
               )}
             </div>
             {eventLog.length > 0 && (
-              <Button 
+              <Button
                 onClick={() => setEventLog([])}
                 variant="outline"
                 size="sm"
@@ -196,9 +208,17 @@ export default function TestAnalyticsPage() {
         </div>
 
         <div className="mt-8 text-center text-gray-600">
-          <p>Visitor ID: <code className="bg-gray-200 px-2 py-1 rounded">Check localStorage._analytics_vid</code></p>
+          <p>
+            Visitor ID:{" "}
+            <code className="bg-gray-200 px-2 py-1 rounded">
+              Check localStorage._analytics_vid
+            </code>
+          </p>
           <p className="mt-2">
-            <Link href="/analytics-dashboard" className="text-blue-600 hover:underline">
+            <Link
+              href="/analytics-dashboard"
+              className="text-blue-600 hover:underline"
+            >
               View Analytics Dashboard →
             </Link>
           </p>
@@ -207,7 +227,9 @@ export default function TestAnalyticsPage() {
         {/* Add some height to test scroll tracking */}
         <div className="mt-16 space-y-8">
           <div className="h-96 bg-gradient-to-b from-blue-100 to-blue-200 rounded-lg flex items-center justify-center">
-            <p className="text-2xl text-blue-800">Scroll down to test scroll depth tracking (25%)</p>
+            <p className="text-2xl text-blue-800">
+              Scroll down to test scroll depth tracking (25%)
+            </p>
           </div>
           <div className="h-96 bg-gradient-to-b from-green-100 to-green-200 rounded-lg flex items-center justify-center">
             <p className="text-2xl text-green-800">Keep scrolling (50%)</p>
@@ -216,7 +238,9 @@ export default function TestAnalyticsPage() {
             <p className="text-2xl text-yellow-800">Almost there (75%)</p>
           </div>
           <div className="h-96 bg-gradient-to-b from-red-100 to-red-200 rounded-lg flex items-center justify-center">
-            <p className="text-2xl text-red-800">You've reached the bottom (100%)</p>
+            <p className="text-2xl text-red-800">
+              You've reached the bottom (100%)
+            </p>
           </div>
         </div>
       </div>

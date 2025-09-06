@@ -29,6 +29,7 @@ This integration allows gym owners to connect their Facebook Pages and manage Me
 ### Required Permissions
 
 Request these permissions at OAuth time:
+
 - `pages_messaging` - Send and receive messages
 - `pages_manage_metadata` - Manage page settings
 - `pages_read_engagement` - Read page insights
@@ -74,6 +75,7 @@ The integration adds these tables:
 - `webhook_events` - Event log for debugging
 
 Run migration:
+
 ```bash
 supabase migration up 20250906_meta_messenger_integration
 ```
@@ -92,17 +94,19 @@ supabase migration up 20250906_meta_messenger_integration
 ### For Developers
 
 1. **Local Development**:
+
    ```bash
    # Start local server
    npm run dev
-   
+
    # Use ngrok for webhook testing
    ngrok http 3000
-   
+
    # Update Meta webhook URL to ngrok URL
    ```
 
 2. **Deploy Database Migration**:
+
    ```bash
    supabase migration up
    ```
@@ -134,6 +138,7 @@ supabase migration up 20250906_meta_messenger_integration
 ### 24-Hour Messaging Policy
 
 Facebook enforces a 24-hour messaging window:
+
 - ✅ Can send within 24 hours of last customer message
 - ❌ Cannot send after 24 hours (requires customer to message first)
 - UI shows countdown timer and disables composer when expired
@@ -141,30 +146,36 @@ Facebook enforces a 24-hour messaging window:
 ## API Endpoints
 
 ### OAuth Flow
+
 - `GET /api/integrations/meta/connect` - Start OAuth
 - `GET /api/integrations/meta/callback` - OAuth callback
 - `POST /api/integrations/meta/disconnect` - Disconnect page
 
 ### Webhooks
+
 - `GET /api/webhooks/meta/messenger` - Webhook verification
 - `POST /api/webhooks/meta/messenger` - Receive events
 
 ### Messaging
+
 - `POST /api/messages/messenger/send` - Send message
 
 ## Security
 
 ### Token Encryption
+
 - Page access tokens are encrypted using AES-256-GCM
 - Encryption key from env variable
 - Tokens never logged or exposed
 
 ### Webhook Verification
+
 - Signature validation using `x-hub-signature-256` header
 - HMAC-SHA256 with app secret
 - Timing-safe comparison
 
 ### Rate Limiting
+
 - Webhook endpoint rate-limited
 - Quick 200 response to avoid retries
 - Async processing for heavy operations
@@ -172,34 +183,40 @@ Facebook enforces a 24-hour messaging window:
 ## Monitoring
 
 ### Health Checks
+
 - Integration status shown in settings
 - Error messages displayed for failed tokens
 - Webhook events logged for debugging
 
 ### Logs
+
 Structured logging with no PII:
+
 ```javascript
-console.log('Meta webhook received', {
+console.log("Meta webhook received", {
   pageId,
   eventType,
-  timestamp
+  timestamp,
   // No message content or user data
-})
+});
 ```
 
 ## Testing
 
 ### Unit Tests
+
 ```bash
 npm test tests/unit/meta-messenger.test.ts
 ```
 
 ### Integration Tests
+
 ```bash
 npm test tests/integration/meta-messenger-api.test.ts
 ```
 
 ### E2E Tests
+
 ```bash
 npm run test:e2e tests/e2e/meta-messenger-flow.spec.ts
 ```
@@ -284,6 +301,7 @@ npm run test:e2e tests/e2e/meta-messenger-flow.spec.ts
 ## Support
 
 For issues:
+
 1. Check webhook event logs in database
 2. Verify integration status in settings
 3. Review browser console for errors
@@ -291,5 +309,5 @@ For issues:
 
 ---
 
-*Last Updated: September 2025*
-*Version: 1.0.0*
+_Last Updated: September 2025_
+_Version: 1.0.0_

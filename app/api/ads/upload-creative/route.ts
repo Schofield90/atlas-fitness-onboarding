@@ -1,107 +1,141 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from "next/server";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
 
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
-    
+
     // Get current user and organization
-    const { data: { session }, error: authError } = await supabase.auth.getSession();
-    
+    const {
+      data: { session },
+      error: authError,
+    } = await supabase.auth.getSession();
+
     if (authError || !session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { data: user } = await supabase
-      .from('users')
-      .select('organization_id')
-      .eq('id', session.user.id)
+      .from("users")
+      .select("organization_id")
+      .eq("id", session.user.id)
       .single();
 
     if (!user?.organization_id) {
-      return NextResponse.json({ error: 'No organization found' }, { status: 404 });
+      return NextResponse.json(
+        { error: "No organization found" },
+        { status: 404 },
+      );
     }
 
     const formData = await request.formData();
-    const file = formData.get('file') as File;
-    const type = formData.get('type') as string;
+    const file = formData.get("file") as File;
+    const type = formData.get("type") as string;
 
     if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+      return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    if (!type || !['image', 'video'].includes(type)) {
-      return NextResponse.json({ error: 'Invalid type. Must be image or video' }, { status: 400 });
+    if (!type || !["image", "video"].includes(type)) {
+      return NextResponse.json(
+        { error: "Invalid type. Must be image or video" },
+        { status: 400 },
+      );
     }
 
     // Validate file type and size
-    const maxSize = type === 'video' ? 100 * 1024 * 1024 : 10 * 1024 * 1024; // 100MB for video, 10MB for image
+    const maxSize = type === "video" ? 100 * 1024 * 1024 : 10 * 1024 * 1024; // 100MB for video, 10MB for image
     if (file.size > maxSize) {
-      return NextResponse.json({ 
-        error: `File too large. Maximum size is ${maxSize / 1024 / 1024}MB` 
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: `File too large. Maximum size is ${maxSize / 1024 / 1024}MB`,
+        },
+        { status: 400 },
+      );
     }
 
-    const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    const allowedVideoTypes = ['video/mp4', 'video/mov', 'video/avi', 'video/quicktime'];
-    
-    if (type === 'image' && !allowedImageTypes.includes(file.type)) {
-      return NextResponse.json({ 
-        error: 'Invalid image type. Allowed: JPEG, PNG, GIF, WebP' 
-      }, { status: 400 });
+    const allowedImageTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+    ];
+    const allowedVideoTypes = [
+      "video/mp4",
+      "video/mov",
+      "video/avi",
+      "video/quicktime",
+    ];
+
+    if (type === "image" && !allowedImageTypes.includes(file.type)) {
+      return NextResponse.json(
+        {
+          error: "Invalid image type. Allowed: JPEG, PNG, GIF, WebP",
+        },
+        { status: 400 },
+      );
     }
 
-    if (type === 'video' && !allowedVideoTypes.includes(file.type)) {
-      return NextResponse.json({ 
-        error: 'Invalid video type. Allowed: MP4, MOV, AVI, QuickTime' 
-      }, { status: 400 });
+    if (type === "video" && !allowedVideoTypes.includes(file.type)) {
+      return NextResponse.json(
+        {
+          error: "Invalid video type. Allowed: MP4, MOV, AVI, QuickTime",
+        },
+        { status: 400 },
+      );
     }
 
     // Create unique filename
-    const fileExtension = file.name.split('.').pop();
+    const fileExtension = file.name.split(".").pop();
     const fileName = `${user.organization_id}/${type}s/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
 
     try {
       // Upload to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('ad-creatives')
+        .from("ad-creatives")
         .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: false
+          cacheControl: "3600",
+          upsert: false,
         });
 
       if (uploadError) {
-        console.error('Storage upload error:', uploadError);
-        return NextResponse.json({ 
-          error: 'Failed to upload file to storage' 
-        }, { status: 500 });
+        console.error("Storage upload error:", uploadError);
+        return NextResponse.json(
+          {
+            error: "Failed to upload file to storage",
+          },
+          { status: 500 },
+        );
       }
 
       // Get public URL
       const { data: urlData } = supabase.storage
-        .from('ad-creatives')
+        .from("ad-creatives")
         .getPublicUrl(fileName);
 
       if (!urlData.publicUrl) {
-        return NextResponse.json({ 
-          error: 'Failed to get public URL for uploaded file' 
-        }, { status: 500 });
+        return NextResponse.json(
+          {
+            error: "Failed to get public URL for uploaded file",
+          },
+          { status: 500 },
+        );
       }
 
       // For images, we can also upload to Facebook and get a hash
       let facebookHash = null;
       let facebookImageId = null;
 
-      if (type === 'image') {
+      if (type === "image") {
         try {
           // Get active Facebook integration
           const { data: integration } = await supabase
-            .from('facebook_integrations')
-            .select('access_token')
-            .eq('organization_id', user.organization_id)
-            .eq('is_active', true)
+            .from("facebook_integrations")
+            .select("access_token")
+            .eq("organization_id", user.organization_id)
+            .eq("is_active", true)
             .single();
 
           if (integration && integration.access_token) {
@@ -111,13 +145,20 @@ export async function POST(request: NextRequest) {
 
             // Upload to Facebook
             const fbFormData = new FormData();
-            fbFormData.append('source', new Blob([buffer], { type: file.type }), file.name);
-            fbFormData.append('access_token', integration.access_token);
+            fbFormData.append(
+              "source",
+              new Blob([buffer], { type: file.type }),
+              file.name,
+            );
+            fbFormData.append("access_token", integration.access_token);
 
-            const fbResponse = await fetch('https://graph.facebook.com/v18.0/me/adimages', {
-              method: 'POST',
-              body: fbFormData
-            });
+            const fbResponse = await fetch(
+              "https://graph.facebook.com/v18.0/me/adimages",
+              {
+                method: "POST",
+                body: fbFormData,
+              },
+            );
 
             if (fbResponse.ok) {
               const fbData = await fbResponse.json();
@@ -129,18 +170,23 @@ export async function POST(request: NextRequest) {
             }
           }
         } catch (fbError) {
-          console.warn('Failed to upload to Facebook, but file uploaded to storage:', fbError);
+          console.warn(
+            "Failed to upload to Facebook, but file uploaded to storage:",
+            fbError,
+          );
         }
       }
 
       // For videos, we would upload to Facebook differently
-      if (type === 'video') {
+      if (type === "video") {
         try {
           const { data: integration } = await supabase
-            .from('facebook_integrations')
-            .select('access_token, facebook_integrations!inner(facebook_ad_account_id)')
-            .eq('organization_id', user.organization_id)
-            .eq('is_active', true)
+            .from("facebook_integrations")
+            .select(
+              "access_token, facebook_integrations!inner(facebook_ad_account_id)",
+            )
+            .eq("organization_id", user.organization_id)
+            .eq("is_active", true)
             .single();
 
           if (integration && integration.access_token) {
@@ -149,7 +195,7 @@ export async function POST(request: NextRequest) {
             // For now, we'll just use the Supabase URL
           }
         } catch (fbError) {
-          console.warn('Failed to upload video to Facebook:', fbError);
+          console.warn("Failed to upload video to Facebook:", fbError);
         }
       }
 
@@ -159,7 +205,7 @@ export async function POST(request: NextRequest) {
         filename: fileName,
         type: type,
         size: file.size,
-        mime_type: file.type
+        mime_type: file.type,
       };
 
       if (facebookHash) {
@@ -168,16 +214,20 @@ export async function POST(request: NextRequest) {
       }
 
       return NextResponse.json(responseData);
-
     } catch (error) {
-      console.error('Upload error:', error);
-      return NextResponse.json({ 
-        error: 'Failed to upload file' 
-      }, { status: 500 });
+      console.error("Upload error:", error);
+      return NextResponse.json(
+        {
+          error: "Failed to upload file",
+        },
+        { status: 500 },
+      );
     }
-
   } catch (error) {
-    console.error('Error uploading creative:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error("Error uploading creative:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

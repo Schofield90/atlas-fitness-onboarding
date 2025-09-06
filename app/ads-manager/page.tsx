@@ -1,14 +1,19 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/Card';
-import { Button } from '@/app/components/ui/Button';
-import { Badge } from '@/app/components/ui/Badge';
-import Link from 'next/link';
-import { 
-  ChartBarIcon, 
-  PlusIcon, 
-  PlayIcon, 
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/app/components/ui/Card";
+import { Button } from "@/app/components/ui/Button";
+import { Badge } from "@/app/components/ui/Badge";
+import Link from "next/link";
+import {
+  ChartBarIcon,
+  PlusIcon,
+  PlayIcon,
   PauseIcon,
   ArrowUpIcon,
   ArrowDownIcon,
@@ -17,10 +22,10 @@ import {
   BanknotesIcon,
   UserGroupIcon,
   AdjustmentsHorizontalIcon,
-  DocumentDuplicateIcon
-} from '@heroicons/react/24/outline';
-import { AdAccountSelector } from '@/app/components/ads/AdAccountSelector';
-import { AdPerformanceChart } from '@/app/components/ads/AdPerformanceChart';
+  DocumentDuplicateIcon,
+} from "@heroicons/react/24/outline";
+import { AdAccountSelector } from "@/app/components/ads/AdAccountSelector";
+import { AdPerformanceChart } from "@/app/components/ads/AdPerformanceChart";
 
 interface AdAccount {
   id: string;
@@ -71,7 +76,7 @@ interface TopAd {
 
 export default function AdsManagerPage() {
   const [adAccounts, setAdAccounts] = useState<AdAccount[]>([]);
-  const [selectedAccount, setSelectedAccount] = useState<string>('');
+  const [selectedAccount, setSelectedAccount] = useState<string>("");
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [metrics, setMetrics] = useState<PerformanceMetrics>({
     totalSpend: 0,
@@ -81,12 +86,12 @@ export default function AdsManagerPage() {
     averageCTR: 0,
     averageCPC: 0,
     averageCPL: 0,
-    roas: 0
+    roas: 0,
   });
   const [topAds, setTopAds] = useState<TopAd[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const [dateRange, setDateRange] = useState('7'); // days
+  const [dateRange, setDateRange] = useState("7"); // days
 
   useEffect(() => {
     fetchAdAccounts();
@@ -102,7 +107,7 @@ export default function AdsManagerPage() {
 
   const fetchAdAccounts = async () => {
     try {
-      const response = await fetch('/api/ads/accounts');
+      const response = await fetch("/api/ads/accounts");
       if (response.ok) {
         const data = await response.json();
         setAdAccounts(data.accounts || []);
@@ -111,7 +116,7 @@ export default function AdsManagerPage() {
         }
       }
     } catch (error) {
-      console.error('Failed to fetch ad accounts:', error);
+      console.error("Failed to fetch ad accounts:", error);
     } finally {
       setLoading(false);
     }
@@ -121,13 +126,15 @@ export default function AdsManagerPage() {
     if (!selectedAccount) return;
 
     try {
-      const response = await fetch(`/api/ads/campaigns?account_id=${selectedAccount}&days=${dateRange}`);
+      const response = await fetch(
+        `/api/ads/campaigns?account_id=${selectedAccount}&days=${dateRange}`,
+      );
       if (response.ok) {
         const data = await response.json();
         setCampaigns(data.campaigns || []);
       }
     } catch (error) {
-      console.error('Failed to fetch campaigns:', error);
+      console.error("Failed to fetch campaigns:", error);
     }
   };
 
@@ -135,13 +142,15 @@ export default function AdsManagerPage() {
     if (!selectedAccount) return;
 
     try {
-      const response = await fetch(`/api/ads/metrics?account_id=${selectedAccount}&days=${dateRange}`);
+      const response = await fetch(
+        `/api/ads/metrics?account_id=${selectedAccount}&days=${dateRange}`,
+      );
       if (response.ok) {
         const data = await response.json();
         setMetrics(data.metrics || metrics);
       }
     } catch (error) {
-      console.error('Failed to fetch metrics:', error);
+      console.error("Failed to fetch metrics:", error);
     }
   };
 
@@ -149,77 +158,85 @@ export default function AdsManagerPage() {
     if (!selectedAccount) return;
 
     try {
-      const response = await fetch(`/api/ads/top-ads?account_id=${selectedAccount}&days=${dateRange}&limit=5`);
+      const response = await fetch(
+        `/api/ads/top-ads?account_id=${selectedAccount}&days=${dateRange}&limit=5`,
+      );
       if (response.ok) {
         const data = await response.json();
         setTopAds(data.ads || []);
       }
     } catch (error) {
-      console.error('Failed to fetch top ads:', error);
+      console.error("Failed to fetch top ads:", error);
     }
   };
 
   const syncMetrics = async () => {
     setSyncing(true);
     try {
-      const response = await fetch('/api/ads/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ account_id: selectedAccount })
+      const response = await fetch("/api/ads/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ account_id: selectedAccount }),
       });
-      
+
       if (response.ok) {
         // Refresh all data after sync
         await Promise.all([fetchCampaigns(), fetchMetrics(), fetchTopAds()]);
       }
     } catch (error) {
-      console.error('Failed to sync metrics:', error);
+      console.error("Failed to sync metrics:", error);
     } finally {
       setSyncing(false);
     }
   };
 
-  const toggleCampaignStatus = async (campaignId: string, currentStatus: string) => {
+  const toggleCampaignStatus = async (
+    campaignId: string,
+    currentStatus: string,
+  ) => {
     try {
-      const newStatus = currentStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
+      const newStatus = currentStatus === "ACTIVE" ? "PAUSED" : "ACTIVE";
       const response = await fetch(`/api/ads/campaigns/${campaignId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
       });
-      
+
       if (response.ok) {
         fetchCampaigns();
       }
     } catch (error) {
-      console.error('Failed to update campaign status:', error);
+      console.error("Failed to update campaign status:", error);
     }
   };
 
   const duplicateCampaign = async (campaignId: string) => {
     try {
-      const response = await fetch(`/api/ads/campaigns/${campaignId}/duplicate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      
+      const response = await fetch(
+        `/api/ads/campaigns/${campaignId}/duplicate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+
       if (response.ok) {
         fetchCampaigns();
       }
     } catch (error) {
-      console.error('Failed to duplicate campaign:', error);
+      console.error("Failed to duplicate campaign:", error);
     }
   };
 
-  const formatCurrency = (amount: number, currency: string = 'USD') => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
+  const formatCurrency = (amount: number, currency: string = "USD") => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
       currency: currency,
     }).format(amount);
   };
 
   const formatNumber = (num: number) => {
-    return new Intl.NumberFormat('en-US').format(num);
+    return new Intl.NumberFormat("en-US").format(num);
   };
 
   const formatPercentage = (num: number) => {
@@ -251,7 +268,7 @@ export default function AdsManagerPage() {
               disabled={syncing}
               className="bg-blue-600 hover:bg-blue-700"
             >
-              {syncing ? 'Syncing...' : 'Sync Data'}
+              {syncing ? "Syncing..." : "Sync Data"}
             </Button>
             <Link href="/ads-manager/create">
               <Button className="bg-green-600 hover:bg-green-700">
@@ -269,7 +286,7 @@ export default function AdsManagerPage() {
             selectedAccount={selectedAccount}
             onAccountChange={setSelectedAccount}
           />
-          
+
           <select
             value={dateRange}
             onChange={(e) => setDateRange(e.target.value)}
@@ -286,7 +303,9 @@ export default function AdsManagerPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card className="bg-gray-800 border-gray-700">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-300">Total Spend</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-300">
+                Total Spend
+              </CardTitle>
               <BanknotesIcon className="h-4 w-4 text-red-400" />
             </CardHeader>
             <CardContent>
@@ -298,7 +317,9 @@ export default function AdsManagerPage() {
 
           <Card className="bg-gray-800 border-gray-700">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-300">Impressions</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-300">
+                Impressions
+              </CardTitle>
               <EyeIcon className="h-4 w-4 text-blue-400" />
             </CardHeader>
             <CardContent>
@@ -310,7 +331,9 @@ export default function AdsManagerPage() {
 
           <Card className="bg-gray-800 border-gray-700">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-300">Clicks</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-300">
+                Clicks
+              </CardTitle>
               <CursorArrowRaysIcon className="h-4 w-4 text-green-400" />
             </CardHeader>
             <CardContent>
@@ -325,7 +348,9 @@ export default function AdsManagerPage() {
 
           <Card className="bg-gray-800 border-gray-700">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-300">Leads</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-300">
+                Leads
+              </CardTitle>
               <UserGroupIcon className="h-4 w-4 text-purple-400" />
             </CardHeader>
             <CardContent>
@@ -345,9 +370,9 @@ export default function AdsManagerPage() {
             <CardTitle className="text-white">Performance Over Time</CardTitle>
           </CardHeader>
           <CardContent>
-            <AdPerformanceChart 
-              accountId={selectedAccount} 
-              days={parseInt(dateRange)} 
+            <AdPerformanceChart
+              accountId={selectedAccount}
+              days={parseInt(dateRange)}
             />
           </CardContent>
         </Card>
@@ -361,16 +386,23 @@ export default function AdsManagerPage() {
             <CardContent>
               <div className="space-y-4">
                 {campaigns.map((campaign) => (
-                  <div key={campaign.id} className="flex items-center justify-between p-4 bg-gray-700 rounded-lg">
+                  <div
+                    key={campaign.id}
+                    className="flex items-center justify-between p-4 bg-gray-700 rounded-lg"
+                  >
                     <div className="flex-1">
-                      <h3 className="font-semibold text-white">{campaign.campaign_name}</h3>
+                      <h3 className="font-semibold text-white">
+                        {campaign.campaign_name}
+                      </h3>
                       <div className="flex items-center space-x-4 mt-2 text-sm text-gray-300">
                         <span>{campaign.objective}</span>
-                        <Badge 
+                        <Badge
                           className={
-                            campaign.status === 'ACTIVE' ? 'bg-green-600' : 
-                            campaign.status === 'PAUSED' ? 'bg-yellow-600' : 
-                            'bg-red-600'
+                            campaign.status === "ACTIVE"
+                              ? "bg-green-600"
+                              : campaign.status === "PAUSED"
+                                ? "bg-yellow-600"
+                                : "bg-red-600"
                           }
                         >
                           {campaign.status}
@@ -379,19 +411,27 @@ export default function AdsManagerPage() {
                       <div className="grid grid-cols-4 gap-4 mt-2 text-sm">
                         <div>
                           <span className="text-gray-400">Spend:</span>
-                          <div className="font-medium">{formatCurrency(campaign.spend)}</div>
+                          <div className="font-medium">
+                            {formatCurrency(campaign.spend)}
+                          </div>
                         </div>
                         <div>
                           <span className="text-gray-400">Impressions:</span>
-                          <div className="font-medium">{formatNumber(campaign.impressions)}</div>
+                          <div className="font-medium">
+                            {formatNumber(campaign.impressions)}
+                          </div>
                         </div>
                         <div>
                           <span className="text-gray-400">Clicks:</span>
-                          <div className="font-medium">{formatNumber(campaign.clicks)}</div>
+                          <div className="font-medium">
+                            {formatNumber(campaign.clicks)}
+                          </div>
                         </div>
                         <div>
                           <span className="text-gray-400">Leads:</span>
-                          <div className="font-medium">{formatNumber(campaign.leads_count)}</div>
+                          <div className="font-medium">
+                            {formatNumber(campaign.leads_count)}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -399,13 +439,16 @@ export default function AdsManagerPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => toggleCampaignStatus(campaign.id, campaign.status)}
+                        onClick={() =>
+                          toggleCampaignStatus(campaign.id, campaign.status)
+                        }
                         className="p-2"
                       >
-                        {campaign.status === 'ACTIVE' ? 
-                          <PauseIcon className="h-4 w-4" /> : 
+                        {campaign.status === "ACTIVE" ? (
+                          <PauseIcon className="h-4 w-4" />
+                        ) : (
                           <PlayIcon className="h-4 w-4" />
-                        }
+                        )}
                       </Button>
                       <Button
                         size="sm"
@@ -425,7 +468,8 @@ export default function AdsManagerPage() {
                 ))}
                 {campaigns.length === 0 && (
                   <div className="text-center py-8 text-gray-400">
-                    No campaigns found. Create your first campaign to get started.
+                    No campaigns found. Create your first campaign to get
+                    started.
                   </div>
                 )}
               </div>
@@ -440,7 +484,10 @@ export default function AdsManagerPage() {
             <CardContent>
               <div className="space-y-4">
                 {topAds.map((ad, index) => (
-                  <div key={ad.facebook_ad_id} className="flex items-center justify-between p-4 bg-gray-700 rounded-lg">
+                  <div
+                    key={ad.facebook_ad_id}
+                    className="flex items-center justify-between p-4 bg-gray-700 rounded-lg"
+                  >
                     <div className="flex items-center space-x-3">
                       <div className="flex items-center justify-center w-8 h-8 bg-blue-600 rounded-full text-white font-bold text-sm">
                         {index + 1}
@@ -448,9 +495,9 @@ export default function AdsManagerPage() {
                       <div>
                         <h4 className="font-medium text-white">{ad.ad_name}</h4>
                         <div className="text-sm text-gray-400 mt-1">
-                          CTR: {formatPercentage(ad.ctr)} • 
-                          CPL: {formatCurrency(ad.cost_per_lead)} • 
-                          Leads: {ad.leads_count}
+                          CTR: {formatPercentage(ad.ctr)} • CPL:{" "}
+                          {formatCurrency(ad.cost_per_lead)} • Leads:{" "}
+                          {ad.leads_count}
                         </div>
                       </div>
                     </div>
@@ -477,7 +524,9 @@ export default function AdsManagerPage() {
         {/* Budget Allocation Overview */}
         <Card className="bg-gray-800 border-gray-700 mt-8">
           <CardHeader>
-            <CardTitle className="text-white">Budget Allocation & ROAS</CardTitle>
+            <CardTitle className="text-white">
+              Budget Allocation & ROAS
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -491,13 +540,17 @@ export default function AdsManagerPage() {
                 <div className="text-3xl font-bold text-blue-400">
                   {formatCurrency(metrics.averageCPC)}
                 </div>
-                <div className="text-sm text-gray-400">Average Cost per Click</div>
+                <div className="text-sm text-gray-400">
+                  Average Cost per Click
+                </div>
               </div>
               <div className="text-center">
                 <div className="text-3xl font-bold text-purple-400">
                   {formatCurrency(metrics.averageCPL)}
                 </div>
-                <div className="text-sm text-gray-400">Average Cost per Lead</div>
+                <div className="text-sm text-gray-400">
+                  Average Cost per Lead
+                </div>
               </div>
             </div>
           </CardContent>

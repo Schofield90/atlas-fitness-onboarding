@@ -11,12 +11,14 @@ The Twilio Setup Wizard is a comprehensive step-by-step interface that guides us
 The main page component that orchestrates the entire setup experience.
 
 **Features:**
+
 - Connection status monitoring
 - Settings persistence to database
 - Real-time connection testing
 - Integration with AI helper
 
 **Key Functions:**
+
 - `fetchSettings()` - Loads existing Twilio configuration from database
 - `testConnection()` - Validates Twilio credentials and phone number
 - `handleSave()` - Persists configuration securely to database
@@ -26,12 +28,14 @@ The main page component that orchestrates the entire setup experience.
 A multi-step wizard interface with visual guides and interactive elements.
 
 **Steps:**
+
 1. **Account Creation** - Instructions for creating a Twilio account
 2. **Credentials** - Getting and entering Account SID and Auth Token
 3. **Phone Number** - Purchasing and configuring a phone number
 4. **Test & Configure** - Connection testing and webhook setup
 
 **Features:**
+
 - Step validation and progression logic
 - Copy-to-clipboard functionality for credentials
 - Visual guides with screenshots placeholders
@@ -42,12 +46,14 @@ A multi-step wizard interface with visual guides and interactive elements.
 An intelligent floating chat assistant that provides contextual help.
 
 **Features:**
+
 - Contextual FAQ system with categorized questions
 - Intelligent response generation for Twilio-specific queries
 - Floating widget UI that can be minimized/maximized
 - Pre-built responses for common setup scenarios
 
 **Supported Query Types:**
+
 - Account creation and verification
 - Finding credentials in Twilio Console
 - Phone number purchase and configuration
@@ -62,6 +68,7 @@ An intelligent floating chat assistant that provides contextual help.
 Validates Twilio credentials and tests connectivity.
 
 **Request Body:**
+
 ```json
 {
   "accountSid": "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
@@ -71,6 +78,7 @@ Validates Twilio credentials and tests connectivity.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -102,6 +110,7 @@ Validates Twilio credentials and tests connectivity.
 ```
 
 **Validation Performed:**
+
 - Account SID format validation (starts with 'AC', 34 chars)
 - Auth Token authentication
 - Account status and balance checks
@@ -130,6 +139,7 @@ CREATE TABLE integration_settings (
 ```
 
 **Configuration Structure:**
+
 ```json
 {
   "account_sid": "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
@@ -141,6 +151,7 @@ CREATE TABLE integration_settings (
 ```
 
 **Credentials Structure (Encrypted):**
+
 ```json
 {
   "account_sid": "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
@@ -151,11 +162,13 @@ CREATE TABLE integration_settings (
 ## Security Features
 
 ### Credential Storage
+
 - Sensitive data (Auth Token, Account SID) stored in encrypted `credentials` field
 - Public configuration stored in `config` field
 - Row-level security (RLS) ensures organization isolation
 
 ### Validation
+
 - Input sanitization for all user inputs
 - Account SID format validation
 - Auth Token length validation
@@ -163,6 +176,7 @@ CREATE TABLE integration_settings (
 - Connection testing before saving
 
 ### Error Handling
+
 - Graceful error messages for common issues
 - Rate limiting on API endpoints
 - Secure error logging without exposing credentials
@@ -193,15 +207,16 @@ TWILIO_PHONE_NUMBER=+1234567890
 ### 4. Usage
 
 ```tsx
-import TwilioSetupPage from '@/app/settings/twilio-setup/page'
+import TwilioSetupPage from "@/app/settings/twilio-setup/page";
 
 // The component handles all setup logic internally
-<TwilioSetupPage />
+<TwilioSetupPage />;
 ```
 
 ## Customization Options
 
 ### Visual Guides
+
 Replace screenshot placeholders in `TwilioSetupWizard.tsx`:
 
 ```tsx
@@ -215,19 +230,21 @@ Replace screenshot placeholders in `TwilioSetupWizard.tsx`:
 ```
 
 ### AI Helper Responses
+
 Customize responses in `TwilioAIHelper.tsx`:
 
 ```tsx
 const generateTwilioResponse = (query: string): string => {
   // Add custom logic for your specific use cases
-  if (lowercaseQuery.includes('your_custom_keyword')) {
-    return "Your custom response here"
+  if (lowercaseQuery.includes("your_custom_keyword")) {
+    return "Your custom response here";
   }
   // ...
-}
+};
 ```
 
 ### FAQ Categories
+
 Add new FAQ categories in `TwilioAIHelper.tsx`:
 
 ```tsx
@@ -235,15 +252,16 @@ const TWILIO_FAQS: FAQ[] = [
   {
     question: "Your custom question?",
     answer: "Your detailed answer here.",
-    category: "your_category"
+    category: "your_category",
   },
   // ...
-]
+];
 ```
 
 ## Testing
 
 ### Manual Testing
+
 1. Navigate to `/settings/twilio-setup`
 2. Follow the wizard steps
 3. Test with valid and invalid credentials
@@ -251,6 +269,7 @@ const TWILIO_FAQS: FAQ[] = [
 5. Test AI helper responses
 
 ### Automated Testing
+
 ```bash
 # Run connection test
 curl -X POST http://localhost:3000/api/integrations/twilio/test-connection \
@@ -295,6 +314,7 @@ This will show additional console logs for troubleshooting.
 ## Future Enhancements
 
 ### Planned Features
+
 - [ ] Real screenshot integration
 - [ ] Video tutorials embedded in wizard
 - [ ] Advanced webhook configuration UI
@@ -305,6 +325,7 @@ This will show additional console logs for troubleshooting.
 - [ ] Multi-language support for international users
 
 ### Integration Opportunities
+
 - [ ] Connect with existing SMS automation workflows
 - [ ] Integration with customer communication preferences
 - [ ] Link to gym booking system for appointment reminders
@@ -321,5 +342,5 @@ For issues or feature requests related to the Twilio Setup Wizard:
 
 ---
 
-*Last updated: [Current Date]*
-*Version: 1.0.0*
+_Last updated: [Current Date]_
+_Version: 1.0.0_
