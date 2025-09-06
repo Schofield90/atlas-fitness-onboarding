@@ -1,6 +1,51 @@
-import { GET, POST } from "@/app/api/webhooks/facebook-leads/route";
-import { NextRequest } from "next/server";
+/**
+ * @jest-environment node
+ */
 import crypto from "crypto";
+
+// Mock NextRequest before importing the route
+class MockNextRequest {
+  url: string;
+  method: string;
+  headers: Map<string, string>;
+  body: any;
+
+  constructor(url: string | URL, init?: RequestInit) {
+    this.url = url.toString();
+    this.method = init?.method || "GET";
+    this.headers = new Map();
+    if (init?.headers) {
+      const headers = init.headers as Record<string, string>;
+      Object.entries(headers).forEach(([key, value]) => {
+        this.headers.set(key.toLowerCase(), value);
+      });
+    }
+    this.body = init?.body;
+  }
+
+  text() {
+    return Promise.resolve(this.body);
+  }
+
+  json() {
+    return Promise.resolve(JSON.parse(this.body));
+  }
+}
+
+// Mock next/server
+jest.mock("next/server", () => ({
+  NextRequest: MockNextRequest,
+  NextResponse: {
+    json: (data: any, init?: ResponseInit) => {
+      return new Response(JSON.stringify(data), {
+        ...init,
+        headers: { "content-type": "application/json", ...init?.headers },
+      });
+    },
+  },
+}));
+
+import { GET, POST } from "@/app/api/webhooks/facebook-leads/route";
 
 // Mock the Supabase admin client
 jest.mock("@/app/lib/supabase/admin", () => ({
@@ -26,14 +71,14 @@ jest.mock("@/app/lib/supabase/admin", () => ({
 function makeRequest(body: any, headers: Record<string, string> = {}) {
   const url = "http://localhost/api/webhooks/facebook-leads";
   const payload = JSON.stringify(body);
-  return new NextRequest(url, {
+  return new MockNextRequest(url, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       ...headers,
     },
     body: payload,
-  });
+  }) as any;
 }
 
 describe("Facebook Leads Webhook", () => {
@@ -43,7 +88,7 @@ describe("Facebook Leads Webhook", () => {
     jest.clearAllMocks();
     process.env = { ...originalEnv };
     // Set test environment variables
-    process.env.FACEBOOK_WEBHOOK_VERIFY_TOKEN = "test_verify_token";
+    process.env.META_VERIFY_TOKEN = "test_verify_token";
     process.env.FACEBOOK_APP_SECRET = "test_app_secret";
     process.env.NODE_ENV = "test";
   });
@@ -52,19 +97,23 @@ describe("Facebook Leads Webhook", () => {
     process.env = originalEnv;
   });
 
-  describe("GET (Webhook Verification)", () => {
-    it("should verify webhook with correct token and return challenge", async () => {
+  describe("GET (Meta Webhook Verification Handshake)", () => {
+    it("should verify webhook with correct token and return raw challenge", async () => {
       const url = new URL("http://localhost:3000/api/webhooks/facebook-leads");
       url.searchParams.set("hub.mode", "subscribe");
       url.searchParams.set("hub.verify_token", "test_verify_token");
       url.searchParams.set("hub.challenge", "test_challenge_123");
 
-      const request = new NextRequest(url);
+      const request = new MockNextRequest(url) as any;
       const response = await GET(request);
 
       expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toBe("text/plain");
       const text = await response.text();
+      // Must return ONLY the challenge, no JSON, no newline
       expect(text).toBe("test_challenge_123");
+      expect(text).not.toContain("\n");
+      expect(text).not.toContain("{");
     });
 
     it("should reject verification with incorrect token", async () => {
@@ -73,12 +122,53 @@ describe("Facebook Leads Webhook", () => {
       url.searchParams.set("hub.verify_token", "wrong_token");
       url.searchParams.set("hub.challenge", "test_challenge_123");
 
-      const request = new NextRequest(url);
+      const request = new MockNextRequest(url) as any;
       const response = await GET(request);
 
       expect(response.status).toBe(403);
       const text = await response.text();
       expect(text).toBe("Forbidden");
+    });
+
+    it("should reject verification with missing parameters", async () => {
+      const url = new URL("http://localhost:3000/api/webhooks/facebook-leads");
+      url.searchParams.set("hub.mode", "subscribe");
+      // Missing hub.verify_token and hub.challenge
+
+      const request = new MockNextRequest(url) as any;
+      const response = await GET(request);
+
+      expect(response.status).toBe(403);
+    });
+
+    it("should reject verification with wrong mode", async () => {
+      const url = new URL("http://localhost:3000/api/webhooks/facebook-leads");
+      url.searchParams.set("hub.mode", "unsubscribe"); // Wrong mode
+      url.searchParams.set("hub.verify_token", "test_verify_token");
+      url.searchParams.set("hub.challenge", "test_challenge_123");
+
+      const request = new MockNextRequest(url) as any;
+      const response = await GET(request);
+
+      expect(response.status).toBe(403);
+    });
+
+    it("should use META_VERIFY_TOKEN env variable as primary", async () => {
+      // Temporarily set multiple env vars to test priority
+      process.env.META_VERIFY_TOKEN = "meta_token";
+      process.env.FACEBOOK_WEBHOOK_VERIFY_TOKEN = "facebook_token";
+      
+      const url = new URL("http://localhost:3000/api/webhooks/facebook-leads");
+      url.searchParams.set("hub.mode", "subscribe");
+      url.searchParams.set("hub.verify_token", "meta_token"); // Should match META_VERIFY_TOKEN
+      url.searchParams.set("hub.challenge", "test_challenge_456");
+
+      const request = new MockNextRequest(url) as any;
+      const response = await GET(request);
+
+      expect(response.status).toBe(200);
+      const text = await response.text();
+      expect(text).toBe("test_challenge_456");
     });
   });
 
@@ -145,7 +235,7 @@ describe("Facebook Leads Webhook", () => {
       const body = JSON.stringify(validLeadgenPayload);
       const signature = createSignature(body, "test_app_secret");
 
-      const request = new NextRequest(
+      const request = new MockNextRequest(
         "http://localhost:3000/api/webhooks/facebook-leads",
         {
           method: "POST",
@@ -155,7 +245,7 @@ describe("Facebook Leads Webhook", () => {
             "X-Hub-Signature-256": signature,
           },
         },
-      );
+      ) as any;
 
       const response = await POST(request);
 
@@ -210,7 +300,7 @@ describe("Facebook Leads Webhook", () => {
       const body = JSON.stringify(validLeadgenPayload);
       const invalidSignature = "sha256=invalid_signature";
 
-      const request = new NextRequest(
+      const request = new MockNextRequest(
         "http://localhost:3000/api/webhooks/facebook-leads",
         {
           method: "POST",
@@ -220,7 +310,7 @@ describe("Facebook Leads Webhook", () => {
             "X-Hub-Signature-256": invalidSignature,
           },
         },
-      );
+      ) as any;
 
       const response = await POST(request);
 
@@ -232,7 +322,7 @@ describe("Facebook Leads Webhook", () => {
     it("should return 200 for malformed JSON to avoid retries", async () => {
       const malformedBody = '{"invalid json';
 
-      const request = new NextRequest(
+      const request = new MockNextRequest(
         "http://localhost:3000/api/webhooks/facebook-leads",
         {
           method: "POST",
@@ -241,7 +331,7 @@ describe("Facebook Leads Webhook", () => {
             "Content-Type": "application/json",
           },
         },
-      );
+      ) as any;
 
       const response = await POST(request);
 
@@ -273,7 +363,7 @@ describe("Facebook Leads Webhook", () => {
       const body = JSON.stringify(nonLeadgenPayload);
       const signature = createSignature(body, "test_app_secret");
 
-      const request = new NextRequest(
+      const request = new MockNextRequest(
         "http://localhost:3000/api/webhooks/facebook-leads",
         {
           method: "POST",
@@ -283,7 +373,7 @@ describe("Facebook Leads Webhook", () => {
             "X-Hub-Signature-256": signature,
           },
         },
-      );
+      ) as any;
 
       const response = await POST(request);
 
@@ -324,7 +414,7 @@ describe("Facebook Leads Webhook", () => {
       const body = JSON.stringify(multiLeadPayload);
       const signature = createSignature(body, "test_app_secret");
 
-      const request = new NextRequest(
+      const request = new MockNextRequest(
         "http://localhost:3000/api/webhooks/facebook-leads",
         {
           method: "POST",
@@ -334,7 +424,7 @@ describe("Facebook Leads Webhook", () => {
             "X-Hub-Signature-256": signature,
           },
         },
-      );
+      ) as any;
 
       const response = await POST(request);
 
