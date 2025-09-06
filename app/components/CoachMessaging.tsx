@@ -36,7 +36,7 @@ interface MemberConversation {
   sender_type: 'member' | 'coach' | 'ai'
 }
 
-export default function CoachMessaging({ coachData }: { coachData: any }) {
+export default function CoachMessaging({ coachData, initialMemberId }: { coachData: any, initialMemberId?: string }) {
   const [conversations, setConversations] = useState<MemberConversation[]>([])
   const [selectedMember, setSelectedMember] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -68,6 +68,49 @@ export default function CoachMessaging({ coachData }: { coachData: any }) {
       subscription.unsubscribe()
     }
   }, [coachData.id])
+
+  // Preselect member if an initialMemberId is provided via URL (?contact=...)
+  useEffect(() => {
+    const resolveInitialSelection = async () => {
+      if (!initialMemberId) return
+      try {
+        // If it's a lead-id like lead-xxxx, try to resolve to a client/member by email/phone
+        const isLeadPrefixed = initialMemberId.startsWith('lead-')
+        const leadOrId = isLeadPrefixed ? initialMemberId.replace('lead-', '') : initialMemberId
+
+        if (isLeadPrefixed) {
+          const { data: lead } = await supabase
+            .from('leads')
+            .select('email, phone')
+            .eq('id', leadOrId)
+            .single()
+          if (lead) {
+            // Try to find existing client by email or phone
+            const { data: client } = await supabase
+              .from('clients')
+              .select('id')
+              .or([
+                lead.email ? `email.eq.${lead.email}` : '',
+                lead.phone ? `phone.eq.${lead.phone}` : ''
+              ].filter(Boolean).join(','))
+              .maybeSingle?.() ?? { data: null }
+
+            if (client?.id) {
+              setSelectedMember(client.id)
+              return
+            }
+          }
+        }
+
+        // Otherwise assume it's a client id already
+        setSelectedMember(leadOrId)
+      } catch (_) {
+        // Ignore errors and do not preselect
+      }
+    }
+    resolveInitialSelection()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialMemberId])
 
   useEffect(() => {
     if (selectedMember) {
