@@ -99,37 +99,37 @@ export default function SimpleDashboard() {
             <Link href="/leads" className="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition-colors">
               <h3 className="text-lg font-semibold text-white mb-2">Leads</h3>
               <p className="text-gray-400">Manage your leads and contacts</p>
-            </a>
+            </Link>
 
             <Link href="/campaigns" className="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition-colors">
               <h3 className="text-lg font-semibold text-white mb-2">Campaigns</h3>
               <p className="text-gray-400">Create and manage campaigns</p>
-            </a>
+            </Link>
 
             <Link href="/test-whatsapp" className="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition-colors">
               <h3 className="text-lg font-semibold text-white mb-2">WhatsApp</h3>
               <p className="text-gray-400">Send test messages</p>
-            </a>
+            </Link>
 
             <Link href="/ai-config" className="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition-colors">
               <h3 className="text-lg font-semibold text-white mb-2">AI Config</h3>
               <p className="text-gray-400">Configure AI responses</p>
-            </a>
+            </Link>
 
             <Link href="/forms" className="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition-colors">
               <h3 className="text-lg font-semibold text-white mb-2">Forms</h3>
               <p className="text-gray-400">Create lead capture forms</p>
-            </a>
+            </Link>
 
             <Link href="/landing-pages" className="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition-colors">
               <h3 className="text-lg font-semibold text-white mb-2">Landing Pages</h3>
               <p className="text-gray-400">Build and manage landing pages</p>
-            </a>
+            </Link>
 
             <Link href="/settings" className="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition-colors">
               <h3 className="text-lg font-semibold text-white mb-2">Settings</h3>
               <p className="text-gray-400">Manage your account</p>
-            </a>
+            </Link>
           </div>
 
           {/* Debug Info */}

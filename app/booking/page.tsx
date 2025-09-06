@@ -150,14 +150,13 @@ export default function BookingPage() {
 							<Link className="w-4 h-4" />
 							Manage Links
 						</Button>
-						<a
-							href="/booking-links/create"
-							onClick={(e) => { e.preventDefault(); try { router.push('/booking-links/create') } catch (err) { console.error((err as Error).message) } }}
+						<Button
+							onClick={() => router.push('/booking-links/create')}
 							className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-sm rounded-lg transition-colors flex items-center gap-2"
 						>
 							<Plus className="w-4 h-4" />
 							Create Booking Link
-						</a>
+						</Button>
 					</div>
 				</div>
 
