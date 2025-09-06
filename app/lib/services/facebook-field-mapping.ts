@@ -507,8 +507,10 @@ export async function getFieldMappings(
 export function validateMappings(mappings: FieldMapping[]): {
   valid: boolean;
   errors: string[];
+  warnings: string[];
 } {
   const errors: string[] = [];
+  const warnings: string[] = [];
   const crmFields = new Set<string>();
 
   for (const mapping of mappings) {
@@ -518,19 +520,22 @@ export function validateMappings(mappings: FieldMapping[]): {
     }
 
     if (!mapping.crm_field) {
-      errors.push(
-        `Missing CRM field for Facebook field ${mapping.facebook_field_name}`,
+      warnings.push(
+        `No CRM field selected for Facebook field "${mapping.facebook_field_label || mapping.facebook_field_name}"`,
       );
     }
 
     // Check for duplicate CRM field mappings (except custom fields)
     if (
+      mapping.crm_field &&
       mapping.crm_field_type === "standard" &&
       crmFields.has(mapping.crm_field)
     ) {
       errors.push(`Duplicate mapping to CRM field: ${mapping.crm_field}`);
     }
-    crmFields.add(mapping.crm_field);
+    if (mapping.crm_field) {
+      crmFields.add(mapping.crm_field);
+    }
 
     // Validate transformation options
     if (mapping.transformation) {
@@ -547,14 +552,15 @@ export function validateMappings(mappings: FieldMapping[]): {
   );
 
   if (!hasContactInfo) {
-    errors.push(
-      "Warning: No contact information fields (email, phone, or name) mapped",
+    warnings.push(
+      "No contact information fields (email, phone, or name) mapped - leads may not be properly identifiable",
     );
   }
 
   return {
     valid: errors.length === 0,
     errors,
+    warnings,
   };
 }
 
@@ -688,17 +694,28 @@ export function createDefaultMappings(): StoredFieldMappings {
  * FacebookFieldMappingService class wrapper for API compatibility
  */
 export class FacebookFieldMappingService {
-  async autoDetectFieldMappings(
-    questions: FacebookQuestion[],
-  ): Promise<FieldMapping[]> {
-    return autoDetectFieldMappings(questions);
+  async autoDetectFieldMappings(questions: any[]): Promise<FieldMapping[]> {
+    // Convert questions array to FacebookForm format
+    const facebookForm: FacebookForm = {
+      id: "temp",
+      name: "temp",
+      fields: {
+        data: questions.map((q) => ({
+          id: q.id || q.key || String(Math.random()),
+          name: q.key || q.name,
+          type: q.type,
+          label: q.label,
+        })),
+      },
+    };
+    return autoDetectFieldMappings(facebookForm);
   }
 
   async applyFieldMappings(
     leadData: any,
     fieldMappings: StoredFieldMappings,
   ): Promise<any> {
-    return applyFieldMappings(leadData, fieldMappings);
+    return applyFieldMappings(leadData, fieldMappings.mappings || []);
   }
 
   async saveFieldMappings(
@@ -725,11 +742,23 @@ export class FacebookFieldMappingService {
     const mappingsArray = Array.isArray(mappings)
       ? mappings
       : mappings.mappings || [];
-    return validateMappings(mappingsArray);
+    const result = validateMappings(mappingsArray);
+    return {
+      valid: result.valid,
+      errors: result.errors.length > 0 ? result.errors : undefined,
+      warnings: result.warnings.length > 0 ? result.warnings : undefined,
+    };
   }
 
-  getSuggestedMappings(questions: FacebookQuestion[]): FieldMapping[] {
-    return getSuggestedMappings(questions);
+  getSuggestedMappings(questions: any[]): FieldMapping[] {
+    // Convert questions to FacebookFormField format
+    const facebookFields: FacebookFormField[] = questions.map((q) => ({
+      id: q.id || q.key || String(Math.random()),
+      name: q.key || q.name,
+      type: q.type,
+      label: q.label,
+    }));
+    return getSuggestedMappings(facebookFields, []);
   }
 
   mergeMappings(
