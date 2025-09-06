@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { 
   Settings, Calendar, FileText, Bell, Palette, 
   Save, Eye, ArrowLeft, Copy, Check, Plus, 

@@ -291,13 +291,13 @@ export default function LandingPage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link 
                 href="/signup"
-                className="bg-white text-orange-600 hover:bg-gray-100 font-bold py-4 px-8 rounded-lg text-lg transition-all"
+                className="bg-gray-900 text-orange-500 hover:bg-gray-800 border border-gray-700 font-bold py-4 px-8 rounded-lg text-lg transition-all"
               >
                 {TRIAL_CTA_TEXT}
               </Link>
               <Link 
                 href="/contact"
-                className="border-2 border-white text-white hover:bg-white hover:text-orange-600 font-bold py-4 px-8 rounded-lg text-lg transition-all"
+                className="border-2 border-gray-800 text-white hover:bg-gray-800 hover:text-orange-500 font-bold py-4 px-8 rounded-lg text-lg transition-all"
               >
                 Talk to Sales
               </Link>
