@@ -1,231 +1,248 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { createClient } from '@/app/lib/supabase/client'
-import { 
-  X, 
-  Calendar, 
-  Clock, 
-  Repeat, 
+import { useState, useEffect } from "react";
+import { createClient } from "@/app/lib/supabase/client";
+import {
+  X,
+  Calendar,
+  Clock,
+  Repeat,
   User,
   Settings,
   CheckCircle2,
-  AlertTriangle
-} from 'lucide-react'
-import { formatBritishDate } from '@/app/lib/utils/british-format'
+  AlertTriangle,
+} from "lucide-react";
+import { formatBritishDate } from "@/app/lib/utils/british-format";
 
 interface RecurringBookingModalProps {
-  isOpen: boolean
-  onClose: () => void
-  customerId: string
-  organizationId: string
-  onRecurringBookingCreated?: () => void
+  isOpen: boolean;
+  onClose: () => void;
+  customerId: string;
+  organizationId: string;
+  onRecurringBookingCreated?: () => void;
 }
 
 interface ClassType {
-  id: string
-  name: string
-  description?: string
-  color?: string
+  id: string;
+  name: string;
+  description?: string;
+  color?: string;
 }
 
 interface Instructor {
-  id: string
-  name: string
-  email?: string
-  specialties?: string[]
+  id: string;
+  name: string;
+  email?: string;
+  specialties?: string[];
 }
 
 interface RecurringPattern {
-  days: number[] // 0=Sunday, 1=Monday, etc.
-  time: string
-  duration: number
-  weeks?: number[] // For biweekly/monthly patterns
-  monthlyPattern?: 'date' | 'day' // For monthly: same date vs same weekday
+  days: number[]; // 0=Sunday, 1=Monday, etc.
+  time: string;
+  duration: number;
+  weeks?: number[]; // For biweekly/monthly patterns
+  monthlyPattern?: "date" | "day"; // For monthly: same date vs same weekday
 }
 
 const DAYS_OF_WEEK = [
-  { value: 0, label: 'Sunday', short: 'Sun' },
-  { value: 1, label: 'Monday', short: 'Mon' },
-  { value: 2, label: 'Tuesday', short: 'Tue' },
-  { value: 3, label: 'Wednesday', short: 'Wed' },
-  { value: 4, label: 'Thursday', short: 'Thu' },
-  { value: 5, label: 'Friday', short: 'Fri' },
-  { value: 6, label: 'Saturday', short: 'Sat' }
-]
+  { value: 0, label: "Sunday", short: "Sun" },
+  { value: 1, label: "Monday", short: "Mon" },
+  { value: 2, label: "Tuesday", short: "Tue" },
+  { value: 3, label: "Wednesday", short: "Wed" },
+  { value: 4, label: "Thursday", short: "Thu" },
+  { value: 5, label: "Friday", short: "Fri" },
+  { value: 6, label: "Saturday", short: "Sat" },
+];
 
 const RECURRENCE_TYPES = [
-  { value: 'weekly', label: 'Weekly', description: 'Same days every week' },
-  { value: 'biweekly', label: 'Bi-weekly', description: 'Every 2 weeks' },
-  { value: 'monthly', label: 'Monthly', description: 'Same time each month' }
-]
+  { value: "weekly", label: "Weekly", description: "Same days every week" },
+  { value: "biweekly", label: "Bi-weekly", description: "Every 2 weeks" },
+  { value: "monthly", label: "Monthly", description: "Same time each month" },
+];
 
 const formatPrice = (pennies: number) => {
-  return `£${(pennies / 100).toFixed(2)}`
-}
+  return `£${(pennies / 100).toFixed(2)}`;
+};
 
 export default function RecurringBookingModal({
   isOpen,
   onClose,
   customerId,
   organizationId,
-  onRecurringBookingCreated
+  onRecurringBookingCreated,
 }: RecurringBookingModalProps) {
-  const [loading, setLoading] = useState(false)
-  const [step, setStep] = useState<'setup' | 'payment' | 'confirmation'>('setup')
-  const [classTypes, setClassTypes] = useState<ClassType[]>([])
-  const [instructors, setInstructors] = useState<Instructor[]>([])
-  const [customer, setCustomer] = useState<any>(null)
+  const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState<"setup" | "payment" | "confirmation">(
+    "setup",
+  );
+  const [classTypes, setClassTypes] = useState<ClassType[]>([]);
+  const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [customer, setCustomer] = useState<any>(null);
 
   // Form data
-  const [selectedClassType, setSelectedClassType] = useState('')
-  const [selectedInstructor, setSelectedInstructor] = useState('')
-  const [recurrenceType, setRecurrenceType] = useState<'weekly' | 'biweekly' | 'monthly'>('weekly')
+  const [selectedClassType, setSelectedClassType] = useState("");
+  const [selectedInstructor, setSelectedInstructor] = useState("");
+  const [recurrenceType, setRecurrenceType] = useState<
+    "weekly" | "biweekly" | "monthly"
+  >("weekly");
   const [pattern, setPattern] = useState<RecurringPattern>({
     days: [],
-    time: '09:00',
-    duration: 60
-  })
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
-  const [maxBookings, setMaxBookings] = useState<number | ''>('')
-  const [autoBook, setAutoBook] = useState(true)
-  const [paymentMethod, setPaymentMethod] = useState<'per_class' | 'monthly' | 'package'>('per_class')
-  const [pricePerClass, setPricePerClass] = useState(2000) // £20.00 in pennies
-  
-  const supabase = createClient()
+    time: "09:00",
+    duration: 60,
+  });
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [maxBookings, setMaxBookings] = useState<number | "">("");
+  const [autoBook, setAutoBook] = useState(true);
+  const [paymentMethod, setPaymentMethod] = useState<
+    "per_class" | "monthly" | "package"
+  >("per_class");
+  const [pricePerClass, setPricePerClass] = useState(2000); // £20.00 in pennies
+
+  const supabase = createClient();
 
   useEffect(() => {
     if (isOpen) {
-      fetchClassTypes()
-      fetchInstructors()
-      fetchCustomerDetails()
-      resetForm()
+      fetchClassTypes();
+      fetchInstructors();
+      fetchCustomerDetails();
+      resetForm();
     }
-  }, [isOpen])
+  }, [isOpen]);
 
   const resetForm = () => {
-    setSelectedClassType('')
-    setSelectedInstructor('')
-    setRecurrenceType('weekly')
-    setPattern({ days: [], time: '09:00', duration: 60 })
-    setStartDate('')
-    setEndDate('')
-    setMaxBookings('')
-    setAutoBook(true)
-    setPaymentMethod('per_class')
-    setPricePerClass(2000)
-  }
+    setSelectedClassType("");
+    setSelectedInstructor("");
+    setRecurrenceType("weekly");
+    setPattern({ days: [], time: "09:00", duration: 60 });
+    setStartDate("");
+    setEndDate("");
+    setMaxBookings("");
+    setAutoBook(true);
+    setPaymentMethod("per_class");
+    setPricePerClass(2000);
+  };
 
   const fetchClassTypes = async () => {
     try {
       const { data, error } = await supabase
-        .from('class_types')
-        .select('*')
-        .order('name')
+        .from("class_types")
+        .select("*")
+        .order("name");
 
-      if (error) throw error
-      setClassTypes(data || [])
+      if (error) throw error;
+      setClassTypes(data || []);
     } catch (error) {
-      console.error('Error fetching class types:', error)
+      console.error("Error fetching class types:", error);
     }
-  }
+  };
 
   const fetchInstructors = async () => {
     try {
       const { data, error } = await supabase
-        .from('instructors')
-        .select('*')
-        .order('name')
+        .from("instructors")
+        .select("*")
+        .order("name");
 
-      if (error) throw error
-      setInstructors(data || [])
+      if (error) throw error;
+      setInstructors(data || []);
     } catch (error) {
-      console.error('Error fetching instructors:', error)
+      console.error("Error fetching instructors:", error);
     }
-  }
+  };
 
   const fetchCustomerDetails = async () => {
     try {
       const { data, error } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('id', customerId)
-        .single()
+        .from("clients")
+        .select("*")
+        .eq("id", customerId)
+        .single();
 
-      if (error) throw error
-      setCustomer(data)
+      if (error) throw error;
+      setCustomer(data);
     } catch (error) {
-      console.error('Error fetching customer details:', error)
+      console.error("Error fetching customer details:", error);
     }
-  }
+  };
 
   const toggleDay = (dayValue: number) => {
-    setPattern(prev => ({
+    setPattern((prev) => ({
       ...prev,
       days: prev.days.includes(dayValue)
-        ? prev.days.filter(d => d !== dayValue)
-        : [...prev.days, dayValue].sort((a, b) => a - b)
-    }))
-  }
+        ? prev.days.filter((d) => d !== dayValue)
+        : [...prev.days, dayValue].sort((a, b) => a - b),
+    }));
+  };
 
   const generatePreview = () => {
-    if (!startDate || pattern.days.length === 0) return []
-    
-    const preview = []
-    const start = new Date(startDate)
-    const end = endDate ? new Date(endDate) : new Date(start.getTime() + 30 * 24 * 60 * 60 * 1000) // 30 days default
-    
-    let current = new Date(start)
-    let count = 0
-    const maxPreview = Math.min(typeof maxBookings === 'number' ? maxBookings : 12, 12)
-    
+    if (!startDate || pattern.days.length === 0) return [];
+
+    const preview = [];
+    const start = new Date(startDate);
+    const end = endDate
+      ? new Date(endDate)
+      : new Date(start.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days default
+
+    let current = new Date(start);
+    let count = 0;
+    const maxPreview = Math.min(
+      typeof maxBookings === "number" ? maxBookings : 12,
+      12,
+    );
+
     while (current <= end && count < maxPreview) {
-      const dayOfWeek = current.getDay()
-      
+      const dayOfWeek = current.getDay();
+
       if (pattern.days.includes(dayOfWeek)) {
-        preview.push(new Date(current))
-        count++
+        preview.push(new Date(current));
+        count++;
       }
-      
+
       // Move to next day based on recurrence type
-      if (recurrenceType === 'weekly') {
-        current.setDate(current.getDate() + 1)
-      } else if (recurrenceType === 'biweekly') {
-        current.setDate(current.getDate() + 1)
+      if (recurrenceType === "weekly") {
+        current.setDate(current.getDate() + 1);
+      } else if (recurrenceType === "biweekly") {
+        current.setDate(current.getDate() + 1);
         // Skip every other week (simplified logic)
-      } else if (recurrenceType === 'monthly') {
-        current.setMonth(current.getMonth() + 1)
+      } else if (recurrenceType === "monthly") {
+        current.setMonth(current.getMonth() + 1);
       }
     }
-    
-    return preview
-  }
+
+    return preview;
+  };
 
   const validateForm = () => {
     if (!selectedClassType && !selectedInstructor) {
-      return { isValid: false, error: 'Please select either a class type or instructor' }
+      return {
+        isValid: false,
+        error: "Please select either a class type or instructor",
+      };
     }
     if (pattern.days.length === 0) {
-      return { isValid: false, error: 'Please select at least one day of the week' }
+      return {
+        isValid: false,
+        error: "Please select at least one day of the week",
+      };
     }
     if (!startDate) {
-      return { isValid: false, error: 'Please select a start date' }
+      return { isValid: false, error: "Please select a start date" };
     }
     if (!pattern.time) {
-      return { isValid: false, error: 'Please select a time' }
+      return { isValid: false, error: "Please select a time" };
     }
-    return { isValid: true, error: null }
-  }
+    return { isValid: true, error: null };
+  };
 
   const handleCreateRecurringBooking = async () => {
     try {
-      setLoading(true)
-      
-      const validation = validateForm()
+      setLoading(true);
+
+      const validation = validateForm();
       if (!validation.isValid) {
-        alert(validation.error)
-        return
+        alert(validation.error);
+        return;
       }
 
       const recurringBookingData = {
@@ -237,47 +254,46 @@ export default function RecurringBookingModal({
         recurrence_pattern: pattern,
         start_date: startDate,
         end_date: endDate || null,
-        max_bookings: typeof maxBookings === 'number' ? maxBookings : null,
+        max_bookings: typeof maxBookings === "number" ? maxBookings : null,
         auto_book: autoBook,
         payment_method: paymentMethod,
         price_per_class_pennies: pricePerClass,
-        status: 'active'
-      }
+        status: "active",
+      };
 
       const { error } = await supabase
-        .from('recurring_bookings')
-        .insert(recurringBookingData)
+        .from("recurring_bookings")
+        .insert(recurringBookingData);
 
-      if (error) throw error
+      if (error) throw error;
 
-      setStep('confirmation')
-      onRecurringBookingCreated?.()
-      
+      setStep("confirmation");
+      onRecurringBookingCreated?.();
+
       // Auto-close after success
       setTimeout(() => {
-        onClose()
-        setStep('setup')
-        resetForm()
-      }, 3000)
-
+        onClose();
+        setStep("setup");
+        resetForm();
+      }, 3000);
     } catch (error) {
-      console.error('Error creating recurring booking:', error)
-      alert('Failed to create recurring booking. Please try again.')
+      console.error("Error creating recurring booking:", error);
+      alert("Failed to create recurring booking. Please try again.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleClose = () => {
-    onClose()
-    setStep('setup')
-    resetForm()
-  }
+    onClose();
+    setStep("setup");
+    resetForm();
+  };
 
-  const preview = generatePreview()
-  const validation = validateForm()
+  const preview = generatePreview();
+  const validation = validateForm();
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -285,9 +301,9 @@ export default function RecurringBookingModal({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-700">
           <h2 className="text-xl font-semibold text-white">
-            {step === 'setup' && 'Set Up Recurring Booking'}
-            {step === 'payment' && 'Payment Settings'}
-            {step === 'confirmation' && 'Recurring Booking Created'}
+            {step === "setup" && "Set Up Recurring Booking"}
+            {step === "payment" && "Payment Settings"}
+            {step === "confirmation" && "Recurring Booking Created"}
           </h2>
           <button
             onClick={handleClose}
@@ -299,13 +315,17 @@ export default function RecurringBookingModal({
 
         {/* Content */}
         <div className="p-6">
-          {step === 'setup' && (
+          {step === "setup" && (
             <div className="space-y-6">
               {/* Customer Info */}
               {customer && (
                 <div className="bg-gray-800 rounded-lg p-4">
-                  <h4 className="text-md font-medium text-white mb-2">Setting up recurring booking for:</h4>
-                  <p className="text-gray-300">{customer.first_name} {customer.last_name}</p>
+                  <h4 className="text-md font-medium text-white mb-2">
+                    Setting up recurring booking for:
+                  </h4>
+                  <p className="text-gray-300">
+                    {customer.first_name} {customer.last_name}
+                  </p>
                   <p className="text-gray-400 text-sm">{customer.email}</p>
                 </div>
               )}
@@ -313,8 +333,10 @@ export default function RecurringBookingModal({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Class Preferences */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium text-white">Class Preferences</h3>
-                  
+                  <h3 className="text-lg font-medium text-white">
+                    Class Preferences
+                  </h3>
+
                   <div>
                     <label className="block text-sm font-medium text-white mb-2">
                       Class Type (Optional)
@@ -326,11 +348,14 @@ export default function RecurringBookingModal({
                     >
                       <option value="">Any class type</option>
                       {classTypes.map((type) => (
-                        <option key={type.id} value={type.id}>{type.name}</option>
+                        <option key={type.id} value={type.id}>
+                          {type.name}
+                        </option>
                       ))}
                     </select>
                     <p className="text-gray-400 text-xs mt-1">
-                      Leave blank to book any available class at the specified times
+                      Leave blank to book any available class at the specified
+                      times
                     </p>
                   </div>
 
@@ -345,7 +370,9 @@ export default function RecurringBookingModal({
                     >
                       <option value="">Any instructor</option>
                       {instructors.map((instructor) => (
-                        <option key={instructor.id} value={instructor.id}>{instructor.name}</option>
+                        <option key={instructor.id} value={instructor.id}>
+                          {instructor.name}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -354,7 +381,7 @@ export default function RecurringBookingModal({
                 {/* Schedule Settings */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium text-white">Schedule</h3>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-white mb-2">
                       Recurrence Pattern
@@ -365,24 +392,30 @@ export default function RecurringBookingModal({
                           key={type.value}
                           className={`border rounded-lg p-3 cursor-pointer transition-colors ${
                             recurrenceType === type.value
-                              ? 'border-blue-500 bg-blue-900/20'
-                              : 'border-gray-700 bg-gray-800 hover:bg-gray-750'
+                              ? "border-blue-500 bg-blue-900/20"
+                              : "border-gray-700 bg-gray-800 hover:bg-gray-750"
                           }`}
                           onClick={() => setRecurrenceType(type.value as any)}
                         >
                           <div className="flex items-center gap-3">
-                            <div className={`w-4 h-4 rounded-full border-2 ${
-                              recurrenceType === type.value
-                                ? 'border-blue-500 bg-blue-500'
-                                : 'border-gray-400'
-                            }`}>
+                            <div
+                              className={`w-4 h-4 rounded-full border-2 ${
+                                recurrenceType === type.value
+                                  ? "border-blue-500 bg-blue-500"
+                                  : "border-gray-400"
+                              }`}
+                            >
                               {recurrenceType === type.value && (
                                 <div className="w-2 h-2 bg-white rounded-full mx-auto mt-0.5"></div>
                               )}
                             </div>
                             <div>
-                              <h4 className="text-white font-medium">{type.label}</h4>
-                              <p className="text-gray-400 text-sm">{type.description}</p>
+                              <h4 className="text-white font-medium">
+                                {type.label}
+                              </h4>
+                              <p className="text-gray-400 text-sm">
+                                {type.description}
+                              </p>
                             </div>
                           </div>
                         </div>
@@ -398,7 +431,12 @@ export default function RecurringBookingModal({
                       <input
                         type="time"
                         value={pattern.time}
-                        onChange={(e) => setPattern(prev => ({ ...prev, time: e.target.value }))}
+                        onChange={(e) =>
+                          setPattern((prev) => ({
+                            ...prev,
+                            time: e.target.value,
+                          }))
+                        }
                         className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
                       />
                     </div>
@@ -409,7 +447,12 @@ export default function RecurringBookingModal({
                       <input
                         type="number"
                         value={pattern.duration}
-                        onChange={(e) => setPattern(prev => ({ ...prev, duration: parseInt(e.target.value) || 60 }))}
+                        onChange={(e) =>
+                          setPattern((prev) => ({
+                            ...prev,
+                            duration: parseInt(e.target.value) || 60,
+                          }))
+                        }
                         min="30"
                         max="180"
                         step="15"
@@ -432,8 +475,8 @@ export default function RecurringBookingModal({
                       onClick={() => toggleDay(day.value)}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                         pattern.days.includes(day.value)
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-700 text-gray-300 hover:bg-gray-600"
                       }`}
                     >
                       {day.short}
@@ -452,7 +495,7 @@ export default function RecurringBookingModal({
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
+                    min={new Date().toISOString().split("T")[0]}
                     className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
                   />
                 </div>
@@ -475,7 +518,11 @@ export default function RecurringBookingModal({
                   <input
                     type="number"
                     value={maxBookings}
-                    onChange={(e) => setMaxBookings(e.target.value ? parseInt(e.target.value) : '')}
+                    onChange={(e) =>
+                      setMaxBookings(
+                        e.target.value ? parseInt(e.target.value) : "",
+                      )
+                    }
                     min="1"
                     placeholder="Unlimited"
                     className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
@@ -506,7 +553,10 @@ export default function RecurringBookingModal({
                   </h4>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-gray-300">
                     {preview.map((date, index) => (
-                      <div key={index} className="bg-gray-700 rounded px-2 py-1">
+                      <div
+                        key={index}
+                        className="bg-gray-700 rounded px-2 py-1"
+                      >
                         {formatBritishDate(date.toISOString())}
                       </div>
                     ))}
@@ -519,7 +569,9 @@ export default function RecurringBookingModal({
                 <div className="bg-red-900 border border-red-700 rounded-lg p-4 flex items-start gap-3">
                   <AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="text-red-300 font-medium">Form Incomplete</h4>
+                    <h4 className="text-red-300 font-medium">
+                      Form Incomplete
+                    </h4>
                     <p className="text-red-400 text-sm">{validation.error}</p>
                   </div>
                 </div>
@@ -527,10 +579,12 @@ export default function RecurringBookingModal({
             </div>
           )}
 
-          {step === 'payment' && (
+          {step === "payment" && (
             <div className="space-y-6">
-              <h3 className="text-lg font-medium text-white">Payment Settings</h3>
-              
+              <h3 className="text-lg font-medium text-white">
+                Payment Settings
+              </h3>
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-white mb-2">
@@ -538,32 +592,50 @@ export default function RecurringBookingModal({
                   </label>
                   <div className="space-y-2">
                     {[
-                      { value: 'per_class', label: 'Pay per class', description: 'Charge for each individual booking' },
-                      { value: 'monthly', label: 'Monthly subscription', description: 'Fixed monthly fee for unlimited bookings' },
-                      { value: 'package', label: 'Class package', description: 'Use existing class package credits' }
+                      {
+                        value: "per_class",
+                        label: "Pay per class",
+                        description: "Charge for each individual booking",
+                      },
+                      {
+                        value: "monthly",
+                        label: "Monthly subscription",
+                        description: "Fixed monthly fee for unlimited bookings",
+                      },
+                      {
+                        value: "package",
+                        label: "Class package",
+                        description: "Use existing class package credits",
+                      },
                     ].map((method) => (
                       <div
                         key={method.value}
                         className={`border rounded-lg p-3 cursor-pointer transition-colors ${
                           paymentMethod === method.value
-                            ? 'border-blue-500 bg-blue-900/20'
-                            : 'border-gray-700 bg-gray-800 hover:bg-gray-750'
+                            ? "border-blue-500 bg-blue-900/20"
+                            : "border-gray-700 bg-gray-800 hover:bg-gray-750"
                         }`}
                         onClick={() => setPaymentMethod(method.value as any)}
                       >
                         <div className="flex items-center gap-3">
-                          <div className={`w-4 h-4 rounded-full border-2 ${
-                            paymentMethod === method.value
-                              ? 'border-blue-500 bg-blue-500'
-                              : 'border-gray-400'
-                          }`}>
+                          <div
+                            className={`w-4 h-4 rounded-full border-2 ${
+                              paymentMethod === method.value
+                                ? "border-blue-500 bg-blue-500"
+                                : "border-gray-400"
+                            }`}
+                          >
                             {paymentMethod === method.value && (
                               <div className="w-2 h-2 bg-white rounded-full mx-auto mt-0.5"></div>
                             )}
                           </div>
                           <div>
-                            <h4 className="text-white font-medium">{method.label}</h4>
-                            <p className="text-gray-400 text-sm">{method.description}</p>
+                            <h4 className="text-white font-medium">
+                              {method.label}
+                            </h4>
+                            <p className="text-gray-400 text-sm">
+                              {method.description}
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -571,7 +643,7 @@ export default function RecurringBookingModal({
                   </div>
                 </div>
 
-                {paymentMethod === 'per_class' && (
+                {paymentMethod === "per_class" && (
                   <div>
                     <label className="block text-sm font-medium text-white mb-2">
                       Price per Class
@@ -581,7 +653,11 @@ export default function RecurringBookingModal({
                       <input
                         type="number"
                         value={(pricePerClass / 100).toFixed(2)}
-                        onChange={(e) => setPricePerClass(Math.round(parseFloat(e.target.value || '0') * 100))}
+                        onChange={(e) =>
+                          setPricePerClass(
+                            Math.round(parseFloat(e.target.value || "0") * 100),
+                          )
+                        }
                         step="0.01"
                         min="0"
                         className="w-32 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
@@ -593,29 +669,60 @@ export default function RecurringBookingModal({
             </div>
           )}
 
-          {step === 'confirmation' && (
+          {step === "confirmation" && (
             <div className="text-center space-y-6">
               <div className="bg-green-900 border border-green-700 rounded-lg p-6">
                 <CheckCircle2 className="h-16 w-16 text-green-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-white mb-2">Recurring Booking Created!</h3>
+                <h3 className="text-lg font-medium text-white mb-2">
+                  Recurring Booking Created!
+                </h3>
                 <p className="text-green-300">
                   Your recurring booking pattern has been set up successfully.
                 </p>
                 <p className="text-gray-400 text-sm mt-2">
-                  {autoBook ? 'Classes will be automatically booked when they become available.' : 'You will receive notifications when matching classes are available.'}
+                  {autoBook
+                    ? "Classes will be automatically booked when they become available."
+                    : "You will receive notifications when matching classes are available."}
                 </p>
               </div>
-              
+
               <div className="bg-gray-800 rounded-lg p-4 text-left">
-                <h4 className="text-white font-medium mb-3">Recurring Booking Summary:</h4>
+                <h4 className="text-white font-medium mb-3">
+                  Recurring Booking Summary:
+                </h4>
                 <div className="space-y-2 text-sm text-gray-300">
-                  <div><strong>Pattern:</strong> {recurrenceType} on {pattern.days.map(d => DAYS_OF_WEEK.find(day => day.value === d)?.short).join(', ')}</div>
-                  <div><strong>Time:</strong> {pattern.time}</div>
-                  <div><strong>Duration:</strong> {pattern.duration} minutes</div>
-                  <div><strong>Start Date:</strong> {formatBritishDate(startDate)}</div>
-                  {endDate && <div><strong>End Date:</strong> {formatBritishDate(endDate)}</div>}
-                  {maxBookings && <div><strong>Max Bookings:</strong> {maxBookings}</div>}
-                  <div><strong>Payment:</strong> {formatPrice(pricePerClass)} per class</div>
+                  <div>
+                    <strong>Pattern:</strong> {recurrenceType} on{" "}
+                    {pattern.days
+                      .map(
+                        (d) =>
+                          DAYS_OF_WEEK.find((day) => day.value === d)?.short,
+                      )
+                      .join(", ")}
+                  </div>
+                  <div>
+                    <strong>Time:</strong> {pattern.time}
+                  </div>
+                  <div>
+                    <strong>Duration:</strong> {pattern.duration} minutes
+                  </div>
+                  <div>
+                    <strong>Start Date:</strong> {formatBritishDate(startDate)}
+                  </div>
+                  {endDate && (
+                    <div>
+                      <strong>End Date:</strong> {formatBritishDate(endDate)}
+                    </div>
+                  )}
+                  {maxBookings && (
+                    <div>
+                      <strong>Max Bookings:</strong> {maxBookings}
+                    </div>
+                  )}
+                  <div>
+                    <strong>Payment:</strong> {formatPrice(pricePerClass)} per
+                    class
+                  </div>
                 </div>
               </div>
             </div>
@@ -625,7 +732,7 @@ export default function RecurringBookingModal({
         {/* Footer */}
         <div className="flex items-center justify-between p-6 border-t border-gray-700">
           <div></div>
-          
+
           <div className="flex gap-3">
             <button
               onClick={handleClose}
@@ -633,21 +740,21 @@ export default function RecurringBookingModal({
             >
               Cancel
             </button>
-            
-            {step === 'setup' && (
+
+            {step === "setup" && (
               <button
-                onClick={() => setStep('payment')}
+                onClick={() => setStep("payment")}
                 disabled={!validation.isValid}
                 className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium"
               >
                 Continue
               </button>
             )}
-            
-            {step === 'payment' && (
+
+            {step === "payment" && (
               <>
                 <button
-                  onClick={() => setStep('setup')}
+                  onClick={() => setStep("setup")}
                   className="px-4 py-2 text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
                 >
                   Back
@@ -663,7 +770,7 @@ export default function RecurringBookingModal({
                       Creating...
                     </>
                   ) : (
-                    'Create Recurring Booking'
+                    "Create Recurring Booking"
                   )}
                 </button>
               </>
@@ -672,5 +779,5 @@ export default function RecurringBookingModal({
         </div>
       </div>
     </div>
-  )
+  );
 }

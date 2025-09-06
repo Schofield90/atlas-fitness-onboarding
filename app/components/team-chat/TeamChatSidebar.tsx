@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Hash, Lock, Plus, Search, Settings, Users } from 'lucide-react';
-import type { Database } from '../../lib/supabase/database.types';
+import { useState } from "react";
+import { Hash, Lock, Plus, Search, Settings, Users } from "lucide-react";
+import type { Database } from "../../lib/supabase/database.types";
 
-type TeamChannel = Database['public']['Tables']['team_channels']['Row'];
+type TeamChannel = Database["public"]["Tables"]["team_channels"]["Row"];
 
 interface TeamChatSidebarProps {
   channels: TeamChannel[];
@@ -21,23 +21,31 @@ export default function TeamChatSidebar({
   onChannelSelect,
   unreadCounts,
   searchQuery,
-  onSearchChange
+  onSearchChange,
 }: TeamChatSidebarProps) {
   const [showCreateChannel, setShowCreateChannel] = useState(false);
 
   // Filter channels based on search
-  const filteredChannels = channels.filter(channel =>
-    channel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (channel.description && channel.description.toLowerCase().includes(searchQuery.toLowerCase()))
+  const filteredChannels = channels.filter(
+    (channel) =>
+      channel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (channel.description &&
+        channel.description.toLowerCase().includes(searchQuery.toLowerCase())),
   );
 
   // Group channels by type
-  const publicChannels = filteredChannels.filter(channel => !channel.is_private);
-  const privateChannels = filteredChannels.filter(channel => channel.is_private);
-  const directMessages = filteredChannels.filter(channel => channel.type === 'direct_message');
+  const publicChannels = filteredChannels.filter(
+    (channel) => !channel.is_private,
+  );
+  const privateChannels = filteredChannels.filter(
+    (channel) => channel.is_private,
+  );
+  const directMessages = filteredChannels.filter(
+    (channel) => channel.type === "direct_message",
+  );
 
   const getChannelIcon = (channel: TeamChannel) => {
-    if (channel.type === 'direct_message') {
+    if (channel.type === "direct_message") {
       return <div className="w-4 h-4 bg-green-500 rounded-full" />;
     }
     if (channel.is_private) {
@@ -52,7 +60,7 @@ export default function TeamChatSidebar({
 
     return (
       <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-500 rounded-full">
-        {count > 99 ? '99+' : count}
+        {count > 99 ? "99+" : count}
       </span>
     );
   };
@@ -62,7 +70,7 @@ export default function TeamChatSidebar({
       {/* Header */}
       <div className="p-4 border-b border-gray-700">
         <h1 className="text-xl font-bold text-white mb-4">Team Chat</h1>
-        
+
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -98,8 +106,8 @@ export default function TeamChatSidebar({
                   onClick={() => onChannelSelect(channel)}
                   className={`w-full flex items-center justify-between px-2 py-2 rounded-lg text-left transition-colors ${
                     selectedChannel?.id === channel.id
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-300 hover:bg-gray-700'
+                      ? "bg-blue-600 text-white"
+                      : "text-gray-300 hover:bg-gray-700"
                   }`}
                 >
                   <div className="flex items-center space-x-3 min-w-0 flex-1">
@@ -126,8 +134,8 @@ export default function TeamChatSidebar({
                   onClick={() => onChannelSelect(channel)}
                   className={`w-full flex items-center justify-between px-2 py-2 rounded-lg text-left transition-colors ${
                     selectedChannel?.id === channel.id
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-300 hover:bg-gray-700'
+                      ? "bg-blue-600 text-white"
+                      : "text-gray-300 hover:bg-gray-700"
                   }`}
                 >
                   <div className="flex items-center space-x-3 min-w-0 flex-1">
@@ -160,8 +168,8 @@ export default function TeamChatSidebar({
                   onClick={() => onChannelSelect(channel)}
                   className={`w-full flex items-center justify-between px-2 py-2 rounded-lg text-left transition-colors ${
                     selectedChannel?.id === channel.id
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-300 hover:bg-gray-700'
+                      ? "bg-blue-600 text-white"
+                      : "text-gray-300 hover:bg-gray-700"
                   }`}
                 >
                   <div className="flex items-center space-x-3 min-w-0 flex-1">
@@ -233,9 +241,12 @@ interface CreateChannelModalProps {
   onChannelCreated: () => void;
 }
 
-function CreateChannelModal({ onClose, onChannelCreated }: CreateChannelModalProps) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
+function CreateChannelModal({
+  onClose,
+  onChannelCreated,
+}: CreateChannelModalProps) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -245,10 +256,10 @@ function CreateChannelModal({ onClose, onChannelCreated }: CreateChannelModalPro
 
     setLoading(true);
     try {
-      const response = await fetch('/api/team-chat/channels', {
-        method: 'POST',
+      const response = await fetch("/api/team-chat/channels", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           name: name.trim(),
@@ -258,12 +269,12 @@ function CreateChannelModal({ onClose, onChannelCreated }: CreateChannelModalPro
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create channel');
+        throw new Error("Failed to create channel");
       }
 
       onChannelCreated();
     } catch (error) {
-      console.error('Error creating channel:', error);
+      console.error("Error creating channel:", error);
       // TODO: Show error toast
     } finally {
       setLoading(false);
@@ -274,7 +285,7 @@ function CreateChannelModal({ onClose, onChannelCreated }: CreateChannelModalPro
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
       <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md">
         <h2 className="text-xl font-bold text-white mb-4">Create Channel</h2>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -316,7 +327,9 @@ function CreateChannelModal({ onClose, onChannelCreated }: CreateChannelModalPro
                 className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
               />
               <div>
-                <span className="text-sm font-medium text-gray-300">Make private</span>
+                <span className="text-sm font-medium text-gray-300">
+                  Make private
+                </span>
                 <p className="text-xs text-gray-400">
                   Only specific people can access this channel
                 </p>
@@ -338,7 +351,7 @@ function CreateChannelModal({ onClose, onChannelCreated }: CreateChannelModalPro
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
               disabled={loading || !name.trim()}
             >
-              {loading ? 'Creating...' : 'Create Channel'}
+              {loading ? "Creating..." : "Create Channel"}
             </button>
           </div>
         </form>

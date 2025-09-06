@@ -1,16 +1,16 @@
-'use client';
+"use client";
 
-import { useState, useRef } from 'react';
-import { Button } from '@/app/components/ui/Button';
-import { 
-  PhotoIcon, 
+import { useState, useRef } from "react";
+import { Button } from "@/app/components/ui/Button";
+import {
+  PhotoIcon,
   VideoCameraIcon,
   CloudArrowUpIcon,
   XMarkIcon,
   EyeIcon,
   DevicePhoneMobileIcon,
-  ComputerDesktopIcon
-} from '@heroicons/react/24/outline';
+  ComputerDesktopIcon,
+} from "@heroicons/react/24/outline";
 
 interface CreativeData {
   name: string;
@@ -21,7 +21,7 @@ interface CreativeData {
   display_url: string;
   image_url?: string;
   video_url?: string;
-  creative_type: 'single_image' | 'video' | 'carousel';
+  creative_type: "single_image" | "video" | "carousel";
 }
 
 interface AdCreativeBuilderProps {
@@ -30,21 +30,26 @@ interface AdCreativeBuilderProps {
 }
 
 const CALL_TO_ACTION_OPTIONS = [
-  { value: 'LEARN_MORE', label: 'Learn More' },
-  { value: 'SIGN_UP', label: 'Sign Up' },
-  { value: 'BOOK_TRAVEL', label: 'Book Now' },
-  { value: 'DOWNLOAD', label: 'Download' },
-  { value: 'GET_QUOTE', label: 'Get Quote' },
-  { value: 'CONTACT_US', label: 'Contact Us' },
-  { value: 'APPLY_NOW', label: 'Apply Now' },
-  { value: 'SUBSCRIBE', label: 'Subscribe' },
-  { value: 'REQUEST_TIME', label: 'Request Info' },
-  { value: 'SEE_MENU', label: 'See Menu' },
-  { value: 'SHOP_NOW', label: 'Shop Now' }
+  { value: "LEARN_MORE", label: "Learn More" },
+  { value: "SIGN_UP", label: "Sign Up" },
+  { value: "BOOK_TRAVEL", label: "Book Now" },
+  { value: "DOWNLOAD", label: "Download" },
+  { value: "GET_QUOTE", label: "Get Quote" },
+  { value: "CONTACT_US", label: "Contact Us" },
+  { value: "APPLY_NOW", label: "Apply Now" },
+  { value: "SUBSCRIBE", label: "Subscribe" },
+  { value: "REQUEST_TIME", label: "Request Info" },
+  { value: "SEE_MENU", label: "See Menu" },
+  { value: "SHOP_NOW", label: "Shop Now" },
 ];
 
-export function AdCreativeBuilder({ creative, onChange }: AdCreativeBuilderProps) {
-  const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop');
+export function AdCreativeBuilder({
+  creative,
+  onChange,
+}: AdCreativeBuilderProps) {
+  const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">(
+    "desktop",
+  );
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -56,35 +61,38 @@ export function AdCreativeBuilder({ creative, onChange }: AdCreativeBuilderProps
     setUploading(true);
     try {
       const formData = new FormData();
-      formData.append('file', file);
-      formData.append('type', file.type.startsWith('video/') ? 'video' : 'image');
+      formData.append("file", file);
+      formData.append(
+        "type",
+        file.type.startsWith("video/") ? "video" : "image",
+      );
 
-      const response = await fetch('/api/ads/upload-creative', {
-        method: 'POST',
-        body: formData
+      const response = await fetch("/api/ads/upload-creative", {
+        method: "POST",
+        body: formData,
       });
 
       if (response.ok) {
         const data = await response.json();
-        if (file.type.startsWith('video/')) {
-          updateCreative({ 
-            video_url: data.url, 
-            creative_type: 'video',
-            image_url: undefined 
+        if (file.type.startsWith("video/")) {
+          updateCreative({
+            video_url: data.url,
+            creative_type: "video",
+            image_url: undefined,
           });
         } else {
-          updateCreative({ 
-            image_url: data.url, 
-            creative_type: 'single_image',
-            video_url: undefined 
+          updateCreative({
+            image_url: data.url,
+            creative_type: "single_image",
+            video_url: undefined,
           });
         }
       } else {
-        throw new Error('Upload failed');
+        throw new Error("Upload failed");
       }
     } catch (error) {
-      console.error('Failed to upload file:', error);
-      alert('Failed to upload file. Please try again.');
+      console.error("Failed to upload file:", error);
+      alert("Failed to upload file. Please try again.");
     } finally {
       setUploading(false);
     }
@@ -103,33 +111,33 @@ export function AdCreativeBuilder({ creative, onChange }: AdCreativeBuilderProps
   };
 
   const removeMedia = () => {
-    updateCreative({ 
-      image_url: undefined, 
+    updateCreative({
+      image_url: undefined,
       video_url: undefined,
-      creative_type: 'single_image'
+      creative_type: "single_image",
     });
   };
 
   const generateAISuggestions = async () => {
     try {
-      const response = await fetch('/api/ads/ai-suggestions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          industry: 'fitness',
-          objective: 'lead_generation' 
-        })
+      const response = await fetch("/api/ads/ai-suggestions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          industry: "fitness",
+          objective: "lead_generation",
+        }),
       });
 
       if (response.ok) {
         const suggestions = await response.json();
         updateCreative({
           title: suggestions.title,
-          body: suggestions.body
+          body: suggestions.body,
         });
       }
     } catch (error) {
-      console.error('Failed to get AI suggestions:', error);
+      console.error("Failed to get AI suggestions:", error);
     }
   };
 
@@ -150,7 +158,7 @@ export function AdCreativeBuilder({ creative, onChange }: AdCreativeBuilderProps
       {/* Media Upload */}
       <div>
         <label className="block text-sm font-medium mb-2">Media</label>
-        
+
         {!creative.image_url && !creative.video_url ? (
           <div
             onDrop={handleDrop}
@@ -164,12 +172,14 @@ export function AdCreativeBuilder({ creative, onChange }: AdCreativeBuilderProps
               <CloudArrowUpIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             )}
             <p className="text-gray-400 mb-2">
-              {uploading ? 'Uploading...' : 'Drop your image or video here, or click to browse'}
+              {uploading
+                ? "Uploading..."
+                : "Drop your image or video here, or click to browse"}
             </p>
             <p className="text-sm text-gray-500">
               Supports: JPG, PNG, MP4, MOV (max 100MB)
             </p>
-            
+
             <div className="flex justify-center space-x-4 mt-4">
               <Button
                 type="button"
@@ -208,7 +218,7 @@ export function AdCreativeBuilder({ creative, onChange }: AdCreativeBuilderProps
                 </button>
               </div>
             )}
-            
+
             {creative.video_url && (
               <div className="relative">
                 <video
@@ -269,7 +279,9 @@ export function AdCreativeBuilder({ creative, onChange }: AdCreativeBuilderProps
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Description</label>
+            <label className="block text-sm font-medium mb-2">
+              Description
+            </label>
             <textarea
               value={creative.body}
               onChange={(e) => updateCreative({ body: e.target.value })}
@@ -284,13 +296,17 @@ export function AdCreativeBuilder({ creative, onChange }: AdCreativeBuilderProps
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Call to Action</label>
+            <label className="block text-sm font-medium mb-2">
+              Call to Action
+            </label>
             <select
               value={creative.call_to_action_type}
-              onChange={(e) => updateCreative({ call_to_action_type: e.target.value })}
+              onChange={(e) =>
+                updateCreative({ call_to_action_type: e.target.value })
+              }
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              {CALL_TO_ACTION_OPTIONS.map(option => (
+              {CALL_TO_ACTION_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -299,7 +315,9 @@ export function AdCreativeBuilder({ creative, onChange }: AdCreativeBuilderProps
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Destination URL</label>
+            <label className="block text-sm font-medium mb-2">
+              Destination URL
+            </label>
             <input
               type="url"
               value={creative.link_url}
@@ -310,7 +328,9 @@ export function AdCreativeBuilder({ creative, onChange }: AdCreativeBuilderProps
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Display URL (Optional)</label>
+            <label className="block text-sm font-medium mb-2">
+              Display URL (Optional)
+            </label>
             <input
               type="text"
               value={creative.display_url}
@@ -330,23 +350,25 @@ export function AdCreativeBuilder({ creative, onChange }: AdCreativeBuilderProps
             <label className="block text-sm font-medium">Preview</label>
             <div className="flex space-x-2">
               <button
-                onClick={() => setPreviewMode('desktop')}
-                className={`p-2 rounded ${previewMode === 'desktop' ? 'bg-blue-600' : 'bg-gray-700'}`}
+                onClick={() => setPreviewMode("desktop")}
+                className={`p-2 rounded ${previewMode === "desktop" ? "bg-blue-600" : "bg-gray-700"}`}
               >
                 <ComputerDesktopIcon className="h-4 w-4" />
               </button>
               <button
-                onClick={() => setPreviewMode('mobile')}
-                className={`p-2 rounded ${previewMode === 'mobile' ? 'bg-blue-600' : 'bg-gray-700'}`}
+                onClick={() => setPreviewMode("mobile")}
+                className={`p-2 rounded ${previewMode === "mobile" ? "bg-blue-600" : "bg-gray-700"}`}
               >
                 <DevicePhoneMobileIcon className="h-4 w-4" />
               </button>
             </div>
           </div>
 
-          <div className={`bg-white text-black rounded-lg p-4 ${
-            previewMode === 'mobile' ? 'max-w-xs mx-auto' : ''
-          }`}>
+          <div
+            className={`bg-white text-black rounded-lg p-4 ${
+              previewMode === "mobile" ? "max-w-xs mx-auto" : ""
+            }`}
+          >
             {/* Ad Header */}
             <div className="flex items-center space-x-2 mb-3">
               <div className="w-8 h-8 bg-blue-600 rounded-full"></div>
@@ -359,15 +381,15 @@ export function AdCreativeBuilder({ creative, onChange }: AdCreativeBuilderProps
             {/* Ad Content */}
             <div className="mb-3">
               <div className="text-sm mb-2">
-                {creative.title || 'Your headline will appear here'}
+                {creative.title || "Your headline will appear here"}
               </div>
               <div className="text-xs text-gray-600 mb-3">
-                {creative.body || 'Your description will appear here'}
+                {creative.body || "Your description will appear here"}
               </div>
             </div>
 
             {/* Media */}
-            {(creative.image_url || creative.video_url) ? (
+            {creative.image_url || creative.video_url ? (
               <div className="mb-3">
                 {creative.image_url && (
                   <img
@@ -392,21 +414,26 @@ export function AdCreativeBuilder({ creative, onChange }: AdCreativeBuilderProps
             {creative.link_url && (
               <div className="bg-gray-100 p-2 rounded mb-3">
                 <div className="text-xs text-gray-500">
-                  {creative.display_url || new URL(creative.link_url || 'https://example.com').hostname}
+                  {creative.display_url ||
+                    new URL(creative.link_url || "https://example.com")
+                      .hostname}
                 </div>
               </div>
             )}
 
             {/* CTA Button */}
             <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-              {CALL_TO_ACTION_OPTIONS.find(opt => opt.value === creative.call_to_action_type)?.label || 'Learn More'}
+              {CALL_TO_ACTION_OPTIONS.find(
+                (opt) => opt.value === creative.call_to_action_type,
+              )?.label || "Learn More"}
             </Button>
           </div>
 
           {/* Preview Controls */}
           <div className="mt-4 text-center">
             <div className="text-xs text-gray-400">
-              {previewMode === 'desktop' ? 'Desktop Feed' : 'Mobile Feed'} Preview
+              {previewMode === "desktop" ? "Desktop Feed" : "Mobile Feed"}{" "}
+              Preview
             </div>
           </div>
         </div>
@@ -419,7 +446,9 @@ export function AdCreativeBuilder({ creative, onChange }: AdCreativeBuilderProps
           <li>• Use high-quality images or videos that showcase your gym</li>
           <li>• Keep headlines under 40 characters for best performance</li>
           <li>• Include a clear value proposition in your description</li>
-          <li>• Test different call-to-action buttons to see what works best</li>
+          <li>
+            • Test different call-to-action buttons to see what works best
+          </li>
           <li>• Ensure your landing page matches your ad content</li>
         </ul>
       </div>

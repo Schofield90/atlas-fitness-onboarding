@@ -5,6 +5,7 @@ A comprehensive internal team communication system built for Atlas Fitness CRM w
 ## Features
 
 ### Core Features
+
 - **Real-time messaging** using Supabase Realtime subscriptions
 - **Channel-based communication** with public and private channels
 - **Direct messages** between team members
@@ -19,6 +20,7 @@ A comprehensive internal team communication system built for Atlas Fitness CRM w
 - **Desktop notifications** with browser API integration
 
 ### Technical Features
+
 - **Multi-tenant architecture** with organization isolation
 - **Row Level Security (RLS)** for data protection
 - **Real-time subscriptions** for instant updates
@@ -30,6 +32,7 @@ A comprehensive internal team communication system built for Atlas Fitness CRM w
 ## Database Schema
 
 ### Tables Created
+
 - `team_channels` - Chat channels (public, private, direct messages)
 - `team_channel_members` - Channel membership and permissions
 - `team_messages` - All messages with threading support
@@ -40,6 +43,7 @@ A comprehensive internal team communication system built for Atlas Fitness CRM w
 - `team_typing_indicators` - Real-time typing status
 
 ### Key Features
+
 - **Automatic channel creation** - Creates #general and #random channels for new organizations
 - **Auto-membership** - New organization members are automatically added to #general
 - **Cleanup functions** - Expired typing indicators are automatically cleaned up
@@ -74,36 +78,43 @@ app/
 ## API Endpoints
 
 ### Channels (`/api/team-chat/channels`)
+
 - `GET` - List user's channels
 - `POST` - Create new channel
 
 ### Messages (`/api/team-chat/messages`)
+
 - `GET` - Get channel messages with pagination
 - `POST` - Send new message with attachments and mentions
 - `PUT` - Edit existing message
 - `DELETE` - Delete message
 
 ### Reactions (`/api/team-chat/reactions`)
+
 - `POST` - Add/remove emoji reaction
 
 ### Typing (`/api/team-chat/typing`)
+
 - `GET` - Get current typing users
 - `POST` - Set typing status
 - `DELETE` - Cleanup expired indicators
 
 ### Search (`/api/team-chat/search`)
+
 - `GET` - Simple message search
 - `POST` - Advanced search with filters
 
 ## Real-time Features
 
 ### Subscriptions
+
 - **New messages** - Instant message delivery across all connected clients
 - **Typing indicators** - Real-time typing status updates
 - **Channel updates** - Channel creation, updates, and membership changes
 - **Reactions** - Live emoji reaction updates
 
 ### Notifications
+
 - **Browser notifications** - Desktop notifications for mentions and new messages
 - **Sound notifications** - Audio alerts for important messages
 - **Unread badges** - Visual indicators for unread messages
@@ -112,11 +123,13 @@ app/
 ## Usage
 
 ### Accessing Team Chat
+
 1. **Navigation** - Use the "Team Chat" link in the main navigation
 2. **Floating Widget** - Click the floating chat button on any page
 3. **Direct URL** - Visit `/team-chat` directly
 
 ### Creating Channels
+
 1. Click the "+" button next to "Channels" in the sidebar
 2. Enter channel name (auto-formatted to lowercase with hyphens)
 3. Add optional description
@@ -124,6 +137,7 @@ app/
 5. Click "Create Channel"
 
 ### Sending Messages
+
 1. Select a channel from the sidebar
 2. Type your message in the input area
 3. Use @ to mention team members
@@ -132,6 +146,7 @@ app/
 6. Press Enter to send (Shift+Enter for new line)
 
 ### Message Features
+
 - **Reactions** - Hover over messages to see reaction options
 - **Edit** - Click the "..." menu to edit your own messages
 - **Delete** - Remove your own messages or admin can delete any
@@ -141,15 +156,18 @@ app/
 ## Configuration
 
 ### Environment Variables
+
 No additional environment variables required - uses existing Supabase configuration.
 
 ### Permissions
+
 - **Organization Members** - Can access all public channels
 - **Channel Creators** - Can manage their created channels
 - **Admins/Owners** - Can create channels and moderate content
 - **Private Channels** - Require explicit invitation
 
 ### File Upload Limits
+
 - **Max file size** - 10MB per file
 - **Max files per message** - 5 files
 - **Supported types** - Images, videos, audio, PDFs, documents
@@ -158,12 +176,14 @@ No additional environment variables required - uses existing Supabase configurat
 ## Security
 
 ### Data Protection
+
 - **Row Level Security** - All tables use RLS policies
 - **Organization Isolation** - Users can only access their organization's data
 - **Authentication Required** - All endpoints require valid auth token
 - **Permission Checks** - Channel membership verified for all operations
 
 ### File Security
+
 - **Upload Validation** - File type and size restrictions enforced
 - **Secure Storage** - Files stored in Supabase Storage with proper access controls
 - **URL Generation** - Public URLs generated only for authorized users
@@ -171,12 +191,14 @@ No additional environment variables required - uses existing Supabase configurat
 ## Performance
 
 ### Optimizations
+
 - **Database Indexes** - All common query patterns indexed
 - **Pagination** - Messages loaded in batches to reduce initial load
 - **Real-time Filtering** - Subscriptions filtered to reduce unnecessary updates
 - **Cleanup Jobs** - Background cleanup of expired data
 
 ### Caching
+
 - **Message Caching** - Recent messages cached in component state
 - **Channel List** - Channels cached and updated via real-time subscriptions
 - **Unread Counts** - Efficiently calculated and updated
@@ -184,11 +206,13 @@ No additional environment variables required - uses existing Supabase configurat
 ## Monitoring
 
 ### Logs Available
+
 - Database operations in Supabase dashboard
 - API endpoint logs in Vercel/hosting platform
 - Real-time subscription status in browser console (development)
 
 ### Metrics to Track
+
 - Message volume per organization
 - Channel usage and activity
 - File upload storage usage
@@ -197,6 +221,7 @@ No additional environment variables required - uses existing Supabase configurat
 ## Future Enhancements
 
 ### Planned Features
+
 - **Message threads** - Full threading implementation
 - **Voice messages** - Audio recording and playback
 - **Video calls** - Integration with video calling service
@@ -208,6 +233,7 @@ No additional environment variables required - uses existing Supabase configurat
 - **Channel analytics** - Usage statistics and insights
 
 ### Technical Improvements
+
 - **Message batching** - Batch real-time updates for performance
 - **Offline support** - Queue messages when offline
 - **Push notifications** - Mobile push notifications
@@ -240,7 +266,9 @@ No additional environment variables required - uses existing Supabase configurat
    - Consider refreshing the page to reconnect
 
 ### Debug Information
+
 Enable debug logging by adding `?debug=true` to the team chat URL. This will show:
+
 - Real-time subscription status
 - Message loading and caching
 - API request/response details
@@ -249,6 +277,7 @@ Enable debug logging by adding `?debug=true` to the team chat URL. This will sho
 ## Migration Guide
 
 The system includes a comprehensive migration that:
+
 1. Creates all required tables with proper relationships
 2. Sets up Row Level Security policies
 3. Creates indexes for optimal performance
@@ -256,6 +285,7 @@ The system includes a comprehensive migration that:
 5. Enables Supabase Realtime on all tables
 
 To apply the migration:
+
 ```bash
 # If using Supabase CLI
 supabase migration up
@@ -270,6 +300,7 @@ The migration is designed to be non-destructive and can be safely applied to exi
 ## Support
 
 For issues or questions regarding the team chat system:
+
 1. Check the troubleshooting section above
 2. Review browser console for error messages
 3. Verify database migration was applied correctly

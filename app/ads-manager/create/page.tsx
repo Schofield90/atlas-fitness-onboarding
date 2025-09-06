@@ -1,13 +1,18 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/Card';
-import { Button } from '@/app/components/ui/Button';
-import { Badge } from '@/app/components/ui/Badge';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { 
-  ArrowLeftIcon, 
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/app/components/ui/Card";
+import { Button } from "@/app/components/ui/Button";
+import { Badge } from "@/app/components/ui/Badge";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+  ArrowLeftIcon,
   ArrowRightIcon,
   CheckIcon,
   EyeIcon,
@@ -15,16 +20,16 @@ import {
   ComputerDesktopIcon,
   PhotoIcon,
   VideoCameraIcon,
-  UserGroupIcon
-} from '@heroicons/react/24/outline';
-import { AdCreativeBuilder } from '@/app/components/ads/AdCreativeBuilder';
-import { AudienceBuilder } from '@/app/components/ads/AudienceBuilder';
+  UserGroupIcon,
+} from "@heroicons/react/24/outline";
+import { AdCreativeBuilder } from "@/app/components/ads/AdCreativeBuilder";
+import { AudienceBuilder } from "@/app/components/ads/AudienceBuilder";
 
 interface CampaignObjective {
   id: string;
   name: string;
   description: string;
-  category: 'awareness' | 'consideration' | 'conversion';
+  category: "awareness" | "consideration" | "conversion";
   recommended?: boolean;
 }
 
@@ -41,7 +46,7 @@ interface CampaignData {
   objective: string;
   account_id: string;
   special_ad_categories: string[];
-  buying_type: 'AUCTION' | 'RESERVED';
+  buying_type: "AUCTION" | "RESERVED";
   campaign_budget_optimization: boolean;
   daily_budget?: number;
   lifetime_budget?: number;
@@ -79,41 +84,41 @@ interface CreativeData {
   display_url: string;
   image_url?: string;
   video_url?: string;
-  creative_type: 'single_image' | 'video' | 'carousel';
+  creative_type: "single_image" | "video" | "carousel";
 }
 
 const CAMPAIGN_OBJECTIVES: CampaignObjective[] = [
   {
-    id: 'LEAD_GENERATION',
-    name: 'Lead Generation',
-    description: 'Collect leads for your gym through forms',
-    category: 'conversion',
-    recommended: true
+    id: "LEAD_GENERATION",
+    name: "Lead Generation",
+    description: "Collect leads for your gym through forms",
+    category: "conversion",
+    recommended: true,
   },
   {
-    id: 'REACH',
-    name: 'Reach',
-    description: 'Show your ads to the maximum number of people',
-    category: 'awareness'
+    id: "REACH",
+    name: "Reach",
+    description: "Show your ads to the maximum number of people",
+    category: "awareness",
   },
   {
-    id: 'TRAFFIC',
-    name: 'Traffic',
-    description: 'Send people to your website or app',
-    category: 'consideration'
+    id: "TRAFFIC",
+    name: "Traffic",
+    description: "Send people to your website or app",
+    category: "consideration",
   },
   {
-    id: 'ENGAGEMENT',
-    name: 'Engagement',
-    description: 'Get more likes, comments, and shares',
-    category: 'consideration'
+    id: "ENGAGEMENT",
+    name: "Engagement",
+    description: "Get more likes, comments, and shares",
+    category: "consideration",
   },
   {
-    id: 'CONVERSIONS',
-    name: 'Conversions',
-    description: 'Get more website purchases or actions',
-    category: 'conversion'
-  }
+    id: "CONVERSIONS",
+    name: "Conversions",
+    description: "Get more website purchases or actions",
+    category: "conversion",
+  },
 ];
 
 export default function CreateCampaignPage() {
@@ -122,22 +127,22 @@ export default function CreateCampaignPage() {
   const [adAccounts, setAdAccounts] = useState<AdAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [publishing, setPublishing] = useState(false);
-  
+
   // Campaign data state
   const [campaignData, setCampaignData] = useState<CampaignData>({
-    name: '',
-    objective: 'LEAD_GENERATION',
-    account_id: '',
+    name: "",
+    objective: "LEAD_GENERATION",
+    account_id: "",
     special_ad_categories: [],
-    buying_type: 'AUCTION',
+    buying_type: "AUCTION",
     campaign_budget_optimization: false,
-    bid_strategy: 'LOWEST_COST_WITHOUT_CAP'
+    bid_strategy: "LOWEST_COST_WITHOUT_CAP",
   });
 
   const [adSetData, setAdSetData] = useState<AdSetData>({
-    name: '',
-    optimization_goal: 'LEAD_GENERATION',
-    billing_event: 'IMPRESSIONS',
+    name: "",
+    optimization_goal: "LEAD_GENERATION",
+    billing_event: "IMPRESSIONS",
     daily_budget: 2000, // $20 in cents
     targeting: {
       age_min: 18,
@@ -147,19 +152,24 @@ export default function CreateCampaignPage() {
       interests: [],
       behaviors: [],
       custom_audiences: [],
-      excluded_custom_audiences: []
+      excluded_custom_audiences: [],
     },
-    placements: ['feed', 'right_hand_column', 'suggested_video', 'instant_article']
+    placements: [
+      "feed",
+      "right_hand_column",
+      "suggested_video",
+      "instant_article",
+    ],
   });
 
   const [creativeData, setCreativeData] = useState<CreativeData>({
-    name: '',
-    title: '',
-    body: '',
-    call_to_action_type: 'LEARN_MORE',
-    link_url: '',
-    display_url: '',
-    creative_type: 'single_image'
+    name: "",
+    title: "",
+    body: "",
+    call_to_action_type: "LEARN_MORE",
+    link_url: "",
+    display_url: "",
+    creative_type: "single_image",
   });
 
   useEffect(() => {
@@ -168,19 +178,19 @@ export default function CreateCampaignPage() {
 
   const fetchAdAccounts = async () => {
     try {
-      const response = await fetch('/api/ads/accounts');
+      const response = await fetch("/api/ads/accounts");
       if (response.ok) {
         const data = await response.json();
         setAdAccounts(data.accounts || []);
         if (data.accounts?.length > 0) {
-          setCampaignData(prev => ({
+          setCampaignData((prev) => ({
             ...prev,
-            account_id: data.accounts[0].id
+            account_id: data.accounts[0].id,
           }));
         }
       }
     } catch (error) {
-      console.error('Failed to fetch ad accounts:', error);
+      console.error("Failed to fetch ad accounts:", error);
     } finally {
       setLoading(false);
     }
@@ -189,9 +199,14 @@ export default function CreateCampaignPage() {
   const validateStep = (step: number) => {
     switch (step) {
       case 1:
-        return campaignData.name && campaignData.objective && campaignData.account_id;
+        return (
+          campaignData.name && campaignData.objective && campaignData.account_id
+        );
       case 2:
-        return adSetData.name && (adSetData.daily_budget || adSetData.lifetime_budget);
+        return (
+          adSetData.name &&
+          (adSetData.daily_budget || adSetData.lifetime_budget)
+        );
       case 3:
         return true; // Audience targeting is optional
       case 4:
@@ -216,14 +231,14 @@ export default function CreateCampaignPage() {
   const publishCampaign = async () => {
     setPublishing(true);
     try {
-      const response = await fetch('/api/ads/campaigns', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/ads/campaigns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           campaign: campaignData,
           adset: adSetData,
-          creative: creativeData
-        })
+          creative: creativeData,
+        }),
       });
 
       if (response.ok) {
@@ -231,22 +246,30 @@ export default function CreateCampaignPage() {
         router.push(`/ads-manager?created=${data.campaign_id}`);
       } else {
         const error = await response.json();
-        throw new Error(error.message || 'Failed to create campaign');
+        throw new Error(error.message || "Failed to create campaign");
       }
     } catch (error) {
-      console.error('Failed to publish campaign:', error);
-      alert('Failed to create campaign. Please try again.');
+      console.error("Failed to publish campaign:", error);
+      alert("Failed to create campaign. Please try again.");
     } finally {
       setPublishing(false);
     }
   };
 
   const steps = [
-    { id: 1, name: 'Campaign Setup', description: 'Choose objective and settings' },
-    { id: 2, name: 'Budget & Schedule', description: 'Set budget and timeline' },
-    { id: 3, name: 'Audience', description: 'Define your target audience' },
-    { id: 4, name: 'Creative', description: 'Create your ad content' },
-    { id: 5, name: 'Review', description: 'Review and publish' }
+    {
+      id: 1,
+      name: "Campaign Setup",
+      description: "Choose objective and settings",
+    },
+    {
+      id: 2,
+      name: "Budget & Schedule",
+      description: "Set budget and timeline",
+    },
+    { id: 3, name: "Audience", description: "Define your target audience" },
+    { id: 4, name: "Creative", description: "Create your ad content" },
+    { id: 5, name: "Review", description: "Review and publish" },
   ];
 
   if (loading) {
@@ -272,7 +295,8 @@ export default function CreateCampaignPage() {
             <div>
               <h1 className="text-3xl font-bold">Create New Campaign</h1>
               <p className="text-gray-400 mt-2">
-                Step {currentStep} of {steps.length}: {steps[currentStep - 1].description}
+                Step {currentStep} of {steps.length}:{" "}
+                {steps[currentStep - 1].description}
               </p>
             </div>
           </div>
@@ -283,11 +307,15 @@ export default function CreateCampaignPage() {
           <div className="flex items-center justify-between">
             {steps.map((step, index) => (
               <div key={step.id} className="flex items-center">
-                <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
-                  currentStep > step.id ? 'bg-green-600 border-green-600' :
-                  currentStep === step.id ? 'bg-blue-600 border-blue-600' :
-                  'bg-gray-800 border-gray-600'
-                }`}>
+                <div
+                  className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
+                    currentStep > step.id
+                      ? "bg-green-600 border-green-600"
+                      : currentStep === step.id
+                        ? "bg-blue-600 border-blue-600"
+                        : "bg-gray-800 border-gray-600"
+                  }`}
+                >
                   {currentStep > step.id ? (
                     <CheckIcon className="w-5 h-5 text-white" />
                   ) : (
@@ -295,16 +323,20 @@ export default function CreateCampaignPage() {
                   )}
                 </div>
                 <div className="ml-3">
-                  <div className={`text-sm font-medium ${
-                    currentStep >= step.id ? 'text-white' : 'text-gray-400'
-                  }`}>
+                  <div
+                    className={`text-sm font-medium ${
+                      currentStep >= step.id ? "text-white" : "text-gray-400"
+                    }`}
+                  >
                     {step.name}
                   </div>
                 </div>
                 {index < steps.length - 1 && (
-                  <div className={`mx-4 h-0.5 w-16 ${
-                    currentStep > step.id ? 'bg-green-600' : 'bg-gray-600'
-                  }`} />
+                  <div
+                    className={`mx-4 h-0.5 w-16 ${
+                      currentStep > step.id ? "bg-green-600" : "bg-gray-600"
+                    }`}
+                  />
                 )}
               </div>
             ))}
@@ -322,24 +354,38 @@ export default function CreateCampaignPage() {
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div>
-                    <label className="block text-sm font-medium mb-2">Campaign Name</label>
+                    <label className="block text-sm font-medium mb-2">
+                      Campaign Name
+                    </label>
                     <input
                       type="text"
                       value={campaignData.name}
-                      onChange={(e) => setCampaignData(prev => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) =>
+                        setCampaignData((prev) => ({
+                          ...prev,
+                          name: e.target.value,
+                        }))
+                      }
                       placeholder="Enter campaign name"
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-2">Ad Account</label>
+                    <label className="block text-sm font-medium mb-2">
+                      Ad Account
+                    </label>
                     <select
                       value={campaignData.account_id}
-                      onChange={(e) => setCampaignData(prev => ({ ...prev, account_id: e.target.value }))}
+                      onChange={(e) =>
+                        setCampaignData((prev) => ({
+                          ...prev,
+                          account_id: e.target.value,
+                        }))
+                      }
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      {adAccounts.map(account => (
+                      {adAccounts.map((account) => (
                         <option key={account.id} value={account.id}>
                           {account.account_name} ({account.currency})
                         </option>
@@ -348,32 +394,49 @@ export default function CreateCampaignPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-4">Campaign Objective</label>
+                    <label className="block text-sm font-medium mb-4">
+                      Campaign Objective
+                    </label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {CAMPAIGN_OBJECTIVES.map(objective => (
+                      {CAMPAIGN_OBJECTIVES.map((objective) => (
                         <div
                           key={objective.id}
-                          onClick={() => setCampaignData(prev => ({ ...prev, objective: objective.id }))}
+                          onClick={() =>
+                            setCampaignData((prev) => ({
+                              ...prev,
+                              objective: objective.id,
+                            }))
+                          }
                           className={`p-4 border rounded-lg cursor-pointer transition-colors ${
                             campaignData.objective === objective.id
-                              ? 'border-blue-500 bg-blue-600/10'
-                              : 'border-gray-600 bg-gray-700 hover:border-gray-500'
+                              ? "border-blue-500 bg-blue-600/10"
+                              : "border-gray-600 bg-gray-700 hover:border-gray-500"
                           }`}
                         >
                           <div className="flex items-center justify-between">
                             <div>
-                              <h3 className="font-medium text-white">{objective.name}</h3>
-                              <p className="text-sm text-gray-400 mt-1">{objective.description}</p>
-                              <Badge className={`mt-2 ${
-                                objective.category === 'awareness' ? 'bg-yellow-600' :
-                                objective.category === 'consideration' ? 'bg-blue-600' :
-                                'bg-green-600'
-                              }`}>
+                              <h3 className="font-medium text-white">
+                                {objective.name}
+                              </h3>
+                              <p className="text-sm text-gray-400 mt-1">
+                                {objective.description}
+                              </p>
+                              <Badge
+                                className={`mt-2 ${
+                                  objective.category === "awareness"
+                                    ? "bg-yellow-600"
+                                    : objective.category === "consideration"
+                                      ? "bg-blue-600"
+                                      : "bg-green-600"
+                                }`}
+                              >
                                 {objective.category}
                               </Badge>
                             </div>
                             {objective.recommended && (
-                              <Badge className="bg-purple-600">Recommended</Badge>
+                              <Badge className="bg-purple-600">
+                                Recommended
+                              </Badge>
                             )}
                           </div>
                         </div>
@@ -392,11 +455,18 @@ export default function CreateCampaignPage() {
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div>
-                    <label className="block text-sm font-medium mb-2">Ad Set Name</label>
+                    <label className="block text-sm font-medium mb-2">
+                      Ad Set Name
+                    </label>
                     <input
                       type="text"
                       value={adSetData.name}
-                      onChange={(e) => setAdSetData(prev => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) =>
+                        setAdSetData((prev) => ({
+                          ...prev,
+                          name: e.target.value,
+                        }))
+                      }
                       placeholder="Enter ad set name"
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
@@ -404,18 +474,22 @@ export default function CreateCampaignPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-medium mb-2">Budget Type</label>
+                      <label className="block text-sm font-medium mb-2">
+                        Budget Type
+                      </label>
                       <div className="space-y-3">
                         <label className="flex items-center">
                           <input
                             type="radio"
                             name="budget_type"
                             checked={!!adSetData.daily_budget}
-                            onChange={() => setAdSetData(prev => ({ 
-                              ...prev, 
-                              daily_budget: prev.daily_budget || 2000,
-                              lifetime_budget: undefined 
-                            }))}
+                            onChange={() =>
+                              setAdSetData((prev) => ({
+                                ...prev,
+                                daily_budget: prev.daily_budget || 2000,
+                                lifetime_budget: undefined,
+                              }))
+                            }
                             className="mr-2"
                           />
                           <span>Daily Budget</span>
@@ -425,11 +499,13 @@ export default function CreateCampaignPage() {
                             type="radio"
                             name="budget_type"
                             checked={!!adSetData.lifetime_budget}
-                            onChange={() => setAdSetData(prev => ({ 
-                              ...prev, 
-                              lifetime_budget: prev.lifetime_budget || 10000,
-                              daily_budget: undefined 
-                            }))}
+                            onChange={() =>
+                              setAdSetData((prev) => ({
+                                ...prev,
+                                lifetime_budget: prev.lifetime_budget || 10000,
+                                daily_budget: undefined,
+                              }))
+                            }
                             className="mr-2"
                           />
                           <span>Lifetime Budget</span>
@@ -439,16 +515,27 @@ export default function CreateCampaignPage() {
 
                     <div>
                       <label className="block text-sm font-medium mb-2">
-                        {adSetData.daily_budget ? 'Daily Budget' : 'Lifetime Budget'} (USD)
+                        {adSetData.daily_budget
+                          ? "Daily Budget"
+                          : "Lifetime Budget"}{" "}
+                        (USD)
                       </label>
                       <input
                         type="number"
-                        value={adSetData.daily_budget ? adSetData.daily_budget / 100 : adSetData.lifetime_budget ? adSetData.lifetime_budget / 100 : ''}
+                        value={
+                          adSetData.daily_budget
+                            ? adSetData.daily_budget / 100
+                            : adSetData.lifetime_budget
+                              ? adSetData.lifetime_budget / 100
+                              : ""
+                        }
                         onChange={(e) => {
                           const value = parseFloat(e.target.value) * 100;
-                          setAdSetData(prev => ({
+                          setAdSetData((prev) => ({
                             ...prev,
-                            [adSetData.daily_budget ? 'daily_budget' : 'lifetime_budget']: value
+                            [adSetData.daily_budget
+                              ? "daily_budget"
+                              : "lifetime_budget"]: value,
                           }));
                         }}
                         min="1"
@@ -460,30 +547,48 @@ export default function CreateCampaignPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-2">Optimization Goal</label>
+                    <label className="block text-sm font-medium mb-2">
+                      Optimization Goal
+                    </label>
                     <select
                       value={adSetData.optimization_goal}
-                      onChange={(e) => setAdSetData(prev => ({ ...prev, optimization_goal: e.target.value }))}
+                      onChange={(e) =>
+                        setAdSetData((prev) => ({
+                          ...prev,
+                          optimization_goal: e.target.value,
+                        }))
+                      }
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="LEAD_GENERATION">Lead Generation</option>
                       <option value="REACH">Reach</option>
                       <option value="IMPRESSIONS">Impressions</option>
                       <option value="LINK_CLICKS">Link Clicks</option>
-                      <option value="LANDING_PAGE_VIEWS">Landing Page Views</option>
+                      <option value="LANDING_PAGE_VIEWS">
+                        Landing Page Views
+                      </option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-2">Bid Strategy</label>
+                    <label className="block text-sm font-medium mb-2">
+                      Bid Strategy
+                    </label>
                     <select
                       value={adSetData.billing_event}
-                      onChange={(e) => setAdSetData(prev => ({ ...prev, billing_event: e.target.value }))}
+                      onChange={(e) =>
+                        setAdSetData((prev) => ({
+                          ...prev,
+                          billing_event: e.target.value,
+                        }))
+                      }
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="IMPRESSIONS">Impressions</option>
                       <option value="LINK_CLICKS">Link Clicks</option>
-                      <option value="LANDING_PAGE_VIEWS">Landing Page Views</option>
+                      <option value="LANDING_PAGE_VIEWS">
+                        Landing Page Views
+                      </option>
                     </select>
                   </div>
                 </CardContent>
@@ -499,7 +604,9 @@ export default function CreateCampaignPage() {
                 <CardContent>
                   <AudienceBuilder
                     targeting={adSetData.targeting}
-                    onChange={(targeting) => setAdSetData(prev => ({ ...prev, targeting }))}
+                    onChange={(targeting) =>
+                      setAdSetData((prev) => ({ ...prev, targeting }))
+                    }
                   />
                 </CardContent>
               </Card>
@@ -529,15 +636,27 @@ export default function CreateCampaignPage() {
                 <CardContent className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <h3 className="font-medium text-white mb-3">Campaign Details</h3>
+                      <h3 className="font-medium text-white mb-3">
+                        Campaign Details
+                      </h3>
                       <div className="space-y-2 text-sm">
-                        <div><span className="text-gray-400">Name:</span> {campaignData.name}</div>
-                        <div><span className="text-gray-400">Objective:</span> {campaignData.objective}</div>
-                        <div><span className="text-gray-400">Ad Set:</span> {adSetData.name}</div>
                         <div>
-                          <span className="text-gray-400">Budget:</span>{' '}
-                          ${(adSetData.daily_budget || adSetData.lifetime_budget)! / 100}{' '}
-                          {adSetData.daily_budget ? 'daily' : 'lifetime'}
+                          <span className="text-gray-400">Name:</span>{" "}
+                          {campaignData.name}
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Objective:</span>{" "}
+                          {campaignData.objective}
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Ad Set:</span>{" "}
+                          {adSetData.name}
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Budget:</span> $
+                          {(adSetData.daily_budget ||
+                            adSetData.lifetime_budget)! / 100}{" "}
+                          {adSetData.daily_budget ? "daily" : "lifetime"}
                         </div>
                       </div>
                     </div>
@@ -546,14 +665,16 @@ export default function CreateCampaignPage() {
                       <h3 className="font-medium text-white mb-3">Audience</h3>
                       <div className="space-y-2 text-sm">
                         <div>
-                          <span className="text-gray-400">Age:</span> {adSetData.targeting.age_min}-{adSetData.targeting.age_max}
+                          <span className="text-gray-400">Age:</span>{" "}
+                          {adSetData.targeting.age_min}-
+                          {adSetData.targeting.age_max}
                         </div>
                         <div>
-                          <span className="text-gray-400">Interests:</span>{' '}
+                          <span className="text-gray-400">Interests:</span>{" "}
                           {adSetData.targeting.interests.length} selected
                         </div>
                         <div>
-                          <span className="text-gray-400">Behaviors:</span>{' '}
+                          <span className="text-gray-400">Behaviors:</span>{" "}
                           {adSetData.targeting.behaviors.length} selected
                         </div>
                       </div>
@@ -561,12 +682,20 @@ export default function CreateCampaignPage() {
                   </div>
 
                   <div>
-                    <h3 className="font-medium text-white mb-3">Creative Preview</h3>
+                    <h3 className="font-medium text-white mb-3">
+                      Creative Preview
+                    </h3>
                     <div className="bg-gray-700 p-4 rounded-lg">
-                      <div className="text-lg font-medium">{creativeData.title}</div>
-                      <div className="text-gray-300 mt-2">{creativeData.body}</div>
+                      <div className="text-lg font-medium">
+                        {creativeData.title}
+                      </div>
+                      <div className="text-gray-300 mt-2">
+                        {creativeData.body}
+                      </div>
                       <div className="mt-3">
-                        <Badge className="bg-blue-600">{creativeData.call_to_action_type}</Badge>
+                        <Badge className="bg-blue-600">
+                          {creativeData.call_to_action_type}
+                        </Badge>
                       </div>
                     </div>
                   </div>
@@ -590,7 +719,7 @@ export default function CreateCampaignPage() {
                     <ComputerDesktopIcon className="h-5 w-5 text-gray-400" />
                     <span className="text-sm text-gray-400">Desktop Feed</span>
                   </div>
-                  
+
                   <div className="border border-gray-600 rounded-lg p-4 bg-gray-700">
                     <div className="flex items-center space-x-2 mb-3">
                       <div className="w-8 h-8 bg-blue-600 rounded-full"></div>
@@ -599,26 +728,32 @@ export default function CreateCampaignPage() {
                         <div className="text-xs text-gray-400">Sponsored</div>
                       </div>
                     </div>
-                    
+
                     {creativeData.image_url ? (
                       <div className="w-full h-32 bg-gray-600 rounded mb-3 flex items-center justify-center">
                         <PhotoIcon className="h-8 w-8 text-gray-400" />
                       </div>
                     ) : (
                       <div className="w-full h-32 bg-gradient-to-r from-blue-600 to-purple-600 rounded mb-3 flex items-center justify-center">
-                        <span className="text-white font-medium">Your Ad Image</span>
+                        <span className="text-white font-medium">
+                          Your Ad Image
+                        </span>
                       </div>
                     )}
-                    
+
                     <div className="text-sm font-medium mb-1">
-                      {creativeData.title || 'Your Ad Title'}
+                      {creativeData.title || "Your Ad Title"}
                     </div>
                     <div className="text-xs text-gray-300 mb-3">
-                      {creativeData.body || 'Your ad description will appear here...'}
+                      {creativeData.body ||
+                        "Your ad description will appear here..."}
                     </div>
-                    
-                    <Button size="sm" className="w-full bg-blue-600 hover:bg-blue-700">
-                      {creativeData.call_to_action_type || 'Learn More'}
+
+                    <Button
+                      size="sm"
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                    >
+                      {creativeData.call_to_action_type || "Learn More"}
                     </Button>
                   </div>
                 </div>
@@ -676,7 +811,7 @@ export default function CreateCampaignPage() {
                 disabled={publishing}
                 className="bg-green-600 hover:bg-green-700"
               >
-                {publishing ? 'Publishing...' : 'Publish Campaign'}
+                {publishing ? "Publishing..." : "Publish Campaign"}
               </Button>
             )}
           </div>

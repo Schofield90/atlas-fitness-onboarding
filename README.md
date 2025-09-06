@@ -160,6 +160,16 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed development workflow.
 - `/staff` - Staff management with proper API support
 - `/billing` - Billing and subscription management
 
+## Integrations
+
+- Meta Lead Ads Webhook Setup
+  - Callback URL: `/api/webhooks/facebook-leads`
+  - Verify token: set `FACEBOOK_WEBHOOK_VERIFY_TOKEN` (or `META_WEBHOOK_VERIFY_TOKEN`) and use the same in Meta App → Webhooks
+  - Signature: set `FACEBOOK_APP_SECRET` (or `META_WEBHOOK_SECRET`) for HMAC verification
+  - Testing: App Dashboard → Webhooks → Page → leadgen → Test. Check Vercel → Deployments → Functions logs for `facebook-leads event` entries
+  - Health: visit `/settings/integrations/webhooks` or call `GET /api/saas-admin/webhooks/health`
+  - Notes: `leads_retrieval` permission is for fetching lead details; `leadgen` is the Page subscription field for webhooks
+
 ## Recent Updates
 
 ### Latest (v1.3.3) - Automation Builder Complete Fix ✅ _DEPLOYED_
