@@ -16,6 +16,7 @@ const publicRoutes = [
   '/client-portal/claim',
   '/client-access',
   '/book',              // Public booking pages for customers (all slugs)
+  '/meta-review',       // Meta App Review test page
   // Public API endpoints
   '/api/auth',
   '/api/client-portal',
