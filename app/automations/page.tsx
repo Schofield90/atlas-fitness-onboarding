@@ -18,8 +18,10 @@ import {
   Edit,
   Copy,
   Trash2,
-  BarChart3
+  BarChart3,
+  History
 } from 'lucide-react'
+import TriggerHistory from '@/app/components/automation/TriggerHistory'
 
 interface Workflow {
   id: string
@@ -48,6 +50,7 @@ function AutomationsContent() {
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [activeTab, setActiveTab] = useState<'workflows' | 'history'>('workflows')
   const [pagination, setPagination] = useState<PaginationInfo>({
     page: parseInt(searchParams.get('page') || '1'),
     pageSize: parseInt(searchParams.get('pageSize') || '25'),
@@ -281,19 +284,53 @@ function AutomationsContent() {
         </div>
       </div>
 
-      {/* Filter and Search */}
-      <div className="flex gap-4 mb-6">
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-        >
-          <option value="all">All Status</option>
-          <option value="active">Active</option>
-          <option value="paused">Paused</option>
-          <option value="draft">Draft</option>
-        </select>
+      {/* Tabs */}
+      <div className="border-b border-gray-700 mb-6">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveTab('workflows')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'workflows'
+                ? 'border-orange-500 text-orange-500'
+                : 'border-transparent text-gray-400 hover:text-white hover:border-gray-600'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4" />
+              Workflows
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'history'
+                ? 'border-orange-500 text-orange-500'
+                : 'border-transparent text-gray-400 hover:text-white hover:border-gray-600'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <History className="w-4 h-4" />
+              Trigger History
+            </div>
+          </button>
+        </nav>
       </div>
+
+      {activeTab === 'workflows' ? (
+        <>
+          {/* Filter and Search */}
+          <div className="flex gap-4 mb-6">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            >
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="paused">Paused</option>
+              <option value="draft">Draft</option>
+            </select>
+          </div>
 
       {/* Workflows List */}
       {loading ? (
@@ -477,6 +514,11 @@ function AutomationsContent() {
             Page {pagination.page} of {pagination.totalPages} ({pagination.total} total)
           </div>
         </div>
+      )}
+        </>
+      ) : (
+        /* Trigger History Tab */
+        <TriggerHistory />
       )}
     </div>
   )

@@ -1,10 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Calendar, Clock, Users, Plus, Link, Settings, Video, Phone, Coffee } from 'lucide-react'
+import { Calendar, Clock, Users, Plus, Link, Settings, Video, Phone, Coffee, LayoutGrid, CalendarDays } from 'lucide-react'
 import Button from '@/app/components/ui/Button'
 import toast from '@/app/lib/toast'
 import { useRouter } from 'next/navigation'
+import { GoogleStyleCalendar } from '@/app/components/calendar/GoogleStyleCalendar'
+import { EventDetailsModal } from '@/app/components/calendar/EventDetailsModal'
+import { EditEventModal } from '@/app/components/calendar/EditEventModal'
+import { BookingModal } from '@/app/components/calendar/BookingModal'
+import type { CalendarEvent, TimeSlot } from '@/app/lib/types/calendar'
 
 interface Booking {
 	id: string
@@ -22,14 +27,88 @@ interface Booking {
 }
 
 export default function BookingPage() {
-	const [activeTab, setActiveTab] = useState<'upcoming' | 'calls' | 'past' | 'cancelled'>('upcoming')
+	const [activeTab, setActiveTab] = useState<'calendar' | 'upcoming' | 'calls' | 'past' | 'cancelled'>('calendar')
 	const [bookings, setBookings] = useState<Booking[]>([])
 	const [loading, setLoading] = useState(true)
+	const [calendarView, setCalendarView] = useState<'week' | 'month'>('week')
+	const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+	const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
+	const [showEventDetails, setShowEventDetails] = useState(false)
+	const [showEditModal, setShowEditModal] = useState(false)
+	const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null)
+	const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
+	const [showBookingModal, setShowBookingModal] = useState(false)
+	const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([])
 	const router = useRouter()
 
 	useEffect(() => {
 		fetchBookings()
+		if (activeTab === 'calendar') {
+			fetchCalendarEvents()
+		}
 	}, [activeTab])
+
+	useEffect(() => {
+		if (activeTab === 'calendar') {
+			fetchCalendarEvents()
+		}
+	}, [selectedDate])
+
+	const fetchCalendarEvents = async () => {
+		try {
+			// Get wider date range for calendar view
+			const today = new Date()
+			const startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+			const endDate = new Date(today.getFullYear(), today.getMonth() + 3, 31)
+			
+			const params = new URLSearchParams({
+				start: startDate.toISOString(),
+				end: endDate.toISOString()
+			})
+			
+			const allEvents: CalendarEvent[] = []
+			
+			// Fetch from Google Calendar
+			try {
+				const googleResponse = await fetch(`/api/calendar/google-events?${params}`)
+				if (googleResponse.ok) {
+					const googleData = await googleResponse.json()
+					allEvents.push(...(googleData.events || []))
+				}
+			} catch (error) {
+				console.error('Error fetching Google Calendar events:', error)
+			}
+			
+			// Also fetch from local database
+			try {
+				const localResponse = await fetch(`/api/calendar/events?${params}`)
+				if (localResponse.ok) {
+					const localData = await localResponse.json()
+					const localEvents = localData.events || []
+					
+					// Add local events that aren't already in Google Calendar
+					const googleEventIds = new Set(allEvents.map(e => e.googleEventId).filter(Boolean))
+					const uniqueLocalEvents = localEvents.filter((e: CalendarEvent) => 
+						!e.googleEventId || !googleEventIds.has(e.googleEventId)
+					)
+					
+					allEvents.push(...uniqueLocalEvents)
+				}
+			} catch (error) {
+				console.error('Error fetching local events:', error)
+			}
+			
+			// Sort events by start time
+			allEvents.sort((a, b) => 
+				new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+			)
+			
+			setCalendarEvents(allEvents)
+		} catch (error) {
+			console.error('Error fetching calendar events:', error)
+			toast.error('Failed to load calendar events')
+		}
+	}
 
 	const fetchBookings = async () => {
 		setLoading(true)
@@ -119,6 +198,74 @@ export default function BookingPage() {
 		})
 	}
 
+	const handleGoogleSlotSelect = (slot: { startTime: Date; endTime: Date }) => {
+		const timeSlot: TimeSlot = {
+			id: `slot-${slot.startTime.getTime()}`,
+			startTime: slot.startTime.toISOString(),
+			endTime: slot.endTime.toISOString(),
+			available: true
+		}
+		setSelectedSlot(timeSlot)
+		setShowBookingModal(true)
+	}
+
+	const handleEventClick = (event: CalendarEvent) => {
+		setSelectedEvent(event)
+		setShowEventDetails(true)
+	}
+
+	const handleEditEvent = (event: CalendarEvent) => {
+		setEditingEvent(event)
+		setShowEditModal(true)
+	}
+
+	const handleSaveEvent = async (updatedEvent: CalendarEvent) => {
+		try {
+			const response = await fetch('/api/calendar/events', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(updatedEvent)
+			})
+
+			if (!response.ok) {
+				throw new Error('Failed to update event')
+			}
+
+			await fetchCalendarEvents()
+			await fetchBookings()
+			toast.success('Event updated successfully')
+		} catch (error) {
+			console.error('Error updating event:', error)
+			toast.error('Failed to update event. Please try again.')
+		}
+	}
+
+	const handleDeleteEvent = async (eventId: string) => {
+		try {
+			const response = await fetch(`/api/calendar/events?id=${eventId}`, {
+				method: 'DELETE'
+			})
+
+			if (!response.ok) {
+				throw new Error('Failed to delete event')
+			}
+
+			await fetchCalendarEvents()
+			await fetchBookings()
+			toast.success('Event deleted successfully')
+		} catch (error) {
+			console.error('Error deleting event:', error)
+			toast.error('Failed to delete event. Please try again.')
+		}
+	}
+
+	const handleBookingComplete = () => {
+		setShowBookingModal(false)
+		setSelectedSlot(null)
+		fetchCalendarEvents()
+		fetchBookings()
+	}
+
 	return (
 		<div className="min-h-screen bg-gray-900 text-white">
 			<div className="p-6">
@@ -150,14 +297,13 @@ export default function BookingPage() {
 							<Link className="w-4 h-4" />
 							Manage Links
 						</Button>
-						<a
-							href="/booking-links/create"
-							onClick={(e) => { e.preventDefault(); try { router.push('/booking-links/create') } catch (err) { console.error((err as Error).message) } }}
+						<Button
+							onClick={() => router.push('/booking-links/create')}
 							className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-sm rounded-lg transition-colors flex items-center gap-2"
 						>
 							<Plus className="w-4 h-4" />
 							Create Booking Link
-						</a>
+						</Button>
 					</div>
 				</div>
 
@@ -222,6 +368,16 @@ export default function BookingPage() {
 				<div className="border-b border-gray-700 mb-6">
 					<nav className="-mb-px flex space-x-8">
 						<button
+							onClick={() => setActiveTab('calendar')}
+							className={`py-2 px-1 border-b-2 font-medium text-sm ${
+								activeTab === 'calendar'
+									? 'border-orange-500 text-orange-500'
+									: 'border-transparent text-gray-400 hover:text-white hover:border-gray-600'
+							}`}
+						>
+							Calendar View
+						</button>
+						<button
 							onClick={() => setActiveTab('upcoming')}
 							className={`py-2 px-1 border-b-2 font-medium text-sm ${
 								activeTab === 'upcoming'
@@ -264,7 +420,62 @@ export default function BookingPage() {
 					</nav>
 				</div>
 
-				{/* Bookings List */}
+				{/* Content based on active tab */}
+				{activeTab === 'calendar' ? (
+					<div className="space-y-4">
+						{/* View Toggle */}
+						<div className="flex items-center justify-between">
+							<div className="flex items-center gap-2">
+								<button
+									onClick={() => {
+										console.log('Refreshing calendar events...')
+										fetchCalendarEvents()
+									}}
+									className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors mr-4"
+								>
+									Refresh Calendar
+								</button>
+								<button
+									onClick={() => setCalendarView('week')}
+									className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+										calendarView === 'week' 
+											? 'bg-orange-600 text-white' 
+											: 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+									}`}
+								>
+									<CalendarDays className="w-4 h-4 inline mr-1" />
+									Week
+								</button>
+								<button
+									onClick={() => setCalendarView('month')}
+									className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+										calendarView === 'month' 
+											? 'bg-orange-600 text-white' 
+											: 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+									}`}
+								>
+									<LayoutGrid className="w-4 h-4 inline mr-1" />
+									Month
+								</button>
+							</div>
+							<div className="text-sm text-gray-400">
+								Showing {calendarEvents.length} events
+							</div>
+						</div>
+
+						{/* Google Calendar Display */}
+						<div className="h-[700px] bg-gray-800 rounded-lg">
+							<GoogleStyleCalendar
+								selectedDate={selectedDate}
+								onDateSelect={setSelectedDate}
+								onSlotSelect={handleGoogleSlotSelect}
+								onEventClick={handleEventClick}
+								events={calendarEvents}
+								view={calendarView}
+							/>
+						</div>
+					</div>
+				) : (
 				<div className="bg-gray-800 rounded-lg">
 					{loading ? (
 						<div className="p-8 text-center text-gray-400">
@@ -363,6 +574,7 @@ export default function BookingPage() {
 						</div>
 					)}
 				</div>
+				)}
 
 				{/* Help Text */}
 				<div className="mt-8 bg-blue-900 bg-opacity-20 border border-blue-800 rounded-lg p-4">
@@ -374,6 +586,33 @@ export default function BookingPage() {
 						<li>• Share booking links with prospects to let them self-schedule</li>
 					</ul>
 				</div>
+
+				{/* Modals */}
+				{selectedSlot && (
+					<BookingModal
+						open={showBookingModal}
+						onOpenChange={setShowBookingModal}
+						slot={selectedSlot}
+						duration={30}
+						title="Sales Call / Consultation"
+						onBookingComplete={handleBookingComplete}
+					/>
+				)}
+
+				<EventDetailsModal
+					event={selectedEvent}
+					open={showEventDetails}
+					onOpenChange={setShowEventDetails}
+					onEdit={handleEditEvent}
+					onDelete={handleDeleteEvent}
+				/>
+
+				<EditEventModal
+					event={editingEvent}
+					open={showEditModal}
+					onOpenChange={setShowEditModal}
+					onSave={handleSaveEvent}
+				/>
 			</div>
 		</div>
 	)

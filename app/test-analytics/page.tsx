@@ -141,7 +141,7 @@ export default function TestAnalyticsPage() {
                 onClick={(e) => e.preventDefault()}
               >
                 Tracked Link
-              </Link>
+              </a>
               
               <div 
                 className="w-full px-4 py-2 bg-gray-200 text-center rounded cursor-pointer hover:bg-gray-300"

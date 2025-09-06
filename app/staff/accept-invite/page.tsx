@@ -6,6 +6,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/app/lib/supabase/client'
 import { CheckCircle, XCircle, Loader } from 'lucide-react'
+import Link from 'next/link'
 
 function AcceptInviteContent() {
   const searchParams = useSearchParams()
@@ -129,7 +130,7 @@ function AcceptInviteContent() {
             <p className="text-gray-400 mb-6">This invitation link is invalid or has been used.</p>
             <Link href="/" className="text-orange-500 hover:text-orange-400">
               Go to homepage
-            </a>
+            </Link>
           </div>
         )
 
@@ -141,7 +142,7 @@ function AcceptInviteContent() {
             <p className="text-gray-400 mb-6">This invitation has expired. Please contact the person who invited you.</p>
             <Link href="/" className="text-orange-500 hover:text-orange-400">
               Go to homepage
-            </a>
+            </Link>
           </div>
         )
 
@@ -153,7 +154,7 @@ function AcceptInviteContent() {
             <p className="text-gray-400 mb-6">This invitation has already been accepted.</p>
             <Link href="/dashboard" className="text-orange-500 hover:text-orange-400">
               Go to dashboard
-            </a>
+            </Link>
           </div>
         )
 

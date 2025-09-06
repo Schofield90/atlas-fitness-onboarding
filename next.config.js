@@ -91,10 +91,10 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   
-  // Temporarily ignore ESLint errors during builds to deploy successfully
-  // TODO: Fix ESLint errors in various pages
+  // Temporarily ignore ESLint errors during builds
+  // TODO: Fix ESLint errors in components
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: true
   }
 };
 
