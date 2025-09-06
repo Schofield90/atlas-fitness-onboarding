@@ -100,7 +100,7 @@ export default function AddMembershipModal({
         .from("clients")
         .select("id")
         .eq("id", customerId)
-        .eq("organization_id", userOrg.organization_id)
+        .eq("org_id", userOrg.organization_id)
         .single();
 
       if (clientCheck) {

@@ -113,6 +113,7 @@ export default function CustomerProfilePage() {
         .from("clients")
         .select("*")
         .eq("id", customerId)
+        .eq("org_id", organizationId)
         .single();
 
       if (error || !data) {
@@ -305,7 +306,7 @@ export default function CustomerProfilePage() {
         .from("clients")
         .select("id")
         .eq("id", customerId)
-        .eq("organization_id", organizationId)
+        .eq("org_id", organizationId)
         .single();
 
       if (clientCheck) {
@@ -1041,12 +1042,7 @@ export default function CustomerProfilePage() {
           {activeTab === "class-bookings" && (
             <ClassBookingsTab
               customerId={customerId}
-              customerName={
-                `${customer.first_name || ""} ${customer.last_name || ""}`.trim() ||
-                customer.email
-              }
-              existingBookings={classBookings}
-              onRefresh={loadClassBookings}
+              organizationId={organizationId!}
             />
           )}
 
