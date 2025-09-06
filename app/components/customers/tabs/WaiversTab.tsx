@@ -19,6 +19,7 @@ import {
   Edit,
 } from "lucide-react";
 import { formatBritishDate } from "@/app/lib/utils/british-format";
+import { WaiverAssignmentModal } from "../WaiverAssignmentModal";
 
 interface WaiversTabProps {
   customerId: string;
@@ -64,6 +65,12 @@ export default function WaiversTab({ customerId }: WaiversTabProps) {
   const [availableWaivers, setAvailableWaivers] = useState<AvailableWaiver[]>(
     [],
   );
+  const [customer, setCustomer] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    organization_id: string;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -74,9 +81,44 @@ export default function WaiversTab({ customerId }: WaiversTabProps) {
   const supabase = createClient();
 
   useEffect(() => {
+    fetchCustomerData();
     fetchCustomerWaivers();
     fetchAvailableWaivers();
   }, [customerId]);
+
+  const fetchCustomerData = async () => {
+    try {
+      // First try clients table
+      const { data: clientData } = await supabase
+        .from("clients")
+        .select("id, name, email, organization_id")
+        .eq("id", customerId)
+        .single();
+
+      if (clientData) {
+        setCustomer(clientData);
+        return;
+      }
+
+      // If not found in clients, try leads table
+      const { data: leadData } = await supabase
+        .from("leads")
+        .select("id, first_name, last_name, email, organization_id")
+        .eq("id", customerId)
+        .single();
+
+      if (leadData) {
+        setCustomer({
+          id: leadData.id,
+          name: `${leadData.first_name} ${leadData.last_name}`.trim(),
+          email: leadData.email,
+          organization_id: leadData.organization_id,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching customer data:", error);
+    }
+  };
 
   const fetchCustomerWaivers = async () => {
     try {
@@ -112,36 +154,9 @@ export default function WaiversTab({ customerId }: WaiversTabProps) {
     }
   };
 
-  const assignWaiver = async (waiverId: string) => {
-    try {
-      setActionLoading("assign");
-
-      const response = await fetch("/api/waivers/customer-waivers", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          customer_id: customerId,
-          waiver_id: waiverId,
-          send_email: true,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        await fetchCustomerWaivers();
-        setShowAssignModal(false);
-      } else {
-        alert("Failed to assign waiver: " + result.error);
-      }
-    } catch (error) {
-      console.error("Error assigning waiver:", error);
-      alert("Failed to assign waiver");
-    } finally {
-      setActionLoading(null);
-    }
+  const handleWaiverAssigned = async () => {
+    await fetchCustomerWaivers();
+    setShowAssignModal(false);
   };
 
   const sendWaiverEmail = async (
@@ -337,11 +352,11 @@ export default function WaiversTab({ customerId }: WaiversTabProps) {
         <h3 className="text-lg font-semibold text-white">Waivers</h3>
         <button
           onClick={() => setShowAssignModal(true)}
-          disabled={actionLoading === "assign"}
+          disabled={!customer}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus className="h-4 w-4" />
-          Assign Waiver
+          Add Waiver
         </button>
       </div>
 
@@ -554,70 +569,14 @@ export default function WaiversTab({ customerId }: WaiversTabProps) {
         )}
       </div>
 
-      {/* Assign Waiver Modal */}
-      {showAssignModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full max-h-[80vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-white">Assign Waiver</h3>
-              <button
-                onClick={() => setShowAssignModal(false)}
-                className="text-gray-400 hover:text-white"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {availableWaivers.filter((w) => w.is_active).length === 0 ? (
-              <div className="text-center py-8">
-                <AlertCircle className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
-                <p className="text-gray-400">No active waivers available</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {availableWaivers
-                  .filter((w) => w.is_active)
-                  .filter(
-                    (w) => !customerWaivers.some((cw) => cw.waiver_id === w.id),
-                  )
-                  .map((waiver) => (
-                    <div
-                      key={waiver.id}
-                      className="p-4 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600"
-                      onClick={() => assignWaiver(waiver.id)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-white mb-1">
-                            {waiver.title}
-                          </h4>
-                          <div className="flex items-center gap-2 text-sm text-gray-400">
-                            <span
-                              className={`px-2 py-0.5 rounded text-xs ${getTypeColor(waiver.waiver_type)}`}
-                            >
-                              {formatWaiverType(waiver.waiver_type)}
-                            </span>
-                            {waiver.requires_witness && (
-                              <span className="inline-flex items-center gap-1 text-xs text-orange-400">
-                                <Users className="h-3 w-3" />
-                                Requires Witness
-                              </span>
-                            )}
-                            {waiver.validity_days && (
-                              <span className="text-xs text-gray-400">
-                                Expires in {waiver.validity_days} days
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <Plus className="h-5 w-5 text-blue-400" />
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            )}
-          </div>
-        </div>
+      {/* Waiver Assignment Modal */}
+      {customer && (
+        <WaiverAssignmentModal
+          isOpen={showAssignModal}
+          onClose={() => setShowAssignModal(false)}
+          customer={customer}
+          onWaiverAssigned={handleWaiverAssigned}
+        />
       )}
 
       {/* Waiver Details Modal */}
