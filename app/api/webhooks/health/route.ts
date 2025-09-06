@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
       status: "unknown",
       webhook_url: `${process.env.NEXT_PUBLIC_BASE_URL || "https://atlas-fitness-onboarding.vercel.app"}/api/webhooks/facebook-leads`,
       verify_token_configured: !!(
+        process.env.META_VERIFY_TOKEN ||
         process.env.FACEBOOK_WEBHOOK_VERIFY_TOKEN ||
         process.env.META_WEBHOOK_VERIFY_TOKEN
       ),

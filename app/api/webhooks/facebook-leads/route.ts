@@ -73,23 +73,27 @@ export async function GET(request: NextRequest) {
   const token = searchParams.get("hub.verify_token");
   const challenge = searchParams.get("hub.challenge");
 
+  // Use META_VERIFY_TOKEN as primary, fallback to other vars
   const expectedToken =
+    process.env.META_VERIFY_TOKEN ||
     process.env.FACEBOOK_WEBHOOK_VERIFY_TOKEN ||
-    process.env.META_WEBHOOK_VERIFY_TOKEN ||
-    "atlas_fitness_verify_token";
+    process.env.META_WEBHOOK_VERIFY_TOKEN;
 
   console.log("[fb_leadgen_webhook_verify]", {
     requestId,
     mode,
     tokenMatch: token === expectedToken,
     hasChallenge: !!challenge,
+    hasExpectedToken: !!expectedToken,
   });
 
   // Check if this is a subscribe request with the correct token
   if (mode === "subscribe" && token === expectedToken && challenge) {
     console.log("[fb_leadgen_webhook_verify] ✅ Verification successful", {
       requestId,
+      challengeLength: challenge.length,
     });
+    // Return ONLY the challenge as plain text, no JSON, no newline
     return new Response(challenge, {
       status: 200,
       headers: { "Content-Type": "text/plain" },
@@ -100,7 +104,8 @@ export async function GET(request: NextRequest) {
     requestId,
     mode,
     tokenProvided: !!token,
-    expectedToken: expectedToken.substring(0, 5) + "...",
+    tokenMatches: token === expectedToken,
+    hasExpectedToken: !!expectedToken,
   });
   return new Response("Forbidden", { status: 403 });
 }
