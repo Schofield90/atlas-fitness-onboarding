@@ -58,12 +58,12 @@ export async function GET(request: NextRequest) {
       )
       .eq("facebook_form_id", formId)
       .eq("organization_id", organizationId)
-      .single();
+      .maybeSingle();
 
     // If no questions present, attempt to refresh from Facebook automatically
     if (
-      !formRecord?.questions ||
-      (Array.isArray(formRecord.questions) && formRecord.questions.length === 0)
+      (!formRecord || !formRecord?.questions) ||
+      (Array.isArray(formRecord?.questions) && formRecord?.questions.length === 0)
     ) {
       try {
         console.log(`Attempting to refresh questions for form ${formId}`);
