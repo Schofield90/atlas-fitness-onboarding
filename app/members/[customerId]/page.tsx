@@ -1,18 +1,32 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { 
-  ArrowLeft, User, Activity, CreditCard, FileText, 
-  AlertTriangle, StickyNote, Calendar, Phone, Mail,
-  MapPin, Heart, Users, TrendingDown, TrendingUp, 
-  Edit, Save, X 
-} from 'lucide-react';
-import DashboardLayout from '@/app/components/DashboardLayout';
-import { createClient } from '@/app/lib/supabase/client';
-import { useOrganization } from '@/app/hooks/useOrganization';
-import MembershipsTab from '@/app/components/customers/tabs/MembershipsTab';
-import NotesTab from '@/app/components/customers/tabs/NotesTab';
+import React, { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  User,
+  Activity,
+  CreditCard,
+  FileText,
+  AlertTriangle,
+  StickyNote,
+  Calendar,
+  Phone,
+  Mail,
+  MapPin,
+  Heart,
+  Users,
+  TrendingDown,
+  TrendingUp,
+  Edit,
+  Save,
+  X,
+} from "lucide-react";
+import DashboardLayout from "@/app/components/DashboardLayout";
+import { createClient } from "@/app/lib/supabase/client";
+import { useOrganization } from "@/app/hooks/useOrganization";
+import MembershipsTab from "@/app/components/customers/tabs/MembershipsTab";
+import NotesTab from "@/app/components/customers/tabs/NotesTab";
 
 interface CustomerProfile {
   id: string;
@@ -41,14 +55,21 @@ interface CustomerProfile {
 
 interface CustomerActivity {
   id: string;
-  type: 'booking' | 'payment' | 'note' | 'communication';
+  type: "booking" | "payment" | "note" | "communication";
   title: string;
   description: string;
   date: string;
   metadata?: any;
 }
 
-type TabType = 'profile' | 'activity' | 'registrations' | 'payments' | 'memberships' | 'waivers' | 'notes';
+type TabType =
+  | "profile"
+  | "activity"
+  | "registrations"
+  | "payments"
+  | "memberships"
+  | "waivers"
+  | "notes";
 
 export default function CustomerProfilePage() {
   const params = useParams();
@@ -64,7 +85,7 @@ export default function CustomerProfilePage() {
   const [payments, setPayments] = useState<any[]>([]);
   const [memberships, setMemberships] = useState<any[]>([]);
   const [notes, setNotes] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<TabType>('profile');
+  const [activeTab, setActiveTab] = useState<TabType>("profile");
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<CustomerProfile>>({});
 
@@ -75,7 +96,7 @@ export default function CustomerProfilePage() {
   }, [customerId, organizationId]);
 
   useEffect(() => {
-    if (customerId && organizationId && activeTab !== 'profile') {
+    if (customerId && organizationId && activeTab !== "profile") {
       loadTabData();
     }
   }, [activeTab, customerId, organizationId]);
@@ -85,42 +106,44 @@ export default function CustomerProfilePage() {
     try {
       // Prefer clients table; fallback to leads if not found
       let { data, error } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('id', customerId)
+        .from("clients")
+        .select("*")
+        .eq("id", customerId)
         .single();
 
       if (error || !data) {
         const res = await supabase
-          .from('leads')
-          .select('*')
-          .eq('id', customerId)
-          .eq('organization_id', organizationId)
+          .from("leads")
+          .select("*")
+          .eq("id", customerId)
+          .eq("organization_id", organizationId)
           .single();
-        data = res.data as any
-        error = res.error as any
+        data = res.data as any;
+        error = res.error as any;
       }
 
       if (error) throw error;
 
       if (data) {
         // Normalize to CustomerProfile shape
-        const name = (data.name || `${data.first_name || ''} ${data.last_name || ''}`).trim()
+        const name = (
+          data.name || `${data.first_name || ""} ${data.last_name || ""}`
+        ).trim();
         const normalized: any = {
           ...data,
           name,
           total_visits: data.total_visits || 0,
           last_visit_date: data.last_visit || data.last_visit_date,
           created_at: data.created_at,
-          updated_at: data.updated_at
-        }
+          updated_at: data.updated_at,
+        };
         setCustomer(normalized);
         setEditForm(normalized);
       }
     } catch (error) {
-      console.error('Error loading customer:', error);
-      alert('Failed to load customer profile');
-      router.push('/members');
+      console.error("Error loading customer:", error);
+      alert("Failed to load customer profile");
+      router.push("/members");
     } finally {
       setLoading(false);
     }
@@ -129,24 +152,24 @@ export default function CustomerProfilePage() {
   const loadTabData = async () => {
     try {
       switch (activeTab) {
-        case 'activity':
+        case "activity":
           await loadActivity();
           break;
-        case 'registrations':
+        case "registrations":
           await loadRegistrations();
           break;
-        case 'payments':
+        case "payments":
           await loadPayments();
           break;
-        case 'memberships':
+        case "memberships":
           await loadMemberships();
           break;
-        case 'notes':
+        case "notes":
           await loadNotes();
           break;
       }
     } catch (error) {
-      console.error('Error loading tab data:', error);
+      console.error("Error loading tab data:", error);
     }
   };
 
@@ -155,150 +178,280 @@ export default function CustomerProfilePage() {
       // Load customer activity from various sources
       const response = await fetch(`/api/customers/${customerId}/activity`);
       const data = await response.json();
-      
+
       if (response.ok) {
         setActivities(data.activities || []);
       }
     } catch (error) {
-      console.error('Error loading activity:', error);
+      console.error("Error loading activity:", error);
     }
   };
 
   const loadRegistrations = async () => {
     try {
       const { data, error } = await supabase
-        .from('bookings')
-        .select('*')
+        .from("bookings")
+        .select("*")
         .or(`customer_id.eq.${customerId},client_id.eq.${customerId}`)
-        .order('created_at', { ascending: false });
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       setRegistrations(data || []);
     } catch (error) {
-      console.error('Error loading registrations:', error);
+      console.error("Error loading registrations:", error);
     }
   };
 
   const loadPayments = async () => {
     try {
       const { data, error } = await supabase
-        .from('payment_transactions')
-        .select('*')
+        .from("payment_transactions")
+        .select("*")
         .or(`customer_id.eq.${customerId},client_id.eq.${customerId}`)
-        .order('created_at', { ascending: false });
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       setPayments(data || []);
     } catch (error) {
-      console.error('Error loading payments:', error);
+      console.error("Error loading payments:", error);
     }
   };
 
   const loadMemberships = async () => {
     try {
       const { data, error } = await supabase
-        .from('customer_memberships')
-        .select(`
+        .from("customer_memberships")
+        .select(
+          `
           *,
           membership_plans (
             name,
-            price_pennies,
+            price,
             billing_period
           )
-        `)
+        `,
+        )
         .or(`customer_id.eq.${customerId},client_id.eq.${customerId}`)
-        .order('created_at', { ascending: false });
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       setMemberships(data || []);
     } catch (error) {
-      console.error('Error loading memberships:', error);
+      console.error("Error loading memberships:", error);
     }
   };
 
   const loadNotes = async () => {
     try {
       const { data, error } = await supabase
-        .from('customer_notes')
-        .select(`
+        .from("customer_notes")
+        .select(
+          `
           *,
           users:created_by (
             name,
             email
           )
-        `)
+        `,
+        )
         .or(`customer_id.eq.${customerId},client_id.eq.${customerId}`)
-        .order('created_at', { ascending: false });
+        .eq("organization_id", organizationId)
+        .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setNotes(data || []);
+      if (error) {
+        console.error("Error loading notes:", error);
+        throw error;
+      }
+
+      // Transform the data to ensure created_by is properly formatted
+      const transformedNotes = (data || []).map((note) => ({
+        ...note,
+        created_by: note.users || note.created_by,
+      }));
+
+      setNotes(transformedNotes);
     } catch (error) {
-      console.error('Error loading notes:', error);
+      console.error("Error loading notes:", error);
+      setNotes([]); // Set empty array on error to prevent UI issues
     }
   };
 
   const handleAddNote = async (noteContent: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Check if customer exists in clients table first
+      let noteData = {
+        organization_id: organizationId,
+        content: noteContent,
+        created_by: user.id,
+        is_internal: true,
+        customer_id: null,
+        client_id: null,
+      };
+
+      // Try clients table first
+      const { data: clientCheck } = await supabase
+        .from("clients")
+        .select("id")
+        .eq("id", customerId)
+        .eq("organization_id", organizationId)
+        .single();
+
+      if (clientCheck) {
+        noteData.client_id = customerId;
+      } else {
+        // Fall back to leads table
+        const { data: leadCheck } = await supabase
+          .from("leads")
+          .select("id")
+          .eq("id", customerId)
+          .eq("organization_id", organizationId)
+          .single();
+
+        if (leadCheck) {
+          noteData.customer_id = customerId;
+        } else {
+          throw new Error("Customer not found");
+        }
+      }
+
+      const { data, error } = await supabase
+        .from("customer_notes")
+        .insert(noteData)
+        .select(
+          `
+          *,
+          users:created_by (
+            name,
+            email
+          )
+        `,
+        )
+        .single();
+
+      if (error) {
+        console.error("Database error:", error);
+        throw error;
+      }
+
+      // Refresh notes - success feedback is handled by the NotesTab component
+      await loadNotes();
+    } catch (error) {
+      console.error("Error adding note:", error);
+
+      // Re-throw error so NotesTab can handle the feedback
+      throw error;
+    }
+  };
+
+  const handleUpdateNote = async (noteId: string, content: string) => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
 
       const { error } = await supabase
-        .from('customer_notes')
-        .insert({
-          customer_id: customerId,
-          organization_id: organizationId,
-          content: noteContent,
-          created_by: user.id,
-          is_internal: true
-        });
+        .from("customer_notes")
+        .update({
+          content,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", noteId)
+        .eq("organization_id", organizationId)
+        .eq("created_by", user.id); // Only allow updating own notes
 
       if (error) throw error;
       await loadNotes();
-      alert('Note added successfully');
     } catch (error) {
-      console.error('Error adding note:', error);
-      alert('Failed to add note');
+      console.error("Error updating note:", error);
+      throw error;
+    }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Check if user is admin/owner or created the note
+      const { data: userOrg } = await supabase
+        .from("user_organizations")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("organization_id", organizationId)
+        .single();
+
+      const canDelete = userOrg?.role === "owner" || userOrg?.role === "admin";
+
+      let deleteQuery = supabase
+        .from("customer_notes")
+        .delete()
+        .eq("id", noteId)
+        .eq("organization_id", organizationId);
+
+      // If not admin, only allow deleting own notes
+      if (!canDelete) {
+        deleteQuery = deleteQuery.eq("created_by", user.id);
+      }
+
+      const { error } = await deleteQuery;
+
+      if (error) throw error;
+      await loadNotes();
+    } catch (error) {
+      console.error("Error deleting note:", error);
+      throw error;
     }
   };
 
   const handleSaveProfile = async () => {
     try {
       // Update whichever record exists
-      const updates = { ...editForm, updated_at: new Date().toISOString() }
+      const updates = { ...editForm, updated_at: new Date().toISOString() };
       const { error: updateClientErr } = await supabase
-        .from('clients')
+        .from("clients")
         .update(updates)
-        .eq('id', customerId)
+        .eq("id", customerId);
       const { error: updateLeadErr } = await supabase
-        .from('leads')
+        .from("leads")
         .update(updates)
-        .eq('id', customerId)
-        .eq('organization_id', organizationId)
-      const error = updateClientErr && updateLeadErr ? (updateClientErr || updateLeadErr) : null
+        .eq("id", customerId)
+        .eq("organization_id", organizationId);
+      const error =
+        updateClientErr && updateLeadErr
+          ? updateClientErr || updateLeadErr
+          : null;
 
       if (error) throw error;
 
       setCustomer({ ...customer!, ...editForm });
       setIsEditing(false);
-      alert('Customer profile updated successfully');
+      alert("Customer profile updated successfully");
     } catch (error) {
-      console.error('Error updating customer:', error);
-      alert('Failed to update customer profile');
+      console.error("Error updating customer:", error);
+      alert("Failed to update customer profile");
     }
   };
 
   const getChurnRiskColor = (score?: number) => {
-    if (!score) return 'text-gray-400';
-    if (score >= 0.7) return 'text-red-400';
-    if (score >= 0.4) return 'text-yellow-400';
-    return 'text-green-400';
+    if (!score) return "text-gray-400";
+    if (score >= 0.7) return "text-red-400";
+    if (score >= 0.4) return "text-yellow-400";
+    return "text-green-400";
   };
 
   const getChurnRiskLabel = (score?: number) => {
-    if (!score) return 'Unknown';
-    if (score >= 0.7) return 'High Risk';
-    if (score >= 0.4) return 'Medium Risk';
-    return 'Low Risk';
+    if (!score) return "Unknown";
+    if (score >= 0.7) return "High Risk";
+    if (score >= 0.4) return "Medium Risk";
+    return "Low Risk";
   };
 
   if (loading) {
@@ -335,14 +488,19 @@ export default function CustomerProfilePage() {
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => router.push('/members')}
+                onClick={() => router.push("/members")}
                 className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
               >
                 <ArrowLeft className="w-5 h-5 text-gray-400" />
               </button>
               <div>
-                <h1 className="text-3xl font-bold text-white">{`${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Unknown Member'}</h1>
-                <p className="text-gray-400 mt-1">Customer Profile & Management</p>
+                <h1 className="text-3xl font-bold text-white">
+                  {`${customer.first_name || ""} ${customer.last_name || ""}`.trim() ||
+                    "Unknown Member"}
+                </h1>
+                <p className="text-gray-400 mt-1">
+                  Customer Profile & Management
+                </p>
               </div>
             </div>
             <div className="flex gap-3">
@@ -385,7 +543,9 @@ export default function CustomerProfilePage() {
                 <Activity className="w-5 h-5 text-blue-400" />
                 <span className="text-gray-400 text-sm">Total Visits</span>
               </div>
-              <div className="text-2xl font-bold text-white">{customer.total_visits || 0}</div>
+              <div className="text-2xl font-bold text-white">
+                {customer.total_visits || 0}
+              </div>
             </div>
 
             <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
@@ -403,7 +563,9 @@ export default function CustomerProfilePage() {
                 <TrendingDown className="w-5 h-5 text-orange-400" />
                 <span className="text-gray-400 text-sm">Churn Risk</span>
               </div>
-              <div className={`text-2xl font-bold ${getChurnRiskColor(customer.churn_risk_score)}`}>
+              <div
+                className={`text-2xl font-bold ${getChurnRiskColor(customer.churn_risk_score)}`}
+              >
                 {getChurnRiskLabel(customer.churn_risk_score)}
               </div>
             </div>
@@ -414,10 +576,9 @@ export default function CustomerProfilePage() {
                 <span className="text-gray-400 text-sm">Last Visit</span>
               </div>
               <div className="text-2xl font-bold text-white">
-                {customer.last_visit 
-                  ? new Date(customer.last_visit).toLocaleDateString('en-GB')
-                  : 'Never'
-                }
+                {customer.last_visit
+                  ? new Date(customer.last_visit).toLocaleDateString("en-GB")
+                  : "Never"}
               </div>
             </div>
           </div>
@@ -425,21 +586,21 @@ export default function CustomerProfilePage() {
           {/* Tabs */}
           <div className="flex space-x-1 bg-gray-800 p-1 rounded-lg mb-6 overflow-x-auto">
             {[
-              { key: 'profile', label: 'Profile', icon: User },
-              { key: 'activity', label: 'Activity', icon: Activity },
-              { key: 'registrations', label: 'Class Bookings', icon: Calendar },
-              { key: 'payments', label: 'Payments', icon: CreditCard },
-              { key: 'memberships', label: 'Memberships', icon: Users },
-              { key: 'waivers', label: 'Waivers', icon: FileText },
-              { key: 'notes', label: 'Notes', icon: StickyNote }
+              { key: "profile", label: "Profile", icon: User },
+              { key: "activity", label: "Activity", icon: Activity },
+              { key: "registrations", label: "Class Bookings", icon: Calendar },
+              { key: "payments", label: "Payments", icon: CreditCard },
+              { key: "memberships", label: "Memberships", icon: Users },
+              { key: "waivers", label: "Waivers", icon: FileText },
+              { key: "notes", label: "Notes", icon: StickyNote },
             ].map(({ key, label, icon: Icon }) => (
               <button
                 key={key}
                 onClick={() => setActiveTab(key as TabType)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${
                   activeTab === key
-                    ? 'bg-orange-600 text-white'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                    ? "bg-orange-600 text-white"
+                    : "text-gray-400 hover:text-white hover:bg-gray-700"
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -449,47 +610,71 @@ export default function CustomerProfilePage() {
           </div>
 
           {/* Tab Content */}
-          {activeTab === 'profile' && (
+          {activeTab === "profile" && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Basic Information */}
               <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-                <h3 className="text-lg font-semibold text-white mb-4">Basic Information</h3>
+                <h3 className="text-lg font-semibold text-white mb-4">
+                  Basic Information
+                </h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">First Name</label>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
+                      First Name
+                    </label>
                     {isEditing ? (
                       <input
                         type="text"
-                        value={editForm.first_name || ''}
-                        onChange={(e) => setEditForm({ ...editForm, first_name: e.target.value })}
+                        value={editForm.first_name || ""}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            first_name: e.target.value,
+                          })
+                        }
                         className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
                       />
                     ) : (
-                      <p className="text-white">{customer.first_name || 'Not provided'}</p>
+                      <p className="text-white">
+                        {customer.first_name || "Not provided"}
+                      </p>
                     )}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">Last Name</label>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
+                      Last Name
+                    </label>
                     {isEditing ? (
                       <input
                         type="text"
-                        value={editForm.last_name || ''}
-                        onChange={(e) => setEditForm({ ...editForm, last_name: e.target.value })}
+                        value={editForm.last_name || ""}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            last_name: e.target.value,
+                          })
+                        }
                         className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
                       />
                     ) : (
-                      <p className="text-white">{customer.last_name || 'Not provided'}</p>
+                      <p className="text-white">
+                        {customer.last_name || "Not provided"}
+                      </p>
                     )}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">Email</label>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
+                      Email
+                    </label>
                     {isEditing ? (
                       <input
                         type="email"
-                        value={editForm.email || ''}
-                        onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                        value={editForm.email || ""}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, email: e.target.value })
+                        }
                         className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
                       />
                     ) : (
@@ -501,12 +686,16 @@ export default function CustomerProfilePage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">Phone</label>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
+                      Phone
+                    </label>
                     {isEditing ? (
                       <input
                         type="tel"
-                        value={editForm.phone || ''}
-                        onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                        value={editForm.phone || ""}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, phone: e.target.value })
+                        }
                         className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
                       />
                     ) : (
@@ -518,20 +707,28 @@ export default function CustomerProfilePage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">Date of Birth</label>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
+                      Date of Birth
+                    </label>
                     {isEditing ? (
                       <input
                         type="date"
-                        value={editForm.date_of_birth || ''}
-                        onChange={(e) => setEditForm({ ...editForm, date_of_birth: e.target.value })}
+                        value={editForm.date_of_birth || ""}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            date_of_birth: e.target.value,
+                          })
+                        }
                         className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
                       />
                     ) : (
                       <p className="text-white">
-                        {customer.date_of_birth 
-                          ? new Date(customer.date_of_birth).toLocaleDateString('en-GB')
-                          : 'Not provided'
-                        }
+                        {customer.date_of_birth
+                          ? new Date(customer.date_of_birth).toLocaleDateString(
+                              "en-GB",
+                            )
+                          : "Not provided"}
                       </p>
                     )}
                   </div>
@@ -540,33 +737,53 @@ export default function CustomerProfilePage() {
 
               {/* Emergency Contact */}
               <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-                <h3 className="text-lg font-semibold text-white mb-4">Emergency Contact</h3>
+                <h3 className="text-lg font-semibold text-white mb-4">
+                  Emergency Contact
+                </h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">Contact Name</label>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
+                      Contact Name
+                    </label>
                     {isEditing ? (
                       <input
                         type="text"
-                        value={editForm.emergency_contact_name || ''}
-                        onChange={(e) => setEditForm({ ...editForm, emergency_contact_name: e.target.value })}
+                        value={editForm.emergency_contact_name || ""}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            emergency_contact_name: e.target.value,
+                          })
+                        }
                         className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
                       />
                     ) : (
-                      <p className="text-white">{customer.emergency_contact_name || 'Not provided'}</p>
+                      <p className="text-white">
+                        {customer.emergency_contact_name || "Not provided"}
+                      </p>
                     )}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">Contact Phone</label>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
+                      Contact Phone
+                    </label>
                     {isEditing ? (
                       <input
                         type="tel"
-                        value={editForm.emergency_contact_phone || ''}
-                        onChange={(e) => setEditForm({ ...editForm, emergency_contact_phone: e.target.value })}
+                        value={editForm.emergency_contact_phone || ""}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            emergency_contact_phone: e.target.value,
+                          })
+                        }
                         className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
                       />
                     ) : (
-                      <p className="text-white">{customer.emergency_contact_phone || 'Not provided'}</p>
+                      <p className="text-white">
+                        {customer.emergency_contact_phone || "Not provided"}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -580,32 +797,50 @@ export default function CustomerProfilePage() {
                 </h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">Medical Conditions</label>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
+                      Medical Conditions
+                    </label>
                     {isEditing ? (
                       <textarea
-                        value={editForm.medical_conditions || ''}
-                        onChange={(e) => setEditForm({ ...editForm, medical_conditions: e.target.value })}
+                        value={editForm.medical_conditions || ""}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            medical_conditions: e.target.value,
+                          })
+                        }
                         className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
                         rows={3}
                         placeholder="Any medical conditions or health concerns..."
                       />
                     ) : (
-                      <p className="text-white">{customer.medical_conditions || 'None reported'}</p>
+                      <p className="text-white">
+                        {customer.medical_conditions || "None reported"}
+                      </p>
                     )}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">Allergies</label>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
+                      Allergies
+                    </label>
                     {isEditing ? (
                       <textarea
-                        value={editForm.allergies || ''}
-                        onChange={(e) => setEditForm({ ...editForm, allergies: e.target.value })}
+                        value={editForm.allergies || ""}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            allergies: e.target.value,
+                          })
+                        }
                         className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
                         rows={3}
                         placeholder="Any allergies or dietary restrictions..."
                       />
                     ) : (
-                      <p className="text-white">{customer.allergies || 'None reported'}</p>
+                      <p className="text-white">
+                        {customer.allergies || "None reported"}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -613,10 +848,14 @@ export default function CustomerProfilePage() {
 
               {/* Tags & Preferences */}
               <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-                <h3 className="text-lg font-semibold text-white mb-4">Tags & Preferences</h3>
+                <h3 className="text-lg font-semibold text-white mb-4">
+                  Tags & Preferences
+                </h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">Customer Tags</label>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
+                      Customer Tags
+                    </label>
                     <div className="flex flex-wrap gap-2">
                       {(customer.tags || []).map((tag, index) => (
                         <span
@@ -633,11 +872,18 @@ export default function CustomerProfilePage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">Preferred Contact Method</label>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
+                      Preferred Contact Method
+                    </label>
                     {isEditing ? (
                       <select
-                        value={editForm.preferred_contact_method || ''}
-                        onChange={(e) => setEditForm({ ...editForm, preferred_contact_method: e.target.value })}
+                        value={editForm.preferred_contact_method || ""}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            preferred_contact_method: e.target.value,
+                          })
+                        }
                         className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
                       >
                         <option value="">Select method</option>
@@ -649,7 +895,7 @@ export default function CustomerProfilePage() {
                       </select>
                     ) : (
                       <p className="text-white capitalize">
-                        {customer.preferred_contact_method || 'Not specified'}
+                        {customer.preferred_contact_method || "Not specified"}
                       </p>
                     )}
                   </div>
@@ -659,9 +905,11 @@ export default function CustomerProfilePage() {
           )}
 
           {/* Activity Tab */}
-          {activeTab === 'activity' && (
+          {activeTab === "activity" && (
             <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-              <h3 className="text-lg font-semibold text-white mb-4">Recent Activity</h3>
+              <h3 className="text-lg font-semibold text-white mb-4">
+                Recent Activity
+              </h3>
               {activities.length === 0 ? (
                 <div className="text-center py-8 text-gray-400">
                   <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
@@ -670,12 +918,19 @@ export default function CustomerProfilePage() {
               ) : (
                 <div className="space-y-4">
                   {activities.map((activity) => (
-                    <div key={activity.id} className="flex items-start gap-4 p-4 bg-gray-700 rounded-lg">
+                    <div
+                      key={activity.id}
+                      className="flex items-start gap-4 p-4 bg-gray-700 rounded-lg"
+                    >
                       <div className="flex-1">
-                        <h4 className="text-white font-medium">{activity.title}</h4>
-                        <p className="text-gray-400 text-sm mt-1">{activity.description}</p>
+                        <h4 className="text-white font-medium">
+                          {activity.title}
+                        </h4>
+                        <p className="text-gray-400 text-sm mt-1">
+                          {activity.description}
+                        </p>
                         <p className="text-gray-500 text-xs mt-2">
-                          {new Date(activity.date).toLocaleString('en-GB')}
+                          {new Date(activity.date).toLocaleString("en-GB")}
                         </p>
                       </div>
                     </div>
@@ -686,32 +941,41 @@ export default function CustomerProfilePage() {
           )}
 
           {/* Memberships Tab */}
-          {activeTab === 'memberships' && (
+          {activeTab === "memberships" && (
             <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
               <MembershipsTab customerId={customerId} />
             </div>
           )}
 
           {/* Notes Tab */}
-          {activeTab === 'notes' && (
-            <NotesTab 
+          {activeTab === "notes" && (
+            <NotesTab
               notes={notes}
               onAddNote={handleAddNote}
+              onUpdateNote={handleUpdateNote}
+              onDeleteNote={handleDeleteNote}
               onRefresh={loadNotes}
             />
           )}
 
           {/* Other tabs would be implemented similarly */}
-          {activeTab !== 'profile' && activeTab !== 'activity' && activeTab !== 'memberships' && activeTab !== 'notes' && (
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-              <h3 className="text-lg font-semibold text-white mb-4 capitalize">{activeTab}</h3>
-              <div className="text-center py-8 text-gray-400">
-                <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>This section is under development</p>
-                <p className="text-sm mt-1">Content for {activeTab} will be available soon</p>
+          {activeTab !== "profile" &&
+            activeTab !== "activity" &&
+            activeTab !== "memberships" &&
+            activeTab !== "notes" && (
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <h3 className="text-lg font-semibold text-white mb-4 capitalize">
+                  {activeTab}
+                </h3>
+                <div className="text-center py-8 text-gray-400">
+                  <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>This section is under development</p>
+                  <p className="text-sm mt-1">
+                    Content for {activeTab} will be available soon
+                  </p>
+                </div>
               </div>
-            </div>
-          )}
+            )}
         </div>
       </div>
     </DashboardLayout>

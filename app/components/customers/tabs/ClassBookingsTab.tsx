@@ -16,11 +16,15 @@ import {
   CalendarPlus,
   Repeat,
   Package,
+  BookOpen,
 } from "lucide-react";
 import {
   formatBritishDateTime,
   formatBritishDate,
 } from "@/app/lib/utils/british-format";
+import SingleClassBookingModal from "@/app/components/booking/SingleClassBookingModal";
+import MultiClassBookingModal from "@/app/components/booking/MultiClassBookingModal";
+import RecurringBookingModal from "@/app/components/booking/RecurringBookingModal";
 
 interface ClassBookingsTabProps {
   customerId: string;
@@ -149,11 +153,35 @@ export default function ClassBookingsTab({
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
 
+  // Modal states
+  const [showBookingOptions, setShowBookingOptions] = useState(false);
+  const [singleClassModal, setSingleClassModal] = useState<{
+    isOpen: boolean;
+    classSchedule?: any;
+  }>({ isOpen: false });
+  const [multiClassModal, setMultiClassModal] = useState(false);
+  const [recurringModal, setRecurringModal] = useState(false);
+
   const supabase = createClient();
 
   useEffect(() => {
     fetchData();
   }, [customerId]);
+
+  // Close booking options dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (showBookingOptions && !target.closest("[data-booking-options]")) {
+        setShowBookingOptions(false);
+      }
+    };
+
+    if (showBookingOptions) {
+      document.addEventListener("click", handleClickOutside);
+      return () => document.removeEventListener("click", handleClickOutside);
+    }
+  }, [showBookingOptions]);
 
   const fetchData = async () => {
     try {
@@ -310,6 +338,32 @@ export default function ClassBookingsTab({
     }
   };
 
+  // Booking modal handlers
+  const handleOpenSingleBooking = (classSchedule?: any) => {
+    if (classSchedule) {
+      // Direct booking for a specific class
+      setSingleClassModal({ isOpen: true, classSchedule });
+    } else {
+      // Open multi-class modal for browsing and single selection
+      setMultiClassModal(true);
+    }
+    setShowBookingOptions(false);
+  };
+
+  const handleOpenMultiBooking = () => {
+    setMultiClassModal(true);
+    setShowBookingOptions(false);
+  };
+
+  const handleOpenRecurringBooking = () => {
+    setRecurringModal(true);
+    setShowBookingOptions(false);
+  };
+
+  const handleBookingCreated = () => {
+    fetchData(); // Refresh all data
+  };
+
   const TabButton = ({
     tab,
     label,
@@ -347,6 +401,60 @@ export default function ClassBookingsTab({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h3 className="text-xl font-semibold text-white">Class Bookings</h3>
         <div className="flex items-center gap-2">
+          {/* Book Class Button with Dropdown */}
+          <div className="relative" data-booking-options>
+            <button
+              onClick={() => setShowBookingOptions(!showBookingOptions)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+            >
+              <BookOpen className="h-4 w-4" />
+              Book Class
+            </button>
+
+            {showBookingOptions && (
+              <div className="absolute right-0 top-full mt-2 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-10 min-w-48">
+                <div className="py-2">
+                  <button
+                    onClick={() => handleOpenSingleBooking()}
+                    className="flex items-center gap-3 w-full px-4 py-2 text-left text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                  >
+                    <Calendar className="h-4 w-4" />
+                    <div>
+                      <div className="font-medium">Single Class</div>
+                      <div className="text-xs text-gray-400">
+                        Book one specific class
+                      </div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={handleOpenMultiBooking}
+                    className="flex items-center gap-3 w-full px-4 py-2 text-left text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                  >
+                    <Package className="h-4 w-4" />
+                    <div>
+                      <div className="font-medium">Multiple Classes</div>
+                      <div className="text-xs text-gray-400">
+                        Book several classes at once
+                      </div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={handleOpenRecurringBooking}
+                    className="flex items-center gap-3 w-full px-4 py-2 text-left text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                  >
+                    <Repeat className="h-4 w-4" />
+                    <div>
+                      <div className="font-medium">Recurring Booking</div>
+                      <div className="text-xs text-gray-400">
+                        Set up automatic bookings
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           <button
             onClick={() =>
               setViewMode(viewMode === "list" ? "calendar" : "list")
@@ -402,10 +510,10 @@ export default function ClassBookingsTab({
                       )}
                     </div>
                     <button
-                      onClick={() => handleQuickBook(classItem.id)}
+                      onClick={() => handleOpenSingleBooking(classItem)}
                       className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
                     >
-                      Quick Book
+                      Book Class
                     </button>
                   </div>
                 ))}
@@ -730,6 +838,34 @@ export default function ClassBookingsTab({
           </div>
         )}
       </div>
+
+      {/* Booking Modals */}
+      {singleClassModal.isOpen && singleClassModal.classSchedule && (
+        <SingleClassBookingModal
+          isOpen={singleClassModal.isOpen}
+          onClose={() => setSingleClassModal({ isOpen: false })}
+          classSchedule={singleClassModal.classSchedule}
+          customerId={customerId}
+          organizationId={organizationId}
+          onBookingCreated={handleBookingCreated}
+        />
+      )}
+
+      <MultiClassBookingModal
+        isOpen={multiClassModal}
+        onClose={() => setMultiClassModal(false)}
+        customerId={customerId}
+        organizationId={organizationId}
+        onBookingsCreated={handleBookingCreated}
+      />
+
+      <RecurringBookingModal
+        isOpen={recurringModal}
+        onClose={() => setRecurringModal(false)}
+        customerId={customerId}
+        organizationId={organizationId}
+        onRecurringBookingCreated={handleBookingCreated}
+      />
     </div>
   );
 }

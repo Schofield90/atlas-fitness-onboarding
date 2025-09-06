@@ -1,65 +1,163 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { StickyNote, Plus, User, Calendar, Edit2, Trash2, Save, X } from 'lucide-react'
-import { formatBritishDateTime } from '@/app/lib/utils/british-format'
+import { useState } from "react";
+import {
+  StickyNote,
+  Plus,
+  User,
+  Calendar,
+  Edit2,
+  Trash2,
+  Save,
+  X,
+} from "lucide-react";
+import { formatBritishDateTime } from "@/app/lib/utils/british-format";
 
 interface Note {
-  id: string
-  content: string
-  created_at: string
-  updated_at?: string
-  created_by: string | { name?: string; email?: string }
-  is_internal?: boolean
+  id: string;
+  content: string;
+  created_at: string;
+  updated_at?: string;
+  created_by: string | { name?: string; email?: string };
+  is_internal?: boolean;
 }
 
 interface NotesTabProps {
-  notes: Note[]
-  onAddNote: (content: string) => Promise<void>
-  onRefresh?: () => void
+  notes: Note[];
+  onAddNote: (content: string) => Promise<void>;
+  onUpdateNote?: (id: string, content: string) => Promise<void>;
+  onDeleteNote?: (id: string) => Promise<void>;
+  onRefresh?: () => void;
 }
 
-export default function NotesTab({ notes, onAddNote, onRefresh }: NotesTabProps) {
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [newNoteContent, setNewNoteContent] = useState('')
-  const [saving, setSaving] = useState(false)
+export default function NotesTab({
+  notes,
+  onAddNote,
+  onUpdateNote,
+  onDeleteNote,
+  onRefresh,
+}: NotesTabProps) {
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newNoteContent, setNewNoteContent] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [editingNote, setEditingNote] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [feedback, setFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+
+  const showFeedback = (type: "success" | "error", message: string) => {
+    setFeedback({ type, message });
+    setTimeout(() => setFeedback(null), 5000);
+  };
 
   const handleSubmitNote = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newNoteContent.trim()) return
+    e.preventDefault();
+    if (!newNoteContent.trim()) return;
 
-    setSaving(true)
+    setSaving(true);
     try {
-      await onAddNote(newNoteContent)
-      setNewNoteContent('')
-      setShowAddModal(false)
-      if (onRefresh) onRefresh()
+      await onAddNote(newNoteContent);
+      setNewNoteContent("");
+      setShowAddModal(false);
+      showFeedback("success", "Note added successfully!");
+      if (onRefresh) onRefresh();
     } catch (error) {
-      console.error('Error adding note:', error)
+      console.error("Error adding note:", error);
+      showFeedback("error", "Failed to add note. Please try again.");
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
-  const formatCreatedBy = (createdBy: string | { name?: string; email?: string }) => {
-    if (typeof createdBy === 'string') {
-      return 'System'
+  const handleEditNote = async (noteId: string) => {
+    if (!onUpdateNote || !editContent.trim()) return;
+
+    setSaving(true);
+    try {
+      await onUpdateNote(noteId, editContent);
+      setEditingNote(null);
+      setEditContent("");
+      showFeedback("success", "Note updated successfully!");
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      console.error("Error updating note:", error);
+      showFeedback("error", "Failed to update note. Please try again.");
+    } finally {
+      setSaving(false);
     }
-    return createdBy?.name || createdBy?.email || 'Unknown'
-  }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!onDeleteNote) return;
+
+    if (
+      !confirm(
+        "Are you sure you want to delete this note? This action cannot be undone.",
+      )
+    ) {
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await onDeleteNote(noteId);
+      showFeedback("success", "Note deleted successfully!");
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      console.error("Error deleting note:", error);
+      showFeedback("error", "Failed to delete note. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const startEditing = (note: Note) => {
+    setEditingNote(note.id);
+    setEditContent(note.content);
+  };
+
+  const cancelEditing = () => {
+    setEditingNote(null);
+    setEditContent("");
+  };
+
+  const formatCreatedBy = (
+    createdBy: string | { name?: string; email?: string },
+  ) => {
+    if (typeof createdBy === "string") {
+      return "System";
+    }
+    return createdBy?.name || createdBy?.email || "Unknown";
+  };
 
   return (
     <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-lg font-semibold text-white">Notes & Comments</h3>
-        <button 
+        <button
           onClick={() => setShowAddModal(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 disabled:opacity-50"
+          disabled={saving}
         >
           <Plus className="h-4 w-4" />
           Add Note
         </button>
       </div>
+
+      {/* Feedback Messages */}
+      {feedback && (
+        <div
+          className={`mb-4 p-3 rounded-lg ${
+            feedback.type === "success"
+              ? "bg-green-900/20 border border-green-500/30 text-green-400"
+              : "bg-red-900/20 border border-red-500/30 text-red-400"
+          }`}
+        >
+          {feedback.message}
+        </div>
+      )}
 
       {notes.length === 0 ? (
         <div className="text-center py-12">
@@ -83,12 +181,66 @@ export default function NotesTab({ notes, onAddNote, onRefresh }: NotesTabProps)
                   {note.is_internal && (
                     <>
                       <span className="text-gray-600">•</span>
-                      <span className="bg-gray-700 px-2 py-0.5 rounded text-xs">Internal</span>
+                      <span className="bg-gray-700 px-2 py-0.5 rounded text-xs">
+                        Internal
+                      </span>
                     </>
                   )}
                 </div>
+                <div className="flex items-center gap-1">
+                  {onUpdateNote && (
+                    <button
+                      onClick={() => startEditing(note)}
+                      className="p-1 text-gray-400 hover:text-blue-400 transition-colors"
+                      disabled={saving || editingNote !== null}
+                      title="Edit note"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+                  )}
+                  {onDeleteNote && (
+                    <button
+                      onClick={() => handleDeleteNote(note.id)}
+                      className="p-1 text-gray-400 hover:text-red-400 transition-colors"
+                      disabled={saving || editingNote !== null}
+                      title="Delete note"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
               </div>
-              <p className="text-white whitespace-pre-wrap">{note.content}</p>
+
+              {editingNote === note.id ? (
+                <div className="space-y-3">
+                  <textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows={4}
+                    disabled={saving}
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEditNote(note.id)}
+                      disabled={saving || !editContent.trim()}
+                      className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {saving ? "Saving..." : "Save"}
+                    </button>
+                    <button
+                      onClick={cancelEditing}
+                      disabled={saving}
+                      className="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-white whitespace-pre-wrap">{note.content}</p>
+              )}
+
               {note.updated_at && note.updated_at !== note.created_at && (
                 <p className="text-xs text-gray-500 mt-2">
                   Edited: {formatBritishDateTime(note.updated_at)}
@@ -131,7 +283,8 @@ export default function NotesTab({ notes, onAddNote, onRefresh }: NotesTabProps)
 
               <div className="bg-gray-900 rounded-lg p-3">
                 <p className="text-sm text-gray-400">
-                  This note will be visible to all team members with access to this customer.
+                  This note will be visible to all team members with access to
+                  this customer.
                 </p>
               </div>
 
@@ -139,8 +292,9 @@ export default function NotesTab({ notes, onAddNote, onRefresh }: NotesTabProps)
                 <button
                   type="button"
                   onClick={() => {
-                    setShowAddModal(false)
-                    setNewNoteContent('')
+                    setShowAddModal(false);
+                    setNewNoteContent("");
+                    setFeedback(null); // Clear any existing feedback
                   }}
                   className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600"
                   disabled={saving}
@@ -167,5 +321,5 @@ export default function NotesTab({ notes, onAddNote, onRefresh }: NotesTabProps)
         </div>
       )}
     </div>
-  )
+  );
 }
