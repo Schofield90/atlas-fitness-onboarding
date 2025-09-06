@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
 import DashboardLayout from '@/app/components/DashboardLayout'
-import { Plus, Search, Download, Filter, UserPlus, Mail, Phone, MessageSquare, Upload, Tags, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react'
+import { Plus, Search, Download, Filter, UserPlus, Mail, Phone, MessageSquare, Upload, Tags, ArrowUpDown, ChevronUp, ChevronDown, Trash2, Check, X } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useToast } from '@/app/lib/hooks/useToast'
@@ -45,6 +45,8 @@ function ContactsContent() {
   const [showImportModal, setShowImportModal] = useState(false)
   const [sortKey, setSortKey] = useState<'name' | 'created'>('created')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set())
+  const [showBulkActions, setShowBulkActions] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
@@ -62,6 +64,11 @@ function ContactsContent() {
   useEffect(() => {
     filterContacts()
   }, [contacts, searchTerm, sourceFilter, tagFilter, optInFilter, sortKey, sortOrder])
+
+  // Update bulk actions visibility when selection changes
+  useEffect(() => {
+    setShowBulkActions(selectedContacts.size > 0)
+  }, [selectedContacts])
 
   // Update URL when pagination changes
   useEffect(() => {
@@ -418,10 +425,122 @@ function ContactsContent() {
     a.click()
   }
 
+  const handleSelectContact = (contactId: string) => {
+    const newSelected = new Set(selectedContacts)
+    if (newSelected.has(contactId)) {
+      newSelected.delete(contactId)
+    } else {
+      newSelected.add(contactId)
+    }
+    setSelectedContacts(newSelected)
+  }
+
+  const handleSelectAll = () => {
+    const currentPageIds = paginatedContacts.map(c => c.id)
+    const allCurrentSelected = currentPageIds.every(id => selectedContacts.has(id))
+    
+    const newSelected = new Set(selectedContacts)
+    if (allCurrentSelected) {
+      // Deselect all on current page
+      currentPageIds.forEach(id => newSelected.delete(id))
+    } else {
+      // Select all on current page
+      currentPageIds.forEach(id => newSelected.add(id))
+    }
+    setSelectedContacts(newSelected)
+  }
+
+  const handleSelectAllFiltered = () => {
+    const allFilteredIds = filteredContacts.map(c => c.id)
+    const allSelected = allFilteredIds.every(id => selectedContacts.has(id))
+    
+    if (allSelected) {
+      // Deselect all filtered contacts
+      setSelectedContacts(new Set())
+    } else {
+      // Select all filtered contacts
+      setSelectedContacts(new Set(allFilteredIds))
+    }
+  }
+
   const handleBulkMessage = (type: 'sms' | 'whatsapp' | 'email') => {
     // Navigate to campaigns with pre-selected contacts
-    const selectedIds = filteredContacts.map(c => c.id)
+    const selectedIds = selectedContacts.size > 0 
+      ? Array.from(selectedContacts) 
+      : filteredContacts.map(c => c.id)
     router.push(`/campaigns/new?type=${type}&contacts=${selectedIds.join(',')}`)
+  }
+
+  const handleBulkAddTags = async (tags: string[]) => {
+    if (selectedContacts.size === 0) return
+    
+    try {
+      const selectedContactsArray = Array.from(selectedContacts)
+      
+      // Update each selected contact with new tags
+      for (const contactId of selectedContactsArray) {
+        const contact = contacts.find(c => c.id === contactId)
+        if (!contact) continue
+        
+        const existingTags = contact.tags || []
+        const newTags = [...new Set([...existingTags, ...tags])]
+        
+        // Update in database (if it's a real contact, not a lead-based one)
+        if (!contactId.startsWith('lead-')) {
+          await supabase
+            .from('contacts')
+            .update({ tags: newTags })
+            .eq('id', contactId)
+        }
+      }
+      
+      // Refresh contacts
+      await fetchContacts()
+      toast.showToast(`Added tags to ${selectedContactsArray.length} contacts`, 'success')
+      setSelectedContacts(new Set())
+    } catch (error) {
+      console.error('Error adding tags:', error)
+      toast.showToast('Failed to add tags', 'error')
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedContacts.size === 0) return
+    
+    if (!confirm(`Are you sure you want to delete ${selectedContacts.size} contacts? This action cannot be undone.`)) {
+      return
+    }
+    
+    try {
+      const selectedContactsArray = Array.from(selectedContacts)
+      const realContacts = selectedContactsArray.filter(id => !id.startsWith('lead-'))
+      const leadContacts = selectedContactsArray.filter(id => id.startsWith('lead-'))
+      
+      // Delete real contacts
+      if (realContacts.length > 0) {
+        await supabase
+          .from('contacts')
+          .delete()
+          .in('id', realContacts)
+      }
+      
+      // Delete leads (extract lead ID from lead-prefixed IDs)
+      if (leadContacts.length > 0) {
+        const leadIds = leadContacts.map(id => id.replace('lead-', ''))
+        await supabase
+          .from('leads')
+          .delete()
+          .in('id', leadIds)
+      }
+      
+      // Refresh contacts
+      await fetchContacts()
+      toast.showToast(`Deleted ${selectedContactsArray.length} contacts`, 'success')
+      setSelectedContacts(new Set())
+    } catch (error) {
+      console.error('Error deleting contacts:', error)
+      toast.showToast('Failed to delete contacts', 'error')
+    }
   }
 
   const paginatedContacts = filteredContacts.slice(
@@ -588,12 +707,82 @@ function ContactsContent() {
           </div>
         </div>
 
+        {/* Bulk Actions Bar */}
+        {showBulkActions && (
+          <div className="bg-orange-600 text-white p-4 rounded-lg flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <span className="font-medium">
+                {selectedContacts.size} contact{selectedContacts.size !== 1 ? 's' : ''} selected
+              </span>
+              <button
+                onClick={handleSelectAllFiltered}
+                className="text-orange-200 hover:text-white underline text-sm"
+              >
+                {filteredContacts.every(c => selectedContacts.has(c.id)) 
+                  ? 'Deselect all filtered' 
+                  : `Select all ${filteredContacts.length} filtered contacts`}
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <BulkTagModal onAddTags={handleBulkAddTags} />
+              <button
+                onClick={() => handleBulkMessage('sms')}
+                className="px-3 py-2 bg-orange-700 hover:bg-orange-800 rounded-lg flex items-center gap-2"
+                title="Send SMS to selected contacts"
+              >
+                <Phone className="w-4 h-4" />
+                SMS
+              </button>
+              <button
+                onClick={() => handleBulkMessage('whatsapp')}
+                className="px-3 py-2 bg-orange-700 hover:bg-orange-800 rounded-lg flex items-center gap-2"
+                title="Send WhatsApp to selected contacts"
+              >
+                <MessageSquare className="w-4 h-4" />
+                WhatsApp
+              </button>
+              <button
+                onClick={() => handleBulkMessage('email')}
+                className="px-3 py-2 bg-orange-700 hover:bg-orange-800 rounded-lg flex items-center gap-2"
+                title="Send Email to selected contacts"
+              >
+                <Mail className="w-4 h-4" />
+                Email
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                className="px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg flex items-center gap-2"
+                title="Delete selected contacts"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </button>
+              <button
+                onClick={() => setSelectedContacts(new Set())}
+                className="px-3 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg flex items-center gap-2"
+                title="Clear selection"
+              >
+                <X className="w-4 h-4" />
+                Clear
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Contacts Table */}
         <div className="bg-gray-800 rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-900">
                 <tr>
+                  <th className="px-4 py-3 text-left">
+                    <input
+                      type="checkbox"
+                      checked={paginatedContacts.length > 0 && paginatedContacts.every(c => selectedContacts.has(c.id))}
+                      onChange={handleSelectAll}
+                      className="w-4 h-4 text-orange-600 bg-gray-700 border-gray-600 rounded focus:ring-orange-500"
+                    />
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider select-none">
                     <button
                       type="button"
@@ -650,19 +839,27 @@ function ContactsContent() {
               <tbody className="divide-y divide-gray-700">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-4 text-center text-gray-400">
+                    <td colSpan={8} className="px-6 py-4 text-center text-gray-400">
                       Loading contacts...
                     </td>
                   </tr>
                 ) : paginatedContacts.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-4 text-center text-gray-400">
+                    <td colSpan={8} className="px-6 py-4 text-center text-gray-400">
                       No contacts found
                     </td>
                   </tr>
                 ) : (
                   paginatedContacts.map((contact) => (
                     <tr key={contact.id} className="hover:bg-gray-700/50">
+                      <td className="px-4 py-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedContacts.has(contact.id)}
+                          onChange={() => handleSelectContact(contact.id)}
+                          className="w-4 h-4 text-orange-600 bg-gray-700 border-gray-600 rounded focus:ring-orange-500"
+                        />
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
                           <div className="text-sm font-medium text-white">
@@ -791,6 +988,120 @@ function ContactsContent() {
           )}
         </div>
       </div>
+  )
+}
+
+function BulkTagModal({ onAddTags }: { onAddTags: (tags: string[]) => void }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [tagInput, setTagInput] = useState('')
+  const [tags, setTags] = useState<string[]>([])
+
+  const handleAddTag = () => {
+    if (tagInput.trim() && !tags.includes(tagInput.trim())) {
+      setTags([...tags, tagInput.trim()])
+      setTagInput('')
+    }
+  }
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setTags(tags.filter(tag => tag !== tagToRemove))
+  }
+
+  const handleSubmit = () => {
+    if (tags.length > 0) {
+      onAddTags(tags)
+      setTags([])
+      setIsOpen(false)
+    }
+  }
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleAddTag()
+    }
+  }
+
+  if (!isOpen) {
+    return (
+      <button
+        onClick={() => setIsOpen(true)}
+        className="px-3 py-2 bg-orange-700 hover:bg-orange-800 rounded-lg flex items-center gap-2"
+        title="Add tags to selected contacts"
+      >
+        <Tags className="w-4 h-4" />
+        Add Tags
+      </button>
+    )
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md">
+        <h3 className="text-lg font-medium text-white mb-4">Add Tags to Selected Contacts</h3>
+        
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Enter tag name..."
+              className="flex-1 px-3 py-2 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+            />
+            <button
+              onClick={handleAddTag}
+              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg"
+            >
+              Add
+            </button>
+          </div>
+          
+          {tags.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm text-gray-400">Tags to add:</p>
+              <div className="flex flex-wrap gap-2">
+                {tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded flex items-center gap-1"
+                  >
+                    {tag}
+                    <button
+                      onClick={() => handleRemoveTag(tag)}
+                      className="text-blue-300 hover:text-white"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        
+        <div className="flex justify-end gap-2 mt-6">
+          <button
+            onClick={() => {
+              setIsOpen(false)
+              setTags([])
+              setTagInput('')
+            }}
+            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={tags.length === 0}
+            className="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg"
+          >
+            Add Tags
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
