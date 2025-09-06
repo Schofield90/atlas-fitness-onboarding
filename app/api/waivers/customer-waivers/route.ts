@@ -219,13 +219,66 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // TODO: Send email notification if requested
+    // Send email notification if requested
     if (validatedData.send_email) {
-      // This would trigger an email notification
-      // For now, just log that we should send an email
-      console.log(
-        `Should send waiver email for customer ${validatedData.customer_id}`,
-      );
+      try {
+        // Get customer details for email
+        let customer = null;
+
+        const { data: clientData } = await supabase
+          .from("clients")
+          .select("id, name, email, phone")
+          .eq("id", validatedData.customer_id)
+          .single();
+
+        if (clientData) {
+          customer = clientData;
+        } else {
+          const { data: leadData } = await supabase
+            .from("leads")
+            .select("id, first_name, last_name, email, phone")
+            .eq("id", validatedData.customer_id)
+            .single();
+
+          if (leadData) {
+            customer = {
+              ...leadData,
+              name: `${leadData.first_name} ${leadData.last_name}`.trim(),
+            };
+          }
+        }
+
+        if (customer?.email) {
+          // Get organization details
+          const { data: organization } = await supabase
+            .from("organizations")
+            .select("name, email, phone, address")
+            .eq("id", userOrg.organization_id)
+            .single();
+
+          // Generate signing URL
+          const signingUrl = `${process.env.NEXT_PUBLIC_APP_URL}/waivers/sign/${customerWaiver.id}`;
+
+          // Send waiver assignment email
+          const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/waivers/send-email`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": request.headers.get("Authorization") || "",
+            },
+            body: JSON.stringify({
+              customer_waiver_id: customerWaiver.id,
+              email_type: "initial",
+            }),
+          });
+
+          if (!emailResponse.ok) {
+            console.warn("Failed to send waiver email:", await emailResponse.text());
+          }
+        }
+      } catch (emailError) {
+        console.error("Error sending waiver email:", emailError);
+      }
     }
 
     return NextResponse.json(

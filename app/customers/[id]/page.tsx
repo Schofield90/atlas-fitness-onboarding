@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/app/lib/supabase/client'
-import { ArrowLeft, Phone, Mail, Calendar, MapPin, User, AlertCircle, MessageSquare } from 'lucide-react'
+import { ArrowLeft, Phone, Mail, Calendar, MapPin, User, AlertCircle, MessageSquare, FileText } from 'lucide-react'
 import CustomerProfileTabs from '@/app/components/customers/CustomerProfileTabs'
 import { MessageComposer } from '@/app/components/messaging/MessageComposer'
+import { WaiverAssignmentModal } from '@/app/components/customers/WaiverAssignmentModal'
 import { formatBritishDate } from '@/app/lib/utils/british-format'
 
 interface Customer {
@@ -51,6 +52,7 @@ export default function CustomerDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showMessageModal, setShowMessageModal] = useState(false)
+  const [showWaiverModal, setShowWaiverModal] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
@@ -280,6 +282,15 @@ export default function CustomerDetailPage() {
 
             {/* Quick Actions & Stats */}
             <div className="flex items-center gap-6">
+              {/* Add Waiver Button */}
+              <button
+                onClick={() => setShowWaiverModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+              >
+                <FileText className="h-5 w-5" />
+                Add Waiver
+              </button>
+              
               {/* Message Button */}
               <button
                 onClick={() => setShowMessageModal(true)}
@@ -339,6 +350,20 @@ export default function CustomerDetailPage() {
           onMessageSent={() => {
             setShowMessageModal(false)
             // Could refresh activity log here
+          }}
+        />
+      )}
+
+      {/* Waiver Assignment Modal */}
+      {customer && (
+        <WaiverAssignmentModal
+          isOpen={showWaiverModal}
+          onClose={() => setShowWaiverModal(false)}
+          customer={customer}
+          onWaiverAssigned={() => {
+            setShowWaiverModal(false)
+            // Refresh customer data to update waivers tab
+            fetchCustomer()
           }}
         />
       )}
