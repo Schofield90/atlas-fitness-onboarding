@@ -1,9 +1,9 @@
 {
   "framework": "nextjs",
   "outputDirectory": ".next",
-  "buildCommand": "pnpm run build:fast",
-  "devCommand": "pnpm run dev:turbo",
-  "installCommand": "pnpm install",
+  "buildCommand": "npm run build:fast",
+  "devCommand": "npm run dev:turbo",
+  "installCommand": "npm install",
   "functions": {
     "app/api/**/*.ts": {
       "maxDuration": 30,
