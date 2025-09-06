@@ -5,10 +5,8 @@
   "description": "AI-Powered Gym SaaS Platform with CRM, Booking, Nutrition, and Automation",
   "author": "Your Company Name",
   "license": "MIT",
-  "packageManager": "pnpm@10.0.0",
   "engines": {
-    "node": ">=20.0.0",
-    "pnpm": ">=9.0.0"
+    "node": ">=20.0.0"
   },
   "scripts": {
     "dev": "next dev",
