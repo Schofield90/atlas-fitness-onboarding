@@ -1,90 +1,97 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/app/lib/supabase/server'
-import { getCurrentUserOrganization } from '@/app/lib/organization-server'
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/app/lib/supabase/server";
+import { MetaMessengerClient } from "@/app/lib/meta/client";
+import { decrypt } from "@/app/lib/encryption";
 
 export async function POST(request: NextRequest) {
+  const supabase = await createClient();
+
+  // Check authentication
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { integrationId } = await request.json();
+
+  if (!integrationId) {
+    return NextResponse.json(
+      { error: "Missing integration ID" },
+      { status: 400 },
+    );
+  }
+
   try {
-    const supabase = await createClient()
-    const { organizationId } = await getCurrentUserOrganization()
-    
-    if (!organizationId) {
-      return NextResponse.json({ error: 'No organization found' }, { status: 400 })
-    }
-
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
-    }
-
-    // Start a transaction to safely disconnect the integration
+    // Get integration details
     const { data: integration } = await supabase
-      .from('facebook_integrations')
-      .select('id')
-      .eq('organization_id', organizationId)
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-      .single()
+      .from("integration_accounts")
+      .select("*")
+      .eq("id", integrationId)
+      .single();
 
     if (!integration) {
-      return NextResponse.json({ 
-        success: true,
-        message: 'No active integration found to disconnect' 
-      })
+      return NextResponse.json(
+        { error: "Integration not found" },
+        { status: 404 },
+      );
     }
 
-    // Deactivate the integration (don't delete to preserve historical data)
-    const { error: deactivateError } = await supabase
-      .from('facebook_integrations')
-      .update({ 
-        is_active: false,
-        access_token: '', // Clear the token for security
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', integration.id)
+    // Verify user has access to this organization
+    const { data: member } = await supabase
+      .from("organization_members")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("organization_id", integration.organization_id)
+      .single();
 
-    if (deactivateError) {
-      console.error('Failed to deactivate integration:', deactivateError)
-      return NextResponse.json({ 
-        error: 'Failed to disconnect integration',
-        details: deactivateError.message
-      }, { status: 500 })
+    if (!member || !["owner", "admin"].includes(member.role)) {
+      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
-    // Deactivate associated pages
+    // Try to unsubscribe from webhooks (may fail if token is revoked)
+    try {
+      const decryptedToken = decrypt(integration.page_access_token);
+      const client = new MetaMessengerClient();
+      await client.unsubscribePageFromWebhooks(
+        integration.page_id,
+        decryptedToken,
+      );
+    } catch (error) {
+      console.log(
+        "Failed to unsubscribe webhooks (token may be revoked):",
+        error,
+      );
+    }
+
+    // Mark integration as revoked
     await supabase
-      .from('facebook_pages')
-      .update({ is_active: false })
-      .eq('integration_id', integration.id)
+      .from("integration_accounts")
+      .update({
+        status: "revoked",
+        page_access_token: "", // Clear token
+        error_message: "Manually disconnected",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", integrationId);
 
-    // Deactivate associated lead forms
+    // Archive all conversations for this page
     await supabase
-      .from('facebook_lead_forms')
-      .update({ is_active: false })
-      .eq('organization_id', organizationId)
+      .from("messenger_conversations")
+      .update({ status: "archived" })
+      .eq("organization_id", integration.organization_id)
+      .eq("channel_id", integration.page_id);
 
-    // Deactivate associated ad accounts
-    await supabase
-      .from('facebook_ad_accounts')
-      .update({ is_active: false })
-      .eq('integration_id', integration.id)
-
-    // Note: We keep the historical data (leads, webhooks, etc.) for reporting purposes
-    // but mark the integration as inactive to stop future syncing
-
-    return NextResponse.json({
-      success: true,
-      message: 'Meta Ads integration disconnected successfully. Historical data has been preserved.'
-    })
-
-  } catch (error: any) {
-    console.error('Meta disconnect error:', error)
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Disconnect error:", error);
     return NextResponse.json(
-      { 
-        error: 'Failed to disconnect Meta integration',
-        details: error.message
+      {
+        error: "Failed to disconnect",
+        details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
-    )
+      { status: 500 },
+    );
   }
 }

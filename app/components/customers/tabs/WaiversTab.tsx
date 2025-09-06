@@ -1,310 +1,706 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { createClient } from '@/app/lib/supabase/client'
-import { FileText, Download, Eye, Clock, CheckCircle, AlertCircle, Upload, Plus } from 'lucide-react'
-import { formatBritishDate } from '@/app/lib/utils/british-format'
+import { useState, useEffect } from "react";
+import { createClient } from "@/app/lib/supabase/client";
+import {
+  FileText,
+  Download,
+  Eye,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  Upload,
+  Plus,
+  Send,
+  Mail,
+  RotateCcw,
+  X,
+  Users,
+  Edit,
+} from "lucide-react";
+import { formatBritishDate } from "@/app/lib/utils/british-format";
 
 interface WaiversTabProps {
-  customerId: string
+  customerId: string;
 }
 
-interface Waiver {
-  id: string
-  waiver_name: string
-  waiver_type: string
-  signature_date: string
-  expiry_date: string | null
-  status: string
-  waiver_content: string
-  signature_data: string | null
-  witness_name: string | null
+interface CustomerWaiver {
+  id: string;
+  customer_id: string;
+  waiver_id: string;
+  status: "pending" | "signed" | "expired" | "cancelled";
+  assigned_at: string;
+  sent_at: string | null;
+  opened_at: string | null;
+  signed_at: string | null;
+  expires_at: string | null;
+  signature_data: string | null;
+  signature_method: string | null;
+  witness_name: string | null;
+  witness_signature: string | null;
+  witness_email: string | null;
+  reminder_count: number;
+  last_reminder_sent: string | null;
+  waiver: {
+    id: string;
+    title: string;
+    waiver_type: string;
+    content: string;
+    requires_witness: boolean;
+  };
 }
 
-interface Document {
-  id: string
-  document_name: string
-  document_type: string
-  file_url: string
-  created_at: string
-  expiry_date: string | null
-  status: string
-  description: string | null
+interface AvailableWaiver {
+  id: string;
+  title: string;
+  waiver_type: string;
+  is_active: boolean;
+  requires_witness: boolean;
+  validity_days: number | null;
 }
 
 export default function WaiversTab({ customerId }: WaiversTabProps) {
-  const [waivers, setWaivers] = useState<Waiver[]>([])
-  const [documents, setDocuments] = useState<Document[]>([])
-  const [loading, setLoading] = useState(true)
-  const [showUploadModal, setShowUploadModal] = useState(false)
-  const [uploadType, setUploadType] = useState<'waiver' | 'document'>('document')
-  const supabase = createClient()
+  const [customerWaivers, setCustomerWaivers] = useState<CustomerWaiver[]>([]);
+  const [availableWaivers, setAvailableWaivers] = useState<AvailableWaiver[]>(
+    [],
+  );
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showWaiverModal, setShowWaiverModal] = useState<CustomerWaiver | null>(
+    null,
+  );
+  const [emailMessage, setEmailMessage] = useState("");
+  const supabase = createClient();
 
   useEffect(() => {
-    fetchWaiversAndDocuments()
-  }, [customerId])
+    fetchCustomerWaivers();
+    fetchAvailableWaivers();
+  }, [customerId]);
 
-  const fetchWaiversAndDocuments = async () => {
+  const fetchCustomerWaivers = async () => {
     try {
-      setLoading(true)
+      const response = await fetch(
+        `/api/waivers/customer-waivers?customer_id=${customerId}`,
+      );
+      const result = await response.json();
 
-      // Fetch waivers
-      const { data: waiversData, error: waiversError } = await supabase
-        .from('customer_waivers')
-        .select('*')
-        .eq('client_id', customerId)
-        .order('signature_date', { ascending: false })
-
-      if (waiversError && waiversError.code !== 'PGRST116') {
-        console.error('Error fetching waivers:', waiversError)
+      if (result.success) {
+        setCustomerWaivers(result.data || []);
       } else {
-        setWaivers(waiversData || [])
-      }
-
-      // Fetch documents
-      const { data: documentsData, error: documentsError } = await supabase
-        .from('customer_documents')
-        .select('*')
-        .eq('client_id', customerId)
-        .order('created_at', { ascending: false })
-
-      if (documentsError && documentsError.code !== 'PGRST116') {
-        console.error('Error fetching documents:', documentsError)
-      } else {
-        setDocuments(documentsData || [])
+        console.error("Error fetching customer waivers:", result.error);
       }
     } catch (error) {
-      console.error('Error fetching data:', error)
-    } finally {
-      setLoading(false)
+      console.error("Error fetching customer waivers:", error);
     }
-  }
+  };
+
+  const fetchAvailableWaivers = async () => {
+    try {
+      const response = await fetch("/api/waivers");
+      const result = await response.json();
+
+      if (result.success) {
+        setAvailableWaivers(result.data || []);
+      } else {
+        console.error("Error fetching available waivers:", result.error);
+      }
+    } catch (error) {
+      console.error("Error fetching available waivers:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const assignWaiver = async (waiverId: string) => {
+    try {
+      setActionLoading("assign");
+
+      const response = await fetch("/api/waivers/customer-waivers", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          customer_id: customerId,
+          waiver_id: waiverId,
+          send_email: true,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        await fetchCustomerWaivers();
+        setShowAssignModal(false);
+      } else {
+        alert("Failed to assign waiver: " + result.error);
+      }
+    } catch (error) {
+      console.error("Error assigning waiver:", error);
+      alert("Failed to assign waiver");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const sendWaiverEmail = async (
+    customerWaiverId: string,
+    isReminder: boolean = false,
+  ) => {
+    try {
+      setActionLoading(customerWaiverId);
+
+      const response = await fetch("/api/waivers/send-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          customer_waiver_id: customerWaiverId,
+          email_type: isReminder ? "reminder" : "initial",
+          custom_message: emailMessage || undefined,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        await fetchCustomerWaivers();
+        setEmailMessage("");
+        alert("Waiver email sent successfully!");
+      } else {
+        alert("Failed to send email: " + result.error);
+      }
+    } catch (error) {
+      console.error("Error sending waiver email:", error);
+      alert("Failed to send waiver email");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const markWaiverSigned = async (customerWaiverId: string) => {
+    if (
+      !confirm("Are you sure you want to manually mark this waiver as signed?")
+    ) {
+      return;
+    }
+
+    try {
+      setActionLoading(customerWaiverId);
+
+      const response = await fetch(
+        `/api/waivers/customer-waivers/${customerWaiverId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            status: "signed",
+            signature_method: "wet_signature",
+          }),
+        },
+      );
+
+      const result = await response.json();
+
+      if (result.success) {
+        await fetchCustomerWaivers();
+      } else {
+        alert("Failed to update waiver: " + result.error);
+      }
+    } catch (error) {
+      console.error("Error updating waiver:", error);
+      alert("Failed to update waiver");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const cancelWaiver = async (customerWaiverId: string) => {
+    if (!confirm("Are you sure you want to cancel this waiver assignment?")) {
+      return;
+    }
+
+    try {
+      setActionLoading(customerWaiverId);
+
+      const response = await fetch(
+        `/api/waivers/customer-waivers/${customerWaiverId}`,
+        {
+          method: "DELETE",
+        },
+      );
+
+      const result = await response.json();
+
+      if (result.success) {
+        await fetchCustomerWaivers();
+      } else {
+        alert("Failed to cancel waiver: " + result.error);
+      }
+    } catch (error) {
+      console.error("Error cancelling waiver:", error);
+      alert("Failed to cancel waiver");
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   const getStatusIcon = (status: string, expiryDate: string | null) => {
     if (expiryDate && new Date(expiryDate) < new Date()) {
-      return <AlertCircle className="h-4 w-4 text-red-500" />
+      return <AlertCircle className="h-4 w-4 text-red-500" />;
     }
     switch (status) {
-      case 'signed':
-      case 'active':
-        return <CheckCircle className="h-4 w-4 text-green-500" />
-      case 'expired':
-        return <AlertCircle className="h-4 w-4 text-red-500" />
+      case "signed":
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case "expired":
+        return <AlertCircle className="h-4 w-4 text-red-500" />;
+      case "cancelled":
+        return <X className="h-4 w-4 text-gray-500" />;
       default:
-        return <Clock className="h-4 w-4 text-yellow-500" />
+        return <Clock className="h-4 w-4 text-yellow-500" />;
     }
-  }
+  };
 
   const getStatusText = (status: string, expiryDate: string | null) => {
     if (expiryDate && new Date(expiryDate) < new Date()) {
-      return 'Expired'
+      return "Expired";
     }
     switch (status) {
-      case 'signed':
-      case 'active':
-        return 'Active'
-      case 'expired':
-        return 'Expired'
+      case "signed":
+        return "Signed";
+      case "expired":
+        return "Expired";
+      case "cancelled":
+        return "Cancelled";
       default:
-        return 'Pending'
+        return "Pending";
     }
-  }
+  };
+
+  const getStatusColor = (status: string, expiryDate: string | null) => {
+    if (expiryDate && new Date(expiryDate) < new Date()) {
+      return "bg-red-500/20 text-red-400";
+    }
+    switch (status) {
+      case "signed":
+        return "bg-green-500/20 text-green-400";
+      case "expired":
+        return "bg-red-500/20 text-red-400";
+      case "cancelled":
+        return "bg-gray-500/20 text-gray-400";
+      default:
+        return "bg-yellow-500/20 text-yellow-400";
+    }
+  };
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case 'liability':
-        return 'bg-red-500/20 text-red-400'
-      case 'medical':
-        return 'bg-blue-500/20 text-blue-400'
-      case 'photo_release':
-        return 'bg-green-500/20 text-green-400'
-      case 'membership_agreement':
-        return 'bg-purple-500/20 text-purple-400'
+      case "liability":
+        return "bg-red-500/20 text-red-400";
+      case "medical":
+        return "bg-blue-500/20 text-blue-400";
+      case "photo_release":
+        return "bg-green-500/20 text-green-400";
+      case "membership_agreement":
+        return "bg-purple-500/20 text-purple-400";
+      case "general":
+        return "bg-gray-500/20 text-gray-400";
       default:
-        return 'bg-gray-500/20 text-gray-400'
+        return "bg-gray-500/20 text-gray-400";
     }
-  }
+  };
+
+  const formatWaiverType = (type: string) => {
+    return type.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+  };
+
+  const getSigningUrl = (customerWaiverId: string) => {
+    return `${window.location.origin}/waivers/sign/${customerWaiverId}`;
+  };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <p className="text-gray-400">Loading waivers and documents...</p>
+        <p className="text-gray-400">Loading waivers...</p>
       </div>
-    )
+    );
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-white">Waivers & Documents</h3>
+        <h3 className="text-lg font-semibold text-white">Waivers</h3>
         <button
-          onClick={() => setShowUploadModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          onClick={() => setShowAssignModal(true)}
+          disabled={actionLoading === "assign"}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus className="h-4 w-4" />
-          Add Document
+          Assign Waiver
         </button>
       </div>
 
-      {/* Waivers Section */}
+      {/* Customer Waivers */}
       <div className="bg-gray-800 rounded-lg p-6">
-        <h4 className="text-md font-semibold text-white mb-4">Signed Waivers</h4>
-        
-        {waivers.length === 0 ? (
+        <h4 className="text-md font-semibold text-white mb-4">
+          Customer Waivers
+        </h4>
+
+        {customerWaivers.length === 0 ? (
           <div className="text-center py-8">
             <FileText className="h-8 w-8 text-gray-600 mx-auto mb-2" />
-            <p className="text-gray-400">No waivers on file</p>
+            <p className="text-gray-400">
+              No waivers assigned to this customer
+            </p>
+            <button
+              onClick={() => setShowAssignModal(true)}
+              className="mt-3 text-blue-400 hover:text-blue-300 text-sm"
+            >
+              Assign a waiver →
+            </button>
           </div>
         ) : (
-          <div className="space-y-3">
-            {waivers.map((waiver) => (
-              <div key={waiver.id} className="flex items-center justify-between p-4 bg-gray-700 rounded-lg">
-                <div className="flex items-center gap-3">
-                  {getStatusIcon(waiver.status, waiver.expiry_date)}
-                  <div>
-                    <h5 className="font-medium text-white">{waiver.waiver_name}</h5>
-                    <div className="flex items-center gap-4 text-sm text-gray-400 mt-1">
-                      <span className={`px-2 py-0.5 rounded-full text-xs ${getTypeColor(waiver.waiver_type)}`}>
-                        {waiver.waiver_type.replace('_', ' ')}
-                      </span>
-                      <span>Signed: {formatBritishDate(waiver.signature_date)}</span>
-                      {waiver.expiry_date && (
-                        <span>Expires: {formatBritishDate(waiver.expiry_date)}</span>
-                      )}
-                      <span className="flex items-center gap-1">
-                        {getStatusIcon(waiver.status, waiver.expiry_date)}
-                        {getStatusText(waiver.status, waiver.expiry_date)}
-                      </span>
-                    </div>
-                    {waiver.witness_name && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        Witnessed by: {waiver.witness_name}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-600 rounded-lg">
-                    <Eye className="h-4 w-4" />
-                  </button>
-                  <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-600 rounded-lg">
-                    <Download className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Documents Section */}
-      <div className="bg-gray-800 rounded-lg p-6">
-        <h4 className="text-md font-semibold text-white mb-4">Documents</h4>
-        
-        {documents.length === 0 ? (
-          <div className="text-center py-8">
-            <FileText className="h-8 w-8 text-gray-600 mx-auto mb-2" />
-            <p className="text-gray-400">No documents uploaded</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {documents.map((document) => (
-              <div key={document.id} className="flex items-center justify-between p-4 bg-gray-700 rounded-lg">
-                <div className="flex items-center gap-3">
-                  {getStatusIcon(document.status, document.expiry_date)}
-                  <div>
-                    <h5 className="font-medium text-white">{document.document_name}</h5>
-                    <div className="flex items-center gap-4 text-sm text-gray-400 mt-1">
-                      <span className={`px-2 py-0.5 rounded-full text-xs ${getTypeColor(document.document_type)}`}>
-                        {document.document_type.replace('_', ' ')}
-                      </span>
-                      <span>Uploaded: {formatBritishDate(document.created_at)}</span>
-                      {document.expiry_date && (
-                        <span>Expires: {formatBritishDate(document.expiry_date)}</span>
-                      )}
-                      <span className="flex items-center gap-1">
-                        {getStatusIcon(document.status, document.expiry_date)}
-                        {getStatusText(document.status, document.expiry_date)}
-                      </span>
-                    </div>
-                    {document.description && (
-                      <p className="text-xs text-gray-500 mt-1">{document.description}</p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-600 rounded-lg">
-                    <Eye className="h-4 w-4" />
-                  </button>
-                  <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-600 rounded-lg">
-                    <Download className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Upload Modal */}
-      {showUploadModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-xl font-bold text-white mb-4">Add Document</h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">
-                  Document Type
-                </label>
-                <select className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
-                  <option value="waiver">Waiver</option>
-                  <option value="medical_form">Medical Form</option>
-                  <option value="membership_agreement">Membership Agreement</option>
-                  <option value="photo_id">Photo ID</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">
-                  Document Name
-                </label>
-                <input
-                  type="text"
-                  placeholder="Enter document name"
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">
-                  Upload File
-                </label>
-                <div className="border-2 border-dashed border-gray-600 rounded-lg p-4 text-center">
-                  <Upload className="h-8 w-8 text-gray-500 mx-auto mb-2" />
-                  <p className="text-gray-400 text-sm">Click to upload or drag and drop</p>
-                  <p className="text-gray-500 text-xs mt-1">PDF, DOCX, JPG, PNG up to 10MB</p>
-                  <input type="file" className="hidden" />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowUploadModal(false)}
-                className="flex-1 px-4 py-2 text-gray-400 hover:text-white"
+          <div className="space-y-4">
+            {customerWaivers.map((customerWaiver) => (
+              <div
+                key={customerWaiver.id}
+                className="p-4 bg-gray-700 rounded-lg"
               >
-                Cancel
-              </button>
-              <button className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                Upload Document
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      {getStatusIcon(
+                        customerWaiver.status,
+                        customerWaiver.expires_at,
+                      )}
+                      <h5 className="font-medium text-white">
+                        {customerWaiver.waiver.title}
+                      </h5>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-xs ${getStatusColor(customerWaiver.status, customerWaiver.expires_at)}`}
+                      >
+                        {getStatusText(
+                          customerWaiver.status,
+                          customerWaiver.expires_at,
+                        )}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 text-sm text-gray-400 mb-3">
+                      <div>
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded text-xs ${getTypeColor(customerWaiver.waiver.waiver_type)} mr-2`}
+                        >
+                          {formatWaiverType(customerWaiver.waiver.waiver_type)}
+                        </span>
+                        {customerWaiver.waiver.requires_witness && (
+                          <span className="inline-flex items-center gap-1 text-xs text-orange-400">
+                            <Users className="h-3 w-3" />
+                            Requires Witness
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <span>
+                          Assigned:{" "}
+                          {formatBritishDate(customerWaiver.assigned_at)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 text-sm text-gray-400 mb-3">
+                      <div>
+                        {customerWaiver.sent_at ? (
+                          <span>
+                            Sent: {formatBritishDate(customerWaiver.sent_at)}
+                          </span>
+                        ) : (
+                          <span className="text-yellow-400">Not sent yet</span>
+                        )}
+                      </div>
+                      <div>
+                        {customerWaiver.opened_at && (
+                          <span>
+                            Opened:{" "}
+                            {formatBritishDate(customerWaiver.opened_at)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 text-sm text-gray-400">
+                      <div>
+                        {customerWaiver.signed_at ? (
+                          <span className="text-green-400">
+                            Signed:{" "}
+                            {formatBritishDate(customerWaiver.signed_at)}
+                          </span>
+                        ) : customerWaiver.expires_at ? (
+                          <span>
+                            Expires:{" "}
+                            {formatBritishDate(customerWaiver.expires_at)}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div>
+                        {customerWaiver.reminder_count > 0 && (
+                          <span>
+                            Reminders: {customerWaiver.reminder_count}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {customerWaiver.witness_name && (
+                      <div className="mt-2 text-sm text-gray-400">
+                        <span>Witness: {customerWaiver.witness_name}</span>
+                        {customerWaiver.witness_email && (
+                          <span> ({customerWaiver.witness_email})</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 ml-4">
+                    {/* View Waiver */}
+                    <button
+                      onClick={() => setShowWaiverModal(customerWaiver)}
+                      className="p-2 text-gray-400 hover:text-white hover:bg-gray-600 rounded-lg"
+                      title="View waiver"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+
+                    {/* Actions based on status */}
+                    {customerWaiver.status === "pending" && (
+                      <>
+                        {/* Send/Resend Email */}
+                        <button
+                          onClick={() =>
+                            sendWaiverEmail(
+                              customerWaiver.id,
+                              !!customerWaiver.sent_at,
+                            )
+                          }
+                          disabled={actionLoading === customerWaiver.id}
+                          className="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-600 rounded-lg disabled:opacity-50"
+                          title={
+                            customerWaiver.sent_at
+                              ? "Send reminder"
+                              : "Send waiver email"
+                          }
+                        >
+                          {actionLoading === customerWaiver.id ? (
+                            <RotateCcw className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Send className="h-4 w-4" />
+                          )}
+                        </button>
+
+                        {/* Mark as Signed */}
+                        <button
+                          onClick={() => markWaiverSigned(customerWaiver.id)}
+                          disabled={actionLoading === customerWaiver.id}
+                          className="p-2 text-gray-400 hover:text-green-400 hover:bg-gray-600 rounded-lg disabled:opacity-50"
+                          title="Mark as signed"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                        </button>
+
+                        {/* Cancel */}
+                        <button
+                          onClick={() => cancelWaiver(customerWaiver.id)}
+                          disabled={actionLoading === customerWaiver.id}
+                          className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-600 rounded-lg disabled:opacity-50"
+                          title="Cancel waiver"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </>
+                    )}
+
+                    {customerWaiver.status === "signed" &&
+                      customerWaiver.signature_data && (
+                        <button
+                          className="p-2 text-gray-400 hover:text-white hover:bg-gray-600 rounded-lg"
+                          title="Download signed waiver"
+                        >
+                          <Download className="h-4 w-4" />
+                        </button>
+                      )}
+                  </div>
+                </div>
+
+                {/* Signing URL for pending waivers */}
+                {customerWaiver.status === "pending" && (
+                  <div className="mt-3 p-3 bg-gray-600 rounded text-sm">
+                    <div className="flex items-center gap-2 text-gray-300 mb-1">
+                      <Mail className="h-4 w-4" />
+                      <span>Signing URL:</span>
+                    </div>
+                    <code className="text-xs text-blue-400 break-all">
+                      {getSigningUrl(customerWaiver.id)}
+                    </code>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Assign Waiver Modal */}
+      {showAssignModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white">Assign Waiver</h3>
+              <button
+                onClick={() => setShowAssignModal(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                <X className="h-5 w-5" />
               </button>
             </div>
+
+            {availableWaivers.filter((w) => w.is_active).length === 0 ? (
+              <div className="text-center py-8">
+                <AlertCircle className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
+                <p className="text-gray-400">No active waivers available</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {availableWaivers
+                  .filter((w) => w.is_active)
+                  .filter(
+                    (w) => !customerWaivers.some((cw) => cw.waiver_id === w.id),
+                  )
+                  .map((waiver) => (
+                    <div
+                      key={waiver.id}
+                      className="p-4 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600"
+                      onClick={() => assignWaiver(waiver.id)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-white mb-1">
+                            {waiver.title}
+                          </h4>
+                          <div className="flex items-center gap-2 text-sm text-gray-400">
+                            <span
+                              className={`px-2 py-0.5 rounded text-xs ${getTypeColor(waiver.waiver_type)}`}
+                            >
+                              {formatWaiverType(waiver.waiver_type)}
+                            </span>
+                            {waiver.requires_witness && (
+                              <span className="inline-flex items-center gap-1 text-xs text-orange-400">
+                                <Users className="h-3 w-3" />
+                                Requires Witness
+                              </span>
+                            )}
+                            {waiver.validity_days && (
+                              <span className="text-xs text-gray-400">
+                                Expires in {waiver.validity_days} days
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <Plus className="h-5 w-5 text-blue-400" />
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Waiver Details Modal */}
+      {showWaiverModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white">
+                {showWaiverModal.waiver.title}
+              </h3>
+              <button
+                onClick={() => setShowWaiverModal(null)}
+                className="text-gray-400 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="bg-gray-700 rounded-lg p-4 mb-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-400">Status:</span>
+                  <span
+                    className={`ml-2 px-2 py-0.5 rounded text-xs ${getStatusColor(showWaiverModal.status, showWaiverModal.expires_at)}`}
+                  >
+                    {getStatusText(
+                      showWaiverModal.status,
+                      showWaiverModal.expires_at,
+                    )}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Type:</span>
+                  <span className="ml-2 text-white">
+                    {formatWaiverType(showWaiverModal.waiver.waiver_type)}
+                  </span>
+                </div>
+                {showWaiverModal.signed_at && (
+                  <div>
+                    <span className="text-gray-400">Signed:</span>
+                    <span className="ml-2 text-white">
+                      {formatBritishDate(showWaiverModal.signed_at)}
+                    </span>
+                  </div>
+                )}
+                {showWaiverModal.expires_at && (
+                  <div>
+                    <span className="text-gray-400">Expires:</span>
+                    <span className="ml-2 text-white">
+                      {formatBritishDate(showWaiverModal.expires_at)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg p-6 text-gray-900 max-h-96 overflow-y-auto">
+              <div className="whitespace-pre-wrap">
+                {showWaiverModal.waiver.content}
+              </div>
+            </div>
+
+            {showWaiverModal.signature_data && (
+              <div className="mt-4 bg-gray-700 rounded-lg p-4">
+                <h4 className="text-white font-medium mb-2">Signature</h4>
+                <img
+                  src={showWaiverModal.signature_data}
+                  alt="Customer signature"
+                  className="max-w-md border border-gray-600 rounded"
+                />
+                {showWaiverModal.witness_name && (
+                  <div className="mt-2 text-sm text-gray-400">
+                    <span>Witnessed by: {showWaiverModal.witness_name}</span>
+                    {showWaiverModal.witness_email && (
+                      <span> ({showWaiverModal.witness_email})</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }
