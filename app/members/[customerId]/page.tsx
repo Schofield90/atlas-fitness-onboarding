@@ -27,6 +27,8 @@ import { createClient } from "@/app/lib/supabase/client";
 import { useOrganization } from "@/app/hooks/useOrganization";
 import MembershipsTab from "@/app/components/customers/tabs/MembershipsTab";
 import NotesTab from "@/app/components/customers/tabs/NotesTab";
+import WaiversTab from "@/app/components/customers/tabs/WaiversTab";
+import ClassBookingsTab from "@/app/components/customers/tabs/ClassBookingsTab";
 
 interface CustomerProfile {
   id: string;
@@ -65,7 +67,7 @@ interface CustomerActivity {
 type TabType =
   | "profile"
   | "activity"
-  | "registrations"
+  | "class-bookings"
   | "payments"
   | "memberships"
   | "waivers"
@@ -85,6 +87,8 @@ export default function CustomerProfilePage() {
   const [payments, setPayments] = useState<any[]>([]);
   const [memberships, setMemberships] = useState<any[]>([]);
   const [notes, setNotes] = useState<any[]>([]);
+  const [waivers, setWaivers] = useState<any[]>([]);
+  const [classBookings, setClassBookings] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>("profile");
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<CustomerProfile>>({});
@@ -155,9 +159,6 @@ export default function CustomerProfilePage() {
         case "activity":
           await loadActivity();
           break;
-        case "registrations":
-          await loadRegistrations();
-          break;
         case "payments":
           await loadPayments();
           break;
@@ -166,6 +167,12 @@ export default function CustomerProfilePage() {
           break;
         case "notes":
           await loadNotes();
+          break;
+        case "waivers":
+          await loadWaivers();
+          break;
+        case "class-bookings":
+          await loadClassBookings();
           break;
       }
     } catch (error) {
@@ -370,6 +377,60 @@ export default function CustomerProfilePage() {
     } catch (error) {
       console.error("Error updating note:", error);
       throw error;
+    }
+  };
+
+  const loadWaivers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("customer_waivers")
+        .select(
+          `
+          *,
+          waivers (
+            id,
+            name,
+            content,
+            organization_id
+          )
+        `,
+        )
+        .or(`customer_id.eq.${customerId},client_id.eq.${customerId}`)
+        .eq("organization_id", organizationId)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setWaivers(data || []);
+    } catch (error) {
+      console.error("Error loading waivers:", error);
+      setWaivers([]);
+    }
+  };
+
+  const loadClassBookings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("bookings")
+        .select(
+          `
+          *,
+          schedules (
+            name,
+            start_time,
+            duration_minutes,
+            location
+          )
+        `,
+        )
+        .or(`customer_id.eq.${customerId},client_id.eq.${customerId}`)
+        .eq("organization_id", organizationId)
+        .order("booking_date", { ascending: false });
+
+      if (error) throw error;
+      setClassBookings(data || []);
+    } catch (error) {
+      console.error("Error loading class bookings:", error);
+      setClassBookings([]);
     }
   };
 
@@ -588,7 +649,11 @@ export default function CustomerProfilePage() {
             {[
               { key: "profile", label: "Profile", icon: User },
               { key: "activity", label: "Activity", icon: Activity },
-              { key: "registrations", label: "Class Bookings", icon: Calendar },
+              {
+                key: "class-bookings",
+                label: "Class Bookings",
+                icon: Calendar,
+              },
               { key: "payments", label: "Payments", icon: CreditCard },
               { key: "memberships", label: "Memberships", icon: Users },
               { key: "waivers", label: "Waivers", icon: FileText },
@@ -958,11 +1023,40 @@ export default function CustomerProfilePage() {
             />
           )}
 
+          {/* Waivers Tab */}
+          {activeTab === "waivers" && (
+            <WaiversTab
+              customerId={customerId}
+              customerEmail={customer.email}
+              customerName={
+                `${customer.first_name || ""} ${customer.last_name || ""}`.trim() ||
+                customer.email
+              }
+              existingWaivers={waivers}
+              onRefresh={loadWaivers}
+            />
+          )}
+
+          {/* Class Bookings Tab */}
+          {activeTab === "class-bookings" && (
+            <ClassBookingsTab
+              customerId={customerId}
+              customerName={
+                `${customer.first_name || ""} ${customer.last_name || ""}`.trim() ||
+                customer.email
+              }
+              existingBookings={classBookings}
+              onRefresh={loadClassBookings}
+            />
+          )}
+
           {/* Other tabs would be implemented similarly */}
           {activeTab !== "profile" &&
             activeTab !== "activity" &&
             activeTab !== "memberships" &&
-            activeTab !== "notes" && (
+            activeTab !== "notes" &&
+            activeTab !== "waivers" &&
+            activeTab !== "class-bookings" && (
               <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
                 <h3 className="text-lg font-semibold text-white mb-4 capitalize">
                   {activeTab}
