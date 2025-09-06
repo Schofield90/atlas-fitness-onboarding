@@ -5,6 +5,11 @@ A comprehensive CRM platform for gym management with Facebook lead integration a
 ## Features
 
 - Facebook OAuth integration for lead capture
+- **Meta Lead Ads Webhook Integration** ✅
+  - Real-time lead ingestion from Facebook Lead Ads
+  - Automatic form field mapping and synchronization
+  - Idempotent webhook processing with deduplication
+  - Health monitoring dashboard at `/api/webhooks/health`
 - AI-powered lead scoring and qualification
 - Client management dashboard
 - Lead tracking and analytics
@@ -162,13 +167,37 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed development workflow.
 
 ## Integrations
 
-- Meta Lead Ads Webhook Setup
-  - Callback URL: `/api/webhooks/facebook-leads`
-  - Verify token: set `FACEBOOK_WEBHOOK_VERIFY_TOKEN` (or `META_WEBHOOK_VERIFY_TOKEN`) and use the same in Meta App → Webhooks
-  - Signature: set `FACEBOOK_APP_SECRET` (or `META_WEBHOOK_SECRET`) for HMAC verification
-  - Testing: App Dashboard → Webhooks → Page → leadgen → Test. Check Vercel → Deployments → Functions logs for `facebook-leads event` entries
-  - Health: visit `/settings/integrations/webhooks` or call `GET /api/saas-admin/webhooks/health`
-  - Notes: `leads_retrieval` permission is for fetching lead details; `leadgen` is the Page subscription field for webhooks
+### Meta Lead Ads Webhook Setup
+
+#### Configuration
+
+- **Callback URL**: `https://atlas-fitness-onboarding.vercel.app/api/webhooks/facebook-leads`
+- **Verify Token**: Set `FACEBOOK_WEBHOOK_VERIFY_TOKEN` or `META_WEBHOOK_VERIFY_TOKEN` in env vars
+- **App Secret**: Set `FACEBOOK_APP_SECRET` or `META_WEBHOOK_SECRET` for signature verification
+- **Webhook Subscriptions**: Subscribe to Page → `leadgen` field in Meta App Dashboard
+
+#### Testing & Monitoring
+
+- **Dashboard Test**: App Dashboard → Webhooks → Page → Test → Create Lead
+- **Logs**: Vercel → Deployments → Functions → Look for `[fb_leadgen_webhook]` entries
+- **Health Check**: `GET /api/webhooks/health` - Shows webhook status, recent events, and page subscriptions
+- **Troubleshooting**:
+  - If test shows "Pending", check Vercel Functions logs for POST requests
+  - Verify webhook URL is exactly as configured (no trailing slash)
+  - Ensure middleware isn't blocking `/api/webhooks` paths
+  - Check signature verification isn't failing silently
+
+#### Field Mapping
+
+- Form questions auto-refresh when accessing field mappings
+- Manual refresh: `POST /api/integrations/facebook/refresh-form-questions`
+- Mappings saved per form in `facebook_field_mappings` table
+
+#### Permissions Required
+
+- `leads_retrieval` - Fetch lead details after webhook notification
+- `pages_manage_metadata` - Subscribe pages to webhooks
+- `pages_show_list` - List available pages
 
 ## Recent Updates
 
