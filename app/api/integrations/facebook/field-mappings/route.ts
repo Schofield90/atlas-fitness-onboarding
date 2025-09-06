@@ -43,6 +43,13 @@ export async function GET(request: NextRequest) {
       organizationId,
     );
 
+    console.log(`[field-mappings] Retrieved mappings for form ${formId}:`, {
+      hasMapping: !!mappings,
+      mappingKeys: mappings ? Object.keys(mappings) : [],
+      mappingsCount: mappings?.mappings?.length || 0,
+      customMappingsCount: mappings?.custom_mappings?.length || 0,
+    });
+
     // Also get form structure from database
     const { data: formRecord } = await supabase
       .from("facebook_lead_forms")
@@ -194,9 +201,30 @@ export async function POST(request: NextRequest) {
     }
 
     // Save mappings
-    await mappingService.saveFieldMappings(organizationId, formId, mappings);
+    const saveResult = await mappingService.saveFieldMappings(
+      organizationId,
+      formId,
+      mappings,
+    );
 
-    console.log(`✅ Saved field mappings for form ${formId}`);
+    if (!saveResult.success) {
+      console.error(
+        `❌ Failed to save field mappings for form ${formId}:`,
+        saveResult.error,
+      );
+      return NextResponse.json(
+        {
+          error: "Failed to save field mappings",
+          details: saveResult.error,
+        },
+        { status: 500 },
+      );
+    }
+
+    console.log(`✅ Saved field mappings for form ${formId}:`, {
+      mappingsCount: mappings.mappings?.length || 0,
+      customMappingsCount: mappings.custom_mappings?.length || 0,
+    });
 
     return NextResponse.json({
       success: true,
