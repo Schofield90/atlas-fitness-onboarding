@@ -255,23 +255,56 @@ export default function ClassBookingsTab({
   };
 
   const fetchAvailableClasses = async () => {
-    const { data, error } = await supabase
-      .from("class_schedules")
-      .select(
-        `
-        *,
-        class_type:class_types(*)
-      `,
-      )
-      .eq("organization_id", organizationId)
-      .eq("status", "scheduled")
-      .gte("start_time", new Date().toISOString())
-      .lt("current_bookings", supabase.rpc("max_capacity"))
-      .order("start_time", { ascending: true })
-      .limit(50);
+    try {
+      // First, get schedules for the organization
+      const { data: schedules, error: schedulesError } = await supabase
+        .from("schedules")
+        .select(
+          `
+          id,
+          name,
+          start_time,
+          duration_minutes,
+          location,
+          max_capacity,
+          status,
+          organization_id
+        `,
+        )
+        .eq("organization_id", organizationId)
+        .eq("status", "active")
+        .order("start_time", { ascending: true });
 
-    if (error) throw error;
-    setAvailableClasses(data || []);
+      if (schedulesError) {
+        console.error("Error fetching schedules:", schedulesError);
+        // Fallback to class_schedules if schedules table doesn't exist
+        const { data: classSchedules, error: classError } = await supabase
+          .from("class_schedules")
+          .select(
+            `
+            *,
+            class_type:class_types(*)
+          `,
+          )
+          .eq("organization_id", organizationId)
+          .eq("status", "scheduled")
+          .gte("start_time", new Date().toISOString())
+          .order("start_time", { ascending: true })
+          .limit(50);
+
+        if (classError) {
+          console.error("Error fetching class schedules:", classError);
+          setAvailableClasses([]);
+        } else {
+          setAvailableClasses(classSchedules || []);
+        }
+      } else {
+        setAvailableClasses(schedules || []);
+      }
+    } catch (error) {
+      console.error("Error fetching available classes:", error);
+      setAvailableClasses([]);
+    }
   };
 
   const getUpcomingBookings = () => {
