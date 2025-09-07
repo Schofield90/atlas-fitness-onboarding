@@ -470,16 +470,32 @@ export default function MultiClassBookingModal({
         }
 
         // Update membership usage if needed
-        if (method.type === "membership" && !method.unlimited) {
-          const { error: membershipError } = await supabase
+        if (method.type === "membership" && method.remaining !== null) {
+          // First get current usage count to ensure accuracy
+          const { data: currentMembership, error: fetchError } = await supabase
             .from("customer_memberships")
-            .update({
-              classes_used_this_period:
-                (method.classes_used_this_period || 0) + 1,
-            })
-            .eq("id", method.id);
+            .select("classes_used_this_period")
+            .eq("id", method.id)
+            .single();
 
-          if (membershipError) throw membershipError;
+          if (fetchError) {
+            console.warn(
+              "Could not fetch current membership usage:",
+              fetchError,
+            );
+            // Continue without updating usage rather than failing the booking
+          } else {
+            const currentUsage =
+              currentMembership?.classes_used_this_period || 0;
+            const { error: membershipError } = await supabase
+              .from("customer_memberships")
+              .update({
+                classes_used_this_period: currentUsage + 1,
+              })
+              .eq("id", method.id);
+
+            if (membershipError) throw membershipError;
+          }
         }
       });
 
