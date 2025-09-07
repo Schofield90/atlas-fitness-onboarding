@@ -15,10 +15,13 @@ import { formatBritishDateTime } from "@/app/lib/utils/british-format";
 
 interface Note {
   id: string;
-  content: string;
+  note?: string; // The actual note content field in DB
+  content?: string; // Legacy field, may exist in some records
   created_at: string;
   updated_at?: string;
   created_by: string | { name?: string; email?: string };
+  created_by_name?: string;
+  created_by_email?: string;
   is_internal?: boolean;
 }
 
@@ -115,7 +118,7 @@ export default function NotesTab({
 
   const startEditing = (note: Note) => {
     setEditingNote(note.id);
-    setEditContent(note.content);
+    setEditContent(note.note || note.content || "");
   };
 
   const cancelEditing = () => {
@@ -238,7 +241,9 @@ export default function NotesTab({
                   </div>
                 </div>
               ) : (
-                <p className="text-white whitespace-pre-wrap">{note.content}</p>
+                <p className="text-white whitespace-pre-wrap">
+                  {note.note || note.content || ""}
+                </p>
               )}
 
               {note.updated_at && note.updated_at !== note.created_at && (
