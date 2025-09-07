@@ -14,6 +14,7 @@ import {
   Minus,
   Package,
   Search,
+  CheckCircle,
 } from "lucide-react";
 import {
   formatBritishDateTime,
@@ -96,22 +97,48 @@ export default function MultiClassBookingModal({
 
   const fetchAvailableClasses = async () => {
     try {
+      // Use class_sessions table - same as the class-calendar page
       const { data, error } = await supabase
-        .from("class_schedules")
+        .from("class_sessions")
         .select(
           `
           *,
-          class_type:class_types(*)
+          program:programs(
+            id,
+            name,
+            description,
+            price_pennies
+          )
         `,
         )
         .eq("organization_id", organizationId)
-        .eq("status", "scheduled")
         .gte("start_time", new Date().toISOString())
-        .lt("current_bookings", supabase.rpc("max_capacity"))
         .order("start_time", { ascending: true });
 
       if (error) throw error;
-      setAvailableClasses(data || []);
+
+      // Transform the data to match the expected format
+      const transformedClasses = (data || []).map((session) => ({
+        ...session,
+        class_type: session.program
+          ? {
+              id: session.program.id,
+              name: session.program.name,
+              description: session.program.description,
+            }
+          : {
+              id: "",
+              name: session.title || "Untitled Class",
+              description: session.description,
+            },
+        max_capacity: session.capacity || 20,
+        current_bookings: 0, // This would need to be calculated from bookings
+        room_location: session.room || session.location,
+        instructor_name: session.instructor,
+        price_pennies: session.price || session.program?.price_pennies || 0,
+      }));
+
+      setAvailableClasses(transformedClasses);
     } catch (error) {
       console.error("Error fetching available classes:", error);
     }
@@ -146,30 +173,54 @@ export default function MultiClassBookingModal({
         });
       });
 
-      // Check for active memberships
+      // Check for active memberships - updated to use customer_memberships table
       const { data: memberships } = await supabase
-        .from("memberships")
-        .select(
-          `
-          *,
-          plan:membership_plans(*)
-        `,
-        )
-        .eq("client_id", customerId)
+        .from("customer_memberships")
+        .select(`*`)
+        .or(`customer_id.eq.${customerId},client_id.eq.${customerId}`)
         .eq("organization_id", organizationId)
         .eq("status", "active");
 
       memberships?.forEach((membership) => {
-        if (membership.plan?.includes_classes) {
+        // Check if membership has class limits
+        if (
+          membership.classes_per_period &&
+          membership.classes_per_period > 0
+        ) {
+          const remainingClasses =
+            membership.classes_per_period -
+            (membership.classes_used_this_period || 0);
+          if (remainingClasses > 0) {
+            methods.push({
+              id: membership.id,
+              type: "membership",
+              name: membership.membership_name || "Membership",
+              description: `${remainingClasses} classes remaining this period`,
+              remaining: remainingClasses,
+              isAvailable: true,
+              unlimited: false,
+            });
+          }
+        } else {
+          // Unlimited classes
           methods.push({
             id: membership.id,
             type: "membership",
-            name: membership.plan.name,
-            description: "Included in membership",
+            name: membership.membership_name || "Membership",
+            description: "Unlimited classes",
             isAvailable: true,
             unlimited: true,
           });
         }
+      });
+
+      // Always add free booking option
+      methods.push({
+        id: "free",
+        type: "card",
+        name: "Free Booking",
+        description: "Complimentary - no charge",
+        isAvailable: true,
       });
 
       // Add card payment option
@@ -288,23 +339,41 @@ export default function MultiClassBookingModal({
         const method = paymentMethods.find((pm) => pm.id === sc.paymentMethod);
         if (!method) throw new Error("Invalid payment method");
 
+        let paymentMethod = "card";
+        let paymentStatus = "pending";
+        let paymentAmount = sc.schedule.price_pennies;
+
+        if (method.type === "membership") {
+          paymentMethod = "membership";
+          paymentStatus = "succeeded";
+          paymentAmount = 0;
+        } else if (method.type === "package") {
+          paymentMethod = "package";
+          paymentStatus = "succeeded";
+          paymentAmount = 0;
+        } else if (method.id === "free") {
+          paymentMethod = "free";
+          paymentStatus = "succeeded";
+          paymentAmount = 0;
+        }
+
         const bookingData = {
-          organization_id: organizationId,
-          schedule_id: sc.schedule.id,
-          client_id: customerId,
-          booking_type: method.type === "package" ? "package" : "single",
-          status: "confirmed",
-          payment_status:
-            method.type === "card" && sc.schedule.price_pennies > 0
-              ? "pending"
-              : "succeeded",
-          payment_amount_pennies:
-            method.type === "card" ? sc.schedule.price_pennies : 0,
-          metadata: method.type === "package" ? { package_id: method.id } : {},
+          customer_id: customerId, // bookings table uses customer_id
+          class_session_id: sc.schedule.id, // bookings table uses class_session_id
+          booking_status: "confirmed", // bookings table uses booking_status
+          payment_status: paymentStatus,
+          notes:
+            method.type === "package"
+              ? `Package booking: ${method.name}`
+              : method.type === "membership"
+                ? `Membership booking: ${method.name}`
+                : method.id === "free"
+                  ? "Complimentary booking"
+                  : null,
         };
 
         const { error: bookingError } = await supabase
-          .from("class_bookings")
+          .from("bookings")
           .insert(bookingData);
 
         if (bookingError) throw bookingError;
@@ -322,6 +391,19 @@ export default function MultiClassBookingModal({
             .eq("id", method.id);
 
           if (packageError) throw packageError;
+        }
+
+        // Update membership usage if needed
+        if (method.type === "membership" && !method.unlimited) {
+          const { error: membershipError } = await supabase
+            .from("customer_memberships")
+            .update({
+              classes_used_this_period:
+                (method.classes_used_this_period || 0) + 1,
+            })
+            .eq("id", method.id);
+
+          if (membershipError) throw membershipError;
         }
       });
 
@@ -568,9 +650,16 @@ export default function MultiClassBookingModal({
                               {method.type === "package" && (
                                 <Package className="h-4 w-4 text-orange-400" />
                               )}
-                              {method.type === "card" && (
-                                <CreditCard className="h-4 w-4 text-blue-400" />
+                              {method.type === "membership" && (
+                                <Users className="h-4 w-4 text-purple-400" />
                               )}
+                              {method.id === "free" && (
+                                <CheckCircle className="h-4 w-4 text-green-400" />
+                              )}
+                              {method.type === "card" &&
+                                method.id !== "free" && (
+                                  <CreditCard className="h-4 w-4 text-blue-400" />
+                                )}
                               <span className="text-white text-sm">
                                 {method.name}
                               </span>
@@ -578,6 +667,7 @@ export default function MultiClassBookingModal({
                                 - {method.description}
                               </span>
                               {method.type === "card" &&
+                                method.id !== "free" &&
                                 sc.schedule.price_pennies > 0 && (
                                   <span className="text-gray-300 text-sm">
                                     ({formatPrice(sc.schedule.price_pennies)})
