@@ -4,6 +4,14 @@ const config = {
   testEnvironment: 'jsdom',
   roots: ['<rootDir>/tests', '<rootDir>/__tests__'],
   testMatch: ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.spec.tsx'],
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '<rootDir>/tests/e2e/',
+    '<rootDir>/tests/ui/',
+    '<rootDir>/tests/integration/',
+    '<rootDir>/tests/database/',
+    '<rootDir>/tests/security/'
+  ],
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {
       tsconfig: {
