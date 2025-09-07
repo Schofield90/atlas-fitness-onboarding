@@ -357,14 +357,48 @@ export default function MultiClassBookingModal({
           paymentAmount = 0;
         }
 
-        // Check if this is a lead or client
+        // For now, always use customer_id until migration is applied
+        // Check if we have a lead entry for this customer
         const { data: leadCheck } = await supabase
           .from("leads")
           .select("id")
           .eq("id", customerId)
-          .single();
+          .maybeSingle();
+
+        let bookingCustomerId = customerId;
+
+        // If no lead exists and this is a client, create a lead entry
+        if (!leadCheck) {
+          const { data: clientData } = await supabase
+            .from("clients")
+            .select("*")
+            .eq("id", customerId)
+            .single();
+
+          if (clientData) {
+            const { data: newLead } = await supabase
+              .from("leads")
+              .insert({
+                first_name: clientData.first_name,
+                last_name: clientData.last_name,
+                email: clientData.email,
+                phone: clientData.phone,
+                organization_id: organizationId,
+                status: "customer",
+                source: "client_sync",
+                client_id: customerId,
+              })
+              .select()
+              .single();
+
+            if (newLead) {
+              bookingCustomerId = newLead.id;
+            }
+          }
+        }
 
         const bookingData: any = {
+          customer_id: bookingCustomerId,
           class_session_id: sc.schedule.id,
           organization_id: organizationId,
           booking_status: "confirmed",
@@ -378,13 +412,6 @@ export default function MultiClassBookingModal({
                   ? "Complimentary booking"
                   : null,
         };
-
-        // Use customer_id if it's a lead, client_id if it's a client
-        if (leadCheck) {
-          bookingData.customer_id = customerId;
-        } else {
-          bookingData.client_id = customerId;
-        }
 
         const { error: bookingError } = await supabase
           .from("bookings")
