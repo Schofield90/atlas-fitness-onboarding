@@ -86,10 +86,16 @@ export default function MultiClassBookingModal({
   useEffect(() => {
     if (isOpen) {
       fetchAvailableClasses();
-      fetchPaymentMethods();
       fetchCustomerDetails();
     }
   }, [isOpen]);
+
+  // Fetch payment methods after customer details are loaded
+  useEffect(() => {
+    if (customer && isOpen) {
+      fetchPaymentMethods();
+    }
+  }, [customer, isOpen]);
 
   useEffect(() => {
     filterClasses();
@@ -174,13 +180,6 @@ export default function MultiClassBookingModal({
       });
 
       // Check for active memberships from customer_memberships table
-      // First check if customer is a lead or client
-      const { data: leadCheck } = await supabase
-        .from("leads")
-        .select("id")
-        .eq("id", customerId)
-        .single();
-
       let membershipQuery = supabase
         .from("customer_memberships")
         .select(
@@ -192,8 +191,8 @@ export default function MultiClassBookingModal({
         .eq("organization_id", organizationId)
         .eq("status", "active");
 
-      // Use appropriate customer field
-      if (leadCheck) {
+      // Use appropriate customer field based on customer type
+      if (customer?.type === "lead") {
         membershipQuery = membershipQuery.eq("customer_id", customerId);
       } else {
         membershipQuery = membershipQuery.eq("client_id", customerId);
@@ -251,16 +250,34 @@ export default function MultiClassBookingModal({
 
   const fetchCustomerDetails = async () => {
     try {
-      const { data, error } = await supabase
+      // First try to fetch from clients table
+      const { data: clientData, error: clientError } = await supabase
         .from("clients")
         .select("*")
         .eq("id", customerId)
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
-      setCustomer(data);
+      if (clientData) {
+        setCustomer({ ...clientData, type: "client" });
+        return;
+      }
+
+      // If not found in clients, try leads table
+      const { data: leadData, error: leadError } = await supabase
+        .from("leads")
+        .select("*")
+        .eq("id", customerId)
+        .maybeSingle();
+
+      if (leadData) {
+        setCustomer({ ...leadData, type: "lead" });
+        return;
+      }
+
+      throw new Error("Customer not found in either clients or leads table");
     } catch (error) {
       console.error("Error fetching customer details:", error);
+      alert("Failed to load customer details. Please try again.");
     }
   };
 
@@ -368,48 +385,10 @@ export default function MultiClassBookingModal({
           paymentAmount = 0;
         }
 
-        // For now, always use customer_id until migration is applied
-        // Check if we have a lead entry for this customer
-        const { data: leadCheck } = await supabase
-          .from("leads")
-          .select("id")
-          .eq("id", customerId)
-          .maybeSingle();
+        if (!customer) throw new Error("Customer data not loaded");
 
-        let bookingCustomerId = customerId;
-
-        // If no lead exists and this is a client, create a lead entry
-        if (!leadCheck) {
-          const { data: clientData } = await supabase
-            .from("clients")
-            .select("*")
-            .eq("id", customerId)
-            .single();
-
-          if (clientData) {
-            const { data: newLead } = await supabase
-              .from("leads")
-              .insert({
-                first_name: clientData.first_name,
-                last_name: clientData.last_name,
-                email: clientData.email,
-                phone: clientData.phone,
-                organization_id: organizationId,
-                status: "customer",
-                source: "client_sync",
-                client_id: customerId,
-              })
-              .select()
-              .single();
-
-            if (newLead) {
-              bookingCustomerId = newLead.id;
-            }
-          }
-        }
-
+        // Build booking data using appropriate customer field
         const bookingData: any = {
-          customer_id: bookingCustomerId,
           class_session_id: sc.schedule.id,
           organization_id: organizationId,
           booking_status: "confirmed",
@@ -423,6 +402,13 @@ export default function MultiClassBookingModal({
                   ? "Complimentary booking"
                   : null,
         };
+
+        // Set appropriate customer field based on customer type
+        if (customer.type === "lead") {
+          bookingData.customer_id = customerId;
+        } else {
+          bookingData.client_id = customerId;
+        }
 
         const { error: bookingError } = await supabase
           .from("bookings")

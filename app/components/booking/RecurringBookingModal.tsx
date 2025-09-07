@@ -111,10 +111,16 @@ export default function RecurringBookingModal({
       fetchClassTypes();
       fetchInstructors();
       fetchCustomerDetails();
-      fetchPaymentMethods();
       resetForm();
     }
   }, [isOpen]);
+
+  // Fetch payment methods after customer details are loaded
+  useEffect(() => {
+    if (customer && isOpen) {
+      fetchPaymentMethods();
+    }
+  }, [customer, isOpen]);
 
   const resetForm = () => {
     setSelectedClassType("");
@@ -182,16 +188,34 @@ export default function RecurringBookingModal({
 
   const fetchCustomerDetails = async () => {
     try {
-      const { data, error } = await supabase
+      // First try to fetch from clients table
+      const { data: clientData, error: clientError } = await supabase
         .from("clients")
         .select("*")
         .eq("id", customerId)
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
-      setCustomer(data);
+      if (clientData) {
+        setCustomer({ ...clientData, type: "client" });
+        return;
+      }
+
+      // If not found in clients, try leads table
+      const { data: leadData, error: leadError } = await supabase
+        .from("leads")
+        .select("*")
+        .eq("id", customerId)
+        .maybeSingle();
+
+      if (leadData) {
+        setCustomer({ ...leadData, type: "lead" });
+        return;
+      }
+
+      throw new Error("Customer not found in either clients or leads table");
     } catch (error) {
       console.error("Error fetching customer details:", error);
+      alert("Failed to load customer details. Please try again.");
     }
   };
 
@@ -200,13 +224,6 @@ export default function RecurringBookingModal({
       const methods: any[] = [];
 
       // Check for active memberships from customer_memberships table
-      // First check if customer is a lead or client
-      const { data: leadCheck } = await supabase
-        .from("leads")
-        .select("id")
-        .eq("id", customerId)
-        .single();
-
       let membershipQuery = supabase
         .from("customer_memberships")
         .select(
@@ -218,8 +235,8 @@ export default function RecurringBookingModal({
         .eq("organization_id", organizationId)
         .eq("status", "active");
 
-      // Use appropriate customer field
-      if (leadCheck) {
+      // Use appropriate customer field based on customer type
+      if (customer?.type === "lead") {
         membershipQuery = membershipQuery.eq("customer_id", customerId);
       } else {
         membershipQuery = membershipQuery.eq("client_id", customerId);
@@ -370,9 +387,11 @@ export default function RecurringBookingModal({
         return;
       }
 
-      const recurringBookingData = {
+      if (!customer) throw new Error("Customer data not loaded");
+
+      // Build recurring booking data using appropriate customer field
+      const recurringBookingData: any = {
         organization_id: organizationId,
-        client_id: customerId,
         class_type_id: selectedClassType || null,
         instructor_id: selectedInstructor || null,
         recurrence_type: recurrenceType,
@@ -385,6 +404,13 @@ export default function RecurringBookingModal({
         price_per_class_pennies: pricePerClass,
         status: "active",
       };
+
+      // Set appropriate customer field based on customer type
+      if (customer.type === "lead") {
+        recurringBookingData.customer_id = customerId;
+      } else {
+        recurringBookingData.client_id = customerId;
+      }
 
       const { error } = await supabase
         .from("recurring_bookings")
