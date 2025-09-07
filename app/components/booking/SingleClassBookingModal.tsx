@@ -289,16 +289,50 @@ export default function SingleClassBookingModal({
       if (!selectedMethod) throw new Error("No payment method selected");
 
       // Check if we're in clients or leads table
-      // Clients typically have UUIDs, leads might have different format
-      // But we'll check if this ID exists in leads table first
       const { data: leadCheck } = await supabase
         .from("leads")
         .select("id")
         .eq("id", customerId)
-        .single();
+        .maybeSingle();
 
-      // Build booking data with appropriate ID field
+      let bookingCustomerId = customerId;
+
+      // If this is a client (not a lead), we need to create a corresponding lead entry
+      // This is a temporary workaround until the migration adds client_id support
+      if (!leadCheck) {
+        // Get client details
+        const { data: clientData } = await supabase
+          .from("clients")
+          .select("*")
+          .eq("id", customerId)
+          .single();
+
+        if (clientData) {
+          // Create a lead entry for this client
+          const { data: newLead, error: leadError } = await supabase
+            .from("leads")
+            .insert({
+              first_name: clientData.first_name,
+              last_name: clientData.last_name,
+              email: clientData.email,
+              phone: clientData.phone,
+              organization_id: organizationId,
+              status: "customer",
+              source: "client_sync",
+              client_id: customerId, // Reference back to the client
+            })
+            .select()
+            .single();
+
+          if (!leadError && newLead) {
+            bookingCustomerId = newLead.id;
+          }
+        }
+      }
+
+      // Build booking data - always use customer_id for now
       const bookingData: any = {
+        customer_id: bookingCustomerId,
         class_session_id: classSchedule.id,
         organization_id: organizationId,
         booking_status: "confirmed",
@@ -317,13 +351,6 @@ export default function SingleClassBookingModal({
                 ? `Package booking: ${selectedMethod.name}`
                 : specialRequirements || null,
       };
-
-      // Use customer_id if it's a lead, client_id if it's a client
-      if (leadCheck) {
-        bookingData.customer_id = customerId;
-      } else {
-        bookingData.client_id = customerId;
-      }
 
       const { error: bookingError } = await supabase
         .from("bookings")
