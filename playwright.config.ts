@@ -4,11 +4,12 @@ import { defineConfig, devices } from '@playwright/test'
  * @see https://playwright.dev/docs/test-configuration
  */
 export default defineConfig({
-  testDir: 'tests',
+  testDir: '.',
   testMatch: [
     'tests/e2e/**/*.spec.ts',
     'tests/comprehensive-verification.spec.ts',
-    'tests/backend-fixes.spec.ts'
+    'tests/backend-fixes.spec.ts',
+    'e2e/**/*.test.ts'
   ],
   testIgnore: [
     'tests/unit/**',
