@@ -92,25 +92,58 @@ export default function SingleClassBookingModal({
   const supabase = createClient();
 
   useEffect(() => {
-    if (isOpen) {
-      fetchCustomerDetails();
-      fetchPaymentMethods();
-      checkExistingBooking();
+    if (isOpen && customerId) {
+      loadBookingData();
     }
   }, [isOpen, customerId, classSchedule.id]);
 
+  const loadBookingData = async () => {
+    try {
+      // Load customer details first
+      await fetchCustomerDetails();
+    } catch (error) {
+      console.error("Error loading booking data:", error);
+    }
+  };
+
+  // Load payment methods and check bookings after customer is loaded
+  useEffect(() => {
+    if (customer && isOpen) {
+      fetchPaymentMethods();
+      checkExistingBooking();
+    }
+  }, [customer, isOpen]);
+
   const fetchCustomerDetails = async () => {
     try {
-      const { data, error } = await supabase
+      // First try to fetch from clients table
+      const { data: clientData, error: clientError } = await supabase
         .from("clients")
         .select("*")
         .eq("id", customerId)
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
-      setCustomer(data);
+      if (clientData) {
+        setCustomer({ ...clientData, type: "client" });
+        return;
+      }
+
+      // If not found in clients, try leads table
+      const { data: leadData, error: leadError } = await supabase
+        .from("leads")
+        .select("*")
+        .eq("id", customerId)
+        .maybeSingle();
+
+      if (leadData) {
+        setCustomer({ ...leadData, type: "lead" });
+        return;
+      }
+
+      throw new Error("Customer not found in either clients or leads table");
     } catch (error) {
       console.error("Error fetching customer details:", error);
+      alert("Failed to load customer details. Please try again.");
     }
   };
 
@@ -144,13 +177,7 @@ export default function SingleClassBookingModal({
       });
 
       // Check for active memberships from customer_memberships table
-      // First check if customer is a lead or client
-      const { data: leadCheck } = await supabase
-        .from("leads")
-        .select("id")
-        .eq("id", customerId)
-        .single();
-
+      // Use customer type to determine which field to query
       let membershipQuery = supabase
         .from("customer_memberships")
         .select(
@@ -162,8 +189,8 @@ export default function SingleClassBookingModal({
         .eq("organization_id", organizationId)
         .eq("status", "active");
 
-      // Use appropriate customer field
-      if (leadCheck) {
+      // Use appropriate customer field based on customer type
+      if (customer?.type === "lead") {
         membershipQuery = membershipQuery.eq("customer_id", customerId);
       } else {
         membershipQuery = membershipQuery.eq("client_id", customerId);
@@ -234,16 +261,25 @@ export default function SingleClassBookingModal({
 
   const checkExistingBooking = async () => {
     try {
-      const { data, error } = await supabase
+      // Check for existing booking using appropriate customer field
+      let query = supabase
         .from("bookings")
         .select("*")
-        .eq("customer_id", customerId)
         .eq("class_session_id", classSchedule.id)
-        .eq("booking_status", "confirmed")
-        .single();
+        .eq("booking_status", "confirmed");
+
+      // Use customer_id for leads, client_id for clients
+      if (customer?.type === "lead") {
+        query = query.eq("customer_id", customerId);
+      } else {
+        query = query.eq("client_id", customerId);
+      }
+
+      const { data, error } = await query.maybeSingle();
 
       if (data) setExistingBooking(data);
     } catch (error) {
+      console.error("Error checking existing booking:", error);
       // No existing booking found - this is expected
     }
   };
@@ -288,51 +324,10 @@ export default function SingleClassBookingModal({
       );
       if (!selectedMethod) throw new Error("No payment method selected");
 
-      // Check if we're in clients or leads table
-      const { data: leadCheck } = await supabase
-        .from("leads")
-        .select("id")
-        .eq("id", customerId)
-        .maybeSingle();
+      if (!customer) throw new Error("Customer data not loaded");
 
-      let bookingCustomerId = customerId;
-
-      // If this is a client (not a lead), we need to create a corresponding lead entry
-      // This is a temporary workaround until the migration adds client_id support
-      if (!leadCheck) {
-        // Get client details
-        const { data: clientData } = await supabase
-          .from("clients")
-          .select("*")
-          .eq("id", customerId)
-          .single();
-
-        if (clientData) {
-          // Create a lead entry for this client
-          const { data: newLead, error: leadError } = await supabase
-            .from("leads")
-            .insert({
-              first_name: clientData.first_name,
-              last_name: clientData.last_name,
-              email: clientData.email,
-              phone: clientData.phone,
-              organization_id: organizationId,
-              status: "customer",
-              source: "client_sync",
-              client_id: customerId, // Reference back to the client
-            })
-            .select()
-            .single();
-
-          if (!leadError && newLead) {
-            bookingCustomerId = newLead.id;
-          }
-        }
-      }
-
-      // Build booking data - always use customer_id for now
+      // Build booking data using appropriate customer field
       const bookingData: any = {
-        customer_id: bookingCustomerId,
         class_session_id: classSchedule.id,
         organization_id: organizationId,
         booking_status: "confirmed",
@@ -352,11 +347,21 @@ export default function SingleClassBookingModal({
                 : specialRequirements || null,
       };
 
+      // Set appropriate customer field based on customer type
+      if (customer.type === "lead") {
+        bookingData.customer_id = customerId;
+      } else {
+        bookingData.client_id = customerId;
+      }
+
       const { error: bookingError } = await supabase
         .from("bookings")
         .insert(bookingData);
 
-      if (bookingError) throw bookingError;
+      if (bookingError) {
+        console.error("Booking error:", bookingError);
+        throw bookingError;
+      }
 
       // If using a package, update the package usage
       if (selectedMethod.type === "package") {
@@ -370,7 +375,10 @@ export default function SingleClassBookingModal({
           })
           .eq("id", selectedMethod.id);
 
-        if (packageError) throw packageError;
+        if (packageError) {
+          console.error("Package update error:", packageError);
+          // Don't throw - booking was successful even if package update failed
+        }
       }
 
       // If using a membership with class limits, update usage count
@@ -393,7 +401,10 @@ export default function SingleClassBookingModal({
             })
             .eq("id", selectedMethod.id);
 
-          if (membershipError) throw membershipError;
+          if (membershipError) {
+            console.error("Membership update error:", membershipError);
+            // Don't throw - booking was successful even if membership update failed
+          }
         }
       }
 
