@@ -149,7 +149,6 @@ export default function ClassBookingsTab({
     RecurringBooking[]
   >([]);
   const [classPackages, setClassPackages] = useState<ClassPackage[]>([]);
-  const [availableClasses, setAvailableClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
 
@@ -190,7 +189,6 @@ export default function ClassBookingsTab({
         fetchBookings(),
         fetchRecurringBookings(),
         fetchClassPackages(),
-        fetchAvailableClasses(),
       ]);
     } catch (error) {
       console.error("Error fetching class booking data:", error);
@@ -252,58 +250,6 @@ export default function ClassBookingsTab({
 
     if (error) throw error;
     setClassPackages(data || []);
-  };
-
-  const fetchAvailableClasses = async () => {
-    try {
-      // Use class_sessions table - same as the class-calendar page
-      const { data: classSessions, error } = await supabase
-        .from("class_sessions")
-        .select(
-          `
-          *,
-          program:programs(
-            id,
-            name,
-            description,
-            price_pennies
-          )
-        `,
-        )
-        .eq("organization_id", organizationId)
-        .gte("start_time", new Date().toISOString())
-        .order("start_time", { ascending: true })
-        .limit(50);
-
-      if (error) {
-        console.error("Error fetching class sessions:", error);
-        setAvailableClasses([]);
-      } else {
-        // Transform the data to match the expected format
-        const transformedClasses = (classSessions || []).map((session) => ({
-          ...session,
-          class_type: session.program
-            ? {
-                id: session.program.id,
-                name: session.program.name,
-                description: session.program.description,
-              }
-            : null,
-          name: session.title || session.program?.name || "Untitled Class",
-          max_capacity: session.capacity || 20,
-          current_bookings: 0, // This would need to be calculated from bookings
-          room_location: session.room || session.location,
-          instructor_name: session.instructor,
-          price_pennies: session.price || session.program?.price_pennies || 0,
-        }));
-
-        console.log("Fetched class sessions:", transformedClasses.length);
-        setAvailableClasses(transformedClasses);
-      }
-    } catch (error) {
-      console.error("Error fetching available classes:", error);
-      setAvailableClasses([]);
-    }
   };
 
   const getUpcomingBookings = () => {
@@ -511,166 +457,84 @@ export default function ClassBookingsTab({
       <div className="bg-gray-800 rounded-lg p-6">
         {activeTab === "upcoming" && (
           <div className="space-y-6">
-            {/* Quick Book Section */}
+            {/* Upcoming Sessions */}
             <div>
               <h4 className="text-lg font-medium text-white mb-4">
-                Available Classes
-              </h4>
-              {availableClasses.length === 0 ? (
-                <div className="bg-gray-700 rounded-lg p-8 text-center mb-6">
-                  <Calendar className="h-12 w-12 text-gray-500 mx-auto mb-4" />
-                  <p className="text-gray-300 mb-2">
-                    No classes available at the moment
-                  </p>
-                  <p className="text-gray-400 text-sm">
-                    Classes will appear here once they are scheduled by the gym.
-                  </p>
-                  <p className="text-gray-400 text-sm mt-4">
-                    You can still use the booking buttons above to create test
-                    bookings.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                  {availableClasses.slice(0, 6).map((classItem) => (
-                    <div
-                      key={classItem.id}
-                      className="bg-gray-700 rounded-lg p-4"
-                    >
-                      <h5 className="font-medium text-white mb-2">
-                        {classItem.class_type?.name ||
-                          classItem.name ||
-                          "Untitled Class"}
-                      </h5>
-                      <div className="space-y-2 text-sm text-gray-300 mb-3">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4" />
-                          {formatBritishDateTime(classItem.start_time)}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4" />
-                          {classItem.current_bookings || 0}/
-                          {classItem.max_capacity || 20}
-                        </div>
-                        {(classItem.room_location || classItem.location) && (
-                          <div className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4" />
-                            {classItem.room_location || classItem.location}
-                          </div>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => handleOpenSingleBooking(classItem)}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
-                      >
-                        Book Class
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Upcoming Bookings */}
-            <div>
-              <h4 className="text-lg font-medium text-white mb-4">
-                Upcoming Bookings
+                Upcoming Sessions
               </h4>
               {getUpcomingBookings().length === 0 ? (
-                <div className="text-center py-8">
-                  <Calendar className="h-12 w-12 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400">No upcoming bookings</p>
+                <div className="bg-gray-700 rounded-lg p-8 text-center">
+                  <Calendar className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+                  <p className="text-gray-300 mb-2">
+                    No upcoming sessions booked
+                  </p>
+                  <p className="text-gray-400 text-sm">
+                    Use the "Book Class" button above to book this client into
+                    classes.
+                  </p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {getUpcomingBookings().map((booking) => (
-                    <div
-                      key={booking.id}
-                      className="bg-gray-700 rounded-lg p-4"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h5 className="font-medium text-white">
-                              {booking.class_schedule.class_type?.name ||
-                                "Untitled Class"}
-                            </h5>
-                            <div className="flex items-center gap-1">
-                              {getStatusIcon(booking.status)}
-                              <span
-                                className={`px-2 py-1 text-xs text-white rounded ${getStatusColor(booking.status)}`}
-                              >
-                                {booking.status}
-                              </span>
-                            </div>
-                            {booking.booking_type === "recurring" && (
-                              <span className="flex items-center gap-1 px-2 py-1 text-xs bg-purple-600 text-white rounded">
-                                <Repeat className="h-3 w-3" />
-                                Recurring
-                              </span>
-                            )}
-                            {booking.booking_type === "package" && (
-                              <span className="flex items-center gap-1 px-2 py-1 text-xs bg-orange-600 text-white rounded">
-                                <Package className="h-3 w-3" />
-                                Package
-                              </span>
-                            )}
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-300 mb-3">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4" />
-                              {formatBritishDate(
-                                booking.class_schedule.start_time,
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4" />
-                              {
-                                formatBritishDateTime(
-                                  booking.class_schedule.start_time,
-                                ).split(" ")[1]
-                              }{" "}
-                              -{" "}
-                              {
-                                formatBritishDateTime(
-                                  booking.class_schedule.end_time,
-                                ).split(" ")[1]
-                              }
-                            </div>
-                            {booking.class_schedule.room_location && (
-                              <div className="flex items-center gap-2">
-                                <MapPin className="h-4 w-4" />
-                                {booking.class_schedule.room_location}
-                              </div>
-                            )}
-                          </div>
-                          {booking.special_requirements && (
-                            <p className="text-sm text-gray-400 mb-2">
-                              <strong>Special Requirements:</strong>{" "}
-                              {booking.special_requirements}
-                            </p>
-                          )}
-                          {booking.payment_amount_pennies > 0 && (
-                            <p className="text-sm text-gray-400">
-                              <strong>Payment:</strong>{" "}
-                              {formatPrice(booking.payment_amount_pennies)} (
-                              {booking.payment_status})
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 ml-4">
-                          {canCancelBooking(booking) && (
-                            <button
-                              onClick={() => handleCancelBooking(booking.id)}
-                              className="text-red-400 hover:text-red-300 transition-colors"
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {getUpcomingBookings()
+                    .slice(0, 6)
+                    .map((booking) => (
+                      <div
+                        key={booking.id}
+                        className="bg-gray-700 rounded-lg p-4"
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <h5 className="font-medium text-white">
+                            {booking.class_schedule.class_type?.name ||
+                              "Untitled Class"}
+                          </h5>
+                          <div className="flex items-center gap-1">
+                            {getStatusIcon(booking.status)}
+                            <span
+                              className={`px-2 py-1 text-xs text-white rounded ${getStatusColor(booking.status)}`}
                             >
-                              <XCircle className="h-5 w-5" />
-                            </button>
+                              {booking.status}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="space-y-2 text-sm text-gray-300">
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4" />
+                            {
+                              formatBritishDateTime(
+                                booking.class_schedule.start_time,
+                              ).split(" ")[1]
+                            }{" "}
+                            -{" "}
+                            {
+                              formatBritishDateTime(
+                                booking.class_schedule.end_time,
+                              ).split(" ")[1]
+                            }
+                          </div>
+                          {booking.class_schedule.room_location && (
+                            <div className="flex items-center gap-2">
+                              <MapPin className="h-4 w-4" />
+                              {booking.class_schedule.room_location}
+                            </div>
+                          )}
+                          {booking.booking_type === "recurring" && (
+                            <div className="flex items-center gap-2">
+                              <Repeat className="h-4 w-4" />
+                              <span className="text-xs">Recurring</span>
+                            </div>
                           )}
                         </div>
+                        {canCancelBooking(booking) && (
+                          <button
+                            onClick={() => handleCancelBooking(booking.id)}
+                            className="mt-3 text-sm text-red-400 hover:text-red-300 transition-colors flex items-center gap-2"
+                          >
+                            <XCircle className="h-4 w-4" />
+                            Cancel Booking
+                          </button>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               )}
             </div>
