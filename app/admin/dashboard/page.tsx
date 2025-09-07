@@ -1,12 +1,12 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { createClient } from '@/app/lib/supabase/client'
-import InterfaceSwitcher from '@/app/components/InterfaceSwitcher'
-import { 
-  Building2, 
-  Users, 
-  DollarSign, 
+import { useState, useEffect } from "react";
+import { createClient } from "@/app/lib/supabase/client";
+import InterfaceSwitcher from "@/app/components/InterfaceSwitcher";
+import {
+  Building2,
+  Users,
+  DollarSign,
   Activity,
   TrendingUp,
   AlertCircle,
@@ -14,10 +14,10 @@ import {
   Clock,
   Server,
   Database,
-  Cpu
-} from 'lucide-react'
-import { useRouter } from 'next/navigation'
-import toast from '@/app/lib/toast'
+  Cpu,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import toast from "@/app/lib/toast";
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<any>({
@@ -25,80 +25,81 @@ export default function AdminDashboard() {
     activeOrgs: 0,
     totalUsers: 0,
     totalRevenue: 0,
-    systemHealth: 'healthy',
-    recentActivity: []
-  })
-  const [loading, setLoading] = useState(true)
-  const [user, setUser] = useState<any>(null)
-  const router = useRouter()
-  const supabase = createClient()
+    systemHealth: "healthy",
+    recentActivity: [],
+  });
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const router = useRouter();
+  const supabase = createClient();
 
   useEffect(() => {
-    checkAuth()
-    fetchStats()
-  }, [])
+    checkAuth();
+    fetchStats();
+  }, []);
 
   const checkAuth = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     // Check if user is logged in first
     if (!user) {
-      router.push('/login')
-      return
+      router.push("/login");
+      return;
     }
-    
+
     // Check if user is authorized (allow both admin emails)
-    const authorizedEmails = ['sam@gymleadhub.co.uk', 'sam@atlas-gyms.co.uk']
-    if (!authorizedEmails.includes(user.email?.toLowerCase() || '')) {
-      toast.error('Unauthorized access - Admin only')
+    const authorizedEmails = ["sam@gymleadhub.co.uk", "sam@atlas-gyms.co.uk"];
+    if (!authorizedEmails.includes(user.email?.toLowerCase() || "")) {
+      toast.error("Unauthorized access - Admin only");
       // Redirect to dashboard-direct to avoid auth loops
-      router.push('/dashboard-direct')
-      return
+      router.push("/dashboard-direct");
+      return;
     }
-    
-    setUser(user)
-  }
+
+    setUser(user);
+  };
 
   const fetchStats = async () => {
     try {
       // Fetch organization stats
       const { data: orgs } = await supabase
-        .from('organizations')
-        .select('id, name, created_at, subscription_status')
-      
+        .from("organizations")
+        .select("id, name, created_at, subscription_status");
+
       const { data: users } = await supabase
-        .from('user_organizations')
-        .select('user_id')
-        .eq('is_active', true)
-      
-      const { data: leads } = await supabase
-        .from('leads')
-        .select('id')
-      
+        .from("user_organizations")
+        .select("user_id")
+        .eq("is_active", true);
+
+      const { data: leads } = await supabase.from("leads").select("id");
+
       // Calculate stats - count unique users
-      const uniqueUsers = new Set(users?.map(u => u.user_id) || [])
+      const uniqueUsers = new Set(users?.map((u) => u.user_id) || []);
       setStats({
         totalOrgs: orgs?.length || 0,
-        activeOrgs: orgs?.filter(o => o.subscription_status === 'active').length || 0,
+        activeOrgs:
+          orgs?.filter((o) => o.subscription_status === "active").length || 0,
         totalUsers: uniqueUsers.size,
         totalLeads: leads?.length || 0,
         totalRevenue: 0, // Would come from Stripe
-        systemHealth: 'healthy',
-        recentOrgs: orgs?.slice(0, 5) || []
-      })
+        systemHealth: "healthy",
+        recentOrgs: orgs?.slice(0, 5) || [],
+      });
     } catch (error) {
-      console.error('Error fetching stats:', error)
+      console.error("Error fetching stats:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
       </div>
-    )
+    );
   }
 
   return (
@@ -107,14 +108,16 @@ export default function AdminDashboard() {
       <header className="bg-gray-800 border-b border-gray-700 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-purple-500">SaaS Admin Dashboard</h1>
-            <p className="text-sm text-gray-400">Platform administration and monitoring</p>
+            <h1 className="text-2xl font-bold text-purple-500">
+              SaaS Admin Dashboard
+            </h1>
+            <p className="text-sm text-gray-400">
+              Platform administration and monitoring
+            </p>
           </div>
           <div className="flex items-center gap-4">
             <InterfaceSwitcher currentInterface="admin" />
-            <div className="text-sm text-gray-400">
-              {user?.email}
-            </div>
+            <div className="text-sm text-gray-400">{user?.email}</div>
           </div>
         </div>
       </header>
@@ -175,7 +178,10 @@ export default function AdminDashboard() {
             </h2>
             <div className="space-y-2">
               {stats.recentOrgs?.map((org: any) => (
-                <div key={org.id} className="flex justify-between items-center py-2 border-b border-gray-700">
+                <div
+                  key={org.id}
+                  className="flex justify-between items-center py-2 border-b border-gray-700"
+                >
                   <div>
                     <div className="font-medium">{org.name}</div>
                     <div className="text-xs text-gray-400">
@@ -183,7 +189,9 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                   <button
-                    onClick={() => router.push(`/admin/organizations/${org.id}`)}
+                    onClick={() =>
+                      router.push(`/admin/organizations/${org.id}`)
+                    }
                     className="text-sm text-purple-500 hover:text-purple-400"
                   >
                     View
@@ -200,28 +208,34 @@ export default function AdminDashboard() {
             </h2>
             <div className="space-y-3">
               <button
-                onClick={() => router.push('/admin/organizations')}
+                onClick={() => router.push("/admin/organizations")}
                 className="w-full text-left px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors"
               >
                 Manage Organizations
               </button>
               <button
-                onClick={() => router.push('/admin/billing')}
+                onClick={() => router.push("/admin/billing")}
                 className="w-full text-left px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors"
               >
                 Billing & Subscriptions
               </button>
               <button
-                onClick={() => router.push('/admin/impersonation')}
+                onClick={() => router.push("/admin/impersonation")}
                 className="w-full text-left px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors"
               >
                 User Impersonation
               </button>
               <button
-                onClick={() => router.push('/admin/system')}
+                onClick={() => router.push("/admin/system")}
                 className="w-full text-left px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors"
               >
                 System Settings
+              </button>
+              <button
+                onClick={() => router.push("/admin/landing-pages")}
+                className="w-full text-left px-4 py-2 bg-purple-700 rounded-lg hover:bg-purple-600 transition-colors font-medium"
+              >
+                Landing Page Builder
               </button>
             </div>
           </div>
@@ -258,7 +272,7 @@ export default function AdminDashboard() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function StatCard({ title, value, icon, color, bgColor }: any) {
@@ -272,54 +286,59 @@ function StatCard({ title, value, icon, color, bgColor }: any) {
       <div className="text-3xl font-bold mb-1">{value.toLocaleString()}</div>
       <div className="text-sm text-gray-400">{title}</div>
     </div>
-  )
+  );
 }
 
 function HealthItem({ label, status }: any) {
   const getStatusIcon = () => {
     switch (status) {
-      case 'healthy':
-        return <CheckCircle className="w-4 h-4 text-green-500" />
-      case 'warning':
-        return <AlertCircle className="w-4 h-4 text-yellow-500" />
-      case 'error':
-        return <AlertCircle className="w-4 h-4 text-red-500" />
+      case "healthy":
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case "warning":
+        return <AlertCircle className="w-4 h-4 text-yellow-500" />;
+      case "error":
+        return <AlertCircle className="w-4 h-4 text-red-500" />;
       default:
-        return <Clock className="w-4 h-4 text-gray-500" />
+        return <Clock className="w-4 h-4 text-gray-500" />;
     }
-  }
+  };
 
   return (
     <div className="flex items-center justify-between">
       <span className="text-sm">{label}</span>
       <div className="flex items-center gap-2">
         {getStatusIcon()}
-        <span className={`text-xs ${
-          status === 'healthy' ? 'text-green-500' :
-          status === 'warning' ? 'text-yellow-500' :
-          status === 'error' ? 'text-red-500' :
-          'text-gray-500'
-        }`}>
+        <span
+          className={`text-xs ${
+            status === "healthy"
+              ? "text-green-500"
+              : status === "warning"
+                ? "text-yellow-500"
+                : status === "error"
+                  ? "text-red-500"
+                  : "text-gray-500"
+          }`}
+        >
           {status}
         </span>
       </div>
     </div>
-  )
+  );
 }
 
 function ActivityItem({ time, text, type }: any) {
   const getTypeIcon = () => {
     switch (type) {
-      case 'success':
-        return <CheckCircle className="w-4 h-4 text-green-500" />
-      case 'warning':
-        return <AlertCircle className="w-4 h-4 text-yellow-500" />
-      case 'error':
-        return <AlertCircle className="w-4 h-4 text-red-500" />
+      case "success":
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case "warning":
+        return <AlertCircle className="w-4 h-4 text-yellow-500" />;
+      case "error":
+        return <AlertCircle className="w-4 h-4 text-red-500" />;
       default:
-        return <Activity className="w-4 h-4 text-blue-500" />
+        return <Activity className="w-4 h-4 text-blue-500" />;
     }
-  }
+  };
 
   return (
     <div className="flex items-start gap-3 py-2 border-b border-gray-700 last:border-0">
@@ -329,5 +348,5 @@ function ActivityItem({ time, text, type }: any) {
         <div className="text-xs text-gray-500">{time}</div>
       </div>
     </div>
-  )
+  );
 }
