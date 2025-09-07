@@ -299,11 +299,11 @@ async function getClients(request: NextRequest) {
         console.error("Error fetching memberships:", membershipError);
       }
 
-      // Fetch membership plans
+      // Fetch membership plans (table uses organization_id not org_id)
       const { data: membershipPlans, error: plansError } = await supabase
         .from("membership_plans")
         .select("*")
-        .eq("org_id", userWithOrg.organizationId);
+        .eq("organization_id", userWithOrg.organizationId);
 
       console.log("Fetched membership plans:", membershipPlans?.length || 0);
       if (plansError) {
