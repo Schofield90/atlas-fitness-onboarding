@@ -256,50 +256,49 @@ export default function ClassBookingsTab({
 
   const fetchAvailableClasses = async () => {
     try {
-      // First, get schedules for the organization
-      const { data: schedules, error: schedulesError } = await supabase
-        .from("schedules")
+      // Use class_sessions table - same as the class-calendar page
+      const { data: classSessions, error } = await supabase
+        .from("class_sessions")
         .select(
           `
-          id,
-          name,
-          start_time,
-          duration_minutes,
-          location,
-          max_capacity,
-          status,
-          organization_id
+          *,
+          program:programs(
+            id,
+            name,
+            description,
+            price_pennies
+          )
         `,
         )
         .eq("organization_id", organizationId)
-        .eq("status", "active")
-        .order("start_time", { ascending: true });
+        .gte("start_time", new Date().toISOString())
+        .order("start_time", { ascending: true })
+        .limit(50);
 
-      if (schedulesError) {
-        console.error("Error fetching schedules:", schedulesError);
-        // Fallback to class_schedules if schedules table doesn't exist
-        const { data: classSchedules, error: classError } = await supabase
-          .from("class_schedules")
-          .select(
-            `
-            *,
-            class_type:class_types(*)
-          `,
-          )
-          .eq("organization_id", organizationId)
-          .eq("status", "scheduled")
-          .gte("start_time", new Date().toISOString())
-          .order("start_time", { ascending: true })
-          .limit(50);
-
-        if (classError) {
-          console.error("Error fetching class schedules:", classError);
-          setAvailableClasses([]);
-        } else {
-          setAvailableClasses(classSchedules || []);
-        }
+      if (error) {
+        console.error("Error fetching class sessions:", error);
+        setAvailableClasses([]);
       } else {
-        setAvailableClasses(schedules || []);
+        // Transform the data to match the expected format
+        const transformedClasses = (classSessions || []).map((session) => ({
+          ...session,
+          class_type: session.program
+            ? {
+                id: session.program.id,
+                name: session.program.name,
+                description: session.program.description,
+              }
+            : null,
+          name: session.title || session.program?.name || "Untitled Class",
+          max_capacity: session.capacity || 20,
+          current_bookings: 0, // This would need to be calculated from bookings
+          room_location: session.room || session.location,
+          instructor_name: session.instructor,
+          price_pennies: session.price || session.program?.price_pennies || 0,
+        }));
+
+        console.log("Fetched class sessions:", transformedClasses.length);
+        setAvailableClasses(transformedClasses);
       }
     } catch (error) {
       console.error("Error fetching available classes:", error);
@@ -517,40 +516,59 @@ export default function ClassBookingsTab({
               <h4 className="text-lg font-medium text-white mb-4">
                 Available Classes
               </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                {availableClasses.slice(0, 6).map((classItem) => (
-                  <div
-                    key={classItem.id}
-                    className="bg-gray-700 rounded-lg p-4"
-                  >
-                    <h5 className="font-medium text-white mb-2">
-                      {classItem.class_type?.name || "Untitled Class"}
-                    </h5>
-                    <div className="space-y-2 text-sm text-gray-300 mb-3">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
-                        {formatBritishDateTime(classItem.start_time)}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4" />
-                        {classItem.current_bookings}/{classItem.max_capacity}
-                      </div>
-                      {classItem.room_location && (
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4" />
-                          {classItem.room_location}
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => handleOpenSingleBooking(classItem)}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
+              {availableClasses.length === 0 ? (
+                <div className="bg-gray-700 rounded-lg p-8 text-center mb-6">
+                  <Calendar className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+                  <p className="text-gray-300 mb-2">
+                    No classes available at the moment
+                  </p>
+                  <p className="text-gray-400 text-sm">
+                    Classes will appear here once they are scheduled by the gym.
+                  </p>
+                  <p className="text-gray-400 text-sm mt-4">
+                    You can still use the booking buttons above to create test
+                    bookings.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                  {availableClasses.slice(0, 6).map((classItem) => (
+                    <div
+                      key={classItem.id}
+                      className="bg-gray-700 rounded-lg p-4"
                     >
-                      Book Class
-                    </button>
-                  </div>
-                ))}
-              </div>
+                      <h5 className="font-medium text-white mb-2">
+                        {classItem.class_type?.name ||
+                          classItem.name ||
+                          "Untitled Class"}
+                      </h5>
+                      <div className="space-y-2 text-sm text-gray-300 mb-3">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4" />
+                          {formatBritishDateTime(classItem.start_time)}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4" />
+                          {classItem.current_bookings || 0}/
+                          {classItem.max_capacity || 20}
+                        </div>
+                        {(classItem.room_location || classItem.location) && (
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4" />
+                            {classItem.room_location || classItem.location}
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleOpenSingleBooking(classItem)}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        Book Class
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Upcoming Bookings */}

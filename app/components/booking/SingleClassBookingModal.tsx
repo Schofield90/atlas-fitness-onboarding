@@ -22,7 +22,7 @@ import {
 interface SingleClassBookingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  classSchedule: {
+  classSchedule?: {
     id: string;
     start_time: string;
     end_time: string;
@@ -61,7 +61,19 @@ const formatPrice = (pennies: number) => {
 export default function SingleClassBookingModal({
   isOpen,
   onClose,
-  classSchedule,
+  classSchedule = {
+    id: "",
+    start_time: new Date().toISOString(),
+    end_time: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    max_capacity: 20,
+    current_bookings: 0,
+    price_pennies: 0,
+    class_type: {
+      id: "",
+      name: "Test Class",
+      description: "This is a test class booking",
+    },
+  },
   customerId,
   organizationId,
   onBookingCreated,
@@ -131,29 +143,65 @@ export default function SingleClassBookingModal({
         });
       });
 
-      // Check for active memberships (if they include classes)
-      const { data: memberships } = await supabase
-        .from("memberships")
+      // Check for active memberships from customer_memberships table
+      // First check if customer is a lead or client
+      const { data: leadCheck } = await supabase
+        .from("leads")
+        .select("id")
+        .eq("id", customerId)
+        .single();
+
+      let membershipQuery = supabase
+        .from("customer_memberships")
         .select(
           `
           *,
-          plan:membership_plans(*)
+          membership_plans (*)
         `,
         )
-        .eq("client_id", customerId)
         .eq("organization_id", organizationId)
         .eq("status", "active");
 
+      // Use appropriate customer field
+      if (leadCheck) {
+        membershipQuery = membershipQuery.eq("customer_id", customerId);
+      } else {
+        membershipQuery = membershipQuery.eq("client_id", customerId);
+      }
+
+      const { data: memberships } = await membershipQuery;
+
       memberships?.forEach((membership) => {
-        if (membership.plan?.includes_classes) {
+        const plan = membership.membership_plans;
+        if (plan) {
+          // Check if membership has class limits
+          const hasClassLimit =
+            plan.classes_per_period && plan.classes_per_period > 0;
+          const classesUsed = membership.classes_used_this_period || 0;
+          const classesRemaining = hasClassLimit
+            ? plan.classes_per_period - classesUsed
+            : null;
+
           methods.push({
             id: membership.id,
             type: "membership",
-            name: membership.plan.name,
-            description: "Included in membership",
-            isAvailable: true,
+            name: plan.name,
+            description: hasClassLimit
+              ? `${classesRemaining} classes remaining this period`
+              : "Unlimited classes included",
+            remaining: classesRemaining,
+            isAvailable: !hasClassLimit || classesRemaining > 0,
           });
         }
+      });
+
+      // Always add free booking option
+      methods.push({
+        id: "free",
+        type: "card",
+        name: "Free Booking",
+        description: "Complimentary - no charge",
+        isAvailable: true,
       });
 
       // Add card payment option if there's a price
@@ -161,27 +209,21 @@ export default function SingleClassBookingModal({
         methods.push({
           id: "card",
           type: "card",
-          name: "Credit/Debit Card",
+          name: "Pay Drop-in Rate",
           description: formatPrice(classSchedule.price_pennies),
-          isAvailable: true,
-        });
-      }
-
-      // Add free option if price is 0
-      if (classSchedule.price_pennies === 0) {
-        methods.push({
-          id: "free",
-          type: "card",
-          name: "Free Class",
-          description: "No payment required",
           isAvailable: true,
         });
       }
 
       setPaymentMethods(methods);
 
-      // Auto-select first available method
-      const availableMethod = methods.find((m) => m.isAvailable);
+      // Auto-select first available method (prefer membership/package over paid)
+      const availableMethod =
+        methods.find((m) => m.isAvailable && m.type === "membership") ||
+        methods.find((m) => m.isAvailable && m.type === "package") ||
+        methods.find((m) => m.isAvailable && m.id === "free") ||
+        methods.find((m) => m.isAvailable);
+
       if (availableMethod) {
         setSelectedPaymentMethod(availableMethod.id);
       }
@@ -193,11 +235,11 @@ export default function SingleClassBookingModal({
   const checkExistingBooking = async () => {
     try {
       const { data, error } = await supabase
-        .from("class_bookings")
+        .from("bookings")
         .select("*")
-        .eq("client_id", customerId)
-        .eq("schedule_id", classSchedule.id)
-        .eq("status", "confirmed")
+        .eq("customer_id", customerId)
+        .eq("class_session_id", classSchedule.id)
+        .eq("booking_status", "confirmed")
         .single();
 
       if (data) setExistingBooking(data);
@@ -246,27 +288,37 @@ export default function SingleClassBookingModal({
       );
       if (!selectedMethod) throw new Error("No payment method selected");
 
+      // Check if we're in clients or leads table
+      const isClient = customerId.length === 36; // UUID length check
+
+      // For bookings table that references leads
+      let bookingCustomerId = customerId;
+
+      // If it's a client, we might need to find or create corresponding lead
+      // For now, we'll use the client ID directly
+
       const bookingData = {
-        organization_id: organizationId,
-        schedule_id: classSchedule.id,
-        client_id: customerId,
-        booking_type: selectedMethod.type === "package" ? "package" : "single",
-        status: "confirmed",
+        customer_id: bookingCustomerId, // bookings table uses customer_id referencing leads
+        class_session_id: classSchedule.id, // bookings table uses class_session_id
+        booking_status: "confirmed", // bookings table uses booking_status
         payment_status:
-          selectedMethod.type === "card" && classSchedule.price_pennies > 0
+          selectedMethod.id === "card" && classSchedule.price_pennies > 0
             ? "pending"
-            : "succeeded",
-        payment_amount_pennies:
-          selectedMethod.type === "card" ? classSchedule.price_pennies : 0,
-        special_requirements: specialRequirements || null,
-        metadata:
-          selectedMethod.type === "package"
-            ? { package_id: selectedMethod.id }
-            : {},
+            : selectedMethod.id === "free"
+              ? "paid"
+              : "paid",
+        notes:
+          selectedMethod.id === "free"
+            ? "Complimentary booking"
+            : selectedMethod.type === "membership"
+              ? `Membership booking: ${selectedMethod.name}`
+              : selectedMethod.type === "package"
+                ? `Package booking: ${selectedMethod.name}`
+                : specialRequirements || null,
       };
 
       const { error: bookingError } = await supabase
-        .from("class_bookings")
+        .from("bookings")
         .insert(bookingData);
 
       if (bookingError) throw bookingError;
@@ -284,6 +336,30 @@ export default function SingleClassBookingModal({
           .eq("id", selectedMethod.id);
 
         if (packageError) throw packageError;
+      }
+
+      // If using a membership with class limits, update usage count
+      if (
+        selectedMethod.type === "membership" &&
+        selectedMethod.remaining !== null
+      ) {
+        const newUsageCount = await supabase
+          .from("customer_memberships")
+          .select("classes_used_this_period")
+          .eq("id", selectedMethod.id)
+          .single();
+
+        if (newUsageCount.data) {
+          const { error: membershipError } = await supabase
+            .from("customer_memberships")
+            .update({
+              classes_used_this_period:
+                (newUsageCount.data.classes_used_this_period || 0) + 1,
+            })
+            .eq("id", selectedMethod.id);
+
+          if (membershipError) throw membershipError;
+        }
       }
 
       setStep("confirmation");
@@ -489,7 +565,13 @@ export default function SingleClassBookingModal({
                             {method.type === "package" && (
                               <Package className="h-4 w-4 text-orange-400" />
                             )}
-                            {method.type === "card" && (
+                            {method.type === "membership" && (
+                              <Users className="h-4 w-4 text-green-400" />
+                            )}
+                            {method.type === "card" && method.id === "free" && (
+                              <CheckCircle className="h-4 w-4 text-green-400" />
+                            )}
+                            {method.type === "card" && method.id !== "free" && (
                               <CreditCard className="h-4 w-4 text-blue-400" />
                             )}
                             <h4 className="text-white font-medium">

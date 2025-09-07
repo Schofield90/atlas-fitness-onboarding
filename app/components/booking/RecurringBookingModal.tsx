@@ -95,9 +95,14 @@ export default function RecurringBookingModal({
   const [maxBookings, setMaxBookings] = useState<number | "">("");
   const [autoBook, setAutoBook] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState<
-    "per_class" | "monthly" | "package"
+    "per_class" | "monthly" | "package" | "membership" | "free"
   >("per_class");
   const [pricePerClass, setPricePerClass] = useState(2000); // £20.00 in pennies
+  const [availablePaymentMethods, setAvailablePaymentMethods] = useState<any[]>(
+    [],
+  );
+  const [selectedPaymentMethodId, setSelectedPaymentMethodId] =
+    useState<string>("");
 
   const supabase = createClient();
 
@@ -106,6 +111,7 @@ export default function RecurringBookingModal({
       fetchClassTypes();
       fetchInstructors();
       fetchCustomerDetails();
+      fetchPaymentMethods();
       resetForm();
     }
   }, [isOpen]);
@@ -125,15 +131,38 @@ export default function RecurringBookingModal({
 
   const fetchClassTypes = async () => {
     try {
-      const { data, error } = await supabase
-        .from("class_types")
+      // Try programs table first (what the class-calendar uses)
+      const { data: programs, error: programsError } = await supabase
+        .from("programs")
         .select("*")
+        .eq("organization_id", organizationId)
         .order("name");
 
-      if (error) throw error;
-      setClassTypes(data || []);
+      if (!programsError && programs) {
+        // Transform programs to class types format
+        const classTypesFromPrograms = programs.map((p) => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+        }));
+        setClassTypes(classTypesFromPrograms);
+      } else {
+        // Fallback to class_types if it exists
+        const { data, error } = await supabase
+          .from("class_types")
+          .select("*")
+          .order("name");
+
+        if (error) {
+          console.error("Error fetching class types:", error);
+          setClassTypes([]);
+        } else {
+          setClassTypes(data || []);
+        }
+      }
     } catch (error) {
       console.error("Error fetching class types:", error);
+      setClassTypes([]);
     }
   };
 
@@ -163,6 +192,82 @@ export default function RecurringBookingModal({
       setCustomer(data);
     } catch (error) {
       console.error("Error fetching customer details:", error);
+    }
+  };
+
+  const fetchPaymentMethods = async () => {
+    try {
+      const methods: any[] = [];
+
+      // Check for active memberships
+      const { data: memberships } = await supabase
+        .from("customer_memberships")
+        .select(`*`)
+        .or(`customer_id.eq.${customerId},client_id.eq.${customerId}`)
+        .eq("organization_id", organizationId)
+        .eq("status", "active");
+
+      memberships?.forEach((membership) => {
+        // Check if membership has class limits
+        if (
+          membership.classes_per_period &&
+          membership.classes_per_period > 0
+        ) {
+          const remainingClasses =
+            membership.classes_per_period -
+            (membership.classes_used_this_period || 0);
+          if (remainingClasses > 0) {
+            methods.push({
+              id: membership.id,
+              type: "membership",
+              name: membership.membership_name || "Membership",
+              description: `${remainingClasses} classes remaining this period`,
+              remaining: remainingClasses,
+              isAvailable: true,
+              unlimited: false,
+            });
+          }
+        } else {
+          // Unlimited classes
+          methods.push({
+            id: membership.id,
+            type: "membership",
+            name: membership.membership_name || "Membership",
+            description: "Unlimited classes",
+            isAvailable: true,
+            unlimited: true,
+          });
+        }
+      });
+
+      // Check for active class packages
+      const { data: packages } = await supabase
+        .from("customer_class_packages")
+        .select(
+          `
+          *,
+          package:class_packages(*)
+        `,
+        )
+        .eq("client_id", customerId)
+        .eq("organization_id", organizationId)
+        .eq("status", "active")
+        .gt("classes_remaining", 0);
+
+      packages?.forEach((pkg) => {
+        methods.push({
+          id: pkg.id,
+          type: "package",
+          name: pkg.package.name,
+          description: `${pkg.classes_remaining} classes remaining`,
+          remaining: pkg.classes_remaining,
+          isAvailable: true,
+        });
+      });
+
+      setAvailablePaymentMethods(methods);
+    } catch (error) {
+      console.error("Error fetching payment methods:", error);
     }
   };
 
@@ -591,55 +696,155 @@ export default function RecurringBookingModal({
                     Payment Method
                   </label>
                   <div className="space-y-2">
-                    {[
-                      {
-                        value: "per_class",
-                        label: "Pay per class",
-                        description: "Charge for each individual booking",
-                      },
-                      {
-                        value: "monthly",
-                        label: "Monthly subscription",
-                        description: "Fixed monthly fee for unlimited bookings",
-                      },
-                      {
-                        value: "package",
-                        label: "Class package",
-                        description: "Use existing class package credits",
-                      },
-                    ].map((method) => (
-                      <div
-                        key={method.value}
-                        className={`border rounded-lg p-3 cursor-pointer transition-colors ${
-                          paymentMethod === method.value
-                            ? "border-blue-500 bg-blue-900/20"
-                            : "border-gray-700 bg-gray-800 hover:bg-gray-750"
-                        }`}
-                        onClick={() => setPaymentMethod(method.value as any)}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`w-4 h-4 rounded-full border-2 ${
-                              paymentMethod === method.value
-                                ? "border-blue-500 bg-blue-500"
-                                : "border-gray-400"
-                            }`}
-                          >
-                            {paymentMethod === method.value && (
-                              <div className="w-2 h-2 bg-white rounded-full mx-auto mt-0.5"></div>
-                            )}
-                          </div>
-                          <div>
-                            <h4 className="text-white font-medium">
-                              {method.label}
-                            </h4>
-                            <p className="text-gray-400 text-sm">
-                              {method.description}
-                            </p>
+                    {/* Show available memberships */}
+                    {availablePaymentMethods
+                      .filter((m) => m.type === "membership")
+                      .map((method) => (
+                        <div
+                          key={method.id}
+                          className={`border rounded-lg p-3 cursor-pointer transition-colors ${
+                            selectedPaymentMethodId === method.id
+                              ? "border-blue-500 bg-blue-900/20"
+                              : "border-gray-700 bg-gray-800 hover:bg-gray-750"
+                          }`}
+                          onClick={() => {
+                            setPaymentMethod("membership");
+                            setSelectedPaymentMethodId(method.id);
+                          }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`w-4 h-4 rounded-full border-2 ${
+                                selectedPaymentMethodId === method.id
+                                  ? "border-blue-500 bg-blue-500"
+                                  : "border-gray-400"
+                              }`}
+                            >
+                              {selectedPaymentMethodId === method.id && (
+                                <div className="w-2 h-2 bg-white rounded-full mx-auto mt-0.5"></div>
+                              )}
+                            </div>
+                            <div>
+                              <h4 className="text-white font-medium">
+                                {method.name} (Membership)
+                              </h4>
+                              <p className="text-gray-400 text-sm">
+                                {method.description}
+                              </p>
+                            </div>
                           </div>
                         </div>
+                      ))}
+
+                    {/* Show available packages */}
+                    {availablePaymentMethods
+                      .filter((m) => m.type === "package")
+                      .map((method) => (
+                        <div
+                          key={method.id}
+                          className={`border rounded-lg p-3 cursor-pointer transition-colors ${
+                            selectedPaymentMethodId === method.id
+                              ? "border-blue-500 bg-blue-900/20"
+                              : "border-gray-700 bg-gray-800 hover:bg-gray-750"
+                          }`}
+                          onClick={() => {
+                            setPaymentMethod("package");
+                            setSelectedPaymentMethodId(method.id);
+                          }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`w-4 h-4 rounded-full border-2 ${
+                                selectedPaymentMethodId === method.id
+                                  ? "border-blue-500 bg-blue-500"
+                                  : "border-gray-400"
+                              }`}
+                            >
+                              {selectedPaymentMethodId === method.id && (
+                                <div className="w-2 h-2 bg-white rounded-full mx-auto mt-0.5"></div>
+                              )}
+                            </div>
+                            <div>
+                              <h4 className="text-white font-medium">
+                                {method.name} (Package)
+                              </h4>
+                              <p className="text-gray-400 text-sm">
+                                {method.description}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+
+                    {/* Free booking option */}
+                    <div
+                      className={`border rounded-lg p-3 cursor-pointer transition-colors ${
+                        paymentMethod === "free"
+                          ? "border-blue-500 bg-blue-900/20"
+                          : "border-gray-700 bg-gray-800 hover:bg-gray-750"
+                      }`}
+                      onClick={() => {
+                        setPaymentMethod("free");
+                        setSelectedPaymentMethodId("");
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-4 h-4 rounded-full border-2 ${
+                            paymentMethod === "free"
+                              ? "border-blue-500 bg-blue-500"
+                              : "border-gray-400"
+                          }`}
+                        >
+                          {paymentMethod === "free" && (
+                            <div className="w-2 h-2 bg-white rounded-full mx-auto mt-0.5"></div>
+                          )}
+                        </div>
+                        <div>
+                          <h4 className="text-white font-medium">
+                            Free Booking
+                          </h4>
+                          <p className="text-gray-400 text-sm">
+                            Complimentary - no charge
+                          </p>
+                        </div>
                       </div>
-                    ))}
+                    </div>
+
+                    {/* Pay per class option */}
+                    <div
+                      className={`border rounded-lg p-3 cursor-pointer transition-colors ${
+                        paymentMethod === "per_class"
+                          ? "border-blue-500 bg-blue-900/20"
+                          : "border-gray-700 bg-gray-800 hover:bg-gray-750"
+                      }`}
+                      onClick={() => {
+                        setPaymentMethod("per_class");
+                        setSelectedPaymentMethodId("");
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-4 h-4 rounded-full border-2 ${
+                            paymentMethod === "per_class"
+                              ? "border-blue-500 bg-blue-500"
+                              : "border-gray-400"
+                          }`}
+                        >
+                          {paymentMethod === "per_class" && (
+                            <div className="w-2 h-2 bg-white rounded-full mx-auto mt-0.5"></div>
+                          )}
+                        </div>
+                        <div>
+                          <h4 className="text-white font-medium">
+                            Pay per class
+                          </h4>
+                          <p className="text-gray-400 text-sm">
+                            Charge for each individual booking
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
