@@ -519,12 +519,20 @@ export default function MultiClassBookingModal({
                 />
               </div>
 
-              {/* Selected Classes Summary */}
+              {/* Selected Classes Summary with Action Button */}
               {selectedClasses.length > 0 && (
                 <div className="bg-blue-900 border border-blue-700 rounded-lg p-4">
-                  <h4 className="text-blue-100 font-medium mb-2">
-                    Selected Classes ({selectedClasses.length})
-                  </h4>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-blue-100 font-medium">
+                      Selected Classes ({selectedClasses.length})
+                    </h4>
+                    <button
+                      onClick={() => setStep("payment")}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium text-sm"
+                    >
+                      Continue to Payment
+                    </button>
+                  </div>
                   <div className="space-y-2">
                     {selectedClasses.map((sc) => (
                       <div
@@ -640,9 +648,34 @@ export default function MultiClassBookingModal({
 
           {step === "payment" && (
             <div className="space-y-6">
-              <h3 className="text-lg font-medium text-white">
-                Assign Payment Methods
-              </h3>
+              {/* Action buttons at top */}
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-white">
+                  Assign Payment Methods
+                </h3>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setStep("selection")}
+                    className="px-4 py-2 text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                  >
+                    Back to Selection
+                  </button>
+                  <button
+                    onClick={handleCreateBookings}
+                    disabled={!canProceedToPayment() || loading}
+                    className="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium flex items-center gap-2"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Booking...
+                      </>
+                    ) : (
+                      `Confirm Bookings (${selectedClasses.length})`
+                    )}
+                  </button>
+                </div>
+              </div>
 
               <div className="space-y-4">
                 {selectedClasses.map((sc) => (
@@ -789,60 +822,41 @@ export default function MultiClassBookingModal({
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-700">
-          <div>
-            {selectedClasses.length > 0 && step === "selection" && (
-              <p className="text-gray-400 text-sm">
+        {/* Footer - Simplified with just status info */}
+        <div className="flex items-center justify-between p-4 border-t border-gray-700 bg-gray-800/50">
+          <div className="text-sm text-gray-400">
+            {step === "selection" && selectedClasses.length > 0 && (
+              <p>
                 {selectedClasses.length} class
                 {selectedClasses.length === 1 ? "" : "es"} selected
               </p>
             )}
+            {step === "payment" && (
+              <p className="text-yellow-400">
+                {getPaymentSummary().cardPayments > 0 &&
+                  `Total: £${(getPaymentSummary().totalPrice / 100).toFixed(2)}`}
+              </p>
+            )}
+            {step === "confirmation" && (
+              <p className="text-green-400">Bookings confirmed successfully!</p>
+            )}
           </div>
 
-          <div className="flex gap-3">
+          {step === "confirmation" ? (
             <button
               onClick={handleClose}
-              className="px-4 py-2 text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
             >
-              Cancel
+              Done
             </button>
-
-            {step === "selection" && (
-              <button
-                onClick={() => setStep("payment")}
-                disabled={selectedClasses.length === 0}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium"
-              >
-                Continue ({selectedClasses.length})
-              </button>
-            )}
-
-            {step === "payment" && (
-              <>
-                <button
-                  onClick={() => setStep("selection")}
-                  className="px-4 py-2 text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={handleCreateBookings}
-                  disabled={!canProceedToPayment() || loading}
-                  className="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium flex items-center gap-2"
-                >
-                  {loading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      Booking...
-                    </>
-                  ) : (
-                    `Confirm Bookings (${selectedClasses.length})`
-                  )}
-                </button>
-              </>
-            )}
-          </div>
+          ) : (
+            <button
+              onClick={handleClose}
+              className="px-4 py-2 text-gray-300 hover:text-white transition-colors"
+            >
+              Close
+            </button>
+          )}
         </div>
       </div>
     </div>
