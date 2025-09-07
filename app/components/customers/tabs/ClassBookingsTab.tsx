@@ -203,8 +203,7 @@ export default function ClassBookingsTab({
       .select(
         `
         *,
-        class_session:class_sessions(*),
-        recurring_booking:recurring_bookings(*)
+        class_session:class_sessions(*)
       `,
       )
       .eq("client_id", customerId)
