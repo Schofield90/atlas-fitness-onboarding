@@ -425,11 +425,11 @@ export default function MultiClassBookingModal({
 
         if (!customer) throw new Error("Customer data not loaded");
 
-        // Build booking data for class_bookings table
+        // Build booking data for class_bookings table - now with class_session_id column
         const classBookingData: any = {
           class_session_id: sc.schedule.id,
           organization_id: organizationId,
-          status: "confirmed",
+          booking_status: "confirmed",
           payment_status: paymentStatus,
           amount: paymentAmount,
           booking_type:
