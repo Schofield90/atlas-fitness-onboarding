@@ -93,6 +93,8 @@ export default function SingleClassBookingModal({
 
   useEffect(() => {
     if (isOpen && customerId) {
+      // Reset existing booking state when modal opens
+      setExistingBooking(null);
       loadBookingData();
     }
   }, [isOpen, customerId, classSchedule.id]);
@@ -109,6 +111,14 @@ export default function SingleClassBookingModal({
   // Load payment methods and check bookings after customer is loaded
   useEffect(() => {
     if (customer && isOpen) {
+      console.log(
+        "Customer loaded, fetching payment methods and checking bookings",
+        {
+          customerId,
+          customerType: customer.type,
+          classScheduleId: classSchedule.id,
+        },
+      );
       fetchPaymentMethods();
       checkExistingBooking();
     }
@@ -277,10 +287,27 @@ export default function SingleClassBookingModal({
 
       const { data, error } = await query.maybeSingle();
 
-      if (data) setExistingBooking(data);
+      console.log("Checking existing booking for:", {
+        classSessionId: classSchedule.id,
+        customerId,
+        customerType: customer?.type,
+        queryField: customer?.type === "lead" ? "customer_id" : "client_id",
+        foundBooking: !!data,
+        bookingData: data,
+      });
+
+      if (error && error.code !== "PGRST116") {
+        console.error("Error checking existing booking:", error);
+      }
+
+      if (data) {
+        setExistingBooking(data);
+      } else {
+        setExistingBooking(null);
+      }
     } catch (error) {
       console.error("Error checking existing booking:", error);
-      // No existing booking found - this is expected
+      setExistingBooking(null);
     }
   };
 
@@ -292,6 +319,12 @@ export default function SingleClassBookingModal({
 
     // Check if existing booking exists
     if (existingBooking) {
+      console.log("Existing booking found, preventing new booking:", {
+        existingBookingId: existingBooking.id,
+        classSessionId: existingBooking.class_session_id,
+        customerId: existingBooking.customer_id || existingBooking.client_id,
+        status: existingBooking.booking_status,
+      });
       return {
         canBook: false,
         reason: "You are already booked for this class",
