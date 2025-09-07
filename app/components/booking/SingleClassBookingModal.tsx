@@ -289,19 +289,19 @@ export default function SingleClassBookingModal({
       if (!selectedMethod) throw new Error("No payment method selected");
 
       // Check if we're in clients or leads table
-      const isClient = customerId.length === 36; // UUID length check
+      // Clients typically have UUIDs, leads might have different format
+      // But we'll check if this ID exists in leads table first
+      const { data: leadCheck } = await supabase
+        .from("leads")
+        .select("id")
+        .eq("id", customerId)
+        .single();
 
-      // For bookings table that references leads
-      let bookingCustomerId = customerId;
-
-      // If it's a client, we might need to find or create corresponding lead
-      // For now, we'll use the client ID directly
-
-      const bookingData = {
-        customer_id: bookingCustomerId, // bookings table uses customer_id referencing leads
-        class_session_id: classSchedule.id, // bookings table uses class_session_id
-        organization_id: organizationId, // Add organization_id for multi-tenant isolation
-        booking_status: "confirmed", // bookings table uses booking_status
+      // Build booking data with appropriate ID field
+      const bookingData: any = {
+        class_session_id: classSchedule.id,
+        organization_id: organizationId,
+        booking_status: "confirmed",
         payment_status:
           selectedMethod.id === "card" && classSchedule.price_pennies > 0
             ? "pending"
@@ -317,6 +317,13 @@ export default function SingleClassBookingModal({
                 ? `Package booking: ${selectedMethod.name}`
                 : specialRequirements || null,
       };
+
+      // Use customer_id if it's a lead, client_id if it's a client
+      if (leadCheck) {
+        bookingData.customer_id = customerId;
+      } else {
+        bookingData.client_id = customerId;
+      }
 
       const { error: bookingError } = await supabase
         .from("bookings")
