@@ -50,7 +50,7 @@ interface ClassBooking {
   cancelled_at?: string;
   cancellation_reason?: string;
   special_requirements?: string;
-  class_schedule: {
+  class_session: {
     id: string;
     start_time: string;
     end_time: string;
@@ -203,7 +203,7 @@ export default function ClassBookingsTab({
       .select(
         `
         *,
-        class_schedule:schedules(*),
+        class_session:class_sessions(*),
         recurring_booking:recurring_bookings(*)
       `,
       )
@@ -216,12 +216,12 @@ export default function ClassBookingsTab({
     // Add a default class_type if it doesn't exist
     const bookingsWithClassType = (data || []).map((booking) => ({
       ...booking,
-      class_schedule: booking.class_schedule
+      class_session: booking.class_session
         ? {
-            ...booking.class_schedule,
-            class_type: booking.class_schedule.class_type || {
+            ...booking.class_session,
+            class_type: booking.class_session.class_type || {
               id: "default",
-              name: booking.class_schedule.name || "Class Session",
+              name: booking.class_session.name || "Class Session",
               description: "",
               color: "#3B82F6",
             },
@@ -270,7 +270,7 @@ export default function ClassBookingsTab({
     return bookings.filter(
       (booking) =>
         booking.status === "confirmed" &&
-        new Date(booking.class_schedule.start_time) > new Date(),
+        new Date(booking.class_session.start_time) > new Date(),
     );
   };
 
@@ -278,14 +278,14 @@ export default function ClassBookingsTab({
     return bookings.filter(
       (booking) =>
         booking.status !== "confirmed" ||
-        new Date(booking.class_schedule.start_time) <= new Date(),
+        new Date(booking.class_session.start_time) <= new Date(),
     );
   };
 
   const canCancelBooking = (booking: ClassBooking) => {
     if (booking.status !== "confirmed") return false;
 
-    const classStartTime = new Date(booking.class_schedule.start_time);
+    const classStartTime = new Date(booking.class_session.start_time);
     const now = new Date();
     const hoursUntilClass =
       (classStartTime.getTime() - now.getTime()) / (1000 * 60 * 60);
@@ -498,7 +498,7 @@ export default function ClassBookingsTab({
                       >
                         <div className="flex items-start justify-between mb-3">
                           <h5 className="font-medium text-white">
-                            {booking.class_schedule.class_type?.name ||
+                            {booking.class_session.class_type?.name ||
                               "Untitled Class"}
                           </h5>
                           <div className="flex items-center gap-1">
@@ -515,20 +515,20 @@ export default function ClassBookingsTab({
                             <Clock className="h-4 w-4" />
                             {
                               formatBritishDateTime(
-                                booking.class_schedule.start_time,
+                                booking.class_session.start_time,
                               ).split(" ")[1]
                             }{" "}
                             -{" "}
                             {
                               formatBritishDateTime(
-                                booking.class_schedule.end_time,
+                                booking.class_session.end_time,
                               ).split(" ")[1]
                             }
                           </div>
-                          {booking.class_schedule.room_location && (
+                          {booking.class_session.room_location && (
                             <div className="flex items-center gap-2">
                               <MapPin className="h-4 w-4" />
-                              {booking.class_schedule.room_location}
+                              {booking.class_session.room_location}
                             </div>
                           )}
                           {booking.booking_type === "recurring" && (
@@ -573,7 +573,7 @@ export default function ClassBookingsTab({
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <h5 className="font-medium text-white">
-                            {booking.class_schedule.class_type?.name ||
+                            {booking.class_session.class_type?.name ||
                               "Untitled Class"}
                           </h5>
                           <div className="flex items-center gap-1">
@@ -589,7 +589,7 @@ export default function ClassBookingsTab({
                           <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4" />
                             {formatBritishDateTime(
-                              booking.class_schedule.start_time,
+                              booking.class_session.start_time,
                             )}
                           </div>
                           <div className="flex items-center gap-2">
