@@ -357,11 +357,17 @@ export default function MultiClassBookingModal({
           paymentAmount = 0;
         }
 
-        const bookingData = {
-          customer_id: customerId, // bookings table uses customer_id
-          class_session_id: sc.schedule.id, // bookings table uses class_session_id
-          organization_id: organizationId, // Add organization_id for multi-tenant isolation
-          booking_status: "confirmed", // bookings table uses booking_status
+        // Check if this is a lead or client
+        const { data: leadCheck } = await supabase
+          .from("leads")
+          .select("id")
+          .eq("id", customerId)
+          .single();
+
+        const bookingData: any = {
+          class_session_id: sc.schedule.id,
+          organization_id: organizationId,
+          booking_status: "confirmed",
           payment_status: paymentStatus,
           notes:
             method.type === "package"
@@ -372,6 +378,13 @@ export default function MultiClassBookingModal({
                   ? "Complimentary booking"
                   : null,
         };
+
+        // Use customer_id if it's a lead, client_id if it's a client
+        if (leadCheck) {
+          bookingData.customer_id = customerId;
+        } else {
+          bookingData.client_id = customerId;
+        }
 
         const { error: bookingError } = await supabase
           .from("bookings")
