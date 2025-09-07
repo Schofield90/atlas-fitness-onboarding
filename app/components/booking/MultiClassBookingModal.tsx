@@ -425,12 +425,20 @@ export default function MultiClassBookingModal({
 
         if (!customer) throw new Error("Customer data not loaded");
 
-        // Build booking data using appropriate customer field
-        const bookingData: any = {
+        // Build booking data for class_bookings table
+        const classBookingData: any = {
           class_session_id: sc.schedule.id,
           organization_id: organizationId,
-          booking_status: "confirmed",
+          status: "confirmed",
           payment_status: paymentStatus,
+          amount: paymentAmount,
+          booking_type:
+            method.type === "package"
+              ? "package"
+              : method.id === "free"
+                ? "drop_in"
+                : "single",
+          booked_at: new Date().toISOString(),
           notes:
             method.type === "package"
               ? `Package booking: ${method.name}`
@@ -443,14 +451,14 @@ export default function MultiClassBookingModal({
 
         // Set appropriate customer field based on customer type
         if (customer.type === "lead") {
-          bookingData.customer_id = customerId;
+          classBookingData.customer_id = customerId;
         } else {
-          bookingData.client_id = customerId;
+          classBookingData.client_id = customerId;
         }
 
         const { error: bookingError } = await supabase
-          .from("bookings")
-          .insert(bookingData);
+          .from("class_bookings")
+          .insert(classBookingData);
 
         if (bookingError) throw bookingError;
 

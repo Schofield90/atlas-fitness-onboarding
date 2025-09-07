@@ -203,10 +203,7 @@ export default function ClassBookingsTab({
       .select(
         `
         *,
-        class_schedule:class_schedules(
-          *,
-          class_type:class_types(*)
-        ),
+        class_schedule:schedules(*),
         recurring_booking:recurring_bookings(*)
       `,
       )
@@ -215,7 +212,24 @@ export default function ClassBookingsTab({
       .order("booked_at", { ascending: false });
 
     if (error) throw error;
-    setBookings(data || []);
+
+    // Add a default class_type if it doesn't exist
+    const bookingsWithClassType = (data || []).map((booking) => ({
+      ...booking,
+      class_schedule: booking.class_schedule
+        ? {
+            ...booking.class_schedule,
+            class_type: booking.class_schedule.class_type || {
+              id: "default",
+              name: booking.class_schedule.name || "Class Session",
+              description: "",
+              color: "#3B82F6",
+            },
+          }
+        : null,
+    }));
+
+    setBookings(bookingsWithClassType);
   };
 
   const fetchRecurringBookings = async () => {
