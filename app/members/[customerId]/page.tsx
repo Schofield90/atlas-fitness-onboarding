@@ -251,6 +251,13 @@ export default function CustomerProfilePage() {
 
   const loadNotes = async () => {
     try {
+      // Ensure we have organizationId
+      if (!organizationId) {
+        console.warn("No organization ID available for loading notes");
+        setNotes([]);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("customer_notes")
         .select("*")
@@ -260,6 +267,11 @@ export default function CustomerProfilePage() {
 
       if (error) {
         console.error("Error loading notes:", error);
+        console.error("Query details:", {
+          customerId,
+          organizationId,
+          error: error.message,
+        });
         throw error;
       }
 
@@ -272,19 +284,24 @@ export default function CustomerProfilePage() {
 
   const handleAddNote = async (noteContent: string) => {
     try {
+      // Ensure we have organizationId
+      if (!organizationId) {
+        throw new Error("No organization ID available");
+      }
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
       // Check if customer exists in clients table first
-      let noteData = {
+      let noteData: any = {
         organization_id: organizationId,
         content: noteContent,
         created_by: user.id,
         is_internal: true,
-        customer_id: null,
-        client_id: null,
+        customer_id: null as string | null,
+        client_id: null as string | null,
       };
 
       // Try clients table first
