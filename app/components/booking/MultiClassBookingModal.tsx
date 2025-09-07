@@ -173,43 +173,54 @@ export default function MultiClassBookingModal({
         });
       });
 
-      // Check for active memberships - updated to use customer_memberships table
-      const { data: memberships } = await supabase
+      // Check for active memberships from customer_memberships table
+      // First check if customer is a lead or client
+      const { data: leadCheck } = await supabase
+        .from("leads")
+        .select("id")
+        .eq("id", customerId)
+        .single();
+
+      let membershipQuery = supabase
         .from("customer_memberships")
-        .select(`*`)
-        .or(`customer_id.eq.${customerId},client_id.eq.${customerId}`)
+        .select(
+          `
+          *,
+          membership_plans (*)
+        `,
+        )
         .eq("organization_id", organizationId)
         .eq("status", "active");
 
+      // Use appropriate customer field
+      if (leadCheck) {
+        membershipQuery = membershipQuery.eq("customer_id", customerId);
+      } else {
+        membershipQuery = membershipQuery.eq("client_id", customerId);
+      }
+
+      const { data: memberships } = await membershipQuery;
+
       memberships?.forEach((membership) => {
-        // Check if membership has class limits
-        if (
-          membership.classes_per_period &&
-          membership.classes_per_period > 0
-        ) {
-          const remainingClasses =
-            membership.classes_per_period -
-            (membership.classes_used_this_period || 0);
-          if (remainingClasses > 0) {
-            methods.push({
-              id: membership.id,
-              type: "membership",
-              name: membership.membership_name || "Membership",
-              description: `${remainingClasses} classes remaining this period`,
-              remaining: remainingClasses,
-              isAvailable: true,
-              unlimited: false,
-            });
-          }
-        } else {
-          // Unlimited classes
+        const plan = membership.membership_plans;
+        if (plan) {
+          // Check if membership has class limits
+          const hasClassLimit =
+            plan.classes_per_period && plan.classes_per_period > 0;
+          const classesUsed = membership.classes_used_this_period || 0;
+          const classesRemaining = hasClassLimit
+            ? plan.classes_per_period - classesUsed
+            : null;
+
           methods.push({
             id: membership.id,
             type: "membership",
-            name: membership.membership_name || "Membership",
-            description: "Unlimited classes",
-            isAvailable: true,
-            unlimited: true,
+            name: plan.name,
+            description: hasClassLimit
+              ? `${classesRemaining} classes remaining this period`
+              : "Unlimited classes included",
+            remaining: classesRemaining,
+            isAvailable: !hasClassLimit || classesRemaining > 0,
           });
         }
       });
