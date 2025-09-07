@@ -360,6 +360,7 @@ export default function MultiClassBookingModal({
         const bookingData = {
           customer_id: customerId, // bookings table uses customer_id
           class_session_id: sc.schedule.id, // bookings table uses class_session_id
+          organization_id: organizationId, // Add organization_id for multi-tenant isolation
           booking_status: "confirmed", // bookings table uses booking_status
           payment_status: paymentStatus,
           notes:

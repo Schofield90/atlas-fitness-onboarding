@@ -300,6 +300,7 @@ export default function SingleClassBookingModal({
       const bookingData = {
         customer_id: bookingCustomerId, // bookings table uses customer_id referencing leads
         class_session_id: classSchedule.id, // bookings table uses class_session_id
+        organization_id: organizationId, // Add organization_id for multi-tenant isolation
         booking_status: "confirmed", // bookings table uses booking_status
         payment_status:
           selectedMethod.id === "card" && classSchedule.price_pennies > 0
