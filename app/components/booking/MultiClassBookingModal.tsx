@@ -152,10 +152,16 @@ export default function MultiClassBookingModal({
 
   const fetchPaymentMethods = async () => {
     try {
+      console.log("Fetching payment methods for customer:", {
+        customerId,
+        customerType: customer?.type,
+        organizationId,
+      });
+
       const methods: any[] = [];
 
       // Check for active class packages
-      const { data: packages } = await supabase
+      const { data: packages, error: packagesError } = await supabase
         .from("customer_class_packages")
         .select(
           `
@@ -168,15 +174,24 @@ export default function MultiClassBookingModal({
         .eq("status", "active")
         .gt("classes_remaining", 0);
 
+      if (packagesError) {
+        console.warn(
+          "Error fetching packages (this is okay if packages aren't set up):",
+          packagesError,
+        );
+      }
+
       packages?.forEach((pkg) => {
-        methods.push({
-          id: pkg.id,
-          type: "package",
-          name: pkg.package.name,
-          description: `${pkg.classes_remaining} classes remaining`,
-          remaining: pkg.classes_remaining,
-          isAvailable: true,
-        });
+        if (pkg.package) {
+          methods.push({
+            id: pkg.id,
+            type: "package",
+            name: pkg.package.name,
+            description: `${pkg.classes_remaining} classes remaining`,
+            remaining: pkg.classes_remaining,
+            isAvailable: true,
+          });
+        }
       });
 
       // Check for active memberships from customer_memberships table
@@ -185,7 +200,7 @@ export default function MultiClassBookingModal({
         .select(
           `
           *,
-          membership_plans (*)
+          membership_plan:membership_plans(*)
         `,
         )
         .eq("organization_id", organizationId)
@@ -195,13 +210,23 @@ export default function MultiClassBookingModal({
       if (customer?.type === "lead") {
         membershipQuery = membershipQuery.eq("customer_id", customerId);
       } else {
-        membershipQuery = membershipQuery.eq("client_id", customerId);
+        membershipQuery = membershipQuery.or(
+          `customer_id.eq.${customerId},client_id.eq.${customerId}`,
+        );
       }
 
-      const { data: memberships } = await membershipQuery;
+      const { data: memberships, error: membershipsError } =
+        await membershipQuery;
+
+      if (membershipsError) {
+        console.warn(
+          "Error fetching memberships (this is okay if memberships aren't set up):",
+          membershipsError,
+        );
+      }
 
       memberships?.forEach((membership) => {
-        const plan = membership.membership_plans;
+        const plan = membership.membership_plan;
         if (plan) {
           // Check if membership has class limits
           const hasClassLimit =
@@ -243,8 +268,21 @@ export default function MultiClassBookingModal({
       });
 
       setPaymentMethods(methods);
+      console.log("Payment methods loaded successfully:", methods);
     } catch (error) {
       console.error("Error fetching payment methods:", error);
+      // Set default payment methods on error
+      const defaultMethods = [
+        {
+          id: "card",
+          type: "card",
+          name: "Credit/Debit Card",
+          description: "Pay per class",
+          isAvailable: true,
+        },
+      ];
+      setPaymentMethods(defaultMethods);
+      console.log("Using default payment methods due to error");
     }
   };
 
@@ -527,7 +565,17 @@ export default function MultiClassBookingModal({
                       Selected Classes ({selectedClasses.length})
                     </h4>
                     <button
-                      onClick={() => setStep("payment")}
+                      onClick={() => {
+                        if (selectedClasses.length === 0) {
+                          alert("Please select at least one class");
+                          return;
+                        }
+                        console.log(
+                          "Transitioning to payment step with classes:",
+                          selectedClasses,
+                        );
+                        setStep("payment");
+                      }}
                       className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium text-sm"
                     >
                       Continue to Payment
@@ -754,36 +802,43 @@ export default function MultiClassBookingModal({
               </div>
 
               {/* Payment Summary */}
-              <div className="bg-gray-800 rounded-lg p-4">
-                <h4 className="text-white font-medium mb-3">Payment Summary</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between text-gray-300">
-                    <span>Total Classes:</span>
-                    <span>{summary.totalClasses}</span>
+              {(() => {
+                const summary = calculatePaymentSummary();
+                return (
+                  <div className="bg-gray-800 rounded-lg p-4">
+                    <h4 className="text-white font-medium mb-3">
+                      Payment Summary
+                    </h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between text-gray-300">
+                        <span>Total Classes:</span>
+                        <span>{summary.totalClasses}</span>
+                      </div>
+                      {summary.packageCredits > 0 && (
+                        <div className="flex justify-between text-gray-300">
+                          <span>Package Credits:</span>
+                          <span>{summary.packageCredits}</span>
+                        </div>
+                      )}
+                      {summary.cardPayments > 0 && (
+                        <div className="flex justify-between text-gray-300">
+                          <span>Card Payments:</span>
+                          <span>
+                            {summary.cardPayments} (
+                            {formatPrice(summary.totalPrice)})
+                          </span>
+                        </div>
+                      )}
+                      {summary.totalPrice > 0 && (
+                        <div className="flex justify-between text-white font-medium text-base border-t border-gray-700 pt-2 mt-2">
+                          <span>Total to Pay:</span>
+                          <span>{formatPrice(summary.totalPrice)}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  {summary.packageCredits > 0 && (
-                    <div className="flex justify-between text-gray-300">
-                      <span>Package Credits:</span>
-                      <span>{summary.packageCredits}</span>
-                    </div>
-                  )}
-                  {summary.cardPayments > 0 && (
-                    <div className="flex justify-between text-gray-300">
-                      <span>Card Payments:</span>
-                      <span>
-                        {summary.cardPayments} (
-                        {formatPrice(summary.totalPrice)})
-                      </span>
-                    </div>
-                  )}
-                  {summary.totalPrice > 0 && (
-                    <div className="flex justify-between text-white font-medium text-base border-t border-gray-700 pt-2 mt-2">
-                      <span>Total to Pay:</span>
-                      <span>{formatPrice(summary.totalPrice)}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
+                );
+              })()}
             </div>
           )}
 
@@ -833,8 +888,8 @@ export default function MultiClassBookingModal({
             )}
             {step === "payment" && (
               <p className="text-yellow-400">
-                {getPaymentSummary().cardPayments > 0 &&
-                  `Total: £${(getPaymentSummary().totalPrice / 100).toFixed(2)}`}
+                {calculatePaymentSummary().cardPayments > 0 &&
+                  `Total: £${(calculatePaymentSummary().totalPrice / 100).toFixed(2)}`}
               </p>
             )}
             {step === "confirmation" && (
