@@ -253,15 +253,7 @@ export default function CustomerProfilePage() {
     try {
       const { data, error } = await supabase
         .from("customer_notes")
-        .select(
-          `
-          *,
-          users:created_by (
-            name,
-            email
-          )
-        `,
-        )
+        .select("*")
         .or(`customer_id.eq.${customerId},client_id.eq.${customerId}`)
         .eq("organization_id", organizationId)
         .order("created_at", { ascending: false });
@@ -271,13 +263,7 @@ export default function CustomerProfilePage() {
         throw error;
       }
 
-      // Transform the data to ensure created_by is properly formatted
-      const transformedNotes = (data || []).map((note) => ({
-        ...note,
-        created_by: note.users || note.created_by,
-      }));
-
-      setNotes(transformedNotes);
+      setNotes(data || []);
     } catch (error) {
       console.error("Error loading notes:", error);
       setNotes([]); // Set empty array on error to prevent UI issues
@@ -330,15 +316,7 @@ export default function CustomerProfilePage() {
       const { data, error } = await supabase
         .from("customer_notes")
         .insert(noteData)
-        .select(
-          `
-          *,
-          users:created_by (
-            name,
-            email
-          )
-        `,
-        )
+        .select("*")
         .single();
 
       if (error) {
