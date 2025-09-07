@@ -297,7 +297,7 @@ export default function CustomerProfilePage() {
       // Check if customer exists in clients table first
       let noteData: any = {
         organization_id: organizationId,
-        content: noteContent,
+        note: noteContent, // Changed from 'content' to 'note'
         created_by: user.id,
         is_internal: true,
         customer_id: null as string | null,

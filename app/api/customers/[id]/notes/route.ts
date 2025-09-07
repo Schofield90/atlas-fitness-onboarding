@@ -40,10 +40,13 @@ export async function GET(
       );
     }
 
-    // Transform the data to include user names
+    // Transform the data to include user names and handle both 'note' and 'content' fields
     const transformedNotes =
       notes?.map((note) => ({
         ...note,
+        // Ensure we have either 'note' or 'content' field for backward compatibility
+        note: note.note || note.content,
+        content: note.note || note.content, // Keep both for compatibility
         created_by_name:
           note.created_by_user?.raw_user_meta_data?.full_name ||
           note.created_by_user?.email?.split("@")[0] ||
@@ -108,7 +111,7 @@ export async function POST(
 
     // Create the note
     const noteData: any = {
-      content: content.trim(),
+      note: content.trim(), // Changed from 'content' to 'note'
       is_internal,
       created_by: user.id,
       organization_id: organization.id,
@@ -143,9 +146,11 @@ export async function POST(
       );
     }
 
-    // Transform the response
+    // Transform the response - ensure both 'note' and 'content' fields for compatibility
     const transformedNote = {
       ...note,
+      note: note.note || note.content,
+      content: note.note || note.content, // Keep both for compatibility
       created_by_name:
         note.created_by_user?.raw_user_meta_data?.full_name ||
         note.created_by_user?.email?.split("@")[0] ||
