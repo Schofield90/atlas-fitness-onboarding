@@ -119,11 +119,11 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      // Use your verified subdomain
+      // Try with your domain first, fallback to Resend's domain if needed
       let fromEmail = "sam@email.gymleadhub.co.uk"; // Your verified subdomain
       const fromName = organization?.name || "Gym Lead Hub";
 
-      // Send with Resend's verified domain
+      // First attempt with your domain
       let { data: emailData, error: emailError } = await resend.emails.send({
         from: `${fromName} <${fromEmail}>`,
         to: email,
@@ -141,7 +141,35 @@ export async function POST(request: NextRequest) {
         text: `Welcome to ${organization?.name || "Atlas Fitness"}!\n\nHi ${name},\n\nYour account has been created. Here are your login details:\n\nEmail: ${email}\nTemporary Password: ${tempPassword}\nLogin URL: ${appUrl}/portal/login\n\nPlease change your password after your first login.\n\nBest regards,\nThe ${organization?.name || "Atlas Fitness"} Team`,
       });
 
-      // No need for fallback since we're using resend.dev directly
+      // If domain error, retry with Resend's guaranteed domain
+      if (
+        emailError &&
+        (emailError.statusCode === 403 ||
+          emailError.name === "validation_error")
+      ) {
+        console.log("Domain issue detected, using Resend's domain");
+        fromEmail = "onboarding@resend.dev";
+
+        const retryResult = await resend.emails.send({
+          from: `${fromName} <${fromEmail}>`,
+          to: email,
+          subject: `Welcome to ${organization?.name || "Gym Lead Hub"} - Your Account Details`,
+          html: `
+            <h2>Welcome to ${organization?.name || "Atlas Fitness"}!</h2>
+            <p>Hi ${name},</p>
+            <p>Your account has been created. Here are your login details:</p>
+            <p><strong>Email:</strong> ${email}<br/>
+            <strong>Temporary Password:</strong> ${tempPassword}<br/>
+            <strong>Login URL:</strong> <a href="${appUrl}/portal/login">${appUrl}/portal/login</a></p>
+            <p>Please change your password after your first login.</p>
+            <p>Best regards,<br/>The ${organization?.name || "Atlas Fitness"} Team</p>
+          `,
+          text: `Welcome to ${organization?.name || "Atlas Fitness"}!\n\nHi ${name},\n\nYour account has been created. Here are your login details:\n\nEmail: ${email}\nTemporary Password: ${tempPassword}\nLogin URL: ${appUrl}/portal/login\n\nPlease change your password after your first login.\n\nBest regards,\nThe ${organization?.name || "Atlas Fitness"} Team`,
+        });
+
+        emailData = retryResult.data;
+        emailError = retryResult.error;
+      }
 
       if (emailError) {
         console.error("Resend error details:", emailError);
