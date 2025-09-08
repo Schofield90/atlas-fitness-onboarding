@@ -132,6 +132,7 @@ export default function RecurringBookingModal({
   const [weeklySchedule, setWeeklySchedule] = useState<
     Map<string, WeeklySession[]>
   >(new Map());
+  const [totalBookingsCreated, setTotalBookingsCreated] = useState(0);
 
   const supabase = createClient();
 
@@ -377,60 +378,56 @@ export default function RecurringBookingModal({
 
       if (!customer) throw new Error("Customer data not loaded");
 
-      // For the demo, we'll just create bookings for the existing sessions
-      // that match the selected time slots
-      const bookingsToCreate = selectedSessions
-        .map((session) => {
-          // Find the matching weekly session
-          const targetSession = weeklySessions.find(
-            (s) =>
-              s.day_of_week === session.dayOfWeek &&
-              s.time_slot === session.timeSlot,
-          );
-
-          if (!targetSession) return null;
-
-          // Create booking record for the existing session
-          return {
-            organization_id: organizationId,
-            customer_id: customerId,
-            class_session_id: targetSession.id,
-            booking_status: "confirmed",
-            booking_type: "membership",
-            payment_status: "succeeded",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          };
-        })
-        .filter(Boolean);
-
-      if (bookingsToCreate.length === 0) {
-        alert(
-          "No matching sessions found to book. Please try selecting different time slots.",
+      // Prepare sessions with program IDs
+      const sessionsWithProgramIds = selectedSessions.map((session) => {
+        // Find the matching weekly session to get program_id
+        const targetSession = weeklySessions.find(
+          (s) =>
+            s.day_of_week === session.dayOfWeek &&
+            s.time_slot === session.timeSlot,
         );
-        setLoading(false);
+
+        return {
+          ...session,
+          programId: targetSession?.program_id || "",
+        };
+      });
+
+      console.log("Creating recurring bookings for 3 months:", {
+        customerId,
+        organizationId,
+        selectedSessions: sessionsWithProgramIds,
+        startDate,
+        endDate,
+      });
+
+      // Call the API endpoint to create recurring bookings
+      const response = await fetch("/api/booking/recurring", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          customerId,
+          organizationId,
+          selectedSessions: sessionsWithProgramIds,
+          startDate,
+          endDate,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        console.error("API error:", result.error);
+        alert(`Failed to create bookings: ${result.error}`);
         return;
       }
 
-      console.log("Creating bookings for selected sessions:", bookingsToCreate);
+      console.log("Successfully created recurring bookings:", result);
 
-      // Create the bookings
-      const { data, error } = await supabase
-        .from("class_bookings")
-        .insert(bookingsToCreate)
-        .select();
-
-      if (error) {
-        console.error("Supabase error:", error);
-        if (error.message?.includes("duplicate")) {
-          alert("You're already booked for one or more of these sessions.");
-        } else {
-          alert(`Failed to create bookings: ${error.message}`);
-        }
-        throw error;
-      }
-
-      console.log("Successfully created bookings:", data);
+      // Store the number of bookings created
+      setTotalBookingsCreated(result.data?.length || 0);
 
       setStep("success");
       onRecurringBookingCreated?.();
@@ -778,8 +775,9 @@ export default function RecurringBookingModal({
               <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4">
                 <p className="text-blue-300 text-sm">
                   <strong>Note:</strong> This will book you into the selected
-                  weekly time slots. Currently booking only the next available
-                  sessions for demonstration.
+                  weekly time slots for the entire period. If class sessions
+                  don't exist for future dates, they will be automatically
+                  created.
                 </p>
               </div>
             </div>
@@ -807,7 +805,7 @@ export default function RecurringBookingModal({
                 <div className="space-y-2 text-sm text-gray-300">
                   <div>
                     <strong>Total Bookings Created:</strong>{" "}
-                    {selectedSessions.length}
+                    {totalBookingsCreated}
                   </div>
                   <div>
                     <strong>Classes per Week:</strong> {selectedSessions.length}
