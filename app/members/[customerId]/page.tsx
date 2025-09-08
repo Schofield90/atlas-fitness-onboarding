@@ -668,6 +668,27 @@ export default function CustomerProfilePage() {
                     {sendingWelcomeEmail ? "Sending..." : "Send Welcome Email"}
                   </button>
                   <button
+                    onClick={async () => {
+                      console.log("Test button clicked!");
+                      try {
+                        const res = await fetch("/api/simple-test", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ test: "data" }),
+                        });
+                        const data = await res.json();
+                        console.log("Test response:", data);
+                        alert("Test successful! Check console");
+                      } catch (err) {
+                        console.error("Test failed:", err);
+                        alert("Test failed! Check console");
+                      }
+                    }}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    Test API
+                  </button>
+                  <button
                     onClick={() => setIsEditing(true)}
                     className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
                   >
