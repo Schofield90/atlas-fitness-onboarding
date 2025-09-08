@@ -100,10 +100,23 @@ export async function middleware(request: NextRequest) {
     pathname === route || pathname.startsWith(route + '/')
   )
   
-  // Also block debug API routes
-  const isDebugApiRoute = pathname.startsWith('/api/debug/') || 
-                         pathname.startsWith('/api/test/') ||
-                         pathname.startsWith('/api/quick-add-class')
+  // Also block debug API routes - but allow specific test endpoints
+  const allowedTestEndpoints = [
+    '/api/test-email',
+    '/api/test-welcome',
+    '/api/debug-welcome',
+    '/api/simple-test',
+    '/api/ping',
+    '/api/email-status'
+  ]
+  
+  const isAllowedTestEndpoint = allowedTestEndpoints.some(endpoint => pathname === endpoint)
+  
+  const isDebugApiRoute = !isAllowedTestEndpoint && (
+    pathname.startsWith('/api/debug/') || 
+    pathname.startsWith('/api/test/') ||
+    pathname.startsWith('/api/quick-add-class')
+  )
   
   if (isDebugRoute || isDebugApiRoute) {
     // Only allow debug routes in development or if ENABLE_DEBUG_ROUTES=true
