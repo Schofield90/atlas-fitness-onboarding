@@ -1,1 +1,17 @@
-[]
+[
+  {
+    "content": "Update email sender to sam@gymleadhub.co.uk",
+    "status": "completed",
+    "activeForm": "Updating email sender to sam@gymleadhub.co.uk"
+  },
+  {
+    "content": "Add instructions for domain verification in Resend",
+    "status": "completed",
+    "activeForm": "Adding instructions for domain verification in Resend"
+  },
+  {
+    "content": "Test email sending with new domain",
+    "status": "in_progress",
+    "activeForm": "Testing email sending with new domain"
+  }
+]
