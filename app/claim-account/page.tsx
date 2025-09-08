@@ -93,24 +93,38 @@ function ClaimAccountContent() {
       }
 
       // Now fetch the client separately
+      console.log("Token data client_id:", tokenData.client_id);
+      console.log("Fetching client with ID:", tokenData.client_id);
+
       const { data: clientData, error: clientError } = await supabase
         .from("clients")
-        .select("first_name, last_name, email, phone, date_of_birth")
+        .select("id, first_name, last_name, email, phone, date_of_birth")
         .eq("id", tokenData.client_id)
         .single();
 
       if (clientError) {
         console.error("Client fetch error:", clientError);
         console.error("Token data:", tokenData);
+        console.error(
+          "Failed query: SELECT * FROM clients WHERE id =",
+          tokenData.client_id,
+        );
         // Don't fail completely, just log the error
       }
+
+      console.log("Client data fetched:", clientData);
 
       setTokenValid(true);
       setTokenData(tokenData);
 
       // Pre-fill form with existing client data
       if (clientData) {
-        console.log("Pre-filling with client data:", clientData);
+        console.log("Pre-filling form with client data:");
+        console.log("- First name:", clientData.first_name);
+        console.log("- Last name:", clientData.last_name);
+        console.log("- Phone:", clientData.phone);
+        console.log("- Date of birth:", clientData.date_of_birth);
+
         setFormData((prev) => ({
           ...prev,
           firstName: clientData.first_name || "",
@@ -120,6 +134,7 @@ function ClaimAccountContent() {
         }));
       } else {
         console.log("No client data found to pre-fill");
+        console.log("This means the query returned null/undefined");
       }
     } catch (err) {
       console.error("Error validating token:", err);
