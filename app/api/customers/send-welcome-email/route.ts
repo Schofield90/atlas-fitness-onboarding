@@ -84,20 +84,53 @@ export async function POST(request: NextRequest) {
       // Continue anyway - organization name is optional
     }
 
-    // Generate a secure temporary password
-    const chars =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%";
-    let tempPassword = "";
-    for (let i = 0; i < 12; i++) {
-      tempPassword += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
+    // Generate a secure claim token
+    const generateToken = () => {
+      const bytes = new Uint8Array(24);
+      crypto.getRandomValues(bytes);
+      return Buffer.from(bytes)
+        .toString("base64")
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=/g, "");
+    };
+
+    const claimToken = generateToken();
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 72); // Token expires in 72 hours
 
     // Get the app URL from environment or use default
     const appUrl =
       process.env.NEXT_PUBLIC_APP_URL ||
       "https://atlas-fitness-onboarding.vercel.app";
 
-    // Send welcome email with login instructions
+    // Store the claim token in the database
+    const { error: tokenError } = await supabase
+      .from("account_claim_tokens")
+      .insert({
+        client_id: customerId,
+        organization_id: userOrg.organization_id,
+        token: claimToken,
+        email: email,
+        expires_at: expiresAt.toISOString(),
+        metadata: {
+          created_by: user.id,
+          customer_name: name,
+        },
+      });
+
+    if (tokenError) {
+      console.error("Error creating claim token:", tokenError);
+      return NextResponse.json(
+        { error: "Failed to create claim token: " + tokenError.message },
+        { status: 500 },
+      );
+    }
+
+    // Create the magic link
+    const magicLink = `${appUrl}/claim-account?token=${claimToken}`;
+
+    // Send welcome email with magic link
     console.log("Attempting to send email via Resend...");
     console.log("Resend API Key exists:", !!process.env.RESEND_API_KEY);
     console.log("Resend API Key length:", process.env.RESEND_API_KEY?.length);
@@ -110,16 +143,16 @@ export async function POST(request: NextRequest) {
     // Check if Resend is configured
     if (!resend) {
       console.warn(
-        "Resend API key not configured - returning credentials for manual sharing",
+        "Resend API key not configured - returning magic link for manual sharing",
       );
       return NextResponse.json({
         success: true,
-        message: "Login credentials generated (email service not configured)",
+        message: "Account claim link generated (email service not configured)",
         credentials: {
           email,
-          tempPassword,
-          loginUrl: `${appUrl}/portal/login`,
-          note: "Email service not configured. Please share these credentials with the customer manually.",
+          magicLink,
+          expiresAt: expiresAt.toISOString(),
+          note: "Email service not configured. Please share this magic link with the customer manually.",
         },
       });
     }
@@ -133,18 +166,22 @@ export async function POST(request: NextRequest) {
       let { data: emailData, error: emailError } = await resend.emails.send({
         from: `${fromName} <${fromEmail}>`,
         to: email,
-        subject: `Welcome to ${organization?.name || "Gym Lead Hub"} - Your Account Details`,
+        subject: `Welcome to ${organization?.name || "Gym Lead Hub"} - Claim Your Account`,
         html: `
           <h2>Welcome to ${organization?.name || "Atlas Fitness"}!</h2>
           <p>Hi ${name},</p>
-          <p>Your account has been created. Here are your login details:</p>
-          <p><strong>Email:</strong> ${email}<br/>
-          <strong>Temporary Password:</strong> ${tempPassword}<br/>
-          <strong>Login URL:</strong> <a href="${appUrl}/portal/login">${appUrl}/portal/login</a></p>
-          <p>Please change your password after your first login.</p>
+          <p>Your account has been created! Click the button below to set up your password and access your account:</p>
+          <p style="text-align: center; margin: 30px 0;">
+            <a href="${magicLink}" style="background-color: #3B82F6; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;">
+              Claim Your Account
+            </a>
+          </p>
+          <p>Or copy and paste this link into your browser:</p>
+          <p style="word-break: break-all; color: #3B82F6;">${magicLink}</p>
+          <p><small>This link will expire in 72 hours. If you didn't request this account, you can safely ignore this email.</small></p>
           <p>Best regards,<br/>The ${organization?.name || "Atlas Fitness"} Team</p>
         `,
-        text: `Welcome to ${organization?.name || "Atlas Fitness"}!\n\nHi ${name},\n\nYour account has been created. Here are your login details:\n\nEmail: ${email}\nTemporary Password: ${tempPassword}\nLogin URL: ${appUrl}/portal/login\n\nPlease change your password after your first login.\n\nBest regards,\nThe ${organization?.name || "Atlas Fitness"} Team`,
+        text: `Welcome to ${organization?.name || "Atlas Fitness"}!\n\nHi ${name},\n\nYour account has been created! Click the link below to set up your password and access your account:\n\n${magicLink}\n\nThis link will expire in 72 hours. If you didn't request this account, you can safely ignore this email.\n\nBest regards,\nThe ${organization?.name || "Atlas Fitness"} Team`,
       });
 
       // If domain error, retry with Resend's guaranteed domain
@@ -159,18 +196,22 @@ export async function POST(request: NextRequest) {
         const retryResult = await resend.emails.send({
           from: `${fromName} <${fromEmail}>`,
           to: email,
-          subject: `Welcome to ${organization?.name || "Gym Lead Hub"} - Your Account Details`,
+          subject: `Welcome to ${organization?.name || "Gym Lead Hub"} - Claim Your Account`,
           html: `
             <h2>Welcome to ${organization?.name || "Atlas Fitness"}!</h2>
             <p>Hi ${name},</p>
-            <p>Your account has been created. Here are your login details:</p>
-            <p><strong>Email:</strong> ${email}<br/>
-            <strong>Temporary Password:</strong> ${tempPassword}<br/>
-            <strong>Login URL:</strong> <a href="${appUrl}/portal/login">${appUrl}/portal/login</a></p>
-            <p>Please change your password after your first login.</p>
+            <p>Your account has been created! Click the button below to set up your password and access your account:</p>
+            <p style="text-align: center; margin: 30px 0;">
+              <a href="${magicLink}" style="background-color: #3B82F6; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;">
+                Claim Your Account
+              </a>
+            </p>
+            <p>Or copy and paste this link into your browser:</p>
+            <p style="word-break: break-all; color: #3B82F6;">${magicLink}</p>
+            <p><small>This link will expire in 72 hours. If you didn't request this account, you can safely ignore this email.</small></p>
             <p>Best regards,<br/>The ${organization?.name || "Atlas Fitness"} Team</p>
           `,
-          text: `Welcome to ${organization?.name || "Atlas Fitness"}!\n\nHi ${name},\n\nYour account has been created. Here are your login details:\n\nEmail: ${email}\nTemporary Password: ${tempPassword}\nLogin URL: ${appUrl}/portal/login\n\nPlease change your password after your first login.\n\nBest regards,\nThe ${organization?.name || "Atlas Fitness"} Team`,
+          text: `Welcome to ${organization?.name || "Atlas Fitness"}!\n\nHi ${name},\n\nYour account has been created! Click the link below to set up your password and access your account:\n\n${magicLink}\n\nThis link will expire in 72 hours. If you didn't request this account, you can safely ignore this email.\n\nBest regards,\nThe ${organization?.name || "Atlas Fitness"} Team`,
         });
 
         emailData = retryResult.data;
@@ -194,14 +235,12 @@ export async function POST(request: NextRequest) {
         console.log("Sent from:", fromEmail);
       }
 
-      // Store temporary password (optional - for recovery purposes)
-      // Note: In production, you'd want to hash this or use a more secure method
+      // Update client metadata to track email sent
       await supabase
         .from("clients")
         .update({
           metadata: {
-            temp_password: tempPassword,
-            temp_password_created: new Date().toISOString(),
+            claim_token_sent: new Date().toISOString(),
             welcome_email_sent: new Date().toISOString(),
           },
           updated_at: new Date().toISOString(),
@@ -217,7 +256,7 @@ export async function POST(request: NextRequest) {
         metadata: {
           email_id: emailData?.id,
           sent_by: user.id,
-          temp_password_hint: tempPassword.slice(0, 3) + "***", // Store hint only
+          claim_token_expires: expiresAt.toISOString(),
         },
       });
 
@@ -228,22 +267,22 @@ export async function POST(request: NextRequest) {
         sentTo: email,
         sentFrom: fromEmail,
         resendResponse: emailData,
-        // Always return password for testing (remove in production)
-        tempPassword,
-        loginUrl: `${appUrl}/portal/login`,
+        // Return magic link for testing (remove in production)
+        magicLink,
+        expiresAt: expiresAt.toISOString(),
       });
     } catch (emailError) {
       console.error("Email sending failed:", emailError);
 
-      // Even if email fails, return the credentials for manual sharing
+      // Even if email fails, return the magic link for manual sharing
       return NextResponse.json({
         success: true,
-        message: "Login credentials generated (email may have failed)",
+        message: "Account claim link generated (email may have failed)",
         credentials: {
           email,
-          tempPassword,
-          loginUrl: `${appUrl}/portal/login`,
-          note: "Please share these credentials with the customer manually",
+          magicLink,
+          expiresAt: expiresAt.toISOString(),
+          note: "Please share this magic link with the customer manually",
         },
       });
     }
