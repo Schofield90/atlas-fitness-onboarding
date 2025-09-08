@@ -198,6 +198,7 @@ export default function ClassBookingsTab({
   };
 
   const fetchBookings = async () => {
+    // Query for bookings with either client_id or customer_id
     const { data, error } = await supabase
       .from("class_bookings")
       .select(
@@ -206,7 +207,7 @@ export default function ClassBookingsTab({
         class_session:class_sessions(*)
       `,
       )
-      .eq("client_id", customerId)
+      .or(`client_id.eq.${customerId},customer_id.eq.${customerId}`)
       .eq("organization_id", organizationId)
       .order("booked_at", { ascending: false });
 
