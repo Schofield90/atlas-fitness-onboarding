@@ -3,7 +3,9 @@ import { createClient } from "@/app/lib/supabase/server";
 import { Resend } from "resend";
 import { WelcomeEmail } from "@/emails/templates/WelcomeEmail";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
 
 export async function POST(request: NextRequest) {
   try {
@@ -90,28 +92,65 @@ export async function POST(request: NextRequest) {
       "https://atlas-fitness-onboarding.vercel.app";
 
     // Send welcome email with login instructions
+    console.log("Attempting to send email via Resend...");
+    console.log("Resend API Key exists:", !!process.env.RESEND_API_KEY);
+    console.log("Resend API Key length:", process.env.RESEND_API_KEY?.length);
+    console.log("Email details:", {
+      to: email,
+      from: `${organization?.name || "Atlas Fitness"} <noreply@atlas-gyms.co.uk>`,
+      subject: `Welcome to ${organization?.name || "Atlas Fitness"} - Your Account Details`,
+    });
+
+    // Check if Resend is configured
+    if (!resend) {
+      console.warn(
+        "Resend API key not configured - returning credentials for manual sharing",
+      );
+      return NextResponse.json({
+        success: true,
+        message: "Login credentials generated (email service not configured)",
+        credentials: {
+          email,
+          tempPassword,
+          loginUrl: `${appUrl}/portal/login`,
+          note: "Email service not configured. Please share these credentials with the customer manually.",
+        },
+      });
+    }
+
     try {
+      // First, let's try a simple text email to test Resend
       const { data: emailData, error: emailError } = await resend.emails.send({
-        from: `${organization?.name || "Atlas Fitness"} <noreply@atlas-gyms.co.uk>`,
+        from: "Atlas Fitness <onboarding@resend.dev>", // Use Resend's test domain for now
         to: email,
         subject: `Welcome to ${organization?.name || "Atlas Fitness"} - Your Account Details`,
-        react: WelcomeEmail({
-          customerName: name,
-          organizationName: organization?.name || "Atlas Fitness",
-          email,
-          temporaryPassword: tempPassword,
-          loginUrl: `${appUrl}/portal/login`,
-        }),
+        html: `
+          <h2>Welcome to ${organization?.name || "Atlas Fitness"}!</h2>
+          <p>Hi ${name},</p>
+          <p>Your account has been created. Here are your login details:</p>
+          <p><strong>Email:</strong> ${email}<br/>
+          <strong>Temporary Password:</strong> ${tempPassword}<br/>
+          <strong>Login URL:</strong> <a href="${appUrl}/portal/login">${appUrl}/portal/login</a></p>
+          <p>Please change your password after your first login.</p>
+          <p>Best regards,<br/>The ${organization?.name || "Atlas Fitness"} Team</p>
+        `,
+        text: `Welcome to ${organization?.name || "Atlas Fitness"}!\n\nHi ${name},\n\nYour account has been created. Here are your login details:\n\nEmail: ${email}\nTemporary Password: ${tempPassword}\nLogin URL: ${appUrl}/portal/login\n\nPlease change your password after your first login.\n\nBest regards,\nThe ${organization?.name || "Atlas Fitness"} Team`,
       });
 
       if (emailError) {
-        console.error("Error sending email:", emailError);
+        console.error("Resend error details:", emailError);
+        console.error(
+          "Full Resend error:",
+          JSON.stringify(emailError, null, 2),
+        );
         // If Resend fails, we can still return success but log the error
         console.log("Would have sent email with:", {
           to: email,
           tempPassword,
           loginUrl: `${appUrl}/portal/login`,
         });
+      } else {
+        console.log("Email sent successfully!", emailData);
       }
 
       // Store temporary password (optional - for recovery purposes)
