@@ -119,16 +119,20 @@ export async function GET(request: Request) {
         .in("customer_id", customerIds)
         .eq("status", "active");
 
-      if (memberships) {
-        const membershipMap = memberships.reduce((acc, m) => {
-          acc[m.customer_id] = m.plan_name;
-          return acc;
-        }, {});
+      if (memberships && memberships.length > 0) {
+        console.log("Found memberships:", memberships);
+        const membershipMap: Record<string, string> = {};
+        memberships.forEach((m) => {
+          membershipMap[m.customer_id] = m.plan_name;
+        });
 
         // Update membership types with actual membership names
         attendees.forEach((attendee) => {
-          if (membershipMap[attendee.customerId]) {
+          if (attendee.customerId && membershipMap[attendee.customerId]) {
             attendee.membershipType = membershipMap[attendee.customerId];
+            console.log(
+              `Updated membership for ${attendee.customerName}: ${attendee.membershipType}`,
+            );
           }
         });
       }

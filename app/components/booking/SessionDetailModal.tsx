@@ -100,13 +100,21 @@ export default function SessionDetailModal({
       }
 
       // Transform attendees to the format expected by the component
-      const attendeesList = (result.attendees || []).map((attendee: any) => ({
-        id: attendee.customerId || attendee.clientId || attendee.id,
-        name: attendee.customerName || attendee.name || "Unknown",
-        email: attendee.customerEmail || attendee.email || "",
-        status: attendee.status || "registered",
-        membershipType: attendee.membershipType || "No Membership",
-      }));
+      const attendeesList = (result.attendees || []).map((attendee: any) => {
+        // Map 'confirmed' status to 'registered' for display
+        let displayStatus = attendee.status;
+        if (displayStatus === "confirmed") {
+          displayStatus = "registered";
+        }
+
+        return {
+          id: attendee.customerId || attendee.clientId || attendee.id,
+          name: attendee.customerName || attendee.name || "Unknown",
+          email: attendee.customerEmail || attendee.email || "",
+          status: displayStatus || "registered",
+          membershipType: attendee.membershipType || "No Membership",
+        };
+      });
 
       setAttendees(attendeesList);
     } catch (error) {
