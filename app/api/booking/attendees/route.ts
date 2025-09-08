@@ -105,27 +105,71 @@ export async function GET(request: Request) {
 
     // Also get membership information for better display
     const customerIds = attendees.map((a) => a.customerId).filter(Boolean);
+    console.log("Looking up memberships for customer IDs:", customerIds);
 
     if (customerIds.length > 0) {
-      const { data: memberships } = await supabase
+      // Use RPC or direct query for better reliability
+      const { data: memberships, error: membershipError } = await supabase
         .from("customer_memberships")
         .select(
           `
           customer_id,
           status,
-          membership_plan:membership_plans(name)
+          membership_plan_id,
+          membership_plans!inner(name)
         `,
         )
         .in("customer_id", customerIds)
         .eq("status", "active");
 
+      if (membershipError) {
+        console.error("Error fetching memberships:", membershipError);
+        // Fallback to a simpler query
+        const { data: fallbackMemberships } = await supabase
+          .from("customer_memberships")
+          .select("*")
+          .in("customer_id", customerIds)
+          .eq("status", "active");
+
+        if (fallbackMemberships) {
+          // Get plan names separately
+          const planIds = fallbackMemberships
+            .map((m) => m.membership_plan_id)
+            .filter(Boolean);
+          const { data: plans } = await supabase
+            .from("membership_plans")
+            .select("id, name")
+            .in("id", planIds);
+
+          const planMap =
+            plans?.reduce((acc, p) => {
+              acc[p.id] = p.name;
+              return acc;
+            }, {}) || {};
+
+          memberships = fallbackMemberships.map((m) => ({
+            ...m,
+            membership_plans: {
+              name: planMap[m.membership_plan_id] || "Monthly",
+            },
+          }));
+        }
+      }
+
+      console.log("Membership query result:", {
+        memberships,
+        error: memberships ? null : "No data returned",
+      });
+
       if (memberships && memberships.length > 0) {
-        console.log("Found memberships:", memberships);
+        console.log("Found memberships:", JSON.stringify(memberships, null, 2));
         const membershipMap: Record<string, string> = {};
         memberships.forEach((m) => {
-          // Get plan name from the joined membership_plan
-          const planName = m.membership_plan?.name || "Standard Membership";
+          // Get plan name from the joined membership_plans (note the 's')
+          const planName =
+            m.membership_plans?.name || m.membership_plan?.name || "Monthly";
           membershipMap[m.customer_id] = planName;
+          console.log(`Mapped membership for ${m.customer_id}: ${planName}`);
         });
 
         // Update membership types with actual membership names
@@ -137,7 +181,11 @@ export async function GET(request: Request) {
             );
           }
         });
+      } else {
+        console.log("No active memberships found for customers");
       }
+    } else {
+      console.log("No customer IDs to look up memberships for");
     }
 
     return NextResponse.json({ attendees });
