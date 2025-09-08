@@ -119,11 +119,11 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      // Use organization-specific sender or fallback
-      let fromEmail = "sam@gymleadhub.co.uk"; // Your domain - must be verified in Resend
+      // Use Resend's test domain to ensure delivery while custom domain is being verified
+      let fromEmail = "onboarding@resend.dev"; // Using Resend's domain that always works
       const fromName = organization?.name || "Gym Lead Hub";
 
-      // First attempt with your domain
+      // Send with Resend's verified domain
       let { data: emailData, error: emailError } = await resend.emails.send({
         from: `${fromName} <${fromEmail}>`,
         to: email,
@@ -141,35 +141,7 @@ export async function POST(request: NextRequest) {
         text: `Welcome to ${organization?.name || "Atlas Fitness"}!\n\nHi ${name},\n\nYour account has been created. Here are your login details:\n\nEmail: ${email}\nTemporary Password: ${tempPassword}\nLogin URL: ${appUrl}/portal/login\n\nPlease change your password after your first login.\n\nBest regards,\nThe ${organization?.name || "Atlas Fitness"} Team`,
       });
 
-      // If domain verification error, retry with Resend's test domain
-      if (
-        emailError &&
-        emailError.name === "validation_error" &&
-        emailError.message?.includes("domain is not verified")
-      ) {
-        console.log("Domain not verified, falling back to resend.dev domain");
-        fromEmail = "onboarding@resend.dev";
-
-        const fallbackResult = await resend.emails.send({
-          from: `${fromName} <${fromEmail}>`,
-          to: email,
-          subject: `Welcome to ${organization?.name || "Gym Lead Hub"} - Your Account Details`,
-          html: `
-            <h2>Welcome to ${organization?.name || "Atlas Fitness"}!</h2>
-            <p>Hi ${name},</p>
-            <p>Your account has been created. Here are your login details:</p>
-            <p><strong>Email:</strong> ${email}<br/>
-            <strong>Temporary Password:</strong> ${tempPassword}<br/>
-            <strong>Login URL:</strong> <a href="${appUrl}/portal/login">${appUrl}/portal/login</a></p>
-            <p>Please change your password after your first login.</p>
-            <p>Best regards,<br/>The ${organization?.name || "Atlas Fitness"} Team</p>
-          `,
-          text: `Welcome to ${organization?.name || "Atlas Fitness"}!\n\nHi ${name},\n\nYour account has been created. Here are your login details:\n\nEmail: ${email}\nTemporary Password: ${tempPassword}\nLogin URL: ${appUrl}/portal/login\n\nPlease change your password after your first login.\n\nBest regards,\nThe ${organization?.name || "Atlas Fitness"} Team`,
-        });
-
-        emailData = fallbackResult.data;
-        emailError = fallbackResult.error;
-      }
+      // No need for fallback since we're using resend.dev directly
 
       if (emailError) {
         console.error("Resend error details:", emailError);
