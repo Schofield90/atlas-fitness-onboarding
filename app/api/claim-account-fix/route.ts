@@ -74,53 +74,34 @@ export async function POST(request: NextRequest) {
     }
 
     // Try to sign up the user using regular auth flow
+    console.log("Attempting to create new user for:", tokenData.email);
+
+    // Simple signup without any fancy options
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: tokenData.email,
       password: password,
-      options: {
-        data: {
-          first_name: firstName || client.first_name,
-          last_name: lastName || client.last_name,
-          client_id: client.id,
-          organization_id: tokenData.organization_id,
-        },
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/portal/login`,
-      },
     });
 
     if (authError) {
       console.error("Error creating auth user:", authError);
+      console.error("Full error object:", JSON.stringify(authError, null, 2));
 
-      // Check if user already exists
-      if (
-        authError.message?.includes("already registered") ||
-        authError.message?.includes("already exists")
-      ) {
-        // Try to sign in instead to verify the email exists
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: tokenData.email,
-          password: password,
-        });
+      // Return the actual error for debugging
+      return NextResponse.json(
+        {
+          error: authError.message || "Failed to create account",
+          code: authError.code,
+          status: authError.status,
+          details: "Check Vercel logs for full error details",
+        },
+        { status: 500 },
+      );
+    }
 
-        if (!signInError) {
-          // Password is correct, user exists - just continue
-          console.log("User already exists, signed in successfully");
-        } else {
-          // User exists but password is wrong
-          return NextResponse.json(
-            {
-              error:
-                "An account with this email already exists. Please contact support if you've forgotten your password.",
-            },
-            { status: 400 },
-          );
-        }
-      } else {
-        return NextResponse.json(
-          { error: "Failed to create account: " + authError.message },
-          { status: 500 },
-        );
-      }
+    // Check if we got a user back
+    if (!authData?.user) {
+      console.log("No user returned from signup, but no error either");
+      console.log("Auth data:", authData);
     }
 
     const userId = authData?.user?.id || client.user_id;
