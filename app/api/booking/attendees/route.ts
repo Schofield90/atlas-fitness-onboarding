@@ -24,158 +24,115 @@ export async function GET(request: Request) {
       supabase = await createClient();
     }
 
-    // Try to fetch bookings from class_bookings table with leads join
+    // Use the unified view to get all bookings regardless of table
     const { data: bookings, error } = await supabase
-      .from("class_bookings")
-      .select(
-        `
-        *,
-        customer:leads(
-          id,
-          name,
-          email
-        )
-      `,
-      )
+      .from("unified_booking_view")
+      .select("*")
       .eq("class_session_id", sessionId)
+      .in("status", ["confirmed", "attended"])
       .order("created_at");
 
     if (error) {
-      console.error("Error fetching bookings with clients:", error);
+      console.error("Error fetching bookings from unified view:", error);
 
-      // Try without join if it fails
-      const { data: bookingsSimple, error: simpleError } = await supabase
+      // Fallback to direct queries if view doesn't exist yet
+      const { data: classBookings, error: cbError } = await supabase
         .from("class_bookings")
-        .select("*")
+        .select(
+          `
+          *,
+          leads!customer_id(id, first_name, last_name, email, phone),
+          clients!client_id(id, first_name, last_name, email, phone)
+        `,
+        )
         .eq("class_session_id", sessionId)
+        .in("booking_status", ["confirmed", "attended"])
         .order("created_at");
 
-      if (simpleError) {
+      if (cbError) {
+        console.error("Fallback query error:", cbError);
         return NextResponse.json(
-          { error: simpleError.message },
+          { error: "Failed to fetch attendees" },
           { status: 400 },
         );
       }
 
-      // Get customer details separately from leads table
-      const customerIds = bookingsSimple
-        .map((b) => b.customer_id)
-        .filter(Boolean);
-      const { data: customers } = await supabase
-        .from("leads")
-        .select("id, name, email")
-        .in("id", customerIds);
-
-      // Get membership data
-      let membershipData = {};
-      if (customerIds.length > 0) {
-        const { data: memberships } = await supabase
-          .from("customer_memberships")
-          .select(
-            `
-            customer_id,
-            membership_plan:membership_plans(name)
-          `,
-          )
-          .in("customer_id", customerIds)
-          .eq("status", "active");
-
-        if (memberships) {
-          membershipData = memberships.reduce((acc, m) => {
-            acc[m.customer_id] =
-              m.membership_plan?.name || "Unknown Membership";
-            return acc;
-          }, {});
-        }
-      }
-
-      // Merge the data
-      const attendees = bookingsSimple.map((booking) => {
-        const customer = customers?.find((c) => c.id === booking.customer_id);
-        let membershipDisplay =
-          membershipData[booking.customer_id] || "No Membership";
-
-        // Override with booking type from class_bookings
-        if (
-          booking.booking_type === "drop_in" &&
-          booking.payment_status === "comp"
-        ) {
-          membershipDisplay = "Complimentary (Free)";
-        } else if (booking.booking_type === "drop_in") {
-          membershipDisplay = "Drop-in";
-        } else if (booking.booking_type === "membership") {
-          // Get the actual membership name from the membership data
-          membershipDisplay =
-            membershipData[booking.customer_id] || "Monthly Membership";
-        }
+      // Format the fallback data
+      const attendees = (classBookings || []).map((booking) => {
+        const customer = booking.leads || booking.clients;
+        const customerName = customer
+          ? `${customer.first_name || ""} ${customer.last_name || ""}`.trim() ||
+            customer.email ||
+            "Unknown"
+          : "Unknown";
 
         return {
           id: booking.id,
-          clientId: booking.customer_id,
-          name: customer?.name || "Unknown",
-          email: customer?.email || "",
-          status: booking.booking_status || "confirmed",
-          membershipType: membershipDisplay,
+          customerId: booking.customer_id || booking.client_id,
+          customerName,
+          customerEmail: customer?.email || "",
+          customerPhone: customer?.phone || "",
+          status: booking.booking_status,
+          membershipType:
+            booking.booking_type === "membership"
+              ? "Membership"
+              : booking.booking_type === "drop_in"
+                ? "Drop-in"
+                : "No Membership",
+          bookedAt: booking.created_at,
         };
       });
 
       return NextResponse.json({ attendees });
     }
 
-    // Get membership data for all clients
-    const clientIds = (bookings || [])
-      .map((b) => b.client?.id || b.client_id)
-      .filter(Boolean);
-    let membershipData = {};
+    // Format the unified view data
+    const attendees = (bookings || []).map((booking) => ({
+      id: booking.id,
+      customerId: booking.customer_id,
+      customerName: booking.customer_name || "Unknown",
+      customerEmail: booking.customer_email || "",
+      customerPhone: booking.customer_phone || "",
+      status: booking.status,
+      membershipType:
+        booking.payment_status === "comp"
+          ? "Complimentary"
+          : booking.payment_status === "succeeded"
+            ? "Paid"
+            : "No Membership",
+      bookedAt: booking.created_at,
+    }));
 
-    if (clientIds.length > 0) {
-      // Try to get customer memberships
+    // Also get membership information for better display
+    const customerIds = attendees.map((a) => a.customerId).filter(Boolean);
+
+    if (customerIds.length > 0) {
       const { data: memberships } = await supabase
         .from("customer_memberships")
         .select(
           `
           customer_id,
-          membership_plan:membership_plans(name)
+          plan_name,
+          status
         `,
         )
-        .in("customer_id", clientIds)
+        .in("customer_id", customerIds)
         .eq("status", "active");
 
       if (memberships) {
-        membershipData = memberships.reduce((acc, m) => {
-          acc[m.customer_id] = m.membership_plan?.name || "Unknown Membership";
+        const membershipMap = memberships.reduce((acc, m) => {
+          acc[m.customer_id] = m.plan_name;
           return acc;
         }, {});
+
+        // Update membership types with actual membership names
+        attendees.forEach((attendee) => {
+          if (membershipMap[attendee.customerId]) {
+            attendee.membershipType = membershipMap[attendee.customerId];
+          }
+        });
       }
     }
-
-    // Transform bookings to attendees format
-    const attendees = (bookings || []).map((booking) => {
-      const customerId = booking.customer?.id || booking.customer_id;
-      let membershipDisplay = membershipData[customerId] || "No Membership";
-
-      // Override with booking type from class_bookings
-      if (
-        booking.booking_type === "drop_in" &&
-        booking.payment_status === "comp"
-      ) {
-        membershipDisplay = "Complimentary (Free)";
-      } else if (booking.booking_type === "drop_in") {
-        membershipDisplay = "Drop-in";
-      } else if (booking.booking_type === "membership") {
-        // Get the actual membership name from the membership data
-        membershipDisplay = membershipData[customerId] || "Monthly Membership";
-      }
-
-      return {
-        id: booking.id,
-        clientId: customerId,
-        name: booking.customer?.name || "Unknown",
-        email: booking.customer?.email || "",
-        status: booking.booking_status || "confirmed",
-        membershipType: membershipDisplay,
-      };
-    });
 
     return NextResponse.json({ attendees });
   } catch (error: any) {
