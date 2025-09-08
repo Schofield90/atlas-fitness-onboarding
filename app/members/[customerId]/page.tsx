@@ -92,6 +92,7 @@ export default function CustomerProfilePage() {
   const [activeTab, setActiveTab] = useState<TabType>("profile");
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<CustomerProfile>>({});
+  const [sendingWelcomeEmail, setSendingWelcomeEmail] = useState(false);
 
   useEffect(() => {
     if (customerId && organizationId) {
@@ -468,6 +469,65 @@ export default function CustomerProfilePage() {
     }
   };
 
+  const handleSendWelcomeEmail = async () => {
+    if (!customer?.email) {
+      alert("Customer does not have an email address");
+      return;
+    }
+
+    setSendingWelcomeEmail(true);
+    try {
+      const customerName =
+        `${customer.first_name || ""} ${customer.last_name || ""}`.trim() ||
+        "Customer";
+
+      const response = await fetch("/api/customers/send-welcome-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          customerId: customer.id,
+          email: customer.email,
+          name: customerName,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        if (data.credentials) {
+          // Email failed, show credentials for manual sharing
+          const message =
+            `Login credentials generated:\n\n` +
+            `Email: ${data.credentials.email}\n` +
+            `Password: ${data.credentials.tempPassword}\n` +
+            `Login URL: ${data.credentials.loginUrl}\n\n` +
+            `Please share these credentials with the customer.`;
+          alert(message);
+          console.log("Customer credentials:", data.credentials);
+        } else {
+          // Email sent successfully
+          let message = `Welcome email sent successfully to ${customer.email}`;
+          if (data.tempPassword) {
+            // In development, also show the password
+            message += `\n\nTemporary password: ${data.tempPassword}`;
+          }
+          alert(message);
+        }
+      } else {
+        throw new Error(data.error || "Failed to send welcome email");
+      }
+    } catch (error) {
+      console.error("Error sending welcome email:", error);
+      alert(
+        error instanceof Error ? error.message : "Failed to send welcome email",
+      );
+    } finally {
+      setSendingWelcomeEmail(false);
+    }
+  };
+
   const handleSaveProfile = async () => {
     try {
       // Update whichever record exists
@@ -582,13 +642,23 @@ export default function CustomerProfilePage() {
                   </button>
                 </>
               ) : (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
-                >
-                  <Edit className="w-4 h-4 inline mr-2" />
-                  Edit Profile
-                </button>
+                <>
+                  <button
+                    onClick={handleSendWelcomeEmail}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    disabled={sendingWelcomeEmail}
+                  >
+                    <Mail className="w-4 h-4 inline mr-2" />
+                    {sendingWelcomeEmail ? "Sending..." : "Send Welcome Email"}
+                  </button>
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                  >
+                    <Edit className="w-4 h-4 inline mr-2" />
+                    Edit Profile
+                  </button>
+                </>
               )}
             </div>
           </div>
