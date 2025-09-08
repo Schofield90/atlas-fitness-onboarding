@@ -112,8 +112,8 @@ export async function GET(request: Request) {
         .select(
           `
           customer_id,
-          plan_name,
-          status
+          status,
+          membership_plan:membership_plans(name)
         `,
         )
         .in("customer_id", customerIds)
@@ -123,7 +123,9 @@ export async function GET(request: Request) {
         console.log("Found memberships:", memberships);
         const membershipMap: Record<string, string> = {};
         memberships.forEach((m) => {
-          membershipMap[m.customer_id] = m.plan_name;
+          // Get plan name from the joined membership_plan
+          const planName = m.membership_plan?.name || "Standard Membership";
+          membershipMap[m.customer_id] = planName;
         });
 
         // Update membership types with actual membership names
