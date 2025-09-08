@@ -198,37 +198,102 @@ export default function ClassBookingsTab({
   };
 
   const fetchBookings = async () => {
+    console.log(
+      "Fetching bookings for customer:",
+      customerId,
+      "in org:",
+      organizationId,
+    );
+
     // Query for bookings with either client_id or customer_id
     const { data, error } = await supabase
       .from("class_bookings")
       .select(
         `
         *,
-        class_session:class_sessions(*)
+        class_sessions!class_session_id (
+          id,
+          name,
+          start_time,
+          end_time,
+          max_capacity,
+          current_bookings,
+          location,
+          instructor_name,
+          program_id,
+          programs (
+            name,
+            description
+          )
+        )
       `,
       )
       .or(`client_id.eq.${customerId},customer_id.eq.${customerId}`)
       .eq("organization_id", organizationId)
-      .order("booked_at", { ascending: false });
+      .in("booking_status", ["confirmed", "attended"])
+      .order("created_at", { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error("Error fetching bookings:", error);
+      // Try a simpler query as fallback
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from("class_bookings")
+        .select("*")
+        .or(`client_id.eq.${customerId},customer_id.eq.${customerId}`)
+        .in("booking_status", ["confirmed", "attended"]);
 
-    // Add a default class_type if it doesn't exist
-    const bookingsWithClassType = (data || []).map((booking) => ({
-      ...booking,
-      class_session: booking.class_session
-        ? {
-            ...booking.class_session,
-            class_type: booking.class_session.class_type || {
-              id: "default",
-              name: booking.class_session.name || "Class Session",
-              description: "",
-              color: "#3B82F6",
-            },
-          }
-        : null,
-    }));
+      if (fallbackError) {
+        console.error("Fallback query also failed:", fallbackError);
+        throw fallbackError;
+      }
 
+      console.log("Using fallback data:", fallbackData);
+
+      // Fetch class sessions separately
+      if (fallbackData && fallbackData.length > 0) {
+        const sessionIds = fallbackData
+          .map((b) => b.class_session_id)
+          .filter(Boolean);
+        const { data: sessions } = await supabase
+          .from("class_sessions")
+          .select("*, programs(name, description)")
+          .in("id", sessionIds);
+
+        const sessionMap =
+          sessions?.reduce((acc, s) => {
+            acc[s.id] = s;
+            return acc;
+          }, {}) || {};
+
+        data = fallbackData.map((booking) => ({
+          ...booking,
+          class_sessions: sessionMap[booking.class_session_id],
+        }));
+      }
+    }
+
+    console.log("Fetched bookings:", data);
+
+    // Transform bookings to match expected format
+    const bookingsWithClassType = (data || []).map((booking) => {
+      const session = booking.class_sessions || booking.class_session;
+      return {
+        ...booking,
+        class_session: session
+          ? {
+              ...session,
+              class_type: {
+                id: session.program_id || "default",
+                name: session.programs?.name || session.name || "Group PT",
+                description: session.programs?.description || "",
+                color: "#3B82F6",
+              },
+            }
+          : null,
+      };
+    });
+
+    console.log("Transformed bookings:", bookingsWithClassType);
     setBookings(bookingsWithClassType);
   };
 
@@ -267,19 +332,48 @@ export default function ClassBookingsTab({
   };
 
   const getUpcomingBookings = () => {
-    return bookings.filter(
-      (booking) =>
-        booking.status === "confirmed" &&
-        new Date(booking.class_session.start_time) > new Date(),
-    );
+    const now = new Date();
+    return bookings.filter((booking) => {
+      // Check if booking has valid session data
+      if (!booking.class_session || !booking.class_session.start_time) {
+        console.log("Booking missing session data:", booking);
+        return false;
+      }
+
+      // Check booking status (handle both 'confirmed' and 'booking_status')
+      const status = booking.booking_status || booking.status;
+      const isConfirmed = status === "confirmed" || status === "attended";
+
+      // Check if session is in the future
+      const sessionTime = new Date(booking.class_session.start_time);
+      const isUpcoming = sessionTime > now;
+
+      console.log("Booking filter check:", {
+        id: booking.id,
+        status,
+        isConfirmed,
+        sessionTime,
+        isUpcoming,
+        passes: isConfirmed && isUpcoming,
+      });
+
+      return isConfirmed && isUpcoming;
+    });
   };
 
   const getBookingHistory = () => {
-    return bookings.filter(
-      (booking) =>
-        booking.status !== "confirmed" ||
-        new Date(booking.class_session.start_time) <= new Date(),
-    );
+    const now = new Date();
+    return bookings.filter((booking) => {
+      if (!booking.class_session || !booking.class_session.start_time) {
+        return false;
+      }
+
+      const status = booking.booking_status || booking.status;
+      const sessionTime = new Date(booking.class_session.start_time);
+
+      // Include past sessions or cancelled bookings
+      return status !== "confirmed" || sessionTime <= now;
+    });
   };
 
   const canCancelBooking = (booking: ClassBooking) => {
