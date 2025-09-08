@@ -333,6 +333,8 @@ export default function ClassBookingsTab({
 
   const getUpcomingBookings = () => {
     const now = new Date();
+    console.log("Current time for comparison:", now.toISOString());
+
     return bookings.filter((booking) => {
       // Check if booking has valid session data
       if (!booking.class_session || !booking.class_session.start_time) {
@@ -347,6 +349,16 @@ export default function ClassBookingsTab({
       // Check if session is in the future
       const sessionTime = new Date(booking.class_session.start_time);
       const isUpcoming = sessionTime > now;
+
+      console.log("Booking date check:", {
+        id: booking.id,
+        startTime: booking.class_session.start_time,
+        sessionTime: sessionTime.toISOString(),
+        now: now.toISOString(),
+        isUpcoming,
+        status,
+        isConfirmed,
+      });
 
       console.log("Booking filter check:", {
         id: booking.id,
