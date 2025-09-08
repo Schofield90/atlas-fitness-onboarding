@@ -109,7 +109,8 @@ export async function middleware(request: NextRequest) {
     '/api/debug-welcome',
     '/api/simple-test',
     '/api/ping',
-    '/api/email-status'
+    '/api/email-status',
+    '/api/check-magic-link'
   ]
   
   const isAllowedTestEndpoint = allowedTestEndpoints.some(endpoint => pathname === endpoint)

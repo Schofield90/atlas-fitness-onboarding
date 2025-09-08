@@ -494,10 +494,10 @@ export default function CustomerProfilePage() {
         name: customerName,
       };
 
-      console.log("Sending request to /api/customers/send-welcome-email");
+      console.log("Sending request to /api/send-magic-link");
       console.log("Request body:", requestBody);
 
-      const response = await fetch("/api/customers/send-welcome-email", {
+      const response = await fetch("/api/send-magic-link", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
