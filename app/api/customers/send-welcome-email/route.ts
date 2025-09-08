@@ -219,8 +219,12 @@ export async function POST(request: NextRequest) {
         success: true,
         message: "Welcome email sent successfully",
         emailId: emailData?.id,
-        // In development, also return the password for testing
-        ...(process.env.NODE_ENV === "development" && { tempPassword }),
+        sentTo: email,
+        sentFrom: fromEmail,
+        resendResponse: emailData,
+        // Always return password for testing (remove in production)
+        tempPassword,
+        loginUrl: `${appUrl}/portal/login`,
       });
     } catch (emailError) {
       console.error("Email sending failed:", emailError);
