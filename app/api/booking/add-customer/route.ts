@@ -144,6 +144,22 @@ export async function POST(request: Request) {
         .neq("status", "client"); // Only update if not already a client
     }
 
+    // Update the current_bookings count in class_sessions
+    const { data: currentSession } = await supabase
+      .from("class_sessions")
+      .select("current_bookings")
+      .eq("id", classSessionId)
+      .single();
+
+    const newBookingCount = (currentSession?.current_bookings || 0) + 1;
+
+    await supabase
+      .from("class_sessions")
+      .update({ current_bookings: newBookingCount })
+      .eq("id", classSessionId);
+
+    console.log("Updated booking count to:", newBookingCount);
+
     return NextResponse.json({ success: true, data });
   } catch (error: any) {
     console.error("API error:", error);

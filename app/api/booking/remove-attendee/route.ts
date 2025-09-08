@@ -29,6 +29,8 @@ export async function DELETE(request: Request) {
       customer_id: customerId,
     });
 
+    let bookingDeleted = !error;
+
     if (error) {
       console.error("Error removing attendee:", error);
 
@@ -48,6 +50,28 @@ export async function DELETE(request: Request) {
           { status: 400 },
         );
       }
+      bookingDeleted = true;
+    }
+
+    // Update the current_bookings count in class_sessions if booking was deleted
+    if (bookingDeleted) {
+      const { data: currentSession } = await supabase
+        .from("class_sessions")
+        .select("current_bookings")
+        .eq("id", classSessionId)
+        .single();
+
+      const newBookingCount = Math.max(
+        (currentSession?.current_bookings || 1) - 1,
+        0,
+      );
+
+      await supabase
+        .from("class_sessions")
+        .update({ current_bookings: newBookingCount })
+        .eq("id", classSessionId);
+
+      console.log("Updated booking count to:", newBookingCount);
     }
 
     return NextResponse.json({
