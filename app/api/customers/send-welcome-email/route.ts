@@ -136,8 +136,8 @@ export async function POST(request: NextRequest) {
     console.log("Resend API Key length:", process.env.RESEND_API_KEY?.length);
     console.log("Email details:", {
       to: email,
-      from: `${organization?.name || "Atlas Fitness"} <noreply@atlas-gyms.co.uk>`,
-      subject: `Welcome to ${organization?.name || "Atlas Fitness"} - Your Account Details`,
+      from: `${organization?.name || "Gym Lead Hub"} <noreply@gymleadhub.co.uk>`,
+      subject: `Welcome to ${organization?.name || "Gym Lead Hub"} - Your Account Details`,
     });
 
     // Check if Resend is configured
@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
         to: email,
         subject: `Welcome to ${organization?.name || "Gym Lead Hub"} - Claim Your Account`,
         html: `
-          <h2>Welcome to ${organization?.name || "Atlas Fitness"}!</h2>
+          <h2>Welcome to ${organization?.name || "Gym Lead Hub"}!</h2>
           <p>Hi ${name},</p>
           <p>Your account has been created! Click the button below to set up your password and access your account:</p>
           <p style="text-align: center; margin: 30px 0;">
@@ -179,9 +179,9 @@ export async function POST(request: NextRequest) {
           <p>Or copy and paste this link into your browser:</p>
           <p style="word-break: break-all; color: #3B82F6;">${magicLink}</p>
           <p><small>This link will expire in 72 hours. If you didn't request this account, you can safely ignore this email.</small></p>
-          <p>Best regards,<br/>The ${organization?.name || "Atlas Fitness"} Team</p>
+          <p>Best regards,<br/>The ${organization?.name || "Gym Lead Hub"} Team</p>
         `,
-        text: `Welcome to ${organization?.name || "Atlas Fitness"}!\n\nHi ${name},\n\nYour account has been created! Click the link below to set up your password and access your account:\n\n${magicLink}\n\nThis link will expire in 72 hours. If you didn't request this account, you can safely ignore this email.\n\nBest regards,\nThe ${organization?.name || "Atlas Fitness"} Team`,
+        text: `Welcome to ${organization?.name || "Gym Lead Hub"}!\n\nHi ${name},\n\nYour account has been created! Click the link below to set up your password and access your account:\n\n${magicLink}\n\nThis link will expire in 72 hours. If you didn't request this account, you can safely ignore this email.\n\nBest regards,\nThe ${organization?.name || "Gym Lead Hub"} Team`,
       });
 
       // If domain error, retry with Resend's guaranteed domain
@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
           to: email,
           subject: `Welcome to ${organization?.name || "Gym Lead Hub"} - Claim Your Account`,
           html: `
-            <h2>Welcome to ${organization?.name || "Atlas Fitness"}!</h2>
+            <h2>Welcome to ${organization?.name || "Gym Lead Hub"}!</h2>
             <p>Hi ${name},</p>
             <p>Your account has been created! Click the button below to set up your password and access your account:</p>
             <p style="text-align: center; margin: 30px 0;">
@@ -209,9 +209,9 @@ export async function POST(request: NextRequest) {
             <p>Or copy and paste this link into your browser:</p>
             <p style="word-break: break-all; color: #3B82F6;">${magicLink}</p>
             <p><small>This link will expire in 72 hours. If you didn't request this account, you can safely ignore this email.</small></p>
-            <p>Best regards,<br/>The ${organization?.name || "Atlas Fitness"} Team</p>
+            <p>Best regards,<br/>The ${organization?.name || "Gym Lead Hub"} Team</p>
           `,
-          text: `Welcome to ${organization?.name || "Atlas Fitness"}!\n\nHi ${name},\n\nYour account has been created! Click the link below to set up your password and access your account:\n\n${magicLink}\n\nThis link will expire in 72 hours. If you didn't request this account, you can safely ignore this email.\n\nBest regards,\nThe ${organization?.name || "Atlas Fitness"} Team`,
+          text: `Welcome to ${organization?.name || "Gym Lead Hub"}!\n\nHi ${name},\n\nYour account has been created! Click the link below to set up your password and access your account:\n\n${magicLink}\n\nThis link will expire in 72 hours. If you didn't request this account, you can safely ignore this email.\n\nBest regards,\nThe ${organization?.name || "Gym Lead Hub"} Team`,
         });
 
         emailData = retryResult.data;
