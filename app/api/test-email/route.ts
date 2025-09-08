@@ -24,9 +24,9 @@ export async function GET(request: NextRequest) {
       const resend = new Resend(process.env.RESEND_API_KEY);
 
       const { data, error } = await resend.emails.send({
-        from: "Atlas Fitness <onboarding@resend.dev>",
+        from: "Gym Lead Hub <sam@gymleadhub.co.uk>",
         to: "sam@atlas-gyms.co.uk", // Your email
-        subject: "Test Email from Atlas Fitness",
+        subject: "Test Email from Gym Lead Hub",
         html: "<p>This is a test email to verify Resend is working.</p>",
         text: "This is a test email to verify Resend is working.",
       });
