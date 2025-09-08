@@ -64,47 +64,62 @@ function ClaimAccountContent() {
     try {
       const supabase = createClient();
 
-      // Fetch token details
-      const { data, error: fetchError } = await supabase
+      // First, fetch just the token
+      const { data: tokenData, error: fetchError } = await supabase
         .from("account_claim_tokens")
-        .select(
-          "*, clients(first_name, last_name, email, phone, date_of_birth)",
-        )
+        .select("*")
         .eq("token", token)
         .single();
 
-      if (fetchError || !data) {
+      if (fetchError || !tokenData) {
+        console.error("Token fetch error:", fetchError);
         setError("Invalid or expired token");
         setLoading(false);
         return;
       }
 
       // Check if token has expired
-      if (new Date(data.expires_at) < new Date()) {
+      if (new Date(tokenData.expires_at) < new Date()) {
         setError("This link has expired. Please request a new one.");
         setLoading(false);
         return;
       }
 
       // Check if already claimed
-      if (data.claimed_at) {
+      if (tokenData.claimed_at) {
         setError("This account has already been claimed.");
         setLoading(false);
         return;
       }
 
-      setTokenValid(true);
-      setTokenData(data);
+      // Now fetch the client separately
+      const { data: clientData, error: clientError } = await supabase
+        .from("clients")
+        .select("first_name, last_name, email, phone, date_of_birth")
+        .eq("id", tokenData.client_id)
+        .single();
 
-      // Pre-fill form with existing data
-      if (data.clients) {
+      if (clientError) {
+        console.error("Client fetch error:", clientError);
+        console.error("Token data:", tokenData);
+        // Don't fail completely, just log the error
+      }
+
+      setTokenValid(true);
+      setTokenData(tokenData);
+
+      // Pre-fill form with existing client data
+      if (clientData) {
+        console.log("Pre-filling with client data:", clientData);
         setFormData((prev) => ({
           ...prev,
-          firstName: data.clients.first_name || "",
-          lastName: data.clients.last_name || "",
-          phone: data.clients.phone || "",
-          dateOfBirth: data.clients.date_of_birth || "",
+          firstName: clientData.first_name || "",
+          lastName: clientData.last_name || "",
+          phone: clientData.phone || "",
+          dateOfBirth: clientData.date_of_birth || "",
         }));
+      } else {
+        console.log("No client data found to pre-fill");
       }
     } catch (err) {
       console.error("Error validating token:", err);
