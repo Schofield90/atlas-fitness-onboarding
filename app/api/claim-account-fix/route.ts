@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,27 +24,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient();
 
-    // Create admin client for user creation
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!serviceRoleKey) {
-      console.error(
-        "SUPABASE_SERVICE_ROLE_KEY is not set in environment variables",
-      );
-      console.log(
-        "Attempting to use anon key, but this may not have admin permissions",
-      );
-    }
-
-    const supabaseAdmin = createSupabaseClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      serviceRoleKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      },
-    );
+    // No admin client needed - we'll use regular signup flow
 
     // First, fetch just the token
     const { data: tokenData, error: tokenError } = await supabase
@@ -94,55 +73,51 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create auth user with Supabase Admin (using admin client)
-    const { data: authData, error: authError } =
-      await supabaseAdmin.auth.admin.createUser({
-        email: tokenData.email,
-        password: password,
-        email_confirm: true, // Auto-confirm email since we validated via token
-        user_metadata: {
+    // Try to sign up the user using regular auth flow
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: tokenData.email,
+      password: password,
+      options: {
+        data: {
           first_name: firstName || client.first_name,
           last_name: lastName || client.last_name,
           client_id: client.id,
           organization_id: tokenData.organization_id,
         },
-      });
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/portal/login`,
+      },
+    });
 
     if (authError) {
       console.error("Error creating auth user:", authError);
-      console.error("Full error details:", JSON.stringify(authError, null, 2));
-      console.error("Attempted with email:", tokenData.email);
-      console.error("Service role key present:", !!serviceRoleKey);
 
       // Check if user already exists
-      if (authError.message?.includes("already registered")) {
-        // If user exists and has a user_id, update their password
-        if (client.user_id) {
-          const { error: updateError } =
-            await supabaseAdmin.auth.admin.updateUserById(client.user_id, {
-              password,
-            });
+      if (
+        authError.message?.includes("already registered") ||
+        authError.message?.includes("already exists")
+      ) {
+        // Try to sign in instead to verify the email exists
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: tokenData.email,
+          password: password,
+        });
 
-          if (updateError) {
-            console.error("Error updating password:", updateError);
-            return NextResponse.json(
-              { error: "Failed to update password" },
-              { status: 500 },
-            );
-          }
+        if (!signInError) {
+          // Password is correct, user exists - just continue
+          console.log("User already exists, signed in successfully");
         } else {
-          // User exists in auth but not linked to client - this is a problem
+          // User exists but password is wrong
           return NextResponse.json(
             {
               error:
-                "Account exists but is not properly linked. Please contact support.",
+                "An account with this email already exists. Please contact support if you've forgotten your password.",
             },
-            { status: 500 },
+            { status: 400 },
           );
         }
       } else {
         return NextResponse.json(
-          { error: "Failed to create user account: " + authError.message },
+          { error: "Failed to create account: " + authError.message },
           { status: 500 },
         );
       }
