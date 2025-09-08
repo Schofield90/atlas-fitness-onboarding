@@ -16,35 +16,65 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createClient();
+    console.log("Creating Supabase client...");
+    const supabase = await createClient();
 
     // Get the current user and their organization
+    console.log("Getting authenticated user...");
     const {
       data: { user },
+      error: authError,
     } = await supabase.auth.getUser();
+
+    if (authError) {
+      console.error("Auth error:", authError);
+      return NextResponse.json(
+        { error: "Authentication failed: " + authError.message },
+        { status: 401 },
+      );
+    }
+
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized - no user found" },
+        { status: 401 },
+      );
     }
 
     // Get organization details
-    const { data: userOrg } = await supabase
+    console.log("Getting user organization...");
+    const { data: userOrg, error: orgError } = await supabase
       .from("user_organizations")
       .select("organization_id")
       .eq("user_id", user.id)
       .single();
 
+    if (orgError) {
+      console.error("Error fetching user organization:", orgError);
+      return NextResponse.json(
+        { error: "Failed to fetch organization: " + orgError.message },
+        { status: 500 },
+      );
+    }
+
     if (!userOrg?.organization_id) {
       return NextResponse.json(
-        { error: "Organization not found" },
+        { error: "Organization not found for user" },
         { status: 404 },
       );
     }
 
-    const { data: organization } = await supabase
+    console.log("Getting organization details...");
+    const { data: organization, error: orgDetailsError } = await supabase
       .from("organizations")
       .select("name, settings")
       .eq("id", userOrg.organization_id)
       .single();
+
+    if (orgDetailsError) {
+      console.error("Error fetching organization details:", orgDetailsError);
+      // Continue anyway - organization name is optional
+    }
 
     // Generate a secure temporary password
     const chars =
