@@ -1,189 +1,269 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { createClient } from '@/app/lib/supabase/client'
-import { ArrowLeft, Phone, Mail, Calendar, MapPin, User, AlertCircle, MessageSquare, FileText } from 'lucide-react'
-import CustomerProfileTabs from '@/app/components/customers/CustomerProfileTabs'
-import { MessageComposer } from '@/app/components/messaging/MessageComposer'
-import { WaiverAssignmentModal } from '@/app/components/customers/WaiverAssignmentModal'
-import { formatBritishDate } from '@/app/lib/utils/british-format'
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { createClient } from "@/app/lib/supabase/client";
+import {
+  ArrowLeft,
+  Phone,
+  Mail,
+  Calendar,
+  MapPin,
+  User,
+  AlertCircle,
+  MessageSquare,
+  FileText,
+} from "lucide-react";
+import CustomerProfileTabs from "@/app/components/customers/CustomerProfileTabs";
+import { MessageComposer } from "@/app/components/messaging/MessageComposer";
+import { WaiverAssignmentModal } from "@/app/components/customers/WaiverAssignmentModal";
+import { formatBritishDate } from "@/app/lib/utils/british-format";
 
 interface Customer {
-  id: string
-  organization_id: string
-  name: string
-  email: string
-  phone: string
-  status: string
-  created_at: string
-  date_of_birth: string | null
-  gender: string | null
-  address_line_1: string | null
-  address_line_2: string | null
-  city: string | null
-  postal_code: string | null
-  country: string | null
-  occupation: string | null
-  company: string | null
-  referral_source: string | null
-  referral_name: string | null
-  joined_date: string | null
-  last_visit_date: string | null
-  total_visits: number
-  lifetime_value: number
-  is_vip: boolean
-  tags: string[]
+  id: string;
+  organization_id: string;
+  name: string;
+  email: string;
+  phone: string;
+  status: string;
+  created_at: string;
+  date_of_birth: string | null;
+  gender: string | null;
+  address_line_1: string | null;
+  address_line_2: string | null;
+  city: string | null;
+  postal_code: string | null;
+  country: string | null;
+  occupation: string | null;
+  company: string | null;
+  referral_source: string | null;
+  referral_name: string | null;
+  joined_date: string | null;
+  last_visit_date: string | null;
+  total_visits: number;
+  lifetime_value: number;
+  is_vip: boolean;
+  tags: string[];
   lead_tags?: {
-    tag_id: string
+    tag_id: string;
     tags: {
-      id: string
-      name: string
-      color: string
-    }
-  }[]
+      id: string;
+      name: string;
+      color: string;
+    };
+  }[];
 }
 
 export default function CustomerDetailPage() {
-  const params = useParams()
-  const router = useRouter()
-  const customerId = params.id as string
-  const [customer, setCustomer] = useState<Customer | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [showMessageModal, setShowMessageModal] = useState(false)
-  const [showWaiverModal, setShowWaiverModal] = useState(false)
-  const supabase = createClient()
+  const params = useParams();
+  const router = useRouter();
+  const customerId = params.id as string;
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [showWaiverModal, setShowWaiverModal] = useState(false);
+  const [sendingWelcomeEmail, setSendingWelcomeEmail] = useState(false);
+  const supabase = createClient();
 
   useEffect(() => {
-    fetchCustomer()
-  }, [customerId])
+    fetchCustomer();
+  }, [customerId]);
 
   const fetchCustomer = async () => {
     try {
-      setLoading(true)
-      
+      setLoading(true);
+
       // Get current user and organization
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
-        throw new Error('Not authenticated')
+        throw new Error("Not authenticated");
       }
 
       // Get user's organization
       const { data: userOrg } = await supabase
-        .from('user_organizations')
-        .select('organization_id')
-        .eq('user_id', user.id)
-        .single()
+        .from("user_organizations")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .single();
 
       if (!userOrg?.organization_id) {
-        console.error('No organization found for user');
-        router.push('/onboarding');
+        console.error("No organization found for user");
+        router.push("/onboarding");
         return;
       }
-      
-      const organizationId = userOrg.organization_id
-      
+
+      const organizationId = userOrg.organization_id;
+
       // Try to get basic client data first (simplified query)
       let { data: clientData, error: clientError } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('id', customerId)
-        .single()
+        .from("clients")
+        .select("*")
+        .eq("id", customerId)
+        .single();
 
       // If client not found, try checking if it's a lead instead
       if (clientError || !clientData) {
         const { data: leadData, error: leadError } = await supabase
-          .from('leads')
-          .select('*')
-          .eq('id', customerId)
-          .single()
-        
+          .from("leads")
+          .select("*")
+          .eq("id", customerId)
+          .single();
+
         if (!leadError && leadData) {
           // Convert lead to client format
           clientData = {
             id: leadData.id,
-            first_name: leadData.name?.split(' ')[0] || leadData.name || 'Unknown',
-            last_name: leadData.name?.split(' ').slice(1).join(' ') || '',
-            email: leadData.email || '',
-            phone: leadData.phone || '',
+            first_name:
+              leadData.name?.split(" ")[0] || leadData.name || "Unknown",
+            last_name: leadData.name?.split(" ").slice(1).join(" ") || "",
+            email: leadData.email || "",
+            phone: leadData.phone || "",
             date_of_birth: null,
             address: null,
             created_at: leadData.created_at,
             updated_at: leadData.updated_at,
-            status: 'prospect',
-            source: leadData.source || 'lead',
+            status: "prospect",
+            source: leadData.source || "lead",
             tags: [],
             memberships: [],
             emergency_contacts: [],
             customer_medical_info: [],
-            customer_family_members: []
-          }
+            customer_family_members: [],
+          };
         }
       }
 
       // If we found client data, add empty arrays for missing relationships
       if (clientData) {
-        clientData.memberships = clientData.memberships || []
-        clientData.emergency_contacts = clientData.emergency_contacts || []
-        clientData.customer_medical_info = clientData.customer_medical_info || []
-        clientData.customer_family_members = clientData.customer_family_members || []
-        clientData.tags = clientData.tags || []
+        clientData.memberships = clientData.memberships || [];
+        clientData.emergency_contacts = clientData.emergency_contacts || [];
+        clientData.customer_medical_info =
+          clientData.customer_medical_info || [];
+        clientData.customer_family_members =
+          clientData.customer_family_members || [];
+        clientData.tags = clientData.tags || [];
       }
 
       if (clientData) {
         // Transform client data to expected format
         const customerData = {
           ...clientData,
-          name: `${clientData.first_name || ''} ${clientData.last_name || ''}`.trim() || clientData.name,
+          name:
+            `${clientData.first_name || ""} ${clientData.last_name || ""}`.trim() ||
+            clientData.name,
           is_lead: false,
-          lead_tags: []
-        }
-        setCustomer(customerData)
-        return
+          lead_tags: [],
+        };
+        setCustomer(customerData);
+        return;
       }
 
       // If no data found at all, throw error
-      throw new Error('Customer not found')
+      throw new Error("Customer not found");
     } catch (error) {
-      console.error('Error fetching customer:', error)
-      setError('Failed to load customer details')
+      console.error("Error fetching customer:", error);
+      setError("Failed to load customer details");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+
+  const handleSendWelcomeEmail = async () => {
+    if (!customer?.email) {
+      alert("Customer does not have an email address");
+      return;
+    }
+
+    setSendingWelcomeEmail(true);
+    try {
+      const response = await fetch("/api/customers/send-welcome-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          customerId: customer.id,
+          email: customer.email,
+          name: customer.name,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        if (data.credentials) {
+          // Email failed, show credentials for manual sharing
+          const message =
+            `Login credentials generated:\n\n` +
+            `Email: ${data.credentials.email}\n` +
+            `Password: ${data.credentials.tempPassword}\n` +
+            `Login URL: ${data.credentials.loginUrl}\n\n` +
+            `Please share these credentials with the customer.`;
+          alert(message);
+          console.log("Customer credentials:", data.credentials);
+        } else {
+          // Email sent successfully
+          let message = `Welcome email sent successfully to ${customer.email}`;
+          if (data.tempPassword) {
+            // In development, also show the password
+            message += `\n\nTemporary password: ${data.tempPassword}`;
+          }
+          alert(message);
+        }
+      } else {
+        throw new Error(data.error || "Failed to send welcome email");
+      }
+    } catch (error) {
+      console.error("Error sending welcome email:", error);
+      alert(
+        error instanceof Error ? error.message : "Failed to send welcome email",
+      );
+    } finally {
+      setSendingWelcomeEmail(false);
+    }
+  };
 
   const calculateAge = (dob: string | null): string => {
-    if (!dob) return 'Not set'
-    const birthDate = new Date(dob)
-    const today = new Date()
-    let age = today.getFullYear() - birthDate.getFullYear()
-    const monthDiff = today.getMonth() - birthDate.getMonth()
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--
+    if (!dob) return "Not set";
+    const birthDate = new Date(dob);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birthDate.getDate())
+    ) {
+      age--;
     }
-    return `${age} years old`
-  }
+    return `${age} years old`;
+  };
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      'new': { label: 'Lead', color: 'bg-blue-500' },
-      'contacted': { label: 'Lead', color: 'bg-blue-500' },
-      'qualified': { label: 'Lead', color: 'bg-blue-500' },
-      'converted': { label: 'Client', color: 'bg-green-500' },
-      'active': { label: 'Client', color: 'bg-green-500' },
-      'inactive': { label: 'Ex-Client', color: 'bg-gray-500' },
-      'lost': { label: 'Ex-Client', color: 'bg-gray-500' }
-    }
-    
-    const config = statusConfig[status.toLowerCase() as keyof typeof statusConfig] || { label: 'Lead', color: 'bg-blue-500' }
-    
+      new: { label: "Lead", color: "bg-blue-500" },
+      contacted: { label: "Lead", color: "bg-blue-500" },
+      qualified: { label: "Lead", color: "bg-blue-500" },
+      converted: { label: "Client", color: "bg-green-500" },
+      active: { label: "Client", color: "bg-green-500" },
+      inactive: { label: "Ex-Client", color: "bg-gray-500" },
+      lost: { label: "Ex-Client", color: "bg-gray-500" },
+    };
+
+    const config = statusConfig[
+      status.toLowerCase() as keyof typeof statusConfig
+    ] || { label: "Lead", color: "bg-blue-500" };
+
     return (
-      <span className={`${config.color} text-white px-3 py-1 rounded-full text-sm font-medium`}>
+      <span
+        className={`${config.color} text-white px-3 py-1 rounded-full text-sm font-medium`}
+      >
         {config.label}
       </span>
-    )
-  }
+    );
+  };
 
   if (loading) {
     return (
@@ -192,7 +272,7 @@ export default function CustomerDetailPage() {
           <p className="text-gray-400">Loading customer details...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (error || !customer) {
@@ -200,16 +280,16 @@ export default function CustomerDetailPage() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <p className="text-red-400">{error || 'Customer not found'}</p>
+          <p className="text-red-400">{error || "Customer not found"}</p>
           <button
-            onClick={() => router.push('/leads')}
+            onClick={() => router.push("/leads")}
             className="mt-4 text-blue-500 hover:text-blue-400"
           >
             Back to customers
           </button>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -220,17 +300,17 @@ export default function CustomerDetailPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => router.push('/leads')}
+                onClick={() => router.push("/leads")}
                 className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
               >
                 <ArrowLeft className="h-5 w-5 text-gray-400" />
               </button>
-              
+
               {/* Customer Photo */}
               <div className="h-16 w-16 bg-gray-700 rounded-full flex items-center justify-center">
                 <User className="h-8 w-8 text-gray-400" />
               </div>
-              
+
               {/* Customer Info */}
               <div>
                 <h1 className="text-2xl font-bold text-white flex items-center gap-2">
@@ -241,15 +321,16 @@ export default function CustomerDetailPage() {
                       VIP
                     </span>
                   )}
-                  {customer.lead_tags && customer.lead_tags.map((leadTag) => (
-                    <span
-                      key={leadTag.tag_id}
-                      className="text-xs px-2 py-1 rounded-full text-white"
-                      style={{ backgroundColor: leadTag.tags.color }}
-                    >
-                      {leadTag.tags.name}
-                    </span>
-                  ))}
+                  {customer.lead_tags &&
+                    customer.lead_tags.map((leadTag) => (
+                      <span
+                        key={leadTag.tag_id}
+                        className="text-xs px-2 py-1 rounded-full text-white"
+                        style={{ backgroundColor: leadTag.tags.color }}
+                      >
+                        {leadTag.tags.name}
+                      </span>
+                    ))}
                 </h1>
                 <div className="flex items-center gap-4 text-sm text-gray-400 mt-1">
                   {customer.email && (
@@ -282,6 +363,16 @@ export default function CustomerDetailPage() {
 
             {/* Quick Actions & Stats */}
             <div className="flex items-center gap-6">
+              {/* Send Welcome Email Button */}
+              <button
+                onClick={handleSendWelcomeEmail}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                disabled={sendingWelcomeEmail}
+              >
+                <Mail className="h-5 w-5" />
+                {sendingWelcomeEmail ? "Sending..." : "Send Welcome Email"}
+              </button>
+
               {/* Add Waiver Button */}
               <button
                 onClick={() => setShowWaiverModal(true)}
@@ -290,7 +381,7 @@ export default function CustomerDetailPage() {
                 <FileText className="h-5 w-5" />
                 Add Waiver
               </button>
-              
+
               {/* Message Button */}
               <button
                 onClick={() => setShowMessageModal(true)}
@@ -299,10 +390,12 @@ export default function CustomerDetailPage() {
                 <MessageSquare className="h-5 w-5" />
                 Message
               </button>
-              
+
               {/* Stats */}
               <div className="text-center">
-                <div className="text-2xl font-bold text-white">{customer.total_visits || 0}</div>
+                <div className="text-2xl font-bold text-white">
+                  {customer.total_visits || 0}
+                </div>
                 <div className="text-xs text-gray-400">Total Visits</div>
               </div>
               <div className="text-center">
@@ -313,7 +406,9 @@ export default function CustomerDetailPage() {
               </div>
               <div className="text-center">
                 <div className="text-sm font-medium text-white">
-                  {customer.last_visit_date ? formatBritishDate(customer.last_visit_date) : 'Never'}
+                  {customer.last_visit_date
+                    ? formatBritishDate(customer.last_visit_date)
+                    : "Never"}
                 </div>
                 <div className="text-xs text-gray-400">Last Visit</div>
               </div>
@@ -348,7 +443,7 @@ export default function CustomerDetailPage() {
           onClose={() => setShowMessageModal(false)}
           lead={customer}
           onMessageSent={() => {
-            setShowMessageModal(false)
+            setShowMessageModal(false);
             // Could refresh activity log here
           }}
         />
@@ -361,12 +456,12 @@ export default function CustomerDetailPage() {
           onClose={() => setShowWaiverModal(false)}
           customer={customer}
           onWaiverAssigned={() => {
-            setShowWaiverModal(false)
+            setShowWaiverModal(false);
             // Refresh customer data to update waivers tab
-            fetchCustomer()
+            fetchCustomer();
           }}
         />
       )}
     </div>
-  )
+  );
 }
