@@ -26,7 +26,8 @@ const publicRoutes = [
   '/api/public-api',
   '/api/booking-by-slug',
   '/api/analytics',
-  '/api/claim-account'   // Public API for claiming accounts
+  '/api/claim-account',   // Public API for claiming accounts
+  '/api/claim-account-fix'   // Fixed version of claim account API
 ]
 
 // Client-only routes
