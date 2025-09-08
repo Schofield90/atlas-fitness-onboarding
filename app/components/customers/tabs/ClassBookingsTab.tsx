@@ -335,42 +335,49 @@ export default function ClassBookingsTab({
     const now = new Date();
     console.log("Current time for comparison:", now.toISOString());
 
-    return bookings.filter((booking) => {
-      // Check if booking has valid session data
-      if (!booking.class_session || !booking.class_session.start_time) {
-        console.log("Booking missing session data:", booking);
-        return false;
-      }
+    return bookings
+      .filter((booking) => {
+        // Check if booking has valid session data
+        if (!booking.class_session || !booking.class_session.start_time) {
+          console.log("Booking missing session data:", booking);
+          return false;
+        }
 
-      // Check booking status (handle both 'confirmed' and 'booking_status')
-      const status = booking.booking_status || booking.status;
-      const isConfirmed = status === "confirmed" || status === "attended";
+        // Check booking status (handle both 'confirmed' and 'booking_status')
+        const status = booking.booking_status || booking.status;
+        const isConfirmed = status === "confirmed" || status === "attended";
 
-      // Check if session is in the future
-      const sessionTime = new Date(booking.class_session.start_time);
-      const isUpcoming = sessionTime > now;
+        // Check if session is in the future
+        const sessionTime = new Date(booking.class_session.start_time);
+        const isUpcoming = sessionTime > now;
 
-      console.log("Booking date check:", {
-        id: booking.id,
-        startTime: booking.class_session.start_time,
-        sessionTime: sessionTime.toISOString(),
-        now: now.toISOString(),
-        isUpcoming,
-        status,
-        isConfirmed,
+        console.log("Booking date check:", {
+          id: booking.id,
+          startTime: booking.class_session.start_time,
+          sessionTime: sessionTime.toISOString(),
+          now: now.toISOString(),
+          isUpcoming,
+          status,
+          isConfirmed,
+        });
+
+        console.log("Booking filter check:", {
+          id: booking.id,
+          status,
+          isConfirmed,
+          sessionTime,
+          isUpcoming,
+          passes: isConfirmed && isUpcoming,
+        });
+
+        return isConfirmed && isUpcoming;
+      })
+      .sort((a, b) => {
+        // Sort chronologically - nearest session first
+        const timeA = new Date(a.class_session.start_time).getTime();
+        const timeB = new Date(b.class_session.start_time).getTime();
+        return timeA - timeB;
       });
-
-      console.log("Booking filter check:", {
-        id: booking.id,
-        status,
-        isConfirmed,
-        sessionTime,
-        isUpcoming,
-        passes: isConfirmed && isUpcoming,
-      });
-
-      return isConfirmed && isUpcoming;
-    });
   };
 
   const getBookingHistory = () => {
@@ -617,6 +624,23 @@ export default function ClassBookingsTab({
                           </div>
                         </div>
                         <div className="space-y-2 text-sm text-gray-300">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4" />
+                            {(() => {
+                              const date = new Date(
+                                booking.class_session.start_time,
+                              );
+                              const dayName = date.toLocaleDateString("en-GB", {
+                                weekday: "long",
+                              });
+                              const dateStr = date.toLocaleDateString("en-GB", {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              });
+                              return `${dayName}, ${dateStr}`;
+                            })()}
+                          </div>
                           <div className="flex items-center gap-2">
                             <Clock className="h-4 w-4" />
                             {
