@@ -13,9 +13,9 @@ export async function GET(request: NextRequest) {
       keyPrefix: process.env.RESEND_API_KEY?.substring(0, 7) || "not set",
     },
     sender: {
-      domain: "gymleadhub.co.uk",
-      email: "sam@gymleadhub.co.uk",
-      verified: "Yes (as per your confirmation)",
+      domain: "email.gymleadhub.co.uk",
+      email: "sam@email.gymleadhub.co.uk",
+      verified: "Yes - Verified in Resend",
     },
     test: {
       message: "Click 'Send Test' to send a test welcome email",

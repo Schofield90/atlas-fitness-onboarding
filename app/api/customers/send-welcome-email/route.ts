@@ -119,8 +119,8 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      // Use Resend's test domain to ensure delivery while custom domain is being verified
-      let fromEmail = "onboarding@resend.dev"; // Using Resend's domain that always works
+      // Use your verified subdomain
+      let fromEmail = "sam@email.gymleadhub.co.uk"; // Your verified subdomain
       const fromName = organization?.name || "Gym Lead Hub";
 
       // Send with Resend's verified domain
