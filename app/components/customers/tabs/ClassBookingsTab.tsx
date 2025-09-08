@@ -228,7 +228,7 @@ export default function ClassBookingsTab({
         )
       `,
       )
-      .or(`client_id.eq.${customerId},customer_id.eq.${customerId}`)
+      .eq("customer_id", customerId)
       .eq("organization_id", organizationId)
       .in("booking_status", ["confirmed", "attended"])
       .order("created_at", { ascending: false });
@@ -239,7 +239,7 @@ export default function ClassBookingsTab({
       const { data: fallbackData, error: fallbackError } = await supabase
         .from("class_bookings")
         .select("*")
-        .or(`client_id.eq.${customerId},customer_id.eq.${customerId}`)
+        .eq("customer_id", customerId)
         .in("booking_status", ["confirmed", "attended"]);
 
       if (fallbackError) {
