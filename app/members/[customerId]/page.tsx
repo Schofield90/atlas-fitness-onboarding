@@ -513,21 +513,22 @@ export default function CustomerProfilePage() {
 
       if (response.ok) {
         if (data.credentials) {
-          // Email failed, show credentials for manual sharing
+          // Email failed, show magic link for manual sharing
           const message =
-            `Login credentials generated:\n\n` +
+            `Account claim link generated:\n\n` +
             `Email: ${data.credentials.email}\n` +
-            `Password: ${data.credentials.tempPassword}\n` +
-            `Login URL: ${data.credentials.loginUrl}\n\n` +
-            `Please share these credentials with the customer.`;
+            `Magic Link: ${data.credentials.magicLink}\n` +
+            `Expires: ${new Date(data.credentials.expiresAt).toLocaleString()}\n\n` +
+            `Please share this link with the customer.`;
           alert(message);
-          console.log("Customer credentials:", data.credentials);
+          console.log("Customer magic link:", data.credentials);
         } else {
           // Email sent successfully
           let message = `Welcome email sent successfully to ${customer.email}`;
-          if (data.tempPassword) {
-            // In development, also show the password
-            message += `\n\nTemporary password: ${data.tempPassword}`;
+          if (data.magicLink) {
+            // In development, also show the magic link
+            message += `\n\nMagic link: ${data.magicLink}`;
+            message += `\nExpires: ${new Date(data.expiresAt).toLocaleString()}`;
           }
           alert(message);
         }
