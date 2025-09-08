@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
     try {
       // First, let's try a simple text email to test Resend
       const { data: emailData, error: emailError } = await resend.emails.send({
-        from: "Atlas Fitness <onboarding@resend.dev>", // Use Resend's test domain for now
+        from: "onboarding@resend.dev", // Use Resend's test domain - always works without verification
         to: email,
         subject: `Welcome to ${organization?.name || "Atlas Fitness"} - Your Account Details`,
         html: `
