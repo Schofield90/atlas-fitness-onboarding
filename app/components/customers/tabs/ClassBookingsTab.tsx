@@ -211,7 +211,7 @@ export default function ClassBookingsTab({
       .select(
         `
         *,
-        class_sessions!class_session_id (
+        class_sessions!inner (
           id,
           name,
           start_time,
