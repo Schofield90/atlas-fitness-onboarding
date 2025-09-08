@@ -470,6 +470,13 @@ export default function CustomerProfilePage() {
   };
 
   const handleSendWelcomeEmail = async () => {
+    console.log("handleSendWelcomeEmail called");
+    console.log("Customer data:", {
+      id: customer?.id,
+      email: customer?.email,
+      name: customer?.first_name,
+    });
+
     if (!customer?.email) {
       alert("Customer does not have an email address");
       return;
@@ -481,37 +488,47 @@ export default function CustomerProfilePage() {
         `${customer.first_name || ""} ${customer.last_name || ""}`.trim() ||
         "Customer";
 
-      const response = await fetch("/api/customers/send-welcome-email", {
+      const requestBody = {
+        customerId: customer.id,
+        email: customer.email,
+        name: customerName,
+      };
+
+      console.log("Sending request to /api/send-magic-link");
+      console.log("Request body:", requestBody);
+
+      const response = await fetch("/api/send-magic-link", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          customerId: customer.id,
-          email: customer.email,
-          name: customerName,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
+      console.log("Response status:", response.status);
+      console.log("Response ok:", response.ok);
+
       const data = await response.json();
+      console.log("Response data:", data);
 
       if (response.ok) {
         if (data.credentials) {
-          // Email failed, show credentials for manual sharing
+          // Email failed, show magic link for manual sharing
           const message =
-            `Login credentials generated:\n\n` +
+            `Account claim link generated:\n\n` +
             `Email: ${data.credentials.email}\n` +
-            `Password: ${data.credentials.tempPassword}\n` +
-            `Login URL: ${data.credentials.loginUrl}\n\n` +
-            `Please share these credentials with the customer.`;
+            `Magic Link: ${data.credentials.magicLink}\n` +
+            `Expires: ${new Date(data.credentials.expiresAt).toLocaleString()}\n\n` +
+            `Please share this link with the customer.`;
           alert(message);
-          console.log("Customer credentials:", data.credentials);
+          console.log("Customer magic link:", data.credentials);
         } else {
           // Email sent successfully
           let message = `Welcome email sent successfully to ${customer.email}`;
-          if (data.tempPassword) {
-            // In development, also show the password
-            message += `\n\nTemporary password: ${data.tempPassword}`;
+          if (data.magicLink) {
+            // In development, also show the magic link
+            message += `\n\nMagic link: ${data.magicLink}`;
+            message += `\nExpires: ${new Date(data.expiresAt).toLocaleString()}`;
           }
           alert(message);
         }
@@ -650,6 +667,27 @@ export default function CustomerProfilePage() {
                   >
                     <Mail className="w-4 h-4 inline mr-2" />
                     {sendingWelcomeEmail ? "Sending..." : "Send Welcome Email"}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      console.log("Test button clicked!");
+                      try {
+                        const res = await fetch("/api/simple-test", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ test: "data" }),
+                        });
+                        const data = await res.json();
+                        console.log("Test response:", data);
+                        alert("Test successful! Check console");
+                      } catch (err) {
+                        console.error("Test failed:", err);
+                        alert("Test failed! Check console");
+                      }
+                    }}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    Test API
                   </button>
                   <button
                     onClick={() => setIsEditing(true)}

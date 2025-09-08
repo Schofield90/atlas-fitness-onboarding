@@ -15,6 +15,7 @@ const publicRoutes = [
   '/client-portal/login',
   '/client-portal/claim',
   '/client-access',
+  '/claim-account',      // Public claim account page
   '/book',              // Public booking pages for customers (all slugs)
   '/meta-review',       // Meta App Review test page
   // Public API endpoints
@@ -24,7 +25,8 @@ const publicRoutes = [
   '/api/webhooks',
   '/api/public-api',
   '/api/booking-by-slug',
-  '/api/analytics'
+  '/api/analytics',
+  '/api/claim-account'   // Public API for claiming accounts
 ]
 
 // Client-only routes
@@ -100,10 +102,24 @@ export async function middleware(request: NextRequest) {
     pathname === route || pathname.startsWith(route + '/')
   )
   
-  // Also block debug API routes
-  const isDebugApiRoute = pathname.startsWith('/api/debug/') || 
-                         pathname.startsWith('/api/test/') ||
-                         pathname.startsWith('/api/quick-add-class')
+  // Also block debug API routes - but allow specific test endpoints
+  const allowedTestEndpoints = [
+    '/api/test-email',
+    '/api/test-welcome',
+    '/api/debug-welcome',
+    '/api/simple-test',
+    '/api/ping',
+    '/api/email-status',
+    '/api/check-magic-link'
+  ]
+  
+  const isAllowedTestEndpoint = allowedTestEndpoints.some(endpoint => pathname === endpoint)
+  
+  const isDebugApiRoute = !isAllowedTestEndpoint && (
+    pathname.startsWith('/api/debug/') || 
+    pathname.startsWith('/api/test/') ||
+    pathname.startsWith('/api/quick-add-class')
+  )
   
   if (isDebugRoute || isDebugApiRoute) {
     // Only allow debug routes in development or if ENABLE_DEBUG_ROUTES=true
