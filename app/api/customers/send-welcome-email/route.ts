@@ -8,8 +8,14 @@ const resend = process.env.RESEND_API_KEY
   : null;
 
 export async function POST(request: NextRequest) {
+  console.log("=== SEND-WELCOME-EMAIL ENDPOINT HIT ===");
+  console.log("Timestamp:", new Date().toISOString());
+  console.log("Method:", request.method);
+
   try {
-    const { customerId, email, name } = await request.json();
+    const body = await request.json();
+    console.log("Request body received:", body);
+    const { customerId, email, name } = body;
 
     if (!customerId || !email) {
       return NextResponse.json(

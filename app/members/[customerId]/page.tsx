@@ -470,6 +470,13 @@ export default function CustomerProfilePage() {
   };
 
   const handleSendWelcomeEmail = async () => {
+    console.log("handleSendWelcomeEmail called");
+    console.log("Customer data:", {
+      id: customer?.id,
+      email: customer?.email,
+      name: customer?.first_name,
+    });
+
     if (!customer?.email) {
       alert("Customer does not have an email address");
       return;
@@ -481,19 +488,28 @@ export default function CustomerProfilePage() {
         `${customer.first_name || ""} ${customer.last_name || ""}`.trim() ||
         "Customer";
 
+      const requestBody = {
+        customerId: customer.id,
+        email: customer.email,
+        name: customerName,
+      };
+
+      console.log("Sending request to /api/customers/send-welcome-email");
+      console.log("Request body:", requestBody);
+
       const response = await fetch("/api/customers/send-welcome-email", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          customerId: customer.id,
-          email: customer.email,
-          name: customerName,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
+      console.log("Response status:", response.status);
+      console.log("Response ok:", response.ok);
+
       const data = await response.json();
+      console.log("Response data:", data);
 
       if (response.ok) {
         if (data.credentials) {
