@@ -1,1 +1,17 @@
-[]
+[
+  {
+    "content": "Check if Resend integration is working with test endpoint",
+    "status": "completed",
+    "activeForm": "Checking if Resend integration is working with test endpoint"
+  },
+  {
+    "content": "Update email configuration to use integration properly",
+    "status": "completed",
+    "activeForm": "Updating email configuration to use integration properly"
+  },
+  {
+    "content": "Test welcome email with new integration",
+    "status": "in_progress",
+    "activeForm": "Testing welcome email with new integration"
+  }
+]
