@@ -36,19 +36,38 @@ export async function DELETE(
       );
     }
 
-    // Check if the client belongs to the user's organization
-    const { data: client, error: clientError } = await supabase
+    // Check if the record exists in clients table first
+    let { data: client, error: clientError } = await supabase
       .from("clients")
-      .select("id, user_id, organization_id")
+      .select("id, user_id, org_id")
       .eq("id", params.id)
-      .eq("organization_id", userOrg.organization_id)
+      .eq("org_id", userOrg.organization_id)
       .single();
 
+    // If not in clients, check leads table
+    let isLead = false;
     if (clientError || !client) {
-      return NextResponse.json(
-        { error: "Client not found or access denied" },
-        { status: 404 },
-      );
+      const { data: lead, error: leadError } = await supabase
+        .from("leads")
+        .select("id, user_id, organization_id")
+        .eq("id", params.id)
+        .eq("organization_id", userOrg.organization_id)
+        .single();
+
+      if (leadError || !lead) {
+        return NextResponse.json(
+          { error: "Member not found or access denied" },
+          { status: 404 },
+        );
+      }
+
+      // Map lead data to client structure
+      client = {
+        id: lead.id,
+        user_id: lead.user_id,
+        org_id: lead.organization_id,
+      };
+      isLead = true;
     }
 
     // Create admin client for auth user deletion
@@ -89,11 +108,33 @@ export async function DELETE(
     // Delete body composition records
     await supabase.from("body_composition").delete().eq("client_id", params.id);
 
-    // Delete bookings
+    // Delete bookings - check both customer_id and client_id
     await supabase.from("bookings").delete().eq("customer_id", params.id);
+    await supabase.from("bookings").delete().eq("client_id", params.id);
 
     // Delete activity logs
     await supabase.from("activity_logs").delete().eq("lead_id", params.id);
+
+    // Delete customer notes - check both customer_id and client_id
+    await supabase.from("customer_notes").delete().eq("customer_id", params.id);
+    await supabase.from("customer_notes").delete().eq("client_id", params.id);
+
+    // Delete customer memberships
+    await supabase
+      .from("customer_memberships")
+      .delete()
+      .eq("customer_id", params.id);
+    await supabase
+      .from("customer_memberships")
+      .delete()
+      .eq("client_id", params.id);
+
+    // Delete customer waivers
+    await supabase
+      .from("customer_waivers")
+      .delete()
+      .eq("customer_id", params.id);
+    await supabase.from("customer_waivers").delete().eq("client_id", params.id);
 
     // Delete client portal access
     await supabase
@@ -101,35 +142,52 @@ export async function DELETE(
       .delete()
       .eq("client_id", params.id);
 
-    // Finally, delete the client record
-    const { error: deleteError } = await supabase
-      .from("clients")
-      .delete()
-      .eq("id", params.id)
-      .eq("organization_id", userOrg.organization_id);
+    // Finally, delete the client or lead record
+    if (isLead) {
+      const { error: deleteError } = await supabase
+        .from("leads")
+        .delete()
+        .eq("id", params.id)
+        .eq("organization_id", userOrg.organization_id);
 
-    if (deleteError) {
-      console.error("Error deleting client:", deleteError);
-      return NextResponse.json(
-        { error: "Failed to delete client", details: deleteError },
-        { status: 500 },
-      );
+      if (deleteError) {
+        console.error("Error deleting lead:", deleteError);
+        return NextResponse.json(
+          { error: "Failed to delete member", details: deleteError },
+          { status: 500 },
+        );
+      }
+    } else {
+      const { error: deleteError } = await supabase
+        .from("clients")
+        .delete()
+        .eq("id", params.id)
+        .eq("org_id", userOrg.organization_id);
+
+      if (deleteError) {
+        console.error("Error deleting client:", deleteError);
+        return NextResponse.json(
+          { error: "Failed to delete member", details: deleteError },
+          { status: 500 },
+        );
+      }
     }
 
     // Log the deletion
     await supabase.from("activity_logs").insert({
       organization_id: userOrg.organization_id,
-      type: "client_deleted",
-      description: `Client deleted by ${user.email}`,
+      type: isLead ? "lead_deleted" : "client_deleted",
+      description: `${isLead ? "Lead" : "Client"} deleted by ${user.email}`,
       metadata: {
-        client_id: params.id,
+        record_id: params.id,
+        record_type: isLead ? "lead" : "client",
         deleted_by: user.id,
       },
     });
 
     return NextResponse.json({
       success: true,
-      message: "Client deleted successfully",
+      message: "Member deleted successfully",
     });
   } catch (error) {
     console.error("Error in delete client API:", error);
