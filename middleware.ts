@@ -32,7 +32,8 @@ const publicRoutes = [
   '/api/claim-account-fix',   // Fixed version of claim account API
   '/api/claim-account-otp',    // OTP-based claim account API
   '/api/debug-clients',    // Debug endpoint to check client emails
-  '/api/test-client-lookup'    // Test endpoint for debugging email lookup
+  '/api/test-client-lookup',    // Test endpoint for debugging email lookup
+  '/api/check-database'    // Check what's actually in the database
 ]
 
 // Client-only routes
