@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              from: "Atlas Fitness <onboarding@resend.dev>", // Use Resend's test domain if custom domain not verified
+              from: "Atlas Fitness <sam@email.gymleadhub.co.uk>", // Use verified domain email
               to: email,
               subject: `Your verification code: ${otpCode}`,
               html: emailHtml,
