@@ -68,9 +68,6 @@ export async function POST(request: NextRequest) {
         }
 
         if (!userId) {
-        }
-
-        if (!userId) {
           // No existing user, create new one
           console.log(
             `No existing auth user found for ${email}, creating new one...`,
@@ -286,9 +283,6 @@ export async function POST(request: NextRequest) {
           }
         } catch (lookupErr) {
           console.error("Error looking up users:", lookupErr);
-        }
-
-        if (!userId) {
         }
 
         if (!userId) {
