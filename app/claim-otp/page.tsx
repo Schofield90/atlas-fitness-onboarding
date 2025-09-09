@@ -11,6 +11,7 @@ export default function ClaimOTPPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [testModeOTP, setTestModeOTP] = useState("");
 
   // Form data
   const [email, setEmail] = useState("");
@@ -48,6 +49,12 @@ export default function ClaimOTPPage() {
         setFirstName(data.clientDetails.first_name || "");
         setLastName(data.clientDetails.last_name || "");
         setPhone(data.clientDetails.phone || "");
+      }
+
+      // Show test mode OTP if available (temporary for debugging)
+      if (data.testModeOTP) {
+        setTestModeOTP(data.testModeOTP);
+        console.warn(data.testModeWarning);
       }
 
       // Move to verification step - user must check their email
@@ -187,6 +194,17 @@ export default function ClaimOTPPage() {
             </form>
           ) : (
             <form onSubmit={handleVerifyOTP} className="space-y-4">
+              {testModeOTP && (
+                <div className="mb-4 p-4 bg-yellow-900/50 border border-yellow-500 rounded-lg">
+                  <p className="text-yellow-200 font-bold mb-2">⚠️ TEST MODE</p>
+                  <p className="text-yellow-200 text-sm mb-2">
+                    Email delivery is currently not working. Use this code:
+                  </p>
+                  <p className="text-2xl font-mono text-yellow-100 text-center bg-black/30 p-2 rounded">
+                    {testModeOTP}
+                  </p>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Verification Code

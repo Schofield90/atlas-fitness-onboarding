@@ -155,7 +155,8 @@ export async function POST(request: NextRequest) {
       }
 
       // NEVER return OTP in response - security risk!
-      return NextResponse.json({
+      // EXCEPT in test mode for debugging
+      const response: any = {
         success: true,
         message: "Verification code sent to your email",
         clientDetails: {
@@ -169,8 +170,20 @@ export async function POST(request: NextRequest) {
               .single()
           ).data?.phone,
         },
-        // DO NOT include OTP in response
-      });
+      };
+
+      // TEMPORARY: Show OTP in test mode while email issues are being fixed
+      // This should be removed once email delivery is working
+      if (
+        process.env.SHOW_OTP_FOR_TESTING === "true" ||
+        process.env.NODE_ENV === "development"
+      ) {
+        response.testModeOTP = otpCode;
+        response.testModeWarning =
+          "⚠️ TEST MODE: OTP shown for debugging. Remove in production!";
+      }
+
+      return NextResponse.json(response);
     }
 
     // Action 2: Verify OTP and create account
