@@ -21,6 +21,7 @@ import {
   Edit,
   Save,
   X,
+  Trash2,
 } from "lucide-react";
 import DashboardLayout from "@/app/components/DashboardLayout";
 import { createClient } from "@/app/lib/supabase/client";
@@ -93,6 +94,7 @@ export default function CustomerProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<CustomerProfile>>({});
   const [sendingWelcomeEmail, setSendingWelcomeEmail] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (customerId && organizationId) {
@@ -574,6 +576,35 @@ export default function CustomerProfilePage() {
     }
   };
 
+  const handleDeleteMember = async () => {
+    const confirmed = confirm(
+      `Are you sure you want to delete ${customer?.first_name || "this member"}? This action cannot be undone.`,
+    );
+
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/clients/${customerId}/delete`, {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert("Member deleted successfully");
+        router.push("/members");
+      } else {
+        throw new Error(data.error || "Failed to delete member");
+      }
+    } catch (error) {
+      console.error("Error deleting member:", error);
+      alert(error instanceof Error ? error.message : "Failed to delete member");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const getChurnRiskColor = (score?: number) => {
     if (!score) return "text-gray-400";
     if (score >= 0.7) return "text-red-400";
@@ -669,32 +700,19 @@ export default function CustomerProfilePage() {
                     {sendingWelcomeEmail ? "Sending..." : "Send Welcome Email"}
                   </button>
                   <button
-                    onClick={async () => {
-                      console.log("Test button clicked!");
-                      try {
-                        const res = await fetch("/api/simple-test", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ test: "data" }),
-                        });
-                        const data = await res.json();
-                        console.log("Test response:", data);
-                        alert("Test successful! Check console");
-                      } catch (err) {
-                        console.error("Test failed:", err);
-                        alert("Test failed! Check console");
-                      }
-                    }}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                  >
-                    Test API
-                  </button>
-                  <button
                     onClick={() => setIsEditing(true)}
                     className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
                   >
                     <Edit className="w-4 h-4 inline mr-2" />
                     Edit Profile
+                  </button>
+                  <button
+                    onClick={handleDeleteMember}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    disabled={isDeleting}
+                  >
+                    <Trash2 className="w-4 h-4 inline mr-2" />
+                    {isDeleting ? "Deleting..." : "Delete Member"}
                   </button>
                 </>
               )}
