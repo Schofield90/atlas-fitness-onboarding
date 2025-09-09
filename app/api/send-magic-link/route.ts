@@ -56,47 +56,69 @@ export async function POST(request: NextRequest) {
       .eq("id", userOrg.organization_id)
       .single();
 
-    // Generate a secure claim token - THIS IS THE KEY PART
-    const generateToken = () => {
-      const bytes = new Uint8Array(24);
-      crypto.getRandomValues(bytes);
-      return Buffer.from(bytes)
-        .toString("base64")
-        .replace(/\+/g, "-")
-        .replace(/\//g, "_")
-        .replace(/=/g, "");
-    };
+    // Check if a token already exists for this client
+    const { data: existingToken } = await supabase
+      .from("account_claim_tokens")
+      .select("token, claimed_at")
+      .eq("client_id", customerId)
+      .single();
 
-    const claimToken = generateToken();
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 72); // Token expires in 72 hours
+    let claimToken: string;
+    let isNewToken = false;
+
+    if (existingToken && !existingToken.claimed_at) {
+      // Use existing unclaimed token
+      claimToken = existingToken.token;
+      console.log("Using existing permanent token for client:", customerId);
+    } else if (existingToken && existingToken.claimed_at) {
+      // Token was already claimed, can't send another
+      return NextResponse.json(
+        { error: "This client has already claimed their account" },
+        { status: 400 },
+      );
+    } else {
+      // Generate a secure permanent token - unique per client
+      const generateToken = () => {
+        const bytes = new Uint8Array(24);
+        crypto.getRandomValues(bytes);
+        return Buffer.from(bytes)
+          .toString("base64")
+          .replace(/\+/g, "-")
+          .replace(/\//g, "_")
+          .replace(/=/g, "");
+      };
+
+      claimToken = generateToken();
+      isNewToken = true;
+
+      // Store permanent token in database (no expiry)
+      const { error: tokenError } = await supabase
+        .from("account_claim_tokens")
+        .insert({
+          client_id: customerId,
+          organization_id: userOrg.organization_id,
+          token: claimToken,
+          email: email,
+          expires_at: null, // No expiry - permanent until used
+          metadata: {
+            created_by: user.id,
+            customer_name: name,
+          },
+        });
+
+      if (tokenError) {
+        console.error("Error creating claim token:", tokenError);
+        return NextResponse.json(
+          { error: "Failed to create claim token: " + tokenError.message },
+          { status: 500 },
+        );
+      }
+      console.log("Created new permanent token for client:", customerId);
+    }
 
     const appUrl =
       process.env.NEXT_PUBLIC_APP_URL ||
       "https://atlas-fitness-onboarding.vercel.app";
-
-    // Store the claim token in the database
-    const { error: tokenError } = await supabase
-      .from("account_claim_tokens")
-      .insert({
-        client_id: customerId,
-        organization_id: userOrg.organization_id,
-        token: claimToken,
-        email: email,
-        expires_at: expiresAt.toISOString(),
-        metadata: {
-          created_by: user.id,
-          customer_name: name,
-        },
-      });
-
-    if (tokenError) {
-      console.error("Error creating claim token:", tokenError);
-      return NextResponse.json(
-        { error: "Failed to create claim token: " + tokenError.message },
-        { status: 500 },
-      );
-    }
 
     // Create the magic link
     const magicLink = `${appUrl}/claim-account?token=${claimToken}`;
@@ -108,8 +130,8 @@ export async function POST(request: NextRequest) {
         success: true,
         message: "Magic link generated (email service not configured)",
         magicLink,
-        expiresAt: expiresAt.toISOString(),
-        note: "Share this link with the customer",
+        permanent: true,
+        note: "Share this link with the customer - it will remain active until used",
       });
     }
 
@@ -134,10 +156,10 @@ export async function POST(request: NextRequest) {
           <p style="color: #666; font-size: 14px;">Or copy this link into your browser:</p>
           <p style="word-break: break-all; color: #3B82F6; font-size: 14px;">${magicLink}</p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-          <p style="color: #999; font-size: 12px;">This link expires in 72 hours. If you didn't request this account, you can safely ignore this email.</p>
+          <p style="color: #999; font-size: 12px;">This is your personal account activation link. It will remain active until you use it to set up your account. If you didn't request this account, you can safely ignore this email.</p>
         </div>
       `,
-      text: `Welcome to ${organization?.name || "Gym Lead Hub"}!\n\nHi ${name},\n\nYour account is ready! Click the link below to set your password and get started:\n\n${magicLink}\n\nThis link expires in 72 hours.\n\nBest regards,\nThe ${organization?.name || "Gym Lead Hub"} Team`,
+      text: `Welcome to ${organization?.name || "Gym Lead Hub"}!\n\nHi ${name},\n\nYour account is ready! Click the link below to set your password and get started:\n\n${magicLink}\n\nThis is your personal account activation link. It will remain active until you use it.\n\nBest regards,\nThe ${organization?.name || "Gym Lead Hub"} Team`,
     });
 
     if (emailError) {
@@ -162,10 +184,10 @@ export async function POST(request: NextRequest) {
             <p style="color: #666; font-size: 14px;">Or copy this link into your browser:</p>
             <p style="word-break: break-all; color: #3B82F6; font-size: 14px;">${magicLink}</p>
             <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-            <p style="color: #999; font-size: 12px;">This link expires in 72 hours. If you didn't request this account, you can safely ignore this email.</p>
+            <p style="color: #999; font-size: 12px;">This is your personal account activation link. It will remain active until you use it to set up your account. If you didn't request this account, you can safely ignore this email.</p>
           </div>
         `,
-        text: `Welcome to ${organization?.name || "Gym Lead Hub"}!\n\nHi ${name},\n\nYour account is ready! Click the link below to set your password and get started:\n\n${magicLink}\n\nThis link expires in 72 hours.\n\nBest regards,\nThe ${organization?.name || "Gym Lead Hub"} Team`,
+        text: `Welcome to ${organization?.name || "Gym Lead Hub"}!\n\nHi ${name},\n\nYour account is ready! Click the link below to set your password and get started:\n\n${magicLink}\n\nThis is your personal account activation link. It will remain active until you use it.\n\nBest regards,\nThe ${organization?.name || "Gym Lead Hub"} Team`,
       });
 
       if (retryResult.error) {
@@ -194,7 +216,7 @@ export async function POST(request: NextRequest) {
       metadata: {
         email_id: emailData?.id,
         sent_by: user.id,
-        expires_at: expiresAt.toISOString(),
+        permanent_link: true,
       },
     });
 
@@ -202,7 +224,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: "Magic link sent successfully!",
       magicLink, // Return for testing
-      expiresAt: expiresAt.toISOString(),
+      permanent: true,
       emailSent: !!emailData,
     });
   } catch (error) {
