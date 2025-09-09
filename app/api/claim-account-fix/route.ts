@@ -88,64 +88,53 @@ export async function POST(request: NextRequest) {
     console.log("Attempting to create new user for:", tokenData.email);
 
     // First check if user already exists
-    const { data: existingUser, error: listError } =
+    console.log("Checking if user exists for email:", tokenData.email);
+    const { data: existingUsers, error: listError } =
       await supabaseAdmin.auth.admin.listUsers();
 
     if (listError) {
       console.error("Error listing users:", listError);
     }
 
-    const userExists = existingUser?.users?.some(
-      (u) => u.email === tokenData.email,
+    const existingUserRecord = existingUsers?.users?.find(
+      (u) => u.email?.toLowerCase() === tokenData.email?.toLowerCase(),
     );
 
     let userId: string;
 
-    if (userExists) {
+    if (existingUserRecord) {
       // User already exists - update their password and link to client
       console.log(
         "User already exists with this email, updating password and linking to client record",
       );
+      console.log("Existing user ID:", existingUserRecord.id);
 
-      // Find the existing user
-      const existingUserRecord = existingUser?.users?.find(
-        (u) => u.email === tokenData.email,
-      );
+      userId = existingUserRecord.id;
 
-      if (existingUserRecord) {
-        userId = existingUserRecord.id;
+      // Update the user's password using admin API
+      const { error: updateError } =
+        await supabaseAdmin.auth.admin.updateUserById(userId, {
+          password: password,
+          email_confirm: true,
+          user_metadata: {
+            ...existingUserRecord.user_metadata,
+            client_id: client.id,
+            organization_id: tokenData.organization_id,
+          },
+        });
 
-        // Update the user's password using admin API
-        const { error: updateError } =
-          await supabaseAdmin.auth.admin.updateUserById(userId, {
-            password: password,
-            email_confirm: true,
-            user_metadata: {
-              ...existingUserRecord.user_metadata,
-              client_id: client.id,
-              organization_id: tokenData.organization_id,
-            },
-          });
-
-        if (updateError) {
-          console.error("Error updating user password:", updateError);
-          return NextResponse.json(
-            {
-              error: "Failed to update account password. Please try again.",
-            },
-            { status: 500 },
-          );
-        }
-
-        console.log("Password updated successfully for existing user:", userId);
-      } else {
+      if (updateError) {
+        console.error("Error updating user password:", updateError);
+        console.error("Update error details:", updateError);
         return NextResponse.json(
           {
-            error: "Unable to link existing account. Please contact support.",
+            error: "Failed to update account password. Please try again.",
           },
           { status: 500 },
         );
       }
+
+      console.log("Password updated successfully for existing user:", userId);
     } else {
       // Create user with admin API - this bypasses email confirmation
       const { data: authData, error: authError } =
@@ -163,82 +152,19 @@ export async function POST(request: NextRequest) {
 
       if (authError) {
         console.error("Error creating auth user:", authError);
+        console.error("Auth error details:", authError);
 
-        // If user already exists, try to find and update them instead
-        if (
-          authError.message?.includes("already been registered") ||
-          authError.message?.includes("already exists")
-        ) {
-          console.log(
-            "User already exists (detected from error), attempting to find and update",
-          );
-
-          // Try to get the user by email (getUserById expects an ID, not email, so skip this)
-          const getUserData = null;
-          const getUserError = true;
-
-          // If we can't get by ID, try listing users again with filter
-          if (getUserError || !getUserData) {
-            const { data: searchResult } =
-              await supabaseAdmin.auth.admin.listUsers();
-            const foundUser = searchResult?.users?.find(
-              (u) => u.email === tokenData.email,
-            );
-
-            if (foundUser) {
-              userId = foundUser.id;
-
-              // Update the user's password
-              const { error: updateError } =
-                await supabaseAdmin.auth.admin.updateUserById(userId, {
-                  password: password,
-                  email_confirm: true,
-                  user_metadata: {
-                    ...foundUser.user_metadata,
-                    client_id: client.id,
-                    organization_id: tokenData.organization_id,
-                  },
-                });
-
-              if (updateError) {
-                console.error("Error updating existing user:", updateError);
-                return NextResponse.json(
-                  {
-                    error:
-                      "Failed to update existing account. Please try again.",
-                  },
-                  { status: 500 },
-                );
-              }
-
-              console.log(
-                "Successfully updated existing user after create failed:",
-                userId,
-              );
-            } else {
-              // Can't find the user even though they exist
-              return NextResponse.json(
-                {
-                  error:
-                    "Account exists but cannot be updated. Please contact support.",
-                },
-                { status: 500 },
-              );
-            }
-          }
-        } else {
-          // Different error, not user exists
-          return NextResponse.json(
-            {
-              error: authError.message || "Failed to create account",
-            },
-            { status: 500 },
-          );
-        }
-      } else {
-        userId = authData?.user?.id!;
-        console.log("User created successfully with ID:", userId);
+        // Different error, not user exists (we already checked above)
+        return NextResponse.json(
+          {
+            error: authError.message || "Failed to create account",
+          },
+          { status: 500 },
+        );
       }
+
+      userId = authData?.user?.id!;
+      console.log("User created successfully with ID:", userId);
     }
 
     // Update client record with user_id and additional info
