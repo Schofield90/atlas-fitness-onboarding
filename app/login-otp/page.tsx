@@ -64,8 +64,14 @@ export default function LoginOTPPage() {
         throw new Error(data.error || "Failed to verify OTP");
       }
 
-      // Redirect to dashboard after successful login
-      router.push("/dashboard");
+      // If we have an auth URL, use it to sign in
+      if (data.authUrl) {
+        // Visit the magic link URL to create the session
+        window.location.href = data.authUrl;
+      } else {
+        // Fallback: redirect to client portal
+        router.push(data.redirectTo || "/client");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invalid or expired OTP");
     } finally {

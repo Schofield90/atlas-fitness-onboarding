@@ -318,16 +318,30 @@ export async function POST(request: NextRequest) {
         .eq("token", otp);
 
       // Generate a one-time sign-in token for the user
+      // Include redirect to client portal
       const { data: authLinkData, error: authLinkError } =
         await supabaseAdmin.auth.admin.generateLink({
           type: "magiclink",
           email: email,
+          options: {
+            redirectTo: `${process.env.NEXT_PUBLIC_URL}/client`, // Redirect to client portal after auth
+          },
         });
 
       let redirectUrl = undefined;
       if (authLinkData?.properties?.action_link) {
-        redirectUrl = authLinkData.properties.action_link;
+        // Append redirect parameter to the magic link
+        const url = new URL(authLinkData.properties.action_link);
+        url.searchParams.set(
+          "redirect_to",
+          `${process.env.NEXT_PUBLIC_URL}/client`,
+        );
+        redirectUrl = url.toString();
       }
+
+      // Determine redirect based on whether user is a client
+      const isClient = true; // User came through OTP login, they are a client
+      const finalRedirect = isClient ? "/client" : "/dashboard";
 
       return NextResponse.json({
         success: true,
@@ -335,6 +349,8 @@ export async function POST(request: NextRequest) {
         email: email,
         userId: client.user_id,
         authUrl: redirectUrl, // Send the auth URL for automatic sign-in
+        redirectTo: finalRedirect, // Tell frontend where to redirect
+        userType: "client", // Explicitly mark as client
       });
     }
 
