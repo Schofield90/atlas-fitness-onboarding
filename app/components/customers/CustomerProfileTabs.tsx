@@ -3,15 +3,13 @@
 import { useState } from "react";
 import ProfileTab from "./tabs/ProfileTab";
 import ActivityTab from "./tabs/ActivityTab";
-import MessagesTab from "./tabs/MessagesTab";
-import RegistrationsTab from "./tabs/RegistrationsTab";
-import WaiversTab from "./tabs/WaiversTab";
-import FamilyTab from "./tabs/FamilyTab";
+import ComprehensiveMessagingTab from "./tabs/ComprehensiveMessagingTab";
+import NutritionTab from "./tabs/NutritionTab";
+import ClassBookingsTab from "./tabs/ClassBookingsTab";
 import PaymentsTab from "./tabs/PaymentsTab";
 import MembershipsTab from "./tabs/MembershipsTab";
-import FormsTab from "./tabs/FormsTab";
-import IssuesTab from "./tabs/IssuesTab";
-import ClassBookingsTab from "./tabs/ClassBookingsTab";
+import WaiversTab from "./tabs/WaiversTab";
+import NotesTab from "./tabs/NotesTab";
 
 interface CustomerProfileTabsProps {
   customer: any;
@@ -27,15 +25,13 @@ export default function CustomerProfileTabs({
   const tabs = [
     { id: "profile", label: "Profile" },
     { id: "activity", label: "Activity" },
-    { id: "messages", label: "Messages" },
-    { id: "registrations", label: "Registrations" },
     { id: "class-bookings", label: "Class Bookings" },
-    { id: "waivers", label: "Waivers" },
-    { id: "family", label: "Family" },
     { id: "payments", label: "Payments" },
     { id: "memberships", label: "Memberships" },
-    { id: "forms", label: "Forms" },
-    { id: "issues", label: "Issues" },
+    { id: "waivers", label: "Waivers" },
+    { id: "notes", label: "Notes" },
+    { id: "messaging", label: "Messaging" },
+    { id: "nutrition", label: "Nutrition" },
   ];
 
   return (
@@ -68,21 +64,8 @@ export default function CustomerProfileTabs({
           <ProfileTab customer={customer} onUpdate={onUpdate} />
         )}
         {activeTab === "activity" && <ActivityTab customerId={customer.id} />}
-        {activeTab === "messages" && (
-          <MessagesTab customerId={customer.id} customer={customer} />
-        )}
-        {activeTab === "registrations" && (
-          <RegistrationsTab customerId={customer.id} />
-        )}
         {activeTab === "class-bookings" && (
           <ClassBookingsTab
-            customerId={customer.id}
-            organizationId={customer.organization_id}
-          />
-        )}
-        {activeTab === "waivers" && <WaiversTab customerId={customer.id} />}
-        {activeTab === "family" && (
-          <FamilyTab
             customerId={customer.id}
             organizationId={customer.organization_id}
           />
@@ -96,8 +79,21 @@ export default function CustomerProfileTabs({
         {activeTab === "memberships" && (
           <MembershipsTab customerId={customer.id} />
         )}
-        {activeTab === "forms" && <FormsTab customerId={customer.id} />}
-        {activeTab === "issues" && <IssuesTab customerId={customer.id} />}
+        {activeTab === "waivers" && <WaiversTab customerId={customer.id} />}
+        {activeTab === "notes" && <NotesTab customerId={customer.id} />}
+        {activeTab === "messaging" && (
+          <ComprehensiveMessagingTab
+            customerId={customer.id}
+            organizationId={customer.organization_id}
+            customer={customer}
+          />
+        )}
+        {activeTab === "nutrition" && (
+          <NutritionTab
+            customerId={customer.id}
+            organizationId={customer.organization_id}
+          />
+        )}
       </div>
     </div>
   );
