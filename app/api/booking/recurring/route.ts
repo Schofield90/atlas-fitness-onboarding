@@ -22,6 +22,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if the customer is in clients or leads table
+    const { data: clientCheck } = await supabase
+      .from("clients")
+      .select("id")
+      .eq("id", customerId)
+      .eq("org_id", organizationId)
+      .single();
+
+    const isClient = !!clientCheck;
+
     // Generate all booking dates for the 3-month period
     const bookingDates: Array<{
       dayOfWeek: number;
@@ -123,17 +133,28 @@ export async function POST(request: NextRequest) {
         sessionId = newSession.id;
       }
 
-      // Add booking for this session
-      bookingsToCreate.push({
+      // Add booking for this session with correct field
+      const bookingData: any = {
         organization_id: organizationId,
-        customer_id: customerId,
         class_session_id: sessionId,
         booking_status: "confirmed",
         booking_type: "membership",
         payment_status: "succeeded",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      });
+      };
+
+      // Use client_id if it's a client, customer_id if it's a lead
+      // IMPORTANT: Only set the field that corresponds to the actual table
+      if (isClient) {
+        bookingData.client_id = customerId;
+        bookingData.customer_id = null; // Explicitly set to null
+      } else {
+        bookingData.customer_id = customerId;
+        bookingData.client_id = null; // Explicitly set to null
+      }
+
+      bookingsToCreate.push(bookingData);
     }
 
     if (bookingsToCreate.length === 0) {
