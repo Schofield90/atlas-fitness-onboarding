@@ -361,25 +361,36 @@ export async function POST(request: NextRequest) {
       // Create or update user
       let userId: string;
 
-      // First, try to get the user by email using a more reliable method
+      // First, try to get the user by email - check if they already exist
       let existingUser = null;
       try {
-        const {
-          data: { users },
-          error: listError,
-        } = await supabaseAdmin.auth.admin.listUsers();
+        // List all users and find by email (more reliable than getUserByEmail)
+        const { data: usersData, error: listError } =
+          await supabaseAdmin.auth.admin.listUsers();
 
-        if (!listError && users) {
-          existingUser = users.find(
+        if (usersData && !listError) {
+          // Find user with matching email (case-insensitive)
+          existingUser = usersData.users.find(
             (u) => u.email?.toLowerCase() === email.toLowerCase(),
           );
+
+          if (existingUser) {
+            console.log(
+              `[OTP VERIFY] Found existing user with ID: ${existingUser.id}`,
+            );
+          } else {
+            console.log(
+              `[OTP VERIFY] No existing user found for email: ${email}`,
+            );
+          }
         }
       } catch (err) {
-        console.log(`[OTP VERIFY] Error listing users:`, err);
+        console.log(`[OTP VERIFY] Error checking for existing user: ${err}`);
       }
 
       if (existingUser) {
-        // Update existing user - just update metadata, don't change password
+        // User exists - just update metadata and log them in
+        console.log(`[OTP VERIFY] Updating existing user: ${existingUser.id}`);
         userId = existingUser.id;
         await supabaseAdmin.auth.admin.updateUserById(userId, {
           email_confirm: true,
