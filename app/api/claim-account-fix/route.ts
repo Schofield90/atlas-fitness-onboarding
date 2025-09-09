@@ -96,9 +96,9 @@ export async function POST(request: NextRequest) {
     let userId: string;
 
     if (userExists) {
-      // User already exists - link them to this client record
+      // User already exists - update their password and link to client
       console.log(
-        "User already exists with this email, linking to client record",
+        "User already exists with this email, updating password and linking to client record",
       );
 
       // Find the existing user
@@ -109,30 +109,29 @@ export async function POST(request: NextRequest) {
       if (existingUserRecord) {
         userId = existingUserRecord.id;
 
-        // Verify the password matches the existing user
-        const { data: signInData, error: signInError } =
-          await supabase.auth.signInWithPassword({
-            email: tokenData.email,
+        // Update the user's password using admin API
+        const { error: updateError } =
+          await supabaseAdmin.auth.admin.updateUserById(userId, {
             password: password,
+            email_confirm: true,
+            user_metadata: {
+              ...existingUserRecord.user_metadata,
+              client_id: client.id,
+              organization_id: tokenData.organization_id,
+            },
           });
 
-        if (signInError) {
-          // Password doesn't match - they need to use their existing password or reset it
+        if (updateError) {
+          console.error("Error updating user password:", updateError);
           return NextResponse.json(
             {
-              error:
-                "An account with this email already exists. Please use your existing password or click 'Forgot Password' to reset it.",
-              existingUser: true,
+              error: "Failed to update account password. Please try again.",
             },
-            { status: 400 },
+            { status: 500 },
           );
         }
 
-        // Password is correct - link the client to this user
-        console.log(
-          "Password verified, linking client to existing user:",
-          userId,
-        );
+        console.log("Password updated successfully for existing user:", userId);
       } else {
         return NextResponse.json(
           {
