@@ -52,8 +52,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if token has expired
-    if (new Date(tokenData.expires_at) < new Date()) {
+    // Check if token has expired (only if expires_at is set)
+    if (tokenData.expires_at && new Date(tokenData.expires_at) < new Date()) {
       return NextResponse.json(
         { error: "This link has expired" },
         { status: 400 },
