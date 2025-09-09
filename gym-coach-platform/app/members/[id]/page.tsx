@@ -7,7 +7,15 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle,
+  DialogDescription,
+  DialogFooter 
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { 
@@ -27,7 +35,9 @@ import {
   MapPin,
   Plus,
   Edit,
-  FileText
+  FileText,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { toast } from 'react-hot-toast';
@@ -42,6 +52,7 @@ interface Member {
   email: string;
   phone: string;
   status?: string;
+  user_id?: string;
   membership_status: 'active' | 'paused' | 'cancelled';
   membership_type?: string;
   membership_plan?: {
@@ -87,6 +98,9 @@ export default function MemberDetailPage({ params }: { params: { id: string } })
   const [showNotesDialog, setShowNotesDialog] = useState(false);
   const [notesText, setNotesText] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [deleting, setDeleting] = useState(false);
   const supabase = createClientComponentClient();
 
   useEffect(() => {
@@ -139,15 +153,23 @@ export default function MemberDetailPage({ params }: { params: { id: string } })
   const sendWelcomeEmail = async () => {
     setSendingEmail(true);
     try {
-      const response = await fetch(`/api/clients/${params.id}/send-welcome`, {
-        method: 'POST'
+      const response = await fetch('/api/send-magic-link', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customerId: params.id,
+          email: member?.email,
+          name: member?.name
+        })
       });
 
       if (!response.ok) {
         throw new Error('Failed to send email');
       }
 
-      toast.success('Welcome email sent successfully');
+      toast.success('Welcome email with magic link sent successfully');
       await loadMember(); // Reload to get updated status
     } catch (error) {
       console.error('Error sending email:', error);
@@ -160,15 +182,23 @@ export default function MemberDetailPage({ params }: { params: { id: string } })
   const resendWelcomeEmail = async () => {
     setSendingEmail(true);
     try {
-      const response = await fetch(`/api/clients/${params.id}/resend-welcome`, {
-        method: 'POST'
+      const response = await fetch('/api/send-magic-link', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customerId: params.id,
+          email: member?.email,
+          name: member?.name
+        })
       });
 
       if (!response.ok) {
         throw new Error('Failed to resend email');
       }
 
-      toast.success('Welcome email resent successfully');
+      toast.success('Magic link resent successfully (same link as before)');
     } catch (error) {
       console.error('Error resending email:', error);
       toast.error('Failed to resend welcome email');
@@ -207,6 +237,34 @@ export default function MemberDetailPage({ params }: { params: { id: string } })
       toast.error('Failed to save notes');
     } finally {
       setSavingNotes(false);
+    }
+  };
+
+  const handleDeleteMember = async () => {
+    if (deleteConfirmation !== 'DELETE') {
+      toast.error('Please type DELETE to confirm');
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      // Call the API to delete the member and all related data
+      const response = await fetch(`/api/clients/${params.id}/delete`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete member');
+      }
+
+      toast.success('Member deleted successfully');
+      router.push('/members');
+    } catch (error) {
+      console.error('Error deleting member:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to delete member');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -268,6 +326,14 @@ export default function MemberDetailPage({ params }: { params: { id: string } })
           <h1 className="text-3xl font-bold">{member.name}</h1>
           {getStatusBadge(member.membership_status)}
         </div>
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={() => setShowDeleteDialog(true)}
+        >
+          <Trash2 className="h-4 w-4 mr-2" />
+          Delete Member
+        </Button>
       </div>
 
       {/* Tabs */}
@@ -647,6 +713,80 @@ export default function MemberDetailPage({ params }: { params: { id: string } })
           }}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Delete Member
+            </DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. This will permanently delete:
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <ul className="mt-2 space-y-1 text-sm">
+                  <li>• Member profile and all personal data</li>
+                  <li>• All booking history</li>
+                  <li>• Body composition records</li>
+                  <li>• Portal access and login credentials</li>
+                  <li>• Any unclaimed account links</li>
+                </ul>
+              </AlertDescription>
+            </Alert>
+            
+            <div className="space-y-2">
+              <Label htmlFor="delete-confirmation" className="text-sm font-medium">
+                Type <span className="font-mono font-bold">DELETE</span> to confirm
+              </Label>
+              <Input
+                id="delete-confirmation"
+                value={deleteConfirmation}
+                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                placeholder="Type DELETE to confirm"
+                className="font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                Member: <span className="font-medium">{member?.name}</span>
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteDialog(false);
+                setDeleteConfirmation('');
+              }}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteMember}
+              disabled={deleteConfirmation !== 'DELETE' || deleting}
+            >
+              {deleting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Member
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
