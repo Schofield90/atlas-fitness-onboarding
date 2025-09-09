@@ -190,7 +190,6 @@ export default function ComprehensiveMessagingTab({
         direction: "outbound" as const,
         subject: newMessage.subject || undefined,
         content: newMessage.content,
-        body: newMessage.content,
         status: "pending" as const,
         sender_id: user?.id,
         sender_name: user?.email,
