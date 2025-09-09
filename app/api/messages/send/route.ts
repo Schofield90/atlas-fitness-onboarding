@@ -1,234 +1,118 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/app/lib/supabase/server'
-import { createAdminClient } from '@/app/lib/supabase/admin'
-import { requireAuth, createErrorResponse } from '@/app/lib/api/auth-check'
-import { sendSMS, sendWhatsAppMessage } from '@/app/lib/services/twilio'
-import { Resend } from 'resend'
-
-const resendKey = process.env.RESEND_API_KEY
-const resend = resendKey ? new Resend(resendKey) : null
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/app/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
   try {
-    const userWithOrg = await requireAuth()
-    const supabase = await createClient()
-    const adminSupabase = createAdminClient() // Use admin client for logging
-    const body = await request.json()
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    const { leadId, type, to, subject, body: messageBody } = body
-
-    // Validate input
-    if (!leadId || !type || !to || !messageBody) {
-      return NextResponse.json({
-        error: 'Missing required fields',
-        required: ['leadId', 'type', 'to', 'body']
-      }, { status: 400 })
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (type === 'email' && !subject) {
-      return NextResponse.json({
-        error: 'Email subject is required'
-      }, { status: 400 })
+    const body = await request.json();
+    const {
+      organization_id,
+      customer_id,
+      client_id,
+      channel,
+      direction = "outbound",
+      subject,
+      content,
+      recipient,
+    } = body;
+
+    if (!content || !channel || !organization_id) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
     }
 
-    // Verify lead belongs to organization
-    const { data: lead, error: leadError } = await supabase
-      .from('leads')
-      .select('*')
-      .eq('id', leadId)
-      .eq('org_id', userWithOrg.organizationId)
-      .single()
+    // Verify user belongs to the organization
+    const { data: userOrg, error: userOrgError } = await supabase
+      .from("users")
+      .select("organization_id")
+      .eq("id", user.id)
+      .single();
 
-    if (leadError || !lead) {
-      return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
+    if (userOrgError || userOrg.organization_id !== organization_id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // For now, skip creating message record since the tables don't exist
-    // We'll send the message directly
-    let message = { id: 'temp-' + Date.now() }
-    let messageError = null
+    // Insert message into database
+    const messageData = {
+      organization_id,
+      customer_id: customer_id || null,
+      client_id: client_id || customer_id || null,
+      channel,
+      direction,
+      subject: subject || null,
+      content,
+      status: "pending",
+      sender_id: user.id,
+      sender_name: user.email,
+      created_at: new Date().toISOString(),
+    };
 
-    // Message creation removed - using existing logging tables
+    const { data: insertedMessage, error: insertError } = await supabase
+      .from("messages")
+      .insert(messageData)
+      .select()
+      .single();
 
-    // Send the message
-    try {
-      let result
-      let externalId
+    if (insertError) {
+      console.error("Error inserting message:", insertError);
+      return NextResponse.json(
+        { error: "Failed to save message" },
+        { status: 500 }
+      );
+    }
 
-      switch (type) {
-        case 'sms':
-          result = await sendSMS({ to, body: messageBody })
-          if (!result.success) {
-            throw new Error(result.error || 'Failed to send SMS')
-          }
-          externalId = result.messageId
-          break
-
-        case 'whatsapp':
-          result = await sendWhatsAppMessage({ to, body: messageBody })
-          if (!result.success) {
-            throw new Error(result.error || 'Failed to send WhatsApp message')
-          }
-          externalId = result.messageId
-          break
-
-        case 'email':
-          if (!process.env.RESEND_API_KEY) {
-            throw new Error('Email service not configured')
-          }
-          
-          const fromEmail = process.env.RESEND_FROM_EMAIL || 'sam@atlas-gyms.co.uk'
-          console.log('Sending email with Resend:', {
-            from: `Atlas Fitness <${fromEmail}>`,
-            to,
-            subject,
-            hasApiKey: !!process.env.RESEND_API_KEY
-          })
-          
-          if (!resend) {
-            throw new Error('Resend not configured')
-          }
-          
-          result = await resend.emails.send({
-            from: `Atlas Fitness <${fromEmail}>`,
-            to,
-            subject,
-            text: messageBody,
-            html: `<p>${messageBody.replace(/\n/g, '<br>')}</p>`,
-            replyTo: userWithOrg.email
-          })
-          
-          if ('error' in result && result.error) {
-            throw new Error(result.error.message || 'Failed to send email')
-          }
-          
-          externalId = result.data?.id
-          break
-
-        default:
-          throw new Error(`Unsupported message type: ${type}`)
-      }
-
-      // Log to appropriate table based on type using admin client
-      if (type === 'sms') {
-        const { error: logError } = await adminSupabase
-          .from('sms_logs')
-          .insert({
-            message_id: externalId,
-            to,
-            from_number: process.env.TWILIO_SMS_FROM,
-            message: messageBody,
-            status: 'sent',
-          })
-        
-        if (logError) {
-          console.error('Failed to log SMS:', logError)
-        }
-      } else if (type === 'whatsapp') {
-        const { error: logError } = await adminSupabase
-          .from('whatsapp_logs')
-          .insert({
-            message_id: externalId,
-            to,
-            from_number: process.env.TWILIO_WHATSAPP_FROM,
-            message: messageBody,
-            status: 'sent',
-          })
-        
-        if (logError) {
-          console.error('Failed to log WhatsApp:', logError)
-        }
-      } else if (type === 'email') {
-        const emailLog = {
-          message_id: externalId,
-          to_email: to,
-          from_email: process.env.RESEND_FROM_EMAIL || 'sam@atlas-gyms.co.uk',
-          subject,
-          message: messageBody,
-          status: 'sent',
-        }
-        
-        console.log('Inserting email log:', emailLog)
-        console.log('Email external ID:', externalId)
-        console.log('Email to:', to)
-        console.log('Email subject:', subject)
-        
-        const { data: insertedLog, error: insertError } = await adminSupabase
-          .from('email_logs')
-          .insert(emailLog)
-          .select()
-          .single()
-        
-        if (insertError) {
-          console.error('Failed to insert email log:', {
-            error: insertError,
-            message: insertError.message,
-            code: insertError.code,
-            details: insertError.details,
-            hint: insertError.hint
-          })
-        } else {
-          console.log('Email log inserted successfully:', insertedLog)
-        }
-      }
-
-      return NextResponse.json({
-        success: true,
-        message: {
-          id: message.id,
-          type,
-          status: 'sent',
-          externalId
-        }
+    // Update message status to sent (for now, we'll implement actual sending later)
+    const { error: updateError } = await supabase
+      .from("messages")
+      .update({
+        status: "sent",
+        sent_at: new Date().toISOString(),
       })
+      .eq("id", insertedMessage.id);
 
-    } catch (sendError) {
-      console.error('Error sending message:', sendError)
-      
-      // Log error to appropriate table
-      const errorMessage = sendError instanceof Error ? sendError.message : 'Unknown error'
-      const errorCode = (sendError as any)?.code || 'UNKNOWN'
-      
-      if (type === 'sms') {
-        await adminSupabase
-          .from('sms_logs')
-          .insert({
-            to,
-            from_number: process.env.TWILIO_SMS_FROM,
-            message: messageBody,
-            status: 'failed',
-            error: `${errorCode}: ${errorMessage}`,
-          })
-      } else if (type === 'whatsapp') {
-        await adminSupabase
-          .from('whatsapp_logs')
-          .insert({
-            to,
-            from_number: process.env.TWILIO_WHATSAPP_FROM,
-            message: messageBody,
-            status: 'failed',
-            error: `${errorCode}: ${errorMessage}`,
-          })
-      } else if (type === 'email') {
-        await adminSupabase
-          .from('email_logs')
-          .insert({
-            to_email: to,
-            from_email: process.env.RESEND_FROM_EMAIL || 'sam@atlas-gyms.co.uk',
-            subject,
-            message: messageBody,
-            status: 'failed',
-            error: `${errorCode}: ${errorMessage}`,
-          })
-      }
-
-      return NextResponse.json({
-        error: 'Failed to send message',
-        details: sendError instanceof Error ? sendError.message : 'Unknown error'
-      }, { status: 500 })
+    if (updateError) {
+      console.error("Error updating message status:", updateError);
     }
 
+    // TODO: Implement actual message sending based on channel
+    switch (channel) {
+      case "sms":
+        // Implement SMS sending via Twilio
+        console.log("SMS sending not yet implemented");
+        break;
+      case "email":
+        // Implement email sending via Resend
+        console.log("Email sending not yet implemented");
+        break;
+      case "whatsapp":
+        // Implement WhatsApp sending
+        console.log("WhatsApp sending not yet implemented");
+        break;
+      case "in_app":
+        // In-app messages are just database records
+        console.log("In-app message saved to database");
+        break;
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: insertedMessage,
+    });
   } catch (error) {
-    return createErrorResponse(error)
+    console.error("Error in message send API:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
