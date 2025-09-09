@@ -43,16 +43,7 @@ export default function ClaimOTPPage() {
         throw new Error(data.error || "Failed to send verification code");
       }
 
-      // Show OTP for testing (remove in production!)
-      if (data.otp) {
-        console.log("OTP Code:", data.otp);
-        // Auto-fill the OTP for easier testing
-        setOtp(data.otp);
-        alert(
-          `Your verification code is: ${data.otp}\n\nThis code has been auto-filled for you.`,
-        );
-      }
-
+      // Move to verification step - user must check their email
       setStep("verify");
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
