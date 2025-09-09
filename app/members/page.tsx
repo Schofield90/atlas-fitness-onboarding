@@ -163,6 +163,20 @@ function MembersContent() {
         }
       }
 
+      // Debug: Check Sam's data
+      const samClient = clients.find(
+        (c: any) => c.email === "samschofield90@hotmail.co.uk",
+      );
+      if (samClient) {
+        console.log("Sam Schofield client data:", {
+          id: samClient.id,
+          email: samClient.email,
+          user_id: samClient.user_id,
+          first_name: samClient.first_name,
+          last_name: samClient.last_name,
+        });
+      }
+
       // Transform to member format
       const transformedMembers: Member[] = clients.map((client: any) => {
         // Get membership info from the nested memberships
@@ -309,6 +323,10 @@ function MembersContent() {
   };
 
   const handleShowClaimLink = async (member: Member) => {
+    console.log("handleShowClaimLink called for member:", member);
+    console.log("Member is_claimed status:", member.is_claimed);
+    console.log("Member user_id:", member.user_id);
+
     setSelectedMemberForClaim(member);
     setShowClaimLinkModal(true);
     setLoadingClaimLink(true);
