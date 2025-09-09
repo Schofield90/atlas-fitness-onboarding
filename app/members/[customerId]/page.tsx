@@ -22,6 +22,8 @@ import {
   Save,
   X,
   Trash2,
+  MessageCircle,
+  Apple,
 } from "lucide-react";
 import DashboardLayout from "@/app/components/DashboardLayout";
 import { createClient } from "@/app/lib/supabase/client";
@@ -30,6 +32,8 @@ import MembershipsTab from "@/app/components/customers/tabs/MembershipsTab";
 import NotesTab from "@/app/components/customers/tabs/NotesTab";
 import WaiversTab from "@/app/components/customers/tabs/WaiversTab";
 import ClassBookingsTab from "@/app/components/customers/tabs/ClassBookingsTab";
+import ComprehensiveMessagingTab from "@/app/components/customers/tabs/ComprehensiveMessagingTab";
+import NutritionTab from "@/app/components/customers/tabs/NutritionTab";
 
 interface CustomerProfile {
   id: string;
@@ -72,7 +76,9 @@ type TabType =
   | "payments"
   | "memberships"
   | "waivers"
-  | "notes";
+  | "notes"
+  | "messaging"
+  | "nutrition";
 
 export default function CustomerProfilePage() {
   const params = useParams();
@@ -780,6 +786,8 @@ export default function CustomerProfilePage() {
               { key: "memberships", label: "Memberships", icon: Users },
               { key: "waivers", label: "Waivers", icon: FileText },
               { key: "notes", label: "Notes", icon: StickyNote },
+              { key: "messaging", label: "Messaging", icon: MessageCircle },
+              { key: "nutrition", label: "Nutrition", icon: Apple },
             ].map(({ key, label, icon: Icon }) => (
               <button
                 key={key}
@@ -1167,26 +1175,22 @@ export default function CustomerProfilePage() {
             />
           )}
 
-          {/* Other tabs would be implemented similarly */}
-          {activeTab !== "profile" &&
-            activeTab !== "activity" &&
-            activeTab !== "memberships" &&
-            activeTab !== "notes" &&
-            activeTab !== "waivers" &&
-            activeTab !== "class-bookings" && (
-              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-                <h3 className="text-lg font-semibold text-white mb-4 capitalize">
-                  {activeTab}
-                </h3>
-                <div className="text-center py-8 text-gray-400">
-                  <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>This section is under development</p>
-                  <p className="text-sm mt-1">
-                    Content for {activeTab} will be available soon
-                  </p>
-                </div>
-              </div>
-            )}
+          {/* Messaging Tab */}
+          {activeTab === "messaging" && (
+            <ComprehensiveMessagingTab
+              customerId={customerId}
+              organizationId={organizationId!}
+              customer={customer}
+            />
+          )}
+
+          {/* Nutrition Tab */}
+          {activeTab === "nutrition" && (
+            <NutritionTab
+              customerId={customerId}
+              organizationId={organizationId!}
+            />
+          )}
         </div>
       </div>
     </DashboardLayout>
