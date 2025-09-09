@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/app/lib/supabase/client";
 import {
   Users,
   MessageSquare,
@@ -29,6 +31,72 @@ import { TRIAL_CTA_TEXT } from "@/app/lib/constants";
 export default function LandingPage() {
   const [email, setEmail] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const router = useRouter();
+  const [processing, setProcessing] = useState(false);
+
+  useEffect(() => {
+    const handleMagicLink = async () => {
+      // Check if we have a magic link token in the URL hash
+      const hashParams = new URLSearchParams(window.location.hash.slice(1));
+      const accessToken = hashParams.get("access_token");
+      const refreshToken = hashParams.get("refresh_token");
+
+      if (accessToken && refreshToken) {
+        setProcessing(true);
+        try {
+          const supabase = createClient();
+
+          // Set the session with the tokens
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (error) {
+            console.error("Failed to set session:", error);
+            // Clean URL and continue to landing page
+            window.history.replaceState({}, document.title, "/landing");
+            setProcessing(false);
+            return;
+          }
+
+          // Check if user is a client
+          const { data: client } = await supabase
+            .from("clients")
+            .select("id")
+            .eq("user_id", data.user?.id)
+            .single();
+
+          // Redirect based on user type
+          if (client) {
+            // User is a client, redirect to client portal
+            router.push("/client");
+          } else {
+            // Default to dashboard for non-clients
+            router.push("/dashboard");
+          }
+        } catch (err) {
+          console.error("Error processing magic link:", err);
+          // Clean URL and continue to landing page
+          window.history.replaceState({}, document.title, "/landing");
+          setProcessing(false);
+        }
+      }
+    };
+
+    handleMagicLink();
+  }, [router]);
+
+  if (processing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Signing you in...</p>
+        </div>
+      </div>
+    );
+  }
 
   const features = [
     {
