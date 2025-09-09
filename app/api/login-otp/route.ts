@@ -44,21 +44,33 @@ export async function POST(request: NextRequest) {
 
       // If no user_id, try to link with existing auth user or create new one
       if (!client.user_id) {
-        // First, try to find existing auth user by email
-        const { data: authUserResult, error: lookupError } =
-          await supabaseAdmin.auth.admin.getUserByEmail(email.toLowerCase());
-
-        if (lookupError && lookupError.message !== "User not found") {
-          console.error("Error looking up user:", lookupError);
-        }
-
+        // First, try to find existing auth user
         let userId: string | null = null;
 
-        if (authUserResult && authUserResult.user) {
-          // User exists, use their ID
-          userId = authUserResult.user.id;
-          console.log(`Found existing auth user for ${email}: ${userId}`);
-        } else {
+        try {
+          const { data: existingUsers, error: lookupError } =
+            await supabaseAdmin.auth.admin.listUsers();
+
+          if (!lookupError && existingUsers && existingUsers.users) {
+            // Find user by email
+            const existingUser = existingUsers.users.find(
+              (u) => u.email?.toLowerCase() === email.toLowerCase(),
+            );
+
+            if (existingUser) {
+              // User exists, use their ID
+              userId = existingUser.id;
+              console.log(`Found existing auth user for ${email}: ${userId}`);
+            }
+          }
+        } catch (lookupErr) {
+          console.error("Error looking up users:", lookupErr);
+        }
+
+        if (!userId) {
+        }
+
+        if (!userId) {
           // No existing user, create new one
           console.log(
             `No existing auth user found for ${email}, creating new one...`,
@@ -253,21 +265,33 @@ export async function POST(request: NextRequest) {
 
       // If no user_id, try to link with existing auth user or create new one
       if (!client.user_id) {
-        // First, try to find existing auth user by email
-        const { data: authUserResult, error: lookupError } =
-          await supabaseAdmin.auth.admin.getUserByEmail(email.toLowerCase());
-
-        if (lookupError && lookupError.message !== "User not found") {
-          console.error("Error looking up user:", lookupError);
-        }
-
+        // First, try to find existing auth user
         let userId: string | null = null;
 
-        if (authUserResult && authUserResult.user) {
-          // User exists, use their ID
-          userId = authUserResult.user.id;
-          console.log(`Found existing auth user for ${email}: ${userId}`);
-        } else {
+        try {
+          const { data: existingUsers, error: lookupError } =
+            await supabaseAdmin.auth.admin.listUsers();
+
+          if (!lookupError && existingUsers && existingUsers.users) {
+            // Find user by email
+            const existingUser = existingUsers.users.find(
+              (u) => u.email?.toLowerCase() === email.toLowerCase(),
+            );
+
+            if (existingUser) {
+              // User exists, use their ID
+              userId = existingUser.id;
+              console.log(`Found existing auth user for ${email}: ${userId}`);
+            }
+          }
+        } catch (lookupErr) {
+          console.error("Error looking up users:", lookupErr);
+        }
+
+        if (!userId) {
+        }
+
+        if (!userId) {
           // No existing user, create new one
           console.log(
             `No existing auth user found for ${email}, creating new one...`,
