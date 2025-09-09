@@ -158,6 +158,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         message: "Verification code sent to your email",
+        clientDetails: {
+          first_name: client.first_name,
+          last_name: client.last_name,
+          phone: (
+            await supabase
+              .from("clients")
+              .select("phone")
+              .eq("id", client.id)
+              .single()
+          ).data?.phone,
+        },
         // DO NOT include OTP in response
       });
     }
@@ -174,14 +185,63 @@ export async function POST(request: NextRequest) {
       }
 
       // Check OTP
-      const { data: tokenData } = await supabase
+      console.log(
+        `[OTP VERIFY] Checking OTP for email: ${email}, code: ${otp}`,
+      );
+
+      const { data: tokenData, error: tokenError } = await supabase
         .from("account_claim_tokens")
         .select("*")
         .eq("email", email.toLowerCase())
         .eq("token", otp)
         .single();
 
+      if (tokenError) {
+        console.error("[OTP VERIFY] Database error:", tokenError);
+
+        // Check if any token exists for this email
+        const { data: anyToken } = await supabase
+          .from("account_claim_tokens")
+          .select("token, expires_at, claimed_at")
+          .eq("email", email.toLowerCase())
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+
+        if (anyToken) {
+          console.log(
+            `[OTP VERIFY] Found token for email but code didn't match. Expected: [hidden], Got: ${otp}`,
+          );
+          if (anyToken.claimed_at) {
+            return NextResponse.json(
+              {
+                error:
+                  "This account has already been claimed. Please sign in instead.",
+              },
+              { status: 400 },
+            );
+          }
+          if (new Date(anyToken.expires_at) < new Date()) {
+            return NextResponse.json(
+              {
+                error:
+                  "Verification code has expired. Please request a new one.",
+              },
+              { status: 400 },
+            );
+          }
+        }
+
+        return NextResponse.json(
+          { error: "Invalid verification code" },
+          { status: 400 },
+        );
+      }
+
       if (!tokenData) {
+        console.log(
+          "[OTP VERIFY] No token found for email and code combination",
+        );
         return NextResponse.json(
           { error: "Invalid verification code" },
           { status: 400 },
