@@ -1,17 +1,1 @@
-[
-  {
-    "content": "Fix email confirmation requirement issue",
-    "status": "completed",
-    "activeForm": "Fixed email confirmation requirement issue"
-  },
-  {
-    "content": "Update claim-account API to handle user metadata",
-    "status": "completed",
-    "activeForm": "Updated claim-account API to handle user metadata"
-  },
-  {
-    "content": "Test the complete flow",
-    "status": "in_progress",
-    "activeForm": "Testing the complete flow"
-  }
-]
+[]

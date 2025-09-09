@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,7 +25,17 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient();
 
-    // No admin client needed - we'll use regular signup flow
+    // Create admin client to bypass email confirmation
+    const supabaseAdmin = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      },
+    );
 
     // First, fetch just the token
     const { data: tokenData, error: tokenError } = await supabase
@@ -73,43 +84,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Try to sign up the user using regular auth flow
+    // Try to create user with admin client to bypass email confirmation
     console.log("Attempting to create new user for:", tokenData.email);
 
-    // Sign up with metadata
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: tokenData.email,
-      password: password,
-      options: {
-        data: {
+    // First check if user already exists
+    const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers();
+    const userExists = existingUser?.users?.some(
+      (u) => u.email === tokenData.email,
+    );
+
+    let userId: string;
+
+    if (userExists) {
+      // User already exists
+      return NextResponse.json(
+        {
+          error:
+            "An account with this email already exists. Please use 'Forgot Password' on the login page to reset your password.",
+          existingUser: true,
+        },
+        { status: 400 },
+      );
+    }
+
+    // Create user with admin API - this bypasses email confirmation
+    const { data: authData, error: authError } =
+      await supabaseAdmin.auth.admin.createUser({
+        email: tokenData.email,
+        password: password,
+        email_confirm: true, // This bypasses email confirmation
+        user_metadata: {
           first_name: firstName || client.first_name,
           last_name: lastName || client.last_name,
           client_id: client.id,
           organization_id: tokenData.organization_id,
         },
-      },
-    });
+      });
 
     if (authError) {
       console.error("Error creating auth user:", authError);
-
-      // Check if user already exists
-      if (
-        authError.message?.includes("already registered") ||
-        authError.message?.includes("already exists")
-      ) {
-        // User already exists - can't update password without admin
-        return NextResponse.json(
-          {
-            error:
-              "An account with this email already exists. Please use 'Forgot Password' on the login page to reset your password.",
-            existingUser: true,
-          },
-          { status: 400 },
-        );
-      }
-
-      // Return the actual error
       return NextResponse.json(
         {
           error: authError.message || "Failed to create account",
@@ -118,17 +131,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if email confirmation is required
-    const needsEmailConfirmation = authData?.user && !authData.session;
-
-    if (needsEmailConfirmation) {
-      console.log("User created but needs email confirmation");
-      // User needs to check their email to confirm
-    } else if (authData?.session) {
-      console.log("User created and automatically logged in");
-    }
-
-    const userId = authData?.user?.id || client.user_id;
+    userId = authData?.user?.id!;
+    console.log("User created successfully with ID:", userId);
 
     // Update client record with user_id and additional info
     const { error: updateError } = await supabase
@@ -183,16 +187,12 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Return appropriate message based on whether email confirmation is needed
-    const needsConfirmation = authData?.user && !authData.session;
-
+    // Account is created and confirmed - user can log in immediately
     return NextResponse.json({
       success: true,
-      message: needsConfirmation
-        ? "Account created! Please check your email to confirm your account before logging in."
-        : "Account successfully claimed! You can now log in.",
+      message: "Account successfully claimed! You can now log in.",
       email: tokenData.email,
-      requiresEmailConfirmation: needsConfirmation,
+      requiresEmailConfirmation: false,
     });
   } catch (error) {
     console.error("Error in claim-account API:", error);
