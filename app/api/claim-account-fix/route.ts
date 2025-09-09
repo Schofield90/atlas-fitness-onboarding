@@ -173,9 +173,9 @@ export async function POST(request: NextRequest) {
             "User already exists (detected from error), attempting to find and update",
           );
 
-          // Try to get the user by email
-          const { data: getUserData, error: getUserError } =
-            await supabaseAdmin.auth.admin.getUserById(tokenData.email);
+          // Try to get the user by email (getUserById expects an ID, not email, so skip this)
+          const getUserData = null;
+          const getUserError = true;
 
           // If we can't get by ID, try listing users again with filter
           if (getUserError || !getUserData) {
