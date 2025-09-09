@@ -674,7 +674,7 @@ export default function CustomerProfilePage() {
                 </p>
               </div>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               {isEditing ? (
                 <>
                   <button
@@ -699,26 +699,26 @@ export default function CustomerProfilePage() {
                 <>
                   <button
                     onClick={handleSendWelcomeEmail}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
                     disabled={sendingWelcomeEmail}
                   >
                     <Mail className="w-4 h-4 inline mr-2" />
-                    {sendingWelcomeEmail ? "Sending..." : "Send Welcome Email"}
+                    {sendingWelcomeEmail ? "Sending..." : "Send Magic Link"}
                   </button>
                   <button
                     onClick={() => setIsEditing(true)}
-                    className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                    className="px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
                   >
                     <Edit className="w-4 h-4 inline mr-2" />
-                    Edit Profile
+                    Edit
                   </button>
                   <button
                     onClick={handleDeleteMember}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
                     disabled={isDeleting}
                   >
                     <Trash2 className="w-4 h-4 inline mr-2" />
-                    {isDeleting ? "Deleting..." : "Delete Member"}
+                    {isDeleting ? "Deleting..." : "Delete"}
                   </button>
                 </>
               )}

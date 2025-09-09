@@ -125,12 +125,27 @@ function ClaimAccountContent() {
         .single();
 
       if (clientError) {
-        console.error("Client fetch error:", clientError);
+        console.error("=== CLIENT FETCH ERROR ===");
+        console.error("Error code:", clientError.code);
+        console.error("Error message:", clientError.message);
+        console.error("Error details:", clientError.details);
+        console.error("Error hint:", clientError.hint);
         console.error("Token data:", tokenData);
+        console.error("Client ID being queried:", tokenData.client_id);
         console.error(
           "Failed query: SELECT * FROM clients WHERE id =",
           tokenData.client_id,
         );
+
+        // Check if it's an RLS error
+        if (
+          clientError.code === "42501" ||
+          clientError.message?.includes("permission")
+        ) {
+          console.error("This appears to be an RLS (Row Level Security) issue");
+          console.error("The public/anon user cannot read this client record");
+        }
+
         // Don't fail completely, just log the error
       }
 

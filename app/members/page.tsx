@@ -338,7 +338,7 @@ function MembersContent() {
         .from("account_claim_tokens")
         .select("token")
         .eq("client_id", member.id)
-        .isNull("claimed_at")
+        .is("claimed_at", null)
         .order("created_at", { ascending: false })
         .limit(1)
         .single();

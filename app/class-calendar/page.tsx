@@ -192,8 +192,11 @@ export default function ClassCalendarPage() {
                 hour12: true,
               }),
               duration: cls.duration_minutes,
-              bookings: cls.current_bookings || cls.bookings_count || 0, // Use current_bookings field from DB
-              capacity: cls.capacity || cls.max_capacity || 15,
+              bookings: Array.isArray(cls.bookings)
+                ? cls.bookings.filter((b) => b.booking_status !== "cancelled")
+                    .length
+                : 0,
+              capacity: cls.capacity,
               color: "orange" as const,
               earnings: `£${((cls.program?.price_pennies || 0) / 100).toFixed(0)}`,
               room: cls.location,
@@ -237,8 +240,8 @@ export default function ClassCalendarPage() {
                 title: transformedClasses[0].title,
                 bookings: transformedClasses[0].bookings,
                 capacity: transformedClasses[0].capacity,
-                current_bookings: data.classes[0]?.current_bookings,
-                bookings_count: data.classes[0]?.bookings_count,
+                bookingsLength: transformedClasses[0].bookings?.length,
+                rawBookings: data.classes[0]?.bookings,
               }
             : "No classes",
         );
