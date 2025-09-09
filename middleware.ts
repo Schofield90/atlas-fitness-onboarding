@@ -30,7 +30,8 @@ const publicRoutes = [
   '/api/analytics',
   '/api/claim-account',   // Public API for claiming accounts
   '/api/claim-account-fix',   // Fixed version of claim account API
-  '/api/claim-account-otp'    // OTP-based claim account API
+  '/api/claim-account-otp',    // OTP-based claim account API
+  '/api/debug-clients'    // Debug endpoint to check client emails
 ]
 
 // Client-only routes
