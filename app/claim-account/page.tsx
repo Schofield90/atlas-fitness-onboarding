@@ -56,41 +56,61 @@ function ClaimAccountContent() {
 
   const validateToken = async () => {
     if (!token) {
+      console.error("DEBUG: No token provided in URL");
       setError("No claim token provided");
       setLoading(false);
       return;
     }
 
+    console.log("DEBUG: Starting token validation for token:", token);
+    console.log("DEBUG: Current timestamp:", new Date().toISOString());
+
     try {
       const supabase = createClient();
 
       // First, fetch just the token
+      console.log("DEBUG: Querying account_claim_tokens table");
       const { data: tokenData, error: fetchError } = await supabase
         .from("account_claim_tokens")
         .select("*")
         .eq("token", token)
         .single();
 
+      console.log("DEBUG: Token query result:", { tokenData, fetchError });
+
       if (fetchError || !tokenData) {
-        console.error("Token fetch error:", fetchError);
-        setError("Invalid or expired token");
+        console.error("DEBUG: Token not found in database");
+        console.error("DEBUG: Fetch error details:", fetchError);
+        if (fetchError?.code === "PGRST116") {
+          setError(
+            "This claim link is invalid. The token was not found. Please request a new welcome email.",
+          );
+        } else {
+          setError(
+            "Unable to validate claim link. Please try again or request a new welcome email.",
+          );
+        }
         setLoading(false);
         return;
       }
 
-      // Check if token has expired
-      if (new Date(tokenData.expires_at) < new Date()) {
-        setError("This link has expired. Please request a new one.");
-        setLoading(false);
-        return;
-      }
+      console.log("DEBUG: Token found, checking if already claimed");
+      // No expiration check - tokens are valid until claimed
+      console.log("DEBUG: Token claimed_at:", tokenData.claimed_at);
 
       // Check if already claimed
       if (tokenData.claimed_at) {
+        console.error(
+          "DEBUG: Token has already been claimed at:",
+          tokenData.claimed_at,
+        );
         setError("This account has already been claimed.");
         setLoading(false);
         return;
       }
+
+      console.log("DEBUG: Token is valid and available for claiming");
+      console.log("DEBUG: Token data:", JSON.stringify(tokenData, null, 2));
 
       // Now fetch the client separately
       console.log("Token data client_id:", tokenData.client_id);

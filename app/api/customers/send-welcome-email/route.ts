@@ -96,8 +96,7 @@ export async function POST(request: NextRequest) {
     };
 
     const claimToken = generateToken();
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 72); // Token expires in 72 hours
+    // No expiration - token is valid until claimed
 
     // Get the app URL from environment or use default
     const appUrl =
@@ -112,7 +111,7 @@ export async function POST(request: NextRequest) {
         organization_id: userOrg.organization_id,
         token: claimToken,
         email: email,
-        expires_at: expiresAt.toISOString(),
+        expires_at: null, // No expiration - valid until claimed
         metadata: {
           created_by: user.id,
           customer_name: name,
@@ -151,7 +150,7 @@ export async function POST(request: NextRequest) {
         credentials: {
           email,
           magicLink,
-          expiresAt: expiresAt.toISOString(),
+          // No expiration - link is permanent until claimed
           note: "Email service not configured. Please share this magic link with the customer manually.",
         },
       });
@@ -178,10 +177,10 @@ export async function POST(request: NextRequest) {
           </p>
           <p>Or copy and paste this link into your browser:</p>
           <p style="word-break: break-all; color: #3B82F6;">${magicLink}</p>
-          <p><small>This link will expire in 72 hours. If you didn't request this account, you can safely ignore this email.</small></p>
+          <p><small>This link will remain valid until you claim your account. If you didn't request this account, you can safely ignore this email.</small></p>
           <p>Best regards,<br/>The ${organization?.name || "Gym Lead Hub"} Team</p>
         `,
-        text: `Welcome to ${organization?.name || "Gym Lead Hub"}!\n\nHi ${name},\n\nYour account has been created! Click the link below to set up your password and access your account:\n\n${magicLink}\n\nThis link will expire in 72 hours. If you didn't request this account, you can safely ignore this email.\n\nBest regards,\nThe ${organization?.name || "Gym Lead Hub"} Team`,
+        text: `Welcome to ${organization?.name || "Gym Lead Hub"}!\n\nHi ${name},\n\nYour account has been created! Click the link below to set up your password and access your account:\n\n${magicLink}\n\nThis link will remain valid until you claim your account. If you didn't request this account, you can safely ignore this email.\n\nBest regards,\nThe ${organization?.name || "Gym Lead Hub"} Team`,
       });
 
       // If domain error, retry with Resend's guaranteed domain
@@ -208,10 +207,10 @@ export async function POST(request: NextRequest) {
             </p>
             <p>Or copy and paste this link into your browser:</p>
             <p style="word-break: break-all; color: #3B82F6;">${magicLink}</p>
-            <p><small>This link will expire in 72 hours. If you didn't request this account, you can safely ignore this email.</small></p>
+            <p><small>This link will remain valid until you claim your account. If you didn't request this account, you can safely ignore this email.</small></p>
             <p>Best regards,<br/>The ${organization?.name || "Gym Lead Hub"} Team</p>
           `,
-          text: `Welcome to ${organization?.name || "Gym Lead Hub"}!\n\nHi ${name},\n\nYour account has been created! Click the link below to set up your password and access your account:\n\n${magicLink}\n\nThis link will expire in 72 hours. If you didn't request this account, you can safely ignore this email.\n\nBest regards,\nThe ${organization?.name || "Gym Lead Hub"} Team`,
+          text: `Welcome to ${organization?.name || "Gym Lead Hub"}!\n\nHi ${name},\n\nYour account has been created! Click the link below to set up your password and access your account:\n\n${magicLink}\n\nThis link will remain valid until you claim your account. If you didn't request this account, you can safely ignore this email.\n\nBest regards,\nThe ${organization?.name || "Gym Lead Hub"} Team`,
         });
 
         emailData = retryResult.data;
@@ -256,7 +255,7 @@ export async function POST(request: NextRequest) {
         metadata: {
           email_id: emailData?.id,
           sent_by: user.id,
-          claim_token_expires: expiresAt.toISOString(),
+          claim_token_expires: null, // No expiration
         },
       });
 
@@ -269,7 +268,6 @@ export async function POST(request: NextRequest) {
         resendResponse: emailData,
         // Return magic link for testing (remove in production)
         magicLink,
-        expiresAt: expiresAt.toISOString(),
       });
     } catch (emailError) {
       console.error("Email sending failed:", emailError);
@@ -281,7 +279,7 @@ export async function POST(request: NextRequest) {
         credentials: {
           email,
           magicLink,
-          expiresAt: expiresAt.toISOString(),
+          // No expiration - link is permanent until claimed
           note: "Please share this magic link with the customer manually",
         },
       });
