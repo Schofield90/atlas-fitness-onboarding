@@ -18,6 +18,10 @@ import {
   UserX,
   Clock,
   CreditCard,
+  Copy,
+  X,
+  ExternalLink,
+  CheckCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -58,6 +62,12 @@ function MembersContent() {
   const [planFilter, setPlanFilter] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(25);
+  const [showClaimLinkModal, setShowClaimLinkModal] = useState(false);
+  const [selectedMemberForClaim, setSelectedMemberForClaim] =
+    useState<Member | null>(null);
+  const [claimLink, setClaimLink] = useState("");
+  const [loadingClaimLink, setLoadingClaimLink] = useState(false);
+  const [copied, setCopied] = useState(false);
   const supabase = createClient();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -298,6 +308,69 @@ function MembersContent() {
     router.replace(`?${params.toString()}`, { scroll: false });
   };
 
+  const handleShowClaimLink = async (member: Member) => {
+    setSelectedMemberForClaim(member);
+    setShowClaimLinkModal(true);
+    setLoadingClaimLink(true);
+    setCopied(false);
+
+    try {
+      // First, check if a token already exists
+      const { data: existingToken, error: fetchError } = await supabase
+        .from("account_claim_tokens")
+        .select("token")
+        .eq("client_id", member.id)
+        .isNull("claimed_at")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      const appUrl = window.location.origin;
+
+      if (existingToken && !fetchError) {
+        // Use existing token
+        setClaimLink(`${appUrl}/claim-account?token=${existingToken.token}`);
+      } else {
+        // Generate new token via API
+        const response = await fetch("/api/customers/send-welcome-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            customerId: member.id,
+            email: member.email,
+            name: `${member.first_name} ${member.last_name}`,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to generate claim link");
+        }
+
+        const data = await response.json();
+        if (data.magicLink) {
+          setClaimLink(data.magicLink);
+        } else {
+          throw new Error("No claim link returned");
+        }
+      }
+    } catch (error) {
+      console.error("Error getting claim link:", error);
+      toast.error("Failed to get claim link");
+      setShowClaimLinkModal(false);
+    } finally {
+      setLoadingClaimLink(false);
+    }
+  };
+
+  const handleCopyClaimLink = () => {
+    if (claimLink) {
+      navigator.clipboard.writeText(claimLink);
+      setCopied(true);
+      toast.success("Claim link copied to clipboard!");
+      setTimeout(() => setCopied(false), 3000);
+    }
+  };
+
   const handleClearPlanFilter = () => {
     setPlanFilter(null);
     const params = new URLSearchParams(searchParams.toString());
@@ -527,9 +600,12 @@ function MembersContent() {
                                   {member.first_name} {member.last_name}
                                 </span>
                                 {!member.is_claimed && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-900 text-yellow-300">
+                                  <button
+                                    onClick={() => handleShowClaimLink(member)}
+                                    className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-900 text-yellow-300 hover:bg-yellow-800 transition-colors"
+                                  >
                                     Unclaimed
-                                  </span>
+                                  </button>
                                 )}
                               </div>
                               <div className="text-sm text-gray-400">
@@ -555,9 +631,12 @@ function MembersContent() {
                           <div className="flex items-center gap-2">
                             {getStatusBadge(member.status)}
                             {!member.is_claimed && (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-900 text-yellow-300">
+                              <button
+                                onClick={() => handleShowClaimLink(member)}
+                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-900 text-yellow-300 hover:bg-yellow-800 transition-colors"
+                              >
                                 Unclaimed
-                              </span>
+                              </button>
                             )}
                           </div>
                         </td>
@@ -657,6 +736,111 @@ function MembersContent() {
             </>
           )}
         </div>
+
+        {/* Claim Link Modal */}
+        {showClaimLinkModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-800 rounded-lg max-w-2xl w-full p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-white">
+                  Account Claim Link for {selectedMemberForClaim?.first_name}{" "}
+                  {selectedMemberForClaim?.last_name}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowClaimLinkModal(false);
+                    setClaimLink("");
+                    setSelectedMemberForClaim(null);
+                  }}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {loadingClaimLink ? (
+                <div className="py-8 text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-4"></div>
+                  <p className="text-gray-400">Generating claim link...</p>
+                </div>
+              ) : claimLink ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
+                      Unique Claim Link
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={claimLink}
+                        readOnly
+                        className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
+                      />
+                      <button
+                        onClick={handleCopyClaimLink}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                      >
+                        {copied ? (
+                          <>
+                            <CheckCircle className="w-4 h-4" />
+                            Copied!
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-4 h-4" />
+                            Copy
+                          </>
+                        )}
+                      </button>
+                      <a
+                        href={claimLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 flex items-center gap-2"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        Open
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-700 rounded-lg p-4">
+                    <h4 className="text-sm font-medium text-white mb-2">
+                      Instructions:
+                    </h4>
+                    <ul className="text-sm text-gray-400 space-y-1">
+                      <li>
+                        • This link is unique to{" "}
+                        {selectedMemberForClaim?.first_name} and never expires
+                      </li>
+                      <li>
+                        • They can use it to set up their password and claim
+                        their account
+                      </li>
+                      <li>• Once claimed, the link cannot be reused</li>
+                      <li>
+                        • Send this link via email, SMS, or any messaging app
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div className="bg-blue-900 bg-opacity-50 rounded-lg p-4">
+                    <p className="text-sm text-blue-300">
+                      💡 Tip: You can also send a welcome email with this link
+                      directly from the customer's profile page.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-8 text-center">
+                  <p className="text-red-400">
+                    Failed to generate claim link. Please try again.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
