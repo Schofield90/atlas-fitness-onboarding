@@ -212,15 +212,15 @@ export async function POST(request: NextRequest) {
         .eq("token", otp);
 
       // Generate a one-time sign-in token for the user
-      const { data: tokenData, error: tokenError } =
+      const { data: authLinkData, error: authLinkError } =
         await supabaseAdmin.auth.admin.generateLink({
           type: "magiclink",
           email: email,
         });
 
       let redirectUrl = undefined;
-      if (tokenData?.properties?.action_link) {
-        redirectUrl = tokenData.properties.action_link;
+      if (authLinkData?.properties?.action_link) {
+        redirectUrl = authLinkData.properties.action_link;
       }
 
       return NextResponse.json({
