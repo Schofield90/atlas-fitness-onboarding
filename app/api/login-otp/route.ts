@@ -44,27 +44,19 @@ export async function POST(request: NextRequest) {
 
       // If no user_id, try to link with existing auth user or create new one
       if (!client.user_id) {
-        // First, try to find existing auth user
-        const { data: existingUser, error: lookupError } =
-          await supabaseAdmin.auth.admin.listUsers({
-            filter: `email.eq.${email.toLowerCase()}`,
-            page: 1,
-            perPage: 1,
-          });
+        // First, try to find existing auth user by email
+        const { data: authUserResult, error: lookupError } =
+          await supabaseAdmin.auth.admin.getUserByEmail(email.toLowerCase());
 
-        if (lookupError) {
+        if (lookupError && lookupError.message !== "User not found") {
           console.error("Error looking up user:", lookupError);
         }
 
         let userId: string | null = null;
 
-        if (
-          existingUser &&
-          existingUser.users &&
-          existingUser.users.length > 0
-        ) {
+        if (authUserResult && authUserResult.user) {
           // User exists, use their ID
-          userId = existingUser.users[0].id;
+          userId = authUserResult.user.id;
           console.log(`Found existing auth user for ${email}: ${userId}`);
         } else {
           // No existing user, create new one
@@ -261,27 +253,19 @@ export async function POST(request: NextRequest) {
 
       // If no user_id, try to link with existing auth user or create new one
       if (!client.user_id) {
-        // First, try to find existing auth user
-        const { data: existingUser, error: lookupError } =
-          await supabaseAdmin.auth.admin.listUsers({
-            filter: `email.eq.${email.toLowerCase()}`,
-            page: 1,
-            perPage: 1,
-          });
+        // First, try to find existing auth user by email
+        const { data: authUserResult, error: lookupError } =
+          await supabaseAdmin.auth.admin.getUserByEmail(email.toLowerCase());
 
-        if (lookupError) {
+        if (lookupError && lookupError.message !== "User not found") {
           console.error("Error looking up user:", lookupError);
         }
 
         let userId: string | null = null;
 
-        if (
-          existingUser &&
-          existingUser.users &&
-          existingUser.users.length > 0
-        ) {
+        if (authUserResult && authUserResult.user) {
           // User exists, use their ID
-          userId = existingUser.users[0].id;
+          userId = authUserResult.user.id;
           console.log(`Found existing auth user for ${email}: ${userId}`);
         } else {
           // No existing user, create new one
