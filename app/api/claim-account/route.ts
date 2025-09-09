@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 
+// Ensure this runs on Node.js runtime, not Edge
+export const runtime = "nodejs";
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -16,16 +19,23 @@ export async function POST(request: NextRequest) {
       emergencyContactPhone,
     } = body;
 
+    // Validate required fields
     if (!token || !password) {
       return NextResponse.json(
-        { error: "Token and password are required" },
+        { success: false, error: "Token and password are required" },
         { status: 400 },
       );
     }
 
-    const supabase = await createClient();
+    // Validate password strength
+    if (password.length < 8) {
+      return NextResponse.json(
+        { success: false, error: "Password must be at least 8 characters" },
+        { status: 400 },
+      );
+    }
 
-    // Create admin client to bypass email confirmation
+    // Create admin client with service role key for server-side operations
     const supabaseAdmin = createAdminClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -37,186 +47,197 @@ export async function POST(request: NextRequest) {
       },
     );
 
-    // First, fetch just the token
-    const { data: tokenData, error: tokenError } = await supabase
+    // Log claim attempt IP and user agent
+    const ip =
+      request.headers.get("x-forwarded-for") ||
+      request.headers.get("x-real-ip") ||
+      "unknown";
+    const userAgent = request.headers.get("user-agent") || "unknown";
+
+    // Validate token using admin client (bypasses RLS)
+    const { data: tokenData, error: tokenError } = await supabaseAdmin
       .from("account_claim_tokens")
       .select("*")
       .eq("token", token)
       .single();
 
     if (tokenError || !tokenData) {
-      console.error("Token validation error:", tokenError);
+      // Log failed attempt
+      await supabaseAdmin.rpc("log_claim_attempt", {
+        p_token: token,
+        p_client_id: null,
+        p_success: false,
+        p_error_message: "Invalid token",
+        p_ip_address: ip,
+        p_user_agent: userAgent,
+      });
+
       return NextResponse.json(
-        { error: "Invalid or expired token" },
+        { success: false, error: "Invalid or expired token" },
+        { status: 400 },
+      );
+    }
+
+    // Check if token has been claimed
+    if (tokenData.claimed_at) {
+      // Log failed attempt
+      await supabaseAdmin.rpc("log_claim_attempt", {
+        p_token: token,
+        p_client_id: tokenData.client_id,
+        p_success: false,
+        p_error_message: "Token already claimed",
+        p_ip_address: ip,
+        p_user_agent: userAgent,
+      });
+
+      return NextResponse.json(
+        { success: false, error: "This account has already been claimed" },
         { status: 400 },
       );
     }
 
     // Check if token has expired (only if expires_at is set)
     if (tokenData.expires_at && new Date(tokenData.expires_at) < new Date()) {
+      // Log failed attempt
+      await supabaseAdmin.rpc("log_claim_attempt", {
+        p_token: token,
+        p_client_id: tokenData.client_id,
+        p_success: false,
+        p_error_message: "Token expired",
+        p_ip_address: ip,
+        p_user_agent: userAgent,
+      });
+
       return NextResponse.json(
-        { error: "This link has expired" },
+        { success: false, error: "This link has expired" },
         { status: 400 },
       );
     }
 
-    // Check if already claimed
-    if (tokenData.claimed_at) {
-      return NextResponse.json(
-        { error: "This account has already been claimed" },
-        { status: 400 },
-      );
-    }
-
-    // Now fetch the client separately
-    const { data: client, error: clientError } = await supabase
+    // Fetch the client record
+    const { data: client, error: clientError } = await supabaseAdmin
       .from("clients")
       .select("*")
       .eq("id", tokenData.client_id)
       .single();
 
     if (clientError || !client) {
-      console.error("Client fetch error:", clientError);
-      console.error("Token data:", tokenData);
       return NextResponse.json(
-        { error: "Client not found for this token" },
+        { success: false, error: "Client record not found" },
         { status: 404 },
       );
     }
 
-    // Try to create or update user
-    console.log("Processing user for email:", tokenData.email);
+    // Check organization linkage
+    if (client.organization_id !== tokenData.organization_id) {
+      return NextResponse.json(
+        { success: false, error: "Organization mismatch" },
+        { status: 403 },
+      );
+    }
 
     let userId: string;
-    let userCreated = false;
+    let isNewUser = false;
 
-    // First, try to create the user
-    const { data: authData, error: authError } =
-      await supabaseAdmin.auth.admin.createUser({
-        email: tokenData.email,
-        password: password,
-        email_confirm: true, // This bypasses email confirmation
-        user_metadata: {
-          first_name: firstName || client.first_name,
-          last_name: lastName || client.last_name,
-          client_id: client.id,
-          organization_id: tokenData.organization_id,
-        },
-      });
+    // Check if user already exists by listing all users
+    const {
+      data: { users },
+      error: listError,
+    } = await supabaseAdmin.auth.admin.listUsers();
 
-    if (authError) {
-      console.log(
-        "Create user error (expected if user exists):",
-        authError.message,
+    if (listError) {
+      console.error("Error listing users:", listError);
+      return NextResponse.json(
+        { success: false, error: "Failed to check existing users" },
+        { status: 500 },
       );
+    }
 
-      // If user already exists, update them
-      if (
-        authError.message?.includes("already been registered") ||
-        authError.message?.includes("already exists") ||
-        authError.message?.includes("duplicate")
-      ) {
-        console.log("User exists, attempting to update...");
+    const existingUser = users?.find(
+      (u) => u.email?.toLowerCase() === tokenData.email?.toLowerCase(),
+    );
 
-        // Get all users and find the one with matching email
-        const { data: allUsers, error: listError } =
-          await supabaseAdmin.auth.admin.listUsers();
+    if (existingUser) {
+      // User exists - update their password and metadata
+      userId = existingUser.id;
 
-        if (listError) {
-          console.error("Error listing users:", listError);
-          return NextResponse.json(
-            { error: "Failed to check existing users" },
-            { status: 500 },
-          );
-        }
+      const { error: updateError } =
+        await supabaseAdmin.auth.admin.updateUserById(userId, {
+          password: password,
+          email_confirm: true,
+          user_metadata: {
+            ...existingUser.user_metadata,
+            first_name: firstName || client.first_name,
+            last_name: lastName || client.last_name,
+            client_id: client.id,
+            organization_id: tokenData.organization_id,
+          },
+        });
 
-        // Find user with matching email (case-insensitive)
-        const existingUser = allUsers?.users?.find(
-          (u) => u.email?.toLowerCase() === tokenData.email?.toLowerCase(),
-        );
-
-        if (!existingUser) {
-          console.error("User exists but cannot be found in user list");
-          return NextResponse.json(
-            {
-              error: "User exists but cannot be found. Please contact support.",
-            },
-            { status: 500 },
-          );
-        }
-
-        userId = existingUser.id;
-        console.log("Found existing user with ID:", userId);
-
-        // Update the existing user's password and metadata
-        const { error: updateError } =
-          await supabaseAdmin.auth.admin.updateUserById(userId, {
-            password: password,
-            email_confirm: true,
-            user_metadata: {
-              ...existingUser.user_metadata,
-              first_name:
-                firstName ||
-                client.first_name ||
-                existingUser.user_metadata?.first_name,
-              last_name:
-                lastName ||
-                client.last_name ||
-                existingUser.user_metadata?.last_name,
-              client_id: client.id,
-              organization_id: tokenData.organization_id,
-            },
-          });
-
-        if (updateError) {
-          console.error("Error updating existing user:", updateError);
-          return NextResponse.json(
-            { error: "Failed to update existing account. Please try again." },
-            { status: 500 },
-          );
-        }
-
-        console.log("Successfully updated existing user");
-      } else {
-        // Some other error occurred
-        console.error("Unexpected error creating user:", authError);
+      if (updateError) {
+        console.error("Error updating user:", updateError);
         return NextResponse.json(
-          { error: authError.message || "Failed to create account" },
+          { success: false, error: "Failed to update account" },
           { status: 500 },
         );
       }
     } else {
-      // User was created successfully
-      userId = authData?.user?.id!;
-      userCreated = true;
-      console.log("User created successfully with ID:", userId);
+      // Create new user with admin API (bypasses email confirmation)
+      const { data: authData, error: authError } =
+        await supabaseAdmin.auth.admin.createUser({
+          email: tokenData.email,
+          password: password,
+          email_confirm: true, // Auto-confirm email
+          user_metadata: {
+            first_name: firstName || client.first_name,
+            last_name: lastName || client.last_name,
+            client_id: client.id,
+            organization_id: tokenData.organization_id,
+          },
+        });
+
+      if (authError) {
+        console.error("Error creating user:", authError);
+        return NextResponse.json(
+          {
+            success: false,
+            error: authError.message || "Failed to create account",
+          },
+          { status: 500 },
+        );
+      }
+
+      userId = authData.user.id;
+      isNewUser = true;
     }
 
     // Update client record with user_id and additional info
-    const { error: updateError } = await supabase
+    const clientUpdates = {
+      user_id: userId,
+      first_name: firstName || client.first_name,
+      last_name: lastName || client.last_name,
+      phone: phone || client.phone,
+      date_of_birth: dateOfBirth || client.date_of_birth,
+      emergency_contact_name:
+        emergencyContactName || client.emergency_contact_name,
+      emergency_contact_phone:
+        emergencyContactPhone || client.emergency_contact_phone,
+      is_claimed: true,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error: updateError } = await supabaseAdmin
       .from("clients")
-      .update({
-        user_id: userId,
-        first_name: firstName || client.first_name,
-        last_name: lastName || client.last_name,
-        phone: phone || client.phone,
-        date_of_birth: dateOfBirth || client.date_of_birth,
-        emergency_contact_name:
-          emergencyContactName || client.emergency_contact_name,
-        emergency_contact_phone:
-          emergencyContactPhone || client.emergency_contact_phone,
-        is_claimed: true,
-        updated_at: new Date().toISOString(),
-      })
+      .update(clientUpdates)
       .eq("id", client.id);
 
     if (updateError) {
       console.error("Error updating client:", updateError);
-      // Don't fail the whole process if client update fails
+      // Don't fail the whole process
     }
 
     // Mark token as claimed
-    const { error: tokenUpdateError } = await supabase
+    const { error: tokenUpdateError } = await supabaseAdmin
       .from("account_claim_tokens")
       .update({
         claimed_at: new Date().toISOString(),
@@ -225,22 +246,47 @@ export async function POST(request: NextRequest) {
 
     if (tokenUpdateError) {
       console.error("Error marking token as claimed:", tokenUpdateError);
-      // Don't fail the whole process if token update fails
+      // Don't fail the whole process
     }
 
-    // Return success
+    // Log successful claim
+    await supabaseAdmin.rpc("log_claim_attempt", {
+      p_token: token,
+      p_client_id: tokenData.client_id,
+      p_success: true,
+      p_error_message: null,
+      p_ip_address: ip,
+      p_user_agent: userAgent,
+    });
+
+    // Log activity
+    await supabaseAdmin.from("activity_logs").insert({
+      organization_id: tokenData.organization_id,
+      lead_id: client.id,
+      type: "account_claimed",
+      description: `Account claimed by ${firstName || client.first_name} ${lastName || client.last_name}`,
+      metadata: {
+        token_id: tokenData.id,
+        user_id: userId,
+        is_new_user: isNewUser,
+      },
+    });
+
+    // Return success response
     return NextResponse.json({
       success: true,
-      message: userCreated
-        ? "Account created successfully"
-        : "Account updated successfully",
-      requiresEmailConfirmation: false,
+      message: isNewUser
+        ? "Account created successfully!"
+        : "Account updated successfully!",
       email: tokenData.email,
+      requiresEmailConfirmation: false, // Email is auto-confirmed via admin API
+      redirectUrl: "/portal/login",
     });
   } catch (error) {
     console.error("Error in claim account:", error);
     return NextResponse.json(
       {
+        success: false,
         error: "An unexpected error occurred. Please try again.",
         details: error instanceof Error ? error.message : "Unknown error",
       },
