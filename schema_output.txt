@@ -1,0 +1,5 @@
+npm error Missing script: "supabase:types"
+npm error
+npm error To see a list of scripts, run:
+npm error   npm run
+npm error A complete log of this run can be found in: /home/ubuntu/.npm/_logs/2025-09-09T11_39_28_716Z-debug-0.log

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/app/lib/supabase/client";
+import { createClient, createRealtimeChannel } from "@/app/lib/supabase/client-fixed";
 import {
   MessageSquare,
   Mail,
@@ -95,25 +95,44 @@ export default function ComprehensiveMessagingTab({
 
   useEffect(() => {
     fetchMessages();
-    // Set up real-time subscription
-    const subscription = supabase
-      .channel(`messages-${customerId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "messages",
-          filter: `customer_id=eq.${customerId}`,
-        },
-        (payload) => {
-          fetchMessages();
-        },
-      )
-      .subscribe();
+    
+    // Set up real-time subscription with better error handling
+    let subscription: any = null;
+    
+    try {
+      subscription = createRealtimeChannel(`messages-${customerId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "messages",
+            filter: `customer_id=eq.${customerId}`,
+          },
+          (payload) => {
+            console.log('Received message update:', payload);
+            fetchMessages();
+          },
+        )
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('Successfully subscribed to message updates');
+          } else if (status === 'CHANNEL_ERROR') {
+            console.warn('Failed to subscribe to message updates');
+          }
+        });
+    } catch (error) {
+      console.warn('Error setting up real-time subscription:', error);
+    }
 
     return () => {
-      subscription.unsubscribe();
+      if (subscription) {
+        try {
+          subscription.unsubscribe();
+        } catch (error) {
+          console.warn('Error unsubscribing from real-time updates:', error);
+        }
+      }
     };
   }, [customerId]);
 
@@ -121,32 +140,54 @@ export default function ComprehensiveMessagingTab({
     try {
       setLoading(true);
 
-      // Fetch messages from the messages table
+      // Fetch messages using the view that includes user metadata
       const { data, error } = await supabase
-        .from("messages")
-        .select(
-          `
-          *,
-          users:sender_id (
-            id,
-            email,
-            user_metadata
-          )
-        `,
-        )
+        .from("messages_with_user_info")
+        .select("*")
         .or(`customer_id.eq.${customerId},client_id.eq.${customerId}`)
         .eq("organization_id", organizationId)
         .order("created_at", { ascending: false });
 
       if (error) {
         console.error("Error fetching messages:", error);
+        // Fallback to direct messages table if view doesn't work
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from("messages")
+          .select("*")
+          .or(`customer_id.eq.${customerId},client_id.eq.${customerId}`)
+          .eq("organization_id", organizationId)
+          .order("created_at", { ascending: false });
+
+        if (fallbackError) {
+          console.error("Fallback query also failed:", fallbackError);
+          return;
+        }
+        
+        // Use fallback data
+        const transformedFallbackMessages = (fallbackData || []).map((msg) => ({
+          id: msg.id,
+          channel: msg.channel || msg.type || "email",
+          direction: msg.direction || "outbound",
+          subject: msg.subject,
+          content: msg.content || msg.body || "",
+          status: msg.status || "sent",
+          created_at: msg.created_at,
+          sent_at: msg.sent_at,
+          delivered_at: msg.delivered_at,
+          read_at: msg.read_at,
+          metadata: msg.metadata,
+          sender_name: msg.sender_name || "System",
+          sender_id: msg.sender_id,
+        }));
+
+        setMessages(transformedFallbackMessages);
         return;
       }
 
       // Transform the data to match our Message interface
       const transformedMessages = (data || []).map((msg) => ({
         id: msg.id,
-        channel: msg.channel || "email",
+        channel: msg.channel || msg.type || "email",
         direction: msg.direction || "outbound",
         subject: msg.subject,
         content: msg.content || msg.body || "",
@@ -156,9 +197,9 @@ export default function ComprehensiveMessagingTab({
         delivered_at: msg.delivered_at,
         read_at: msg.read_at,
         metadata: msg.metadata,
-        sender_name: msg.users?.user_metadata?.first_name
-          ? `${msg.users.user_metadata.first_name} ${msg.users.user_metadata.last_name || ""}`
-          : msg.sender_name || "System",
+        sender_name: msg.user_metadata?.first_name
+          ? `${msg.user_metadata.first_name} ${msg.user_metadata.last_name || ""}`.trim()
+          : msg.sender_name || msg.sender_email || "System",
         sender_id: msg.sender_id,
       }));
 
