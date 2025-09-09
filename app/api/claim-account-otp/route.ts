@@ -132,9 +132,12 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // Always return OTP for testing (remove in production!)
       return NextResponse.json({
         success: true,
         message: "Verification code sent to your email",
+        otp: otpCode, // Include OTP for testing
+        note: "Check your email for the code, or use the code shown here for testing",
       });
     }
 
