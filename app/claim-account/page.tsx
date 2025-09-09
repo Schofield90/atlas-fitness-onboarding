@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/app/lib/supabase/client";
+import { getSupabaseBrowser } from "@/app/lib/supabase-browser";
 import { Eye, EyeOff, Check, X, Loader2, CheckCircle } from "lucide-react";
 
 function ClaimAccountContent() {
@@ -67,111 +67,62 @@ function ClaimAccountContent() {
     console.log("DEBUG: Current timestamp:", new Date().toISOString());
 
     try {
-      const supabase = createClient();
+      const supabase = getSupabaseBrowser();
 
-      // First, fetch just the token
-      console.log("DEBUG: Querying account_claim_tokens table");
-      const { data: tokenData, error: fetchError } = await supabase
-        .from("account_claim_tokens")
-        .select("*")
-        .eq("token", token)
-        .single();
+      // Use the secure RPC function to validate token
+      console.log("DEBUG: Validating token with RPC function");
+      const { data: validation, error: rpcError } = await supabase.rpc(
+        "rpc_validate_claim_token",
+        { p_token: token },
+      );
 
-      console.log("DEBUG: Token query result:", { tokenData, fetchError });
+      console.log("DEBUG: Token validation result:", { validation, rpcError });
 
-      if (fetchError || !tokenData) {
-        console.error("DEBUG: Token not found in database");
-        console.error("DEBUG: Fetch error details:", fetchError);
-        if (fetchError?.code === "PGRST116") {
-          setError(
-            "This claim link is invalid. The token was not found. Please request a new welcome email.",
-          );
-        } else {
-          setError(
-            "Unable to validate claim link. Please try again or request a new welcome email.",
-          );
-        }
+      if (rpcError || !validation) {
+        console.error("DEBUG: Token validation failed");
+        console.error("DEBUG: RPC error details:", rpcError);
+        setError(
+          "Unable to validate claim link. Please try again or request a new welcome email.",
+        );
         setLoading(false);
         return;
       }
 
-      console.log("DEBUG: Token found, checking if already claimed");
-      // No expiration check - tokens are valid until claimed
-      console.log("DEBUG: Token claimed_at:", tokenData.claimed_at);
-
-      // Check if already claimed - set a special error state
-      if (tokenData.claimed_at) {
-        console.error(
-          "DEBUG: Token has already been claimed at:",
-          tokenData.claimed_at,
+      // Check if token is valid
+      if (!validation.is_valid) {
+        console.error("DEBUG: Token is not valid");
+        setError(
+          "This claim link is invalid or has already been used. Please request a new welcome email.",
         );
-        setError("ALREADY_CLAIMED");
-        setTokenData(tokenData);
         setLoading(false);
         return;
       }
 
       console.log("DEBUG: Token is valid and available for claiming");
-      console.log("DEBUG: Token data:", JSON.stringify(tokenData, null, 2));
-
-      // Now fetch the client separately
-      console.log("Token data client_id:", tokenData.client_id);
-      console.log("Fetching client with ID:", tokenData.client_id);
-
-      const { data: clientData, error: clientError } = await supabase
-        .from("clients")
-        .select("id, first_name, last_name, email, phone, date_of_birth")
-        .eq("id", tokenData.client_id)
-        .single();
-
-      if (clientError) {
-        console.error("=== CLIENT FETCH ERROR ===");
-        console.error("Error code:", clientError.code);
-        console.error("Error message:", clientError.message);
-        console.error("Error details:", clientError.details);
-        console.error("Error hint:", clientError.hint);
-        console.error("Token data:", tokenData);
-        console.error("Client ID being queried:", tokenData.client_id);
-        console.error(
-          "Failed query: SELECT * FROM clients WHERE id =",
-          tokenData.client_id,
-        );
-
-        // Check if it's an RLS error
-        if (
-          clientError.code === "42501" ||
-          clientError.message?.includes("permission")
-        ) {
-          console.error("This appears to be an RLS (Row Level Security) issue");
-          console.error("The public/anon user cannot read this client record");
-        }
-
-        // Don't fail completely, just log the error
-      }
-
-      console.log("Client data fetched:", clientData);
+      console.log("DEBUG: Token data:", JSON.stringify(validation, null, 2));
 
       setTokenValid(true);
-      setTokenData(tokenData);
+      setTokenData({
+        email: validation.email,
+        client_id: validation.client_id,
+        organization_id: validation.organization_id,
+      });
 
-      // Pre-fill form with existing client data
-      if (clientData) {
+      // Pre-fill form with existing client data from RPC response
+      if (validation.first_name || validation.last_name || validation.phone) {
         console.log("Pre-filling form with client data:");
-        console.log("- First name:", clientData.first_name);
-        console.log("- Last name:", clientData.last_name);
-        console.log("- Phone:", clientData.phone);
-        console.log("- Date of birth:", clientData.date_of_birth);
+        console.log("- First name:", validation.first_name);
+        console.log("- Last name:", validation.last_name);
+        console.log("- Phone:", validation.phone);
 
         setFormData((prev) => ({
           ...prev,
-          firstName: clientData.first_name || "",
-          lastName: clientData.last_name || "",
-          phone: clientData.phone || "",
-          dateOfBirth: clientData.date_of_birth || "",
+          firstName: validation.first_name || "",
+          lastName: validation.last_name || "",
+          phone: validation.phone || "",
         }));
       } else {
         console.log("No client data found to pre-fill");
-        console.log("This means the query returned null/undefined");
       }
     } catch (err) {
       console.error("Error validating token:", err);
@@ -203,7 +154,7 @@ function ClaimAccountContent() {
     setError("");
 
     try {
-      const response = await fetch("/api/claim-account-emergency", {
+      const response = await fetch("/api/claim-account", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -220,31 +171,22 @@ function ClaimAccountContent() {
 
       const result = await response.json();
 
-      if (!response.ok) {
+      if (!response.ok || !result.success) {
         throw new Error(result.error || "Failed to claim account");
       }
 
       // Success! Show appropriate message
-      if (result.requiresPasswordReset) {
-        alert(
-          "Your account already exists. Please use the 'Forgot Password' link on the login page to reset your password.",
-        );
-        router.push(
-          `/portal/login?email=${encodeURIComponent(tokenData.email)}`,
-        );
-      } else if (result.requiresEmailConfirmation) {
-        alert(
-          "Account created successfully! Please check your email to confirm your account before logging in. You may need to check your spam folder.",
-        );
-        router.push("/portal/login");
+      alert(
+        result.message ||
+          "Account successfully claimed! You can now log in with your email and password.",
+      );
+
+      // Redirect to login page with email pre-filled
+      const redirectUrl = result.redirectUrl || "/portal/login";
+      if (result.email) {
+        router.push(`${redirectUrl}?email=${encodeURIComponent(result.email)}`);
       } else {
-        alert(
-          result.message ||
-            "Account successfully claimed! You can now log in with your email and password.",
-        );
-        router.push(
-          `/portal/login?email=${encodeURIComponent(tokenData.email)}`,
-        );
+        router.push(redirectUrl);
       }
     } catch (err: any) {
       console.error("Error claiming account:", err);
