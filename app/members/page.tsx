@@ -329,55 +329,13 @@ function MembersContent() {
 
     setSelectedMemberForClaim(member);
     setShowClaimLinkModal(true);
-    setLoadingClaimLink(true);
+    setLoadingClaimLink(false); // No need to load since we're using a static link
     setCopied(false);
 
-    try {
-      // First, check if a token already exists
-      const { data: existingToken, error: fetchError } = await supabase
-        .from("account_claim_tokens")
-        .select("token")
-        .eq("client_id", member.id)
-        .is("claimed_at", null)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
-
-      const appUrl = window.location.origin;
-
-      if (existingToken && !fetchError) {
-        // Use existing token
-        setClaimLink(`${appUrl}/claim-account?token=${existingToken.token}`);
-      } else {
-        // Generate new token via API
-        const response = await fetch("/api/customers/send-welcome-email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            customerId: member.id,
-            email: member.email,
-            name: `${member.first_name} ${member.last_name}`,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to generate claim link");
-        }
-
-        const data = await response.json();
-        if (data.magicLink) {
-          setClaimLink(data.magicLink);
-        } else {
-          throw new Error("No claim link returned");
-        }
-      }
-    } catch (error) {
-      console.error("Error getting claim link:", error);
-      toast.error("Failed to get claim link");
-      setShowClaimLinkModal(false);
-    } finally {
-      setLoadingClaimLink(false);
-    }
+    // For OTP system, we just provide the static claim-otp page URL
+    // Users will enter their email there to receive the OTP
+    const appUrl = window.location.origin;
+    setClaimLink(`${appUrl}/claim-otp`);
   };
 
   const handleCopyClaimLink = () => {
@@ -761,7 +719,8 @@ function MembersContent() {
             <div className="bg-gray-800 rounded-lg max-w-2xl w-full p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium text-white">
-                  Account Claim Link for {selectedMemberForClaim?.first_name}{" "}
+                  Account Claim Instructions for{" "}
+                  {selectedMemberForClaim?.first_name}{" "}
                   {selectedMemberForClaim?.last_name}
                 </h3>
                 <button
@@ -785,7 +744,7 @@ function MembersContent() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-400 mb-2">
-                      Unique Claim Link
+                      Account Claim Page
                     </label>
                     <div className="flex items-center gap-2">
                       <input
@@ -828,16 +787,19 @@ function MembersContent() {
                     </h4>
                     <ul className="text-sm text-gray-400 space-y-1">
                       <li>
-                        • This link is unique to{" "}
-                        {selectedMemberForClaim?.first_name} and never expires
+                        • Send this link to {selectedMemberForClaim?.first_name}
                       </li>
                       <li>
-                        • They can use it to set up their password and claim
-                        their account
+                        • They will enter their email (
+                        {selectedMemberForClaim?.email})
                       </li>
-                      <li>• Once claimed, the link cannot be reused</li>
+                      <li>• They'll receive a 6-digit verification code</li>
                       <li>
-                        • Send this link via email, SMS, or any messaging app
+                        • After entering the code, they can set their password
+                      </li>
+                      <li>
+                        • This is a universal claim page - works for all
+                        unclaimed accounts
                       </li>
                     </ul>
                   </div>
