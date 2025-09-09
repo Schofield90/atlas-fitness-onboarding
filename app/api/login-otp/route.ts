@@ -317,38 +317,44 @@ export async function POST(request: NextRequest) {
         .eq("email", email.toLowerCase())
         .eq("token", otp);
 
-      // Generate a one-time sign-in token for the user
-      // Include redirect to client portal
-      const { data: authLinkData, error: authLinkError } =
+      // Create a session directly using admin API
+      // First ensure we have the user_id
+      let authUserId = client.user_id;
+
+      if (!authUserId) {
+        // If client doesn't have user_id, we need to get/create it
+        console.error("Client doesn't have user_id after OTP verification");
+        return NextResponse.json(
+          { error: "Account setup incomplete. Please contact support." },
+          { status: 500 },
+        );
+      }
+
+      // Generate a session token for the user
+      const { data: sessionData, error: sessionError } =
         await supabaseAdmin.auth.admin.generateLink({
           type: "magiclink",
-          email: email,
-          options: {
-            redirectTo: `${process.env.NEXT_PUBLIC_URL}/client`, // Redirect to client portal after auth
-          },
+          email: email.toLowerCase(),
         });
 
-      let redirectUrl = undefined;
-      if (authLinkData?.properties?.action_link) {
-        // Append redirect parameter to the magic link
-        const url = new URL(authLinkData.properties.action_link);
-        url.searchParams.set(
-          "redirect_to",
-          `${process.env.NEXT_PUBLIC_URL}/client`,
+      if (sessionError) {
+        console.error("Failed to generate session:", sessionError);
+        return NextResponse.json(
+          { error: "Failed to create session" },
+          { status: 500 },
         );
-        redirectUrl = url.toString();
       }
 
       // Determine redirect based on whether user is a client
       const isClient = true; // User came through OTP login, they are a client
-      const finalRedirect = isClient ? "/client" : "/dashboard";
+      const finalRedirect = "/client"; // Always redirect clients to client portal
 
       return NextResponse.json({
         success: true,
         message: "Successfully signed in!",
         email: email,
-        userId: client.user_id,
-        authUrl: redirectUrl, // Send the auth URL for automatic sign-in
+        userId: authUserId,
+        authUrl: sessionData?.properties?.action_link, // Send the auth URL for automatic sign-in
         redirectTo: finalRedirect, // Tell frontend where to redirect
         userType: "client", // Explicitly mark as client
       });
