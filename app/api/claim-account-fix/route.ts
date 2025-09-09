@@ -96,43 +96,79 @@ export async function POST(request: NextRequest) {
     let userId: string;
 
     if (userExists) {
-      // User already exists
-      return NextResponse.json(
-        {
-          error:
-            "An account with this email already exists. Please use 'Forgot Password' on the login page to reset your password.",
-          existingUser: true,
-        },
-        { status: 400 },
+      // User already exists - link them to this client record
+      console.log(
+        "User already exists with this email, linking to client record",
       );
-    }
 
-    // Create user with admin API - this bypasses email confirmation
-    const { data: authData, error: authError } =
-      await supabaseAdmin.auth.admin.createUser({
-        email: tokenData.email,
-        password: password,
-        email_confirm: true, // This bypasses email confirmation
-        user_metadata: {
-          first_name: firstName || client.first_name,
-          last_name: lastName || client.last_name,
-          client_id: client.id,
-          organization_id: tokenData.organization_id,
-        },
-      });
-
-    if (authError) {
-      console.error("Error creating auth user:", authError);
-      return NextResponse.json(
-        {
-          error: authError.message || "Failed to create account",
-        },
-        { status: 500 },
+      // Find the existing user
+      const existingUserRecord = existingUser?.users?.find(
+        (u) => u.email === tokenData.email,
       );
-    }
 
-    userId = authData?.user?.id!;
-    console.log("User created successfully with ID:", userId);
+      if (existingUserRecord) {
+        userId = existingUserRecord.id;
+
+        // Verify the password matches the existing user
+        const { data: signInData, error: signInError } =
+          await supabase.auth.signInWithPassword({
+            email: tokenData.email,
+            password: password,
+          });
+
+        if (signInError) {
+          // Password doesn't match - they need to use their existing password or reset it
+          return NextResponse.json(
+            {
+              error:
+                "An account with this email already exists. Please use your existing password or click 'Forgot Password' to reset it.",
+              existingUser: true,
+            },
+            { status: 400 },
+          );
+        }
+
+        // Password is correct - link the client to this user
+        console.log(
+          "Password verified, linking client to existing user:",
+          userId,
+        );
+      } else {
+        return NextResponse.json(
+          {
+            error: "Unable to link existing account. Please contact support.",
+          },
+          { status: 500 },
+        );
+      }
+    } else {
+      // Create user with admin API - this bypasses email confirmation
+      const { data: authData, error: authError } =
+        await supabaseAdmin.auth.admin.createUser({
+          email: tokenData.email,
+          password: password,
+          email_confirm: true, // This bypasses email confirmation
+          user_metadata: {
+            first_name: firstName || client.first_name,
+            last_name: lastName || client.last_name,
+            client_id: client.id,
+            organization_id: tokenData.organization_id,
+          },
+        });
+
+      if (authError) {
+        console.error("Error creating auth user:", authError);
+        return NextResponse.json(
+          {
+            error: authError.message || "Failed to create account",
+          },
+          { status: 500 },
+        );
+      }
+
+      userId = authData?.user?.id!;
+      console.log("User created successfully with ID:", userId);
+    }
 
     // Update client record with user_id and additional info
     const { error: updateError } = await supabase
