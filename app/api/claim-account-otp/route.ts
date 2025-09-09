@@ -28,16 +28,41 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Check if client exists (include organization_id)
-      const { data: client } = await supabase
+      // Check if client exists
+      // Use case-insensitive search with ILIKE to handle any case variations
+      const { data: client, error: clientError } = await supabase
         .from("clients")
-        .select("id, first_name, last_name, user_id, organization_id, phone")
-        .eq("email", email.toLowerCase())
-        .single();
+        .select("id, first_name, last_name, user_id, phone, email")
+        .ilike("email", email)
+        .maybeSingle();
+
+      console.log(`[OTP SEND] Searching for client with email: ${email}`);
+      console.log(`[OTP SEND] Client query result:`, client);
+      console.log(`[OTP SEND] Client query error:`, clientError);
 
       if (!client) {
+        // Additional debugging - check what clients exist
+        const { data: allClients } = await supabase
+          .from("clients")
+          .select("id, email, first_name, last_name")
+          .limit(10);
+
+        console.log(`[OTP SEND] No client found for email: ${email}`);
+        console.log(`[OTP SEND] Available clients (first 10):`, allClients);
+
         return NextResponse.json(
-          { error: "No account found with this email" },
+          {
+            error:
+              "No account found with this email. Please check your email address or contact support.",
+            debug:
+              process.env.NODE_ENV === "development"
+                ? {
+                    searchedEmail: email,
+                    lowercaseEmail: email.toLowerCase(),
+                    availableEmails: allClients?.map((c) => c.email) || [],
+                  }
+                : undefined,
+          },
           { status: 404 },
         );
       }
@@ -56,8 +81,18 @@ export async function POST(request: NextRequest) {
       // Store OTP in database
       console.log(`[OTP SEND] Storing OTP with expiry: ${expiresAt}`);
       console.log(
-        `[OTP SEND] Client organization_id: ${client.organization_id}`,
+        `[OTP SEND] Client found: ${client.first_name} ${client.last_name}`,
       );
+
+      // Get the default organization_id
+      const { data: orgData } = await supabase
+        .from("organizations")
+        .select("id")
+        .limit(1)
+        .single();
+
+      const organizationId = orgData?.id;
+      console.log(`[OTP SEND] Using organization_id: ${organizationId}`);
 
       const { error: upsertError } = await supabase
         .from("account_claim_tokens")
@@ -68,7 +103,7 @@ export async function POST(request: NextRequest) {
             token: otpCode, // Using token field for OTP
             expires_at: expiresAt,
             claimed_at: null,
-            organization_id: client.organization_id, // Use directly from client record
+            organization_id: organizationId,
             metadata: {
               type: "otp",
               created_at: new Date().toISOString(),
@@ -200,7 +235,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Check OTP
+      // Check OTP with case-insensitive email lookup
       console.log(
         `[OTP VERIFY] Checking OTP for email: ${email}, code: ${otp}`,
       );
@@ -208,21 +243,26 @@ export async function POST(request: NextRequest) {
       const { data: tokenData, error: tokenError } = await supabase
         .from("account_claim_tokens")
         .select("*")
-        .eq("email", email.toLowerCase())
+        .ilike("email", email)
         .eq("token", otp)
-        .single();
+        .maybeSingle();
+
+      console.log(`[OTP VERIFY] Token search result:`, tokenData);
+      console.log(`[OTP VERIFY] Token search error:`, tokenError);
 
       if (tokenError) {
         console.error("[OTP VERIFY] Database error:", tokenError);
 
-        // Check if any token exists for this email
+        // Check if any token exists for this email (case-insensitive)
         const { data: anyToken } = await supabase
           .from("account_claim_tokens")
-          .select("token, expires_at, claimed_at")
-          .eq("email", email.toLowerCase())
+          .select("token, expires_at, claimed_at, email")
+          .ilike("email", email)
           .order("created_at", { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
+
+        console.log(`[OTP VERIFY] Found any token for email search:`, anyToken);
 
         if (anyToken) {
           console.log(
