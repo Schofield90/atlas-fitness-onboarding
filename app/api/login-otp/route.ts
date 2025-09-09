@@ -44,62 +44,53 @@ export async function POST(request: NextRequest) {
 
       // If no user_id, try to link with existing auth user or create new one
       if (!client.user_id) {
-        // First, try to find existing auth user
         let userId: string | null = null;
 
-        try {
-          const { data: existingUsers, error: lookupError } =
-            await supabaseAdmin.auth.admin.listUsers();
+        // Try to create new auth user
+        const { data: authUser, error: authError } =
+          await supabaseAdmin.auth.admin.createUser({
+            email: email.toLowerCase(),
+            email_confirm: true,
+            user_metadata: {
+              first_name: client.first_name,
+              last_name: client.last_name,
+              client_id: client.id,
+            },
+          });
 
-          if (!lookupError && existingUsers && existingUsers.users) {
-            // Find user by email
-            const existingUser = existingUsers.users.find(
-              (u) => u.email?.toLowerCase() === email.toLowerCase(),
+        if (authError) {
+          // If user already exists, try to get their ID via signInWithPassword
+          if (
+            authError.message?.includes("already been registered") ||
+            authError.code === "email_exists"
+          ) {
+            console.log(
+              `Auth user already exists for ${email}, linking to client...`,
             );
 
-            if (existingUser) {
-              // User exists, use their ID
-              userId = existingUser.id;
-              console.log(`Found existing auth user for ${email}: ${userId}`);
+            // Since we can't list users, we'll generate a magic link which will work for existing users
+            const { data: magicLinkData, error: magicLinkError } =
+              await supabaseAdmin.auth.admin.generateLink({
+                type: "magiclink",
+                email: email.toLowerCase(),
+              });
+
+            if (!magicLinkError && magicLinkData?.user) {
+              userId = magicLinkData.user.id;
             }
-          }
-        } catch (lookupErr) {
-          console.error("Error looking up users:", lookupErr);
-        }
-
-        if (!userId) {
-          // No existing user, create new one
-          console.log(
-            `No existing auth user found for ${email}, creating new one...`,
-          );
-          const { data: authUser, error: authError } =
-            await supabaseAdmin.auth.admin.createUser({
-              email: email.toLowerCase(),
-              email_confirm: true,
-              user_metadata: {
-                first_name: client.first_name,
-                last_name: client.last_name,
-                client_id: client.id,
-              },
-            });
-
-          if (authError) {
+          } else {
             console.error("Failed to create auth user:", authError);
-            console.error("Error details:", JSON.stringify(authError));
             return NextResponse.json(
-              {
-                error: "Failed to activate account",
-                details: authError.message,
-              },
+              { error: "Failed to activate account" },
               { status: 500 },
             );
           }
-
+        } else if (authUser) {
           userId = authUser.user.id;
           console.log(`Created new auth user for ${email}: ${userId}`);
         }
 
-        // Update client with user_id
+        // Update client with user_id if we got one
         if (userId) {
           await supabaseAdmin
             .from("clients")
@@ -262,62 +253,53 @@ export async function POST(request: NextRequest) {
 
       // If no user_id, try to link with existing auth user or create new one
       if (!client.user_id) {
-        // First, try to find existing auth user
         let userId: string | null = null;
 
-        try {
-          const { data: existingUsers, error: lookupError } =
-            await supabaseAdmin.auth.admin.listUsers();
+        // Try to create new auth user
+        const { data: authUser, error: authError } =
+          await supabaseAdmin.auth.admin.createUser({
+            email: email.toLowerCase(),
+            email_confirm: true,
+            user_metadata: {
+              first_name: client.first_name,
+              last_name: client.last_name,
+              client_id: client.id,
+            },
+          });
 
-          if (!lookupError && existingUsers && existingUsers.users) {
-            // Find user by email
-            const existingUser = existingUsers.users.find(
-              (u) => u.email?.toLowerCase() === email.toLowerCase(),
+        if (authError) {
+          // If user already exists, try to get their ID via signInWithPassword
+          if (
+            authError.message?.includes("already been registered") ||
+            authError.code === "email_exists"
+          ) {
+            console.log(
+              `Auth user already exists for ${email}, linking to client...`,
             );
 
-            if (existingUser) {
-              // User exists, use their ID
-              userId = existingUser.id;
-              console.log(`Found existing auth user for ${email}: ${userId}`);
+            // Since we can't list users, we'll generate a magic link which will work for existing users
+            const { data: magicLinkData, error: magicLinkError } =
+              await supabaseAdmin.auth.admin.generateLink({
+                type: "magiclink",
+                email: email.toLowerCase(),
+              });
+
+            if (!magicLinkError && magicLinkData?.user) {
+              userId = magicLinkData.user.id;
             }
-          }
-        } catch (lookupErr) {
-          console.error("Error looking up users:", lookupErr);
-        }
-
-        if (!userId) {
-          // No existing user, create new one
-          console.log(
-            `No existing auth user found for ${email}, creating new one...`,
-          );
-          const { data: authUser, error: authError } =
-            await supabaseAdmin.auth.admin.createUser({
-              email: email.toLowerCase(),
-              email_confirm: true,
-              user_metadata: {
-                first_name: client.first_name,
-                last_name: client.last_name,
-                client_id: client.id,
-              },
-            });
-
-          if (authError) {
+          } else {
             console.error("Failed to create auth user:", authError);
-            console.error("Error details:", JSON.stringify(authError));
             return NextResponse.json(
-              {
-                error: "Failed to activate account",
-                details: authError.message,
-              },
+              { error: "Failed to activate account" },
               { status: 500 },
             );
           }
-
+        } else if (authUser) {
           userId = authUser.user.id;
           console.log(`Created new auth user for ${email}: ${userId}`);
         }
 
-        // Update client with user_id
+        // Update client with user_id if we got one
         if (userId) {
           await supabaseAdmin
             .from("clients")
