@@ -203,7 +203,7 @@ function ClaimAccountContent() {
     setError("");
 
     try {
-      const response = await fetch("/api/claim-account", {
+      const response = await fetch("/api/claim-account-simple", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -225,14 +225,22 @@ function ClaimAccountContent() {
       }
 
       // Success! Show appropriate message
-      if (result.requiresEmailConfirmation) {
+      if (result.requiresPasswordReset) {
+        alert(
+          "Your account already exists. Please use the 'Forgot Password' link on the login page to reset your password.",
+        );
+        router.push(
+          `/portal/login?email=${encodeURIComponent(tokenData.email)}`,
+        );
+      } else if (result.requiresEmailConfirmation) {
         alert(
           "Account created successfully! Please check your email to confirm your account before logging in. You may need to check your spam folder.",
         );
         router.push("/portal/login");
       } else {
         alert(
-          "Account successfully claimed! You can now log in with your email and password.",
+          result.message ||
+            "Account successfully claimed! You can now log in with your email and password.",
         );
         router.push(
           `/portal/login?email=${encodeURIComponent(tokenData.email)}`,
