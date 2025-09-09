@@ -2,8 +2,9 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/app/lib/supabase/client";
-import { Eye, EyeOff, Check, X, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Check, X, Loader2, CheckCircle } from "lucide-react";
 
 function ClaimAccountContent() {
   const searchParams = useSearchParams();
@@ -98,13 +99,14 @@ function ClaimAccountContent() {
       // No expiration check - tokens are valid until claimed
       console.log("DEBUG: Token claimed_at:", tokenData.claimed_at);
 
-      // Check if already claimed
+      // Check if already claimed - set a special error state
       if (tokenData.claimed_at) {
         console.error(
           "DEBUG: Token has already been claimed at:",
           tokenData.claimed_at,
         );
-        setError("This account has already been claimed.");
+        setError("ALREADY_CLAIMED");
+        setTokenData(tokenData);
         setLoading(false);
         return;
       }
@@ -238,6 +240,44 @@ function ClaimAccountContent() {
   }
 
   if (!tokenValid || error) {
+    // Special case for already claimed accounts
+    if (error === "ALREADY_CLAIMED") {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-900 px-4">
+          <div className="max-w-md w-full bg-gray-800 rounded-lg p-8 text-center">
+            <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-white mb-2">
+              Account Already Claimed
+            </h1>
+            <p className="text-gray-400 mb-6">
+              Great news! You've already claimed your account for{" "}
+              <span className="text-white font-medium">{tokenData?.email}</span>
+              .
+            </p>
+            <p className="text-gray-400 mb-6">
+              You can now log in with your email and the password you created.
+            </p>
+            <button
+              onClick={() => router.push("/portal/login")}
+              className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+            >
+              Go to Login
+            </button>
+            <p className="text-sm text-gray-500 mt-4">
+              Forgot your password?{" "}
+              <Link
+                href="/portal/forgot-password"
+                className="text-blue-400 hover:text-blue-300"
+              >
+                Reset it here
+              </Link>
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // Regular error display
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900 px-4">
         <div className="max-w-md w-full bg-gray-800 rounded-lg p-8 text-center">
