@@ -28,7 +28,8 @@ export async function POST(request: NextRequest) {
       }
 
       // Check if user exists and has claimed account
-      const { data: client, error: clientError } = await supabase
+      // Use admin client to bypass RLS
+      const { data: client, error: clientError } = await supabaseAdmin
         .from("clients")
         .select("id, first_name, last_name, user_id, phone, email")
         .ilike("email", email)
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
 
         // Update client with user_id
         if (userId) {
-          await supabase
+          await supabaseAdmin
             .from("clients")
             .update({ user_id: userId })
             .eq("id", client.id);
@@ -100,7 +101,7 @@ export async function POST(request: NextRequest) {
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
 
       // Get the default organization_id
-      const { data: orgData } = await supabase
+      const { data: orgData } = await supabaseAdmin
         .from("organizations")
         .select("id")
         .limit(1)
@@ -109,19 +110,21 @@ export async function POST(request: NextRequest) {
       const organizationId = orgData?.id;
 
       // Store OTP in database (using otp_tokens table)
-      const { error: upsertError } = await supabase.from("otp_tokens").upsert(
-        {
-          email: email.toLowerCase(),
-          token: otpCode,
-          expires_at: expiresAt,
-          used: false,
-          created_at: new Date().toISOString(),
-        },
-        {
-          onConflict: "email",
-          ignoreDuplicates: false,
-        },
-      );
+      const { error: upsertError } = await supabaseAdmin
+        .from("otp_tokens")
+        .upsert(
+          {
+            email: email.toLowerCase(),
+            token: otpCode,
+            expires_at: expiresAt,
+            used: false,
+            created_at: new Date().toISOString(),
+          },
+          {
+            onConflict: "email",
+            ignoreDuplicates: false,
+          },
+        );
 
       if (upsertError) {
         console.error("[LOGIN OTP] Failed to store OTP:", upsertError);
@@ -202,7 +205,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Check OTP
-      const { data: tokenData, error: tokenError } = await supabase
+      const { data: tokenData, error: tokenError } = await supabaseAdmin
         .from("otp_tokens")
         .select("*")
         .ilike("email", email)
@@ -229,7 +232,8 @@ export async function POST(request: NextRequest) {
       }
 
       // Get client data
-      const { data: client } = await supabase
+      // Use admin client to bypass RLS
+      const { data: client } = await supabaseAdmin
         .from("clients")
         .select("*")
         .ilike("email", email)
@@ -287,7 +291,7 @@ export async function POST(request: NextRequest) {
 
         // Update client with user_id
         if (userId) {
-          await supabase
+          await supabaseAdmin
             .from("clients")
             .update({ user_id: userId })
             .eq("id", client.id);
@@ -297,7 +301,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Mark token as used
-      await supabase
+      await supabaseAdmin
         .from("otp_tokens")
         .update({ used: true })
         .eq("email", email.toLowerCase())
