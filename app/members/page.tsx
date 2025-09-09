@@ -42,6 +42,8 @@ interface Member {
   status: "active" | "inactive" | "pending";
   tags?: string[];
   notes?: string;
+  user_id?: string;
+  is_claimed?: boolean;
 }
 
 function MembersContent() {
@@ -184,6 +186,8 @@ function MembersContent() {
           status: determineStatusFromAllMemberships(client, memberships),
           tags: client.tags || [],
           notes: client.notes,
+          user_id: client.user_id,
+          is_claimed: !!client.user_id,
         };
       });
 
@@ -518,8 +522,15 @@ function MembersContent() {
                               </div>
                             </div>
                             <div className="ml-4">
-                              <div className="text-sm font-medium text-white">
-                                {member.first_name} {member.last_name}
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-white">
+                                  {member.first_name} {member.last_name}
+                                </span>
+                                {!member.is_claimed && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-900 text-yellow-300">
+                                    Unclaimed
+                                  </span>
+                                )}
                               </div>
                               <div className="text-sm text-gray-400">
                                 {member.email}
@@ -541,7 +552,14 @@ function MembersContent() {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {getStatusBadge(member.status)}
+                          <div className="flex items-center gap-2">
+                            {getStatusBadge(member.status)}
+                            {!member.is_claimed && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-900 text-yellow-300">
+                                Unclaimed
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
                           {formatBritishDate(member.created_at)}
