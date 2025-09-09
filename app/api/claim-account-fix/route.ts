@@ -76,32 +76,56 @@ export async function POST(request: NextRequest) {
     // Try to sign up the user using regular auth flow
     console.log("Attempting to create new user for:", tokenData.email);
 
-    // Simple signup without any fancy options
+    // Sign up with metadata
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: tokenData.email,
       password: password,
+      options: {
+        data: {
+          first_name: firstName || client.first_name,
+          last_name: lastName || client.last_name,
+          client_id: client.id,
+          organization_id: tokenData.organization_id,
+        },
+      },
     });
 
     if (authError) {
       console.error("Error creating auth user:", authError);
-      console.error("Full error object:", JSON.stringify(authError, null, 2));
 
-      // Return the actual error for debugging
+      // Check if user already exists
+      if (
+        authError.message?.includes("already registered") ||
+        authError.message?.includes("already exists")
+      ) {
+        // User already exists - can't update password without admin
+        return NextResponse.json(
+          {
+            error:
+              "An account with this email already exists. Please use 'Forgot Password' on the login page to reset your password.",
+            existingUser: true,
+          },
+          { status: 400 },
+        );
+      }
+
+      // Return the actual error
       return NextResponse.json(
         {
           error: authError.message || "Failed to create account",
-          code: authError.code,
-          status: authError.status,
-          details: "Check Vercel logs for full error details",
         },
         { status: 500 },
       );
     }
 
-    // Check if we got a user back
-    if (!authData?.user) {
-      console.log("No user returned from signup, but no error either");
-      console.log("Auth data:", authData);
+    // Check if email confirmation is required
+    const needsEmailConfirmation = authData?.user && !authData.session;
+
+    if (needsEmailConfirmation) {
+      console.log("User created but needs email confirmation");
+      // User needs to check their email to confirm
+    } else if (authData?.session) {
+      console.log("User created and automatically logged in");
     }
 
     const userId = authData?.user?.id || client.user_id;
@@ -159,10 +183,16 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Return appropriate message based on whether email confirmation is needed
+    const needsConfirmation = authData?.user && !authData.session;
+
     return NextResponse.json({
       success: true,
-      message: "Account successfully claimed",
+      message: needsConfirmation
+        ? "Account created! Please check your email to confirm your account before logging in."
+        : "Account successfully claimed! You can now log in.",
       email: tokenData.email,
+      requiresEmailConfirmation: needsConfirmation,
     });
   } catch (error) {
     console.error("Error in claim-account API:", error);
