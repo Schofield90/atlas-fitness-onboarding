@@ -35,6 +35,13 @@ export async function GET(request: NextRequest) {
       .select("id, email")
       .limit(5);
 
+    // Method 5: Check customers table instead
+    const { data: anyCustomer, error: customerError } = await supabase
+      .from("customers")
+      .select("id, email, first_name, last_name")
+      .or("email.ilike.%samschofield%,email.ilike.%hotmail%")
+      .limit(10);
+
     return NextResponse.json({
       searchedEmail: email,
       results: {
@@ -42,6 +49,7 @@ export async function GET(request: NextRequest) {
         lowercase: { data: lowerResult, error: lowerError },
         similar: { data: allClients, error: allError },
         any: { data: anyClient, error: anyError },
+        customers: { data: anyCustomer, error: customerError },
       },
     });
   } catch (error) {
