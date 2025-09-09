@@ -41,7 +41,12 @@ export default function ClaimOTPPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to send verification code");
+        // Show more detailed error information in development
+        const errorMessage = data.error || "Failed to send verification code";
+        const debugInfo = data.debug
+          ? `\n\nDebug Info:\nSearched: ${data.debug.searchedEmail}\nAvailable emails: ${data.debug.availableEmails?.join(", ")}`
+          : "";
+        throw new Error(errorMessage + debugInfo);
       }
 
       // Pre-fill client details if available
