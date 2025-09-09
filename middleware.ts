@@ -13,10 +13,8 @@ const publicRoutes = [
   '/signup-simple',     // Simplified signup page
   '/auth/callback',
   '/client-portal/login',
-  '/client-portal/claim',
   '/client-access',
-  '/claim-account',      // Public claim account page
-  '/claim-otp',         // Public OTP-based claim page
+  '/login-otp',         // Public OTP-based login page
   '/join',              // Public join page
   '/book',              // Public booking pages for customers (all slugs)
   '/meta-review',       // Meta App Review test page
@@ -28,9 +26,8 @@ const publicRoutes = [
   '/api/public-api',
   '/api/booking-by-slug',
   '/api/analytics',
-  '/api/claim-account',   // Public API for claiming accounts
-  '/api/claim-account-fix',   // Fixed version of claim account API
-  '/api/claim-account-otp',    // OTP-based claim account API
+  '/api/login-otp',       // Public API for OTP login
+  '/api/setup-otp-table',  // Setup OTP table (temporary public access)
   '/api/debug-clients',    // Debug endpoint to check client emails
   '/api/test-client-lookup',    // Test endpoint for debugging email lookup
   '/api/check-database'    // Check what's actually in the database
