@@ -19,8 +19,7 @@ export async function GET(request: NextRequest) {
       ? new Date(endDate)
       : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    // Get all class sessions with program details
-    // Use current_bookings field which is maintained by triggers
+    // Get all class sessions with program details and booking count
     console.log(
       "[API] Fetching classes for org:",
       organizationId,
@@ -35,7 +34,13 @@ export async function GET(request: NextRequest) {
       .select(
         `
         *,
-        program:programs(name, description, price_pennies)
+        program:programs(name, description, price_pennies),
+        bookings:class_bookings!left(
+          id,
+          customer_id,
+          booking_status,
+          created_at
+        )
       `,
       )
       .eq("organization_id", organizationId)
@@ -45,13 +50,13 @@ export async function GET(request: NextRequest) {
 
     console.log("[API] Raw query result - class count:", classes?.length);
     console.log(
-      "[API] Sample class:",
+      "[API] Sample class with bookings:",
       classes?.[0]
         ? {
             id: classes[0].id,
             start_time: classes[0].start_time,
-            current_bookings: classes[0].current_bookings || 0,
-            max_capacity: classes[0].max_capacity || 15,
+            bookings_count: classes[0].bookings?.length || 0,
+            bookings: classes[0].bookings,
           }
         : "No classes found",
     );
@@ -66,24 +71,19 @@ export async function GET(request: NextRequest) {
 
     // Log all classes with bookings for debugging
     if (classes && classes.length > 0) {
-      const classesWithBookings = classes.filter((c) => c.current_bookings > 0);
+      const classesWithBookings = classes.filter(
+        (c) => c.bookings && c.bookings.length > 0,
+      );
       console.log("API: Classes with bookings:", classesWithBookings.length);
       classesWithBookings.forEach((cls) => {
         console.log(`Class ${cls.id} at ${cls.start_time}:`, {
-          current_bookings: cls.current_bookings || 0,
-          max_capacity: cls.max_capacity || 15,
+          bookingsCount: cls.bookings?.length || 0,
+          bookings: cls.bookings,
         });
       });
     }
 
-    // Ensure booking count fields are included in response
-    const formattedClasses = (classes || []).map((cls) => ({
-      ...cls,
-      bookings_count: cls.current_bookings || 0,
-      spots_remaining: (cls.max_capacity || 15) - (cls.current_bookings || 0),
-    }));
-
-    return NextResponse.json({ classes: formattedClasses });
+    return NextResponse.json({ classes });
   } catch (error) {
     console.error("Error in GET /api/booking/classes:", error);
     return createErrorResponse(error);
