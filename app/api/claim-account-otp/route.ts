@@ -54,30 +54,41 @@ export async function POST(request: NextRequest) {
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
 
       // Store OTP in database
-      await supabase.from("account_claim_tokens").upsert(
-        {
-          client_id: client.id,
-          email: email.toLowerCase(),
-          token: otpCode, // Using token field for OTP
-          expires_at: expiresAt,
-          claimed_at: null,
-          organization_id: (
-            await supabase
-              .from("clients")
-              .select("organization_id")
-              .eq("id", client.id)
-              .single()
-          ).data?.organization_id,
-          metadata: {
-            type: "otp",
-            created_at: new Date().toISOString(),
+      console.log(`[OTP SEND] Storing OTP with expiry: ${expiresAt}`);
+      const { error: upsertError } = await supabase
+        .from("account_claim_tokens")
+        .upsert(
+          {
+            client_id: client.id,
+            email: email.toLowerCase(),
+            token: otpCode, // Using token field for OTP
+            expires_at: expiresAt,
+            claimed_at: null,
+            organization_id: (
+              await supabase
+                .from("clients")
+                .select("organization_id")
+                .eq("id", client.id)
+                .single()
+            ).data?.organization_id,
+            metadata: {
+              type: "otp",
+              created_at: new Date().toISOString(),
+            },
           },
-        },
-        {
-          onConflict: "client_id",
-          ignoreDuplicates: false,
-        },
-      );
+          {
+            onConflict: "client_id",
+            ignoreDuplicates: false,
+          },
+        );
+
+      if (upsertError) {
+        console.error("[OTP SEND] Failed to store OTP:", upsertError);
+        return NextResponse.json(
+          { error: "Failed to generate verification code" },
+          { status: 500 },
+        );
+      }
 
       // Send OTP email
       const emailHtml = `
@@ -262,9 +273,22 @@ export async function POST(request: NextRequest) {
       }
 
       // Check if expired
-      if (new Date(tokenData.expires_at) < new Date()) {
+      const now = new Date();
+      const expiresAt = new Date(tokenData.expires_at);
+      console.log(
+        `[OTP VERIFY] Time check - Now: ${now.toISOString()}, Expires: ${expiresAt.toISOString()}`,
+      );
+      console.log(`[OTP VERIFY] Is expired? ${expiresAt < now}`);
+
+      if (expiresAt < now) {
+        const minutesAgo = Math.round(
+          (now.getTime() - expiresAt.getTime()) / (1000 * 60),
+        );
+        console.log(`[OTP VERIFY] Code expired ${minutesAgo} minutes ago`);
         return NextResponse.json(
-          { error: "Verification code has expired" },
+          {
+            error: `Verification code has expired (expired ${minutesAgo} minutes ago). Please request a new one.`,
+          },
           { status: 400 },
         );
       }
