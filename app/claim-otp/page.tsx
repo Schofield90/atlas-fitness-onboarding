@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Mail, Lock, User, Phone, ArrowRight, CheckCircle } from "lucide-react";
+import { Mail, User, Phone, ArrowRight, CheckCircle } from "lucide-react";
 import Link from "next/link";
+import { createClient } from "@/app/lib/supabase/client";
 
 export default function ClaimOTPPage() {
   const router = useRouter();
@@ -16,8 +17,6 @@ export default function ClaimOTPPage() {
   // Form data
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
@@ -71,21 +70,10 @@ export default function ClaimOTPPage() {
     }
   };
 
-  // Step 2: Verify OTP and set password
+  // Step 2: Verify OTP and sign in
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-
-    // Validate passwords match
-    if (password !== confirmPassword) {
-      setError("Passwords do not match");
-      return;
-    }
-
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters");
-      return;
-    }
 
     setLoading(true);
 
@@ -97,7 +85,6 @@ export default function ClaimOTPPage() {
           action: "verify-otp",
           email: email.toLowerCase().trim(),
           otp: otp.trim(),
-          password,
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           phone: phone.trim(),
@@ -110,11 +97,21 @@ export default function ClaimOTPPage() {
         throw new Error(data.error || "Failed to verify code");
       }
 
+      // If we got an authUrl back, use it to sign the user in automatically
+      if (data.authUrl) {
+        // Redirect to the auth URL which will sign the user in and redirect to dashboard
+        window.location.href =
+          data.authUrl +
+          "&redirectTo=" +
+          encodeURIComponent(window.location.origin + "/dashboard");
+        return;
+      }
+
       setSuccess(true);
 
-      // Redirect to login after 3 seconds
+      // Fallback redirect after 3 seconds if no auth URL
       setTimeout(() => {
-        router.push("/signin");
+        router.push("/dashboard");
       }, 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -129,11 +126,11 @@ export default function ClaimOTPPage() {
         <div className="max-w-md w-full bg-gray-800 rounded-lg p-8 text-center">
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-white mb-2">
-            Account Created Successfully!
+            Signed In Successfully!
           </h1>
-          <p className="text-gray-400 mb-4">Redirecting you to sign in...</p>
+          <p className="text-gray-400 mb-4">Redirecting you to dashboard...</p>
           <Link
-            href="/signin"
+            href="/dashboard"
             className="text-blue-500 hover:text-blue-400 underline"
           >
             Click here if not redirected
@@ -147,13 +144,11 @@ export default function ClaimOTPPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-900 px-4">
       <div className="max-w-md w-full">
         <div className="bg-gray-800 rounded-lg shadow-xl p-8">
-          <h1 className="text-2xl font-bold text-white mb-2">
-            Claim Your Account
-          </h1>
+          <h1 className="text-2xl font-bold text-white mb-2">Sign In</h1>
           <p className="text-gray-400 mb-6">
             {step === "email"
               ? "Enter your email to receive a verification code"
-              : "Enter the code sent to your email and set your password"}
+              : "Enter the code sent to your email"}
           </p>
 
           {error && (
@@ -283,48 +278,12 @@ export default function ClaimOTPPage() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter password"
-                    required
-                    minLength={6}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Confirm Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full pl-10 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Confirm password"
-                    required
-                    minLength={6}
-                  />
-                </div>
-              </div>
-
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? "Creating Account..." : "Create Account"}
+                {loading ? "Signing In..." : "Sign In"}
               </button>
             </form>
           )}

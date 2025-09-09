@@ -7,11 +7,22 @@ function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+// Generate a secure random password for internal use
+function generateSecurePassword(): string {
+  const charset =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+  let password = "";
+  for (let i = 0; i < 16; i++) {
+    password += charset.charAt(Math.floor(Math.random() * charset.length));
+  }
+  return password;
+}
+
 // Send OTP via email
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { action, email, otp, password, firstName, lastName, phone } = body;
+    const { action, email, otp, firstName, lastName, phone } = body;
 
     const supabase = await createClient();
     const supabaseAdmin = createAdminClient(
@@ -226,10 +237,10 @@ export async function POST(request: NextRequest) {
 
     // Action 2: Verify OTP and create account
     if (action === "verify-otp") {
-      if (!email || !otp || !password) {
+      if (!email || !otp) {
         return NextResponse.json(
           {
-            error: "Email, verification code, and password are required",
+            error: "Email and verification code are required",
           },
           { status: 400 },
         );
@@ -349,6 +360,7 @@ export async function POST(request: NextRequest) {
 
       // Create or update user
       let userId: string;
+      const securePassword = generateSecurePassword(); // Generate internal password
 
       // Check if user exists
       const { data: existingUsers } =
@@ -358,10 +370,9 @@ export async function POST(request: NextRequest) {
       );
 
       if (existingUser) {
-        // Update existing user
+        // Update existing user - just update metadata, don't change password
         userId = existingUser.id;
         await supabaseAdmin.auth.admin.updateUserById(userId, {
-          password: password,
           email_confirm: true,
           user_metadata: {
             ...existingUser.user_metadata,
@@ -372,11 +383,11 @@ export async function POST(request: NextRequest) {
           },
         });
       } else {
-        // Create new user
+        // Create new user with the generated secure password
         const { data: authData, error: authError } =
           await supabaseAdmin.auth.admin.createUser({
             email: email,
-            password: password,
+            password: securePassword,
             email_confirm: true,
             user_metadata: {
               client_id: client.id,
@@ -387,14 +398,47 @@ export async function POST(request: NextRequest) {
           });
 
         if (authError) {
-          console.error("Error creating user:", authError);
-          return NextResponse.json(
-            { error: "Failed to create account" },
-            { status: 500 },
-          );
-        }
+          // If user already exists, try to get the existing user and update
+          if (
+            authError.message?.includes("already been registered") ||
+            authError.code === "email_exists"
+          ) {
+            const { data: existingUserData } =
+              await supabaseAdmin.auth.admin.listUsers();
+            const foundUser = existingUserData?.users?.find(
+              (u) => u.email?.toLowerCase() === email.toLowerCase(),
+            );
 
-        userId = authData.user.id;
+            if (foundUser) {
+              userId = foundUser.id;
+              // Update the existing user's metadata
+              await supabaseAdmin.auth.admin.updateUserById(userId, {
+                email_confirm: true,
+                user_metadata: {
+                  ...foundUser.user_metadata,
+                  client_id: client.id,
+                  organization_id: tokenData.organization_id,
+                  first_name: firstName || client.first_name,
+                  last_name: lastName || client.last_name,
+                },
+              });
+            } else {
+              console.error("Error creating user:", authError);
+              return NextResponse.json(
+                { error: "Failed to create account" },
+                { status: 500 },
+              );
+            }
+          } else {
+            console.error("Error creating user:", authError);
+            return NextResponse.json(
+              { error: "Failed to create account" },
+              { status: 500 },
+            );
+          }
+        } else {
+          userId = authData.user.id;
+        }
       }
 
       // Update client record
@@ -416,10 +460,26 @@ export async function POST(request: NextRequest) {
         .eq("client_id", client.id)
         .eq("token", otp);
 
+      // Generate a one-time sign-in token for the user
+      const { data: tokenData, error: tokenError } =
+        await supabaseAdmin.auth.admin.generateLink({
+          type: "magiclink",
+          email: email,
+        });
+
+      let redirectUrl = undefined;
+      if (tokenData?.properties?.action_link) {
+        // Extract the token from the magic link for client-side use
+        const url = new URL(tokenData.properties.action_link);
+        redirectUrl = tokenData.properties.action_link;
+      }
+
       return NextResponse.json({
         success: true,
-        message: "Account successfully created! You can now sign in.",
+        message: "Account created successfully! You are now signed in.",
         email: email,
+        userId: userId,
+        authUrl: redirectUrl, // Send the auth URL for automatic sign-in
       });
     }
 
