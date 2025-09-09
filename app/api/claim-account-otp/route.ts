@@ -363,104 +363,219 @@ export async function POST(request: NextRequest) {
 
       // First, try to get the user by email - check if they already exist
       let existingUser = null;
+      console.log(`[OTP VERIFY] Starting user lookup for email: ${email}`);
+
       try {
-        // List all users and find by email (more reliable than getUserByEmail)
-        const { data: usersData, error: listError } =
-          await supabaseAdmin.auth.admin.listUsers();
+        // Try direct lookup first
+        const { data: directLookup, error: directError } =
+          await supabaseAdmin.auth.admin.getUserById(client.user_id || "dummy");
 
-        if (usersData && !listError) {
-          // Find user with matching email (case-insensitive)
-          existingUser = usersData.users.find(
-            (u) => u.email?.toLowerCase() === email.toLowerCase(),
+        if (directLookup && !directError && client.user_id) {
+          console.log(
+            `[OTP VERIFY] Found user via client.user_id: ${client.user_id}`,
           );
-
-          if (existingUser) {
-            console.log(
-              `[OTP VERIFY] Found existing user with ID: ${existingUser.id}`,
-            );
-          } else {
-            console.log(
-              `[OTP VERIFY] No existing user found for email: ${email}`,
-            );
-          }
+          existingUser = directLookup.user;
         }
       } catch (err) {
-        console.log(`[OTP VERIFY] Error checking for existing user: ${err}`);
+        console.log(`[OTP VERIFY] No user found via client.user_id`);
+      }
+
+      if (!existingUser) {
+        try {
+          // List all users and find by email (more reliable than getUserByEmail)
+          console.log(`[OTP VERIFY] Attempting to list all users...`);
+          const { data: usersData, error: listError } =
+            await supabaseAdmin.auth.admin.listUsers();
+
+          console.log(
+            `[OTP VERIFY] listUsers result: ${usersData ? "success" : "null"}, error: ${listError ? listError.message : "none"}`,
+          );
+
+          if (usersData && !listError && usersData.users) {
+            console.log(
+              `[OTP VERIFY] Total users found: ${usersData.users.length}`,
+            );
+
+            // Find user with matching email (case-insensitive)
+            existingUser = usersData.users.find(
+              (u) => u.email?.toLowerCase() === email.toLowerCase(),
+            );
+
+            if (existingUser) {
+              console.log(
+                `[OTP VERIFY] Found existing user with ID: ${existingUser.id}`,
+              );
+            } else {
+              console.log(
+                `[OTP VERIFY] No existing user found for email: ${email} among ${usersData.users.length} users`,
+              );
+              // Log first few emails for debugging
+              const sampleEmails = usersData.users
+                .slice(0, 3)
+                .map((u) => u.email);
+              console.log(
+                `[OTP VERIFY] Sample user emails: ${JSON.stringify(sampleEmails)}`,
+              );
+            }
+          } else {
+            console.log(`[OTP VERIFY] listUsers failed or returned no users`);
+          }
+        } catch (err) {
+          console.error(`[OTP VERIFY] Error checking for existing user:`, err);
+        }
       }
 
       if (existingUser) {
         // User exists - just update metadata and log them in
         console.log(`[OTP VERIFY] Updating existing user: ${existingUser.id}`);
         userId = existingUser.id;
-        await supabaseAdmin.auth.admin.updateUserById(userId, {
-          email_confirm: true,
-          user_metadata: {
-            ...existingUser.user_metadata,
-            client_id: client.id,
-            organization_id: tokenData.organization_id,
-            first_name: firstName || client.first_name,
-            last_name: lastName || client.last_name,
-          },
-        });
-      } else {
-        // Create new user with a generated secure password
-        console.log(`[OTP VERIFY] Creating new user for email: ${email}`);
-        const securePassword = generateSecurePassword();
 
-        const { data: authData, error: authError } =
-          await supabaseAdmin.auth.admin.createUser({
-            email: email,
-            password: securePassword,
+        try {
+          await supabaseAdmin.auth.admin.updateUserById(userId, {
             email_confirm: true,
             user_metadata: {
+              ...existingUser.user_metadata,
               client_id: client.id,
               organization_id: tokenData.organization_id,
               first_name: firstName || client.first_name,
               last_name: lastName || client.last_name,
             },
           });
+          console.log(
+            `[OTP VERIFY] Successfully updated user metadata for ${userId}`,
+          );
+        } catch (updateError) {
+          console.error(
+            `[OTP VERIFY] Error updating user metadata:`,
+            updateError,
+          );
+          // Continue anyway - user exists and can log in
+          userId = existingUser.id;
+        }
+      } else {
+        // Try to create new user only if one doesn't exist
+        console.log(
+          `[OTP VERIFY] No existing user found, attempting to create new user for email: ${email}`,
+        );
+        const securePassword = generateSecurePassword();
 
-        if (authError) {
-          // If user already exists, try to get the existing user and update
-          if (
-            authError.message?.includes("already been registered") ||
-            authError.code === "email_exists"
-          ) {
-            const { data: existingUserData } =
-              await supabaseAdmin.auth.admin.listUsers();
-            const foundUser = existingUserData?.users?.find(
-              (u) => u.email?.toLowerCase() === email.toLowerCase(),
-            );
+        try {
+          const { data: authData, error: authError } =
+            await supabaseAdmin.auth.admin.createUser({
+              email: email,
+              password: securePassword,
+              email_confirm: true,
+              user_metadata: {
+                client_id: client.id,
+                organization_id: tokenData.organization_id,
+                first_name: firstName || client.first_name,
+                last_name: lastName || client.last_name,
+              },
+            });
 
-            if (foundUser) {
-              userId = foundUser.id;
-              // Update the existing user's metadata
-              await supabaseAdmin.auth.admin.updateUserById(userId, {
-                email_confirm: true,
-                user_metadata: {
-                  ...foundUser.user_metadata,
-                  client_id: client.id,
-                  organization_id: tokenData.organization_id,
-                  first_name: firstName || client.first_name,
-                  last_name: lastName || client.last_name,
-                },
-              });
+          if (authError) {
+            console.error(`[OTP VERIFY] Error creating user:`, authError);
+
+            // If user already exists (shouldn't happen but handle it), try to find them again
+            if (
+              authError.message?.includes("already been registered") ||
+              authError.message?.includes("already exists") ||
+              authError.code === "email_exists"
+            ) {
+              console.log(
+                `[OTP VERIFY] User creation failed because user exists, attempting recovery...`,
+              );
+
+              const { data: recoveryData } =
+                await supabaseAdmin.auth.admin.listUsers();
+              const recoveredUser = recoveryData?.users?.find(
+                (u) => u.email?.toLowerCase() === email.toLowerCase(),
+              );
+
+              if (recoveredUser) {
+                console.log(
+                  `[OTP VERIFY] Recovered existing user: ${recoveredUser.id}`,
+                );
+                userId = recoveredUser.id;
+
+                // Update metadata for recovered user
+                try {
+                  await supabaseAdmin.auth.admin.updateUserById(userId, {
+                    email_confirm: true,
+                    user_metadata: {
+                      ...recoveredUser.user_metadata,
+                      client_id: client.id,
+                      organization_id: tokenData.organization_id,
+                      first_name: firstName || client.first_name,
+                      last_name: lastName || client.last_name,
+                    },
+                  });
+                } catch (err) {
+                  console.error(
+                    `[OTP VERIFY] Error updating recovered user:`,
+                    err,
+                  );
+                  // Continue anyway
+                }
+              } else {
+                console.error(
+                  `[OTP VERIFY] Could not recover user after creation failure`,
+                );
+                return NextResponse.json(
+                  {
+                    error:
+                      "An account with this email already exists. Please try logging in instead.",
+                    details:
+                      process.env.NODE_ENV === "development"
+                        ? authError.message
+                        : undefined,
+                  },
+                  { status: 400 },
+                );
+              }
             } else {
-              console.error("Error creating user:", authError);
+              // Some other error occurred
               return NextResponse.json(
-                { error: "Failed to create account" },
+                {
+                  error:
+                    "Failed to create account. Please try again or contact support.",
+                  details:
+                    process.env.NODE_ENV === "development"
+                      ? authError.message
+                      : undefined,
+                },
                 { status: 500 },
               );
             }
+          } else if (authData?.user) {
+            console.log(
+              `[OTP VERIFY] Successfully created new user: ${authData.user.id}`,
+            );
+            userId = authData.user.id;
           } else {
-            console.error("Error creating user:", authError);
+            console.error(
+              `[OTP VERIFY] Unexpected response from createUser - no user data`,
+            );
             return NextResponse.json(
-              { error: "Failed to create account" },
+              { error: "Failed to create account - unexpected response" },
               { status: 500 },
             );
           }
-        } else {
-          userId = authData.user.id;
+        } catch (createError) {
+          console.error(
+            `[OTP VERIFY] Unexpected error in user creation:`,
+            createError,
+          );
+          return NextResponse.json(
+            {
+              error: "Failed to process account. Please try again.",
+              details:
+                process.env.NODE_ENV === "development"
+                  ? String(createError)
+                  : undefined,
+            },
+            { status: 500 },
+          );
         }
       }
 
