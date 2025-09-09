@@ -28,10 +28,10 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Check if client exists
+      // Check if client exists (include organization_id)
       const { data: client } = await supabase
         .from("clients")
-        .select("id, first_name, last_name, user_id")
+        .select("id, first_name, last_name, user_id, organization_id, phone")
         .eq("email", email.toLowerCase())
         .single();
 
@@ -55,6 +55,10 @@ export async function POST(request: NextRequest) {
 
       // Store OTP in database
       console.log(`[OTP SEND] Storing OTP with expiry: ${expiresAt}`);
+      console.log(
+        `[OTP SEND] Client organization_id: ${client.organization_id}`,
+      );
+
       const { error: upsertError } = await supabase
         .from("account_claim_tokens")
         .upsert(
@@ -64,13 +68,7 @@ export async function POST(request: NextRequest) {
             token: otpCode, // Using token field for OTP
             expires_at: expiresAt,
             claimed_at: null,
-            organization_id: (
-              await supabase
-                .from("clients")
-                .select("organization_id")
-                .eq("id", client.id)
-                .single()
-            ).data?.organization_id,
+            organization_id: client.organization_id, // Use directly from client record
             metadata: {
               type: "otp",
               created_at: new Date().toISOString(),
@@ -173,13 +171,7 @@ export async function POST(request: NextRequest) {
         clientDetails: {
           first_name: client.first_name,
           last_name: client.last_name,
-          phone: (
-            await supabase
-              .from("clients")
-              .select("phone")
-              .eq("id", client.id)
-              .single()
-          ).data?.phone,
+          phone: client.phone,
         },
       };
 
