@@ -187,11 +187,20 @@ function ClaimAccountContent() {
         throw new Error(result.error || "Failed to claim account");
       }
 
-      // Success! Redirect to login
-      alert(
-        "Account successfully claimed! You can now log in with your email and password.",
-      );
-      router.push(`/portal/login?email=${encodeURIComponent(tokenData.email)}`);
+      // Success! Show appropriate message
+      if (result.requiresEmailConfirmation) {
+        alert(
+          "Account created successfully! Please check your email to confirm your account before logging in. You may need to check your spam folder.",
+        );
+        router.push("/portal/login");
+      } else {
+        alert(
+          "Account successfully claimed! You can now log in with your email and password.",
+        );
+        router.push(
+          `/portal/login?email=${encodeURIComponent(tokenData.email)}`,
+        );
+      }
     } catch (err: any) {
       console.error("Error claiming account:", err);
       setError(err.message || "Failed to claim account");
