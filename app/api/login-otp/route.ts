@@ -41,34 +41,58 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // If no user_id, create auth user for them now
+      // If no user_id, try to link with existing auth user or create new one
       if (!client.user_id) {
-        const { data: authUser, error: authError } =
-          await supabaseAdmin.auth.admin.createUser({
-            email: email.toLowerCase(),
-            email_confirm: true,
-            user_metadata: {
-              first_name: client.first_name,
-              last_name: client.last_name,
-              client_id: client.id,
-            },
+        // First, try to find existing auth user
+        const { data: existingUser, error: lookupError } =
+          await supabaseAdmin.auth.admin.listUsers({
+            filter: `email.eq.${email.toLowerCase()}`,
+            page: 1,
+            perPage: 1,
           });
 
-        if (authError) {
-          console.error("Failed to create auth user:", authError);
-          return NextResponse.json(
-            { error: "Failed to activate account" },
-            { status: 500 },
-          );
+        let userId: string | null = null;
+
+        if (
+          existingUser &&
+          existingUser.users &&
+          existingUser.users.length > 0
+        ) {
+          // User exists, use their ID
+          userId = existingUser.users[0].id;
+        } else {
+          // No existing user, create new one
+          const { data: authUser, error: authError } =
+            await supabaseAdmin.auth.admin.createUser({
+              email: email.toLowerCase(),
+              email_confirm: true,
+              user_metadata: {
+                first_name: client.first_name,
+                last_name: client.last_name,
+                client_id: client.id,
+              },
+            });
+
+          if (authError) {
+            console.error("Failed to create auth user:", authError);
+            return NextResponse.json(
+              { error: "Failed to activate account" },
+              { status: 500 },
+            );
+          }
+
+          userId = authUser.user.id;
         }
 
         // Update client with user_id
-        await supabase
-          .from("clients")
-          .update({ user_id: authUser.user.id })
-          .eq("id", client.id);
+        if (userId) {
+          await supabase
+            .from("clients")
+            .update({ user_id: userId })
+            .eq("id", client.id);
 
-        client.user_id = authUser.user.id;
+          client.user_id = userId;
+        }
       }
 
       // Generate OTP
@@ -218,34 +242,58 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // If no user_id, create auth user for them now
+      // If no user_id, try to link with existing auth user or create new one
       if (!client.user_id) {
-        const { data: authUser, error: authError } =
-          await supabaseAdmin.auth.admin.createUser({
-            email: email.toLowerCase(),
-            email_confirm: true,
-            user_metadata: {
-              first_name: client.first_name,
-              last_name: client.last_name,
-              client_id: client.id,
-            },
+        // First, try to find existing auth user
+        const { data: existingUser, error: lookupError } =
+          await supabaseAdmin.auth.admin.listUsers({
+            filter: `email.eq.${email.toLowerCase()}`,
+            page: 1,
+            perPage: 1,
           });
 
-        if (authError) {
-          console.error("Failed to create auth user:", authError);
-          return NextResponse.json(
-            { error: "Failed to activate account" },
-            { status: 500 },
-          );
+        let userId: string | null = null;
+
+        if (
+          existingUser &&
+          existingUser.users &&
+          existingUser.users.length > 0
+        ) {
+          // User exists, use their ID
+          userId = existingUser.users[0].id;
+        } else {
+          // No existing user, create new one
+          const { data: authUser, error: authError } =
+            await supabaseAdmin.auth.admin.createUser({
+              email: email.toLowerCase(),
+              email_confirm: true,
+              user_metadata: {
+                first_name: client.first_name,
+                last_name: client.last_name,
+                client_id: client.id,
+              },
+            });
+
+          if (authError) {
+            console.error("Failed to create auth user:", authError);
+            return NextResponse.json(
+              { error: "Failed to activate account" },
+              { status: 500 },
+            );
+          }
+
+          userId = authUser.user.id;
         }
 
         // Update client with user_id
-        await supabase
-          .from("clients")
-          .update({ user_id: authUser.user.id })
-          .eq("id", client.id);
+        if (userId) {
+          await supabase
+            .from("clients")
+            .update({ user_id: userId })
+            .eq("id", client.id);
 
-        client.user_id = authUser.user.id;
+          client.user_id = userId;
+        }
       }
 
       // Mark token as used
