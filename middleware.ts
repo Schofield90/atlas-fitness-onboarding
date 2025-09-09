@@ -16,6 +16,8 @@ const publicRoutes = [
   '/client-portal/claim',
   '/client-access',
   '/claim-account',      // Public claim account page
+  '/claim-otp',         // Public OTP-based claim page
+  '/join',              // Public join page
   '/book',              // Public booking pages for customers (all slugs)
   '/meta-review',       // Meta App Review test page
   // Public API endpoints
@@ -27,7 +29,8 @@ const publicRoutes = [
   '/api/booking-by-slug',
   '/api/analytics',
   '/api/claim-account',   // Public API for claiming accounts
-  '/api/claim-account-fix'   // Fixed version of claim account API
+  '/api/claim-account-fix',   // Fixed version of claim account API
+  '/api/claim-account-otp'    // OTP-based claim account API
 ]
 
 // Client-only routes
