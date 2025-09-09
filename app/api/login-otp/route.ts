@@ -52,6 +52,10 @@ export async function POST(request: NextRequest) {
             perPage: 1,
           });
 
+        if (lookupError) {
+          console.error("Error looking up user:", lookupError);
+        }
+
         let userId: string | null = null;
 
         if (
@@ -61,8 +65,12 @@ export async function POST(request: NextRequest) {
         ) {
           // User exists, use their ID
           userId = existingUser.users[0].id;
+          console.log(`Found existing auth user for ${email}: ${userId}`);
         } else {
           // No existing user, create new one
+          console.log(
+            `No existing auth user found for ${email}, creating new one...`,
+          );
           const { data: authUser, error: authError } =
             await supabaseAdmin.auth.admin.createUser({
               email: email.toLowerCase(),
@@ -76,13 +84,18 @@ export async function POST(request: NextRequest) {
 
           if (authError) {
             console.error("Failed to create auth user:", authError);
+            console.error("Error details:", JSON.stringify(authError));
             return NextResponse.json(
-              { error: "Failed to activate account" },
+              {
+                error: "Failed to activate account",
+                details: authError.message,
+              },
               { status: 500 },
             );
           }
 
           userId = authUser.user.id;
+          console.log(`Created new auth user for ${email}: ${userId}`);
         }
 
         // Update client with user_id
@@ -256,6 +269,10 @@ export async function POST(request: NextRequest) {
             perPage: 1,
           });
 
+        if (lookupError) {
+          console.error("Error looking up user:", lookupError);
+        }
+
         let userId: string | null = null;
 
         if (
@@ -265,8 +282,12 @@ export async function POST(request: NextRequest) {
         ) {
           // User exists, use their ID
           userId = existingUser.users[0].id;
+          console.log(`Found existing auth user for ${email}: ${userId}`);
         } else {
           // No existing user, create new one
+          console.log(
+            `No existing auth user found for ${email}, creating new one...`,
+          );
           const { data: authUser, error: authError } =
             await supabaseAdmin.auth.admin.createUser({
               email: email.toLowerCase(),
@@ -280,13 +301,18 @@ export async function POST(request: NextRequest) {
 
           if (authError) {
             console.error("Failed to create auth user:", authError);
+            console.error("Error details:", JSON.stringify(authError));
             return NextResponse.json(
-              { error: "Failed to activate account" },
+              {
+                error: "Failed to activate account",
+                details: authError.message,
+              },
               { status: 500 },
             );
           }
 
           userId = authUser.user.id;
+          console.log(`Created new auth user for ${email}: ${userId}`);
         }
 
         // Update client with user_id
