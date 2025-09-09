@@ -360,14 +360,23 @@ export async function POST(request: NextRequest) {
 
       // Create or update user
       let userId: string;
-      const securePassword = generateSecurePassword(); // Generate internal password
 
-      // Check if user exists
-      const { data: existingUsers } =
-        await supabaseAdmin.auth.admin.listUsers();
-      const existingUser = existingUsers?.users?.find(
-        (u) => u.email?.toLowerCase() === email.toLowerCase(),
-      );
+      // First, try to get the user by email using a more reliable method
+      let existingUser = null;
+      try {
+        const {
+          data: { users },
+          error: listError,
+        } = await supabaseAdmin.auth.admin.listUsers();
+
+        if (!listError && users) {
+          existingUser = users.find(
+            (u) => u.email?.toLowerCase() === email.toLowerCase(),
+          );
+        }
+      } catch (err) {
+        console.log(`[OTP VERIFY] Error listing users:`, err);
+      }
 
       if (existingUser) {
         // Update existing user - just update metadata, don't change password
@@ -383,7 +392,10 @@ export async function POST(request: NextRequest) {
           },
         });
       } else {
-        // Create new user with the generated secure password
+        // Create new user with a generated secure password
+        console.log(`[OTP VERIFY] Creating new user for email: ${email}`);
+        const securePassword = generateSecurePassword();
+
         const { data: authData, error: authError } =
           await supabaseAdmin.auth.admin.createUser({
             email: email,
