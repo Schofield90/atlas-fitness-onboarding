@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     );
 
     // Action 1: Send OTP for login
-    if (action === "send-otp") {
+    if (action === "send") {
       if (!email) {
         return NextResponse.json(
           { error: "Email is required" },
@@ -41,14 +41,34 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // If no user_id, create auth user for them now
       if (!client.user_id) {
-        return NextResponse.json(
-          {
-            error:
-              "Account not claimed yet. Please use the claim account flow.",
-          },
-          { status: 400 },
-        );
+        const { data: authUser, error: authError } =
+          await supabaseAdmin.auth.admin.createUser({
+            email: email.toLowerCase(),
+            email_confirm: true,
+            user_metadata: {
+              first_name: client.first_name,
+              last_name: client.last_name,
+              client_id: client.id,
+            },
+          });
+
+        if (authError) {
+          console.error("Failed to create auth user:", authError);
+          return NextResponse.json(
+            { error: "Failed to activate account" },
+            { status: 500 },
+          );
+        }
+
+        // Update client with user_id
+        await supabase
+          .from("clients")
+          .update({ user_id: authUser.user.id })
+          .eq("id", client.id);
+
+        client.user_id = authUser.user.id;
       }
 
       // Generate OTP
@@ -64,27 +84,20 @@ export async function POST(request: NextRequest) {
 
       const organizationId = orgData?.id;
 
-      // Store OTP in database (reuse account_claim_tokens table)
-      const { error: upsertError } = await supabase
-        .from("account_claim_tokens")
-        .upsert(
-          {
-            client_id: client.id,
-            email: email.toLowerCase(),
-            token: otpCode,
-            expires_at: expiresAt,
-            claimed_at: null,
-            organization_id: organizationId,
-            metadata: {
-              type: "login_otp",
-              created_at: new Date().toISOString(),
-            },
-          },
-          {
-            onConflict: "client_id",
-            ignoreDuplicates: false,
-          },
-        );
+      // Store OTP in database (using otp_tokens table)
+      const { error: upsertError } = await supabase.from("otp_tokens").upsert(
+        {
+          email: email.toLowerCase(),
+          token: otpCode,
+          expires_at: expiresAt,
+          used: false,
+          created_at: new Date().toISOString(),
+        },
+        {
+          onConflict: "email",
+          ignoreDuplicates: false,
+        },
+      );
 
       if (upsertError) {
         console.error("[LOGIN OTP] Failed to store OTP:", upsertError);
@@ -156,7 +169,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Action 2: Verify OTP and create session
-    if (action === "verify-otp") {
+    if (action === "verify") {
       if (!email || !otp) {
         return NextResponse.json(
           { error: "Email and verification code are required" },
@@ -166,15 +179,16 @@ export async function POST(request: NextRequest) {
 
       // Check OTP
       const { data: tokenData, error: tokenError } = await supabase
-        .from("account_claim_tokens")
+        .from("otp_tokens")
         .select("*")
         .ilike("email", email)
         .eq("token", otp)
+        .eq("used", false)
         .maybeSingle();
 
       if (!tokenData) {
         return NextResponse.json(
-          { error: "Invalid verification code" },
+          { error: "Invalid or already used verification code" },
           { status: 400 },
         );
       }
@@ -194,21 +208,51 @@ export async function POST(request: NextRequest) {
       const { data: client } = await supabase
         .from("clients")
         .select("*")
-        .eq("id", tokenData.client_id)
+        .ilike("email", email)
         .single();
 
-      if (!client || !client.user_id) {
+      if (!client) {
         return NextResponse.json(
-          { error: "Account not found or not claimed" },
+          { error: "Account not found" },
           { status: 404 },
         );
       }
 
+      // If no user_id, create auth user for them now
+      if (!client.user_id) {
+        const { data: authUser, error: authError } =
+          await supabaseAdmin.auth.admin.createUser({
+            email: email.toLowerCase(),
+            email_confirm: true,
+            user_metadata: {
+              first_name: client.first_name,
+              last_name: client.last_name,
+              client_id: client.id,
+            },
+          });
+
+        if (authError) {
+          console.error("Failed to create auth user:", authError);
+          return NextResponse.json(
+            { error: "Failed to activate account" },
+            { status: 500 },
+          );
+        }
+
+        // Update client with user_id
+        await supabase
+          .from("clients")
+          .update({ user_id: authUser.user.id })
+          .eq("id", client.id);
+
+        client.user_id = authUser.user.id;
+      }
+
       // Mark token as used
       await supabase
-        .from("account_claim_tokens")
-        .update({ claimed_at: new Date().toISOString() })
-        .eq("client_id", client.id)
+        .from("otp_tokens")
+        .update({ used: true })
+        .eq("email", email.toLowerCase())
         .eq("token", otp);
 
       // Generate a one-time sign-in token for the user
