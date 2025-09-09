@@ -93,51 +93,72 @@ export async function POST(request: NextRequest) {
         </div>
       `;
 
-      // Try to send email using Resend
-      try {
-        const resendResponse = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            from: "Atlas Fitness <noreply@atlas-gyms.co.uk>",
-            to: email,
-            subject: `Your verification code: ${otpCode}`,
-            html: emailHtml,
-          }),
-        });
+      // Log OTP to server console for testing (ONLY for debugging - remove in production!)
+      console.log(`[OTP DEBUG] Code for ${email}: ${otpCode}`);
+      console.log(`[OTP DEBUG] Expires at: ${expiresAt}`);
 
-        if (!resendResponse.ok) {
-          console.error("Failed to send OTP email via Resend");
-          // Return the OTP in development for testing
-          if (process.env.NODE_ENV === "development") {
-            return NextResponse.json({
-              success: true,
-              message: "OTP generated (dev mode)",
-              otp: otpCode, // Only in dev!
-            });
-          }
-        }
-      } catch (emailError) {
-        console.error("Email sending error:", emailError);
-        // Return the OTP in development for testing
-        if (process.env.NODE_ENV === "development") {
-          return NextResponse.json({
-            success: true,
-            message: "OTP generated (dev mode - email failed)",
-            otp: otpCode, // Only in dev!
+      // Try to send email using Resend
+      if (process.env.RESEND_API_KEY) {
+        try {
+          const resendResponse = await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              from: "Atlas Fitness <onboarding@resend.dev>", // Use Resend's test domain if custom domain not verified
+              to: email,
+              subject: `Your verification code: ${otpCode}`,
+              html: emailHtml,
+            }),
           });
+
+          const resendData = await resendResponse.json();
+
+          if (!resendResponse.ok) {
+            console.error("Failed to send OTP email via Resend:", resendData);
+            return NextResponse.json(
+              {
+                success: false,
+                error:
+                  "Failed to send verification email. Please contact support.",
+                details:
+                  process.env.NODE_ENV === "development"
+                    ? resendData
+                    : undefined,
+              },
+              { status: 500 },
+            );
+          }
+
+          console.log("Email sent successfully:", resendData);
+        } catch (emailError) {
+          console.error("Email sending error:", emailError);
+          return NextResponse.json(
+            {
+              success: false,
+              error: "Failed to send verification email. Please try again.",
+            },
+            { status: 500 },
+          );
         }
+      } else {
+        console.error("RESEND_API_KEY not configured");
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Email service not configured. Please contact support.",
+          },
+          { status: 500 },
+        );
       }
 
-      // Always return OTP for testing (remove in production!)
+      // NEVER return OTP in response - security risk!
       return NextResponse.json({
         success: true,
         message: "Verification code sent to your email",
-        otp: otpCode, // Include OTP for testing
-        note: "Check your email for the code, or use the code shown here for testing",
+        // DO NOT include OTP in response
       });
     }
 
