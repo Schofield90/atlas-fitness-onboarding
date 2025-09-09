@@ -203,7 +203,7 @@ function ClaimAccountContent() {
     setError("");
 
     try {
-      const response = await fetch("/api/claim-account-fix", {
+      const response = await fetch("/api/claim-account", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
