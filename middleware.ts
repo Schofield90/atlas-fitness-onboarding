@@ -33,7 +33,8 @@ const publicRoutes = [
   '/api/check-database',    // Check what's actually in the database
   '/api/test-nutrition-access',    // Test nutrition database access
   '/api/admin/fix-organization-staff',    // Organization staff migration
-  '/api/admin/fix-nutrition-schema'    // Nutrition schema migration
+  '/api/admin/fix-nutrition-schema',    // Nutrition schema migration
+  '/api/admin/create-meal-plans-table'    // Meal plans table migration
 ]
 
 // Client-only routes
