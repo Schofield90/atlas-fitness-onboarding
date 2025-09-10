@@ -95,7 +95,8 @@ export default function ClientDashboardPage() {
 
   const fetchBookings = async (clientId: string) => {
     try {
-      const { data, error } = await supabase
+      // First try with client_id (if table supports it)
+      let { data, error } = await supabase
         .from("bookings")
         .select(
           `
@@ -110,13 +111,43 @@ export default function ClientDashboardPage() {
           )
         `,
         )
-        .eq("customer_id", clientId)
+        .eq("client_id", clientId)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setBookings(data || []);
+      // If client_id doesn't work, try customer_id
+      if (error && error.message?.includes("client_id")) {
+        const result = await supabase
+          .from("bookings")
+          .select(
+            `
+            *,
+            class_sessions (
+              date,
+              start_time,
+              end_time,
+              location,
+              class_types (name),
+              instructors (name)
+            )
+          `,
+          )
+          .eq("customer_id", clientId)
+          .order("created_at", { ascending: false });
+
+        data = result.data;
+        error = result.error;
+      }
+
+      if (error) {
+        console.error("Error fetching bookings:", error);
+        // Continue without bookings rather than crashing
+        setBookings([]);
+      } else {
+        setBookings(data || []);
+      }
     } catch (error) {
       console.error("Error fetching bookings:", error);
+      setBookings([]);
     }
   };
 
