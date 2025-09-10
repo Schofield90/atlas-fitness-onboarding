@@ -76,7 +76,9 @@ export default function ClientMembershipPage() {
           name,
           description,
           price,
-          credits_per_period
+          price_pennies,
+          classes_per_period,
+          billing_period
         )
       `,
       )
@@ -98,10 +100,13 @@ export default function ClientMembershipPage() {
         name: directMembership.membership_plans?.name || "Standard Membership",
         description:
           directMembership.membership_plans?.description || "Full gym access",
-        price_pennies: directMembership.membership_plans?.price || 0,
+        price_pennies:
+          directMembership.membership_plans?.price_pennies ||
+          directMembership.membership_plans?.price ||
+          0,
         monthly_credits:
-          directMembership.membership_plans?.credits_per_period ||
-          directMembership.credits_remaining ||
+          directMembership.membership_plans?.classes_per_period ||
+          directMembership.classes_used_this_period ||
           0,
       });
     } else {
@@ -131,7 +136,9 @@ export default function ClientMembershipPage() {
               name,
               description,
               price,
-              credits_per_period
+              price_pennies,
+              classes_per_period,
+              billing_period
             )
           `,
           )
@@ -153,10 +160,13 @@ export default function ClientMembershipPage() {
               membershipData.membership_plans?.name || "Standard Membership",
             description:
               membershipData.membership_plans?.description || "Full gym access",
-            price_pennies: membershipData.membership_plans?.price || 0,
+            price_pennies:
+              membershipData.membership_plans?.price_pennies ||
+              membershipData.membership_plans?.price ||
+              0,
             monthly_credits:
-              membershipData.membership_plans?.credits_per_period ||
-              membershipData.credits_remaining ||
+              membershipData.membership_plans?.classes_per_period ||
+              membershipData.classes_used_this_period ||
               0,
           });
         }
@@ -225,14 +235,22 @@ export default function ClientMembershipPage() {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     console.log("Start of month for usage stats:", startOfMonth.toISOString());
 
-    // Try direct client bookings first
+    // Get bookings from BOTH tables
     let { data: directBookings } = await supabase
       .from("bookings")
       .select("*")
       .eq("client_id", client.id)
       .gte("created_at", startOfMonth.toISOString());
 
-    let classesThisMonth = directBookings?.length || 0;
+    let { data: classBookings } = await supabase
+      .from("class_bookings")
+      .select("*")
+      .eq("client_id", client.id)
+      .eq("booking_status", "confirmed")
+      .gte("created_at", startOfMonth.toISOString());
+
+    let classesThisMonth =
+      (directBookings?.length || 0) + (classBookings?.length || 0);
     let creditsUsed = 0;
     let creditsRemaining = 0;
 
@@ -257,16 +275,22 @@ export default function ClientMembershipPage() {
         .single();
 
       if (leadData) {
-        // Get bookings using lead ID if no direct bookings
-        if (classesThisMonth === 0) {
-          const { data: leadBookings } = await supabase
-            .from("bookings")
-            .select("*")
-            .eq("customer_id", leadData.id)
-            .gte("created_at", startOfMonth.toISOString());
+        // Get bookings using lead ID from both tables
+        const { data: leadBookings } = await supabase
+          .from("bookings")
+          .select("*")
+          .eq("customer_id", leadData.id)
+          .gte("created_at", startOfMonth.toISOString());
 
-          classesThisMonth = leadBookings?.length || 0;
-        }
+        const { data: leadClassBookings } = await supabase
+          .from("class_bookings")
+          .select("*")
+          .eq("customer_id", leadData.id)
+          .eq("booking_status", "confirmed")
+          .gte("created_at", startOfMonth.toISOString());
+
+        classesThisMonth +=
+          (leadBookings?.length || 0) + (leadClassBookings?.length || 0);
 
         // Get credits from lead if no direct credits
         if (!directCredits) {

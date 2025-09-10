@@ -1,66 +1,56 @@
--- Check Sam's membership status
+-- Check Sam's membership data
 
--- 1. Find Sam's customer ID
-SELECT 
-    id,
-    name,
-    email,
-    status,
-    organization_id
-FROM leads
-WHERE email LIKE '%sam%' OR name LIKE '%Sam%';
-
--- 2. Check if Sam has any membership records
-SELECT 
-    cm.*,
-    l.name as customer_name,
-    l.email as customer_email
-FROM customer_memberships cm
-JOIN leads l ON l.id = cm.customer_id
-WHERE l.email LIKE '%sam%' OR l.name LIKE '%Sam%';
-
--- 3. Check all active memberships in the organization
-SELECT 
-    cm.customer_id,
-    cm.plan_name,
-    cm.status,
-    cm.start_date,
-    cm.end_date,
-    l.name as customer_name,
-    l.email as customer_email
-FROM customer_memberships cm
-JOIN leads l ON l.id = cm.customer_id
-WHERE cm.organization_id IN (
-    SELECT organization_id FROM leads WHERE name LIKE '%Sam%'
+-- First, get Sam's IDs
+WITH sam_ids AS (
+  SELECT 
+    c.id as client_id,
+    c.email,
+    c.organization_id,
+    l.id as lead_id
+  FROM clients c
+  LEFT JOIN leads l ON l.client_id = c.id OR l.email = c.email
+  WHERE c.id = '25815bb6-91e2-4c17-8386-fde8a7a0722d'
 )
-ORDER BY cm.created_at DESC
-LIMIT 10;
-
--- 4. If Sam doesn't have a membership, create one for testing
--- UNCOMMENT TO RUN:
-/*
-INSERT INTO customer_memberships (
-    customer_id,
-    organization_id,
-    plan_name,
-    status,
-    start_date,
-    created_at,
-    updated_at
-)
+-- Check customer_memberships table
 SELECT 
-    l.id,
-    l.organization_id,
-    'Unlimited Monthly',
-    'active',
-    CURRENT_DATE,
-    NOW(),
-    NOW()
-FROM leads l
-WHERE l.name LIKE '%Sam%'
-AND NOT EXISTS (
-    SELECT 1 FROM customer_memberships cm 
-    WHERE cm.customer_id = l.id 
-    AND cm.status = 'active'
-);
-*/
+  'customer_memberships' as table_name,
+  cm.id,
+  cm.customer_id,
+  cm.client_id,
+  cm.status,
+  cm.start_date,
+  cm.end_date,
+  cm.membership_plan_id,
+  cm.created_at,
+  mp.name as plan_name,
+  mp.price,
+  mp.credits_per_period
+FROM customer_memberships cm
+LEFT JOIN membership_plans mp ON mp.id = cm.membership_plan_id
+WHERE 
+  cm.client_id IN (SELECT client_id FROM sam_ids)
+  OR cm.customer_id IN (SELECT lead_id FROM sam_ids)
+  
+UNION ALL
+
+-- Check memberships table (if it exists)
+SELECT 
+  'memberships' as table_name,
+  m.id,
+  m.customer_id,
+  m.client_id,
+  m.status,
+  m.start_date,
+  m.end_date,
+  m.membership_plan_id,
+  m.created_at,
+  mp.name as plan_name,
+  mp.price,
+  mp.credits_per_period
+FROM memberships m
+LEFT JOIN membership_plans mp ON mp.id = m.membership_plan_id
+WHERE 
+  m.client_id IN (SELECT client_id FROM sam_ids)
+  OR m.customer_id IN (SELECT lead_id FROM sam_ids)
+
+ORDER BY table_name, created_at DESC;
