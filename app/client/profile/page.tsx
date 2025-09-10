@@ -92,7 +92,7 @@ export default function ClientProfilePage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
       </div>
     );
   }
@@ -105,7 +105,7 @@ export default function ClientProfilePage() {
           <div className="flex items-center py-4">
             <button
               onClick={() => router.push("/client")}
-              className="mr-4 text-gray-300 hover:text-white"
+              className="mr-4 text-gray-300 hover:text-orange-500 transition-colors"
             >
               <ChevronLeft className="h-6 w-6" />
             </button>
@@ -125,7 +125,7 @@ export default function ClientProfilePage() {
               <div className="ml-6">
                 <button
                   type="button"
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600"
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-colors"
                 >
                   <Camera className="h-4 w-4" />
                   Change Photo
@@ -153,7 +153,7 @@ export default function ClientProfilePage() {
                   onChange={(e) =>
                     setFormData({ ...formData, first_name: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-orange-500 focus:border-orange-500"
                 />
               </div>
 
@@ -167,7 +167,7 @@ export default function ClientProfilePage() {
                   onChange={(e) =>
                     setFormData({ ...formData, last_name: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-orange-500 focus:border-orange-500"
                 />
               </div>
 
@@ -181,7 +181,7 @@ export default function ClientProfilePage() {
                   onChange={(e) =>
                     setFormData({ ...formData, email: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-orange-500 focus:border-orange-500"
                 />
               </div>
 
@@ -196,7 +196,7 @@ export default function ClientProfilePage() {
                     setFormData({ ...formData, phone: e.target.value })
                   }
                   placeholder="+44 7XXX XXXXXX"
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white placeholder-gray-400 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white placeholder-gray-400 rounded-lg focus:ring-orange-500 focus:border-orange-500"
                 />
               </div>
 
@@ -210,7 +210,7 @@ export default function ClientProfilePage() {
                   onChange={(e) =>
                     setFormData({ ...formData, date_of_birth: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-orange-500 focus:border-orange-500"
                 />
               </div>
             </div>
@@ -235,7 +235,7 @@ export default function ClientProfilePage() {
                       emergency_contact_name: e.target.value,
                     })
                   }
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-orange-500 focus:border-orange-500"
                 />
               </div>
 
@@ -253,7 +253,7 @@ export default function ClientProfilePage() {
                     })
                   }
                   placeholder="+44 7XXX XXXXXX"
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white placeholder-gray-400 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white placeholder-gray-400 rounded-lg focus:ring-orange-500 focus:border-orange-500"
                 />
               </div>
             </div>
@@ -275,7 +275,7 @@ export default function ClientProfilePage() {
                 }
                 rows={4}
                 placeholder="Please list any medical conditions, injuries, or medications we should be aware of..."
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white placeholder-gray-400 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white placeholder-gray-400 rounded-lg focus:ring-orange-500 focus:border-orange-500"
               />
             </div>
           </div>
@@ -312,7 +312,7 @@ export default function ClientProfilePage() {
             <button
               type="submit"
               disabled={saving}
-              className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="flex items-center gap-2 px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 transition-colors"
             >
               <Save className="h-4 w-4" />
               {saving ? "Saving..." : "Save Changes"}
@@ -343,19 +343,19 @@ export default function ClientProfilePage() {
             Account Actions
           </h3>
           <div className="space-y-3">
-            <button className="w-full text-left px-4 py-3 border border-gray-600 rounded-lg hover:bg-gray-700">
+            <button className="w-full text-left px-4 py-3 border border-gray-600 rounded-lg hover:bg-gray-700 transition-colors">
               <div className="flex justify-between items-center">
                 <span className="text-gray-300">Change Password</span>
                 <ChevronLeft className="h-5 w-5 text-gray-400 transform rotate-180" />
               </div>
             </button>
-            <button className="w-full text-left px-4 py-3 border border-gray-600 rounded-lg hover:bg-gray-700">
+            <button className="w-full text-left px-4 py-3 border border-gray-600 rounded-lg hover:bg-gray-700 transition-colors">
               <div className="flex justify-between items-center">
                 <span className="text-gray-300">Privacy Settings</span>
                 <ChevronLeft className="h-5 w-5 text-gray-400 transform rotate-180" />
               </div>
             </button>
-            <button className="w-full text-left px-4 py-3 border border-gray-600 rounded-lg hover:bg-gray-700">
+            <button className="w-full text-left px-4 py-3 border border-gray-600 rounded-lg hover:bg-gray-700 transition-colors">
               <div className="flex justify-between items-center">
                 <span className="text-gray-300">Download My Data</span>
                 <ChevronLeft className="h-5 w-5 text-gray-400 transform rotate-180" />

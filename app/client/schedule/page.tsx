@@ -1,65 +1,86 @@
-'use client'
+"use client";
 
-import { Calendar, ChevronLeft, ChevronRight, Clock, MapPin, Users, Filter, X } from 'lucide-react'
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
-import { createClient } from '@/app/lib/supabase/client'
-import { format, addDays, startOfWeek, endOfWeek, isSameDay, parseISO } from 'date-fns'
+import {
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  MapPin,
+  Users,
+  Filter,
+  X,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { createClient } from "@/app/lib/supabase/client";
+import {
+  format,
+  addDays,
+  startOfWeek,
+  endOfWeek,
+  isSameDay,
+  parseISO,
+} from "date-fns";
 
 export default function ClientSchedulePage() {
-  const router = useRouter()
-  const [client, setClient] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [sessions, setSessions] = useState<any[]>([])
-  const [selectedDate, setSelectedDate] = useState(new Date())
-  const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }))
-  const [filterOpen, setFilterOpen] = useState(false)
+  const router = useRouter();
+  const [client, setClient] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [weekStart, setWeekStart] = useState(
+    startOfWeek(new Date(), { weekStartsOn: 1 }),
+  );
+  const [filterOpen, setFilterOpen] = useState(false);
   const [filters, setFilters] = useState({
-    location: 'all',
-    classType: 'all',
-    instructor: 'all'
-  })
-  const supabase = createClient()
+    location: "all",
+    classType: "all",
+    instructor: "all",
+  });
+  const supabase = createClient();
 
   useEffect(() => {
-    checkAuth()
-  }, [])
+    checkAuth();
+  }, []);
 
   useEffect(() => {
     if (client) {
-      loadSessions()
+      loadSessions();
     }
-  }, [weekStart, client])
+  }, [weekStart, client]);
 
   const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
     if (!session) {
-      router.push('/client-portal/login')
-      return
+      router.push("/client-portal/login");
+      return;
     }
 
     const { data: clientData } = await supabase
-      .from('clients')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .single()
+      .from("clients")
+      .select("*")
+      .eq("user_id", session.user.id)
+      .single();
 
     if (!clientData) {
-      router.push('/client-portal/login')
-      return
+      router.push("/client-portal/login");
+      return;
     }
 
-    setClient(clientData)
-    setLoading(false)
-  }
+    setClient(clientData);
+    setLoading(false);
+  };
 
   const loadSessions = async () => {
-    const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 })
-    
+    const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+
     const { data } = await supabase
-      .from('class_sessions')
-      .select(`
+      .from("class_sessions")
+      .select(
+        `
         *,
         programs (
           name,
@@ -72,89 +93,101 @@ export default function ClientSchedulePage() {
         organization_staff (
           name
         )
-      `)
-      .gte('start_time', weekStart.toISOString())
-      .lte('start_time', weekEnd.toISOString())
-      .eq('organization_id', client.organization_id)
-      .order('start_time')
+      `,
+      )
+      .gte("start_time", weekStart.toISOString())
+      .lte("start_time", weekEnd.toISOString())
+      .eq("organization_id", client.organization_id)
+      .order("start_time");
 
-    setSessions(data || [])
-  }
+    setSessions(data || []);
+  };
 
-  const navigateWeek = (direction: 'prev' | 'next') => {
-    const newWeekStart = direction === 'prev' 
-      ? addDays(weekStart, -7)
-      : addDays(weekStart, 7)
-    setWeekStart(newWeekStart)
-    setSelectedDate(newWeekStart)
-  }
+  const navigateWeek = (direction: "prev" | "next") => {
+    const newWeekStart =
+      direction === "prev" ? addDays(weekStart, -7) : addDays(weekStart, 7);
+    setWeekStart(newWeekStart);
+    setSelectedDate(newWeekStart);
+  };
 
   const getDaysOfWeek = () => {
-    const days = []
+    const days = [];
     for (let i = 0; i < 7; i++) {
-      days.push(addDays(weekStart, i))
+      days.push(addDays(weekStart, i));
     }
-    return days
-  }
+    return days;
+  };
 
   const getSessionsForDay = (date: Date) => {
-    return sessions.filter(session => 
-      isSameDay(parseISO(session.start_time), date)
-    ).filter(session => {
-      if (filters.location !== 'all' && session.location_id !== filters.location) return false
-      if (filters.classType !== 'all' && session.program_id !== filters.classType) return false
-      if (filters.instructor !== 'all' && session.instructor_id !== filters.instructor) return false
-      return true
-    })
-  }
+    return sessions
+      .filter((session) => isSameDay(parseISO(session.start_time), date))
+      .filter((session) => {
+        if (
+          filters.location !== "all" &&
+          session.location_id !== filters.location
+        )
+          return false;
+        if (
+          filters.classType !== "all" &&
+          session.program_id !== filters.classType
+        )
+          return false;
+        if (
+          filters.instructor !== "all" &&
+          session.instructor_id !== filters.instructor
+        )
+          return false;
+        return true;
+      });
+  };
 
   const bookClass = async (sessionId: string) => {
-    const response = await fetch('/api/booking/book', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const response = await fetch("/api/booking/book", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         sessionId,
         customerId: client.id,
-        organizationId: client.organization_id
-      })
-    })
+        organizationId: client.organization_id,
+      }),
+    });
 
     if (response.ok) {
-      router.push('/client/bookings')
+      router.push("/client/bookings");
     } else {
-      const error = await response.json()
-      alert(error.error || 'Failed to book class')
+      const error = await response.json();
+      alert(error.error || "Failed to book class");
     }
-  }
+  };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
       </div>
-    )
+    );
   }
 
-  const daysOfWeek = getDaysOfWeek()
+  const daysOfWeek = getDaysOfWeek();
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-900">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-gray-800 shadow-sm border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
               <button
-                onClick={() => router.push('/client')}
-                className="mr-4 text-gray-600 hover:text-gray-900"
+                onClick={() => router.push("/client")}
+                className="mr-4 text-gray-300 hover:text-orange-500 transition-colors"
               >
                 <ChevronLeft className="h-6 w-6" />
               </button>
-              <h1 className="text-2xl font-bold text-gray-900">Class Schedule</h1>
+              <h1 className="text-2xl font-bold text-white">Class Schedule</h1>
             </div>
             <button
               onClick={() => setFilterOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+              className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-colors"
             >
               <Filter className="h-4 w-4" />
               Filter
@@ -164,21 +197,22 @@ export default function ClientSchedulePage() {
       </header>
 
       {/* Week Navigation */}
-      <div className="bg-white border-b">
+      <div className="bg-gray-800 border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-4">
             <button
-              onClick={() => navigateWeek('prev')}
-              className="p-2 hover:bg-gray-100 rounded-lg"
+              onClick={() => navigateWeek("prev")}
+              className="p-2 hover:bg-gray-700 rounded-lg text-gray-300 hover:text-orange-500 transition-colors"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
-            <h2 className="text-lg font-semibold">
-              {format(weekStart, 'MMM d')} - {format(endOfWeek(weekStart, { weekStartsOn: 1 }), 'MMM d, yyyy')}
+            <h2 className="text-lg font-semibold text-white">
+              {format(weekStart, "MMM d")} -{" "}
+              {format(endOfWeek(weekStart, { weekStartsOn: 1 }), "MMM d, yyyy")}
             </h2>
             <button
-              onClick={() => navigateWeek('next')}
-              className="p-2 hover:bg-gray-100 rounded-lg"
+              onClick={() => navigateWeek("next")}
+              className="p-2 hover:bg-gray-700 rounded-lg text-gray-300 hover:text-orange-500 transition-colors"
             >
               <ChevronRight className="h-5 w-5" />
             </button>
@@ -187,7 +221,7 @@ export default function ClientSchedulePage() {
       </div>
 
       {/* Day Tabs */}
-      <div className="bg-white border-b sticky top-0 z-10">
+      <div className="bg-gray-800 border-b border-gray-700 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex overflow-x-auto scrollbar-hide">
             {daysOfWeek.map((day) => (
@@ -196,15 +230,21 @@ export default function ClientSchedulePage() {
                 onClick={() => setSelectedDate(day)}
                 className={`flex-1 min-w-[100px] py-4 px-4 text-center border-b-2 transition-colors ${
                   isSameDay(day, selectedDate)
-                    ? 'border-blue-600 bg-blue-50'
-                    : 'border-transparent hover:bg-gray-50'
+                    ? "border-orange-500 bg-gray-700"
+                    : "border-transparent hover:bg-gray-700"
                 }`}
               >
-                <div className="text-xs text-gray-500">{format(day, 'EEE')}</div>
-                <div className={`text-lg font-semibold ${
-                  isSameDay(day, selectedDate) ? 'text-blue-600' : 'text-gray-900'
-                }`}>
-                  {format(day, 'd')}
+                <div className="text-xs text-gray-400">
+                  {format(day, "EEE")}
+                </div>
+                <div
+                  className={`text-lg font-semibold ${
+                    isSameDay(day, selectedDate)
+                      ? "text-orange-500"
+                      : "text-white"
+                  }`}
+                >
+                  {format(day, "d")}
                 </div>
               </button>
             ))}
@@ -217,64 +257,77 @@ export default function ClientSchedulePage() {
         <div className="space-y-4">
           {getSessionsForDay(selectedDate).length === 0 ? (
             <div className="text-center py-12">
-              <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No classes scheduled for this day</p>
+              <Calendar className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+              <p className="text-gray-400">No classes scheduled for this day</p>
             </div>
           ) : (
             getSessionsForDay(selectedDate).map((session) => (
-              <div key={session.id} className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow">
+              <div
+                key={session.id}
+                className="bg-gray-800 rounded-lg shadow-lg border border-gray-700 hover:shadow-xl transition-shadow"
+              >
                 <div className="p-6">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <div className="flex items-center gap-4 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">
+                        <h3 className="text-lg font-semibold text-white">
                           {session.programs?.name}
                         </h3>
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          session.current_capacity >= session.max_capacity
-                            ? 'bg-red-100 text-red-800'
-                            : session.current_capacity > session.max_capacity * 0.8
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-green-100 text-green-800'
-                        }`}>
+                        <span
+                          className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            session.current_capacity >= session.max_capacity
+                              ? "bg-red-900/50 text-red-400"
+                              : session.current_capacity >
+                                  session.max_capacity * 0.8
+                                ? "bg-yellow-900/50 text-yellow-400"
+                                : "bg-green-900/50 text-green-400"
+                          }`}
+                        >
                           {session.current_capacity >= session.max_capacity
-                            ? 'Full'
+                            ? "Full"
                             : `${session.max_capacity - session.current_capacity} spots left`}
                         </span>
                       </div>
-                      
-                      <div className="space-y-1 text-sm text-gray-600">
+
+                      <div className="space-y-1 text-sm text-gray-400">
                         <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4" />
-                          <span>{format(parseISO(session.start_time), 'h:mm a')} - {format(parseISO(session.end_time), 'h:mm a')}</span>
+                          <Clock className="h-4 w-4 text-orange-500" />
+                          <span>
+                            {format(parseISO(session.start_time), "h:mm a")} -{" "}
+                            {format(parseISO(session.end_time), "h:mm a")}
+                          </span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4" />
+                          <MapPin className="h-4 w-4 text-orange-500" />
                           <span>{session.organization_locations?.name}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4" />
+                          <Users className="h-4 w-4 text-orange-500" />
                           <span>{session.organization_staff?.name}</span>
                         </div>
                       </div>
-                      
+
                       {session.programs?.description && (
-                        <p className="mt-3 text-sm text-gray-500">
+                        <p className="mt-3 text-sm text-gray-400">
                           {session.programs.description}
                         </p>
                       )}
                     </div>
-                    
+
                     <button
                       onClick={() => bookClass(session.id)}
-                      disabled={session.current_capacity >= session.max_capacity}
+                      disabled={
+                        session.current_capacity >= session.max_capacity
+                      }
                       className={`ml-4 px-6 py-2 rounded-lg font-medium transition-colors ${
                         session.current_capacity >= session.max_capacity
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                          ? "bg-gray-700 text-gray-500 cursor-not-allowed"
+                          : "bg-orange-600 text-white hover:bg-orange-700"
                       }`}
                     >
-                      {session.current_capacity >= session.max_capacity ? 'Full' : 'Book'}
+                      {session.current_capacity >= session.max_capacity
+                        ? "Full"
+                        : "Book"}
                     </button>
                   </div>
                 </div>
@@ -288,43 +341,52 @@ export default function ClientSchedulePage() {
       {filterOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen px-4">
-            <div className="fixed inset-0 bg-black opacity-30" onClick={() => setFilterOpen(false)} />
-            
-            <div className="relative bg-white rounded-lg max-w-md w-full p-6">
+            <div
+              className="fixed inset-0 bg-black opacity-50"
+              onClick={() => setFilterOpen(false)}
+            />
+
+            <div className="relative bg-gray-800 rounded-lg max-w-md w-full p-6 border border-gray-700">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Filter Classes</h3>
+                <h3 className="text-lg font-semibold text-white">
+                  Filter Classes
+                </h3>
                 <button
                   onClick={() => setFilterOpen(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-white transition-colors"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
-              
+
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
                     Location
                   </label>
                   <select
                     value={filters.location}
-                    onChange={(e) => setFilters({ ...filters, location: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    onChange={(e) =>
+                      setFilters({ ...filters, location: e.target.value })
+                    }
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-orange-500 focus:border-orange-500"
                   >
                     <option value="all">All Locations</option>
                     <option value="harrogate">Harrogate Studio</option>
                     <option value="york">York Studio</option>
                   </select>
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
                     Class Type
                   </label>
                   <select
                     value={filters.classType}
-                    onChange={(e) => setFilters({ ...filters, classType: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    onChange={(e) =>
+                      setFilters({ ...filters, classType: e.target.value })
+                    }
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-orange-500 focus:border-orange-500"
                   >
                     <option value="all">All Classes</option>
                     <option value="hiit">HIIT</option>
@@ -332,34 +394,40 @@ export default function ClientSchedulePage() {
                     <option value="strength">Strength</option>
                   </select>
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
                     Instructor
                   </label>
                   <select
                     value={filters.instructor}
-                    onChange={(e) => setFilters({ ...filters, instructor: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    onChange={(e) =>
+                      setFilters({ ...filters, instructor: e.target.value })
+                    }
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-orange-500 focus:border-orange-500"
                   >
                     <option value="all">All Instructors</option>
                   </select>
                 </div>
               </div>
-              
+
               <div className="mt-6 flex gap-3">
                 <button
                   onClick={() => {
-                    setFilters({ location: 'all', classType: 'all', instructor: 'all' })
-                    setFilterOpen(false)
+                    setFilters({
+                      location: "all",
+                      classType: "all",
+                      instructor: "all",
+                    });
+                    setFilterOpen(false);
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  className="flex-1 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700"
                 >
                   Clear Filters
                 </button>
                 <button
                   onClick={() => setFilterOpen(false)}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
                 >
                   Apply Filters
                 </button>
@@ -369,5 +437,5 @@ export default function ClientSchedulePage() {
         </div>
       )}
     </div>
-  )
+  );
 }
