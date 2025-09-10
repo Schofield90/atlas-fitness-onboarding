@@ -201,6 +201,11 @@ export async function middleware(request: NextRequest) {
     return res
   }
 
+  // Special handling for setup-account route (bypasses org check)
+  if (pathname === '/setup-account' || pathname.startsWith('/api/admin/link-sam-account') || pathname.startsWith('/api/admin/setup-sam-account')) {
+    return res
+  }
+
   // Check if user is trying to access admin routes
   const isAdminRoute = adminRoutes.some(route => 
     pathname.startsWith(route)
