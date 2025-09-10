@@ -10,6 +10,7 @@ import {
   Menu,
   X,
   MessageCircle,
+  Apple,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -232,16 +233,22 @@ export default function ClientDashboard() {
       href: "/client/bookings",
     },
     {
-      name: "Membership",
-      icon: CreditCard,
-      id: "membership",
-      href: "/client/membership",
+      name: "Nutrition",
+      icon: Apple,
+      id: "nutrition",
+      href: "/client/nutrition",
     },
     {
       name: "Message Coach",
       icon: MessageCircle,
       id: "messages",
       href: "/client/messages",
+    },
+    {
+      name: "Membership",
+      icon: CreditCard,
+      id: "membership",
+      href: "/client/membership",
     },
     { name: "Profile", icon: User, id: "profile", href: "/client/profile" },
   ];
