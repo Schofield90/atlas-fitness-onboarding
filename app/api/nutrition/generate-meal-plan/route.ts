@@ -65,96 +65,36 @@ export async function POST(request: NextRequest) {
 
     let mealPlanData;
     try {
+      // Increase timeout to 25 seconds for parallel generation
+      const extendedTimeoutPromise = new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Meal plan generation timeout")),
+          25000, // 25 seconds timeout for parallel generation
+        ),
+      );
+
       // Race between the actual API call and timeout
       mealPlanData = await Promise.race([
         generateMealPlan(profile, preferences, daysToGenerate),
-        timeoutPromise,
+        extendedTimeoutPromise,
       ]);
     } catch (timeoutError) {
-      console.error("Meal plan generation timed out or failed:", timeoutError);
+      console.error(
+        "Meal plan generation timed out after 25 seconds:",
+        timeoutError,
+      );
 
-      // Generate a simple fallback meal plan
-      const fallbackMealPlan = {
-        meal_plan: {
-          day_1: {
-            meals: [
-              {
-                type: "breakfast",
-                name: "Protein Oatmeal",
-                calories: Math.round(profile.target_calories * 0.25),
-                protein: Math.round(profile.protein_grams * 0.25),
-                carbs: Math.round(profile.carbs_grams * 0.25),
-                fat: Math.round(profile.fat_grams * 0.25),
-                fiber: 8,
-                ingredients: [
-                  { name: "Oats", amount: 80, unit: "g" },
-                  { name: "Protein Powder", amount: 30, unit: "g" },
-                  { name: "Berries", amount: 100, unit: "g" },
-                ],
-              },
-              {
-                type: "lunch",
-                name: "Grilled Chicken Salad",
-                calories: Math.round(profile.target_calories * 0.35),
-                protein: Math.round(profile.protein_grams * 0.35),
-                carbs: Math.round(profile.carbs_grams * 0.35),
-                fat: Math.round(profile.fat_grams * 0.35),
-                fiber: 10,
-                ingredients: [
-                  { name: "Chicken Breast", amount: 150, unit: "g" },
-                  { name: "Mixed Greens", amount: 200, unit: "g" },
-                  { name: "Quinoa", amount: 80, unit: "g" },
-                ],
-              },
-              {
-                type: "dinner",
-                name: "Salmon with Rice",
-                calories: Math.round(profile.target_calories * 0.35),
-                protein: Math.round(profile.protein_grams * 0.35),
-                carbs: Math.round(profile.carbs_grams * 0.35),
-                fat: Math.round(profile.fat_grams * 0.35),
-                fiber: 7,
-                ingredients: [
-                  { name: "Salmon", amount: 150, unit: "g" },
-                  { name: "Brown Rice", amount: 100, unit: "g" },
-                  { name: "Vegetables", amount: 200, unit: "g" },
-                ],
-              },
-              {
-                type: "snack",
-                name: "Greek Yogurt",
-                calories: Math.round(profile.target_calories * 0.05),
-                protein: Math.round(profile.protein_grams * 0.05),
-                carbs: Math.round(profile.carbs_grams * 0.05),
-                fat: Math.round(profile.fat_grams * 0.05),
-                fiber: 0,
-                ingredients: [{ name: "Greek Yogurt", amount: 150, unit: "g" }],
-              },
-            ],
-            daily_totals: {
-              calories: profile.target_calories,
-              protein: profile.protein_grams,
-              carbs: profile.carbs_grams,
-              fat: profile.fat_grams,
-              fiber: 25,
-            },
-          },
+      // Return error instead of fallback
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Meal plan generation is taking longer than expected. This may be due to high demand. Please try again in a moment.",
+          details:
+            "The AI is generating detailed, personalized meals for you. Try reducing the number of days or simplifying preferences.",
         },
-        shopping_list: [
-          { item: "Oats", quantity: "500g", category: "Grains" },
-          { item: "Chicken Breast", quantity: "1kg", category: "Protein" },
-          { item: "Salmon", quantity: "500g", category: "Protein" },
-          { item: "Greek Yogurt", quantity: "1kg", category: "Dairy" },
-        ],
-        meal_prep_tips: [
-          "Prep proteins in advance",
-          "Cook grains in bulk for the week",
-        ],
-      };
-
-      // Use the fallback plan
-      mealPlanData = fallbackMealPlan;
-      console.log("Using fallback meal plan due to timeout");
+        { status: 503 },
+      );
     }
 
     // Transform the meal plan data into the format expected by the database

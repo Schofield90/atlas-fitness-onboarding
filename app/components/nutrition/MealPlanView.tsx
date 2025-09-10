@@ -53,7 +53,7 @@ export default function MealPlanView({
           nutritionProfile,
           profileId: nutritionProfile.id, // Support both formats
           preferences: preferences.data || {},
-          daysToGenerate: 7,
+          daysToGenerate: 3, // Reduced for faster generation with parallel processing
         }),
       });
 
