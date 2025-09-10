@@ -92,9 +92,8 @@ export default function NutritionSetup({
   onComplete,
   existingProfile,
 }: NutritionSetupProps) {
-  // If we have an existing profile with calculated values, skip to preferences
-  const initialStep = existingProfile?.target_calories ? 3 : 1;
-  const [step, setStep] = useState(initialStep);
+  // If we have an existing profile with calculated values, start from step 1 to allow editing
+  const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const supabase = createClient();
 
@@ -133,60 +132,79 @@ export default function NutritionSetup({
     return mapping[dbTime] || dbTime?.toLowerCase() || "moderate";
   };
 
-  const [formData, setFormData] = useState({
-    // Basic stats - handle all possible column names
-    height: existingProfile?.height || existingProfile?.height_cm || "",
-    weight: existingProfile?.current_weight || existingProfile?.weight_kg || "",
-    heightFt: "",
-    heightIn: "",
-    weightLbs: "",
-    weightStone: "",
-    weightStoneLbs: "",
-    heightUnit: "cm" as "cm" | "ft",
-    weightUnit: "kg" as "kg" | "lbs" | "stone",
-    age: existingProfile?.age || "",
-    gender:
-      existingProfile?.sex?.toLowerCase() ||
-      existingProfile?.gender?.toLowerCase() ||
-      "male",
-    activityLevel: convertActivityLevel(existingProfile?.activity_level),
+  // Initialize form data with existing profile
+  const initializeFormData = () => {
+    const heightCm =
+      existingProfile?.height || existingProfile?.height_cm || "";
+    const weightKg =
+      existingProfile?.current_weight || existingProfile?.weight_kg || "";
 
-    // Goals - handle multiple column names and formats
-    goal: convertGoal(existingProfile?.goal),
-    targetWeight:
-      existingProfile?.goal_weight || existingProfile?.target_weight_kg || "",
-    weeklyChange: existingProfile?.weekly_weight_change_kg || 0.5,
+    return {
+      // Basic stats - handle all possible column names
+      height: heightCm,
+      weight: weightKg,
+      heightFt: "",
+      heightIn: "",
+      weightLbs: weightKg ? (parseFloat(weightKg) * 2.20462).toFixed(1) : "",
+      weightStone: "",
+      weightStoneLbs: "",
+      heightUnit: "cm" as "cm" | "ft",
+      weightUnit: "kg" as "kg" | "lbs" | "stone",
+      age: existingProfile?.age || "",
+      gender:
+        existingProfile?.sex?.toLowerCase() ||
+        existingProfile?.gender?.toLowerCase() ||
+        "male",
+      activityLevel: convertActivityLevel(existingProfile?.activity_level),
 
-    // Calculated values - load from existing profile if available
-    bmr: existingProfile?.bmr || 0,
-    tdee: existingProfile?.tdee || 0,
-    targetCalories:
-      existingProfile?.target_calories || existingProfile?.daily_calories || 0,
+      // Goals - handle multiple column names and formats
+      goal: convertGoal(existingProfile?.goal),
+      targetWeight:
+        existingProfile?.goal_weight || existingProfile?.target_weight_kg || "",
+      weeklyChange: existingProfile?.weekly_weight_change_kg || 0.5,
 
-    // Macros - load from existing profile if available
-    proteinGrams:
-      existingProfile?.protein_grams || existingProfile?.target_protein || 0,
-    carbsGrams:
-      existingProfile?.carbs_grams || existingProfile?.target_carbs || 0,
-    fatGrams: existingProfile?.fat_grams || existingProfile?.target_fat || 0,
-    proteinPercent: 30,
-    carbsPercent: 40,
-    fatPercent: 30,
+      // Calculated values - load from existing profile if available
+      bmr: existingProfile?.bmr || 0,
+      tdee: existingProfile?.tdee || 0,
+      targetCalories:
+        existingProfile?.target_calories ||
+        existingProfile?.daily_calories ||
+        0,
 
-    // Meal preferences
-    mealsPerDay:
-      existingProfile?.meals_per_day || existingProfile?.meal_count || 3,
-    snacksPerDay: existingProfile?.snacks_per_day || 2,
+      // Macros - load from existing profile if available
+      proteinGrams:
+        existingProfile?.protein_grams || existingProfile?.target_protein || 0,
+      carbsGrams:
+        existingProfile?.carbs_grams || existingProfile?.target_carbs || 0,
+      fatGrams: existingProfile?.fat_grams || existingProfile?.target_fat || 0,
+      proteinPercent: 30,
+      carbsPercent: 40,
+      fatPercent: 30,
 
-    // Food preferences - load from existing profile
-    dietaryType: existingProfile?.dietary_preferences?.[0] || "",
-    allergies: existingProfile?.allergies || [],
-    intolerances: existingProfile?.intolerances || [],
-    likedFoods: existingProfile?.food_likes || [],
-    dislikedFoods: existingProfile?.food_dislikes || [],
-    cookingTime: convertCookingTime(existingProfile?.cooking_time),
-    cookingSkill: existingProfile?.cooking_skill || "intermediate",
-  });
+      // Meal preferences
+      mealsPerDay:
+        existingProfile?.meals_per_day || existingProfile?.meal_count || 3,
+      snacksPerDay: existingProfile?.snacks_per_day || 2,
+
+      // Food preferences - load from existing profile
+      dietaryType: existingProfile?.dietary_preferences?.[0] || "",
+      allergies: existingProfile?.allergies || [],
+      intolerances: existingProfile?.intolerances || [],
+      likedFoods: existingProfile?.food_likes || [],
+      dislikedFoods: existingProfile?.food_dislikes || [],
+      cookingTime: convertCookingTime(existingProfile?.cooking_time),
+      cookingSkill: existingProfile?.cooking_skill || "intermediate",
+    };
+  };
+
+  const [formData, setFormData] = useState(initializeFormData());
+
+  // Update form data when existingProfile changes
+  useEffect(() => {
+    if (existingProfile) {
+      setFormData(initializeFormData());
+    }
+  }, [existingProfile]);
 
   // Calculate macro percentages from existing values if available
   useEffect(() => {
