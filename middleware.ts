@@ -31,7 +31,9 @@ const publicRoutes = [
   '/api/debug-clients',    // Debug endpoint to check client emails
   '/api/test-client-lookup',    // Test endpoint for debugging email lookup
   '/api/check-database',    // Check what's actually in the database
-  '/api/test-nutrition-access'    // Test nutrition database access
+  '/api/test-nutrition-access',    // Test nutrition database access
+  '/api/admin/fix-organization-staff',    // Organization staff migration
+  '/api/admin/fix-nutrition-schema'    // Nutrition schema migration
 ]
 
 // Client-only routes
