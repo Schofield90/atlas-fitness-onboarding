@@ -325,10 +325,10 @@ export async function POST(request: NextRequest) {
           goal_weight: body.target_weight_kg || body.goal_weight,
           target_weight_kg: body.target_weight_kg || body.goal_weight,
 
-          // Goals and activity (from migration: goal VARCHAR, activity_level VARCHAR)
+          // Goals and activity - database expects uppercase for activity_level
           goal: body.goal?.toLowerCase() || "maintain",
           activity_level:
-            body.activity_level?.toLowerCase() || "moderately_active",
+            body.activity_level?.toUpperCase() || "MODERATELY_ACTIVE",
           weekly_weight_change_kg: body.weekly_weight_change_kg || 0.5,
 
           // Calculated values (from migration: bmr INTEGER, tdee INTEGER, target_calories INTEGER)
@@ -345,6 +345,17 @@ export async function POST(request: NextRequest) {
           // Meal planning (from migration: meals_per_day INTEGER, snacks_per_day INTEGER)
           meals_per_day: body.meals_per_day || 3,
           snacks_per_day: body.snacks_per_day || 2,
+
+          // Additional required fields from original schema
+          training_frequency: body.training_frequency || 3,
+          training_types: body.training_types || [],
+          dietary_preferences: body.dietary_preferences || [],
+          allergies: body.allergies || [],
+          food_likes: body.food_likes || [],
+          food_dislikes: body.food_dislikes || [],
+          cooking_time: body.cooking_time?.toUpperCase() || "MODERATE",
+          budget_constraint:
+            body.budget_constraint?.toUpperCase() || "MODERATE",
 
           updated_at: new Date().toISOString(),
         })
@@ -402,10 +413,10 @@ export async function POST(request: NextRequest) {
           goal_weight: body.target_weight_kg || body.goal_weight,
           target_weight_kg: body.target_weight_kg || body.goal_weight,
 
-          // Goals and activity (from migration: goal VARCHAR, activity_level VARCHAR)
+          // Goals and activity - database expects uppercase for activity_level
           goal: body.goal?.toLowerCase() || "maintain",
           activity_level:
-            body.activity_level?.toLowerCase() || "moderately_active",
+            body.activity_level?.toUpperCase() || "MODERATELY_ACTIVE",
           weekly_weight_change_kg: body.weekly_weight_change_kg || 0.5,
 
           // Calculated values (from migration: bmr INTEGER, tdee INTEGER, target_calories INTEGER)
@@ -422,6 +433,17 @@ export async function POST(request: NextRequest) {
           // Meal planning (from migration: meals_per_day INTEGER, snacks_per_day INTEGER)
           meals_per_day: body.meals_per_day || 3,
           snacks_per_day: body.snacks_per_day || 2,
+
+          // Additional required fields from original schema
+          training_frequency: body.training_frequency || 3,
+          training_types: body.training_types || [],
+          dietary_preferences: body.dietary_preferences || [],
+          allergies: body.allergies || [],
+          food_likes: body.food_likes || [],
+          food_dislikes: body.food_dislikes || [],
+          cooking_time: body.cooking_time?.toUpperCase() || "MODERATE",
+          budget_constraint:
+            body.budget_constraint?.toUpperCase() || "MODERATE",
         })
         .select()
         .single();
