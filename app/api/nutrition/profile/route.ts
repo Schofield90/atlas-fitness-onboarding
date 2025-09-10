@@ -46,26 +46,66 @@ async function ensureClientExists(
     throw new Error(`Cannot create client - user not found: ${userId}`);
   }
 
-  const { data: newClient, error: createError } = await supabaseAdmin
-    .from("clients")
-    .insert({
-      user_id: userId,
-      org_id: organizationId, // Using org_id based on pattern seen in other files
-      first_name:
-        user.user_metadata?.first_name ||
-        user.email?.split("@")[0] ||
-        "Unknown",
-      last_name: user.user_metadata?.last_name || "User",
-      email: user.email,
-      phone: user.user_metadata?.phone || null,
-      status: "active",
-      created_by: userId,
-    })
-    .select("id")
-    .single();
+  // Try with organization_id first, then org_id as fallback
+  let createError;
+  let newClient;
+
+  try {
+    const result = await supabaseAdmin
+      .from("clients")
+      .insert({
+        user_id: userId,
+        organization_id: organizationId, // Try organization_id first
+        first_name:
+          user.user_metadata?.first_name ||
+          user.email?.split("@")[0] ||
+          "Unknown",
+        last_name: user.user_metadata?.last_name || "User",
+        email: user.email,
+        phone: user.user_metadata?.phone || null,
+        status: "active",
+        created_by: userId,
+      })
+      .select("id")
+      .single();
+
+    newClient = result.data;
+    createError = result.error;
+  } catch (firstError: any) {
+    console.log("organization_id failed, trying org_id:", firstError.message);
+
+    // Fallback to org_id if organization_id doesn't exist
+    const fallbackResult = await supabaseAdmin
+      .from("clients")
+      .insert({
+        user_id: userId,
+        org_id: organizationId, // Fallback to org_id
+        first_name:
+          user.user_metadata?.first_name ||
+          user.email?.split("@")[0] ||
+          "Unknown",
+        last_name: user.user_metadata?.last_name || "User",
+        email: user.email,
+        phone: user.user_metadata?.phone || null,
+        status: "active",
+        created_by: userId,
+      })
+      .select("id")
+      .single();
+
+    newClient = fallbackResult.data;
+    createError = fallbackResult.error;
+  }
 
   if (createError) {
-    console.error("Failed to create client record:", createError);
+    console.error("Failed to create client record with both schemas:", {
+      error: createError.message,
+      code: createError.code,
+      userId,
+      organizationId,
+      hint: createError.hint,
+      details: createError.details,
+    });
     throw createError;
   }
 
