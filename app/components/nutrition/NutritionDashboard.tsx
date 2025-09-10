@@ -58,12 +58,12 @@ export default function NutritionDashboard({
         setShowSetup(false);
 
         // Try to load active meal plan
-        // The meal_plans table uses profile_id, not nutrition_profile_id
+        // The meal_plans table uses profile_id and status column
         const { data: mealPlan, error: mealPlanError } = await supabase
           .from("meal_plans")
           .select("*")
           .eq("profile_id", result.data.id)
-          .eq("is_active", true)
+          .eq("status", "active")
           .single();
 
         if (mealPlanError && mealPlanError.code !== "PGRST116") {
@@ -98,7 +98,7 @@ export default function NutritionDashboard({
           .from("meal_plans")
           .select("*")
           .eq("profile_id", profile.id)
-          .eq("is_active", true)
+          .eq("status", "active")
           .single();
 
         if (mealPlanError && mealPlanError.code !== "PGRST116") {
