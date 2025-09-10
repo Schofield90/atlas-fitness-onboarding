@@ -92,7 +92,6 @@ export async function POST(request: NextRequest) {
     const mealPlan = {
       id: crypto.randomUUID(),
       profile_id: profile.id,
-      nutrition_profile_id: profile.id, // Support both field names
       client_id: profile.client_id,
       organization_id: profile.organization_id,
       name: `${daysToGenerate}-Day AI Meal Plan`,
@@ -115,7 +114,7 @@ export async function POST(request: NextRequest) {
       total_carbs: profile.carbs_grams * daysToGenerate,
       total_fat: profile.fat_grams * daysToGenerate,
       // AI metadata
-      ai_model: "gpt-4-turbo-preview",
+      ai_model: "gpt-3.5-turbo",
       generation_params: {
         daysToGenerate,
         preferences,

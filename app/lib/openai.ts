@@ -99,7 +99,7 @@ export async function generateMealPlan(
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4-turbo-preview",
+      model: "gpt-3.5-turbo", // Using faster model to avoid timeouts
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -145,7 +145,7 @@ export async function generateMealSubstitution(
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4-turbo-preview",
+      model: "gpt-3.5-turbo", // Using faster model to avoid timeouts
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -186,7 +186,7 @@ export async function adjustMealPlanFromFeedback(
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4-turbo-preview",
+      model: "gpt-3.5-turbo", // Using faster model to avoid timeouts
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },

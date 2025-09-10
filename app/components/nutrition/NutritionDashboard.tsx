@@ -41,6 +41,7 @@ export default function NutritionDashboard({
   const loadNutritionData = async () => {
     try {
       // Use the API endpoint to fetch profile (bypasses RLS issues)
+      console.log("Loading nutrition data for client:", client?.id);
       const response = await fetch("/api/nutrition/profile", {
         method: "GET",
         headers: {
@@ -49,19 +50,25 @@ export default function NutritionDashboard({
       });
 
       const result = await response.json();
+      console.log("Nutrition profile API response:", result);
 
       if (result.success && result.data) {
+        console.log("Found existing nutrition profile:", result.data);
         setNutritionProfile(result.data);
         setShowSetup(false);
 
-        // Try to load active meal plan using service role via API if needed
-        // For now, we'll try the direct approach since meal_plans might not have RLS issues
-        const { data: mealPlan } = await supabase
+        // Try to load active meal plan
+        // The meal_plans table uses profile_id, not nutrition_profile_id
+        const { data: mealPlan, error: mealPlanError } = await supabase
           .from("meal_plans")
           .select("*")
-          .eq("nutrition_profile_id", result.data.id)
+          .eq("profile_id", result.data.id)
           .eq("is_active", true)
           .single();
+
+        if (mealPlanError && mealPlanError.code !== "PGRST116") {
+          console.error("Error loading meal plan:", mealPlanError);
+        }
 
         if (mealPlan) {
           setActiveMealPlan(mealPlan);
@@ -87,12 +94,19 @@ export default function NutritionDashboard({
     // Load meal plans for the newly created profile
     if (profile?.id) {
       try {
-        const { data: mealPlan } = await supabase
+        const { data: mealPlan, error: mealPlanError } = await supabase
           .from("meal_plans")
           .select("*")
-          .eq("nutrition_profile_id", profile.id)
+          .eq("profile_id", profile.id)
           .eq("is_active", true)
           .single();
+
+        if (mealPlanError && mealPlanError.code !== "PGRST116") {
+          console.error(
+            "Error loading meal plan after profile creation:",
+            mealPlanError,
+          );
+        }
 
         if (mealPlan) {
           setActiveMealPlan(mealPlan);
