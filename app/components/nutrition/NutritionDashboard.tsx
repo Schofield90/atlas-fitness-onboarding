@@ -40,19 +40,68 @@ export default function NutritionDashboard({
 
   const loadNutritionData = async () => {
     try {
-      // For now, since tables don't exist yet, just set loading to false
-      setLoading(false);
-      setShowSetup(true);
+      // Use the API endpoint to fetch profile (bypasses RLS issues)
+      const response = await fetch("/api/nutrition/profile", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        setNutritionProfile(result.data);
+        setShowSetup(false);
+
+        // Try to load active meal plan using service role via API if needed
+        // For now, we'll try the direct approach since meal_plans might not have RLS issues
+        const { data: mealPlan } = await supabase
+          .from("meal_plans")
+          .select("*")
+          .eq("nutrition_profile_id", result.data.id)
+          .eq("is_active", true)
+          .single();
+
+        if (mealPlan) {
+          setActiveMealPlan(mealPlan);
+        }
+      } else {
+        // No profile found, show setup
+        console.log("No nutrition profile found, showing setup");
+        setShowSetup(true);
+      }
     } catch (error) {
       console.error("Error loading nutrition data:", error);
+      setShowSetup(true);
+    } finally {
       setLoading(false);
     }
   };
 
-  const handleProfileComplete = (profile: any) => {
+  const handleProfileComplete = async (profile: any) => {
+    console.log("Profile setup completed, received profile:", profile);
     setNutritionProfile(profile);
     setShowSetup(false);
-    loadNutritionData();
+
+    // Load meal plans for the newly created profile
+    if (profile?.id) {
+      try {
+        const { data: mealPlan } = await supabase
+          .from("meal_plans")
+          .select("*")
+          .eq("nutrition_profile_id", profile.id)
+          .eq("is_active", true)
+          .single();
+
+        if (mealPlan) {
+          setActiveMealPlan(mealPlan);
+        }
+      } catch (error) {
+        console.log("No active meal plan found yet");
+      }
+    }
+    // Don't call loadNutritionData() here as it might reset the state
   };
 
   if (loading) {
@@ -106,9 +155,212 @@ export default function NutritionDashboard({
         </div>
       </header>
 
-      {/* Content will be added here */}
+      {/* Tab Navigation */}
+      <div className="bg-gray-800 border-b border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex space-x-8">
+            <button
+              onClick={() => setActiveTab("overview")}
+              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === "overview"
+                  ? "border-orange-500 text-orange-500"
+                  : "border-transparent text-gray-400 hover:text-gray-300"
+              }`}
+            >
+              Overview
+            </button>
+            <button
+              onClick={() => setActiveTab("meal-plan")}
+              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === "meal-plan"
+                  ? "border-orange-500 text-orange-500"
+                  : "border-transparent text-gray-400 hover:text-gray-300"
+              }`}
+            >
+              Meal Plan
+            </button>
+            <button
+              onClick={() => setActiveTab("macros")}
+              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === "macros"
+                  ? "border-orange-500 text-orange-500"
+                  : "border-transparent text-gray-400 hover:text-gray-300"
+              }`}
+            >
+              Track Macros
+            </button>
+            <button
+              onClick={() => setActiveTab("progress")}
+              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === "progress"
+                  ? "border-orange-500 text-orange-500"
+                  : "border-transparent text-gray-400 hover:text-gray-300"
+              }`}
+            >
+              Progress
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <p className="text-white">Nutrition dashboard content coming soon...</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Profile Summary */}
+          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <h3 className="text-lg font-semibold text-white mb-4">
+              Your Profile
+            </h3>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-400">Daily Calories:</span>
+                <span className="text-white font-medium">
+                  {nutritionProfile?.target_calories ||
+                    nutritionProfile?.tdee ||
+                    "Not set"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Protein:</span>
+                <span className="text-white font-medium">
+                  {nutritionProfile?.protein_grams ||
+                    nutritionProfile?.target_protein ||
+                    0}
+                  g
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Carbs:</span>
+                <span className="text-white font-medium">
+                  {nutritionProfile?.carbs_grams ||
+                    nutritionProfile?.target_carbs ||
+                    0}
+                  g
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Fat:</span>
+                <span className="text-white font-medium">
+                  {nutritionProfile?.fat_grams ||
+                    nutritionProfile?.target_fat ||
+                    0}
+                  g
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Meal Plan Status */}
+          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <h3 className="text-lg font-semibold text-white mb-4">Meal Plan</h3>
+            {activeMealPlan ? (
+              <div className="space-y-2">
+                <p className="text-sm text-gray-400">Active plan found</p>
+                <button
+                  onClick={() => setActiveTab("meal-plan")}
+                  className="w-full bg-orange-500 text-white rounded-lg px-4 py-2 hover:bg-orange-600 transition-colors"
+                >
+                  View Meal Plan
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-sm text-gray-400">No active meal plan</p>
+                <button
+                  onClick={() => setActiveTab("meal-plan")}
+                  className="w-full bg-orange-500 text-white rounded-lg px-4 py-2 hover:bg-orange-600 transition-colors"
+                >
+                  Generate AI Meal Plan
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Quick Actions */}
+          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <h3 className="text-lg font-semibold text-white mb-4">
+              Quick Actions
+            </h3>
+            <div className="space-y-2">
+              <button
+                onClick={() => setActiveTab("macros")}
+                className="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-700 text-gray-300 hover:text-white transition-colors"
+              >
+                <Activity className="inline h-4 w-4 mr-2" />
+                Track Today's Macros
+              </button>
+              <button
+                onClick={() => setActiveTab("progress")}
+                className="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-700 text-gray-300 hover:text-white transition-colors"
+              >
+                <TrendingUp className="inline h-4 w-4 mr-2" />
+                View Progress
+              </button>
+              <button
+                onClick={() => setShowSetup(true)}
+                className="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-700 text-gray-300 hover:text-white transition-colors"
+              >
+                <Settings className="inline h-4 w-4 mr-2" />
+                Update Profile
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Tab Content */}
+        <div className="mt-8">
+          {activeTab === "overview" && (
+            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+              <h2 className="text-xl font-semibold text-white mb-4">
+                Welcome to Your AI Nutrition Coach
+              </h2>
+              <p className="text-gray-400 mb-4">
+                Your personalized nutrition profile has been created. You can
+                now:
+              </p>
+              <ul className="list-disc list-inside text-gray-400 space-y-2">
+                <li>Generate AI-powered meal plans tailored to your goals</li>
+                <li>Track your daily macro intake</li>
+                <li>Monitor your progress over time</li>
+                <li>Get recipe suggestions based on your preferences</li>
+              </ul>
+            </div>
+          )}
+
+          {activeTab === "meal-plan" && (
+            <MealPlanView
+              client={client}
+              nutritionProfile={nutritionProfile}
+              activeMealPlan={activeMealPlan}
+              onPlanUpdate={(plan) => {
+                setActiveMealPlan(plan);
+                setActiveTab("meal-plan");
+              }}
+            />
+          )}
+
+          {activeTab === "macros" && (
+            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+              <h2 className="text-xl font-semibold text-white mb-4">
+                Macro Tracking
+              </h2>
+              <p className="text-gray-400">
+                Macro tracking feature coming soon...
+              </p>
+            </div>
+          )}
+
+          {activeTab === "progress" && (
+            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+              <h2 className="text-xl font-semibold text-white mb-4">
+                Your Progress
+              </h2>
+              <p className="text-gray-400">
+                Progress tracking feature coming soon...
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
