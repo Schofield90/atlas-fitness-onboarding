@@ -67,12 +67,12 @@ export default function ClientDashboard() {
   };
 
   const loadDashboardData = async () => {
-    // Load bookings for current month
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
 
-    const { data: bookings } = await supabase
+    // Try direct client bookings first (preferred for multi-tenant)
+    let { data: directBookings } = await supabase
       .from("bookings")
       .select(
         `
@@ -85,14 +85,10 @@ export default function ClientDashboard() {
         )
       `,
       )
-      .eq("customer_id", client.id)
+      .eq("client_id", client.id)
       .gte("created_at", startOfMonth.toISOString());
 
-    const classesThisMonth =
-      bookings?.filter((b) => b.status === "attended").length || 0;
-
-    // Get upcoming bookings
-    const { data: upcoming } = await supabase
+    let { data: directUpcoming } = await supabase
       .from("bookings")
       .select(
         `
@@ -105,25 +101,113 @@ export default function ClientDashboard() {
         )
       `,
       )
-      .eq("customer_id", client.id)
+      .eq("client_id", client.id)
       .eq("status", "confirmed")
       .gte("class_sessions.start_time", new Date().toISOString())
       .order("class_sessions(start_time)", { ascending: true })
       .limit(3);
 
-    setUpcomingBookings(upcoming || []);
+    let classesThisMonth =
+      directBookings?.filter((b) => b.status === "attended").length || 0;
+    let creditsRemaining = 0;
 
-    // Get credit usage
-    const { data: credits } = await supabase
+    // Try to get credits directly for client
+    const { data: directCredits } = await supabase
       .from("class_credits")
       .select("*")
-      .eq("customer_id", client.id)
+      .eq("client_id", client.id)
       .single();
 
+    if (directCredits) {
+      creditsRemaining = directCredits.credits_remaining || 0;
+    }
+
+    // If no direct data, check lead records (backward compatibility)
+    if (
+      !directBookings ||
+      directBookings.length === 0 ||
+      !directUpcoming ||
+      directUpcoming.length === 0 ||
+      !directCredits
+    ) {
+      const { data: leadData } = await supabase
+        .from("leads")
+        .select("id")
+        .eq("client_id", client.id)
+        .single();
+
+      if (leadData) {
+        // Get bookings using lead ID if no direct bookings
+        if (!directBookings || directBookings.length === 0) {
+          const { data: leadBookings } = await supabase
+            .from("bookings")
+            .select(
+              `
+              *,
+              class_sessions (
+                *,
+                programs (name),
+                organization_locations (name),
+                organization_staff (name)
+              )
+            `,
+            )
+            .eq("customer_id", leadData.id)
+            .gte("created_at", startOfMonth.toISOString());
+
+          if (leadBookings && leadBookings.length > 0) {
+            directBookings = leadBookings;
+            classesThisMonth =
+              leadBookings.filter((b) => b.status === "attended").length || 0;
+          }
+        }
+
+        // Get upcoming using lead ID if no direct upcoming
+        if (!directUpcoming || directUpcoming.length === 0) {
+          const { data: leadUpcoming } = await supabase
+            .from("bookings")
+            .select(
+              `
+              *,
+              class_sessions (
+                *,
+                programs (name),
+                organization_locations (name),
+                organization_staff (name)
+              )
+            `,
+            )
+            .eq("customer_id", leadData.id)
+            .eq("status", "confirmed")
+            .gte("class_sessions.start_time", new Date().toISOString())
+            .order("class_sessions(start_time)", { ascending: true })
+            .limit(3);
+
+          if (leadUpcoming && leadUpcoming.length > 0) {
+            directUpcoming = leadUpcoming;
+          }
+        }
+
+        // Get credits from lead if no direct credits
+        if (!directCredits) {
+          const { data: leadCredits } = await supabase
+            .from("class_credits")
+            .select("*")
+            .eq("customer_id", leadData.id)
+            .single();
+
+          if (leadCredits) {
+            creditsRemaining = leadCredits.credits_remaining || 0;
+          }
+        }
+      }
+    }
+
+    setUpcomingBookings(directUpcoming || []);
     setStats({
       classesThisMonth,
-      creditsRemaining: credits?.credits_remaining || 0,
-      nextClass: upcoming?.[0] || null,
+      creditsRemaining,
+      nextClass: directUpcoming?.[0] || null,
       memberSince: client.created_at,
     });
   };
@@ -165,7 +249,7 @@ export default function ClientDashboard() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
       </div>
     );
   }
