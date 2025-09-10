@@ -312,13 +312,17 @@ export async function POST(request: NextRequest) {
       const { data: updatedProfile, error: updateError } = await supabaseAdmin
         .from("nutrition_profiles")
         .update({
-          // Basic demographics (from migration: age INTEGER, gender VARCHAR)
+          // Basic demographics - support both sex and gender fields
           age: body.age,
+          sex: body.gender?.toUpperCase() || body.sex || "MALE",
           gender: body.gender?.toLowerCase() || "other",
 
-          // Physical measurements (from migration: height_cm INTEGER, weight_kg DECIMAL)
+          // Physical measurements - use both old and new column names for compatibility
+          height: body.height_cm || body.height,
           height_cm: body.height_cm || body.height,
+          current_weight: body.weight_kg || body.current_weight,
           weight_kg: body.weight_kg || body.current_weight,
+          goal_weight: body.target_weight_kg || body.goal_weight,
           target_weight_kg: body.target_weight_kg || body.goal_weight,
 
           // Goals and activity (from migration: goal VARCHAR, activity_level VARCHAR)
@@ -385,13 +389,17 @@ export async function POST(request: NextRequest) {
           client_id: client.id,
           organization_id: userWithOrg.organizationId,
 
-          // Basic demographics (from migration: age INTEGER, gender VARCHAR)
+          // Basic demographics - support both sex and gender fields
           age: body.age,
+          sex: body.gender?.toUpperCase() || body.sex || "MALE",
           gender: body.gender?.toLowerCase() || "other",
 
-          // Physical measurements (from migration: height_cm INTEGER, weight_kg DECIMAL)
+          // Physical measurements - use both old and new column names for compatibility
+          height: body.height_cm || body.height,
           height_cm: body.height_cm || body.height,
+          current_weight: body.weight_kg || body.current_weight,
           weight_kg: body.weight_kg || body.current_weight,
+          goal_weight: body.target_weight_kg || body.goal_weight,
           target_weight_kg: body.target_weight_kg || body.goal_weight,
 
           // Goals and activity (from migration: goal VARCHAR, activity_level VARCHAR)

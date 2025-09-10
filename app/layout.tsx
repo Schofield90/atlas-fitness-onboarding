@@ -6,7 +6,7 @@ import { AnalyticsProvider } from "@/app/components/analytics/provider";
 import { OrganizationProvider } from "@/app/hooks/useOrganization";
 import { ErrorBoundaryProvider } from "@/app/components/errors";
 import TeamChatNotificationProvider from "@/app/components/notifications/TeamChatNotificationProvider";
-import FloatingChatWidget from "@/app/components/team-chat/FloatingChatWidget";
+// import FloatingChatWidget from "@/app/components/team-chat/FloatingChatWidget";
 // import { ToastProvider } from '@/app/components/providers/toast-provider'
 
 const inter = Inter({ subsets: ["latin"] });
@@ -31,7 +31,7 @@ export default function RootLayout({
               <TeamChatNotificationProvider>
                 {/* <ToastProvider /> */}
                 {children}
-                <FloatingChatWidget />
+                {/* <FloatingChatWidget /> */}
               </TeamChatNotificationProvider>
             </OrganizationProvider>
           </AnalyticsProvider>
