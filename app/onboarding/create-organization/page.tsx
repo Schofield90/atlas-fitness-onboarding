@@ -1,91 +1,139 @@
-'use client'
-import Link from 'next/link'
-import { useState } from 'react'
-import { createClient } from '@/app/lib/supabase/client'
-import { useRouter } from 'next/navigation'
-import { useOrganization } from '@/app/hooks/useOrganization'
-import { Building2, Dumbbell, Users, ArrowRight } from 'lucide-react'
+"use client";
+import Link from "next/link";
+import { useState } from "react";
+import { createClient } from "@/app/lib/supabase/client";
+import { useRouter } from "next/navigation";
+import { useOrganization } from "@/app/hooks/useOrganization";
+import { Building2, Dumbbell, Users, ArrowRight } from "lucide-react";
 
 export default function CreateOrganizationPage() {
-  const router = useRouter()
-  const { refreshOrganization } = useOrganization()
-  const [isCreating, setIsCreating] = useState(false)
+  const router = useRouter();
+  const { refreshOrganization } = useOrganization();
+  const [isCreating, setIsCreating] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
-    type: 'gym',
-    phone: '',
-    address: '',
-    city: '',
-    postcode: ''
-  })
+    name: "",
+    type: "gym",
+    phone: "",
+    address: "",
+    city: "",
+    postcode: "",
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsCreating(true)
+    e.preventDefault();
+    setIsCreating(true);
 
     try {
-      const supabase = createClient()
-      
+      const supabase = createClient();
+
       // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
       if (userError || !user) {
-        router.push('/login')
-        return
+        router.push("/login");
+        return;
+      }
+
+      // Ensure user exists in users table
+      const { error: userInsertError } = await supabase.from("users").upsert(
+        {
+          id: user.id,
+          email: user.email || "",
+          full_name:
+            user.user_metadata?.full_name || user.email?.split("@")[0] || "",
+          metadata: user.user_metadata || {},
+        },
+        {
+          onConflict: "id",
+        },
+      );
+
+      if (userInsertError) {
+        console.error("Error ensuring user record:", userInsertError);
       }
 
       // Create a slug from the organization name
       const slug = formData.name
         .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
 
       // Create organization
       const { data: org, error: orgError } = await supabase
-        .from('organizations')
+        .from("organizations")
         .insert({
           name: formData.name,
           slug: slug,
-          type: formData.type,
-          owner_id: user.id,
+          plan: "starter", // Default plan
           settings: {
+            type: formData.type,
             phone: formData.phone,
             address: formData.address,
             city: formData.city,
-            postcode: formData.postcode
+            postcode: formData.postcode,
+            // Store features in settings since there's no features column
+            features: {
+              gym: formData.type === "gym" || formData.type === "hybrid",
+              coaching:
+                formData.type === "coaching" || formData.type === "hybrid",
+            },
           },
-          features: { 
-            gym: formData.type === 'gym' || formData.type === 'hybrid',
-            coaching: formData.type === 'coaching' || formData.type === 'hybrid'
-          }
+          metadata: {
+            created_by: user.id,
+            owner_id: user.id, // Store owner in metadata since there's no owner_id column
+          },
         })
         .select()
-        .single()
+        .single();
 
       if (orgError) {
-        console.error('Error creating organization:', orgError)
-        if (orgError.code === '23505') {
-          alert('An organization with this name already exists. Please choose a different name.')
+        console.error("Error creating organization:", orgError);
+        if (orgError.code === "23505") {
+          alert(
+            "An organization with this name already exists. Please choose a different name.",
+          );
         } else {
-          alert(orgError.message || 'Failed to create organization')
+          alert(orgError.message || "Failed to create organization");
         }
-        return
+        return;
       }
 
-      // The database trigger will automatically create organization_staff entry
-      
+      // Create organization_members entry to link the user as owner
+      const { error: memberError } = await supabase
+        .from("organization_members")
+        .insert({
+          user_id: user.id,
+          org_id: org.id,
+          role: "owner",
+          permissions: {
+            all: true, // Owner has all permissions
+          },
+        });
+
+      if (memberError) {
+        console.error("Error creating organization member:", memberError);
+        // Try to clean up the organization if member creation fails
+        await supabase.from("organizations").delete().eq("id", org.id);
+        alert("Failed to complete organization setup. Please try again.");
+        return;
+      }
+
       // Refresh organization context
-      await refreshOrganization()
-      
+      await refreshOrganization();
+
       // Redirect to dashboard
-      router.push('/dashboard')
-      
+      router.push("/dashboard");
     } catch (error: any) {
-      console.error('Error creating organization:', error)
-      alert(error.message || 'An error occurred while creating your organization')
+      console.error("Error creating organization:", error);
+      alert(
+        error.message || "An error occurred while creating your organization",
+      );
     } finally {
-      setIsCreating(false)
+      setIsCreating(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900 px-4">
@@ -94,12 +142,14 @@ export default function CreateOrganizationPage() {
           <div className="flex justify-center mb-4">
             <Building2 className="h-12 w-12 text-orange-500" />
           </div>
-          <h2 className="text-3xl font-bold text-white">Welcome to Atlas Fitness!</h2>
+          <h2 className="text-3xl font-bold text-white">
+            Welcome to GymLeadHub!
+          </h2>
           <p className="mt-2 text-gray-400">
             Let's set up your organization to get started
           </p>
         </div>
-        
+
         <div className="bg-gray-800 rounded-lg shadow-xl p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
@@ -110,9 +160,11 @@ export default function CreateOrganizationPage() {
                 type="text"
                 required
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-orange-500"
-                placeholder="Atlas Fitness Manchester"
+                placeholder="GymLeadHub Manchester"
               />
             </div>
 
@@ -123,11 +175,11 @@ export default function CreateOrganizationPage() {
               <div className="grid grid-cols-3 gap-3">
                 <button
                   type="button"
-                  onClick={() => setFormData({ ...formData, type: 'gym' })}
+                  onClick={() => setFormData({ ...formData, type: "gym" })}
                   className={`p-3 rounded-lg border transition-all ${
-                    formData.type === 'gym'
-                      ? 'border-orange-500 bg-orange-500/10 text-orange-500'
-                      : 'border-gray-600 text-gray-400 hover:border-gray-500'
+                    formData.type === "gym"
+                      ? "border-orange-500 bg-orange-500/10 text-orange-500"
+                      : "border-gray-600 text-gray-400 hover:border-gray-500"
                   }`}
                 >
                   <Dumbbell className="h-5 w-5 mx-auto mb-1" />
@@ -135,11 +187,11 @@ export default function CreateOrganizationPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setFormData({ ...formData, type: 'coaching' })}
+                  onClick={() => setFormData({ ...formData, type: "coaching" })}
                   className={`p-3 rounded-lg border transition-all ${
-                    formData.type === 'coaching'
-                      ? 'border-orange-500 bg-orange-500/10 text-orange-500'
-                      : 'border-gray-600 text-gray-400 hover:border-gray-500'
+                    formData.type === "coaching"
+                      ? "border-orange-500 bg-orange-500/10 text-orange-500"
+                      : "border-gray-600 text-gray-400 hover:border-gray-500"
                   }`}
                 >
                   <Users className="h-5 w-5 mx-auto mb-1" />
@@ -147,11 +199,11 @@ export default function CreateOrganizationPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setFormData({ ...formData, type: 'hybrid' })}
+                  onClick={() => setFormData({ ...formData, type: "hybrid" })}
                   className={`p-3 rounded-lg border transition-all ${
-                    formData.type === 'hybrid'
-                      ? 'border-orange-500 bg-orange-500/10 text-orange-500'
-                      : 'border-gray-600 text-gray-400 hover:border-gray-500'
+                    formData.type === "hybrid"
+                      ? "border-orange-500 bg-orange-500/10 text-orange-500"
+                      : "border-gray-600 text-gray-400 hover:border-gray-500"
                   }`}
                 >
                   <div className="flex justify-center gap-1">
@@ -170,7 +222,9 @@ export default function CreateOrganizationPage() {
               <input
                 type="tel"
                 value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, phone: e.target.value })
+                }
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-orange-500"
                 placeholder="+44 7777 777777"
               />
@@ -184,7 +238,9 @@ export default function CreateOrganizationPage() {
                 <input
                   type="text"
                   value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, city: e.target.value })
+                  }
                   className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-orange-500"
                   placeholder="Manchester"
                 />
@@ -196,7 +252,9 @@ export default function CreateOrganizationPage() {
                 <input
                   type="text"
                   value={formData.postcode}
-                  onChange={(e) => setFormData({ ...formData, postcode: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, postcode: e.target.value })
+                  }
                   className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-orange-500"
                   placeholder="M1 1AA"
                 />
@@ -224,16 +282,19 @@ export default function CreateOrganizationPage() {
         </div>
 
         <p className="text-center text-sm text-gray-500">
-          By creating an organization, you agree to our{' '}
+          By creating an organization, you agree to our{" "}
           <Link href="/terms" className="text-orange-500 hover:text-orange-400">
             Terms of Service
-          </Link>{' '}
-          and{' '}
-          <Link href="/privacy" className="text-orange-500 hover:text-orange-400">
+          </Link>{" "}
+          and{" "}
+          <Link
+            href="/privacy"
+            className="text-orange-500 hover:text-orange-400"
+          >
             Privacy Policy
           </Link>
         </p>
       </div>
     </div>
-  )
+  );
 }
