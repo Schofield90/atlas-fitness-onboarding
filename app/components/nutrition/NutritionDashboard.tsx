@@ -155,6 +155,54 @@ export default function NutritionDashboard({
         </div>
       </header>
 
+      {/* Tab Navigation */}
+      <div className="bg-gray-800 border-b border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex space-x-8">
+            <button
+              onClick={() => setActiveTab("overview")}
+              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === "overview"
+                  ? "border-orange-500 text-orange-500"
+                  : "border-transparent text-gray-400 hover:text-gray-300"
+              }`}
+            >
+              Overview
+            </button>
+            <button
+              onClick={() => setActiveTab("meal-plan")}
+              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === "meal-plan"
+                  ? "border-orange-500 text-orange-500"
+                  : "border-transparent text-gray-400 hover:text-gray-300"
+              }`}
+            >
+              Meal Plan
+            </button>
+            <button
+              onClick={() => setActiveTab("macros")}
+              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === "macros"
+                  ? "border-orange-500 text-orange-500"
+                  : "border-transparent text-gray-400 hover:text-gray-300"
+              }`}
+            >
+              Track Macros
+            </button>
+            <button
+              onClick={() => setActiveTab("progress")}
+              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === "progress"
+                  ? "border-orange-500 text-orange-500"
+                  : "border-transparent text-gray-400 hover:text-gray-300"
+              }`}
+            >
+              Progress
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -208,7 +256,10 @@ export default function NutritionDashboard({
             {activeMealPlan ? (
               <div className="space-y-2">
                 <p className="text-sm text-gray-400">Active plan found</p>
-                <button className="w-full bg-orange-500 text-white rounded-lg px-4 py-2 hover:bg-orange-600 transition-colors">
+                <button
+                  onClick={() => setActiveTab("meal-plan")}
+                  className="w-full bg-orange-500 text-white rounded-lg px-4 py-2 hover:bg-orange-600 transition-colors"
+                >
                   View Meal Plan
                 </button>
               </div>
@@ -216,7 +267,7 @@ export default function NutritionDashboard({
               <div className="space-y-2">
                 <p className="text-sm text-gray-400">No active meal plan</p>
                 <button
-                  onClick={() => alert("AI meal plan generation coming soon!")}
+                  onClick={() => setActiveTab("meal-plan")}
                   className="w-full bg-orange-500 text-white rounded-lg px-4 py-2 hover:bg-orange-600 transition-colors"
                 >
                   Generate AI Meal Plan
@@ -274,6 +325,18 @@ export default function NutritionDashboard({
                 <li>Get recipe suggestions based on your preferences</li>
               </ul>
             </div>
+          )}
+
+          {activeTab === "meal-plan" && (
+            <MealPlanView
+              client={client}
+              nutritionProfile={nutritionProfile}
+              activeMealPlan={activeMealPlan}
+              onPlanUpdate={(plan) => {
+                setActiveMealPlan(plan);
+                setActiveTab("meal-plan");
+              }}
+            />
           )}
 
           {activeTab === "macros" && (
