@@ -248,15 +248,20 @@ export async function POST(request: NextRequest) {
     // Get request body
     const body = await request.json();
 
-    // Validate required fields
+    // Validate required fields - use the actual database column names
     const requiredFields = [
       "age",
-      "sex",
-      "height",
-      "current_weight",
-      "goal_weight",
+      "gender", // Changed from "sex" to match database
+      "height_cm", // Changed from "height" to match database
+      "weight_kg", // Changed from "current_weight" to match database
+      "target_weight_kg", // Changed from "goal_weight" to match database
       "activity_level",
-      "training_frequency",
+      "bmr",
+      "tdee",
+      "target_calories",
+      "protein_grams",
+      "carbs_grams",
+      "fat_grams",
     ];
     for (const field of requiredFields) {
       if (body[field] === undefined || body[field] === null) {
@@ -300,63 +305,39 @@ export async function POST(request: NextRequest) {
     let profile;
 
     if (existingProfile) {
-      // Update existing profile - include ALL fields from the request
+      // Update existing profile - use ONLY columns that exist in the database
       const { data: updatedProfile, error: updateError } = await supabaseAdmin
         .from("nutrition_profiles")
         .update({
-          // Basic demographics
+          // Basic demographics (from migration: age INTEGER, gender VARCHAR)
           age: body.age,
-          sex: body.sex || body.gender,
-          gender: body.gender || body.sex,
+          gender: body.gender?.toLowerCase() || "other",
 
-          // Physical measurements
-          height: body.height,
+          // Physical measurements (from migration: height_cm INTEGER, weight_kg DECIMAL)
           height_cm: body.height_cm || body.height,
-          current_weight: body.current_weight,
           weight_kg: body.weight_kg || body.current_weight,
-          goal_weight: body.goal_weight,
           target_weight_kg: body.target_weight_kg || body.goal_weight,
 
-          // Goals and activity
-          goal: body.goal,
-          activity_level: body.activity_level,
-          weekly_weight_change_kg: body.weekly_weight_change_kg,
+          // Goals and activity (from migration: goal VARCHAR, activity_level VARCHAR)
+          goal: body.goal?.toLowerCase() || "maintain",
+          activity_level:
+            body.activity_level?.toLowerCase() || "moderately_active",
+          weekly_weight_change_kg: body.weekly_weight_change_kg || 0.5,
 
-          // Calculated values - IMPORTANT: Save these!
+          // Calculated values (from migration: bmr INTEGER, tdee INTEGER, target_calories INTEGER)
           bmr: body.bmr,
           tdee: body.tdee,
           target_calories: body.target_calories,
-          daily_calories: body.target_calories, // Store in both columns for compatibility
 
-          // Macros - IMPORTANT: Save these!
+          // Macros (from migration: protein_grams INTEGER, carbs_grams INTEGER, fat_grams INTEGER)
           protein_grams: body.protein_grams,
-          target_protein: body.protein_grams, // Store in both columns for compatibility
           carbs_grams: body.carbs_grams,
-          target_carbs: body.carbs_grams, // Store in both columns for compatibility
           fat_grams: body.fat_grams,
-          target_fat: body.fat_grams, // Store in both columns for compatibility
           fiber_grams: body.fiber_grams || 25,
 
-          // Training and preferences
-          training_frequency: body.training_frequency,
-          training_types: body.training_types || [],
-
-          // Dietary preferences
-          dietary_preferences: body.dietary_preferences || [],
-          allergies: body.allergies || [],
-          intolerances: body.intolerances || [],
-          food_likes: body.food_likes || [],
-          food_dislikes: body.food_dislikes || [],
-
-          // Meal planning
-          meals_per_day: body.meals_per_day || body.meal_count || 3,
-          meal_count: body.meals_per_day || body.meal_count || 3, // Store in both columns
+          // Meal planning (from migration: meals_per_day INTEGER, snacks_per_day INTEGER)
+          meals_per_day: body.meals_per_day || 3,
           snacks_per_day: body.snacks_per_day || 2,
-
-          // Cooking preferences
-          cooking_time: body.cooking_time || "MODERATE",
-          cooking_skill: body.cooking_skill || "intermediate",
-          budget_constraint: body.budget_constraint || "MODERATE",
 
           updated_at: new Date().toISOString(),
         })
@@ -382,66 +363,42 @@ export async function POST(request: NextRequest) {
 
       profile = updatedProfile;
     } else {
-      // Create new profile with client_id instead of user_id
+      // Create new profile with client_id - use ONLY columns that exist in the database
       const { data: newProfile, error: createError } = await supabaseAdmin
         .from("nutrition_profiles")
         .insert({
-          client_id: client.id, // Use client_id instead of user_id
+          client_id: client.id,
           organization_id: userWithOrg.organizationId,
 
-          // Basic demographics
+          // Basic demographics (from migration: age INTEGER, gender VARCHAR)
           age: body.age,
-          sex: body.sex || body.gender,
-          gender: body.gender || body.sex,
+          gender: body.gender?.toLowerCase() || "other",
 
-          // Physical measurements
-          height: body.height,
+          // Physical measurements (from migration: height_cm INTEGER, weight_kg DECIMAL)
           height_cm: body.height_cm || body.height,
-          current_weight: body.current_weight,
           weight_kg: body.weight_kg || body.current_weight,
-          goal_weight: body.goal_weight,
           target_weight_kg: body.target_weight_kg || body.goal_weight,
 
-          // Goals and activity
-          goal: body.goal,
-          activity_level: body.activity_level,
-          weekly_weight_change_kg: body.weekly_weight_change_kg,
+          // Goals and activity (from migration: goal VARCHAR, activity_level VARCHAR)
+          goal: body.goal?.toLowerCase() || "maintain",
+          activity_level:
+            body.activity_level?.toLowerCase() || "moderately_active",
+          weekly_weight_change_kg: body.weekly_weight_change_kg || 0.5,
 
-          // Calculated values - IMPORTANT: Save these!
+          // Calculated values (from migration: bmr INTEGER, tdee INTEGER, target_calories INTEGER)
           bmr: body.bmr,
           tdee: body.tdee,
           target_calories: body.target_calories,
-          daily_calories: body.target_calories, // Store in both columns for compatibility
 
-          // Macros - IMPORTANT: Save these!
+          // Macros (from migration: protein_grams INTEGER, carbs_grams INTEGER, fat_grams INTEGER)
           protein_grams: body.protein_grams,
-          target_protein: body.protein_grams, // Store in both columns for compatibility
           carbs_grams: body.carbs_grams,
-          target_carbs: body.carbs_grams, // Store in both columns for compatibility
           fat_grams: body.fat_grams,
-          target_fat: body.fat_grams, // Store in both columns for compatibility
           fiber_grams: body.fiber_grams || 25,
 
-          // Training and preferences
-          training_frequency: body.training_frequency,
-          training_types: body.training_types || [],
-
-          // Dietary preferences
-          dietary_preferences: body.dietary_preferences || [],
-          allergies: body.allergies || [],
-          intolerances: body.intolerances || [],
-          food_likes: body.food_likes || [],
-          food_dislikes: body.food_dislikes || [],
-
-          // Meal planning
-          meals_per_day: body.meals_per_day || body.meal_count || 3,
-          meal_count: body.meals_per_day || body.meal_count || 3, // Store in both columns
+          // Meal planning (from migration: meals_per_day INTEGER, snacks_per_day INTEGER)
+          meals_per_day: body.meals_per_day || 3,
           snacks_per_day: body.snacks_per_day || 2,
-
-          // Cooking preferences
-          cooking_time: body.cooking_time || "MODERATE",
-          cooking_skill: body.cooking_skill || "intermediate",
-          budget_constraint: body.budget_constraint || "MODERATE",
         })
         .select()
         .single();
