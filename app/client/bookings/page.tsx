@@ -52,8 +52,10 @@ export default function ClientBookingsPage() {
   };
 
   const loadBookings = async () => {
+    console.log("Loading bookings for client:", client.id, client.email);
+
     // Try to get bookings directly using client_id first (preferred for multi-tenant)
-    let { data: directBookings } = await supabase
+    let { data: directBookings, error: directError } = await supabase
       .from("bookings")
       .select(
         `
@@ -78,8 +80,11 @@ export default function ClientBookingsPage() {
       .gte("class_sessions.start_time", new Date().toISOString())
       .order("class_sessions(start_time)", { ascending: true });
 
+    console.log("Direct bookings:", directBookings, "Error:", directError);
+
     // If no direct bookings, check if there's a lead record (backward compatibility)
     if (!directBookings || directBookings.length === 0) {
+      console.log("No direct bookings, checking lead records...");
       const { data: leadData } = await supabase
         .from("leads")
         .select("id")
@@ -126,8 +131,60 @@ export default function ClientBookingsPage() {
           setCreditsRemaining(credits.credits_remaining);
         }
       } else {
-        setBookings([]);
-        setCreditsRemaining(0);
+        // Final fallback: Try to find lead by email
+        console.log("No lead by client_id, trying by email:", client.email);
+        const { data: leadByEmail } = await supabase
+          .from("leads")
+          .select("id")
+          .eq("email", client.email)
+          .eq("organization_id", client.organization_id)
+          .single();
+
+        console.log("Lead by email:", leadByEmail);
+
+        if (leadByEmail) {
+          const { data: emailBookings } = await supabase
+            .from("bookings")
+            .select(
+              `
+              *,
+              class_sessions (
+                *,
+                programs (
+                  name,
+                  description
+                ),
+                organization_locations (
+                  name,
+                  address
+                ),
+                organization_staff (
+                  name
+                )
+              )
+            `,
+            )
+            .eq("customer_id", leadByEmail.id)
+            .gte("class_sessions.start_time", new Date().toISOString())
+            .order("class_sessions(start_time)", { ascending: true });
+
+          console.log("Email-based bookings:", emailBookings);
+          setBookings(emailBookings || []);
+
+          // Get credits
+          const { data: emailCredits } = await supabase
+            .from("class_credits")
+            .select("credits_remaining")
+            .eq("customer_id", leadByEmail.id)
+            .single();
+
+          if (emailCredits) {
+            setCreditsRemaining(emailCredits.credits_remaining);
+          }
+        } else {
+          setBookings([]);
+          setCreditsRemaining(0);
+        }
       }
     } else {
       // Use direct bookings
