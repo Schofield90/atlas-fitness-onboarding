@@ -51,13 +51,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate meal plan using OpenAI
+    // Generate meal plan using OpenAI with timeout
     console.log("Generating AI meal plan for:", profile);
-    const mealPlanData = await generateMealPlan(
-      profile,
-      preferences,
-      daysToGenerate,
+
+    // Create a timeout promise
+    const timeoutPromise = new Promise(
+      (_, reject) =>
+        setTimeout(
+          () => reject(new Error("Meal plan generation timeout")),
+          9000,
+        ), // 9 seconds timeout
     );
+
+    let mealPlanData;
+    try {
+      // Race between the actual API call and timeout
+      mealPlanData = await Promise.race([
+        generateMealPlan(profile, preferences, daysToGenerate),
+        timeoutPromise,
+      ]);
+    } catch (timeoutError) {
+      console.error("Meal plan generation timed out or failed:", timeoutError);
+      // Return a simple fallback plan if generation fails
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Meal plan generation is taking longer than expected. Please try again.",
+          fallback: true,
+        },
+        { status: 503 },
+      );
+    }
 
     // Transform the meal plan data into the format expected by the database
     const startDate = new Date();
