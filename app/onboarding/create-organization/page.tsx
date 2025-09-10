@@ -60,18 +60,18 @@ export default function CreateOrganizationPage() {
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-+|-+$/g, "");
 
-      // Create organization
+      // Create organization - using actual database schema
       const { data: org, error: orgError } = await supabase
         .from("organizations")
         .insert({
           name: formData.name,
           slug: slug,
           plan: "starter", // Default plan
+          type: formData.type, // type column exists
+          phone: formData.phone,
+          address: formData.address,
+          city: formData.city,
           settings: {
-            type: formData.type,
-            phone: formData.phone,
-            address: formData.address,
-            city: formData.city,
             postcode: formData.postcode,
             // Store features in settings since there's no features column
             features: {
@@ -227,6 +227,21 @@ export default function CreateOrganizationPage() {
                 }
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-orange-500"
                 placeholder="+44 7777 777777"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Address
+              </label>
+              <input
+                type="text"
+                value={formData.address}
+                onChange={(e) =>
+                  setFormData({ ...formData, address: e.target.value })
+                }
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-orange-500"
+                placeholder="123 Main Street"
               />
             </div>
 
