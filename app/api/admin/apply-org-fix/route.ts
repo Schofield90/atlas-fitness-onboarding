@@ -6,6 +6,15 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function GET(request: Request) {
   try {
+    // Check for admin token in query params for simple auth
+    const url = new URL(request.url);
+    const token = url.searchParams.get("token");
+
+    // Simple token check - in production, use proper auth
+    if (token !== "fix-org-schema-2024") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     // Create admin client with service role key
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
