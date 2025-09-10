@@ -1,3 +1,15 @@
+# 🚨 IMMEDIATE ACTION REQUIRED: Apply Database Migration
+
+## Your app is deployed but needs the database migration applied!
+
+### Quick Apply Method (Supabase Dashboard)
+
+1. **Open Supabase SQL Editor:**
+   https://supabase.com/dashboard/project/lzlrojoaxrqvmhempnkn/sql/new
+
+2. **Copy the entire SQL below and paste it into the SQL Editor:**
+
+```sql
 -- Migration to fix nutrition profiles and related tables
 -- This fixes the 400 and 406 errors we're seeing in the console
 
@@ -56,7 +68,7 @@ CREATE INDEX IF NOT EXISTS idx_class_credits_organization_id ON class_credits(or
 -- ============================================
 
 -- Ensure organization_staff table has correct structure
-ALTER TABLE organization_staff 
+ALTER TABLE organization_staff
 ADD COLUMN IF NOT EXISTS role TEXT,
 ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true,
 ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '[]'::jsonb,
@@ -87,19 +99,6 @@ CREATE TABLE IF NOT EXISTS leads (
 -- Add indexes and constraints
 CREATE INDEX IF NOT EXISTS idx_leads_email ON leads(email);
 CREATE INDEX IF NOT EXISTS idx_leads_organization_id ON leads(organization_id);
-
--- Clean up duplicate leads before creating unique constraint
-DO $$
-BEGIN
-    -- Delete duplicate leads, keeping the one with the earliest created_at
-    DELETE FROM leads a USING leads b
-    WHERE a.email = b.email 
-    AND a.organization_id = b.organization_id
-    AND a.created_at > b.created_at;
-END
-$$;
-
--- Now create the unique index
 CREATE UNIQUE INDEX IF NOT EXISTS idx_leads_unique_email_org ON leads(email, organization_id);
 
 -- ============================================
@@ -110,7 +109,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_leads_unique_email_org ON leads(email, org
 DO $$
 BEGIN
     IF EXISTS (
-        SELECT 1 FROM information_schema.table_constraints 
+        SELECT 1 FROM information_schema.table_constraints
         WHERE constraint_name = 'nutrition_profiles_person_ref_check'
         AND table_name = 'nutrition_profiles'
     ) THEN
@@ -165,10 +164,10 @@ ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 ALTER TABLE nutrition_profiles ALTER COLUMN lead_id DROP NOT NULL;
 
 -- Add flexible constraint that allows either client_id or lead_id
-ALTER TABLE nutrition_profiles 
-ADD CONSTRAINT nutrition_profiles_person_ref_check 
+ALTER TABLE nutrition_profiles
+ADD CONSTRAINT nutrition_profiles_person_ref_check
 CHECK (
-    (client_id IS NOT NULL AND lead_id IS NULL) OR 
+    (client_id IS NOT NULL AND lead_id IS NULL) OR
     (client_id IS NULL AND lead_id IS NOT NULL) OR
     (client_id IS NULL AND lead_id IS NULL) -- Allow both null for initial setup
 );
@@ -183,11 +182,11 @@ ALTER TABLE nutrition_profiles DROP CONSTRAINT IF EXISTS nutrition_profiles_lead
 
 -- Add new unique constraints
 ALTER TABLE nutrition_profiles DROP CONSTRAINT IF EXISTS nutrition_profiles_unique_client_org;
-ALTER TABLE nutrition_profiles ADD CONSTRAINT nutrition_profiles_unique_client_org 
+ALTER TABLE nutrition_profiles ADD CONSTRAINT nutrition_profiles_unique_client_org
 UNIQUE NULLS NOT DISTINCT (client_id, organization_id);
 
 ALTER TABLE nutrition_profiles DROP CONSTRAINT IF EXISTS nutrition_profiles_unique_lead_org;
-ALTER TABLE nutrition_profiles ADD CONSTRAINT nutrition_profiles_unique_lead_org 
+ALTER TABLE nutrition_profiles ADD CONSTRAINT nutrition_profiles_unique_lead_org
 UNIQUE NULLS NOT DISTINCT (lead_id, organization_id);
 
 -- ============================================
@@ -221,7 +220,7 @@ FOR SELECT USING (
 CREATE POLICY "Staff can manage bookings" ON bookings
 FOR ALL USING (
     organization_id IN (
-        SELECT organization_id FROM organization_staff 
+        SELECT organization_id FROM organization_staff
         WHERE user_id = auth.uid() AND is_active = true
     )
 );
@@ -236,7 +235,7 @@ FOR SELECT USING (
 CREATE POLICY "Staff can manage class_credits" ON class_credits
 FOR ALL USING (
     organization_id IN (
-        SELECT organization_id FROM organization_staff 
+        SELECT organization_id FROM organization_staff
         WHERE user_id = auth.uid() AND is_active = true
     )
 );
@@ -245,7 +244,7 @@ FOR ALL USING (
 CREATE POLICY "Staff can manage leads" ON leads
 FOR ALL USING (
     organization_id IN (
-        SELECT organization_id FROM organization_staff 
+        SELECT organization_id FROM organization_staff
         WHERE user_id = auth.uid() AND is_active = true
     )
 );
@@ -260,7 +259,7 @@ FOR SELECT USING (
 CREATE POLICY "Staff can manage nutrition profiles" ON nutrition_profiles
 FOR ALL USING (
     organization_id IN (
-        SELECT organization_id FROM organization_staff 
+        SELECT organization_id FROM organization_staff
         WHERE user_id = auth.uid() AND is_active = true
     )
 );
@@ -276,8 +275,8 @@ DECLARE
     rec RECORD;
 BEGIN
     -- For each client without a corresponding lead
-    FOR rec IN 
-        SELECT c.* 
+    FOR rec IN
+        SELECT c.*
         FROM clients c
         LEFT JOIN leads l ON l.client_id = c.id AND l.organization_id = c.organization_id
         WHERE l.id IS NULL
@@ -323,29 +322,17 @@ SELECT ensure_client_lead_mapping();
 UPDATE nutrition_profiles np
 SET lead_id = l.id
 FROM leads l
-WHERE np.client_id = l.client_id 
+WHERE np.client_id = l.client_id
 AND np.organization_id = l.organization_id
 AND np.lead_id IS NULL
 AND np.client_id IS NOT NULL;
 
 -- ============================================
--- 9. Add helpful comments
+-- 9. Success message
 -- ============================================
-
-COMMENT ON TABLE nutrition_profiles IS 'Stores nutrition profiles for both clients and leads. Use client_id for existing clients, lead_id for leads.';
-COMMENT ON COLUMN nutrition_profiles.client_id IS 'Reference to clients table - use for existing gym members';
-COMMENT ON COLUMN nutrition_profiles.lead_id IS 'Reference to leads table - use for prospects or when client_id not available';
-COMMENT ON COLUMN nutrition_profiles.height IS 'Height in centimeters (alternative column name for height_cm)';
-COMMENT ON COLUMN nutrition_profiles.current_weight IS 'Current weight in kg (alternative column name for weight_kg)';
-COMMENT ON COLUMN nutrition_profiles.goal_weight IS 'Goal weight in kg (alternative column name for target_weight_kg)';
-COMMENT ON COLUMN nutrition_profiles.target_protein IS 'Target protein in grams (alternative column name for protein_grams)';
-COMMENT ON COLUMN nutrition_profiles.target_carbs IS 'Target carbs in grams (alternative column name for carbs_grams)';
-COMMENT ON COLUMN nutrition_profiles.target_fat IS 'Target fat in grams (alternative column name for fat_grams)';
-
--- Log completion
 DO $$
 BEGIN
-    RAISE NOTICE 'Migration completed successfully:';
+    RAISE NOTICE 'Migration completed successfully!';
     RAISE NOTICE '- Fixed bookings table structure';
     RAISE NOTICE '- Fixed class_credits table structure';
     RAISE NOTICE '- Fixed organization_staff columns';
@@ -355,3 +342,40 @@ BEGIN
     RAISE NOTICE '- Created client-lead mapping for existing data';
 END
 $$;
+```
+
+3. **Click "Run" button in Supabase**
+
+4. **Verify Success:**
+   - You should see green success messages
+   - Check the Tables section to confirm new tables exist
+
+### Alternative: Use Production Test Page
+
+After the migration is applied:
+
+1. Visit: https://atlas-fitness-onboarding.vercel.app/test-nutrition
+2. Log in as an admin user
+3. You should see all tables with green checkmarks
+4. Test with "Create Test Profile" button
+
+### Deployment URLs:
+
+- **Production App:** https://atlas-fitness-onboarding.vercel.app
+- **Test Page:** https://atlas-fitness-onboarding.vercel.app/test-nutrition
+- **Vercel Deployment:** https://atlas-fitness-onboarding-61fkcfxur-schofield90s-projects.vercel.app
+
+### What This Fixes:
+
+✅ Nutrition coach 400/406 errors
+✅ Missing database tables
+✅ Organization staff permission errors
+✅ Booking system compatibility
+✅ Client/Lead profile flexibility
+
+### Next Steps:
+
+1. Apply the migration above
+2. Test the nutrition coach on production
+3. Verify no more console errors
+4. The nutrition coach should now generate meal plans successfully!

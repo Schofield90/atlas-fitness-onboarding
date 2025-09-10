@@ -7,30 +7,77 @@ export default function TestNutritionPage() {
   const [status, setStatus] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [migrationResult, setMigrationResult] = useState<any>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const supabase = createClient();
 
   useEffect(() => {
-    checkStatus();
+    checkAuth();
   }, []);
 
-  const checkStatus = async () => {
+  const checkAuth = async () => {
     try {
-      const response = await fetch("/api/admin/apply-nutrition-migration");
-      const data = await response.json();
-      setStatus(data);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      setIsAuthenticated(!!user);
+      if (user) {
+        await checkStatus();
+      }
     } catch (error) {
-      console.error("Error checking status:", error);
+      console.error("Auth check error:", error);
+      setIsAuthenticated(false);
     } finally {
       setLoading(false);
     }
   };
 
+  const checkStatus = async () => {
+    try {
+      const response = await fetch("/api/admin/apply-nutrition-migration", {
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.error("Status check failed:", error);
+        setStatus({ error: error.error || "Failed to check status" });
+        return;
+      }
+
+      const data = await response.json();
+      setStatus(data);
+    } catch (error) {
+      console.error("Error checking status:", error);
+      setStatus({ error: "Failed to connect to API" });
+    }
+  };
+
   const runMigration = async () => {
+    if (!isAuthenticated) {
+      alert("Please log in first");
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await fetch("/api/admin/apply-nutrition-migration", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
       });
+
+      if (!response.ok) {
+        const error = await response.json();
+        setMigrationResult({
+          success: false,
+          error: error.error || "Migration failed",
+        });
+        return;
+      }
+
       const data = await response.json();
       setMigrationResult(data);
 
@@ -90,12 +137,34 @@ export default function TestNutritionPage() {
     }
   };
 
+  const handleLogin = () => {
+    window.location.href = "/signin";
+  };
+
   return (
     <div className="min-h-screen bg-gray-900 text-white p-8">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-8">
           Nutrition System Test & Migration
         </h1>
+
+        {/* Authentication Status */}
+        {!isAuthenticated && (
+          <div className="bg-yellow-900 border border-yellow-700 rounded-lg p-6 mb-6">
+            <h2 className="text-xl font-semibold mb-3">
+              Authentication Required
+            </h2>
+            <p className="mb-4">
+              You need to be logged in as an admin to run migrations.
+            </p>
+            <button
+              onClick={handleLogin}
+              className="bg-yellow-600 hover:bg-yellow-700 px-6 py-3 rounded-lg font-medium transition-colors"
+            >
+              Log In
+            </button>
+          </div>
+        )}
 
         {/* Status Section */}
         <div className="bg-gray-800 rounded-lg p-6 mb-6">
