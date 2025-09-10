@@ -1,0 +1,869 @@
+"use client";
+
+import { useState } from "react";
+import {
+  User,
+  Target,
+  Activity,
+  Utensils,
+  ChevronRight,
+  ChevronLeft,
+  Calculator,
+  Info,
+  Check,
+  AlertCircle,
+} from "lucide-react";
+import { createClient } from "@/app/lib/supabase/client";
+
+interface NutritionSetupProps {
+  client: any;
+  onComplete: (profile: any) => void;
+  existingProfile?: any;
+}
+
+// BMR calculation using Mifflin-St Jeor formula
+const calculateBMR = (
+  weight: number,
+  height: number,
+  age: number,
+  gender: string,
+): number => {
+  if (gender === "male") {
+    return Math.round(10 * weight + 6.25 * height - 5 * age + 5);
+  } else {
+    return Math.round(10 * weight + 6.25 * height - 5 * age - 161);
+  }
+};
+
+// TDEE calculation based on activity level
+const calculateTDEE = (bmr: number, activityLevel: string): number => {
+  const multipliers: { [key: string]: number } = {
+    sedentary: 1.2,
+    lightly_active: 1.375,
+    moderately_active: 1.55,
+    very_active: 1.725,
+    extra_active: 1.9,
+  };
+  return Math.round(bmr * multipliers[activityLevel]);
+};
+
+// Calculate target calories based on goal
+const calculateTargetCalories = (
+  tdee: number,
+  goal: string,
+  weeklyChange: number = 0.5,
+): number => {
+  const dailyDeficitSurplus = (weeklyChange * 7700) / 7; // 7700 cal = 1kg fat
+
+  switch (goal) {
+    case "lose_weight":
+      return Math.round(tdee - dailyDeficitSurplus);
+    case "gain_muscle":
+      return Math.round(tdee + dailyDeficitSurplus * 0.5); // More conservative for muscle gain
+    case "maintain":
+    default:
+      return tdee;
+  }
+};
+
+export default function NutritionSetup({
+  client,
+  onComplete,
+  existingProfile,
+}: NutritionSetupProps) {
+  const [step, setStep] = useState(1);
+  const [saving, setSaving] = useState(false);
+  const supabase = createClient();
+
+  // Form data
+  const [formData, setFormData] = useState({
+    // Basic stats
+    height: existingProfile?.height_cm || "",
+    weight: existingProfile?.weight_kg || "",
+    age: existingProfile?.age || "",
+    gender: existingProfile?.gender || "male",
+    activityLevel: existingProfile?.activity_level || "moderately_active",
+
+    // Goals
+    goal: existingProfile?.goal || "maintain",
+    targetWeight: existingProfile?.target_weight_kg || "",
+    weeklyChange: existingProfile?.weekly_weight_change_kg || 0.5,
+
+    // Calculated values
+    bmr: 0,
+    tdee: 0,
+    targetCalories: 0,
+
+    // Macros (will be calculated)
+    proteinGrams: 0,
+    carbsGrams: 0,
+    fatGrams: 0,
+    proteinPercent: 30,
+    carbsPercent: 40,
+    fatPercent: 30,
+
+    // Meal preferences
+    mealsPerDay: existingProfile?.meals_per_day || 3,
+    snacksPerDay: existingProfile?.snacks_per_day || 2,
+
+    // Food preferences
+    dietaryType: "",
+    allergies: [] as string[],
+    intolerances: [] as string[],
+    likedFoods: [] as string[],
+    dislikedFoods: [] as string[],
+    cookingTime: "moderate",
+    cookingSkill: "intermediate",
+  });
+
+  const updateCalculations = () => {
+    if (formData.weight && formData.height && formData.age) {
+      const bmr = calculateBMR(
+        parseFloat(formData.weight),
+        parseFloat(formData.height),
+        parseInt(formData.age),
+        formData.gender,
+      );
+
+      const tdee = calculateTDEE(bmr, formData.activityLevel);
+      const targetCalories = calculateTargetCalories(
+        tdee,
+        formData.goal,
+        formData.weeklyChange,
+      );
+
+      // Calculate macros based on percentages
+      const proteinCalories = (targetCalories * formData.proteinPercent) / 100;
+      const carbsCalories = (targetCalories * formData.carbsPercent) / 100;
+      const fatCalories = (targetCalories * formData.fatPercent) / 100;
+
+      setFormData((prev) => ({
+        ...prev,
+        bmr,
+        tdee,
+        targetCalories,
+        proteinGrams: Math.round(proteinCalories / 4),
+        carbsGrams: Math.round(carbsCalories / 4),
+        fatGrams: Math.round(fatCalories / 9),
+      }));
+    }
+  };
+
+  const handleMacroPercentChange = (macro: string, value: number) => {
+    const newData = { ...formData, [`${macro}Percent`]: value };
+
+    // Adjust other macros to maintain 100% total
+    const total =
+      newData.proteinPercent + newData.carbsPercent + newData.fatPercent;
+    if (total !== 100) {
+      const diff = 100 - value;
+      const otherMacros = ["protein", "carbs", "fat"].filter(
+        (m) => m !== macro,
+      );
+      const splitDiff = diff / otherMacros.length;
+
+      otherMacros.forEach((m) => {
+        newData[`${m}Percent`] = Math.round(splitDiff);
+      });
+    }
+
+    setFormData(newData);
+    updateCalculations();
+  };
+
+  const handleSaveProfile = async () => {
+    setSaving(true);
+    try {
+      // Save nutrition profile
+      const profileData = {
+        client_id: client.id,
+        organization_id: client.organization_id,
+        height_cm: parseInt(formData.height),
+        weight_kg: parseFloat(formData.weight),
+        age: parseInt(formData.age),
+        gender: formData.gender,
+        activity_level: formData.activityLevel,
+        goal: formData.goal,
+        target_weight_kg: formData.targetWeight
+          ? parseFloat(formData.targetWeight)
+          : null,
+        weekly_weight_change_kg: formData.weeklyChange,
+        bmr: formData.bmr,
+        tdee: formData.tdee,
+        target_calories: formData.targetCalories,
+        protein_grams: formData.proteinGrams,
+        carbs_grams: formData.carbsGrams,
+        fat_grams: formData.fatGrams,
+        fiber_grams: 25,
+        meals_per_day: formData.mealsPerDay,
+        snacks_per_day: formData.snacksPerDay,
+      };
+
+      // For now, just complete the setup
+      onComplete(profileData);
+    } catch (error) {
+      console.error("Error saving profile:", error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-900 py-8">
+      <div className="max-w-3xl mx-auto px-4">
+        {/* Progress bar */}
+        <div className="mb-8">
+          <div className="flex justify-between mb-2">
+            {[1, 2, 3, 4, 5].map((s) => (
+              <div
+                key={s}
+                className={`flex items-center justify-center w-10 h-10 rounded-full ${
+                  s <= step
+                    ? "bg-orange-600 text-white"
+                    : "bg-gray-700 text-gray-400"
+                }`}
+              >
+                {s < step ? <Check className="h-5 w-5" /> : s}
+              </div>
+            ))}
+          </div>
+          <div className="h-2 bg-gray-700 rounded-full">
+            <div
+              className="h-full bg-orange-600 rounded-full transition-all"
+              style={{ width: `${(step / 5) * 100}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Step 1: Basic Info */}
+        {step === 1 && (
+          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <User className="h-6 w-6 text-orange-500" />
+              Basic Information
+            </h2>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Height (cm)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.height}
+                    onChange={(e) =>
+                      setFormData({ ...formData, height: e.target.value })
+                    }
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    placeholder="170"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Weight (kg)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={formData.weight}
+                    onChange={(e) =>
+                      setFormData({ ...formData, weight: e.target.value })
+                    }
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    placeholder="70"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Age
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.age}
+                    onChange={(e) =>
+                      setFormData({ ...formData, age: e.target.value })
+                    }
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    placeholder="30"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Gender
+                  </label>
+                  <select
+                    value={formData.gender}
+                    onChange={(e) =>
+                      setFormData({ ...formData, gender: e.target.value })
+                    }
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  >
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Activity Level
+                </label>
+                <select
+                  value={formData.activityLevel}
+                  onChange={(e) =>
+                    setFormData({ ...formData, activityLevel: e.target.value })
+                  }
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                >
+                  <option value="sedentary">
+                    Sedentary (little or no exercise)
+                  </option>
+                  <option value="lightly_active">
+                    Lightly Active (1-3 days/week)
+                  </option>
+                  <option value="moderately_active">
+                    Moderately Active (3-5 days/week)
+                  </option>
+                  <option value="very_active">
+                    Very Active (6-7 days/week)
+                  </option>
+                  <option value="extra_active">
+                    Extra Active (very hard exercise/physical job)
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => {
+                  updateCalculations();
+                  setStep(2);
+                }}
+                disabled={!formData.height || !formData.weight || !formData.age}
+                className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 2: Goals */}
+        {step === 2 && (
+          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <Target className="h-6 w-6 text-orange-500" />
+              Your Goals
+            </h2>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Primary Goal
+                </label>
+                <select
+                  value={formData.goal}
+                  onChange={(e) => {
+                    setFormData({ ...formData, goal: e.target.value });
+                    updateCalculations();
+                  }}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                >
+                  <option value="lose_weight">Lose Weight</option>
+                  <option value="maintain">Maintain Weight</option>
+                  <option value="gain_muscle">Gain Muscle</option>
+                  <option value="improve_health">Improve Overall Health</option>
+                </select>
+              </div>
+
+              {formData.goal !== "maintain" && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
+                      Target Weight (kg)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={formData.targetWeight}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          targetWeight: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      placeholder="65"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
+                      Weekly Change Target (kg)
+                    </label>
+                    <select
+                      value={formData.weeklyChange}
+                      onChange={(e) => {
+                        setFormData({
+                          ...formData,
+                          weeklyChange: parseFloat(e.target.value),
+                        });
+                        updateCalculations();
+                      }}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    >
+                      <option value="0.25">0.25 kg/week (Slow & Steady)</option>
+                      <option value="0.5">0.5 kg/week (Moderate)</option>
+                      <option value="0.75">0.75 kg/week (Aggressive)</option>
+                      <option value="1">1 kg/week (Very Aggressive)</option>
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {/* Calorie Calculation Display */}
+              {formData.bmr > 0 && (
+                <div className="bg-gray-700 rounded-lg p-4 mt-4">
+                  <h3 className="text-sm font-medium text-gray-400 mb-3 flex items-center gap-2">
+                    <Calculator className="h-4 w-4" />
+                    Your Calorie Calculations
+                  </h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">
+                        BMR (Basal Metabolic Rate)
+                      </span>
+                      <span className="text-white font-medium">
+                        {formData.bmr} cal
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">TDEE (Maintenance)</span>
+                      <span className="text-white font-medium">
+                        {formData.tdee} cal
+                      </span>
+                    </div>
+                    <div className="flex justify-between border-t border-gray-600 pt-2">
+                      <span className="text-gray-400">Daily Target</span>
+                      <span className="text-orange-500 font-bold text-lg">
+                        {formData.targetCalories} cal
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex justify-between">
+              <button
+                onClick={() => setStep(1)}
+                className="px-6 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Back
+              </button>
+              <button
+                onClick={() => setStep(3)}
+                className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center gap-2"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Macros */}
+        {step === 3 && (
+          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <Activity className="h-6 w-6 text-orange-500" />
+              Macro Breakdown
+            </h2>
+
+            <div className="space-y-6">
+              <div className="bg-gray-700 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-400">Daily Calories</span>
+                  <span className="text-xl font-bold text-orange-500">
+                    {formData.targetCalories}
+                  </span>
+                </div>
+              </div>
+
+              {/* Protein */}
+              <div>
+                <div className="flex justify-between mb-2">
+                  <label className="text-sm font-medium text-white">
+                    Protein
+                  </label>
+                  <span className="text-white">
+                    {formData.proteinGrams}g ({formData.proteinPercent}%)
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="15"
+                  max="40"
+                  value={formData.proteinPercent}
+                  onChange={(e) =>
+                    handleMacroPercentChange(
+                      "protein",
+                      parseInt(e.target.value),
+                    )
+                  }
+                  className="w-full"
+                />
+                <div className="mt-1 text-xs text-gray-500">
+                  {formData.proteinGrams * 4} calories from protein
+                </div>
+              </div>
+
+              {/* Carbs */}
+              <div>
+                <div className="flex justify-between mb-2">
+                  <label className="text-sm font-medium text-white">
+                    Carbohydrates
+                  </label>
+                  <span className="text-white">
+                    {formData.carbsGrams}g ({formData.carbsPercent}%)
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="20"
+                  max="65"
+                  value={formData.carbsPercent}
+                  onChange={(e) =>
+                    handleMacroPercentChange("carbs", parseInt(e.target.value))
+                  }
+                  className="w-full"
+                />
+                <div className="mt-1 text-xs text-gray-500">
+                  {formData.carbsGrams * 4} calories from carbs
+                </div>
+              </div>
+
+              {/* Fat */}
+              <div>
+                <div className="flex justify-between mb-2">
+                  <label className="text-sm font-medium text-white">Fat</label>
+                  <span className="text-white">
+                    {formData.fatGrams}g ({formData.fatPercent}%)
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="15"
+                  max="40"
+                  value={formData.fatPercent}
+                  onChange={(e) =>
+                    handleMacroPercentChange("fat", parseInt(e.target.value))
+                  }
+                  className="w-full"
+                />
+                <div className="mt-1 text-xs text-gray-500">
+                  {formData.fatGrams * 9} calories from fat
+                </div>
+              </div>
+
+              <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-3">
+                <div className="flex items-start gap-2">
+                  <Info className="h-4 w-4 text-blue-400 mt-0.5" />
+                  <p className="text-sm text-blue-300">
+                    These macros are fully customizable. Your coach can also
+                    adjust them based on your progress and needs.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-between">
+              <button
+                onClick={() => setStep(2)}
+                className="px-6 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Back
+              </button>
+              <button
+                onClick={() => setStep(4)}
+                className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center gap-2"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Meal Preferences */}
+        {step === 4 && (
+          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <Utensils className="h-6 w-6 text-orange-500" />
+              Meal Preferences
+            </h2>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Meals per Day
+                </label>
+                <select
+                  value={formData.mealsPerDay}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      mealsPerDay: parseInt(e.target.value),
+                    })
+                  }
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                >
+                  {[1, 2, 3, 4, 5, 6].map((n) => (
+                    <option key={n} value={n}>
+                      {n} {n === 1 ? "meal" : "meals"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Snacks per Day
+                </label>
+                <select
+                  value={formData.snacksPerDay}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      snacksPerDay: parseInt(e.target.value),
+                    })
+                  }
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                >
+                  {[0, 1, 2, 3, 4].map((n) => (
+                    <option key={n} value={n}>
+                      {n} {n === 1 ? "snack" : "snacks"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Dietary Type (Optional)
+                </label>
+                <select
+                  value={formData.dietaryType}
+                  onChange={(e) =>
+                    setFormData({ ...formData, dietaryType: e.target.value })
+                  }
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                >
+                  <option value="">None</option>
+                  <option value="vegetarian">Vegetarian</option>
+                  <option value="vegan">Vegan</option>
+                  <option value="pescatarian">Pescatarian</option>
+                  <option value="keto">Keto</option>
+                  <option value="paleo">Paleo</option>
+                  <option value="mediterranean">Mediterranean</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Cooking Time Preference
+                </label>
+                <select
+                  value={formData.cookingTime}
+                  onChange={(e) =>
+                    setFormData({ ...formData, cookingTime: e.target.value })
+                  }
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                >
+                  <option value="quick">Quick (Under 30 mins)</option>
+                  <option value="moderate">Moderate (30-60 mins)</option>
+                  <option value="extensive">Extensive (Over 60 mins)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Cooking Skill Level
+                </label>
+                <select
+                  value={formData.cookingSkill}
+                  onChange={(e) =>
+                    setFormData({ ...formData, cookingSkill: e.target.value })
+                  }
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                >
+                  <option value="beginner">Beginner</option>
+                  <option value="intermediate">Intermediate</option>
+                  <option value="advanced">Advanced</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-between">
+              <button
+                onClick={() => setStep(3)}
+                className="px-6 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Back
+              </button>
+              <button
+                onClick={() => setStep(5)}
+                className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center gap-2"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 5: Food Preferences & Allergies */}
+        {step === 5 && (
+          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <AlertCircle className="h-6 w-6 text-orange-500" />
+              Allergies & Preferences
+            </h2>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Allergies (comma separated)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., peanuts, shellfish, dairy"
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      allergies: e.target.value
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter((s) => s),
+                    })
+                  }
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Food Intolerances (comma separated)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., lactose, gluten"
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      intolerances: e.target.value
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter((s) => s),
+                    })
+                  }
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Foods You Love (comma separated)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., chicken, rice, broccoli"
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      likedFoods: e.target.value
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter((s) => s),
+                    })
+                  }
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Foods to Avoid (comma separated)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., mushrooms, tomatoes"
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      dislikedFoods: e.target.value
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter((s) => s),
+                    })
+                  }
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                />
+              </div>
+
+              <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-3">
+                <div className="flex items-start gap-2">
+                  <Info className="h-4 w-4 text-blue-400 mt-0.5" />
+                  <p className="text-sm text-blue-300">
+                    The AI will use this information to create personalized meal
+                    plans that match your preferences and avoid anything you
+                    can't or don't want to eat.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-between">
+              <button
+                onClick={() => setStep(4)}
+                className="px-6 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Back
+              </button>
+              <button
+                onClick={handleSaveProfile}
+                disabled={saving}
+                className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {saving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    Complete Setup
+                    <Check className="h-4 w-4" />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
