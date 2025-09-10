@@ -30,7 +30,8 @@ const publicRoutes = [
   '/api/setup-otp-table',  // Setup OTP table (temporary public access)
   '/api/debug-clients',    // Debug endpoint to check client emails
   '/api/test-client-lookup',    // Test endpoint for debugging email lookup
-  '/api/check-database'    // Check what's actually in the database
+  '/api/check-database',    // Check what's actually in the database
+  '/api/test-nutrition-access'    // Test nutrition database access
 ]
 
 // Client-only routes
