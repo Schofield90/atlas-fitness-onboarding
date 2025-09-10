@@ -21,13 +21,10 @@ export async function GET() {
       .select("id, organization_id, role")
       .limit(5);
 
-    // Test 3: Check RLS status
-    const { data: rlsStatus, error: rlsError } = await supabase
-      .rpc("check_rls_status", {
-        table_name: "nutrition_profiles",
-      })
-      .single()
-      .catch(() => ({ data: null, error: "RPC not available" }));
+    // Test 3: Try to get count of profiles
+    const { count, error: countError } = await supabase
+      .from("nutrition_profiles")
+      .select("*", { count: "exact", head: true });
 
     return NextResponse.json({
       success: true,
@@ -42,7 +39,7 @@ export async function GET() {
           error: staffError?.message || null,
           rowCount: staff?.length || 0,
         },
-        rls_status: rlsStatus || "Unable to check",
+        total_profiles: count || 0,
       },
       timestamp: new Date().toISOString(),
     });
