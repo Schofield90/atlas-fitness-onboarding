@@ -13,6 +13,7 @@ export default function ClientMessagesPage() {
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
 
   useEffect(() => {
     checkAuth();
@@ -20,8 +21,7 @@ export default function ClientMessagesPage() {
 
   useEffect(() => {
     if (client) {
-      loadMessages();
-      subscribeToMessages();
+      initConversation();
     }
   }, [client]);
 
@@ -64,49 +64,50 @@ export default function ClientMessagesPage() {
     }
   };
 
-  const loadMessages = async () => {
+  const initConversation = async () => {
+    try {
+      // Create or get the conversation for this client
+      const resp = await fetch('/api/client/conversations', { method: 'POST' });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || 'Failed to init conversation');
+
+      setConversationId(data.conversation_id);
+      await loadMessages(data.conversation_id);
+      subscribeToMessages(data.conversation_id);
+    } catch (error) {
+      console.error('Error initializing conversation:', error);
+    }
+  };
+
+  const loadMessages = async (convId: string) => {
     try {
       const { data, error } = await supabase
-        .from("nutrition_coach_messages")
-        .select("*, coach:coach_id(email)")
-        .eq("client_id", client.id)
-        .order("created_at", { ascending: true });
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', convId)
+        .order('created_at', { ascending: true });
 
       if (error) {
-        console.error("Error loading messages:", error);
+        console.error('Error loading messages:', error);
         return;
       }
 
       setMessages(data || []);
-
-      // Mark messages as read
-      if (data && data.length > 0) {
-        const unreadIds = data
-          .filter((m) => !m.is_read && m.message_type === "coach_to_client")
-          .map((m) => m.id);
-
-        if (unreadIds.length > 0) {
-          await supabase
-            .from("nutrition_coach_messages")
-            .update({ is_read: true, read_at: new Date().toISOString() })
-            .in("id", unreadIds);
-        }
-      }
     } catch (error) {
-      console.error("Error loading messages:", error);
+      console.error('Error loading messages:', error);
     }
   };
 
-  const subscribeToMessages = () => {
+  const subscribeToMessages = (convId: string) => {
     const channel = supabase
-      .channel(`client-messages-${client.id}`)
+      .channel(`client-messages-${convId}`)
       .on(
-        "postgres_changes",
+        'postgres_changes',
         {
-          event: "INSERT",
-          schema: "public",
-          table: "nutrition_coach_messages",
-          filter: `client_id=eq.${client.id}`,
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${convId}`,
         },
         (payload) => {
           setMessages((prev) => [...prev, payload.new]);
@@ -124,25 +125,29 @@ export default function ClientMessagesPage() {
 
     setSending(true);
     try {
+      if (!conversationId) throw new Error('No conversation');
       const { data, error } = await supabase
-        .from("nutrition_coach_messages")
+        .from('messages')
         .insert({
+          conversation_id: conversationId,
           client_id: client.id,
           organization_id: client.organization_id,
-          message_type: "client_to_coach",
-          subject: "Message from client",
-          message: newMessage.trim(),
+          channel: 'in_app',
+          sender_type: 'client',
+          message_type: 'text',
+          content: newMessage.trim(),
+          status: 'sent',
         })
-        .select()
+        .select('*')
         .single();
 
       if (error) throw error;
 
       setMessages((prev) => [...prev, data]);
-      setNewMessage("");
+      setNewMessage('');
     } catch (error) {
-      console.error("Error sending message:", error);
-      alert("Failed to send message. Please try again.");
+      console.error('Error sending message:', error);
+      alert('Failed to send message. Please try again.');
     } finally {
       setSending(false);
     }
@@ -213,7 +218,7 @@ export default function ClientMessagesPage() {
               </div>
             ) : (
               messages.map((message) => {
-                const isFromClient = message.message_type === "client_to_coach";
+                const isFromClient = message.sender_type === 'client';
                 return (
                   <div
                     key={message.id}
@@ -239,7 +244,7 @@ export default function ClientMessagesPage() {
                           })}
                         </span>
                       </div>
-                      <p className="text-sm">{message.message}</p>
+                      <p className="text-sm">{message.content}</p>
                     </div>
                   </div>
                 );
