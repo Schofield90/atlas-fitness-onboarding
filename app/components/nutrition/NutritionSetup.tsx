@@ -323,9 +323,14 @@ export default function NutritionSetup({
         activity_level:
           activityLevelMap[formData.activityLevel] || "MODERATELY_ACTIVE",
 
-        // Physical measurements - support multiple column names for compatibility
-        height_cm: heightCm,
-        weight_kg: weightKg,
+        // Physical measurements - use the actual column names from database
+        height: heightCm, // The column is named 'height' not 'height_cm'
+        height_cm: heightCm, // Keep both for compatibility
+        current_weight: weightKg, // The column is named 'current_weight' not 'weight_kg'
+        weight_kg: weightKg, // Keep both for compatibility
+        goal_weight: formData.targetWeight
+          ? parseFloat(formData.targetWeight)
+          : weightKg,
         target_weight_kg: formData.targetWeight
           ? parseFloat(formData.targetWeight)
           : weightKg,
