@@ -314,6 +314,12 @@ export default function NutritionSetup({
             : formData.gender === "female"
               ? "FEMALE"
               : "OTHER",
+        sex:
+          formData.gender === "male"
+            ? "MALE"
+            : formData.gender === "female"
+              ? "FEMALE"
+              : "OTHER",
         activity_level:
           activityLevelMap[formData.activityLevel] || "MODERATELY_ACTIVE",
 
