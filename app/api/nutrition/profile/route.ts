@@ -148,6 +148,15 @@ export async function GET(request: NextRequest) {
       "org:",
       userWithOrg.organizationId,
     );
+
+    // First, let's check what profiles exist for this client
+    const { data: allProfiles, error: allError } = await supabaseAdmin
+      .from("nutrition_profiles")
+      .select("id, client_id, organization_id, created_at")
+      .eq("client_id", client.id);
+
+    console.log("All profiles for client:", allProfiles);
+
     const { data: profile, error } = await supabaseAdmin
       .from("nutrition_profiles")
       .select("*")

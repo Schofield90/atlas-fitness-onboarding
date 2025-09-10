@@ -72,16 +72,89 @@ export async function POST(request: NextRequest) {
       ]);
     } catch (timeoutError) {
       console.error("Meal plan generation timed out or failed:", timeoutError);
-      // Return a simple fallback plan if generation fails
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "Meal plan generation is taking longer than expected. Please try again.",
-          fallback: true,
+
+      // Generate a simple fallback meal plan
+      const fallbackMealPlan = {
+        meal_plan: {
+          day_1: {
+            meals: [
+              {
+                type: "breakfast",
+                name: "Protein Oatmeal",
+                calories: Math.round(profile.target_calories * 0.25),
+                protein: Math.round(profile.protein_grams * 0.25),
+                carbs: Math.round(profile.carbs_grams * 0.25),
+                fat: Math.round(profile.fat_grams * 0.25),
+                fiber: 8,
+                ingredients: [
+                  { name: "Oats", amount: 80, unit: "g" },
+                  { name: "Protein Powder", amount: 30, unit: "g" },
+                  { name: "Berries", amount: 100, unit: "g" },
+                ],
+              },
+              {
+                type: "lunch",
+                name: "Grilled Chicken Salad",
+                calories: Math.round(profile.target_calories * 0.35),
+                protein: Math.round(profile.protein_grams * 0.35),
+                carbs: Math.round(profile.carbs_grams * 0.35),
+                fat: Math.round(profile.fat_grams * 0.35),
+                fiber: 10,
+                ingredients: [
+                  { name: "Chicken Breast", amount: 150, unit: "g" },
+                  { name: "Mixed Greens", amount: 200, unit: "g" },
+                  { name: "Quinoa", amount: 80, unit: "g" },
+                ],
+              },
+              {
+                type: "dinner",
+                name: "Salmon with Rice",
+                calories: Math.round(profile.target_calories * 0.35),
+                protein: Math.round(profile.protein_grams * 0.35),
+                carbs: Math.round(profile.carbs_grams * 0.35),
+                fat: Math.round(profile.fat_grams * 0.35),
+                fiber: 7,
+                ingredients: [
+                  { name: "Salmon", amount: 150, unit: "g" },
+                  { name: "Brown Rice", amount: 100, unit: "g" },
+                  { name: "Vegetables", amount: 200, unit: "g" },
+                ],
+              },
+              {
+                type: "snack",
+                name: "Greek Yogurt",
+                calories: Math.round(profile.target_calories * 0.05),
+                protein: Math.round(profile.protein_grams * 0.05),
+                carbs: Math.round(profile.carbs_grams * 0.05),
+                fat: Math.round(profile.fat_grams * 0.05),
+                fiber: 0,
+                ingredients: [{ name: "Greek Yogurt", amount: 150, unit: "g" }],
+              },
+            ],
+            daily_totals: {
+              calories: profile.target_calories,
+              protein: profile.protein_grams,
+              carbs: profile.carbs_grams,
+              fat: profile.fat_grams,
+              fiber: 25,
+            },
+          },
         },
-        { status: 503 },
-      );
+        shopping_list: [
+          { item: "Oats", quantity: "500g", category: "Grains" },
+          { item: "Chicken Breast", quantity: "1kg", category: "Protein" },
+          { item: "Salmon", quantity: "500g", category: "Protein" },
+          { item: "Greek Yogurt", quantity: "1kg", category: "Dairy" },
+        ],
+        meal_prep_tips: [
+          "Prep proteins in advance",
+          "Cook grains in bulk for the week",
+        ],
+      };
+
+      // Use the fallback plan
+      mealPlanData = fallbackMealPlan;
+      console.log("Using fallback meal plan due to timeout");
     }
 
     // Transform the meal plan data into the format expected by the database

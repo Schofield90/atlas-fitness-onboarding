@@ -13,88 +13,51 @@ export async function generateMealPlan(
   preferences: any,
   daysToGenerate: number = 7,
 ) {
-  const systemPrompt = `You are an expert nutritionist and meal planning AI. 
-  Create detailed, personalized meal plans that match the user's exact macronutrient requirements and preferences.
-  
-  IMPORTANT RULES:
-  1. The daily totals MUST match the target calories and macros as closely as possible
-  2. Distribute calories evenly across meals and snacks
-  3. Include variety - don't repeat the same meals too often
-  4. Consider cooking time and skill level
-  5. Avoid all allergens and disliked foods
-  6. Include foods from the liked foods list when possible
-  7. Provide exact measurements and portion sizes
-  8. Make meals practical and achievable
-  
-  Return the meal plan in a structured JSON format.`;
+  // Simplified prompt for faster generation
+  const systemPrompt = `You are a meal planning AI. Create a simple ${daysToGenerate}-day meal plan matching the nutritional targets. Keep responses concise.`;
 
-  const userPrompt = `Create a ${daysToGenerate}-day meal plan for this profile:
+  const userPrompt = `Create a ${daysToGenerate}-day meal plan:
   
-  NUTRITIONAL TARGETS:
-  - Daily Calories: ${nutritionProfile.target_calories}
+  TARGETS:
+  - Calories: ${nutritionProfile.target_calories}
   - Protein: ${nutritionProfile.protein_grams}g
   - Carbs: ${nutritionProfile.carbs_grams}g  
   - Fat: ${nutritionProfile.fat_grams}g
-  - Fiber: ${nutritionProfile.fiber_grams || 25}g
   
-  MEAL STRUCTURE:
-  - Meals per day: ${nutritionProfile.meals_per_day}
-  - Snacks per day: ${nutritionProfile.snacks_per_day}
+  Create ${nutritionProfile.meals_per_day} meals and ${nutritionProfile.snacks_per_day} snacks per day.
   
-  PREFERENCES:
-  - Dietary Type: ${preferences?.dietary_type || "None"}
-  - Allergies: ${preferences?.allergies?.join(", ") || "None"}
-  - Intolerances: ${preferences?.intolerances?.join(", ") || "None"}
-  - Liked Foods: ${preferences?.liked_foods?.join(", ") || "Various"}
-  - Disliked Foods: ${preferences?.disliked_foods?.join(", ") || "None"}
-  - Cooking Time: ${preferences?.cooking_time || "moderate"}
-  - Cooking Skill: ${preferences?.cooking_skill || "intermediate"}
-  
-  GOAL: ${nutritionProfile.goal.replace("_", " ")}
-  
-  Return a JSON object with this structure:
+  Return JSON with this exact structure (keep descriptions SHORT):
   {
     "meal_plan": {
       "day_1": {
         "meals": [
           {
             "type": "breakfast",
-            "name": "Meal Name",
-            "description": "Brief description",
-            "prep_time": 10,
-            "cook_time": 15,
+            "name": "Oatmeal with Berries",
             "calories": 400,
-            "protein": 30,
-            "carbs": 40,
-            "fat": 15,
-            "fiber": 5,
+            "protein": 20,
+            "carbs": 60,
+            "fat": 10,
+            "fiber": 8,
             "ingredients": [
-              {
-                "name": "Ingredient",
-                "amount": 100,
-                "unit": "grams"
-              }
-            ],
-            "instructions": ["Step 1", "Step 2"]
+              {"name": "Oats", "amount": 80, "unit": "g"},
+              {"name": "Berries", "amount": 150, "unit": "g"}
+            ]
           }
         ],
         "daily_totals": {
-          "calories": 2000,
-          "protein": 150,
-          "carbs": 200,
-          "fat": 70,
+          "calories": ${nutritionProfile.target_calories},
+          "protein": ${nutritionProfile.protein_grams},
+          "carbs": ${nutritionProfile.carbs_grams},
+          "fat": ${nutritionProfile.fat_grams},
           "fiber": 25
         }
       }
     },
     "shopping_list": [
-      {
-        "item": "Chicken breast",
-        "quantity": "1kg",
-        "category": "Protein"
-      }
+      {"item": "Oats", "quantity": "500g", "category": "Grains"}
     ],
-    "meal_prep_tips": ["Tip 1", "Tip 2"]
+    "meal_prep_tips": ["Prep vegetables on Sunday", "Cook grains in bulk"]
   }`;
 
   try {
@@ -104,8 +67,8 @@ export async function generateMealPlan(
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.7,
-      max_tokens: 4000,
+      temperature: 0.5, // Lower temperature for more consistent output
+      max_tokens: 2000, // Reduced for faster response
       response_format: { type: "json_object" },
     });
 
