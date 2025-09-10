@@ -53,7 +53,7 @@ export default function MealPlanView({
           nutritionProfile,
           profileId: nutritionProfile.id, // Support both formats
           preferences: preferences.data || {},
-          daysToGenerate: 1, // Start with just 1 day to ensure it works
+          daysToGenerate: 7, // Full week with Pro plan's 60-second timeout
         }),
       });
 
