@@ -36,13 +36,11 @@ export default function CreateOrganizationPage() {
         return;
       }
 
-      // Ensure user exists in users table
+      // Ensure user exists in users table - removed full_name as it doesn't exist
       const { error: userInsertError } = await supabase.from("users").upsert(
         {
           id: user.id,
           email: user.email || "",
-          full_name:
-            user.user_metadata?.full_name || user.email?.split("@")[0] || "",
           metadata: user.user_metadata || {},
         },
         {
@@ -66,6 +64,7 @@ export default function CreateOrganizationPage() {
         .insert({
           name: formData.name,
           slug: slug,
+          email: user.email || "", // email is required
           plan: "starter", // Default plan
           type: formData.type, // type column exists
           phone: formData.phone,
