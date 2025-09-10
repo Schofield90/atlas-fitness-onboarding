@@ -45,6 +45,7 @@ import { formatBritishDate, formatBritishDateTime } from '@/lib/utils/british-fo
 import { BodyCompositionSection } from '@/components/clients/BodyCompositionSection';
 import { CustomerBookings } from '@/components/booking/CustomerBookings';
 import { MemberBookingForm } from '@/components/booking/MemberBookingForm';
+import ClientMessaging from '@/components/messaging/ClientMessaging';
 
 interface Member {
   id: string;
@@ -338,12 +339,13 @@ export default function MemberDetailPage({ params }: { params: { id: string } })
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="bookings">Bookings</TabsTrigger>
           <TabsTrigger value="membership">Membership</TabsTrigger>
           <TabsTrigger value="portal">Portal Access</TabsTrigger>
           <TabsTrigger value="notes">Notes</TabsTrigger>
+          <TabsTrigger value="messages">Messages</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -654,6 +656,17 @@ export default function MemberDetailPage({ params }: { params: { id: string } })
                 <p>{member.emergency_contact}</p>
               </CardContent>
             </Card>
+          )}
+        </TabsContent>
+
+        {/* Messages Tab */}
+        <TabsContent value="messages" className="space-y-6">
+          {member && (
+            <ClientMessaging 
+              clientId={member.id}
+              clientName={member.name}
+              clientEmail={member.email}
+            />
           )}
         </TabsContent>
       </Tabs>
