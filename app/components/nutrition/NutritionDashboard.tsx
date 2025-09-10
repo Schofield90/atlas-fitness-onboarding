@@ -40,14 +40,33 @@ export default function NutritionDashboard({
 
   const loadNutritionData = async () => {
     try {
-      // Try to load existing nutrition profile
-      const { data: profile, error: profileError } = await supabase
-        .from("nutrition_profiles")
-        .select("*")
-        .or(
-          `client_id.eq.${client.id},lead_id.eq.${client.lead_id || client.id}`,
-        )
-        .single();
+      // Try to load existing nutrition profile - try by client_id first
+      let profile = null;
+      let profileError = null;
+
+      // First try with client_id
+      if (client.id) {
+        const result = await supabase
+          .from("nutrition_profiles")
+          .select("*")
+          .eq("client_id", client.id)
+          .single();
+
+        profile = result.data;
+        profileError = result.error;
+      }
+
+      // If not found and we have a lead_id, try with that
+      if (!profile && client.lead_id) {
+        const result = await supabase
+          .from("nutrition_profiles")
+          .select("*")
+          .eq("lead_id", client.lead_id)
+          .single();
+
+        profile = result.data;
+        profileError = result.error;
+      }
 
       if (profile && !profileError) {
         setNutritionProfile(profile);
