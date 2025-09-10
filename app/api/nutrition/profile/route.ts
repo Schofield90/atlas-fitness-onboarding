@@ -300,24 +300,64 @@ export async function POST(request: NextRequest) {
     let profile;
 
     if (existingProfile) {
-      // Update existing profile
+      // Update existing profile - include ALL fields from the request
       const { data: updatedProfile, error: updateError } = await supabaseAdmin
         .from("nutrition_profiles")
         .update({
+          // Basic demographics
           age: body.age,
-          sex: body.sex,
+          sex: body.sex || body.gender,
+          gender: body.gender || body.sex,
+
+          // Physical measurements
           height: body.height,
+          height_cm: body.height_cm || body.height,
           current_weight: body.current_weight,
+          weight_kg: body.weight_kg || body.current_weight,
           goal_weight: body.goal_weight,
+          target_weight_kg: body.target_weight_kg || body.goal_weight,
+
+          // Goals and activity
+          goal: body.goal,
           activity_level: body.activity_level,
+          weekly_weight_change_kg: body.weekly_weight_change_kg,
+
+          // Calculated values - IMPORTANT: Save these!
+          bmr: body.bmr,
+          tdee: body.tdee,
+          target_calories: body.target_calories,
+          daily_calories: body.target_calories, // Store in both columns for compatibility
+
+          // Macros - IMPORTANT: Save these!
+          protein_grams: body.protein_grams,
+          target_protein: body.protein_grams, // Store in both columns for compatibility
+          carbs_grams: body.carbs_grams,
+          target_carbs: body.carbs_grams, // Store in both columns for compatibility
+          fat_grams: body.fat_grams,
+          target_fat: body.fat_grams, // Store in both columns for compatibility
+          fiber_grams: body.fiber_grams || 25,
+
+          // Training and preferences
           training_frequency: body.training_frequency,
           training_types: body.training_types || [],
+
+          // Dietary preferences
           dietary_preferences: body.dietary_preferences || [],
           allergies: body.allergies || [],
+          intolerances: body.intolerances || [],
           food_likes: body.food_likes || [],
           food_dislikes: body.food_dislikes || [],
+
+          // Meal planning
+          meals_per_day: body.meals_per_day || body.meal_count || 3,
+          meal_count: body.meals_per_day || body.meal_count || 3, // Store in both columns
+          snacks_per_day: body.snacks_per_day || 2,
+
+          // Cooking preferences
           cooking_time: body.cooking_time || "MODERATE",
+          cooking_skill: body.cooking_skill || "intermediate",
           budget_constraint: body.budget_constraint || "MODERATE",
+
           updated_at: new Date().toISOString(),
         })
         .eq("id", existingProfile.id)
@@ -348,19 +388,59 @@ export async function POST(request: NextRequest) {
         .insert({
           client_id: client.id, // Use client_id instead of user_id
           organization_id: userWithOrg.organizationId,
+
+          // Basic demographics
           age: body.age,
-          sex: body.sex,
+          sex: body.sex || body.gender,
+          gender: body.gender || body.sex,
+
+          // Physical measurements
           height: body.height,
+          height_cm: body.height_cm || body.height,
           current_weight: body.current_weight,
+          weight_kg: body.weight_kg || body.current_weight,
           goal_weight: body.goal_weight,
+          target_weight_kg: body.target_weight_kg || body.goal_weight,
+
+          // Goals and activity
+          goal: body.goal,
           activity_level: body.activity_level,
+          weekly_weight_change_kg: body.weekly_weight_change_kg,
+
+          // Calculated values - IMPORTANT: Save these!
+          bmr: body.bmr,
+          tdee: body.tdee,
+          target_calories: body.target_calories,
+          daily_calories: body.target_calories, // Store in both columns for compatibility
+
+          // Macros - IMPORTANT: Save these!
+          protein_grams: body.protein_grams,
+          target_protein: body.protein_grams, // Store in both columns for compatibility
+          carbs_grams: body.carbs_grams,
+          target_carbs: body.carbs_grams, // Store in both columns for compatibility
+          fat_grams: body.fat_grams,
+          target_fat: body.fat_grams, // Store in both columns for compatibility
+          fiber_grams: body.fiber_grams || 25,
+
+          // Training and preferences
           training_frequency: body.training_frequency,
           training_types: body.training_types || [],
+
+          // Dietary preferences
           dietary_preferences: body.dietary_preferences || [],
           allergies: body.allergies || [],
+          intolerances: body.intolerances || [],
           food_likes: body.food_likes || [],
           food_dislikes: body.food_dislikes || [],
+
+          // Meal planning
+          meals_per_day: body.meals_per_day || body.meal_count || 3,
+          meal_count: body.meals_per_day || body.meal_count || 3, // Store in both columns
+          snacks_per_day: body.snacks_per_day || 2,
+
+          // Cooking preferences
           cooking_time: body.cooking_time || "MODERATE",
+          cooking_skill: body.cooking_skill || "intermediate",
           budget_constraint: body.budget_constraint || "MODERATE",
         })
         .select()

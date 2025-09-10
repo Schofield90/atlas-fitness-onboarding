@@ -92,15 +92,51 @@ export default function NutritionSetup({
   onComplete,
   existingProfile,
 }: NutritionSetupProps) {
-  const [step, setStep] = useState(1);
+  // If we have an existing profile with calculated values, skip to preferences
+  const initialStep = existingProfile?.target_calories ? 3 : 1;
+  const [step, setStep] = useState(initialStep);
   const [saving, setSaving] = useState(false);
   const supabase = createClient();
 
   // Form data
+  // Helper function to convert activity level from database format to form format
+  const convertActivityLevel = (dbLevel: string): string => {
+    const mapping: Record<string, string> = {
+      SEDENTARY: "sedentary",
+      LIGHTLY_ACTIVE: "lightly_active",
+      MODERATELY_ACTIVE: "moderately_active",
+      VERY_ACTIVE: "very_active",
+      EXTRA_ACTIVE: "extra_active",
+      EXTREMELY_ACTIVE: "extra_active",
+    };
+    return mapping[dbLevel] || dbLevel?.toLowerCase() || "moderately_active";
+  };
+
+  // Helper function to convert goal from database format to form format
+  const convertGoal = (dbGoal: string): string => {
+    const mapping: Record<string, string> = {
+      LOSE_WEIGHT: "lose_weight",
+      MAINTAIN: "maintain",
+      GAIN_MUSCLE: "gain_muscle",
+      BUILD_MUSCLE: "gain_muscle",
+    };
+    return mapping[dbGoal] || dbGoal?.toLowerCase() || "maintain";
+  };
+
+  // Helper function to convert cooking time from database format to form format
+  const convertCookingTime = (dbTime: string): string => {
+    const mapping: Record<string, string> = {
+      MINIMAL: "quick",
+      MODERATE: "moderate",
+      EXTENSIVE: "extensive",
+    };
+    return mapping[dbTime] || dbTime?.toLowerCase() || "moderate";
+  };
+
   const [formData, setFormData] = useState({
-    // Basic stats
-    height: existingProfile?.height_cm || "",
-    weight: existingProfile?.weight_kg || "",
+    // Basic stats - handle all possible column names
+    height: existingProfile?.height || existingProfile?.height_cm || "",
+    weight: existingProfile?.current_weight || existingProfile?.weight_kg || "",
     heightFt: "",
     heightIn: "",
     weightLbs: "",
@@ -109,40 +145,79 @@ export default function NutritionSetup({
     heightUnit: "cm" as "cm" | "ft",
     weightUnit: "kg" as "kg" | "lbs" | "stone",
     age: existingProfile?.age || "",
-    gender: existingProfile?.gender || "male",
-    activityLevel: existingProfile?.activity_level || "moderately_active",
+    gender:
+      existingProfile?.sex?.toLowerCase() ||
+      existingProfile?.gender?.toLowerCase() ||
+      "male",
+    activityLevel: convertActivityLevel(existingProfile?.activity_level),
 
-    // Goals
-    goal: existingProfile?.goal || "maintain",
-    targetWeight: existingProfile?.target_weight_kg || "",
+    // Goals - handle multiple column names and formats
+    goal: convertGoal(existingProfile?.goal),
+    targetWeight:
+      existingProfile?.goal_weight || existingProfile?.target_weight_kg || "",
     weeklyChange: existingProfile?.weekly_weight_change_kg || 0.5,
 
-    // Calculated values
-    bmr: 0,
-    tdee: 0,
-    targetCalories: 0,
+    // Calculated values - load from existing profile if available
+    bmr: existingProfile?.bmr || 0,
+    tdee: existingProfile?.tdee || 0,
+    targetCalories:
+      existingProfile?.target_calories || existingProfile?.daily_calories || 0,
 
-    // Macros (will be calculated)
-    proteinGrams: 0,
-    carbsGrams: 0,
-    fatGrams: 0,
+    // Macros - load from existing profile if available
+    proteinGrams:
+      existingProfile?.protein_grams || existingProfile?.target_protein || 0,
+    carbsGrams:
+      existingProfile?.carbs_grams || existingProfile?.target_carbs || 0,
+    fatGrams: existingProfile?.fat_grams || existingProfile?.target_fat || 0,
     proteinPercent: 30,
     carbsPercent: 40,
     fatPercent: 30,
 
     // Meal preferences
-    mealsPerDay: existingProfile?.meals_per_day || 3,
+    mealsPerDay:
+      existingProfile?.meals_per_day || existingProfile?.meal_count || 3,
     snacksPerDay: existingProfile?.snacks_per_day || 2,
 
-    // Food preferences
-    dietaryType: "",
-    allergies: [] as string[],
-    intolerances: [] as string[],
-    likedFoods: [] as string[],
-    dislikedFoods: [] as string[],
-    cookingTime: "moderate",
-    cookingSkill: "intermediate",
+    // Food preferences - load from existing profile
+    dietaryType: existingProfile?.dietary_preferences?.[0] || "",
+    allergies: existingProfile?.allergies || [],
+    intolerances: existingProfile?.intolerances || [],
+    likedFoods: existingProfile?.food_likes || [],
+    dislikedFoods: existingProfile?.food_dislikes || [],
+    cookingTime: convertCookingTime(existingProfile?.cooking_time),
+    cookingSkill: existingProfile?.cooking_skill || "intermediate",
   });
+
+  // Calculate macro percentages from existing values if available
+  useEffect(() => {
+    if (existingProfile && existingProfile.target_calories > 0) {
+      const totalCalories =
+        existingProfile.target_calories || existingProfile.daily_calories;
+      const proteinGrams =
+        existingProfile.protein_grams || existingProfile.target_protein;
+      const carbsGrams =
+        existingProfile.carbs_grams || existingProfile.target_carbs;
+      const fatGrams = existingProfile.fat_grams || existingProfile.target_fat;
+
+      if (proteinGrams && carbsGrams && fatGrams && totalCalories) {
+        // Calculate percentages from existing grams
+        const proteinPercent = Math.round(
+          ((proteinGrams * 4) / totalCalories) * 100,
+        );
+        const carbsPercent = Math.round(
+          ((carbsGrams * 4) / totalCalories) * 100,
+        );
+        const fatPercent = Math.round(((fatGrams * 9) / totalCalories) * 100);
+
+        setFormData((prev) => ({
+          ...prev,
+          proteinPercent: proteinPercent || 30,
+          carbsPercent: carbsPercent || 40,
+          fatPercent: fatPercent || 30,
+        }));
+      }
+    }
+  }, [existingProfile]);
 
   // Recalculate when units or values change
   useEffect(() => {
@@ -353,6 +428,7 @@ export default function NutritionSetup({
         training_types: [], // Empty array - can be populated later
         dietary_preferences: formData.dietaryType ? [formData.dietaryType] : [],
         allergies: formData.allergies || [],
+        intolerances: formData.intolerances || [],
         food_likes: formData.likedFoods || [],
         food_dislikes: formData.dislikedFoods || [],
         cooking_time: cookingTimeMap[formData.cookingTime] || "MODERATE",
