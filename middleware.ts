@@ -212,40 +212,13 @@ export async function middleware(request: NextRequest) {
       .single()
 
     if (!userOrg) {
-      // User doesn't have an organization
-      // For now, auto-create an association with the first available organization
-      // In production, this should properly onboard users
-      
-      // Get first available organization
-      const { data: firstOrg } = await supabase
-        .from('organizations')
-        .select('id')
-        .limit(1)
-        .single()
-      
-      if (firstOrg) {
-        // Create association
-        await supabase
-          .from('user_organizations')
-          .insert({
-            user_id: session.user.id,
-            organization_id: firstOrg.id,
-            role: 'member',
-            is_active: true
-          })
-        
-        // Continue to dashboard
-        if (pathname === '/onboarding') {
-          return NextResponse.redirect(new URL('/dashboard', request.url))
-        }
-      } else {
-        // No organizations exist - this is a critical error
-        console.error('No organizations exist in the system')
-        // Allow access to dashboard anyway
-        if (pathname === '/onboarding') {
-          return NextResponse.redirect(new URL('/dashboard', request.url))
-        }
+      // User doesn't belong to any organization; require onboarding and do NOT auto-associate
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json({ error: 'Organization required' }, { status: 403 })
       }
+      const redirectUrl = new URL('/onboarding/create-organization', request.url)
+      redirectUrl.searchParams.set('redirect', pathname)
+      return NextResponse.redirect(redirectUrl)
     }
 
     // Store organization ID in headers for API routes
