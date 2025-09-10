@@ -65,20 +65,12 @@ export default function ClientBookingsPage() {
           programs (
             name,
             description
-          ),
-          organization_locations (
-            name,
-            address
-          ),
-          organization_staff (
-            name
           )
         )
       `,
       )
       .eq("client_id", client.id)
-      .gte("class_sessions.start_time", new Date().toISOString())
-      .order("class_sessions(start_time)", { ascending: true });
+      .order("created_at", { ascending: false });
 
     console.log("Direct bookings:", directBookings, "Error:", directError);
 
@@ -103,20 +95,12 @@ export default function ClientBookingsPage() {
               programs (
                 name,
                 description
-              ),
-              organization_locations (
-                name,
-                address
-              ),
-              organization_staff (
-                name
               )
             )
           `,
           )
           .eq("customer_id", leadData.id)
-          .gte("class_sessions.start_time", new Date().toISOString())
-          .order("class_sessions(start_time)", { ascending: true });
+          .order("created_at", { ascending: false });
 
         setBookings(leadBookings || []);
 
@@ -154,19 +138,11 @@ export default function ClientBookingsPage() {
                   name,
                   description
                 ),
-                organization_locations (
-                  name,
-                  address
-                ),
-                organization_staff (
-                  name
-                )
               )
             `,
             )
             .eq("customer_id", leadByEmail.id)
-            .gte("class_sessions.start_time", new Date().toISOString())
-            .order("class_sessions(start_time)", { ascending: true });
+            .order("created_at", { ascending: false });
 
           console.log("Email-based bookings:", emailBookings);
           setBookings(emailBookings || []);
@@ -258,10 +234,24 @@ export default function ClientBookingsPage() {
     );
   }
 
-  const upcomingBookings = bookings.filter((b) => b.status === "confirmed");
-  const pastBookings = bookings.filter(
-    (b) => b.status === "attended" || b.status === "no_show",
-  );
+  const upcomingBookings = bookings.filter((b) => {
+    if (!b.class_sessions?.start_time) return false;
+    const classTime = new Date(b.class_sessions.start_time);
+    const now = new Date();
+    return classTime > now && b.status === "confirmed";
+  });
+
+  const pastBookings = bookings.filter((b) => {
+    if (!b.class_sessions?.start_time) return false;
+    const classTime = new Date(b.class_sessions.start_time);
+    const now = new Date();
+    return (
+      classTime <= now ||
+      b.status === "attended" ||
+      b.status === "no_show" ||
+      b.status === "cancelled"
+    );
+  });
 
   return (
     <div className="min-h-screen bg-gray-900">
@@ -359,21 +349,20 @@ export default function ClientBookingsPage() {
                               )}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4" />
-                            <span>
-                              {
-                                booking.class_sessions.organization_locations
-                                  ?.name
-                              }
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Users className="h-4 w-4" />
-                            <span>
-                              {booking.class_sessions.organization_staff?.name}
-                            </span>
-                          </div>
+                          {booking.class_sessions.location && (
+                            <div className="flex items-center gap-2">
+                              <MapPin className="h-4 w-4" />
+                              <span>{booking.class_sessions.location}</span>
+                            </div>
+                          )}
+                          {booking.class_sessions.instructor_name && (
+                            <div className="flex items-center gap-2">
+                              <Users className="h-4 w-4" />
+                              <span>
+                                {booking.class_sessions.instructor_name}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
 
