@@ -225,9 +225,20 @@ export async function POST(request: NextRequest) {
 
     console.log("Created meal plan job:", job.id);
 
-    // Trigger background processing (in production, use Vercel Queues or external worker)
-    // For now, we'll process inline but return immediately
-    processInBackground(job.id, profile, preferences, daysToGenerate, cacheKey);
+    // Trigger processing via separate endpoint to avoid serverless timeout issues
+    // This ensures the processing happens even after this response is sent
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      `https://${request.headers.get("host")}`;
+
+    fetch(`${baseUrl}/api/nutrition/process-job/${job.id}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }).catch((err) => {
+      console.error("Failed to trigger job processing:", err);
+    });
 
     // Return immediately with job ID and skeleton
     return NextResponse.json(
@@ -244,118 +255,5 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error("Error in meal plan generation:", error);
     return createErrorResponse(error);
-  }
-}
-
-// Background processing (in production, this would be a separate worker)
-async function processInBackground(
-  jobId: string,
-  profile: any,
-  preferences: any,
-  days: number,
-  cacheKey: string,
-) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  const { createClient: createServiceClient } = await import(
-    "@supabase/supabase-js"
-  );
-  const supabaseAdmin = createServiceClient(supabaseUrl, supabaseServiceKey);
-
-  try {
-    // Update job status
-    await supabaseAdmin
-      .from("meal_plan_jobs")
-      .update({
-        status: "processing",
-        started_at: new Date().toISOString(),
-      })
-      .eq("id", jobId);
-
-    // Import the meal generation function
-    const { generateMealPlan } = await import("@/app/lib/openai");
-
-    // Generate full meal plan
-    const mealPlanData = await generateMealPlan(profile, preferences, days);
-
-    // Save to meal_plans table
-    const startDate = new Date();
-    const endDate = new Date();
-    endDate.setDate(endDate.getDate() + days);
-
-    const { data: savedPlan, error: saveError } = await supabaseAdmin
-      .from("meal_plans")
-      .insert({
-        profile_id: profile.id,
-        client_id: profile.client_id,
-        organization_id: profile.organization_id,
-        name: `${days}-Day AI Meal Plan`,
-        start_date: startDate.toISOString().split("T")[0],
-        end_date: endDate.toISOString().split("T")[0],
-        status: "active",
-        duration_days: days,
-        meals_per_day: 3,
-        daily_calories: profile.target_calories,
-        daily_protein: profile.protein_grams,
-        daily_carbs: profile.carbs_grams,
-        daily_fat: profile.fat_grams,
-        total_calories: profile.target_calories * days,
-        total_protein: profile.protein_grams * days,
-        total_carbs: profile.carbs_grams * days,
-        total_fat: profile.fat_grams * days,
-        meal_data: mealPlanData.meal_plan,
-        shopping_list: mealPlanData.shopping_list,
-        meal_prep_tips: mealPlanData.meal_prep_tips,
-        ai_model: "gpt-4-turbo-preview",
-      })
-      .select()
-      .single();
-
-    if (saveError) {
-      throw saveError;
-    }
-
-    // Cache the result
-    await supabaseAdmin.from("meal_plan_cache").insert({
-      cache_key: cacheKey,
-      meal_data: mealPlanData.meal_plan,
-      nutrition_totals: {
-        calories: profile.target_calories * days,
-        protein: profile.protein_grams * days,
-        carbs: profile.carbs_grams * days,
-        fat: profile.fat_grams * days,
-      },
-      shopping_list: mealPlanData.shopping_list,
-      calories_target: profile.target_calories,
-      protein_target: profile.protein_grams,
-      dietary_type: preferences?.dietary_type || "balanced",
-      days: days,
-    });
-
-    // Update job as completed
-    await supabaseAdmin
-      .from("meal_plan_jobs")
-      .update({
-        status: "completed",
-        progress: 100,
-        meal_plan_id: savedPlan.id,
-        completed_at: new Date().toISOString(),
-        processing_time_ms: Date.now() - new Date(startDate).getTime(),
-      })
-      .eq("id", jobId);
-
-    console.log("Background processing completed for job:", jobId);
-  } catch (error: any) {
-    console.error("Background processing failed:", error);
-
-    // Update job as failed
-    await supabaseAdmin
-      .from("meal_plan_jobs")
-      .update({
-        status: "failed",
-        error_message: error.message,
-        completed_at: new Date().toISOString(),
-      })
-      .eq("id", jobId);
   }
 }
