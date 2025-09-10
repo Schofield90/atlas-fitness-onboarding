@@ -82,6 +82,7 @@ export default function NutritionDashboard({
   const handleProfileComplete = (profile: any) => {
     setNutritionProfile(profile);
     setShowSetup(false);
+    // Reload the full profile data after save to ensure consistency
     loadNutritionData();
   };
 
