@@ -20,44 +20,55 @@ export async function generateSingleMeal(
 ): Promise<any> {
   const maxRetries = 2;
 
-  // Simplified prompt for faster generation
-  const systemPrompt = `You are a nutritionist. Create a meal matching the exact targets. Return valid JSON only.`;
+  // Create a proper meal with AI
+  const systemPrompt = `You are an expert nutritionist and chef. Create a delicious, realistic meal that matches the macronutrient targets. Be creative and specific. Return only valid JSON.`;
 
-  const userPrompt = `Create a ${mealType} for Day ${dayNumber}:
-  
-  TARGETS:
-  Calories: ${targetCalories}, Protein: ${targetProtein}g, Carbs: ${targetCarbs}g, Fat: ${targetFat}g
-  
-  Return ONLY this JSON (no extra text):
-  {
-    "type": "${mealType}",
-    "name": "Meal Name",
-    "description": "Brief description",
-    "prep_time": 15,
-    "cook_time": 20,
-    "calories": ${targetCalories},
-    "protein": ${targetProtein},
-    "carbs": ${targetCarbs},
-    "fat": ${targetFat},
-    "fiber": 5,
-    "ingredients": [
-      {"name": "Ingredient", "amount": 100, "unit": "g", "calories": 100, "protein": 10, "carbs": 10, "fat": 5}
-    ],
-    "instructions": ["Step 1", "Step 2", "Step 3"],
-    "tips": "Quick tip"
-  }`;
+  const userPrompt = `Create a delicious ${mealType} meal for Day ${dayNumber} that meets these exact targets:
+
+Calories: ${targetCalories}
+Protein: ${targetProtein}g  
+Carbs: ${targetCarbs}g
+Fat: ${targetFat}g
+
+Requirements:
+- Use real, specific ingredients (e.g., "grilled chicken breast" not just "protein")
+- Include realistic amounts in grams or common units
+- Provide actual cooking instructions
+- Make it appetizing and varied
+
+Return this exact JSON structure:
+{
+  "type": "${mealType}",
+  "name": "[Creative meal name like 'Mediterranean Chicken Bowl' or 'Protein Power Pancakes']",
+  "description": "[Appetizing 1-2 sentence description]",
+  "prep_time": [realistic prep time in minutes],
+  "cook_time": [realistic cook time in minutes],
+  "calories": ${targetCalories},
+  "protein": ${targetProtein},
+  "carbs": ${targetCarbs},
+  "fat": ${targetFat},
+  "fiber": [realistic fiber amount],
+  "ingredients": [
+    {"name": "[Specific ingredient]", "amount": [amount], "unit": "[g/ml/tbsp/etc]", "calories": [cal], "protein": [g], "carbs": [g], "fat": [g]}
+  ],
+  "instructions": [
+    "[Step 1 - specific instruction]",
+    "[Step 2 - specific instruction]",
+    "[Step 3 - specific instruction]"
+  ],
+  "tips": "[Helpful cooking or prep tip]"
+}`;
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo-1106", // Use faster model with JSON mode
+      model: "gpt-4-turbo-preview", // Use GPT-4 for quality as user requested
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
       temperature: 0.7,
-      max_tokens: 500, // Reduced for faster response
+      max_tokens: 600, // Enough for a detailed meal
       response_format: { type: "json_object" },
-      timeout: 8000, // 8 second timeout per meal
     });
 
     const content = response.choices[0].message.content || "{}";
@@ -289,9 +300,9 @@ export async function generateMealPlan(
       snack: 0.05 / snacksPerDay, // Split remaining 5% among snacks
     };
 
-    // Generate meals in smaller batches to avoid timeouts
+    // Generate meals one day at a time to ensure completion
     const mealPlan: any = {};
-    const batchSize = 2; // Process 2 days at a time
+    const batchSize = 1; // Process 1 day at a time for reliability
 
     for (
       let batchStart = 1;
