@@ -40,43 +40,26 @@ export default function NutritionDashboard({
 
   const loadNutritionData = async () => {
     try {
-      // Try to load existing nutrition profile - try by client_id first
-      let profile = null;
-      let profileError = null;
+      // Use the API endpoint to fetch profile (bypasses RLS issues)
+      const response = await fetch("/api/nutrition/profile", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
 
-      // First try with client_id
-      if (client.id) {
-        const result = await supabase
-          .from("nutrition_profiles")
-          .select("*")
-          .eq("client_id", client.id)
-          .single();
+      const result = await response.json();
 
-        profile = result.data;
-        profileError = result.error;
-      }
-
-      // If not found and we have a lead_id, try with that
-      if (!profile && client.lead_id) {
-        const result = await supabase
-          .from("nutrition_profiles")
-          .select("*")
-          .eq("lead_id", client.lead_id)
-          .single();
-
-        profile = result.data;
-        profileError = result.error;
-      }
-
-      if (profile && !profileError) {
-        setNutritionProfile(profile);
+      if (result.success && result.data) {
+        setNutritionProfile(result.data);
         setShowSetup(false);
 
-        // Try to load active meal plan
+        // Try to load active meal plan using service role via API if needed
+        // For now, we'll try the direct approach since meal_plans might not have RLS issues
         const { data: mealPlan } = await supabase
           .from("meal_plans")
           .select("*")
-          .eq("nutrition_profile_id", profile.id)
+          .eq("nutrition_profile_id", result.data.id)
           .eq("is_active", true)
           .single();
 
@@ -85,6 +68,7 @@ export default function NutritionDashboard({
         }
       } else {
         // No profile found, show setup
+        console.log("No nutrition profile found, showing setup");
         setShowSetup(true);
       }
     } catch (error) {

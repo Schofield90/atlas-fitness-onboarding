@@ -367,195 +367,29 @@ export default function NutritionSetup({
         updated_at: new Date().toISOString(),
       };
 
-      // Save to database - try with client_id first, fall back to lead_id
-      let { data, error } = await supabase
-        .from("nutrition_profiles")
-        .upsert(profileData)
-        .select()
-        .single();
+      // Save to database using API endpoint (bypasses RLS issues)
+      const response = await fetch("/api/nutrition/profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(profileData),
+      });
 
-      // If client_id column doesn't exist, retry with only lead_id
-      if (
-        error &&
-        error.code === "PGRST204" &&
-        error.message.includes("client_id")
-      ) {
-        console.log("client_id not supported, retrying with lead_id only");
-
-        // Remove client_id and ensure we have lead_id
-        delete profileData.client_id;
-
-        // If we don't have a lead_id, we need to find or create one
-        if (!profileData.lead_id) {
-          console.log(
-            "No lead_id available, searching for or creating lead...",
-          );
-
-          // Try to find existing lead by email
-          let leadId = null;
-          if (client.email) {
-            const { data: leadByEmail } = await supabase
-              .from("leads")
-              .select("id")
-              .eq("email", client.email)
-              .eq("organization_id", client.organization_id || client.org_id)
-              .single();
-
-            if (leadByEmail) {
-              leadId = leadByEmail.id;
-              console.log("Found existing lead by email:", leadId);
-            }
-          }
-
-          // If no lead found, create one
-          if (!leadId) {
-            const { data: newLead, error: leadError } = await supabase
-              .from("leads")
-              .insert({
-                email: client.email || `client_${client.id}@temp.com`,
-                first_name:
-                  client.first_name || client.name?.split(" ")[0] || "Unknown",
-                last_name:
-                  client.last_name ||
-                  client.name?.split(" ").slice(1).join(" ") ||
-                  "",
-                phone: client.phone || "",
-                organization_id: client.organization_id || client.org_id,
-                client_id: client.id,
-                status: "CLIENT",
-                source: "NUTRITION_PROFILE",
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              })
-              .select()
-              .single();
-
-            if (!leadError && newLead) {
-              leadId = newLead.id;
-              console.log("Created new lead:", leadId);
-            } else {
-              console.error("Failed to create lead:", leadError);
-              alert(
-                "Unable to save nutrition profile. Please contact support.",
-              );
-              setSaving(false);
-              return;
-            }
-          }
-
-          profileData.lead_id = leadId;
-        }
-
-        // Retry with lead_id only
-        const retryResult = await supabase
-          .from("nutrition_profiles")
-          .upsert(profileData)
-          .select()
-          .single();
-
-        data = retryResult.data;
-        error = retryResult.error;
-      }
+      const result = await response.json();
+      let data = result.data;
+      let error = result.success ? null : { message: result.error };
 
       if (error) {
         console.error("Error saving nutrition profile:", error);
-        console.error("Error details:", error.code, error.message);
-
-        if (
-          error.code === "23503" &&
-          error.message.includes("foreign key constraint")
-        ) {
-          // Foreign key constraint error - try to create a lead and retry
-          console.log("Foreign key error detected, attempting recovery...");
-
-          try {
-            // Create a lead record if it doesn't exist
-            const { data: newLead, error: leadError } = await supabase
-              .from("leads")
-              .insert({
-                email: client.email || `client_${client.id}@placeholder.com`,
-                first_name:
-                  client.first_name || client.name?.split(" ")[0] || "Unknown",
-                last_name:
-                  client.last_name ||
-                  client.name?.split(" ").slice(1).join(" ") ||
-                  "User",
-                phone: client.phone || "",
-                organization_id: client.organization_id || client.org_id,
-                client_id: client.id,
-                status: "CLIENT",
-                source: "NUTRITION_SETUP",
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              })
-              .select()
-              .single();
-
-            if (!leadError && newLead) {
-              console.log("Created lead for recovery:", newLead.id);
-
-              // Retry with the new lead_id
-              const retryData = {
-                ...profileData,
-                lead_id: newLead.id,
-                client_id: undefined, // Remove client_id to use lead_id instead
-              };
-
-              const { data: retryResult, error: retryError } = await supabase
-                .from("nutrition_profiles")
-                .upsert(retryData)
-                .select()
-                .single();
-
-              if (!retryError && retryResult) {
-                console.log("Profile saved successfully after lead creation");
-                onComplete(retryResult);
-                return;
-              }
-            }
-          } catch (recoveryError) {
-            console.error("Recovery failed:", recoveryError);
-          }
-
-          // If recovery failed, show user-friendly error
-          alert(
-            "Unable to save nutrition profile. We're working on fixing this issue. Please try again later or contact support.",
-          );
-        } else if (error.code === "23502") {
-          alert(
-            "Unable to save nutrition profile: Missing required information. Please check all fields are completed.",
-          );
-        } else if (error.code === "23514") {
-          alert(
-            "Unable to save nutrition profile: Data validation error. Please check your input values.",
-          );
-        } else if (error.code === "42P01") {
-          alert(
-            "Unable to save nutrition profile: Database configuration issue. Please contact support.",
-          );
-        } else {
-          alert(
-            "Failed to save your nutrition profile. Please try again or contact support if the problem persists.",
-          );
-        }
+        alert(
+          "Failed to save your nutrition profile. Please try again or contact support if the problem persists.",
+        );
+        setSaving(false);
         return;
       }
 
       console.log("Nutrition profile saved successfully:", data);
-
-      // Update client record with the lead_id reference if we used lead_id
-      if (useLeadId && useLeadId !== client.lead_id && client.id) {
-        const { error: updateError } = await supabase
-          .from("clients")
-          .update({ lead_id: useLeadId })
-          .eq("id", client.id);
-
-        if (updateError) {
-          console.warn("Failed to update client.lead_id:", updateError);
-        } else {
-          console.log("Updated client record with lead_id:", useLeadId);
-        }
-      }
 
       // Complete the setup
       onComplete(data);
