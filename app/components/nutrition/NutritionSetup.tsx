@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   User,
   Target,
@@ -20,6 +20,27 @@ interface NutritionSetupProps {
   onComplete: (profile: any) => void;
   existingProfile?: any;
 }
+
+// Unit conversion helpers
+const convertHeight = (formData: any): number => {
+  if (formData.heightUnit === "ft") {
+    const feet = parseFloat(formData.heightFt) || 0;
+    const inches = parseFloat(formData.heightIn) || 0;
+    return Math.round(feet * 30.48 + inches * 2.54); // Convert to cm
+  }
+  return parseFloat(formData.height) || 0;
+};
+
+const convertWeight = (formData: any): number => {
+  if (formData.weightUnit === "lbs") {
+    return parseFloat(formData.weightLbs) * 0.453592; // Convert to kg
+  } else if (formData.weightUnit === "stone") {
+    const stone = parseFloat(formData.weightStone) || 0;
+    const lbs = parseFloat(formData.weightStoneLbs) || 0;
+    return stone * 6.35029 + lbs * 0.453592; // Convert to kg
+  }
+  return parseFloat(formData.weight) || 0;
+};
 
 // BMR calculation using Mifflin-St Jeor formula
 const calculateBMR = (
@@ -80,6 +101,13 @@ export default function NutritionSetup({
     // Basic stats
     height: existingProfile?.height_cm || "",
     weight: existingProfile?.weight_kg || "",
+    heightFt: "",
+    heightIn: "",
+    weightLbs: "",
+    weightStone: "",
+    weightStoneLbs: "",
+    heightUnit: "cm" as "cm" | "ft",
+    weightUnit: "kg" as "kg" | "lbs" | "stone",
     age: existingProfile?.age || "",
     gender: existingProfile?.gender || "male",
     activityLevel: existingProfile?.activity_level || "moderately_active",
@@ -116,11 +144,31 @@ export default function NutritionSetup({
     cookingSkill: "intermediate",
   });
 
+  // Recalculate when units or values change
+  useEffect(() => {
+    if (step >= 2) {
+      updateCalculations();
+    }
+  }, [
+    formData.heightUnit,
+    formData.weightUnit,
+    formData.height,
+    formData.weight,
+    formData.heightFt,
+    formData.heightIn,
+    formData.weightLbs,
+    formData.weightStone,
+    formData.weightStoneLbs,
+  ]);
+
   const updateCalculations = () => {
-    if (formData.weight && formData.height && formData.age) {
+    const heightCm = convertHeight(formData);
+    const weightKg = convertWeight(formData);
+
+    if (weightKg > 0 && heightCm > 0 && formData.age) {
       const bmr = calculateBMR(
-        parseFloat(formData.weight),
-        parseFloat(formData.height),
+        weightKg,
+        heightCm,
         parseInt(formData.age),
         formData.gender,
       );
@@ -174,12 +222,16 @@ export default function NutritionSetup({
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
+      // Convert units to metric for database storage
+      const heightCm = convertHeight(formData);
+      const weightKg = convertWeight(formData);
+
       // Save nutrition profile
       const profileData = {
         client_id: client.id,
         organization_id: client.organization_id,
-        height_cm: parseInt(formData.height),
-        weight_kg: parseFloat(formData.weight),
+        height_cm: heightCm,
+        weight_kg: weightKg,
         age: parseInt(formData.age),
         gender: formData.gender,
         activity_level: formData.activityLevel,
@@ -202,9 +254,7 @@ export default function NutritionSetup({
       // Save to database
       const { data, error } = await supabase
         .from("nutrition_profiles")
-        .upsert(profileData, {
-          onConflict: "client_id",
-        })
+        .upsert(profileData)
         .select()
         .single();
 
@@ -233,9 +283,7 @@ export default function NutritionSetup({
 
         const { error: prefError } = await supabase
           .from("nutrition_preferences")
-          .upsert(preferencesData, {
-            onConflict: "profile_id",
-          });
+          .upsert(preferencesData);
 
         if (prefError) {
           console.error("Error saving preferences:", prefError);
@@ -288,36 +336,134 @@ export default function NutritionSetup({
             </h2>
 
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-2">
-                    Height (cm)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.height}
+              {/* Height Input with Unit Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Height
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    value={formData.heightUnit}
                     onChange={(e) =>
-                      setFormData({ ...formData, height: e.target.value })
+                      setFormData({
+                        ...formData,
+                        heightUnit: e.target.value as any,
+                      })
                     }
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                    placeholder="170"
-                  />
+                    className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500"
+                  >
+                    <option value="cm">cm</option>
+                    <option value="ft">ft/in</option>
+                  </select>
+                  {formData.heightUnit === "cm" ? (
+                    <input
+                      type="number"
+                      value={formData.height}
+                      onChange={(e) =>
+                        setFormData({ ...formData, height: e.target.value })
+                      }
+                      className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500"
+                      placeholder="170"
+                    />
+                  ) : (
+                    <div className="flex-1 flex gap-2">
+                      <input
+                        type="number"
+                        value={formData.heightFt}
+                        onChange={(e) =>
+                          setFormData({ ...formData, heightFt: e.target.value })
+                        }
+                        className="w-20 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500"
+                        placeholder="5"
+                      />
+                      <span className="text-gray-400 py-2">ft</span>
+                      <input
+                        type="number"
+                        value={formData.heightIn}
+                        onChange={(e) =>
+                          setFormData({ ...formData, heightIn: e.target.value })
+                        }
+                        className="w-20 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500"
+                        placeholder="10"
+                      />
+                      <span className="text-gray-400 py-2">in</span>
+                    </div>
+                  )}
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-2">
-                    Weight (kg)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={formData.weight}
+              {/* Weight Input with Unit Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Weight
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    value={formData.weightUnit}
                     onChange={(e) =>
-                      setFormData({ ...formData, weight: e.target.value })
+                      setFormData({
+                        ...formData,
+                        weightUnit: e.target.value as any,
+                      })
                     }
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                    placeholder="70"
-                  />
+                    className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500"
+                  >
+                    <option value="kg">kg</option>
+                    <option value="lbs">lbs</option>
+                    <option value="stone">st/lbs</option>
+                  </select>
+                  {formData.weightUnit === "kg" ? (
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={formData.weight}
+                      onChange={(e) =>
+                        setFormData({ ...formData, weight: e.target.value })
+                      }
+                      className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500"
+                      placeholder="70"
+                    />
+                  ) : formData.weightUnit === "lbs" ? (
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={formData.weightLbs}
+                      onChange={(e) =>
+                        setFormData({ ...formData, weightLbs: e.target.value })
+                      }
+                      className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500"
+                      placeholder="154"
+                    />
+                  ) : (
+                    <div className="flex-1 flex gap-2">
+                      <input
+                        type="number"
+                        value={formData.weightStone}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            weightStone: e.target.value,
+                          })
+                        }
+                        className="w-20 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500"
+                        placeholder="11"
+                      />
+                      <span className="text-gray-400 py-2">st</span>
+                      <input
+                        type="number"
+                        value={formData.weightStoneLbs}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            weightStoneLbs: e.target.value,
+                          })
+                        }
+                        className="w-20 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500"
+                        placeholder="0"
+                      />
+                      <span className="text-gray-400 py-2">lbs</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -391,7 +537,16 @@ export default function NutritionSetup({
                   updateCalculations();
                   setStep(2);
                 }}
-                disabled={!formData.height || !formData.weight || !formData.age}
+                disabled={
+                  !formData.age ||
+                  (formData.heightUnit === "cm" && !formData.height) ||
+                  (formData.heightUnit === "ft" &&
+                    (!formData.heightFt || !formData.heightIn)) ||
+                  (formData.weightUnit === "kg" && !formData.weight) ||
+                  (formData.weightUnit === "lbs" && !formData.weightLbs) ||
+                  (formData.weightUnit === "stone" &&
+                    (!formData.weightStone || !formData.weightStoneLbs))
+                }
                 className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 Next
