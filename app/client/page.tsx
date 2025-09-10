@@ -67,9 +67,9 @@ export default function ClientDashboard() {
   };
 
   const loadDashboardData = async () => {
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    console.log("Start of month:", startOfMonth.toISOString());
 
     // Try direct client bookings first (preferred for multi-tenant)
     let { data: directBookings } = await supabase
