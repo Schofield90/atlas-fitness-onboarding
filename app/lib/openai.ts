@@ -7,7 +7,7 @@ const openai = new OpenAI({
 
 export default openai;
 
-// Helper function to generate a single meal
+// Helper function to generate a single meal with better error handling
 export async function generateSingleMeal(
   mealType: string,
   targetCalories: number,
@@ -16,29 +16,24 @@ export async function generateSingleMeal(
   targetFat: number,
   preferences: any,
   dayNumber: number,
-) {
-  const systemPrompt = `You are an expert nutritionist and chef. Create a detailed, delicious meal that matches the exact macronutrient targets provided. Be creative and specific with recipes.`;
+  retryCount: number = 0,
+): Promise<any> {
+  const maxRetries = 2;
 
-  const userPrompt = `Create a ${mealType} meal for Day ${dayNumber}:
+  // Simplified prompt for faster generation
+  const systemPrompt = `You are a nutritionist. Create a meal matching the exact targets. Return valid JSON only.`;
+
+  const userPrompt = `Create a ${mealType} for Day ${dayNumber}:
   
-  EXACT TARGETS:
-  - Calories: ${targetCalories}
-  - Protein: ${targetProtein}g
-  - Carbs: ${targetCarbs}g
-  - Fat: ${targetFat}g
+  TARGETS:
+  Calories: ${targetCalories}, Protein: ${targetProtein}g, Carbs: ${targetCarbs}g, Fat: ${targetFat}g
   
-  PREFERENCES:
-  - Dietary Type: ${preferences?.dietary_type || "Balanced"}
-  - Allergies: ${preferences?.allergies?.join(", ") || "None"}
-  - Disliked Foods: ${preferences?.disliked_foods?.join(", ") || "None"}
-  - Cooking Skill: ${preferences?.cooking_skill || "intermediate"}
-  
-  Return a detailed JSON object with this structure:
+  Return ONLY this JSON (no extra text):
   {
     "type": "${mealType}",
-    "name": "Creative Meal Name",
-    "description": "Appetizing description of the meal",
-    "prep_time": 10,
+    "name": "Meal Name",
+    "description": "Brief description",
+    "prep_time": 15,
     "cook_time": 20,
     "calories": ${targetCalories},
     "protein": ${targetProtein},
@@ -46,96 +41,228 @@ export async function generateSingleMeal(
     "fat": ${targetFat},
     "fiber": 5,
     "ingredients": [
-      {
-        "name": "Specific Ingredient",
-        "amount": 100,
-        "unit": "grams",
-        "calories": 150,
-        "protein": 20,
-        "carbs": 5,
-        "fat": 6
-      }
+      {"name": "Ingredient", "amount": 100, "unit": "g", "calories": 100, "protein": 10, "carbs": 10, "fat": 5}
     ],
-    "instructions": [
-      "Detailed step 1",
-      "Detailed step 2",
-      "Detailed step 3"
-    ],
-    "tips": "Pro tip for making this meal even better"
+    "instructions": ["Step 1", "Step 2", "Step 3"],
+    "tips": "Quick tip"
   }`;
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4-turbo-preview", // Use GPT-4 for quality
+      model: "gpt-3.5-turbo-1106", // Use faster model with JSON mode
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.8, // Higher for creativity
-      max_tokens: 800, // Enough for one detailed meal
+      temperature: 0.7,
+      max_tokens: 500, // Reduced for faster response
       response_format: { type: "json_object" },
+      timeout: 8000, // 8 second timeout per meal
     });
 
     const content = response.choices[0].message.content || "{}";
+
+    // Clean up the response - remove any trailing commas or incomplete JSON
+    const cleanedContent = content
+      .replace(/,\s*}/g, "}") // Remove trailing commas before }
+      .replace(/,\s*]/g, "]") // Remove trailing commas before ]
+      .trim();
+
     try {
-      return JSON.parse(content);
-    } catch (parseError) {
-      console.error(
-        `Failed to parse JSON for ${mealType} day ${dayNumber}:`,
-        content,
-      );
-      // Return a fallback meal structure
+      const parsed = JSON.parse(cleanedContent);
+      // Ensure all required fields exist
       return {
-        type: mealType,
-        name: `${mealType.charAt(0).toUpperCase() + mealType.slice(1)} Meal`,
-        description: "Healthy balanced meal",
-        prep_time: 15,
-        cook_time: 20,
-        calories: targetCalories,
-        protein: targetProtein,
-        carbs: targetCarbs,
-        fat: targetFat,
-        fiber: 5,
-        ingredients: [
-          { name: "Main Protein", amount: 150, unit: "grams" },
-          { name: "Vegetables", amount: 200, unit: "grams" },
-          { name: "Grains", amount: 100, unit: "grams" },
+        type: parsed.type || mealType,
+        name:
+          parsed.name ||
+          `${mealType.charAt(0).toUpperCase() + mealType.slice(1)} Meal`,
+        description: parsed.description || "Nutritious and delicious meal",
+        prep_time: parsed.prep_time || 15,
+        cook_time: parsed.cook_time || 20,
+        calories: parsed.calories || targetCalories,
+        protein: parsed.protein || targetProtein,
+        carbs: parsed.carbs || targetCarbs,
+        fat: parsed.fat || targetFat,
+        fiber: parsed.fiber || 5,
+        ingredients: parsed.ingredients || [
+          {
+            name: "Protein Source",
+            amount: 200,
+            unit: "g",
+            calories: targetCalories * 0.4,
+            protein: targetProtein * 0.8,
+            carbs: 0,
+            fat: targetFat * 0.3,
+          },
+          {
+            name: "Complex Carbs",
+            amount: 150,
+            unit: "g",
+            calories: targetCalories * 0.4,
+            protein: targetProtein * 0.1,
+            carbs: targetCarbs * 0.8,
+            fat: targetFat * 0.2,
+          },
+          {
+            name: "Vegetables",
+            amount: 200,
+            unit: "g",
+            calories: targetCalories * 0.2,
+            protein: targetProtein * 0.1,
+            carbs: targetCarbs * 0.2,
+            fat: targetFat * 0.5,
+          },
         ],
-        instructions: [
+        instructions: parsed.instructions || [
           "Prepare ingredients",
-          "Cook protein",
+          "Cook main components",
           "Combine and serve",
         ],
-        tips: "Season to taste",
+        tips: parsed.tips || "Adjust seasoning to taste",
       };
+    } catch (parseError) {
+      // If parsing fails and we haven't retried yet, try again
+      if (retryCount < maxRetries) {
+        console.log(
+          `Retrying ${mealType} generation for day ${dayNumber} (attempt ${retryCount + 2})`,
+        );
+        return generateSingleMeal(
+          mealType,
+          targetCalories,
+          targetProtein,
+          targetCarbs,
+          targetFat,
+          preferences,
+          dayNumber,
+          retryCount + 1,
+        );
+      }
+
+      // Final fallback - return a simple but valid meal
+      console.error(
+        `JSON parse failed for ${mealType} day ${dayNumber} after ${maxRetries} retries`,
+      );
+      return createFallbackMeal(
+        mealType,
+        targetCalories,
+        targetProtein,
+        targetCarbs,
+        targetFat,
+        dayNumber,
+      );
     }
-  } catch (error) {
-    console.error(`Error generating ${mealType} for day ${dayNumber}:`, error);
-    // Return a basic meal structure as fallback
-    return {
-      type: mealType,
-      name: `${mealType.charAt(0).toUpperCase() + mealType.slice(1)} Meal`,
-      description: "Healthy balanced meal",
-      prep_time: 15,
-      cook_time: 20,
-      calories: targetCalories,
-      protein: targetProtein,
-      carbs: targetCarbs,
-      fat: targetFat,
-      fiber: 5,
-      ingredients: [
-        { name: "Main Protein", amount: 150, unit: "grams" },
-        { name: "Vegetables", amount: 200, unit: "grams" },
-        { name: "Grains", amount: 100, unit: "grams" },
-      ],
-      instructions: [
-        "Prepare ingredients",
-        "Cook protein",
-        "Combine and serve",
-      ],
-      tips: "Season to taste",
-    };
+  } catch (error: any) {
+    // Handle timeout or API errors
+    if (retryCount < maxRetries && error.code !== "insufficient_quota") {
+      console.log(
+        `API error for ${mealType} day ${dayNumber}, retrying (attempt ${retryCount + 2})`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1 second before retry
+      return generateSingleMeal(
+        mealType,
+        targetCalories,
+        targetProtein,
+        targetCarbs,
+        targetFat,
+        preferences,
+        dayNumber,
+        retryCount + 1,
+      );
+    }
+
+    console.error(
+      `Error generating ${mealType} for day ${dayNumber}:`,
+      error.message,
+    );
+    return createFallbackMeal(
+      mealType,
+      targetCalories,
+      targetProtein,
+      targetCarbs,
+      targetFat,
+      dayNumber,
+    );
   }
+}
+
+// Create a fallback meal with realistic nutrition
+function createFallbackMeal(
+  mealType: string,
+  targetCalories: number,
+  targetProtein: number,
+  targetCarbs: number,
+  targetFat: number,
+  dayNumber: number,
+) {
+  const mealTemplates: any = {
+    breakfast: {
+      name: "Protein Oatmeal Bowl",
+      description: "Hearty oatmeal with protein powder and berries",
+      ingredients: [
+        { name: "Oatmeal", amount: 80, unit: "g" },
+        { name: "Protein Powder", amount: 30, unit: "g" },
+        { name: "Berries", amount: 100, unit: "g" },
+        { name: "Almond Butter", amount: 20, unit: "g" },
+      ],
+    },
+    lunch: {
+      name: "Grilled Chicken Salad",
+      description: "Lean chicken with mixed greens and quinoa",
+      ingredients: [
+        { name: "Chicken Breast", amount: 150, unit: "g" },
+        { name: "Quinoa", amount: 80, unit: "g" },
+        { name: "Mixed Greens", amount: 150, unit: "g" },
+        { name: "Olive Oil", amount: 15, unit: "ml" },
+      ],
+    },
+    dinner: {
+      name: "Salmon with Sweet Potato",
+      description: "Baked salmon with roasted sweet potato and vegetables",
+      ingredients: [
+        { name: "Salmon", amount: 150, unit: "g" },
+        { name: "Sweet Potato", amount: 200, unit: "g" },
+        { name: "Broccoli", amount: 150, unit: "g" },
+        { name: "Olive Oil", amount: 10, unit: "ml" },
+      ],
+    },
+    snack: {
+      name: "Greek Yogurt Parfait",
+      description: "High-protein yogurt with nuts and fruit",
+      ingredients: [
+        { name: "Greek Yogurt", amount: 150, unit: "g" },
+        { name: "Almonds", amount: 20, unit: "g" },
+        { name: "Honey", amount: 10, unit: "g" },
+      ],
+    },
+  };
+
+  const template = mealTemplates[mealType] || mealTemplates.lunch;
+
+  return {
+    type: mealType,
+    name: `Day ${dayNumber} ${template.name}`,
+    description: template.description,
+    prep_time: 10,
+    cook_time: 20,
+    calories: targetCalories,
+    protein: targetProtein,
+    carbs: targetCarbs,
+    fat: targetFat,
+    fiber: 5,
+    ingredients: template.ingredients.map((ing: any) => ({
+      ...ing,
+      calories: Math.round(targetCalories / template.ingredients.length),
+      protein: Math.round(targetProtein / template.ingredients.length),
+      carbs: Math.round(targetCarbs / template.ingredients.length),
+      fat: Math.round(targetFat / template.ingredients.length),
+    })),
+    instructions: [
+      "Prepare all ingredients",
+      "Cook according to standard methods",
+      "Season to taste and serve",
+    ],
+    tips: "Meal prep on Sunday for the week",
+  };
 }
 
 // Helper function to generate meal plans using parallel processing
@@ -162,99 +289,131 @@ export async function generateMealPlan(
       snack: 0.05 / snacksPerDay, // Split remaining 5% among snacks
     };
 
-    // Generate all meals in parallel for better performance
-    const mealPromises = [];
+    // Generate meals in smaller batches to avoid timeouts
     const mealPlan: any = {};
+    const batchSize = 2; // Process 2 days at a time
 
-    for (let day = 1; day <= daysToGenerate; day++) {
-      const dayMeals = [];
+    for (
+      let batchStart = 1;
+      batchStart <= daysToGenerate;
+      batchStart += batchSize
+    ) {
+      const batchEnd = Math.min(batchStart + batchSize - 1, daysToGenerate);
+      const batchPromises = [];
 
-      // Generate breakfast
-      dayMeals.push(
-        generateSingleMeal(
-          "breakfast",
-          Math.round(
-            nutritionProfile.target_calories * mealDistribution.breakfast,
-          ),
-          Math.round(
-            nutritionProfile.protein_grams * mealDistribution.breakfast,
-          ),
-          Math.round(nutritionProfile.carbs_grams * mealDistribution.breakfast),
-          Math.round(nutritionProfile.fat_grams * mealDistribution.breakfast),
-          preferences,
-          day,
-        ),
-      );
+      console.log(`Generating meals for days ${batchStart} to ${batchEnd}`);
 
-      // Generate lunch
-      dayMeals.push(
-        generateSingleMeal(
-          "lunch",
-          Math.round(nutritionProfile.target_calories * mealDistribution.lunch),
-          Math.round(nutritionProfile.protein_grams * mealDistribution.lunch),
-          Math.round(nutritionProfile.carbs_grams * mealDistribution.lunch),
-          Math.round(nutritionProfile.fat_grams * mealDistribution.lunch),
-          preferences,
-          day,
-        ),
-      );
+      for (let day = batchStart; day <= batchEnd; day++) {
+        const dayMeals = [];
 
-      // Generate dinner
-      dayMeals.push(
-        generateSingleMeal(
-          "dinner",
-          Math.round(
-            nutritionProfile.target_calories * mealDistribution.dinner,
-          ),
-          Math.round(nutritionProfile.protein_grams * mealDistribution.dinner),
-          Math.round(nutritionProfile.carbs_grams * mealDistribution.dinner),
-          Math.round(nutritionProfile.fat_grams * mealDistribution.dinner),
-          preferences,
-          day,
-        ),
-      );
-
-      // Generate snacks
-      for (let s = 1; s <= snacksPerDay; s++) {
+        // Generate breakfast
         dayMeals.push(
           generateSingleMeal(
-            "snack",
+            "breakfast",
             Math.round(
-              nutritionProfile.target_calories * mealDistribution.snack,
+              nutritionProfile.target_calories * mealDistribution.breakfast,
             ),
-            Math.round(nutritionProfile.protein_grams * mealDistribution.snack),
-            Math.round(nutritionProfile.carbs_grams * mealDistribution.snack),
-            Math.round(nutritionProfile.fat_grams * mealDistribution.snack),
+            Math.round(
+              nutritionProfile.protein_grams * mealDistribution.breakfast,
+            ),
+            Math.round(
+              nutritionProfile.carbs_grams * mealDistribution.breakfast,
+            ),
+            Math.round(nutritionProfile.fat_grams * mealDistribution.breakfast),
             preferences,
             day,
           ),
         );
+
+        // Generate lunch
+        dayMeals.push(
+          generateSingleMeal(
+            "lunch",
+            Math.round(
+              nutritionProfile.target_calories * mealDistribution.lunch,
+            ),
+            Math.round(nutritionProfile.protein_grams * mealDistribution.lunch),
+            Math.round(nutritionProfile.carbs_grams * mealDistribution.lunch),
+            Math.round(nutritionProfile.fat_grams * mealDistribution.lunch),
+            preferences,
+            day,
+          ),
+        );
+
+        // Generate dinner
+        dayMeals.push(
+          generateSingleMeal(
+            "dinner",
+            Math.round(
+              nutritionProfile.target_calories * mealDistribution.dinner,
+            ),
+            Math.round(
+              nutritionProfile.protein_grams * mealDistribution.dinner,
+            ),
+            Math.round(nutritionProfile.carbs_grams * mealDistribution.dinner),
+            Math.round(nutritionProfile.fat_grams * mealDistribution.dinner),
+            preferences,
+            day,
+          ),
+        );
+
+        // Generate snacks - limit to 1 for faster generation
+        const actualSnacks = Math.min(snacksPerDay, 1);
+        for (let s = 1; s <= actualSnacks; s++) {
+          dayMeals.push(
+            generateSingleMeal(
+              "snack",
+              Math.round(
+                nutritionProfile.target_calories *
+                  mealDistribution.snack *
+                  snacksPerDay,
+              ),
+              Math.round(
+                nutritionProfile.protein_grams *
+                  mealDistribution.snack *
+                  snacksPerDay,
+              ),
+              Math.round(
+                nutritionProfile.carbs_grams *
+                  mealDistribution.snack *
+                  snacksPerDay,
+              ),
+              Math.round(
+                nutritionProfile.fat_grams *
+                  mealDistribution.snack *
+                  snacksPerDay,
+              ),
+              preferences,
+              day,
+            ),
+          );
+        }
+
+        batchPromises.push(
+          Promise.all(dayMeals).then((meals) => ({
+            day: `day_${day}`,
+            meals,
+          })),
+        );
       }
 
-      mealPromises.push(
-        Promise.all(dayMeals).then((meals) => ({
-          day: `day_${day}`,
+      // Wait for this batch to complete
+      const batchResults = await Promise.all(batchPromises);
+
+      // Add batch results to meal plan
+      batchResults.forEach(({ day, meals }) => {
+        mealPlan[day] = {
           meals,
-        })),
-      );
+          daily_totals: {
+            calories: nutritionProfile.target_calories,
+            protein: nutritionProfile.protein_grams,
+            carbs: nutritionProfile.carbs_grams,
+            fat: nutritionProfile.fat_grams,
+            fiber: 25,
+          },
+        };
+      });
     }
-
-    // Wait for all meals to be generated
-    const allDayMeals = await Promise.all(mealPromises);
-
-    // Organize meals by day
-    allDayMeals.forEach(({ day, meals }) => {
-      mealPlan[day] = {
-        meals,
-        daily_totals: {
-          calories: nutritionProfile.target_calories,
-          protein: nutritionProfile.protein_grams,
-          carbs: nutritionProfile.carbs_grams,
-          fat: nutritionProfile.fat_grams,
-          fiber: 25,
-        },
-      };
-    });
 
     // Generate shopping list from all meals
     const allIngredients = new Map();

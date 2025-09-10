@@ -54,44 +54,41 @@ export async function POST(request: NextRequest) {
     // Generate meal plan using OpenAI with timeout
     console.log("Generating AI meal plan for:", profile);
 
-    // Create a timeout promise
-    const timeoutPromise = new Promise(
-      (_, reject) =>
-        setTimeout(
-          () => reject(new Error("Meal plan generation timeout")),
-          9000,
-        ), // 9 seconds timeout
-    );
-
+    // Generate meal plan with longer timeout for Vercel (max 60s for Pro)
     let mealPlanData;
     try {
-      // Increase timeout to 25 seconds for parallel generation
-      const extendedTimeoutPromise = new Promise((_, reject) =>
+      // Set a timeout slightly below Vercel's limit
+      const timeoutPromise = new Promise((_, reject) =>
         setTimeout(
           () => reject(new Error("Meal plan generation timeout")),
-          25000, // 25 seconds timeout for parallel generation
+          55000, // 55 seconds (below Vercel's 60s limit)
         ),
       );
 
       // Race between the actual API call and timeout
       mealPlanData = await Promise.race([
         generateMealPlan(profile, preferences, daysToGenerate),
-        extendedTimeoutPromise,
+        timeoutPromise,
       ]);
-    } catch (timeoutError) {
-      console.error(
-        "Meal plan generation timed out after 25 seconds:",
-        timeoutError,
-      );
 
-      // Return error instead of fallback
+      if (!mealPlanData || !mealPlanData.meal_plan) {
+        throw new Error("Invalid meal plan data generated");
+      }
+    } catch (error: any) {
+      console.error("Meal plan generation error:", error.message);
+
+      // Check if it's a timeout or other error
+      const isTimeout = error.message.includes("timeout");
+
       return NextResponse.json(
         {
           success: false,
-          error:
-            "Meal plan generation is taking longer than expected. This may be due to high demand. Please try again in a moment.",
-          details:
-            "The AI is generating detailed, personalized meals for you. Try reducing the number of days or simplifying preferences.",
+          error: isTimeout
+            ? "Meal plan generation is taking longer than expected. Please try again with fewer days."
+            : "Failed to generate meal plan. Please try again.",
+          details: isTimeout
+            ? `Try generating ${Math.max(1, Math.floor(daysToGenerate / 2))} days instead of ${daysToGenerate} days.`
+            : error.message,
         },
         { status: 503 },
       );
