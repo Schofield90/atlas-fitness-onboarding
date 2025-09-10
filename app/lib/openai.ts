@@ -61,13 +61,13 @@ Return this exact JSON structure:
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo-1106", // Use faster model that supports JSON mode
+      model: "gpt-4-turbo-preview", // Use GPT-4 for quality on Pro plan
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
       temperature: 0.8, // Higher for more variety
-      max_tokens: 600, // Enough for a detailed meal
+      max_tokens: 800, // More tokens for detailed recipes
       response_format: { type: "json_object" },
     });
 
@@ -300,11 +300,13 @@ export async function generateMealPlan(
       snack: 0.05 / snacksPerDay, // Split remaining 5% among snacks
     };
 
-    // Generate all meals in parallel for maximum speed
+    // Generate meals with controlled parallelism for GPT-4
     const mealPlan: any = {};
     const allMealPromises = [];
 
-    console.log(`Generating ${daysToGenerate} days of meals in parallel`);
+    console.log(
+      `Generating ${daysToGenerate} days of high-quality meals with GPT-4`,
+    );
 
     for (let day = 1; day <= daysToGenerate; day++) {
       // Create all meals for this day in parallel
