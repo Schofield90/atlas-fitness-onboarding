@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(
           () => reject(new Error("Meal plan generation timeout")),
-          55000, // 55 seconds (below Vercel's 60s limit)
+          58000, // 58 seconds (below Vercel's 60s limit)
         ),
       );
 
