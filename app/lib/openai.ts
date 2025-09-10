@@ -61,12 +61,12 @@ Return this exact JSON structure:
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4-turbo-preview", // Use GPT-4 for quality as user requested
+      model: "gpt-3.5-turbo-1106", // Use faster model that supports JSON mode
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.7,
+      temperature: 0.8, // Higher for more variety
       max_tokens: 600, // Enough for a detailed meal
       response_format: { type: "json_object" },
     });
@@ -300,120 +300,78 @@ export async function generateMealPlan(
       snack: 0.05 / snacksPerDay, // Split remaining 5% among snacks
     };
 
-    // Generate meals one day at a time to ensure completion
+    // Generate all meals in parallel for maximum speed
     const mealPlan: any = {};
-    const batchSize = 1; // Process 1 day at a time for reliability
+    const allMealPromises = [];
 
-    for (
-      let batchStart = 1;
-      batchStart <= daysToGenerate;
-      batchStart += batchSize
-    ) {
-      const batchEnd = Math.min(batchStart + batchSize - 1, daysToGenerate);
-      const batchPromises = [];
+    console.log(`Generating ${daysToGenerate} days of meals in parallel`);
 
-      console.log(`Generating meals for days ${batchStart} to ${batchEnd}`);
+    for (let day = 1; day <= daysToGenerate; day++) {
+      // Create all meals for this day in parallel
+      const breakfastPromise = generateSingleMeal(
+        "breakfast",
+        Math.round(
+          nutritionProfile.target_calories * mealDistribution.breakfast,
+        ),
+        Math.round(nutritionProfile.protein_grams * mealDistribution.breakfast),
+        Math.round(nutritionProfile.carbs_grams * mealDistribution.breakfast),
+        Math.round(nutritionProfile.fat_grams * mealDistribution.breakfast),
+        preferences,
+        day,
+      );
 
-      for (let day = batchStart; day <= batchEnd; day++) {
-        const dayMeals = [];
+      const lunchPromise = generateSingleMeal(
+        "lunch",
+        Math.round(nutritionProfile.target_calories * mealDistribution.lunch),
+        Math.round(nutritionProfile.protein_grams * mealDistribution.lunch),
+        Math.round(nutritionProfile.carbs_grams * mealDistribution.lunch),
+        Math.round(nutritionProfile.fat_grams * mealDistribution.lunch),
+        preferences,
+        day,
+      );
 
-        // Generate breakfast
-        dayMeals.push(
-          generateSingleMeal(
-            "breakfast",
-            Math.round(
-              nutritionProfile.target_calories * mealDistribution.breakfast,
-            ),
-            Math.round(
-              nutritionProfile.protein_grams * mealDistribution.breakfast,
-            ),
-            Math.round(
-              nutritionProfile.carbs_grams * mealDistribution.breakfast,
-            ),
-            Math.round(nutritionProfile.fat_grams * mealDistribution.breakfast),
-            preferences,
-            day,
-          ),
-        );
+      const dinnerPromise = generateSingleMeal(
+        "dinner",
+        Math.round(nutritionProfile.target_calories * mealDistribution.dinner),
+        Math.round(nutritionProfile.protein_grams * mealDistribution.dinner),
+        Math.round(nutritionProfile.carbs_grams * mealDistribution.dinner),
+        Math.round(nutritionProfile.fat_grams * mealDistribution.dinner),
+        preferences,
+        day,
+      );
 
-        // Generate lunch
-        dayMeals.push(
-          generateSingleMeal(
-            "lunch",
-            Math.round(
-              nutritionProfile.target_calories * mealDistribution.lunch,
-            ),
-            Math.round(nutritionProfile.protein_grams * mealDistribution.lunch),
-            Math.round(nutritionProfile.carbs_grams * mealDistribution.lunch),
-            Math.round(nutritionProfile.fat_grams * mealDistribution.lunch),
-            preferences,
-            day,
-          ),
-        );
+      // Combine snacks into one for speed
+      const snackPromise = generateSingleMeal(
+        "snack",
+        Math.round(
+          nutritionProfile.target_calories *
+            mealDistribution.snack *
+            snacksPerDay,
+        ),
+        Math.round(
+          nutritionProfile.protein_grams *
+            mealDistribution.snack *
+            snacksPerDay,
+        ),
+        Math.round(
+          nutritionProfile.carbs_grams * mealDistribution.snack * snacksPerDay,
+        ),
+        Math.round(
+          nutritionProfile.fat_grams * mealDistribution.snack * snacksPerDay,
+        ),
+        preferences,
+        day,
+      );
 
-        // Generate dinner
-        dayMeals.push(
-          generateSingleMeal(
-            "dinner",
-            Math.round(
-              nutritionProfile.target_calories * mealDistribution.dinner,
-            ),
-            Math.round(
-              nutritionProfile.protein_grams * mealDistribution.dinner,
-            ),
-            Math.round(nutritionProfile.carbs_grams * mealDistribution.dinner),
-            Math.round(nutritionProfile.fat_grams * mealDistribution.dinner),
-            preferences,
-            day,
-          ),
-        );
-
-        // Generate snacks - limit to 1 for faster generation
-        const actualSnacks = Math.min(snacksPerDay, 1);
-        for (let s = 1; s <= actualSnacks; s++) {
-          dayMeals.push(
-            generateSingleMeal(
-              "snack",
-              Math.round(
-                nutritionProfile.target_calories *
-                  mealDistribution.snack *
-                  snacksPerDay,
-              ),
-              Math.round(
-                nutritionProfile.protein_grams *
-                  mealDistribution.snack *
-                  snacksPerDay,
-              ),
-              Math.round(
-                nutritionProfile.carbs_grams *
-                  mealDistribution.snack *
-                  snacksPerDay,
-              ),
-              Math.round(
-                nutritionProfile.fat_grams *
-                  mealDistribution.snack *
-                  snacksPerDay,
-              ),
-              preferences,
-              day,
-            ),
-          );
-        }
-
-        batchPromises.push(
-          Promise.all(dayMeals).then((meals) => ({
-            day: `day_${day}`,
-            meals,
-          })),
-        );
-      }
-
-      // Wait for this batch to complete
-      const batchResults = await Promise.all(batchPromises);
-
-      // Add batch results to meal plan
-      batchResults.forEach(({ day, meals }) => {
-        mealPlan[day] = {
+      // Collect all promises for this day
+      allMealPromises.push(
+        Promise.all([
+          breakfastPromise,
+          lunchPromise,
+          dinnerPromise,
+          snackPromise,
+        ]).then((meals) => ({
+          day: `day_${day}`,
           meals,
           daily_totals: {
             calories: nutritionProfile.target_calories,
@@ -422,9 +380,20 @@ export async function generateMealPlan(
             fat: nutritionProfile.fat_grams,
             fiber: 25,
           },
-        };
-      });
+        })),
+      );
     }
+
+    // Wait for all days to complete in parallel
+    const allDayResults = await Promise.all(allMealPromises);
+
+    // Organize results into meal plan
+    allDayResults.forEach(({ day, meals, daily_totals }) => {
+      mealPlan[day] = {
+        meals,
+        daily_totals,
+      };
+    });
 
     // Generate shopping list from all meals
     const allIngredients = new Map();
