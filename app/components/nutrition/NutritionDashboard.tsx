@@ -57,21 +57,21 @@ export default function NutritionDashboard({
         setNutritionProfile(result.data);
         setShowSetup(false);
 
-        // Try to load active meal plan
-        // The meal_plans table uses profile_id and status column
-        const { data: mealPlan, error: mealPlanError } = await supabase
-          .from("meal_plans")
-          .select("*")
-          .eq("profile_id", result.data.id)
-          .eq("status", "active")
-          .single();
+        // Try to load active meal plan using API to bypass RLS
+        try {
+          const mealPlanResponse = await fetch(
+            `/api/nutrition/meal-plans?profileId=${result.data.id}`,
+          );
 
-        if (mealPlanError && mealPlanError.code !== "PGRST116") {
+          if (mealPlanResponse.ok) {
+            const mealPlanResult = await mealPlanResponse.json();
+            if (mealPlanResult.success && mealPlanResult.data) {
+              console.log("Found active meal plan:", mealPlanResult.data);
+              setActiveMealPlan(mealPlanResult.data);
+            }
+          }
+        } catch (mealPlanError) {
           console.error("Error loading meal plan:", mealPlanError);
-        }
-
-        if (mealPlan) {
-          setActiveMealPlan(mealPlan);
         }
       } else {
         // No profile found, show setup
@@ -91,25 +91,22 @@ export default function NutritionDashboard({
     setNutritionProfile(profile);
     setShowSetup(false);
 
-    // Load meal plans for the newly created profile
+    // Load meal plans for the newly created profile using API
     if (profile?.id) {
       try {
-        const { data: mealPlan, error: mealPlanError } = await supabase
-          .from("meal_plans")
-          .select("*")
-          .eq("profile_id", profile.id)
-          .eq("status", "active")
-          .single();
+        const mealPlanResponse = await fetch(
+          `/api/nutrition/meal-plans?profileId=${profile.id}`,
+        );
 
-        if (mealPlanError && mealPlanError.code !== "PGRST116") {
-          console.error(
-            "Error loading meal plan after profile creation:",
-            mealPlanError,
-          );
-        }
-
-        if (mealPlan) {
-          setActiveMealPlan(mealPlan);
+        if (mealPlanResponse.ok) {
+          const mealPlanResult = await mealPlanResponse.json();
+          if (mealPlanResult.success && mealPlanResult.data) {
+            console.log(
+              "Found active meal plan after profile creation:",
+              mealPlanResult.data,
+            );
+            setActiveMealPlan(mealPlanResult.data);
+          }
         }
       } catch (error) {
         console.log("No active meal plan found yet");
