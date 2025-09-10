@@ -372,7 +372,7 @@ export default function NutritionSetup({
         extensive: "EXTENSIVE",
       };
 
-      // Build nutrition profile data with flexible FK approach
+      // Build nutrition profile data to match database schema exactly
       const profileData: any = {
         // Organization is always required
         organization_id: client.organization_id || client.org_id,
@@ -381,66 +381,34 @@ export default function NutritionSetup({
         ...(useClientId && { client_id: useClientId }),
         ...(useLeadId && { lead_id: useLeadId }),
 
-        // Required demographic fields
+        // Required demographic fields (database expects lowercase)
         age: parseInt(formData.age),
-        gender:
-          formData.gender === "male"
-            ? "MALE"
-            : formData.gender === "female"
-              ? "FEMALE"
-              : "OTHER",
-        sex:
-          formData.gender === "male"
-            ? "MALE"
-            : formData.gender === "female"
-              ? "FEMALE"
-              : "OTHER",
-        activity_level:
-          activityLevelMap[formData.activityLevel] || "MODERATELY_ACTIVE",
+        gender: formData.gender || "other", // Database expects lowercase: male, female, other
 
-        // Physical measurements - use the actual column names from database
-        height: heightCm, // The column is named 'height' not 'height_cm'
-        height_cm: heightCm, // Keep both for compatibility
-        current_weight: weightKg, // The column is named 'current_weight' not 'weight_kg'
-        weight_kg: weightKg, // Keep both for compatibility
-        goal_weight: formData.targetWeight
-          ? parseFloat(formData.targetWeight)
-          : weightKg,
+        // Physical measurements - use the exact column names from database
+        height_cm: heightCm, // Database column is height_cm
+        weight_kg: weightKg, // Database column is weight_kg
         target_weight_kg: formData.targetWeight
           ? parseFloat(formData.targetWeight)
           : weightKg,
 
-        // Goals
-        goal: formData.goal?.toUpperCase() || "MAINTAIN",
+        // Goals and activity (database expects lowercase)
+        goal: formData.goal || "maintain", // Database expects lowercase
+        activity_level: formData.activityLevel || "moderately_active", // Database expects lowercase
         weekly_weight_change_kg: formData.weeklyChange || 0.5,
 
-        // Calculated nutrition values
-        bmr: formData.bmr || null,
-        tdee: formData.tdee || null,
-        target_calories: formData.targetCalories || null,
-        protein_grams: Math.round(formData.proteinGrams) || null,
-        carbs_grams: Math.round(formData.carbsGrams) || null,
-        fat_grams: Math.round(formData.fatGrams) || null,
+        // Calculated nutrition values - ALL REQUIRED
+        bmr: formData.bmr || 0,
+        tdee: formData.tdee || 0,
+        target_calories: formData.targetCalories || 0,
+        protein_grams: Math.round(formData.proteinGrams) || 0,
+        carbs_grams: Math.round(formData.carbsGrams) || 0,
+        fat_grams: Math.round(formData.fatGrams) || 0,
         fiber_grams: 25, // Default recommended fiber
-
-        // Training and lifestyle preferences
-        training_frequency: 3, // Default 3x per week
-        training_types: [], // Empty array - can be populated later
-        dietary_preferences: formData.dietaryType ? [formData.dietaryType] : [],
-        allergies: formData.allergies || [],
-        intolerances: formData.intolerances || [],
-        food_likes: formData.likedFoods || [],
-        food_dislikes: formData.dislikedFoods || [],
-        cooking_time: cookingTimeMap[formData.cookingTime] || "MODERATE",
-        budget_constraint: "MODERATE", // Default
 
         // Meal planning
         meals_per_day: formData.mealsPerDay || 3,
         snacks_per_day: formData.snacksPerDay || 2,
-
-        // Timestamps
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       };
 
       // Save to database using API endpoint (bypasses RLS issues)
