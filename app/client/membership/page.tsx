@@ -63,8 +63,10 @@ export default function ClientMembershipPage() {
   };
 
   const loadMembership = async () => {
+    console.log("Loading membership for client:", client.id, client.email);
+
     // Try to get membership from customer_memberships table (the correct table)
-    let { data: directMembership } = await supabase
+    let { data: directMembership, error: directError } = await supabase
       .from("customer_memberships")
       .select(
         `
@@ -82,6 +84,13 @@ export default function ClientMembershipPage() {
       .eq("status", "active")
       .single();
 
+    console.log(
+      "Direct membership query result:",
+      directMembership,
+      "Error:",
+      directError,
+    );
+
     if (directMembership) {
       // Use direct membership
       setMembership(directMembership);
@@ -97,15 +106,22 @@ export default function ClientMembershipPage() {
       });
     } else {
       // Fallback: check if there's a lead record linked to this client
-      const { data: leadData } = await supabase
+      console.log("No direct membership found, checking lead records...");
+      const { data: leadData, error: leadError } = await supabase
         .from("leads")
         .select("id")
         .eq("client_id", client.id)
         .single();
 
+      console.log("Lead data:", leadData, "Error:", leadError);
+
       if (leadData) {
         // Get active membership using the lead ID from customer_memberships
-        const { data: membershipData } = await supabase
+        console.log(
+          "Found lead, checking membership for lead ID:",
+          leadData.id,
+        );
+        const { data: membershipData, error: membershipError } = await supabase
           .from("customer_memberships")
           .select(
             `
@@ -123,6 +139,13 @@ export default function ClientMembershipPage() {
           .eq("status", "active")
           .single();
 
+        console.log(
+          "Lead membership data:",
+          membershipData,
+          "Error:",
+          membershipError,
+        );
+
         if (membershipData) {
           setMembership(membershipData);
           setMembershipPlan({
@@ -136,6 +159,61 @@ export default function ClientMembershipPage() {
               membershipData.credits_remaining ||
               0,
           });
+        }
+      } else {
+        // Final fallback: Try to find lead by email
+        console.log("No lead by client_id, trying by email:", client.email);
+        const { data: leadByEmail, error: emailError } = await supabase
+          .from("leads")
+          .select("id")
+          .eq("email", client.email)
+          .eq("organization_id", client.organization_id)
+          .single();
+
+        console.log("Lead by email:", leadByEmail, "Error:", emailError);
+
+        if (leadByEmail) {
+          const { data: membershipData, error: membershipError } =
+            await supabase
+              .from("customer_memberships")
+              .select(
+                `
+              *,
+              membership_plans (
+                id,
+                name,
+                description,
+                price,
+                credits_per_period
+              )
+            `,
+              )
+              .eq("customer_id", leadByEmail.id)
+              .eq("status", "active")
+              .single();
+
+          console.log(
+            "Email-based membership data:",
+            membershipData,
+            "Error:",
+            membershipError,
+          );
+
+          if (membershipData) {
+            setMembership(membershipData);
+            setMembershipPlan({
+              name:
+                membershipData.membership_plans?.name || "Standard Membership",
+              description:
+                membershipData.membership_plans?.description ||
+                "Full gym access",
+              price_pennies: membershipData.membership_plans?.price || 0,
+              monthly_credits:
+                membershipData.membership_plans?.credits_per_period ||
+                membershipData.credits_remaining ||
+                0,
+            });
+          }
         }
       }
     }
