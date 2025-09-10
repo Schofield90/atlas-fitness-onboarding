@@ -157,9 +157,11 @@ export default function ClientSchedulePage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        sessionId,
+        classSessionId: sessionId,
         customerId: client.id,
-        organizationId: client.organization_id,
+        customerName: `${client.first_name} ${client.last_name}`,
+        customerEmail: client.email,
+        customerPhone: client.phone || "",
       }),
     });
 
