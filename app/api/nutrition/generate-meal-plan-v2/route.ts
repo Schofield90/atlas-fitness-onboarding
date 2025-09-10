@@ -202,7 +202,7 @@ export async function POST(request: NextRequest) {
     // Generate instant skeleton
     const skeleton = generateSkeleton(profile, daysToGenerate);
 
-    // Create job for background processing
+    // Try to create job for background processing
     const { data: job, error: jobError } = await supabaseAdmin
       .from("meal_plan_jobs")
       .insert({
@@ -219,8 +219,72 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (jobError) {
-      console.error("Error creating job:", jobError);
-      return createErrorResponse(jobError, 500);
+      console.error("Error creating job (table may not exist):", jobError);
+      // Fallback to direct generation if job table doesn't exist
+      console.log("Falling back to direct generation");
+
+      try {
+        const { generateMealPlan } = await import("@/app/lib/openai");
+        const mealPlanData = await generateMealPlan(
+          profile,
+          preferences,
+          daysToGenerate,
+        );
+
+        // Save directly to meal_plans table
+        const startDate = new Date();
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() + daysToGenerate);
+
+        const { data: savedPlan, error: saveError } = await supabaseAdmin
+          .from("meal_plans")
+          .insert({
+            profile_id: profile.id,
+            client_id: profile.client_id,
+            organization_id: userWithOrg.organizationId,
+            name: `${daysToGenerate}-Day AI Meal Plan`,
+            start_date: startDate.toISOString().split("T")[0],
+            end_date: endDate.toISOString().split("T")[0],
+            status: "active",
+            duration_days: daysToGenerate,
+            meals_per_day: 3,
+            daily_calories: profile.target_calories,
+            daily_protein: profile.protein_grams,
+            daily_carbs: profile.carbs_grams,
+            daily_fat: profile.fat_grams,
+            total_calories: profile.target_calories * daysToGenerate,
+            total_protein: profile.protein_grams * daysToGenerate,
+            total_carbs: profile.carbs_grams * daysToGenerate,
+            total_fat: profile.fat_grams * daysToGenerate,
+            meal_data: mealPlanData.meal_plan,
+            shopping_list: mealPlanData.shopping_list,
+            meal_prep_tips: mealPlanData.meal_prep_tips,
+            ai_model: "gpt-4-turbo-preview",
+          })
+          .select()
+          .single();
+
+        if (saveError) {
+          throw saveError;
+        }
+
+        return NextResponse.json({
+          success: true,
+          data: {
+            meal_plan: mealPlanData.meal_plan,
+            nutrition_totals: {
+              calories: profile.target_calories * daysToGenerate,
+              protein: profile.protein_grams * daysToGenerate,
+              carbs: profile.carbs_grams * daysToGenerate,
+              fat: profile.fat_grams * daysToGenerate,
+            },
+            shopping_list: mealPlanData.shopping_list,
+          },
+        });
+      } catch (fallbackError: any) {
+        console.error("Fallback generation also failed:", fallbackError);
+        return createErrorResponse(fallbackError);
+      }
     }
 
     console.log("Created meal plan job:", job.id);
