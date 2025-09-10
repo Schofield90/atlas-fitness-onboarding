@@ -111,8 +111,7 @@ export async function POST(request: NextRequest) {
       description: `Personalized meal plan with ${profile.target_calories} calories, ${profile.protein_grams}g protein`,
       start_date: startDate.toISOString().split("T")[0],
       end_date: endDate.toISOString().split("T")[0],
-      status: "active",
-      is_active: true,
+      status: "active", // Using status instead of is_active
       duration_days: daysToGenerate,
       meals_per_day: profile.meals_per_day || 3,
       // Daily totals
@@ -154,13 +153,13 @@ export async function POST(request: NextRequest) {
       .from("meal_plans")
       .select("id")
       .eq("profile_id", profile.id)
-      .eq("is_active", true)
+      .eq("status", "active")
       .single();
 
     if (existingPlan) {
       await supabase
         .from("meal_plans")
-        .update({ is_active: false, status: "archived" })
+        .update({ status: "archived" })
         .eq("id", existingPlan.id);
     }
 

@@ -155,7 +155,19 @@ export async function GET(request: NextRequest) {
       .select("id, client_id, organization_id, created_at")
       .eq("client_id", client.id);
 
-    console.log("All profiles for client:", allProfiles);
+    console.log(
+      "All profiles for client",
+      client.id,
+      ":",
+      allProfiles?.length || 0,
+      "profiles found",
+    );
+    if (allProfiles && allProfiles.length > 0) {
+      console.log(
+        "Profile IDs:",
+        allProfiles.map((p) => p.id),
+      );
+    }
 
     const { data: profile, error } = await supabaseAdmin
       .from("nutrition_profiles")
