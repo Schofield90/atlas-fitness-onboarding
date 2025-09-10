@@ -10,6 +10,7 @@ import {
   Menu,
   X,
   Apple,
+  MessageCircle,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -69,7 +70,11 @@ export default function ClientLayout({
       name: "Nutrition",
       icon: Apple,
       href: "/client/nutrition",
-      comingSoon: true,
+    },
+    {
+      name: "Message Coach",
+      icon: MessageCircle,
+      href: "/client/messages",
     },
     { name: "Membership", icon: CreditCard, href: "/client/membership" },
     { name: "Profile", icon: User, href: "/client/profile" },

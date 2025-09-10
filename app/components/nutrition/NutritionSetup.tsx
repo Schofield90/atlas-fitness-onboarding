@@ -199,10 +199,54 @@ export default function NutritionSetup({
         snacks_per_day: formData.snacksPerDay,
       };
 
-      // For now, just complete the setup
-      onComplete(profileData);
+      // Save to database
+      const { data, error } = await supabase
+        .from("nutrition_profiles")
+        .upsert(profileData, {
+          onConflict: "client_id",
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error saving nutrition profile:", error);
+        alert("Failed to save your nutrition profile. Please try again.");
+        return;
+      }
+
+      // Save preferences if we have them
+      if (
+        formData.dietaryType ||
+        formData.allergies.length > 0 ||
+        formData.likedFoods.length > 0
+      ) {
+        const preferencesData = {
+          profile_id: data.id,
+          dietary_type: formData.dietaryType || null,
+          allergies: formData.allergies,
+          intolerances: formData.intolerances,
+          liked_foods: formData.likedFoods,
+          disliked_foods: formData.dislikedFoods,
+          cooking_time: formData.cookingTime,
+          cooking_skill: formData.cookingSkill,
+        };
+
+        const { error: prefError } = await supabase
+          .from("nutrition_preferences")
+          .upsert(preferencesData, {
+            onConflict: "profile_id",
+          });
+
+        if (prefError) {
+          console.error("Error saving preferences:", prefError);
+        }
+      }
+
+      // Complete the setup
+      onComplete(data);
     } catch (error) {
       console.error("Error saving profile:", error);
+      alert("An error occurred. Please try again.");
     } finally {
       setSaving(false);
     }
