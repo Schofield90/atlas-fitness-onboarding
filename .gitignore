@@ -109,3 +109,4 @@ docker-compose.override.yml
 .vercel
 
 /lib/generated/prisma
+.env.supabase

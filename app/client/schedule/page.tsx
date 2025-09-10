@@ -75,9 +75,21 @@ export default function ClientSchedulePage() {
   };
 
   const loadSessions = async () => {
-    const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+    if (!client || !client.organization_id) {
+      console.log("Client not loaded or missing organization_id:", client);
+      return;
+    }
 
-    const { data } = await supabase
+    const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+    console.log("Loading sessions for org:", client.organization_id);
+    console.log(
+      "Week range:",
+      weekStart.toISOString(),
+      "to",
+      weekEnd.toISOString(),
+    );
+
+    const { data, error } = await supabase
       .from("class_sessions")
       .select(
         `
@@ -85,13 +97,6 @@ export default function ClientSchedulePage() {
         programs (
           name,
           description
-        ),
-        organization_locations (
-          name,
-          address
-        ),
-        organization_staff (
-          name
         )
       `,
       )
@@ -99,6 +104,12 @@ export default function ClientSchedulePage() {
       .lte("start_time", weekEnd.toISOString())
       .eq("organization_id", client.organization_id)
       .order("start_time");
+
+    if (error) {
+      console.error("Error loading sessions:", error);
+    } else {
+      console.log("Loaded sessions:", data?.length || 0);
+    }
 
     setSessions(data || []);
   };
@@ -275,17 +286,19 @@ export default function ClientSchedulePage() {
                         </h3>
                         <span
                           className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            session.current_capacity >= session.max_capacity
+                            (session.current_bookings || 0) >=
+                            session.max_capacity
                               ? "bg-red-900/50 text-red-400"
-                              : session.current_capacity >
+                              : (session.current_bookings || 0) >
                                   session.max_capacity * 0.8
                                 ? "bg-yellow-900/50 text-yellow-400"
                                 : "bg-green-900/50 text-green-400"
                           }`}
                         >
-                          {session.current_capacity >= session.max_capacity
+                          {(session.current_bookings || 0) >=
+                          session.max_capacity
                             ? "Full"
-                            : `${session.max_capacity - session.current_capacity} spots left`}
+                            : `${session.max_capacity - (session.current_bookings || 0)} spots left`}
                         </span>
                       </div>
 
@@ -297,14 +310,18 @@ export default function ClientSchedulePage() {
                             {format(parseISO(session.end_time), "h:mm a")}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4 text-orange-500" />
-                          <span>{session.organization_locations?.name}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4 text-orange-500" />
-                          <span>{session.organization_staff?.name}</span>
-                        </div>
+                        {session.location && (
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-orange-500" />
+                            <span>{session.location}</span>
+                          </div>
+                        )}
+                        {session.instructor_name && (
+                          <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4 text-orange-500" />
+                            <span>{session.instructor_name}</span>
+                          </div>
+                        )}
                       </div>
 
                       {session.programs?.description && (
@@ -317,15 +334,15 @@ export default function ClientSchedulePage() {
                     <button
                       onClick={() => bookClass(session.id)}
                       disabled={
-                        session.current_capacity >= session.max_capacity
+                        (session.current_bookings || 0) >= session.max_capacity
                       }
                       className={`ml-4 px-6 py-2 rounded-lg font-medium transition-colors ${
-                        session.current_capacity >= session.max_capacity
+                        (session.current_bookings || 0) >= session.max_capacity
                           ? "bg-gray-700 text-gray-500 cursor-not-allowed"
                           : "bg-orange-600 text-white hover:bg-orange-700"
                       }`}
                     >
-                      {session.current_capacity >= session.max_capacity
+                      {(session.current_bookings || 0) >= session.max_capacity
                         ? "Full"
                         : "Book"}
                     </button>
