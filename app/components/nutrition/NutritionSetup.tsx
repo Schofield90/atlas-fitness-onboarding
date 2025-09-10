@@ -356,12 +356,95 @@ export default function NutritionSetup({
         updated_at: new Date().toISOString(),
       };
 
-      // Save to database
-      const { data, error } = await supabase
+      // Save to database - try with client_id first, fall back to lead_id
+      let { data, error } = await supabase
         .from("nutrition_profiles")
         .upsert(profileData)
         .select()
         .single();
+
+      // If client_id column doesn't exist, retry with only lead_id
+      if (
+        error &&
+        error.code === "PGRST204" &&
+        error.message.includes("client_id")
+      ) {
+        console.log("client_id not supported, retrying with lead_id only");
+
+        // Remove client_id and ensure we have lead_id
+        delete profileData.client_id;
+
+        // If we don't have a lead_id, we need to find or create one
+        if (!profileData.lead_id) {
+          console.log(
+            "No lead_id available, searching for or creating lead...",
+          );
+
+          // Try to find existing lead by email
+          let leadId = null;
+          if (client.email) {
+            const { data: leadByEmail } = await supabase
+              .from("leads")
+              .select("id")
+              .eq("email", client.email)
+              .eq("organization_id", client.organization_id || client.org_id)
+              .single();
+
+            if (leadByEmail) {
+              leadId = leadByEmail.id;
+              console.log("Found existing lead by email:", leadId);
+            }
+          }
+
+          // If no lead found, create one
+          if (!leadId) {
+            const { data: newLead, error: leadError } = await supabase
+              .from("leads")
+              .insert({
+                email: client.email || `client_${client.id}@temp.com`,
+                first_name:
+                  client.first_name || client.name?.split(" ")[0] || "Unknown",
+                last_name:
+                  client.last_name ||
+                  client.name?.split(" ").slice(1).join(" ") ||
+                  "",
+                phone: client.phone || "",
+                organization_id: client.organization_id || client.org_id,
+                client_id: client.id,
+                status: "CLIENT",
+                source: "NUTRITION_PROFILE",
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .select()
+              .single();
+
+            if (!leadError && newLead) {
+              leadId = newLead.id;
+              console.log("Created new lead:", leadId);
+            } else {
+              console.error("Failed to create lead:", leadError);
+              alert(
+                "Unable to save nutrition profile. Please contact support.",
+              );
+              setSaving(false);
+              return;
+            }
+          }
+
+          profileData.lead_id = leadId;
+        }
+
+        // Retry with lead_id only
+        const retryResult = await supabase
+          .from("nutrition_profiles")
+          .upsert(profileData)
+          .select()
+          .single();
+
+        data = retryResult.data;
+        error = retryResult.error;
+      }
 
       if (error) {
         console.error("Error saving nutrition profile:", error);
