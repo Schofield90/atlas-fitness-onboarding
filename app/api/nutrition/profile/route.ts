@@ -248,13 +248,16 @@ export async function POST(request: NextRequest) {
     // Get request body
     const body = await request.json();
 
+    // Log what we received for debugging
+    console.log("Received profile data:", JSON.stringify(body, null, 2));
+
     // Validate required fields - use the actual database column names
     const requiredFields = [
       "age",
-      "gender", // Changed from "sex" to match database
-      "height_cm", // Changed from "height" to match database
-      "weight_kg", // Changed from "current_weight" to match database
-      "target_weight_kg", // Changed from "goal_weight" to match database
+      "gender", // Database expects this field
+      "height_cm", // Database expects this field
+      "weight_kg", // Database expects this field
+      "target_weight_kg", // Database expects this field
       "activity_level",
       "bmr",
       "tdee",
@@ -352,8 +355,20 @@ export async function POST(request: NextRequest) {
           profile_id: existingProfile.id,
           client_id: client.id,
           organization_id: userWithOrg.organizationId,
+          hint: updateError.hint,
+          details: updateError.details,
         });
-        return createErrorResponse(updateError, 500);
+
+        // Return more detailed error for debugging
+        return NextResponse.json(
+          {
+            error: `Database error: ${updateError.message}`,
+            code: updateError.code,
+            hint: updateError.hint,
+            details: updateError.details,
+          },
+          { status: 500 },
+        );
       }
 
       console.log(
@@ -412,7 +427,17 @@ export async function POST(request: NextRequest) {
           hint: createError.hint,
           details: createError.details,
         });
-        return createErrorResponse(createError, 500);
+
+        // Return more detailed error for debugging
+        return NextResponse.json(
+          {
+            error: `Database error: ${createError.message}`,
+            code: createError.code,
+            hint: createError.hint,
+            details: createError.details,
+          },
+          { status: 500 },
+        );
       }
 
       console.log("Successfully created nutrition profile:", newProfile?.id);
