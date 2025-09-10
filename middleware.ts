@@ -212,13 +212,32 @@ export async function middleware(request: NextRequest) {
   )
 
   if (isAdminRoute) {
-    // Check if user has an organization
-    const { data: userOrg } = await supabase
-      .from('organization_members')
+    // Check if user has an organization - check both tables
+    let userOrg = null;
+    
+    // First check organization_staff table (new structure)
+    const { data: staffOrg } = await supabase
+      .from('organization_staff')
       .select('organization_id, role')
       .eq('user_id', session.user.id)
       .eq('is_active', true)
       .single()
+    
+    if (staffOrg) {
+      userOrg = staffOrg;
+    } else {
+      // Fallback to organization_members table (old structure)
+      const { data: memberOrg } = await supabase
+        .from('organization_members')
+        .select('organization_id, role')
+        .eq('user_id', session.user.id)
+        .eq('is_active', true)
+        .single()
+      
+      if (memberOrg) {
+        userOrg = memberOrg;
+      }
+    }
 
     if (!userOrg) {
       // User doesn't belong to any organization; require onboarding and do NOT auto-associate
