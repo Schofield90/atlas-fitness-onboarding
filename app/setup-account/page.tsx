@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+// Account setup page to bypass organization creation
 export default function SetupAccountPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
