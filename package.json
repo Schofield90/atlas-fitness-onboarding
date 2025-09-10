@@ -240,6 +240,7 @@
     "prettier-plugin-tailwindcss": "^0.6.9",
     "prisma": "^5.22.0",
     "storybook": "^8.5.2",
+    "supabase": "^2.40.7",
     "tailwindcss": "^3.4.16",
     "ts-jest": "^29.2.6",
     "tsx": "^4.20.4",
