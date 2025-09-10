@@ -79,11 +79,29 @@ export default function NutritionDashboard({
     }
   };
 
-  const handleProfileComplete = (profile: any) => {
+  const handleProfileComplete = async (profile: any) => {
+    console.log("Profile setup completed, received profile:", profile);
     setNutritionProfile(profile);
     setShowSetup(false);
-    // Reload the full profile data after save to ensure consistency
-    loadNutritionData();
+
+    // Load meal plans for the newly created profile
+    if (profile?.id) {
+      try {
+        const { data: mealPlan } = await supabase
+          .from("meal_plans")
+          .select("*")
+          .eq("nutrition_profile_id", profile.id)
+          .eq("is_active", true)
+          .single();
+
+        if (mealPlan) {
+          setActiveMealPlan(mealPlan);
+        }
+      } catch (error) {
+        console.log("No active meal plan found yet");
+      }
+    }
+    // Don't call loadNutritionData() here as it might reset the state
   };
 
   if (loading) {
