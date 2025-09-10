@@ -70,13 +70,14 @@ export default function CoachDashboard({
 
       if (clientsError) throw clientsError;
 
-      // Get nutrition profiles for all clients
+      // Get nutrition profiles for all clients (using lead_id)
       const clientIds = clientsData?.map((c) => c.id) || [];
+      const leadIds = clientsData?.map((c) => c.lead_id).filter(Boolean) || [];
 
       const { data: profiles } = await supabase
         .from("nutrition_profiles")
         .select("*")
-        .in("client_id", clientIds);
+        .in("lead_id", leadIds);
 
       // Get active meal plans
       const { data: mealPlans } = await supabase
@@ -106,7 +107,7 @@ export default function CoachDashboard({
       // Combine all data
       const enrichedClients =
         clientsData?.map((client) => {
-          const profile = profiles?.find((p) => p.client_id === client.id);
+          const profile = profiles?.find((p) => p.lead_id === client.lead_id);
           const activePlan = mealPlans?.find((p) => p.client_id === client.id);
           const clientLogs =
             logs?.filter((l) => l.client_id === client.id) || [];

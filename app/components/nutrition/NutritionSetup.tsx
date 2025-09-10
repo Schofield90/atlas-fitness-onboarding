@@ -226,29 +226,134 @@ export default function NutritionSetup({
       const heightCm = convertHeight(formData);
       const weightKg = convertWeight(formData);
 
-      // Save nutrition profile
-      const profileData = {
-        client_id: client.id,
-        organization_id: client.organization_id,
+      // Determine whether to use client_id or lead_id based on what's available
+      let useClientId = null;
+      let useLeadId = null;
+
+      // Priority 1: Use client.id directly if available
+      if (client.id) {
+        useClientId = client.id;
+        console.log("Using client_id for nutrition profile:", useClientId);
+      } else if (client.lead_id) {
+        // Priority 2: Use existing lead_id from client
+        useLeadId = client.lead_id;
+        console.log("Using existing lead_id for nutrition profile:", useLeadId);
+      } else {
+        // Priority 3: Search for lead by email or other identifiers
+        console.log(
+          "No direct client_id or lead_id, searching for matching lead...",
+        );
+
+        if (client.email) {
+          const { data: leadByEmail, error: emailError } = await supabase
+            .from("leads")
+            .select("id")
+            .eq("email", client.email)
+            .single();
+
+          if (!emailError && leadByEmail) {
+            useLeadId = leadByEmail.id;
+            console.log("Found matching lead by email:", useLeadId);
+          }
+        }
+
+        // If still no lead found, try by any available client identifier
+        if (!useLeadId && client.id) {
+          const { data: leadByClientId, error: clientIdError } = await supabase
+            .from("leads")
+            .select("id")
+            .eq("client_id", client.id)
+            .single();
+
+          if (!clientIdError && leadByClientId) {
+            useLeadId = leadByClientId.id;
+            console.log("Found matching lead by client reference:", useLeadId);
+          }
+        }
+
+        // If neither client_id nor lead_id can be determined, show error
+        if (!useClientId && !useLeadId) {
+          alert(
+            "Unable to save nutrition profile: No valid client or lead reference found. Please contact support.",
+          );
+          setSaving(false);
+          return;
+        }
+      }
+
+      // Map activity level to match database expectations (UPPERCASE)
+      const activityLevelMap: Record<string, string> = {
+        sedentary: "SEDENTARY",
+        lightly_active: "LIGHTLY_ACTIVE",
+        moderately_active: "MODERATELY_ACTIVE",
+        very_active: "VERY_ACTIVE",
+        extra_active: "EXTRA_ACTIVE",
+      };
+
+      // Map cooking time to match database expectations (UPPERCASE)
+      const cookingTimeMap: Record<string, string> = {
+        quick: "MINIMAL",
+        moderate: "MODERATE",
+        extensive: "EXTENSIVE",
+      };
+
+      // Build nutrition profile data with flexible FK approach
+      const profileData: any = {
+        // Organization is always required
+        organization_id: client.organization_id || client.org_id,
+
+        // Set either client_id OR lead_id, never both
+        ...(useClientId && { client_id: useClientId }),
+        ...(useLeadId && { lead_id: useLeadId }),
+
+        // Required demographic fields
+        age: parseInt(formData.age),
+        gender:
+          formData.gender === "male"
+            ? "MALE"
+            : formData.gender === "female"
+              ? "FEMALE"
+              : "OTHER",
+        activity_level:
+          activityLevelMap[formData.activityLevel] || "MODERATELY_ACTIVE",
+
+        // Physical measurements - support multiple column names for compatibility
         height_cm: heightCm,
         weight_kg: weightKg,
-        age: parseInt(formData.age),
-        gender: formData.gender,
-        activity_level: formData.activityLevel,
-        goal: formData.goal,
         target_weight_kg: formData.targetWeight
           ? parseFloat(formData.targetWeight)
-          : null,
-        weekly_weight_change_kg: formData.weeklyChange,
-        bmr: formData.bmr,
-        tdee: formData.tdee,
-        target_calories: formData.targetCalories,
-        protein_grams: formData.proteinGrams,
-        carbs_grams: formData.carbsGrams,
-        fat_grams: formData.fatGrams,
-        fiber_grams: 25,
-        meals_per_day: formData.mealsPerDay,
-        snacks_per_day: formData.snacksPerDay,
+          : weightKg,
+
+        // Goals
+        goal: formData.goal?.toUpperCase() || "MAINTAIN",
+        weekly_weight_change_kg: formData.weeklyChange || 0.5,
+
+        // Calculated nutrition values
+        bmr: formData.bmr || null,
+        tdee: formData.tdee || null,
+        target_calories: formData.targetCalories || null,
+        protein_grams: Math.round(formData.proteinGrams) || null,
+        carbs_grams: Math.round(formData.carbsGrams) || null,
+        fat_grams: Math.round(formData.fatGrams) || null,
+        fiber_grams: 25, // Default recommended fiber
+
+        // Training and lifestyle preferences
+        training_frequency: 3, // Default 3x per week
+        training_types: [], // Empty array - can be populated later
+        dietary_preferences: formData.dietaryType ? [formData.dietaryType] : [],
+        allergies: formData.allergies || [],
+        food_likes: formData.likedFoods || [],
+        food_dislikes: formData.dislikedFoods || [],
+        cooking_time: cookingTimeMap[formData.cookingTime] || "MODERATE",
+        budget_constraint: "MODERATE", // Default
+
+        // Meal planning
+        meals_per_day: formData.mealsPerDay || 3,
+        snacks_per_day: formData.snacksPerDay || 2,
+
+        // Timestamps
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
 
       // Save to database
@@ -260,33 +365,101 @@ export default function NutritionSetup({
 
       if (error) {
         console.error("Error saving nutrition profile:", error);
-        alert("Failed to save your nutrition profile. Please try again.");
+        console.error("Error details:", error.code, error.message);
+
+        if (
+          error.code === "23503" &&
+          error.message.includes("foreign key constraint")
+        ) {
+          // Foreign key constraint error - try to create a lead and retry
+          console.log("Foreign key error detected, attempting recovery...");
+
+          try {
+            // Create a lead record if it doesn't exist
+            const { data: newLead, error: leadError } = await supabase
+              .from("leads")
+              .insert({
+                email: client.email || `client_${client.id}@placeholder.com`,
+                first_name:
+                  client.first_name || client.name?.split(" ")[0] || "Unknown",
+                last_name:
+                  client.last_name ||
+                  client.name?.split(" ").slice(1).join(" ") ||
+                  "User",
+                phone: client.phone || "",
+                organization_id: client.organization_id || client.org_id,
+                client_id: client.id,
+                status: "CLIENT",
+                source: "NUTRITION_SETUP",
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .select()
+              .single();
+
+            if (!leadError && newLead) {
+              console.log("Created lead for recovery:", newLead.id);
+
+              // Retry with the new lead_id
+              const retryData = {
+                ...profileData,
+                lead_id: newLead.id,
+                client_id: undefined, // Remove client_id to use lead_id instead
+              };
+
+              const { data: retryResult, error: retryError } = await supabase
+                .from("nutrition_profiles")
+                .upsert(retryData)
+                .select()
+                .single();
+
+              if (!retryError && retryResult) {
+                console.log("Profile saved successfully after lead creation");
+                onComplete(retryResult);
+                return;
+              }
+            }
+          } catch (recoveryError) {
+            console.error("Recovery failed:", recoveryError);
+          }
+
+          // If recovery failed, show user-friendly error
+          alert(
+            "Unable to save nutrition profile. We're working on fixing this issue. Please try again later or contact support.",
+          );
+        } else if (error.code === "23502") {
+          alert(
+            "Unable to save nutrition profile: Missing required information. Please check all fields are completed.",
+          );
+        } else if (error.code === "23514") {
+          alert(
+            "Unable to save nutrition profile: Data validation error. Please check your input values.",
+          );
+        } else if (error.code === "42P01") {
+          alert(
+            "Unable to save nutrition profile: Database configuration issue. Please contact support.",
+          );
+        } else {
+          alert(
+            "Failed to save your nutrition profile. Please try again or contact support if the problem persists.",
+          );
+        }
         return;
       }
 
-      // Save preferences if we have them
-      if (
-        formData.dietaryType ||
-        formData.allergies.length > 0 ||
-        formData.likedFoods.length > 0
-      ) {
-        const preferencesData = {
-          profile_id: data.id,
-          dietary_type: formData.dietaryType || null,
-          allergies: formData.allergies,
-          intolerances: formData.intolerances,
-          liked_foods: formData.likedFoods,
-          disliked_foods: formData.dislikedFoods,
-          cooking_time: formData.cookingTime,
-          cooking_skill: formData.cookingSkill,
-        };
+      console.log("Nutrition profile saved successfully:", data);
 
-        const { error: prefError } = await supabase
-          .from("nutrition_preferences")
-          .upsert(preferencesData);
+      // Update client record with the lead_id reference if we used lead_id
+      if (useLeadId && useLeadId !== client.lead_id && client.id) {
+        const { error: updateError } = await supabase
+          .from("clients")
+          .update({ lead_id: useLeadId })
+          .eq("id", client.id);
 
-        if (prefError) {
-          console.error("Error saving preferences:", prefError);
+        if (updateError) {
+          console.warn("Failed to update client.lead_id:", updateError);
+        } else {
+          console.log("Updated client record with lead_id:", useLeadId);
         }
       }
 
@@ -294,7 +467,9 @@ export default function NutritionSetup({
       onComplete(data);
     } catch (error) {
       console.error("Error saving profile:", error);
-      alert("An error occurred. Please try again.");
+      alert(
+        "An unexpected error occurred. Please try again or contact support if the problem persists.",
+      );
     } finally {
       setSaving(false);
     }
