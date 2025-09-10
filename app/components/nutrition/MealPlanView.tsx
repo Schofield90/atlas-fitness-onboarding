@@ -32,9 +32,16 @@ export default function MealPlanView({
   const [selectedDay, setSelectedDay] = useState(1);
   const [editingMeal, setEditingMeal] = useState<string | null>(null);
   const [feedback, setFeedback] = useState("");
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobStatus, setJobStatus] = useState<string | null>(null);
+  const [skeleton, setSkeleton] = useState<any>(null);
 
   const handleGeneratePlan = async () => {
     setGenerating(true);
+    setSkeleton(null);
+    setJobId(null);
+    setJobStatus(null);
+
     try {
       // Get preferences if they exist
       const preferencesResponse = await fetch(
@@ -44,34 +51,99 @@ export default function MealPlanView({
         ? await preferencesResponse.json()
         : {};
 
-      const response = await fetch("/api/nutrition/generate-meal-plan", {
+      // Use new v2 endpoint for background processing
+      const response = await fetch("/api/nutrition/generate-meal-plan-v2", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           nutritionProfile,
-          profileId: nutritionProfile.id, // Support both formats
+          profileId: nutritionProfile.id,
           preferences: preferences.data || {},
-          daysToGenerate: 7, // Full week with Pro plan's 60-second timeout
+          daysToGenerate: 7,
         }),
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to generate meal plan");
-      }
-
       const result = await response.json();
-      if (result.success) {
+
+      if (result.cached) {
+        // Got cached result immediately
         setCurrentPlan(result.data);
         onPlanUpdate(result.data);
+        setGenerating(false);
+        return;
+      }
+
+      if (result.jobId) {
+        // Got job ID, show skeleton and start polling
+        setJobId(result.jobId);
+        setJobStatus("processing");
+        setSkeleton(result.skeleton);
+
+        // Start polling for job completion
+        pollJobStatus(result.jobId);
+      } else if (result.success) {
+        // Fallback: got immediate result (shouldn't happen with v2)
+        setCurrentPlan(result.data);
+        onPlanUpdate(result.data);
+        setGenerating(false);
       }
     } catch (error) {
       console.error("Error generating meal plan:", error);
       alert("Failed to generate meal plan. Please try again.");
-    } finally {
       setGenerating(false);
     }
+  };
+
+  const pollJobStatus = async (jobId: string) => {
+    const maxAttempts = 30; // Poll for max 60 seconds (30 * 2 seconds)
+    let attempts = 0;
+
+    const poll = setInterval(async () => {
+      attempts++;
+
+      try {
+        const response = await fetch(`/api/nutrition/job-status/${jobId}`);
+        const result = await response.json();
+
+        setJobStatus(result.status);
+
+        if (result.status === "completed" && result.data) {
+          // Job completed successfully
+          clearInterval(poll);
+          setCurrentPlan(result.data);
+          onPlanUpdate(result.data);
+          setGenerating(false);
+          setSkeleton(null);
+          setJobId(null);
+        } else if (result.status === "failed") {
+          // Job failed
+          clearInterval(poll);
+          console.error("Job failed:", result.error);
+          alert(
+            result.error || "Meal plan generation failed. Please try again.",
+          );
+          setGenerating(false);
+          setSkeleton(null);
+          setJobId(null);
+        } else if (attempts >= maxAttempts) {
+          // Timeout
+          clearInterval(poll);
+          alert(
+            "Meal plan generation is taking longer than expected. Please refresh and try again.",
+          );
+          setGenerating(false);
+          setSkeleton(null);
+          setJobId(null);
+        }
+        // Continue polling if still processing
+      } catch (error) {
+        console.error("Error polling job status:", error);
+        clearInterval(poll);
+        setGenerating(false);
+      }
+    }, 2000); // Poll every 2 seconds
   };
 
   const handleMealFeedback = async (
@@ -136,7 +208,7 @@ export default function MealPlanView({
         )}
       </div>
 
-      {!currentPlan ? (
+      {!currentPlan && !skeleton ? (
         <div className="text-center py-12">
           <Calendar className="h-12 w-12 text-gray-600 mx-auto mb-4" />
           <p className="text-gray-400 mb-6">
@@ -151,7 +223,7 @@ export default function MealPlanView({
             {generating ? (
               <>
                 <RefreshCw className="h-5 w-5 animate-spin" />
-                Generating Your Plan...
+                Starting Generation...
               </>
             ) : (
               <>
@@ -160,6 +232,59 @@ export default function MealPlanView({
               </>
             )}
           </button>
+        </div>
+      ) : skeleton && !currentPlan ? (
+        // Show skeleton while processing
+        <div className="space-y-6">
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <RefreshCw className="h-5 w-5 text-blue-500 animate-spin" />
+              <div>
+                <p className="text-white font-medium">
+                  Generating your personalized meal plan...
+                </p>
+                <p className="text-sm text-gray-400">
+                  {jobStatus === "processing"
+                    ? "Our AI chef is creating delicious meals for you"
+                    : "Preparing your plan..."}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Show skeleton meals */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {skeleton &&
+              skeleton.day_1 &&
+              skeleton.day_1.meals.map((meal: any, index: number) => (
+                <div
+                  key={index}
+                  className="bg-gray-800 rounded-lg p-4 border border-gray-700 animate-pulse"
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <div className="h-5 bg-gray-700 rounded w-32 mb-2"></div>
+                      <div className="h-4 bg-gray-700 rounded w-48"></div>
+                    </div>
+                    <div className="h-8 bg-orange-600/20 rounded px-3 py-1 w-20"></div>
+                  </div>
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
+                    <div className="text-center">
+                      <div className="h-4 bg-gray-700 rounded w-16 mx-auto mb-1"></div>
+                      <div className="h-3 bg-gray-700 rounded w-12 mx-auto"></div>
+                    </div>
+                    <div className="text-center">
+                      <div className="h-4 bg-gray-700 rounded w-16 mx-auto mb-1"></div>
+                      <div className="h-3 bg-gray-700 rounded w-12 mx-auto"></div>
+                    </div>
+                    <div className="text-center">
+                      <div className="h-4 bg-gray-700 rounded w-16 mx-auto mb-1"></div>
+                      <div className="h-3 bg-gray-700 rounded w-12 mx-auto"></div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+          </div>
         </div>
       ) : (
         <div className="space-y-6">
