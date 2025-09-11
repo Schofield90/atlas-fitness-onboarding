@@ -34,7 +34,8 @@ const publicRoutes = [
   '/api/test-nutrition-access',    // Test nutrition database access
   '/api/admin/fix-organization-staff',    // Organization staff migration
   '/api/admin/fix-nutrition-schema',    // Nutrition schema migration
-  '/api/admin/create-meal-plans-table'    // Meal plans table migration
+  '/api/admin/create-meal-plans-table',    // Meal plans table migration
+  '/api/fix-messaging-view'    // Fix messaging view and conversation function
 ]
 
 // Client-only routes
