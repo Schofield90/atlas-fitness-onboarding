@@ -12,7 +12,9 @@ import {
   ThumbsUp,
   ThumbsDown,
   ChefHat,
+  MessageCircle,
 } from "lucide-react";
+import MealFeedbackChat from "./MealFeedbackChat";
 
 interface MealPlanViewProps {
   client: any;
@@ -35,6 +37,14 @@ export default function MealPlanView({
   const [jobId, setJobId] = useState<string | null>(null);
   const [jobStatus, setJobStatus] = useState<string | null>(null);
   const [skeleton, setSkeleton] = useState<any>(null);
+  const [feedbackMeal, setFeedbackMeal] = useState<{
+    meal: any;
+    day: number;
+    index: number;
+  } | null>(null);
+  const [totalDaysGenerated, setTotalDaysGenerated] = useState(
+    activeMealPlan ? 3 : 0,
+  );
 
   const handleGeneratePlan = async () => {
     setGenerating(true);
@@ -102,6 +112,73 @@ export default function MealPlanView({
       alert("Failed to generate meal plan. Please try again.");
       setGenerating(false);
     }
+  };
+
+  const handleGenerateNextDays = async () => {
+    setGenerating(true);
+
+    try {
+      const response = await fetch("/api/nutrition/generate-meal-plan-quick", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nutritionProfile,
+          profileId: nutritionProfile.id,
+          daysToGenerate: 3,
+          startDay: totalDaysGenerated + 1,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        // Merge new days with existing plan
+        const mergedPlan = {
+          ...currentPlan,
+          meal_plan: {
+            ...currentPlan.meal_plan,
+            ...Object.fromEntries(
+              Object.entries(result.data.meal_plan).map(([key, value]) => {
+                const dayNum = parseInt(key.replace("day_", ""));
+                return [`day_${dayNum + totalDaysGenerated}`, value];
+              }),
+            ),
+          },
+          // Merge shopping lists
+          shopping_list: mergeShoppingLists(
+            currentPlan.shopping_list || currentPlan.meal_data?.shopping_list,
+            result.data.shopping_list,
+          ),
+        };
+
+        setCurrentPlan(mergedPlan);
+        onPlanUpdate(mergedPlan);
+        setTotalDaysGenerated(totalDaysGenerated + 3);
+      }
+    } catch (error) {
+      console.error("Error generating next days:", error);
+      alert("Failed to generate additional days. Please try again.");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const mergeShoppingLists = (list1: any, list2: any) => {
+    if (!list1) return list2;
+    if (!list2) return list1;
+
+    const merged: any = {};
+    const allKeys = new Set([...Object.keys(list1), ...Object.keys(list2)]);
+
+    allKeys.forEach((key) => {
+      const items1 = list1[key] || [];
+      const items2 = list2[key] || [];
+      merged[key] = [...new Set([...items1, ...items2])];
+    });
+
+    return merged;
   };
 
   const pollJobStatus = async (jobId: string) => {
@@ -301,32 +378,50 @@ export default function MealPlanView({
             <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
               <p className="text-sm text-gray-400">Daily Calories</p>
               <p className="text-xl font-semibold text-white">
-                {currentPlan.daily_calories || currentPlan.total_calories / 3}
+                {currentPlan?.daily_calories ||
+                  currentPlan?.data?.daily_calories ||
+                  nutritionProfile?.target_calories ||
+                  0}
               </p>
             </div>
             <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
               <p className="text-sm text-gray-400">Protein</p>
               <p className="text-xl font-semibold text-white">
-                {currentPlan.daily_protein || currentPlan.total_protein / 3}g
+                {currentPlan?.daily_protein ||
+                  currentPlan?.data?.daily_protein ||
+                  nutritionProfile?.protein_grams ||
+                  0}
+                g
               </p>
             </div>
             <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
               <p className="text-sm text-gray-400">Carbs</p>
               <p className="text-xl font-semibold text-white">
-                {currentPlan.daily_carbs || currentPlan.total_carbs / 3}g
+                {currentPlan?.daily_carbs ||
+                  currentPlan?.data?.daily_carbs ||
+                  nutritionProfile?.carbs_grams ||
+                  0}
+                g
               </p>
             </div>
             <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
               <p className="text-sm text-gray-400">Fat</p>
               <p className="text-xl font-semibold text-white">
-                {currentPlan.daily_fat || currentPlan.total_fat / 3}g
+                {currentPlan?.daily_fat ||
+                  currentPlan?.data?.daily_fat ||
+                  nutritionProfile?.fat_grams ||
+                  0}
+                g
               </p>
             </div>
           </div>
 
           {/* Day Selector */}
           <div className="flex gap-2 overflow-x-auto pb-2">
-            {[1, 2, 3].map((day) => (
+            {Array.from(
+              { length: totalDaysGenerated || 3 },
+              (_, i) => i + 1,
+            ).map((day) => (
               <button
                 key={day}
                 onClick={() => setSelectedDay(day)}
@@ -339,6 +434,16 @@ export default function MealPlanView({
                 {getDayName(day)}
               </button>
             ))}
+            {totalDaysGenerated < 7 && (
+              <button
+                onClick={handleGenerateNextDays}
+                disabled={generating}
+                className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Generate Next 3 Days
+              </button>
+            )}
           </div>
 
           {/* Meal Plan for Selected Day */}
@@ -395,22 +500,12 @@ export default function MealPlanView({
                     <div className="flex gap-2">
                       <button
                         onClick={() =>
-                          handleMealFeedback(`${selectedDay}-${index}`, "like")
+                          setFeedbackMeal({ meal, day: selectedDay, index })
                         }
-                        className="p-2 rounded-lg bg-gray-700 hover:bg-green-600 transition-colors"
+                        className="p-2 rounded-lg bg-gray-700 hover:bg-orange-600 transition-colors"
+                        title="Give feedback on this meal"
                       >
-                        <ThumbsUp className="h-4 w-4 text-white" />
-                      </button>
-                      <button
-                        onClick={() =>
-                          handleMealFeedback(
-                            `${selectedDay}-${index}`,
-                            "dislike",
-                          )
-                        }
-                        className="p-2 rounded-lg bg-gray-700 hover:bg-red-600 transition-colors"
-                      >
-                        <ThumbsDown className="h-4 w-4 text-white" />
+                        <MessageCircle className="h-4 w-4 text-white" />
                       </button>
                       <button
                         onClick={() =>
@@ -420,7 +515,7 @@ export default function MealPlanView({
                               : `${selectedDay}-${index}`,
                           )
                         }
-                        className="p-2 rounded-lg bg-gray-700 hover:bg-orange-600 transition-colors"
+                        className="p-2 rounded-lg bg-gray-700 hover:bg-blue-600 transition-colors"
                       >
                         <Edit2 className="h-4 w-4 text-white" />
                       </button>
@@ -509,7 +604,8 @@ export default function MealPlanView({
 
           {/* Shopping List */}
           {(currentPlan.shopping_list ||
-            currentPlan.meal_data?.shopping_list) && (
+            currentPlan.meal_data?.shopping_list ||
+            currentPlan.data?.shopping_list) && (
             <div className="bg-gray-800 rounded-lg p-4 mt-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-white">
@@ -519,37 +615,53 @@ export default function MealPlanView({
                   <Download className="h-4 w-4 text-white" />
                 </button>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {/* Handle both array and object formats */}
-                {Array.isArray(currentPlan.shopping_list)
-                  ? currentPlan.shopping_list.map(
-                      (item: any, index: number) => (
-                        <div key={index} className="flex items-center gap-2">
-                          <input type="checkbox" className="rounded" />
-                          <span className="text-gray-400 text-sm">
-                            {item.quantity} {item.item}
-                          </span>
+                {(() => {
+                  const shoppingList =
+                    currentPlan.shopping_list ||
+                    currentPlan.meal_data?.shopping_list ||
+                    currentPlan.data?.shopping_list;
+
+                  if (!shoppingList) return null;
+
+                  if (Array.isArray(shoppingList)) {
+                    return shoppingList.map((item: any, index: number) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <input type="checkbox" className="rounded" />
+                        <span className="text-gray-400 text-sm">
+                          {item.quantity} {item.item}
+                        </span>
+                      </div>
+                    ));
+                  } else if (typeof shoppingList === "object") {
+                    return Object.entries(shoppingList).map(
+                      ([category, items]: [string, any]) => (
+                        <div key={category} className="col-span-1">
+                          <h5 className="text-sm font-medium text-gray-300 mb-2 capitalize">
+                            {category.replace("_", " ")}
+                          </h5>
+                          <ul className="text-sm text-gray-400 space-y-1">
+                            {Array.isArray(items) &&
+                              items.map((item: string, idx: number) => (
+                                <li
+                                  key={idx}
+                                  className="flex items-center gap-2"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    className="rounded h-3 w-3"
+                                  />
+                                  <span>{item}</span>
+                                </li>
+                              ))}
+                          </ul>
                         </div>
                       ),
-                    )
-                  : currentPlan.meal_data?.shopping_list
-                    ? Object.entries(currentPlan.meal_data.shopping_list).map(
-                        ([category, items]: [string, any]) => (
-                          <div key={category}>
-                            <h5 className="text-sm font-medium text-gray-300 mb-2 capitalize">
-                              {category.replace("_", " ")}
-                            </h5>
-                            <ul className="text-sm text-gray-400 space-y-1">
-                              {items
-                                .slice(0, 5)
-                                .map((item: string, idx: number) => (
-                                  <li key={idx}>• {item}</li>
-                                ))}
-                            </ul>
-                          </div>
-                        ),
-                      )
-                    : null}
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             </div>
           )}
@@ -584,6 +696,38 @@ export default function MealPlanView({
             </div>
           )}
         </div>
+      )}
+
+      {/* Meal Feedback Chat Modal */}
+      {feedbackMeal && (
+        <MealFeedbackChat
+          meal={feedbackMeal.meal}
+          day={feedbackMeal.day}
+          mealIndex={feedbackMeal.index}
+          nutritionProfile={nutritionProfile}
+          onMealUpdate={(updatedMeal) => {
+            // Update the meal in the current plan
+            const updatedPlan = {
+              ...currentPlan,
+              meal_plan: {
+                ...currentPlan.meal_plan,
+                [`day_${feedbackMeal.day}`]: {
+                  ...currentPlan.meal_plan[`day_${feedbackMeal.day}`],
+                  meals: currentPlan.meal_plan[
+                    `day_${feedbackMeal.day}`
+                  ].meals.map((m: any, i: number) =>
+                    i === feedbackMeal.index ? updatedMeal : m,
+                  ),
+                },
+              },
+            };
+            setCurrentPlan(updatedPlan);
+            onPlanUpdate(updatedPlan);
+            setFeedback("Meal updated successfully!");
+            setTimeout(() => setFeedback(""), 3000);
+          }}
+          onClose={() => setFeedbackMeal(null)}
+        />
       )}
     </div>
   );
