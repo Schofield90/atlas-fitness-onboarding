@@ -25,21 +25,20 @@ export async function GET(request: NextRequest) {
     );
     const supabaseAdmin = createServiceClient(supabaseUrl, supabaseServiceKey);
 
-    // Get active meal plan for the profile
-    console.log("Fetching meal plan for profile:", profileId);
+    // Get all active meal plans for the profile
+    console.log("Fetching meal plans for profile:", profileId);
 
-    const { data: mealPlan, error } = await supabaseAdmin
+    // Use correct column names from 20250910_create_meal_plans_table.sql schema
+    // Try to order by date if it exists, otherwise by created_at
+    const { data: mealPlans, error } = await supabaseAdmin
       .from("meal_plans")
       .select("*")
-      .eq("profile_id", profileId)
-      .eq("status", "active")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
+      .eq("nutrition_profile_id", profileId)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false }); // Order by created_at for now
 
-    if (error && error.code !== "PGRST116") {
-      // PGRST116 = not found
-      console.error("Error fetching meal plan:", {
+    if (error) {
+      console.error("Error fetching meal plans:", {
         error: error.message,
         code: error.code,
         profile_id: profileId,
@@ -47,19 +46,37 @@ export async function GET(request: NextRequest) {
       return createErrorResponse(error, 500);
     }
 
-    // If no meal plan exists, return null
-    if (!mealPlan) {
+    // If no meal plans exist, return empty array
+    if (!mealPlans || mealPlans.length === 0) {
+      console.log("No meal plans found for profile:", profileId);
       return NextResponse.json({
         success: true,
-        data: null,
+        data: [],
       });
     }
 
-    console.log("Found active meal plan:", mealPlan.id);
+    console.log(
+      `Found ${mealPlans.length} active meal plans for profile:`,
+      profileId,
+    );
+
+    // Transform the meal plans to ensure they have the date field from either date column or meal_data
+    const transformedPlans = mealPlans.map((plan) => {
+      // Use the date column if available, otherwise try to extract from meal_data or start_date
+      const planDate = plan.date || plan.meal_data?.date || plan.start_date;
+      return {
+        ...plan,
+        date: planDate,
+        meal_data: {
+          ...plan.meal_data,
+          date: planDate, // Ensure date is in meal_data for backward compatibility
+        },
+      };
+    });
 
     return NextResponse.json({
       success: true,
-      data: mealPlan,
+      data: transformedPlans,
     });
   } catch (error) {
     console.error("Error in GET /api/nutrition/meal-plans:", error);
