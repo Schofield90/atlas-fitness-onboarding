@@ -30,8 +30,8 @@ export default function NutritionDashboard({
   const [activeMealPlan, setActiveMealPlan] = useState<any>(null);
   const [showSetup, setShowSetup] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    "overview" | "meal-plan" | "macros" | "progress"
-  >("overview");
+    "meal-plan" | "macros" | "progress"
+  >("meal-plan"); // Default to meal-plan tab
   const supabase = createClient();
 
   useEffect(() => {
@@ -123,13 +123,53 @@ export default function NutritionDashboard({
     );
   }
 
-  if (showSetup || !nutritionProfile) {
+  // Only show setup if no profile exists at all (not when updating profile)
+  if (!nutritionProfile && !loading) {
     return (
       <NutritionSetup
         client={client}
         onComplete={handleProfileComplete}
         existingProfile={nutritionProfile}
       />
+    );
+  }
+
+  // Show setup modal for updating profile
+  if (showSetup && nutritionProfile) {
+    return (
+      <div className="min-h-screen bg-gray-900">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40"
+          onClick={() => setShowSetup(false)}
+        />
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="w-full max-w-4xl bg-gray-800 rounded-lg">
+              <div className="p-4 border-b border-gray-700 flex justify-between items-center">
+                <h2 className="text-xl font-bold text-white">
+                  Update Nutrition Profile
+                </h2>
+                <button
+                  onClick={() => setShowSetup(false)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="p-4">
+                <NutritionSetup
+                  client={client}
+                  onComplete={(profile) => {
+                    handleProfileComplete(profile);
+                    setShowSetup(false);
+                  }}
+                  existingProfile={nutritionProfile}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     );
   }
 
@@ -170,16 +210,6 @@ export default function NutritionDashboard({
       <div className="bg-gray-800 border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-8">
-            <button
-              onClick={() => setActiveTab("overview")}
-              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === "overview"
-                  ? "border-orange-500 text-orange-500"
-                  : "border-transparent text-gray-400 hover:text-gray-300"
-              }`}
-            >
-              Overview
-            </button>
             <button
               onClick={() => setActiveTab("meal-plan")}
               className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
@@ -320,24 +350,6 @@ export default function NutritionDashboard({
 
         {/* Tab Content */}
         <div className="mt-8">
-          {activeTab === "overview" && (
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-              <h2 className="text-xl font-semibold text-white mb-4">
-                Welcome to Your AI Nutrition Coach
-              </h2>
-              <p className="text-gray-400 mb-4">
-                Your personalized nutrition profile has been created. You can
-                now:
-              </p>
-              <ul className="list-disc list-inside text-gray-400 space-y-2">
-                <li>Generate AI-powered meal plans tailored to your goals</li>
-                <li>Track your daily macro intake</li>
-                <li>Monitor your progress over time</li>
-                <li>Get recipe suggestions based on your preferences</li>
-              </ul>
-            </div>
-          )}
-
           {activeTab === "meal-plan" && (
             <MealPlanView
               client={client}
