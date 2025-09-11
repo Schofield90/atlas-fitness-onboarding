@@ -16,21 +16,21 @@ export async function GET() {
 
     console.log("Applying meal_data column migration...");
 
-    // Check current columns in meal_plans
-    const { data: currentPlan, error: checkError } = await supabaseAdmin
+    // Check current columns in meal_plans using a different approach
+    // Try to select specifically the meal_data column
+    const { data: testSelect, error: selectError } = await supabaseAdmin
       .from("meal_plans")
-      .select("*")
-      .limit(1)
-      .single();
+      .select("meal_data")
+      .limit(1);
 
-    const currentColumns = currentPlan ? Object.keys(currentPlan) : [];
-    const hasMealData = currentColumns.includes("meal_data");
+    // If the column doesn't exist, we'll get an error
+    const hasMealData =
+      !selectError || !selectError.message?.includes("column");
 
     if (hasMealData) {
       return NextResponse.json({
         success: true,
         message: "meal_data column already exists",
-        columns: currentColumns,
       });
     }
 
@@ -39,7 +39,6 @@ export async function GET() {
     return NextResponse.json({
       success: false,
       message: "meal_data column is missing",
-      columns: currentColumns,
       instruction: "Please run the following SQL in your database:",
       sql: `
 -- Add meal_data column to meal_plans
