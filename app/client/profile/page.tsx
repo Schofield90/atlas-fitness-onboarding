@@ -80,15 +80,30 @@ export default function ClientProfilePage() {
     e.preventDefault();
     setSaving(true);
 
-    const { error } = await supabase
-      .from("clients")
-      .update(formData)
-      .eq("id", client.id);
+    try {
+      // Use the API endpoint to update client and sync with nutrition profile
+      const response = await fetch("/api/clients/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          clientId: client.id,
+          ...formData,
+        }),
+      });
 
-    if (!error) {
-      setClient({ ...client, ...formData });
-      alert("Profile updated successfully!");
-    } else {
+      const result = await response.json();
+
+      if (result.success) {
+        setClient({ ...client, ...formData });
+        alert("Profile updated successfully!");
+      } else {
+        console.error("Error updating profile:", result.error);
+        alert("Failed to update profile");
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
       alert("Failed to update profile");
     }
 
