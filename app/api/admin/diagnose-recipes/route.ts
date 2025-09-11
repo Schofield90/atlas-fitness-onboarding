@@ -56,10 +56,18 @@ export async function GET() {
       .select()
       .single();
 
-    // 5. Check RLS policies
-    const { data: policies, error: policyError } = await supabaseAdmin
-      .rpc("get_policies", { table_name: "recipes" })
-      .catch(() => ({ data: null, error: "RPC function not available" }));
+    // 5. Check RLS policies (skip if RPC not available)
+    let policies = null;
+    let policyError = null;
+    try {
+      const result = await supabaseAdmin.rpc("get_policies", {
+        table_name: "recipes",
+      });
+      policies = result.data;
+      policyError = result.error;
+    } catch (e) {
+      policyError = "RPC function not available";
+    }
 
     // 6. Get meal plans with recipes
     const { data: mealPlans, error: mealPlanError } = await supabaseAdmin

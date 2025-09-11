@@ -20,7 +20,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!nutritionProfile.id) {
+      return NextResponse.json(
+        { success: false, error: "Nutrition profile ID is required" },
+        { status: 400 },
+      );
+    }
+
     console.log("Generating meal plan with library for date:", date);
+    console.log("Nutrition profile ID:", nutritionProfile.id);
+    console.log("Organization ID:", userWithOrg.organizationId);
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -362,7 +371,28 @@ Use British measurements (g, ml). Return JSON:
     }
 
     if (saveError) {
-      console.error("Error saving meal plan:", saveError);
+      console.error("Error saving meal plan:", {
+        error: saveError.message,
+        code: saveError.code,
+        hint: saveError.hint,
+        details: saveError.details,
+        nutritionProfileId: nutritionProfile.id,
+        organizationId: userWithOrg.organizationId,
+      });
+
+      // Return error response if meal plan save failed
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Failed to save meal plan to database",
+          details: {
+            message: saveError.message,
+            code: saveError.code,
+            hint: saveError.hint,
+          },
+        },
+        { status: 500 },
+      );
     }
 
     // Save generated meals to recipe library for future use
