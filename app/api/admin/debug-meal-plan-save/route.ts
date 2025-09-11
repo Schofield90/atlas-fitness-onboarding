@@ -74,10 +74,17 @@ export async function GET() {
       }
     }
 
-    // 4. Check if there are any required columns
-    const { data: checkConstraints } = await supabaseAdmin
-      .rpc("get_table_constraints", { table_name: "meal_plans" })
-      .catch(() => ({ data: null }));
+    // 4. Check if there are any required columns (skip if RPC not available)
+    let checkConstraints = null;
+    try {
+      const result = await supabaseAdmin.rpc("get_table_constraints", {
+        table_name: "meal_plans",
+      });
+      checkConstraints = result.data;
+    } catch (e) {
+      // RPC not available, skip
+      checkConstraints = null;
+    }
 
     return NextResponse.json({
       success: true,
