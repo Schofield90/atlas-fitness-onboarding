@@ -67,15 +67,21 @@ export default function MealPlanView({
 
       const result = await response.json();
 
-      if (result.cached) {
+      if (result.success && result.data) {
+        // Got immediate result from quick endpoint
+        const planData = {
+          ...result.data,
+          meal_data: result.data.meal_data || result.data.meal_plan,
+        };
+        setCurrentPlan(planData);
+        onPlanUpdate(planData);
+        setGenerating(false);
+      } else if (result.cached) {
         // Got cached result immediately
         setCurrentPlan(result.data);
         onPlanUpdate(result.data);
         setGenerating(false);
-        return;
-      }
-
-      if (result.jobId) {
+      } else if (result.jobId) {
         // Got job ID, show skeleton and start polling
         setJobId(result.jobId);
         setJobStatus("processing");
@@ -83,10 +89,12 @@ export default function MealPlanView({
 
         // Start polling for job completion
         pollJobStatus(result.jobId);
-      } else if (result.success) {
-        // Fallback: got immediate result (shouldn't happen with v2)
-        setCurrentPlan(result.data);
-        onPlanUpdate(result.data);
+      } else {
+        // Error occurred
+        console.error("Failed to generate meal plan:", result.error);
+        alert(
+          result.error || "Failed to generate meal plan. Please try again.",
+        );
         setGenerating(false);
       }
     } catch (error) {

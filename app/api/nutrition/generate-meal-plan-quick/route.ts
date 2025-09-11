@@ -232,26 +232,18 @@ Create meals for ${daysToGenerate} days. Keep instructions brief. Focus on simpl
       const { data: savedPlan, error: saveError } = await supabaseAdmin
         .from("meal_plans")
         .insert({
-          profile_id: profile.id,
-          client_id: profile.client_id,
+          nutrition_profile_id: profile.id,
           organization_id: userWithOrg.organizationId,
           name: `${daysToGenerate}-Day Quick Meal Plan`,
-          start_date: startDate.toISOString().split("T")[0],
-          end_date: endDate.toISOString().split("T")[0],
-          status: "active",
+          description: `AI-generated meal plan for ${profile.goal || "general nutrition"}`,
           duration_days: daysToGenerate,
           meals_per_day: 3,
           daily_calories: profile.target_calories,
           daily_protein: profile.protein_grams,
           daily_carbs: profile.carbs_grams,
           daily_fat: profile.fat_grams,
-          total_calories: profile.target_calories * daysToGenerate,
-          total_protein: profile.protein_grams * daysToGenerate,
-          total_carbs: profile.carbs_grams * daysToGenerate,
-          total_fat: profile.fat_grams * daysToGenerate,
-          meal_data: mealPlanData.meal_plan,
-          shopping_list: mealPlanData.shopping_list,
-          ai_model: "gpt-3.5-turbo",
+          meal_data: mealPlanData,
+          is_active: true,
         })
         .select()
         .single();
@@ -281,6 +273,11 @@ Create meals for ${daysToGenerate} days. Keep instructions brief. Focus on simpl
         data: {
           id: savedPlan.id,
           meal_plan: mealPlanData.meal_plan,
+          meal_data: mealPlanData,
+          daily_calories: profile.target_calories,
+          daily_protein: profile.protein_grams,
+          daily_carbs: profile.carbs_grams,
+          daily_fat: profile.fat_grams,
           nutrition_totals: {
             calories: profile.target_calories * daysToGenerate,
             protein: profile.protein_grams * daysToGenerate,
