@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/client";
 import { Send, ChevronLeft, MessageCircle, User, Clock } from "lucide-react";
+import { CookieFixer } from "@/app/components/CookieFixer";
 
 export default function ClientMessagesPage() {
   const router = useRouter();
@@ -185,6 +186,7 @@ export default function ClientMessagesPage() {
 
   return (
     <div className="min-h-screen bg-gray-900">
+      <CookieFixer />
       {/* Header */}
       <header className="bg-gray-800 shadow-sm border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
