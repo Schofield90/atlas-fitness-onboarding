@@ -371,6 +371,16 @@ Use British measurements (g, ml). Return JSON:
       if (!meal.recipe_id) {
         // This is a newly generated meal, save it to the library
         try {
+          // Parse prep_time and cook_time from strings like "15 minutes" to numbers
+          const parseTime = (timeStr: any) => {
+            if (typeof timeStr === "number") return timeStr;
+            if (typeof timeStr === "string") {
+              const match = timeStr.match(/(\d+)/);
+              return match ? parseInt(match[1]) : 15;
+            }
+            return 15;
+          };
+
           const recipeData = {
             name: meal.name,
             description: meal.description || `AI-generated ${meal.type} recipe`,
@@ -382,8 +392,8 @@ Use British measurements (g, ml). Return JSON:
             fiber: meal.fiber ? parseFloat(meal.fiber.toFixed(2)) : null,
             sugar: meal.sugar ? parseFloat(meal.sugar.toFixed(2)) : null,
             sodium: meal.sodium ? parseFloat(meal.sodium.toFixed(2)) : null,
-            prep_time: meal.prep_time || 15,
-            cook_time: meal.cook_time || 15,
+            prep_time: parseTime(meal.prep_time),
+            cook_time: parseTime(meal.cook_time),
             servings: meal.servings || 1,
             difficulty: "easy",
             ingredients: meal.ingredients || [],
