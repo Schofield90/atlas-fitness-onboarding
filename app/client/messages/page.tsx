@@ -83,6 +83,10 @@ export default function ClientMessagesPage() {
         throw new Error("No conversation ID returned");
       }
 
+      if (data.warning) {
+        console.warn("Conversation warning:", data.warning);
+      }
+
       setConversationId(data.conversation_id);
       await loadMessages(data.conversation_id);
       subscribeToMessages(data.conversation_id);
