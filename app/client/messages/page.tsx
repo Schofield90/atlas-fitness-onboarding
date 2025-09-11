@@ -67,34 +67,35 @@ export default function ClientMessagesPage() {
   const initConversation = async () => {
     try {
       // Create or get the conversation for this client
-      const resp = await fetch('/api/client/conversations', { method: 'POST' });
+      const resp = await fetch("/api/client/conversations", { method: "POST" });
       const data = await resp.json();
-      if (!resp.ok) throw new Error(data.error || 'Failed to init conversation');
+      if (!resp.ok)
+        throw new Error(data.error || "Failed to init conversation");
 
       setConversationId(data.conversation_id);
       await loadMessages(data.conversation_id);
       subscribeToMessages(data.conversation_id);
     } catch (error) {
-      console.error('Error initializing conversation:', error);
+      console.error("Error initializing conversation:", error);
     }
   };
 
   const loadMessages = async (convId: string) => {
     try {
       const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('conversation_id', convId)
-        .order('created_at', { ascending: true });
+        .from("messages")
+        .select("*")
+        .eq("conversation_id", convId)
+        .order("created_at", { ascending: true });
 
       if (error) {
-        console.error('Error loading messages:', error);
+        console.error("Error loading messages:", error);
         return;
       }
 
       setMessages(data || []);
     } catch (error) {
-      console.error('Error loading messages:', error);
+      console.error("Error loading messages:", error);
     }
   };
 
@@ -102,11 +103,11 @@ export default function ClientMessagesPage() {
     const channel = supabase
       .channel(`client-messages-${convId}`)
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
           filter: `conversation_id=eq.${convId}`,
         },
         (payload) => {
@@ -125,31 +126,35 @@ export default function ClientMessagesPage() {
 
     setSending(true);
     try {
-      if (!conversationId) throw new Error('No conversation');
+      if (!conversationId) throw new Error("No conversation");
       const { data, error } = await supabase
-        .from('messages')
+        .from("messages")
         .insert({
           conversation_id: conversationId,
           client_id: client.id,
           customer_id: client.id, // Add for compatibility with cached schema
           organization_id: client.organization_id,
-          channel: 'in_app',
-          sender_type: 'client',
-          message_type: 'text',
+          channel: "in_app",
+          sender_type: "client",
+          sender_name: client.name || client.email || "Client", // Add sender_name
+          message_type: "text",
+          type: "text", // Add for compatibility
+          direction: "inbound", // Client messages are inbound
           content: newMessage.trim(),
-          status: 'sent',
+          status: "sent",
           sender_id: null, // Clients don't have user records
+          metadata: {}, // Add empty metadata
         })
-        .select('*')
+        .select("*")
         .single();
 
       if (error) throw error;
 
       setMessages((prev) => [...prev, data]);
-      setNewMessage('');
+      setNewMessage("");
     } catch (error) {
-      console.error('Error sending message:', error);
-      alert('Failed to send message. Please try again.');
+      console.error("Error sending message:", error);
+      alert("Failed to send message. Please try again.");
     } finally {
       setSending(false);
     }
@@ -220,7 +225,7 @@ export default function ClientMessagesPage() {
               </div>
             ) : (
               messages.map((message) => {
-                const isFromClient = message.sender_type === 'client';
+                const isFromClient = message.sender_type === "client";
                 return (
                   <div
                     key={message.id}
