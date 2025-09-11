@@ -142,18 +142,34 @@ export default function ClientMessagesPage() {
   const sendMessage = async () => {
     if (!newMessage.trim() || sending) return;
 
-    if (!conversationId) {
-      console.error("No conversation ID available");
-      alert("Chat not initialized. Please refresh the page.");
-      return;
+    // Get fresh conversation ID from state
+    let currentConversationId = conversationId;
+
+    if (!currentConversationId) {
+      console.error(
+        "No conversation ID available, attempting to reinitialize...",
+      );
+      // Try to reinitialize the conversation
+      await initConversation();
+      // Wait a bit for state to update
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      currentConversationId = conversationId;
+
+      // If still no ID, generate a fallback
+      if (!currentConversationId) {
+        currentConversationId = crypto.randomUUID();
+        console.warn("Using fallback conversation ID:", currentConversationId);
+        setConversationId(currentConversationId);
+      }
     }
 
+    console.log("Sending message with conversation_id:", currentConversationId);
     setSending(true);
     try {
       const { data, error } = await supabase
         .from("messages")
         .insert({
-          conversation_id: conversationId,
+          conversation_id: currentConversationId,
           client_id: client.id,
           customer_id: client.id, // Add for compatibility with cached schema
           organization_id: client.organization_id,
