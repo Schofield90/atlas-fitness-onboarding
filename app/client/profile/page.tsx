@@ -316,6 +316,123 @@ export default function ClientProfilePage() {
             </p>
           </div>
 
+          {/* Nutrition Preferences */}
+          <div className="bg-gray-800 rounded-lg shadow-lg border border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">
+              Nutrition Preferences
+            </h3>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Activity Level
+                </label>
+                <select
+                  value={formData.activity_level}
+                  onChange={(e) =>
+                    setFormData({ ...formData, activity_level: e.target.value })
+                  }
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-orange-500 focus:border-orange-500"
+                >
+                  <option value="sedentary">
+                    Sedentary (little or no exercise)
+                  </option>
+                  <option value="lightly_active">
+                    Lightly Active (1-3 days/week)
+                  </option>
+                  <option value="moderately_active">
+                    Moderately Active (3-5 days/week)
+                  </option>
+                  <option value="very_active">
+                    Very Active (6-7 days/week)
+                  </option>
+                  <option value="extra_active">Extra Active (athlete)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Dietary Type
+                </label>
+                <select
+                  value={formData.dietary_type}
+                  onChange={(e) =>
+                    setFormData({ ...formData, dietary_type: e.target.value })
+                  }
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-orange-500 focus:border-orange-500"
+                >
+                  <option value="balanced">Balanced</option>
+                  <option value="vegetarian">Vegetarian</option>
+                  <option value="vegan">Vegan</option>
+                  <option value="keto">Keto</option>
+                  <option value="paleo">Paleo</option>
+                  <option value="mediterranean">Mediterranean</option>
+                  <option value="low_carb">Low Carb</option>
+                  <option value="high_protein">High Protein</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Cooking Time Available
+                </label>
+                <select
+                  value={formData.cooking_time}
+                  onChange={(e) =>
+                    setFormData({ ...formData, cooking_time: e.target.value })
+                  }
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-orange-500 focus:border-orange-500"
+                >
+                  <option value="minimal">Minimal (15 mins or less)</option>
+                  <option value="moderate">Moderate (30 mins)</option>
+                  <option value="extensive">Extensive (1 hour+)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Meals Per Day
+                </label>
+                <select
+                  value={formData.meals_per_day}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      meals_per_day: parseInt(e.target.value),
+                    })
+                  }
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-orange-500 focus:border-orange-500"
+                >
+                  <option value="2">2 meals</option>
+                  <option value="3">3 meals</option>
+                  <option value="4">4 meals</option>
+                  <option value="5">5 meals</option>
+                  <option value="6">6 meals</option>
+                </select>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Allergies or Dietary Restrictions
+                </label>
+                <input
+                  type="text"
+                  value={formData.allergies.join(", ")}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      allergies: e.target.value
+                        .split(",")
+                        .map((a) => a.trim())
+                        .filter((a) => a),
+                    })
+                  }
+                  placeholder="e.g., nuts, dairy, gluten (comma separated)"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white placeholder-gray-400 rounded-lg focus:ring-orange-500 focus:border-orange-500"
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Emergency Contact */}
           <div className="bg-gray-800 rounded-lg shadow-lg border border-gray-700 p-6">
             <h3 className="text-lg font-semibold text-white mb-4">
