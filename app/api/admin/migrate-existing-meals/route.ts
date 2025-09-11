@@ -17,11 +17,21 @@ export async function GET() {
 
     console.log("Fetching existing meal plans to extract recipes...");
 
-    // Get all meal plans that have meal_data
+    // First check what columns exist in meal_plans
+    const { data: columnsCheck, error: columnsError } = await supabaseAdmin
+      .from("meal_plans")
+      .select("*")
+      .limit(1);
+
+    console.log(
+      "Meal plans table columns:",
+      columnsCheck ? Object.keys(columnsCheck[0] || {}) : "No data",
+    );
+
+    // Get all meal plans - try different column names
     const { data: mealPlans, error: fetchError } = await supabaseAdmin
       .from("meal_plans")
-      .select("id, meal_data, organization_id, created_at")
-      .not("meal_data", "is", null)
+      .select("*")
       .limit(100);
 
     if (fetchError) {
@@ -47,12 +57,29 @@ export async function GET() {
     let recipesFailed = 0;
     const createdRecipes = [];
 
-    // Process each meal plan
+    // Log first meal plan structure to understand the data
+    if (mealPlans && mealPlans.length > 0) {
+      console.log(
+        "First meal plan structure:",
+        JSON.stringify(mealPlans[0], null, 2),
+      );
+    }
+
+    // Process each meal plan - check different possible column names
     for (const plan of mealPlans) {
-      if (!plan.meal_data?.meals) continue;
+      // Try different possible locations for meal data
+      const mealData =
+        plan.meal_data || plan.meals || plan.data || plan.meal_plan_data;
+
+      if (!mealData?.meals && !Array.isArray(mealData)) {
+        console.log(`No meals found in plan ${plan.id}`);
+        continue;
+      }
+
+      const meals = mealData.meals || mealData;
 
       // Process each meal in the plan
-      for (const meal of plan.meal_data.meals) {
+      for (const meal of meals) {
         if (!meal.name) continue;
 
         try {
