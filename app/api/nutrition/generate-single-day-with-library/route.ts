@@ -401,13 +401,18 @@ Use British measurements (g, ml). Return JSON:
             dietary_tags: meal.dietary_tags || [],
             allergens: meal.allergens || [],
             source: "ai_generated",
-            created_by: userId,
+            created_by: userWithOrg.id,
             organization_id: userWithOrg.organizationId,
             status: "active",
             is_featured: false,
           };
 
           console.log("Saving recipe:", recipeData.name);
+          console.log(
+            "Recipe data being saved:",
+            JSON.stringify(recipeData, null, 2),
+          );
+
           const { data: savedRecipe, error: recipeError } = await supabaseAdmin
             .from("recipes")
             .insert(recipeData)
@@ -415,9 +420,19 @@ Use British measurements (g, ml). Return JSON:
             .single();
 
           if (recipeError) {
-            console.error("Error saving recipe to library:", recipeError);
+            console.error("Error saving recipe to library:", {
+              error: recipeError.message,
+              code: recipeError.code,
+              details: recipeError.details,
+              hint: recipeError.hint,
+              recipeData: recipeData,
+            });
           } else {
-            console.log("Recipe saved successfully:", savedRecipe.id);
+            console.log(
+              "Recipe saved successfully:",
+              savedRecipe.id,
+              savedRecipe.name,
+            );
           }
         } catch (err) {
           console.error("Error processing recipe for library:", err);
