@@ -148,20 +148,31 @@ export default function NutritionSetup({
     return age;
   };
 
-  // Initialize form data with existing profile
+  // Initialize form data with existing profile or client data
   const initializeFormData = () => {
+    // Pull from client profile first, then existing nutrition profile
     const heightCm =
-      existingProfile?.height || existingProfile?.height_cm || "";
+      client?.height_cm ||
+      existingProfile?.height ||
+      existingProfile?.height_cm ||
+      "";
     const weightKg =
-      existingProfile?.current_weight || existingProfile?.weight_kg || "";
+      client?.weight_kg ||
+      existingProfile?.current_weight ||
+      existingProfile?.weight_kg ||
+      "";
 
     // Calculate age from client's date of birth if available
     const calculatedAge = client?.date_of_birth
       ? calculateAge(client.date_of_birth)
       : existingProfile?.age || "";
 
+    // Get goal from client profile or existing nutrition profile
+    const fitnessGoal =
+      client?.fitness_goal || existingProfile?.goal || "maintain";
+
     return {
-      // Basic stats - handle all possible column names
+      // Basic stats - prioritize client profile data
       height: heightCm,
       weight: weightKg,
       heightFt: "",
@@ -178,8 +189,8 @@ export default function NutritionSetup({
         "male",
       activityLevel: convertActivityLevel(existingProfile?.activity_level),
 
-      // Goals - handle multiple column names and formats
-      goal: convertGoal(existingProfile?.goal),
+      // Goals - use client fitness goal or existing profile goal
+      goal: convertGoal(fitnessGoal),
       targetWeight:
         existingProfile?.goal_weight || existingProfile?.target_weight_kg || "",
       weeklyChange: existingProfile?.weekly_weight_change_kg || 0.5,
@@ -433,7 +444,7 @@ export default function NutritionSetup({
       };
 
       // Map cooking time to match database expectations (UPPERCASE)
-      const cookingTimeMap: Record<string, string> = {
+      const cookingTimeMapping: Record<string, string> = {
         quick: "MINIMAL",
         moderate: "MODERATE",
         extensive: "EXTENSIVE",

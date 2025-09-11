@@ -25,6 +25,9 @@ export default function ClientProfilePage() {
     email: "",
     phone: "",
     date_of_birth: "",
+    height_cm: "",
+    weight_kg: "",
+    fitness_goal: "maintain",
     emergency_contact_name: "",
     emergency_contact_phone: "",
     medical_notes: "",
@@ -63,6 +66,9 @@ export default function ClientProfilePage() {
       email: clientData.email || "",
       phone: clientData.phone || "",
       date_of_birth: clientData.date_of_birth || "",
+      height_cm: clientData.height_cm || "",
+      weight_kg: clientData.weight_kg || "",
+      fitness_goal: clientData.fitness_goal || "maintain",
       emergency_contact_name: clientData.emergency_contact_name || "",
       emergency_contact_phone: clientData.emergency_contact_phone || "",
       medical_notes: clientData.medical_notes || "",
@@ -214,6 +220,67 @@ export default function ClientProfilePage() {
                 />
               </div>
             </div>
+          </div>
+
+          {/* Fitness Information */}
+          <div className="bg-gray-800 rounded-lg shadow-lg border border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">
+              Fitness Information
+            </h3>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Height (cm)
+                </label>
+                <input
+                  type="number"
+                  value={formData.height_cm}
+                  onChange={(e) =>
+                    setFormData({ ...formData, height_cm: e.target.value })
+                  }
+                  placeholder="170"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white placeholder-gray-400 rounded-lg focus:ring-orange-500 focus:border-orange-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Weight (kg)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={formData.weight_kg}
+                  onChange={(e) =>
+                    setFormData({ ...formData, weight_kg: e.target.value })
+                  }
+                  placeholder="70"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white placeholder-gray-400 rounded-lg focus:ring-orange-500 focus:border-orange-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Fitness Goal
+                </label>
+                <select
+                  value={formData.fitness_goal}
+                  onChange={(e) =>
+                    setFormData({ ...formData, fitness_goal: e.target.value })
+                  }
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-orange-500 focus:border-orange-500"
+                >
+                  <option value="lose_weight">Lose Weight</option>
+                  <option value="maintain">Maintain Weight</option>
+                  <option value="gain_muscle">Gain Muscle</option>
+                  <option value="improve_health">Improve Health</option>
+                </select>
+              </div>
+            </div>
+            <p className="text-sm text-gray-400 mt-3">
+              This information will be used to personalize your nutrition and
+              workout plans.
+            </p>
           </div>
 
           {/* Emergency Contact */}
