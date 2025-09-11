@@ -52,7 +52,7 @@ export default function MealPlanView({
         : {};
 
       // Use new v2 endpoint for background processing
-      const response = await fetch("/api/nutrition/generate-meal-plan-v2", {
+      const response = await fetch("/api/nutrition/generate-meal-plan-simple", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -113,6 +113,9 @@ function generateSkeleton(profile: any, daysToGenerate: number) {
   return skeleton;
 }
 
+// Set max duration for Vercel Pro plan
+export const maxDuration = 60; // 60 seconds
+
 export async function POST(request: NextRequest) {
   try {
     // Check authentication
