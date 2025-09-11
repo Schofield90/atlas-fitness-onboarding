@@ -69,20 +69,32 @@ export default function ClientProfilePage() {
     }
 
     setClient(clientData);
+
+    // Try to load nutrition data from localStorage if database columns don't exist
+    const savedNutrition = localStorage.getItem(`nutrition_${clientData.id}`);
+    const nutritionData = savedNutrition ? JSON.parse(savedNutrition) : {};
+
     setFormData({
       first_name: clientData.first_name || "",
       last_name: clientData.last_name || "",
       email: clientData.email || "",
       phone: clientData.phone || "",
       date_of_birth: clientData.date_of_birth || "",
-      height_cm: clientData.height_cm || "",
-      weight_kg: clientData.weight_kg || "",
-      fitness_goal: clientData.fitness_goal || "maintain",
-      activity_level: clientData.activity_level || "moderately_active",
-      dietary_type: clientData.dietary_type || "balanced",
-      allergies: clientData.allergies || [],
-      cooking_time: clientData.cooking_time || "moderate",
-      meals_per_day: clientData.meals_per_day || 3,
+      height_cm: clientData.height_cm || nutritionData.height_cm || "",
+      weight_kg: clientData.weight_kg || nutritionData.weight_kg || "",
+      fitness_goal:
+        clientData.fitness_goal || nutritionData.fitness_goal || "maintain",
+      activity_level:
+        clientData.activity_level ||
+        nutritionData.activity_level ||
+        "moderately_active",
+      dietary_type:
+        clientData.dietary_type || nutritionData.dietary_type || "balanced",
+      allergies: clientData.allergies || nutritionData.allergies || [],
+      cooking_time:
+        clientData.cooking_time || nutritionData.cooking_time || "moderate",
+      meals_per_day:
+        clientData.meals_per_day || nutritionData.meals_per_day || 3,
       target_calories: clientData.target_calories || 0,
       protein_grams: clientData.protein_grams || 0,
       carbs_grams: clientData.carbs_grams || 0,
@@ -99,7 +111,7 @@ export default function ClientProfilePage() {
     setSaving(true);
 
     try {
-      // Use the API endpoint to update client and sync with nutrition profile
+      // Try the full update first
       const response = await fetch("/api/clients/update", {
         method: "POST",
         headers: {
@@ -113,7 +125,39 @@ export default function ClientProfilePage() {
 
       const result = await response.json();
 
-      if (result.success) {
+      if (!result.success && response.status === 500) {
+        // If it fails with 500, try the safe endpoint
+        console.log("Using safe update endpoint...");
+        const safeResponse = await fetch("/api/clients/update-safe", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            clientId: client.id,
+            ...formData,
+          }),
+        });
+
+        const safeResult = await safeResponse.json();
+
+        if (safeResult.success) {
+          setClient({ ...client, ...formData });
+
+          // Save nutrition data to localStorage
+          if (safeResult.nutritionData) {
+            localStorage.setItem(
+              `nutrition_${client.id}`,
+              JSON.stringify(safeResult.nutritionData),
+            );
+          }
+
+          alert("Profile updated successfully! (Nutrition data saved locally)");
+        } else {
+          console.error("Error updating profile:", safeResult.error);
+          alert("Failed to update profile");
+        }
+      } else if (result.success) {
         setClient({ ...client, ...formData });
         alert("Profile updated successfully!");
       } else {
