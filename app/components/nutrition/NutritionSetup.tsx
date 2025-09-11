@@ -132,12 +132,33 @@ export default function NutritionSetup({
     return mapping[dbTime] || dbTime?.toLowerCase() || "moderate";
   };
 
+  // Calculate age from date of birth
+  const calculateAge = (dateOfBirth: string | null): number => {
+    if (!dateOfBirth) return 0;
+    const birthDate = new Date(dateOfBirth);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birthDate.getDate())
+    ) {
+      age--;
+    }
+    return age;
+  };
+
   // Initialize form data with existing profile
   const initializeFormData = () => {
     const heightCm =
       existingProfile?.height || existingProfile?.height_cm || "";
     const weightKg =
       existingProfile?.current_weight || existingProfile?.weight_kg || "";
+
+    // Calculate age from client's date of birth if available
+    const calculatedAge = client?.date_of_birth
+      ? calculateAge(client.date_of_birth)
+      : existingProfile?.age || "";
 
     return {
       // Basic stats - handle all possible column names
@@ -150,7 +171,7 @@ export default function NutritionSetup({
       weightStoneLbs: "",
       heightUnit: "cm" as "cm" | "ft",
       weightUnit: "kg" as "kg" | "lbs" | "stone",
-      age: existingProfile?.age || "",
+      age: calculatedAge,
       gender:
         existingProfile?.sex?.toLowerCase() ||
         existingProfile?.gender?.toLowerCase() ||
@@ -258,11 +279,16 @@ export default function NutritionSetup({
     const heightCm = convertHeight(formData);
     const weightKg = convertWeight(formData);
 
-    if (weightKg > 0 && heightCm > 0 && formData.age) {
+    // Use calculated age from date of birth if age field is empty
+    const currentAge =
+      formData.age ||
+      (client?.date_of_birth ? calculateAge(client.date_of_birth) : 0);
+
+    if (weightKg > 0 && heightCm > 0 && currentAge) {
       const bmr = calculateBMR(
         weightKg,
         heightCm,
-        parseInt(formData.age),
+        parseInt(currentAge.toString()),
         formData.gender,
       );
 
@@ -273,19 +299,42 @@ export default function NutritionSetup({
         formData.weeklyChange,
       );
 
-      // Calculate macros based on percentages
-      const proteinCalories = (targetCalories * formData.proteinPercent) / 100;
-      const carbsCalories = (targetCalories * formData.carbsPercent) / 100;
-      const fatCalories = (targetCalories * formData.fatPercent) / 100;
+      // Calculate macros based on goal-specific ratios
+      let proteinMultiplier = 2.2; // g per kg body weight
+      let proteinPercent = 30;
+      let carbsPercent = 40;
+      let fatPercent = 30;
+
+      if (formData.goal === "lose_weight") {
+        proteinMultiplier = 2.4; // Higher protein when cutting
+        proteinPercent = 35;
+        carbsPercent = 35;
+        fatPercent = 30;
+      } else if (formData.goal === "gain_muscle") {
+        proteinMultiplier = 2.0;
+        proteinPercent = 25;
+        carbsPercent = 45;
+        fatPercent = 30;
+      }
+
+      const proteinGrams = Math.round(weightKg * proteinMultiplier);
+      const carbsGrams = Math.round(
+        (targetCalories * (carbsPercent / 100)) / 4,
+      );
+      const fatGrams = Math.round((targetCalories * (fatPercent / 100)) / 9);
 
       setFormData((prev) => ({
         ...prev,
+        age: currentAge, // Ensure age is saved
         bmr,
         tdee,
         targetCalories,
-        proteinGrams: Math.round(proteinCalories / 4),
-        carbsGrams: Math.round(carbsCalories / 4),
-        fatGrams: Math.round(fatCalories / 9),
+        proteinGrams,
+        carbsGrams,
+        fatGrams,
+        proteinPercent,
+        carbsPercent,
+        fatPercent,
       }));
     }
   };
@@ -391,6 +440,23 @@ export default function NutritionSetup({
       };
 
       // Build nutrition profile data to match database schema exactly
+      // Ensure calculations are up to date before saving
+      const currentAge =
+        parseInt(formData.age) ||
+        (client?.date_of_birth ? calculateAge(client.date_of_birth) : 30);
+      const currentBMR =
+        formData.bmr ||
+        calculateBMR(weightKg, heightCm, currentAge, formData.gender);
+      const currentTDEE =
+        formData.tdee || calculateTDEE(currentBMR, formData.activityLevel);
+      const currentTargetCalories =
+        formData.targetCalories ||
+        calculateTargetCalories(
+          currentTDEE,
+          formData.goal,
+          formData.weeklyChange,
+        );
+
       const profileData: any = {
         // Organization is always required
         organization_id: client.organization_id || client.org_id,
@@ -400,34 +466,57 @@ export default function NutritionSetup({
         ...(useLeadId && { lead_id: useLeadId }),
 
         // Required demographic fields (database expects lowercase)
-        age: parseInt(formData.age),
+        age: currentAge,
         gender: formData.gender || "other", // Database expects lowercase: male, female, other
 
         // Physical measurements - use the exact column names from database
-        height_cm: heightCm, // Database column is height_cm
-        weight_kg: weightKg, // Database column is weight_kg
+        height_cm: Math.round(heightCm) || 170, // Database column is height_cm, ensure it's a number
+        weight_kg: Math.round(weightKg * 10) / 10 || 70, // Database column is weight_kg, round to 1 decimal
         target_weight_kg: formData.targetWeight
           ? parseFloat(formData.targetWeight)
-          : weightKg,
+          : Math.round(weightKg * 10) / 10 || 70,
 
         // Goals and activity (database expects lowercase)
         goal: formData.goal || "maintain", // Database expects lowercase
         activity_level: formData.activityLevel || "moderately_active", // Database expects lowercase
-        weekly_weight_change_kg: formData.weeklyChange || 0.5,
+        weekly_weight_change_kg: parseFloat(formData.weeklyChange) || 0.5,
 
-        // Calculated nutrition values - ALL REQUIRED
-        bmr: formData.bmr || 0,
-        tdee: formData.tdee || 0,
-        target_calories: formData.targetCalories || 0,
-        protein_grams: Math.round(formData.proteinGrams) || 0,
-        carbs_grams: Math.round(formData.carbsGrams) || 0,
-        fat_grams: Math.round(formData.fatGrams) || 0,
+        // Calculated nutrition values - ALL REQUIRED - ensure they have values
+        bmr: currentBMR,
+        tdee: currentTDEE,
+        target_calories: currentTargetCalories,
+        protein_grams:
+          Math.round(formData.proteinGrams) || Math.round(weightKg * 2.2), // Default 2.2g per kg
+        carbs_grams:
+          Math.round(formData.carbsGrams) ||
+          Math.round((currentTargetCalories * 0.4) / 4), // 40% of calories / 4 cal per gram
+        fat_grams:
+          Math.round(formData.fatGrams) ||
+          Math.round((currentTargetCalories * 0.3) / 9), // 30% of calories / 9 cal per gram
         fiber_grams: 25, // Default recommended fiber
 
         // Meal planning
-        meals_per_day: formData.mealsPerDay || 3,
-        snacks_per_day: formData.snacksPerDay || 2,
+        meals_per_day: parseInt(formData.mealsPerDay) || 3,
+        snacks_per_day: parseInt(formData.snacksPerDay) || 2,
+
+        // Additional fields for preferences (from form data)
+        training_frequency: 3,
+        training_types: [],
+        dietary_preferences: formData.dietaryType ? [formData.dietaryType] : [],
+        allergies: formData.allergies || [],
+        food_likes: formData.likedFoods || [],
+        food_dislikes: formData.dislikedFoods || [],
+        cooking_time: cookingTimeMapping[formData.cookingTime] || "MODERATE",
+        budget_constraint: "MODERATE",
       };
+
+      console.log("Saving profile data with values:", {
+        height_cm: profileData.height_cm,
+        weight_kg: profileData.weight_kg,
+        age: profileData.age,
+        goal: profileData.goal,
+        target_calories: profileData.target_calories,
+      });
 
       // Save to database using API endpoint (bypasses RLS issues)
       const response = await fetch("/api/nutrition/profile", {
