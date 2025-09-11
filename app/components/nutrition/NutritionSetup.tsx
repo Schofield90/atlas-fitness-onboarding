@@ -213,10 +213,9 @@ export default function NutritionSetup({
       carbsPercent: 40,
       fatPercent: 30,
 
-      // Meal preferences
-      mealsPerDay:
-        existingProfile?.meals_per_day || existingProfile?.meal_count || 3,
-      snacksPerDay: existingProfile?.snacks_per_day || 2,
+      // Meal preferences - hardcoded to 3 meals + 2 snacks
+      mealsPerDay: 3,
+      snacksPerDay: 2,
 
       // Food preferences - load from existing profile
       dietaryType: existingProfile?.dietary_preferences?.[0] || "",
@@ -506,9 +505,9 @@ export default function NutritionSetup({
           Math.round((currentTargetCalories * 0.3) / 9), // 30% of calories / 9 cal per gram
         fiber_grams: 25, // Default recommended fiber
 
-        // Meal planning
-        meals_per_day: parseInt(formData.mealsPerDay) || 3,
-        snacks_per_day: parseInt(formData.snacksPerDay) || 2,
+        // Meal planning - always 3 meals + 2 snacks
+        meals_per_day: 3,
+        snacks_per_day: 2,
 
         // Additional fields for preferences (from form data)
         training_frequency: 3,
@@ -1079,48 +1078,17 @@ export default function NutritionSetup({
             </h2>
 
             <div className="space-y-4">
-              <div>
+              {/* Meal structure info - fixed at 3 meals + 2 snacks */}
+              <div className="bg-gray-700 rounded-lg p-4">
                 <label className="block text-sm font-medium text-gray-400 mb-2">
-                  Meals per Day
+                  Daily Meal Structure
                 </label>
-                <select
-                  value={formData.mealsPerDay}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      mealsPerDay: parseInt(e.target.value),
-                    })
-                  }
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                >
-                  {[1, 2, 3, 4, 5, 6].map((n) => (
-                    <option key={n} value={n}>
-                      {n} {n === 1 ? "meal" : "meals"}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">
-                  Snacks per Day
-                </label>
-                <select
-                  value={formData.snacksPerDay}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      snacksPerDay: parseInt(e.target.value),
-                    })
-                  }
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                >
-                  {[0, 1, 2, 3, 4].map((n) => (
-                    <option key={n} value={n}>
-                      {n} {n === 1 ? "snack" : "snacks"}
-                    </option>
-                  ))}
-                </select>
+                <p className="text-gray-300 text-sm">
+                  Your meal plan will include{" "}
+                  <span className="text-white font-semibold">3 main meals</span>{" "}
+                  and <span className="text-white font-semibold">2 snacks</span>{" "}
+                  per day, perfectly balanced to meet your nutritional goals.
+                </p>
               </div>
 
               <div>
