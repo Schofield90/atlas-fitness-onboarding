@@ -42,22 +42,32 @@ export async function GET() {
 
     const profile = profiles[0];
 
-    // Test 3: Try to insert a simple meal plan
+    // Test 3: Try to insert a simple meal plan - using correct column names
     const testDate = new Date().toISOString().split("T")[0];
+
+    // Get a client_id (user) to use
+    const { data: users } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .eq("organization_id", profile.organization_id)
+      .limit(1);
+
+    const clientId = users?.[0]?.id || profile.id; // Use profile.id as fallback
+
     const testPlan = {
-      nutrition_profile_id: profile.id,
+      profile_id: profile.id, // Changed from nutrition_profile_id
+      client_id: clientId, // Added required field
       organization_id: profile.organization_id,
       name: `Test Plan ${Date.now()}`,
-      description: "Simple test meal plan",
       meal_data: {
         test: true,
         created: new Date().toISOString(),
       },
-      is_active: true,
-      daily_calories: 2000,
-      daily_protein: 150,
-      daily_carbs: 250,
-      daily_fat: 67,
+      status: "active", // Changed from is_active
+      total_calories: 2000, // Changed from daily_calories
+      total_protein: 150, // Changed from daily_protein
+      total_carbs: 250, // Changed from daily_carbs
+      total_fat: 67, // Changed from daily_fat
       start_date: testDate,
       end_date: testDate,
     };
