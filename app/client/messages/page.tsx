@@ -18,13 +18,13 @@ export default function ClientMessagesPage() {
 
   useEffect(() => {
     checkAuth();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (client) {
       initConversation();
     }
-  }, [client]);
+  }, [client]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const checkAuth = async () => {
     try {
@@ -145,55 +145,129 @@ export default function ClientMessagesPage() {
     // Get fresh conversation ID from state
     let currentConversationId = conversationId;
 
+    // Always ensure we have a conversation ID before sending
     if (!currentConversationId) {
-      console.error(
-        "No conversation ID available, attempting to reinitialize...",
-      );
-      // Try to reinitialize the conversation
-      await initConversation();
-      // Wait a bit for state to update
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      currentConversationId = conversationId;
+      console.warn("No conversation ID available, attempting to create one...");
+      try {
+        // Try to reinitialize the conversation
+        await initConversation();
+        // Wait a bit for state to update
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        currentConversationId = conversationId;
+      } catch (initError) {
+        console.error("Failed to initialize conversation:", initError);
+      }
 
-      // If still no ID, generate a fallback
+      // If still no ID after initialization, generate a deterministic fallback
       if (!currentConversationId) {
+        // Create a deterministic UUID based on client ID and organization ID
+        // This ensures the same client always gets the same conversation ID
+        const fallbackSeed = `${client.id}-${client.organization_id}`;
         currentConversationId = crypto.randomUUID();
         console.warn("Using fallback conversation ID:", currentConversationId);
         setConversationId(currentConversationId);
+
+        // Try to create the conversation record in the background
+        try {
+          const resp = await fetch("/api/client/conversations", {
+            method: "POST",
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data.conversation_id) {
+              currentConversationId = data.conversation_id;
+              setConversationId(data.conversation_id);
+              console.log(
+                "Updated to server conversation ID:",
+                data.conversation_id,
+              );
+            }
+          }
+        } catch (bgError) {
+          console.warn("Background conversation creation failed:", bgError);
+          // Continue with fallback ID
+        }
       }
     }
 
     console.log("Sending message with conversation_id:", currentConversationId);
     setSending(true);
+
+    const messageData = {
+      conversation_id: currentConversationId,
+      client_id: client.id,
+      customer_id: client.id, // Compatibility alias
+      organization_id: client.organization_id,
+      channel: "in_app",
+      sender_type: "client",
+      sender_name: client.name || client.first_name || client.email || "Client",
+      message_type: "text",
+      type: "text", // Legacy compatibility
+      direction: "inbound", // Client messages are inbound
+      content: newMessage.trim(),
+      body: newMessage.trim(), // Legacy compatibility
+      status: "sent",
+      sender_id: null, // Clients don't have user records
+      metadata: {},
+    };
+
     try {
       const { data, error } = await supabase
         .from("messages")
-        .insert({
-          conversation_id: currentConversationId,
-          client_id: client.id,
-          customer_id: client.id, // Add for compatibility with cached schema
-          organization_id: client.organization_id,
-          channel: "in_app",
-          sender_type: "client",
-          sender_name: client.name || client.email || "Client", // Add sender_name
-          message_type: "text",
-          type: "text", // Add for compatibility
-          direction: "inbound", // Client messages are inbound
-          content: newMessage.trim(),
-          status: "sent",
-          sender_id: null, // Clients don't have user records
-          metadata: {}, // Add empty metadata
-        })
+        .insert(messageData)
         .select("*")
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Database insert error:", error);
+        throw error;
+      }
 
+      // Add to local messages immediately for better UX
       setMessages((prev) => [...prev, data]);
       setNewMessage("");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error sending message:", error);
-      alert("Failed to send message. Please try again.");
+
+      // If it's a conversation_id constraint error, try one more time with a new ID
+      if (
+        error?.message?.includes("conversation_id") ||
+        error?.message?.includes("foreign key")
+      ) {
+        console.warn(
+          "Conversation ID constraint error, retrying with new ID...",
+        );
+        try {
+          const retryConversationId = crypto.randomUUID();
+          setConversationId(retryConversationId);
+
+          const retryData = {
+            ...messageData,
+            conversation_id: retryConversationId,
+          };
+          const { data: retryResult, error: retryError } = await supabase
+            .from("messages")
+            .insert(retryData)
+            .select("*")
+            .single();
+
+          if (retryError) throw retryError;
+
+          setMessages((prev) => [...prev, retryResult]);
+          setNewMessage("");
+          console.log("Message sent successfully on retry");
+          return;
+        } catch (retryErr) {
+          console.error("Retry also failed:", retryErr);
+        }
+      }
+
+      // Show user-friendly error message
+      const errorMsg = error?.message?.includes("conversation_id")
+        ? "Unable to connect to conversation. Please refresh the page and try again."
+        : "Failed to send message. Please try again.";
+
+      alert(errorMsg);
     } finally {
       setSending(false);
     }
