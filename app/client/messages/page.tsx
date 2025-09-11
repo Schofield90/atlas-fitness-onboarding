@@ -137,6 +137,7 @@ export default function ClientMessagesPage() {
           message_type: 'text',
           content: newMessage.trim(),
           status: 'sent',
+          sender_id: null, // Clients don't have user records
         })
         .select('*')
         .single();
