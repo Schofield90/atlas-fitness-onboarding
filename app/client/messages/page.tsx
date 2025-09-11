@@ -70,14 +70,27 @@ export default function ClientMessagesPage() {
       // Create or get the conversation for this client
       const resp = await fetch("/api/client/conversations", { method: "POST" });
       const data = await resp.json();
-      if (!resp.ok)
+
+      console.log("Conversation API response:", data);
+
+      if (!resp.ok) {
+        console.error("Conversation API error:", data);
         throw new Error(data.error || "Failed to init conversation");
+      }
+
+      if (!data.conversation_id) {
+        console.error("No conversation_id in response:", data);
+        throw new Error("No conversation ID returned");
+      }
 
       setConversationId(data.conversation_id);
       await loadMessages(data.conversation_id);
       subscribeToMessages(data.conversation_id);
     } catch (error) {
       console.error("Error initializing conversation:", error);
+      alert(
+        "Failed to initialize chat. Please refresh the page and try again.",
+      );
     }
   };
 
@@ -125,9 +138,14 @@ export default function ClientMessagesPage() {
   const sendMessage = async () => {
     if (!newMessage.trim() || sending) return;
 
+    if (!conversationId) {
+      console.error("No conversation ID available");
+      alert("Chat not initialized. Please refresh the page.");
+      return;
+    }
+
     setSending(true);
     try {
-      if (!conversationId) throw new Error("No conversation");
       const { data, error } = await supabase
         .from("messages")
         .insert({
