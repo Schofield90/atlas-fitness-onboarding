@@ -166,14 +166,18 @@ export async function GET(request: NextRequest) {
       console.log(
         "Profile IDs:",
         allProfiles.map((p) => p.id),
+        "Organization IDs:",
+        allProfiles.map((p) => p.organization_id),
       );
     }
 
+    // Try to get the most recent profile for this client first
     const { data: profile, error } = await supabaseAdmin
       .from("nutrition_profiles")
       .select("*")
       .eq("client_id", client.id)
-      .eq("organization_id", userWithOrg.organizationId)
+      .order("created_at", { ascending: false })
+      .limit(1)
       .single();
 
     if (error && error.code !== "PGRST116") {
@@ -185,24 +189,49 @@ export async function GET(request: NextRequest) {
         organization_id: userWithOrg.organizationId,
       });
 
-      // Try with lead_id as fallback
+      return createErrorResponse(error, 500);
+    } else if (profile) {
+      console.log("Found profile via client_id:", profile.id);
+      return NextResponse.json({
+        success: true,
+        data: profile,
+      });
+    }
+
+    // If no profile found, try with organization filter as secondary attempt
+    console.log(
+      "No profile found without organization filter, trying with organization filter",
+    );
+    const { data: orgProfile, error: orgError } = await supabaseAdmin
+      .from("nutrition_profiles")
+      .select("*")
+      .eq("client_id", client.id)
+      .eq("organization_id", userWithOrg.organizationId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (orgProfile) {
+      console.log(
+        "Found profile via client_id + organization_id:",
+        orgProfile.id,
+      );
+      return NextResponse.json({
+        success: true,
+        data: orgProfile,
+      });
+    }
+
+    // Try with lead_id as final fallback
+    if (orgError && orgError.code !== "PGRST116") {
       console.log("Trying fallback lookup with lead_id:", client.id);
       const { data: leadProfile, error: leadError } = await supabaseAdmin
         .from("nutrition_profiles")
         .select("*")
         .eq("lead_id", client.id)
-        .eq("organization_id", userWithOrg.organizationId)
+        .order("created_at", { ascending: false })
+        .limit(1)
         .single();
-
-      if (leadError && leadError.code !== "PGRST116") {
-        console.error("Error fetching nutrition profile with lead_id:", {
-          error: leadError.message,
-          code: leadError.code,
-          lead_id: client.id,
-          organization_id: userWithOrg.organizationId,
-        });
-        return createErrorResponse(leadError, 500);
-      }
 
       if (leadProfile) {
         console.log("Found profile via lead_id fallback:", leadProfile.id);
@@ -211,21 +240,12 @@ export async function GET(request: NextRequest) {
           data: leadProfile,
         });
       }
-    } else if (profile) {
-      console.log("Found profile via client_id:", profile.id);
     }
 
     // If no profile exists, return null
-    if (!profile) {
-      return NextResponse.json({
-        success: true,
-        data: null,
-      });
-    }
-
     return NextResponse.json({
       success: true,
-      data: profile,
+      data: null,
     });
   } catch (error) {
     console.error("Error in GET /api/nutrition/profile:", error);

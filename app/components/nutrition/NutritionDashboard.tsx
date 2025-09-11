@@ -56,8 +56,12 @@ export default function NutritionDashboard({
         console.log("Found existing nutrition profile:", result.data);
         setNutritionProfile(result.data);
         setShowSetup(false);
+        console.log("Updated state: nutritionProfile set, showSetup=false");
 
-        // Try to load active meal plan using API to bypass RLS
+        // Always set the active tab to meal-plan when we have a profile
+        setActiveTab("meal-plan");
+
+        // Try to load active meal plans using API to bypass RLS
         try {
           const mealPlanResponse = await fetch(
             `/api/nutrition/meal-plans?profileId=${result.data.id}`,
@@ -65,22 +69,37 @@ export default function NutritionDashboard({
 
           if (mealPlanResponse.ok) {
             const mealPlanResult = await mealPlanResponse.json();
-            if (mealPlanResult.success && mealPlanResult.data) {
-              console.log("Found active meal plan:", mealPlanResult.data);
-              setActiveMealPlan(mealPlanResult.data);
+            if (
+              mealPlanResult.success &&
+              mealPlanResult.data &&
+              mealPlanResult.data.length > 0
+            ) {
+              console.log(
+                `Found ${mealPlanResult.data.length} meal plans:`,
+                mealPlanResult.data,
+              );
+              // Set the most recent meal plan as active
+              const mostRecent =
+                mealPlanResult.data[mealPlanResult.data.length - 1];
+              setActiveMealPlan(mostRecent);
             }
           }
         } catch (mealPlanError) {
-          console.error("Error loading meal plan:", mealPlanError);
+          console.error("Error loading meal plans:", mealPlanError);
         }
       } else {
         // No profile found, show setup
-        console.log("No nutrition profile found, showing setup");
-        setShowSetup(true);
+        console.log(
+          "No nutrition profile found, showing setup. Result:",
+          result,
+        );
+        // Don't set showSetup to true here - let the profile check handle it
+        // setShowSetup(true);
       }
     } catch (error) {
       console.error("Error loading nutrition data:", error);
-      setShowSetup(true);
+      // Don't show setup on error - might be a temporary issue
+      // setShowSetup(true);
     } finally {
       setLoading(false);
     }
@@ -100,12 +119,19 @@ export default function NutritionDashboard({
 
         if (mealPlanResponse.ok) {
           const mealPlanResult = await mealPlanResponse.json();
-          if (mealPlanResult.success && mealPlanResult.data) {
+          if (
+            mealPlanResult.success &&
+            mealPlanResult.data &&
+            mealPlanResult.data.length > 0
+          ) {
             console.log(
-              "Found active meal plan after profile creation:",
+              `Found ${mealPlanResult.data.length} meal plans after profile creation:`,
               mealPlanResult.data,
             );
-            setActiveMealPlan(mealPlanResult.data);
+            // Set the most recent meal plan as active
+            const mostRecent =
+              mealPlanResult.data[mealPlanResult.data.length - 1];
+            setActiveMealPlan(mostRecent);
           }
         }
       } catch (error) {
@@ -123,8 +149,16 @@ export default function NutritionDashboard({
     );
   }
 
-  // Only show setup if no profile exists at all (not when updating profile)
-  if (!nutritionProfile && !loading) {
+  // Show setup form if showSetup is true and no profile exists
+  if (showSetup && !nutritionProfile && !loading) {
+    console.log(
+      "Showing setup form. Loading:",
+      loading,
+      "Profile:",
+      nutritionProfile,
+      "ShowSetup:",
+      showSetup,
+    );
     return (
       <NutritionSetup
         client={client}
@@ -173,6 +207,15 @@ export default function NutritionDashboard({
     );
   }
 
+  console.log(
+    "Render: Loading:",
+    loading,
+    "Profile:",
+    !!nutritionProfile,
+    "ShowSetup:",
+    showSetup,
+  );
+
   return (
     <div className="min-h-screen bg-gray-900">
       {/* Header */}
@@ -196,12 +239,20 @@ export default function NutritionDashboard({
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => setShowSetup(true)}
-              className="p-2 text-gray-400 hover:text-white transition-colors"
-            >
-              <Settings className="h-5 w-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => router.push("/recipes")}
+                className="px-3 py-1.5 text-sm bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+              >
+                Recipe Library
+              </button>
+              <button
+                onClick={() => setShowSetup(true)}
+                className="p-2 text-gray-400 hover:text-white transition-colors"
+              >
+                <Settings className="h-5 w-5" />
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -306,12 +357,34 @@ export default function NutritionDashboard({
               </div>
             ) : (
               <div className="space-y-2">
-                <p className="text-sm text-gray-400">No active meal plan</p>
+                <p className="text-sm text-gray-400">
+                  {nutritionProfile
+                    ? "No active meal plan"
+                    : "Set up your profile to generate meal plans"}
+                </p>
                 <button
-                  onClick={() => setActiveTab("meal-plan")}
+                  onClick={() => {
+                    console.log(
+                      "Button clicked! Profile:",
+                      nutritionProfile,
+                      "Loading:",
+                      loading,
+                    );
+                    if (nutritionProfile) {
+                      console.log(
+                        "Has profile, setting active tab to meal-plan",
+                      );
+                      setActiveTab("meal-plan");
+                    } else {
+                      console.log("No profile, setting showSetup to true");
+                      setShowSetup(true);
+                    }
+                  }}
                   className="w-full bg-orange-500 text-white rounded-lg px-4 py-2 hover:bg-orange-600 transition-colors"
                 >
-                  Generate AI Meal Plan
+                  {nutritionProfile
+                    ? "Generate AI Meal Plan"
+                    : "Set Up Profile"}
                 </button>
               </div>
             )}

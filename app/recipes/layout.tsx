@@ -17,7 +17,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/app/lib/supabase/client";
 
-export default function ClientLayout({
+export default function RecipesLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -94,11 +94,6 @@ export default function ClientLayout({
     );
   }
 
-  // Don't show sidebar on the main client page - it has its own layout
-  if (pathname === "/client") {
-    return <>{children}</>;
-  }
-
   return (
     <div className="min-h-screen bg-gray-900">
       {/* Mobile menu */}
@@ -155,11 +150,6 @@ export default function ClientLayout({
                                     aria-hidden="true"
                                   />
                                   <span>{item.name}</span>
-                                  {item.comingSoon && (
-                                    <span className="ml-1 text-[10px] font-medium text-gray-400 bg-gray-700 px-1.5 py-0.5 rounded">
-                                      Coming Soon
-                                    </span>
-                                  )}
                                 </div>
                               </button>
                             </li>
@@ -219,11 +209,6 @@ export default function ClientLayout({
                               aria-hidden="true"
                             />
                             <span>{item.name}</span>
-                            {item.comingSoon && (
-                              <span className="ml-1 text-[10px] font-medium text-gray-400 bg-gray-700 px-1.5 py-0.5 rounded">
-                                Coming Soon
-                              </span>
-                            )}
                           </div>
                         </button>
                       </li>

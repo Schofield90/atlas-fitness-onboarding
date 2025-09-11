@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createClient } from "@/app/lib/supabase/client";
 import {
   Calendar,
   Plus,
@@ -16,6 +17,7 @@ import {
   ShoppingCart,
 } from "lucide-react";
 import MealFeedbackChat from "./MealFeedbackChat";
+import MealPlanCalendar from "./MealPlanCalendar";
 
 interface MealPlanViewProps {
   client: any;
@@ -35,9 +37,6 @@ export default function MealPlanView({
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [editingMeal, setEditingMeal] = useState<string | null>(null);
   const [feedback, setFeedback] = useState("");
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [jobStatus, setJobStatus] = useState<string | null>(null);
-  const [skeleton, setSkeleton] = useState<any>(null);
   const [feedbackMeal, setFeedbackMeal] = useState<{
     meal: any;
     date: Date;
@@ -46,289 +45,195 @@ export default function MealPlanView({
   const [generatedDates, setGeneratedDates] = useState<Date[]>([]);
   const [shoppingDays, setShoppingDays] = useState(3);
   const [showShoppingList, setShowShoppingList] = useState(false);
+  const [mealPlans, setMealPlans] = useState<Record<string, any>>({});
+  const supabase = createClient();
 
-  // Initialize with today's date on mount
+  // Initialize with today's date on mount and load existing meal plans
   useEffect(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     setSelectedDate(today);
+
+    // Load from localStorage first as a fallback
+    const storedPlans = localStorage.getItem(
+      `meal_plans_${nutritionProfile?.id}`,
+    );
+    if (storedPlans) {
+      try {
+        const parsed = JSON.parse(storedPlans);
+        setMealPlans(parsed.plans || {});
+        setGeneratedDates(parsed.dates?.map((d: string) => new Date(d)) || []);
+      } catch (e) {
+        console.error("Error parsing stored meal plans:", e);
+      }
+    }
+
+    loadMealPlans();
   }, []);
 
-  // Load existing generated dates from meal plan
+  // Reload meal plans when nutrition profile changes
   useEffect(() => {
-    if (currentPlan?.meal_data) {
-      const dates: Date[] = [];
-      const planData = currentPlan.meal_data;
-
-      // Check different possible formats
-      if (planData.week_plan && Array.isArray(planData.week_plan)) {
-        // If we have existing dates stored
-        if (currentPlan.start_date) {
-          const startDate = new Date(currentPlan.start_date);
-          for (let i = 0; i < planData.week_plan.length; i++) {
-            const date = new Date(startDate);
-            date.setDate(startDate.getDate() + i);
-            dates.push(date);
-          }
-        } else {
-          // Generate dates starting from today
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          for (let i = 0; i < planData.week_plan.length; i++) {
-            const date = new Date(today);
-            date.setDate(today.getDate() + i);
-            dates.push(date);
-          }
-        }
-      } else {
-        // Check day_1, day_2 format
-        const dayKeys = Object.keys(planData).filter((key) =>
-          key.startsWith("day_"),
-        );
-        if (dayKeys.length > 0) {
-          const startDate = currentPlan.start_date
-            ? new Date(currentPlan.start_date)
-            : new Date();
-          startDate.setHours(0, 0, 0, 0);
-
-          dayKeys.forEach((key, index) => {
-            const date = new Date(startDate);
-            date.setDate(startDate.getDate() + index);
-            dates.push(date);
-          });
-        }
-      }
-
-      setGeneratedDates(dates);
+    if (nutritionProfile?.id) {
+      console.log("Nutrition profile loaded, reloading meal plans");
+      loadMealPlans();
     }
-  }, [currentPlan]);
+  }, [nutritionProfile?.id]);
 
-  const handleGeneratePlan = async () => {
-    setGenerating(true);
-    setSkeleton(null);
-    setJobId(null);
-    setJobStatus(null);
+  // Load all meal plans using API to bypass RLS
+  const loadMealPlans = async () => {
+    if (!nutritionProfile?.id) {
+      console.log("No nutrition profile ID available for loading meal plans");
+      return;
+    }
 
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      console.log("Loading meal plans for profile ID:", nutritionProfile.id);
 
-      // Get preferences if they exist
-      const preferencesResponse = await fetch(
-        `/api/nutrition/preferences?profileId=${nutritionProfile.id}`,
+      const response = await fetch(
+        `/api/nutrition/meal-plans?profileId=${nutritionProfile.id}`,
       );
-      const preferences = preferencesResponse.ok
-        ? await preferencesResponse.json()
-        : {};
+      const result = await response.json();
 
-      // Use new quick endpoint for faster generation
-      const response = await fetch("/api/nutrition/generate-meal-plan-quick", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          nutritionProfile: {
-            ...nutritionProfile,
-            meals_per_day: 3,
-            snacks_per_day: 2,
-          },
-          profileId: nutritionProfile.id,
-          preferences: preferences.data || {},
-          daysToGenerate: 3,
-          startDate: today.toISOString(),
-        }),
+      if (!result.success) {
+        console.error("Error loading meal plans:", result.error);
+        return;
+      }
+
+      const plans = result.data;
+
+      if (plans && plans.length > 0) {
+        const plansMap: Record<string, any> = {};
+        const dates: Date[] = [];
+
+        plans.forEach((plan: any) => {
+          const date = new Date(plan.date);
+          date.setHours(0, 0, 0, 0);
+          const dateKey = formatDateKey(date);
+          plansMap[dateKey] = plan.meal_data;
+          dates.push(date);
+        });
+
+        setMealPlans(plansMap);
+        setGeneratedDates(dates);
+
+        // Save to localStorage as backup
+        if (nutritionProfile?.id) {
+          localStorage.setItem(
+            `meal_plans_${nutritionProfile.id}`,
+            JSON.stringify({
+              plans: plansMap,
+              dates: dates.map((d) => d.toISOString()),
+              lastUpdated: new Date().toISOString(),
+            }),
+          );
+        }
+
+        // Set the first plan as current if none exists
+        if (!currentPlan && plans[0]) {
+          setCurrentPlan(plans[0]);
+          onPlanUpdate(plans[0]);
+        }
+
+        console.log(`Loaded ${plans.length} meal plans into calendar`);
+      } else {
+        console.log("No meal plans found for profile:", nutritionProfile.id);
+      }
+    } catch (error) {
+      console.error("Error loading meal plans:", error);
+    }
+  };
+
+  const handleGenerateSingleDay = async (date: Date) => {
+    if (!nutritionProfile) {
+      alert("Please set up your nutrition profile first");
+      return;
+    }
+
+    setGenerating(true);
+
+    try {
+      console.log(
+        "Generating meal plan for date:",
+        date,
+        "with profile:",
+        nutritionProfile.id,
+      );
+
+      // Get list of existing meal names to avoid repetition
+      const existingMeals: string[] = [];
+      Object.values(mealPlans).forEach((plan: any) => {
+        if (plan.meals) {
+          plan.meals.forEach((meal: any) => {
+            if (meal.name) existingMeals.push(meal.name);
+          });
+        }
       });
+
+      // Use the library-aware endpoint
+      const response = await fetch(
+        "/api/nutrition/generate-single-day-with-library",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            nutritionProfile,
+            date: date.toISOString(),
+            existingMeals: existingMeals.slice(-15), // Last 15 meals to avoid repetition
+          }),
+        },
+      );
 
       const result = await response.json();
 
       if (result.success && result.data) {
-        // Got immediate result from quick endpoint
-        const planData = {
-          ...result.data,
-          meal_data: result.data.meal_data || result.data.meal_plan,
-          start_date: today.toISOString(),
+        const dateKey = formatDateKey(date);
+
+        // Update local state
+        const newMealPlans = {
+          ...mealPlans,
+          [dateKey]: result.data,
         };
-        setCurrentPlan(planData);
-        onPlanUpdate(planData);
+        setMealPlans(newMealPlans);
 
-        // Set generated dates
-        const dates: Date[] = [];
-        for (let i = 0; i < 3; i++) {
-          const date = new Date(today);
-          date.setDate(today.getDate() + i);
-          dates.push(date);
+        // Add to generated dates if not already there
+        let newDates = generatedDates;
+        if (
+          !generatedDates.find((d) => d.toDateString() === date.toDateString())
+        ) {
+          newDates = [...generatedDates, date].sort(
+            (a, b) => a.getTime() - b.getTime(),
+          );
+          setGeneratedDates(newDates);
         }
-        setGeneratedDates(dates);
-        setGenerating(false);
-      } else if (result.cached) {
-        // Got cached result immediately
-        setCurrentPlan(result.data);
-        onPlanUpdate(result.data);
-        setGenerating(false);
-      } else if (result.jobId) {
-        // Got job ID, show skeleton and start polling
-        setJobId(result.jobId);
-        setJobStatus("processing");
-        setSkeleton(result.skeleton);
 
-        // Start polling for job completion
-        pollJobStatus(result.jobId);
+        // Save to localStorage as backup
+        if (nutritionProfile?.id) {
+          localStorage.setItem(
+            `meal_plans_${nutritionProfile.id}`,
+            JSON.stringify({
+              plans: newMealPlans,
+              dates: newDates.map((d) => d.toISOString()),
+              lastUpdated: new Date().toISOString(),
+            }),
+          );
+        }
+
+        // Select the newly generated day
+        setSelectedDate(date);
       } else {
-        // Error occurred
         console.error("Failed to generate meal plan:", result.error);
         alert(
           result.error || "Failed to generate meal plan. Please try again.",
         );
-        setGenerating(false);
       }
     } catch (error) {
       console.error("Error generating meal plan:", error);
       alert("Failed to generate meal plan. Please try again.");
-      setGenerating(false);
-    }
-  };
-
-  const handleGenerateNextDays = async () => {
-    setGenerating(true);
-
-    try {
-      // Calculate the next start date
-      const lastDate = generatedDates[generatedDates.length - 1];
-      const nextStartDate = new Date(lastDate);
-      nextStartDate.setDate(nextStartDate.getDate() + 1);
-
-      const response = await fetch("/api/nutrition/generate-meal-plan-quick", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          nutritionProfile: {
-            ...nutritionProfile,
-            meals_per_day: 3,
-            snacks_per_day: 2,
-          },
-          profileId: nutritionProfile.id,
-          daysToGenerate: 3,
-          startDate: nextStartDate.toISOString(),
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.success && result.data) {
-        // Merge new days with existing plan
-        const newDates: Date[] = [];
-        for (let i = 0; i < 3; i++) {
-          const date = new Date(nextStartDate);
-          date.setDate(nextStartDate.getDate() + i);
-          newDates.push(date);
-        }
-
-        // Update meal data with date-based keys
-        const updatedMealData = { ...currentPlan.meal_data };
-        Object.entries(result.data.meal_plan || result.data.meal_data).forEach(
-          ([key, value], index) => {
-            const dateKey = formatDateKey(newDates[index]);
-            updatedMealData[dateKey] = value;
-          },
-        );
-
-        const mergedPlan = {
-          ...currentPlan,
-          meal_data: updatedMealData,
-          // Merge shopping lists
-          shopping_list: mergeShoppingLists(
-            currentPlan.shopping_list,
-            result.data.shopping_list,
-          ),
-        };
-
-        setCurrentPlan(mergedPlan);
-        onPlanUpdate(mergedPlan);
-        setGeneratedDates([...generatedDates, ...newDates]);
-
-        // Auto-select the first new day
-        setSelectedDate(newDates[0]);
-      }
-    } catch (error) {
-      console.error("Error generating next days:", error);
-      alert("Failed to generate next days. Please try again.");
     } finally {
       setGenerating(false);
     }
-  };
-
-  const mergeShoppingLists = (existing: any, newList: any) => {
-    if (!existing) return newList;
-    if (!newList) return existing;
-
-    const merged: any = {};
-
-    // Merge all items
-    [...Object.keys(existing), ...Object.keys(newList)].forEach((item) => {
-      const existingItem = existing[item] || { quantity: 0, unit: "" };
-      const newItem = newList[item] || { quantity: 0, unit: "" };
-
-      merged[item] = {
-        quantity:
-          parseFloat(existingItem.quantity || 0) +
-          parseFloat(newItem.quantity || 0),
-        unit: existingItem.unit || newItem.unit,
-      };
-    });
-
-    return merged;
-  };
-
-  const pollJobStatus = async (jobId: string) => {
-    const checkStatus = async () => {
-      try {
-        const response = await fetch(`/api/nutrition/job-status/${jobId}`);
-        const result = await response.json();
-
-        if (result.status === "completed" && result.data) {
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-
-          const planData = {
-            ...result.data,
-            meal_data: result.data.meal_data || result.data.meal_plan,
-            start_date: today.toISOString(),
-          };
-          setCurrentPlan(planData);
-          onPlanUpdate(planData);
-          setJobStatus("completed");
-          setSkeleton(null);
-          setGenerating(false);
-
-          // Set generated dates
-          const dates: Date[] = [];
-          for (let i = 0; i < 3; i++) {
-            const date = new Date(today);
-            date.setDate(today.getDate() + i);
-            dates.push(date);
-          }
-          setGeneratedDates(dates);
-        } else if (result.status === "failed") {
-          setJobStatus("failed");
-          setSkeleton(null);
-          setGenerating(false);
-          alert("Failed to generate meal plan. Please try again.");
-        } else {
-          // Still processing, check again
-          setTimeout(checkStatus, 2000);
-        }
-      } catch (error) {
-        console.error("Error checking job status:", error);
-        setJobStatus("failed");
-        setSkeleton(null);
-        setGenerating(false);
-      }
-    };
-
-    checkStatus();
   };
 
   const formatDate = (date: Date) => {
@@ -351,39 +256,11 @@ export default function MealPlanView({
   };
 
   const getSelectedDayMeals = () => {
-    if (!currentPlan || !currentPlan.meal_data) return null;
-
     const dateKey = formatDateKey(selectedDate);
-
-    // Try date-based key first
-    if (currentPlan.meal_data[dateKey]) {
-      return currentPlan.meal_data[dateKey];
-    }
-
-    // Fallback to index-based if dates not yet migrated
-    const dayIndex = generatedDates.findIndex(
-      (d) => d.toDateString() === selectedDate.toDateString(),
-    );
-
-    if (dayIndex >= 0) {
-      if (
-        currentPlan.meal_data.week_plan &&
-        Array.isArray(currentPlan.meal_data.week_plan)
-      ) {
-        return currentPlan.meal_data.week_plan[dayIndex];
-      }
-
-      if (currentPlan.meal_data[`day_${dayIndex + 1}`]) {
-        return currentPlan.meal_data[`day_${dayIndex + 1}`];
-      }
-    }
-
-    return null;
+    return mealPlans[dateKey] || null;
   };
 
   const generateShoppingList = () => {
-    if (!currentPlan || !currentPlan.meal_data) return {};
-
     const shoppingList: any = {};
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -393,11 +270,7 @@ export default function MealPlanView({
       const date = new Date(today);
       date.setDate(today.getDate() + i);
       const dateKey = formatDateKey(date);
-
-      const dayMeals =
-        currentPlan.meal_data[dateKey] ||
-        currentPlan.meal_data[`day_${i + 1}`] ||
-        (currentPlan.meal_data.week_plan && currentPlan.meal_data.week_plan[i]);
+      const dayMeals = mealPlans[dateKey];
 
       if (dayMeals && dayMeals.meals) {
         dayMeals.meals.forEach((meal: any) => {
@@ -455,60 +328,19 @@ export default function MealPlanView({
             <ChefHat className="h-6 w-6 text-orange-500" />
             <h2 className="text-2xl font-bold text-white">Your Meal Plan</h2>
           </div>
-          {!currentPlan && (
-            <button
-              onClick={handleGeneratePlan}
-              disabled={generating}
-              className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50"
-            >
-              {generating ? (
-                <>
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Plus className="h-4 w-4" />
-                  Generate Meal Plan
-                </>
-              )}
-            </button>
-          )}
+          <button
+            onClick={() => setShowShoppingList(!showShoppingList)}
+            className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+          >
+            <ShoppingCart className="h-4 w-4" />
+            Shopping List
+          </button>
         </div>
-
-        {currentPlan && (
-          <div className="flex items-center justify-between">
-            <p className="text-gray-400">
-              Personalized meal plan based on your goals:{" "}
-              {nutritionProfile.target_calories} calories/day
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowShoppingList(!showShoppingList)}
-                className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
-              >
-                <ShoppingCart className="h-4 w-4" />
-                Shopping List
-              </button>
-              <button
-                onClick={handleGenerateNextDays}
-                disabled={generating}
-                className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-              >
-                {generating ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="h-4 w-4" />
-                    Generate Next 3 Days
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
+        {generatedDates.length > 0 && (
+          <p className="text-gray-400">
+            Personalized meal plan based on your goals:{" "}
+            {nutritionProfile.target_calories} calories/day
+          </p>
         )}
       </div>
 
@@ -570,47 +402,15 @@ export default function MealPlanView({
         </div>
       )}
 
-      {/* Date Selector */}
-      {generatedDates.length > 0 && (
-        <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {generatedDates.map((date) => (
-              <button
-                key={date.toISOString()}
-                onClick={() => setSelectedDate(date)}
-                className={`px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
-                  selectedDate.toDateString() === date.toDateString()
-                    ? "bg-orange-600 text-white"
-                    : isToday(date)
-                      ? "bg-gray-700 text-white ring-2 ring-orange-500"
-                      : "bg-gray-700 text-gray-400 hover:bg-gray-600"
-                }`}
-              >
-                {formatDate(date)}
-                {isToday(date) && <span className="ml-2 text-xs">(Today)</span>}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Loading Skeleton */}
-      {generating && skeleton && (
-        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-          <div className="animate-pulse space-y-4">
-            <div className="h-4 bg-gray-700 rounded w-3/4"></div>
-            <div className="h-4 bg-gray-700 rounded w-1/2"></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="bg-gray-700 h-48 rounded-lg"></div>
-              ))}
-            </div>
-          </div>
-          <p className="text-center text-gray-400 mt-4">
-            Generating your personalized meal plan...
-          </p>
-        </div>
-      )}
+      {/* Calendar Component */}
+      <MealPlanCalendar
+        selectedDate={selectedDate}
+        onDateSelect={setSelectedDate}
+        generatedDates={generatedDates}
+        onGenerateDay={handleGenerateSingleDay}
+        generating={generating}
+        nutritionProfile={nutritionProfile}
+      />
 
       {/* Meal Display */}
       {selectedDayMeals && !generating && (
@@ -694,9 +494,15 @@ export default function MealPlanView({
 
                 {/* Prep Time */}
                 {meal.prep_time && (
-                  <div className="flex items-center gap-2 text-gray-400 text-sm">
-                    <Clock className="h-4 w-4" />
-                    <span>{meal.prep_time} prep time</span>
+                  <div className="flex items-center gap-4 text-gray-400 text-sm">
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-4 w-4" />
+                      <span>Prep: {meal.prep_time}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Flame className="h-4 w-4" />
+                      <span>Cook: {meal.cook_time || "0 minutes"}</span>
+                    </div>
                   </div>
                 )}
 
@@ -788,50 +594,42 @@ export default function MealPlanView({
           nutritionProfile={nutritionProfile}
           onClose={() => setFeedbackMeal(null)}
           onMealUpdate={(updatedMeal) => {
-            // Update the meal in the current plan
-            const updatedPlan = { ...currentPlan };
+            // Update the meal in the meal plans
             const dateKey = formatDateKey(feedbackMeal.date);
-
-            if (updatedPlan.meal_data[dateKey]) {
-              updatedPlan.meal_data[dateKey].meals[feedbackMeal.index] =
-                updatedMeal;
-            } else {
-              // Fallback to day_N format
-              const dayKey = `day_${
-                generatedDates.findIndex(
-                  (d) => d.toDateString() === feedbackMeal.date.toDateString(),
-                ) + 1
-              }`;
-              if (updatedPlan.meal_data[dayKey]) {
-                updatedPlan.meal_data[dayKey].meals[feedbackMeal.index] =
-                  updatedMeal;
-              }
+            if (mealPlans[dateKey]) {
+              const updatedPlan = { ...mealPlans[dateKey] };
+              updatedPlan.meals[feedbackMeal.index] = updatedMeal;
+              setMealPlans((prev) => ({
+                ...prev,
+                [dateKey]: updatedPlan,
+              }));
             }
-
-            setCurrentPlan(updatedPlan);
-            onPlanUpdate(updatedPlan);
             setFeedbackMeal(null);
           }}
         />
       )}
 
       {/* Empty State */}
-      {!currentPlan && !generating && (
+      {generatedDates.length === 0 && !generating && (
         <div className="bg-gray-800 rounded-lg p-12 border border-gray-700 text-center">
           <ChefHat className="h-16 w-16 text-gray-600 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-white mb-2">
             No Meal Plan Yet
           </h3>
           <p className="text-gray-400 mb-6">
-            Generate your first personalized meal plan to get started
+            {nutritionProfile
+              ? "Generate your first personalized meal plan to get started"
+              : "Please set up your nutrition profile first to generate meal plans"}
           </p>
-          <button
-            onClick={handleGeneratePlan}
-            className="flex items-center gap-2 px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors mx-auto"
-          >
-            <Plus className="h-5 w-5" />
-            Generate Your First Meal Plan
-          </button>
+          {nutritionProfile && (
+            <button
+              onClick={() => handleGenerateSingleDay(selectedDate)}
+              className="flex items-center gap-2 px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors mx-auto"
+            >
+              <Plus className="h-5 w-5" />
+              Generate Today's Meal Plan
+            </button>
+          )}
         </div>
       )}
     </div>
