@@ -310,11 +310,11 @@ Use British measurements (g, ml). Return JSON:
     const dateString = planDate.toISOString().split("T")[0]; // Format as YYYY-MM-DD
 
     // First check if a meal plan already exists for this date
-    // Check if date column exists by checking start_date instead
+    // Using the actual column names from the database
     const { data: existingPlan } = await supabaseAdmin
       .from("meal_plans")
       .select("id, meal_data")
-      .eq("nutrition_profile_id", nutritionProfile.id)
+      .eq("profile_id", nutritionProfile.id) // Changed from nutrition_profile_id
       .eq("start_date", dateString)
       .single();
 
@@ -322,18 +322,17 @@ Use British measurements (g, ml). Return JSON:
     let saveError;
 
     if (existingPlan) {
-      // Update existing plan
+      // Update existing plan - using the actual column names from the database
       const { data, error } = await supabaseAdmin
         .from("meal_plans")
         .update({
           name: `Meal Plan ${dateString}`,
-          description: `AI-generated meal plan for ${dateString}`,
           meal_data: mealPlanWithDate,
-          is_active: true,
-          daily_calories: totals.calories,
-          daily_protein: totals.protein,
-          daily_carbs: totals.carbs,
-          daily_fat: totals.fat,
+          status: "active", // Changed from is_active
+          total_calories: totals.calories, // Changed from daily_calories
+          total_protein: totals.protein, // Changed from daily_protein
+          total_carbs: totals.carbs, // Changed from daily_carbs
+          total_fat: totals.fat, // Changed from daily_fat
           start_date: dateString,
           end_date: dateString,
           updated_at: new Date().toISOString(),
@@ -344,21 +343,20 @@ Use British measurements (g, ml). Return JSON:
       savedPlan = data;
       saveError = error;
     } else {
-      // Create new plan
+      // Create new plan - using the actual column names from the database
       const { data, error } = await supabaseAdmin
         .from("meal_plans")
         .insert({
-          nutrition_profile_id: nutritionProfile.id,
+          profile_id: nutritionProfile.id, // Changed from nutrition_profile_id
+          client_id: userWithOrg.id, // Added required client_id
           organization_id: userWithOrg.organizationId,
           name: `Meal Plan ${dateString}`,
-          description: `AI-generated meal plan for ${dateString}`,
           meal_data: mealPlanWithDate,
-          is_active: true,
-          daily_calories: totals.calories,
-          daily_protein: totals.protein,
-          daily_carbs: totals.carbs,
-          daily_fat: totals.fat,
-          // date: dateString, // Comment out until migration is applied
+          status: "active", // Changed from is_active
+          total_calories: totals.calories, // Changed from daily_calories
+          total_protein: totals.protein, // Changed from daily_protein
+          total_carbs: totals.carbs, // Changed from daily_carbs
+          total_fat: totals.fat, // Changed from daily_fat
           start_date: dateString,
           end_date: dateString,
           created_at: new Date().toISOString(),
