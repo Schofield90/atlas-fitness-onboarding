@@ -136,9 +136,12 @@ export default function ClientMessagesPage() {
           channel: 'in_app',
           sender_type: 'client',
           message_type: 'text',
+          type: 'text', // Add for compatibility
+          direction: 'inbound', // Client messages are inbound
           content: newMessage.trim(),
           status: 'sent',
           sender_id: null, // Clients don't have user records
+          metadata: {}, // Add empty metadata
         })
         .select('*')
         .single();
