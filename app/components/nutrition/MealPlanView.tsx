@@ -51,8 +51,8 @@ export default function MealPlanView({
         ? await preferencesResponse.json()
         : {};
 
-      // Use new v2 endpoint for background processing
-      const response = await fetch("/api/nutrition/generate-meal-plan-simple", {
+      // Use new quick endpoint for faster generation
+      const response = await fetch("/api/nutrition/generate-meal-plan-quick", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -61,7 +61,7 @@ export default function MealPlanView({
           nutritionProfile,
           profileId: nutritionProfile.id,
           preferences: preferences.data || {},
-          daysToGenerate: 7,
+          daysToGenerate: 3, // Reduced to 3 days for faster generation
         }),
       });
 
@@ -293,32 +293,32 @@ export default function MealPlanView({
             <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
               <p className="text-sm text-gray-400">Daily Calories</p>
               <p className="text-xl font-semibold text-white">
-                {currentPlan.daily_calories || currentPlan.total_calories / 7}
+                {currentPlan.daily_calories || currentPlan.total_calories / 3}
               </p>
             </div>
             <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
               <p className="text-sm text-gray-400">Protein</p>
               <p className="text-xl font-semibold text-white">
-                {currentPlan.daily_protein || currentPlan.total_protein / 7}g
+                {currentPlan.daily_protein || currentPlan.total_protein / 3}g
               </p>
             </div>
             <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
               <p className="text-sm text-gray-400">Carbs</p>
               <p className="text-xl font-semibold text-white">
-                {currentPlan.daily_carbs || currentPlan.total_carbs / 7}g
+                {currentPlan.daily_carbs || currentPlan.total_carbs / 3}g
               </p>
             </div>
             <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
               <p className="text-sm text-gray-400">Fat</p>
               <p className="text-xl font-semibold text-white">
-                {currentPlan.daily_fat || currentPlan.total_fat / 7}g
+                {currentPlan.daily_fat || currentPlan.total_fat / 3}g
               </p>
             </div>
           </div>
 
           {/* Day Selector */}
           <div className="flex gap-2 overflow-x-auto pb-2">
-            {[1, 2, 3, 4, 5, 6, 7].map((day) => (
+            {[1, 2, 3].map((day) => (
               <button
                 key={day}
                 onClick={() => setSelectedDay(day)}
