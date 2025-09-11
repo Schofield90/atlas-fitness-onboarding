@@ -123,6 +123,11 @@ export class GlobalErrorBoundary extends Component<GlobalErrorBoundaryProps, Glo
     }
   }
 
+  // Client-side rate limiting
+  private static errorReportCount = 0;
+  private static errorReportResetTime = Date.now() + 3600000; // 1 hour
+  private static MAX_ERROR_REPORTS = 10; // Max 10 reports per hour
+
   /**
    * Report critical errors to monitoring system
    */
@@ -132,6 +137,27 @@ export class GlobalErrorBoundary extends Component<GlobalErrorBoundaryProps, Glo
     category: string
   ) => {
     try {
+      // Skip reporting if it's an error from the error reporting endpoint itself
+      if (error.message?.includes('/api/errors/report') || 
+          error.message?.includes('Too many error reports')) {
+        console.warn('Skipping error report to prevent loop')
+        return
+      }
+
+      // Client-side rate limiting
+      const now = Date.now()
+      if (now > GlobalErrorBoundary.errorReportResetTime) {
+        GlobalErrorBoundary.errorReportCount = 0
+        GlobalErrorBoundary.errorReportResetTime = now + 3600000
+      }
+
+      if (GlobalErrorBoundary.errorReportCount >= GlobalErrorBoundary.MAX_ERROR_REPORTS) {
+        console.warn('Client-side error report rate limit reached')
+        return
+      }
+
+      GlobalErrorBoundary.errorReportCount++
+
       const errorReport = {
         message: error.message,
         stack: error.stack || errorInfo?.componentStack,
@@ -155,14 +181,21 @@ export class GlobalErrorBoundary extends Component<GlobalErrorBoundaryProps, Glo
       }
 
       // Send to error reporting API
-      await fetch('/api/errors/report', {
+      const response = await fetch('/api/errors/report', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(errorReport)
       })
+
+      // Don't throw on 4xx errors to prevent loops
+      if (response.status >= 400 && response.status < 500) {
+        console.warn('Error report rejected:', response.status)
+        return
+      }
     } catch (reportingError) {
+      // Never let error reporting itself cause an error
       console.error('Failed to report critical error:', reportingError)
     }
   }
