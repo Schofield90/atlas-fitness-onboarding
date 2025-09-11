@@ -131,6 +131,7 @@ export default function ClientMessagesPage() {
         .insert({
           conversation_id: conversationId,
           client_id: client.id,
+          customer_id: client.id, // Add for compatibility with cached schema
           organization_id: client.organization_id,
           channel: 'in_app',
           sender_type: 'client',
