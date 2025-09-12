@@ -45,10 +45,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user's organization and details
+    // Get user's organization
     const { data: userData, error: userError } = await supabase
       .from("users")
-      .select("organization_id, full_name, email")
+      .select("organization_id")
       .eq("id", user.id)
       .single();
 
@@ -85,7 +85,6 @@ export async function POST(request: NextRequest) {
     const messageData = {
       organization_id: orgId,
       lead_id: recipientId || null,
-      client_id: recipientId || client_id || null, // Ensure client_id is set
       user_id: user.id,
       type: messageType,
       channel: isInAppMessage ? "in_app" : channel || messageType,
@@ -93,9 +92,6 @@ export async function POST(request: NextRequest) {
       status: isInAppMessage ? "delivered" : "pending",
       subject: subject || null,
       body: messageContent,
-      content: messageContent, // Add content field for client compatibility
-      sender_type: "gym",
-      sender_name: userData.full_name || userData.email || "Gym",
       to_number:
         messageType === "sms" || messageType === "whatsapp"
           ? recipientAddress
