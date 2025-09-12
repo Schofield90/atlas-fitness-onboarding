@@ -1,17 +1,1 @@
-[
-  {
-    "content": "Commit all messaging fixes to git",
-    "status": "in_progress",
-    "activeForm": "Committing messaging fixes to git"
-  },
-  {
-    "content": "Push changes to GitHub",
-    "status": "pending",
-    "activeForm": "Pushing changes to GitHub"
-  },
-  {
-    "content": "Verify Vercel deployment",
-    "status": "pending",
-    "activeForm": "Verifying Vercel deployment"
-  }
-]
+[]
