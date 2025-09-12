@@ -1,1 +1,17 @@
-[]
+[
+  {
+    "content": "Fix Edge Runtime compatibility warnings in middleware",
+    "status": "completed",
+    "activeForm": "Fixing Edge Runtime compatibility warnings in middleware"
+  },
+  {
+    "content": "Update Supabase client configuration for Edge Runtime",
+    "status": "completed",
+    "activeForm": "Updating Supabase client configuration for Edge Runtime"
+  },
+  {
+    "content": "Test and verify deployment",
+    "status": "in_progress",
+    "activeForm": "Testing and verifying deployment"
+  }
+]
