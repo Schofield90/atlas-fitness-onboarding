@@ -5,6 +5,9 @@ import { createClient } from "@/app/lib/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
 import SimpleLoginPage from "@/app/simple-login/page";
 
+// Create Supabase client outside component to ensure singleton
+const supabase = createClient();
+
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -20,8 +23,6 @@ export default function LoginPage() {
 
       if (accessToken && refreshToken) {
         try {
-          const supabase = createClient();
-
           // Set the session with the tokens
           const { data, error } = await supabase.auth.setSession({
             access_token: accessToken,
