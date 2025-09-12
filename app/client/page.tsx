@@ -69,6 +69,7 @@ export default function ClientDashboard() {
 
   const loadDashboardData = async () => {
     const now = new Date();
+    const nowISO = now.toISOString();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     console.log("Start of month:", startOfMonth.toISOString());
 
@@ -108,10 +109,9 @@ export default function ClientDashboard() {
       .eq("status", "confirmed");
 
     // Filter for upcoming classes in memory
-    const now = new Date().toISOString();
     let directUpcoming =
       allConfirmedBookings
-        ?.filter((booking: any) => booking.class_sessions?.start_time >= now)
+        ?.filter((booking: any) => booking.class_sessions?.start_time >= nowISO)
         .sort((a: any, b: any) => {
           const aTime = new Date(a.class_sessions?.start_time || 0).getTime();
           const bTime = new Date(b.class_sessions?.start_time || 0).getTime();
@@ -196,7 +196,7 @@ export default function ClientDashboard() {
           const leadUpcoming =
             leadBookings
               ?.filter(
-                (booking: any) => booking.class_sessions?.start_time >= now,
+                (booking: any) => booking.class_sessions?.start_time >= nowISO,
               )
               .sort((a: any, b: any) => {
                 const aTime = new Date(
