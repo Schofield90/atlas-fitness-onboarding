@@ -4,6 +4,7 @@ import twilio from "twilio";
 import { Resend } from "resend";
 
 export async function POST(request: NextRequest) {
+  console.log("[Messages API] Starting message send request");
   try {
     const supabase = await createServerClient();
     const {
@@ -60,6 +61,16 @@ export async function POST(request: NextRequest) {
 
     const orgId = organization_id || userData.organization_id;
 
+    // Log message details for debugging
+    console.log("[Messages API] Preparing to send message:", {
+      type: messageType,
+      recipientId,
+      recipientAddress,
+      hasContent: !!messageContent,
+      contentLength: messageContent?.length,
+      organization: orgId,
+    });
+
     // Insert message into database
     const messageData = {
       organization_id: orgId,
@@ -85,12 +96,14 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertError) {
-      console.error("Error inserting message:", insertError);
+      console.error("[Messages API] Error inserting message:", insertError);
       return NextResponse.json(
-        { error: "Failed to save message" },
+        { error: "Failed to save message", details: insertError.message },
         { status: 500 },
       );
     }
+
+    console.log("[Messages API] Message inserted with ID:", insertedMessage.id);
 
     // Send the actual message based on type
     let sendSuccess = false;
@@ -121,19 +134,26 @@ export async function POST(request: NextRequest) {
 
             if (!fromNumber) {
               console.error(
-                "Twilio from number not configured for",
+                "[Messages API] Twilio from number not configured for",
                 messageType,
+                {
+                  TWILIO_SMS_FROM: process.env.TWILIO_SMS_FROM,
+                  TWILIO_PHONE_NUMBER: process.env.TWILIO_PHONE_NUMBER,
+                  TWILIO_WHATSAPP_FROM: process.env.TWILIO_WHATSAPP_FROM,
+                  TWILIO_WHATSAPP_NUMBER: process.env.TWILIO_WHATSAPP_NUMBER,
+                },
               );
               throw new Error(
                 `Twilio from number not configured for ${messageType}`,
               );
             }
 
-            console.log("Sending Twilio message:", {
+            console.log("[Messages API] Sending Twilio message:", {
               messageType,
               from: fromNumber,
               to: toNumber,
               bodyLength: messageContent.length,
+              messageId: insertedMessage.id,
             });
 
             const twilioMessage = await twilioClient.messages.create({
@@ -144,6 +164,12 @@ export async function POST(request: NextRequest) {
 
             if (twilioMessage.sid) {
               sendSuccess = true;
+              console.log("[Messages API] Twilio message sent successfully:", {
+                messageId: insertedMessage.id,
+                twilioSid: twilioMessage.sid,
+                status: twilioMessage.status,
+              });
+
               const { error: updateError } = await supabase
                 .from("messages")
                 .update({
@@ -154,19 +180,34 @@ export async function POST(request: NextRequest) {
                 .eq("id", insertedMessage.id);
 
               if (updateError) {
-                console.error("Error updating message status:", updateError);
+                console.error(
+                  "[Messages API] Error updating message status:",
+                  updateError,
+                );
+              } else {
+                console.log("[Messages API] Message status updated to 'sent'");
               }
             }
           } else {
             // If Twilio not configured, just mark as sent
+            console.log(
+              "[Messages API] Twilio not configured, marking as sent",
+            );
             sendSuccess = true;
-            await supabase
+            const { error: updateError } = await supabase
               .from("messages")
               .update({
                 status: "sent",
                 sent_at: new Date().toISOString(),
               })
               .eq("id", insertedMessage.id);
+
+            if (updateError) {
+              console.error(
+                "[Messages API] Error updating message status:",
+                updateError,
+              );
+            }
           }
           break;
 
@@ -221,7 +262,12 @@ export async function POST(request: NextRequest) {
           break;
       }
     } catch (error) {
-      console.error(`Error sending ${messageType} message:`, error);
+      console.error(`[Messages API] Error sending ${messageType} message:`, {
+        error,
+        messageId: insertedMessage.id,
+        messageType,
+        recipientAddress,
+      });
       sendError = error;
 
       // Update message status to failed
@@ -242,14 +288,23 @@ export async function POST(request: NextRequest) {
       .eq("id", insertedMessage.id)
       .single();
 
+    console.log("[Messages API] Final message status:", {
+      messageId: updatedMessage?.id || insertedMessage.id,
+      status: updatedMessage?.status || insertedMessage.status,
+      success: sendSuccess,
+    });
+
     return NextResponse.json({
       success: true,
       message: updatedMessage || insertedMessage,
     });
   } catch (error) {
-    console.error("Error in message send API:", error);
+    console.error("[Messages API] Fatal error in message send API:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      {
+        error: "Internal server error",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 },
     );
   }
