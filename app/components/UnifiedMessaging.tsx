@@ -64,9 +64,9 @@ export default function UnifiedMessaging({
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [messageType, setMessageType] = useState<"sms" | "whatsapp" | "email">(
-    "whatsapp",
-  );
+  const [messageType, setMessageType] = useState<
+    "sms" | "whatsapp" | "email" | "in_app"
+  >("in_app");
   const [showReplyArea, setShowReplyArea] = useState(false);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -354,16 +354,32 @@ export default function UnifiedMessaging({
         formattedMessages.push(...coachingMessages.map(formatMessage));
       }
 
-      // Load general messages
-      const { data: generalMessages } = await supabase
-        .from("messages")
-        .select("*")
-        .eq("lead_id", contactId.replace("lead-", ""))
-        .eq("organization_id", userData.organization_id)
-        .order("created_at", { ascending: true });
+      // Load messages by conversation_id if available
+      if (selectedConversation?.id) {
+        const { data: conversationMessages } = await supabase
+          .from("messages")
+          .select("*")
+          .eq("conversation_id", selectedConversation.id)
+          .eq("organization_id", userData.organization_id)
+          .order("created_at", { ascending: true });
 
-      if (generalMessages) {
-        formattedMessages.push(...generalMessages.map(formatMessage));
+        if (conversationMessages) {
+          formattedMessages.push(...conversationMessages.map(formatMessage));
+        }
+      } else {
+        // Fallback: Load by client_id or lead_id
+        const { data: generalMessages } = await supabase
+          .from("messages")
+          .select("*")
+          .or(
+            `client_id.eq.${contactId},lead_id.eq.${contactId.replace("lead-", "")}`,
+          )
+          .eq("organization_id", userData.organization_id)
+          .order("created_at", { ascending: true });
+
+        if (generalMessages) {
+          formattedMessages.push(...generalMessages.map(formatMessage));
+        }
       }
 
       // Sort all messages by time
@@ -475,11 +491,45 @@ export default function UnifiedMessaging({
             message: messageContent,
           },
         });
+      } else if (messageType === "in_app") {
+        // Send in-app message directly to database
+        const { data, error } = await supabase
+          .from("messages")
+          .insert({
+            conversation_id: selectedConversation.id,
+            organization_id: userData.organization_id,
+            client_id: selectedConversation.contact_id,
+            user_id: userData.id,
+            channel: "in_app",
+            type: "in_app",
+            sender_type: "gym",
+            sender_name: userData.full_name || userData.email || "Gym",
+            direction: "outbound",
+            body: messageContent,
+            content: messageContent,
+            status: "delivered",
+            created_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Update optimistic message with real data
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === optimisticMessage.id
+              ? { ...formatMessage(data), status: "delivered" }
+              : msg,
+          ),
+        );
       } else {
-        // Send as general message
+        // Send as SMS/Email/WhatsApp message
         const payload = {
           leadId: selectedConversation.contact_id,
+          client_id: selectedConversation.contact_id,
           type: messageType,
+          channel: messageType,
           to:
             messageType === "email"
               ? selectedConversation.contact_email
@@ -826,41 +876,53 @@ export default function UnifiedMessaging({
             )}
 
             {/* Message Input */}
-            <div className="p-4 border-t border-gray-200 bg-gray-50">
-              {selectedConversation.type === "general" && (
-                <div className="flex gap-2 mb-2">
-                  <button
-                    onClick={() => setMessageType("whatsapp")}
-                    className={`px-3 py-1 rounded-lg text-sm ${
-                      messageType === "whatsapp"
-                        ? "bg-green-600 text-white"
-                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                    }`}
-                  >
-                    WhatsApp
-                  </button>
-                  <button
-                    onClick={() => setMessageType("sms")}
-                    className={`px-3 py-1 rounded-lg text-sm ${
-                      messageType === "sms"
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                    }`}
-                  >
-                    SMS
-                  </button>
-                  <button
-                    onClick={() => setMessageType("email")}
-                    className={`px-3 py-1 rounded-lg text-sm ${
-                      messageType === "email"
-                        ? "bg-purple-600 text-white"
-                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                    }`}
-                  >
-                    Email
-                  </button>
-                </div>
-              )}
+            <div className="p-4 border-t border-gray-700 bg-gray-800">
+              <div className="flex gap-2 mb-2">
+                <button
+                  onClick={() => setMessageType("in_app")}
+                  className={`px-3 py-1 rounded-lg text-sm ${
+                    messageType === "in_app"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  }`}
+                >
+                  In-App
+                </button>
+                {selectedConversation.type === "general" && (
+                  <>
+                    <button
+                      onClick={() => setMessageType("whatsapp")}
+                      className={`px-3 py-1 rounded-lg text-sm ${
+                        messageType === "whatsapp"
+                          ? "bg-green-600 text-white"
+                          : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                      }`}
+                    >
+                      WhatsApp
+                    </button>
+                    <button
+                      onClick={() => setMessageType("sms")}
+                      className={`px-3 py-1 rounded-lg text-sm ${
+                        messageType === "sms"
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                      }`}
+                    >
+                      SMS
+                    </button>
+                    <button
+                      onClick={() => setMessageType("email")}
+                      className={`px-3 py-1 rounded-lg text-sm ${
+                        messageType === "email"
+                          ? "bg-purple-600 text-white"
+                          : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                      }`}
+                    >
+                      Email
+                    </button>
+                  </>
+                )}
+              </div>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -877,7 +939,7 @@ export default function UnifiedMessaging({
                       ? `Reply to message...`
                       : `Type your ${selectedConversation.type === "coaching" ? "coaching" : messageType} message...`
                   }
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   disabled={isLoading}
                 />
                 <button
