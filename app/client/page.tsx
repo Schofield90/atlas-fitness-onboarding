@@ -89,7 +89,9 @@ export default function ClientDashboard() {
       .eq("client_id", client.id)
       .gte("created_at", startOfMonth.toISOString());
 
-    let { data: directUpcoming } = await supabase
+    // Get all confirmed bookings and filter in memory
+    // (PostgREST doesn't support filtering on nested relations)
+    let { data: allConfirmedBookings } = await supabase
       .from("bookings")
       .select(
         `
@@ -103,10 +105,19 @@ export default function ClientDashboard() {
       `,
       )
       .eq("client_id", client.id)
-      .eq("status", "confirmed")
-      .gte("class_sessions.start_time", new Date().toISOString())
-      .order("class_sessions(start_time)", { ascending: true })
-      .limit(3);
+      .eq("status", "confirmed");
+
+    // Filter for upcoming classes in memory
+    const now = new Date().toISOString();
+    let directUpcoming =
+      allConfirmedBookings
+        ?.filter((booking: any) => booking.class_sessions?.start_time >= now)
+        .sort((a: any, b: any) => {
+          const aTime = new Date(a.class_sessions?.start_time || 0).getTime();
+          const bTime = new Date(b.class_sessions?.start_time || 0).getTime();
+          return aTime - bTime;
+        })
+        .slice(0, 3) || [];
 
     let classesThisMonth =
       directBookings?.filter((b) => b.status === "attended").length || 0;
@@ -165,7 +176,7 @@ export default function ClientDashboard() {
 
         // Get upcoming using lead ID if no direct upcoming
         if (!directUpcoming || directUpcoming.length === 0) {
-          const { data: leadUpcoming } = await supabase
+          const { data: leadBookings } = await supabase
             .from("bookings")
             .select(
               `
@@ -179,10 +190,24 @@ export default function ClientDashboard() {
             `,
             )
             .eq("customer_id", leadData.id)
-            .eq("status", "confirmed")
-            .gte("class_sessions.start_time", new Date().toISOString())
-            .order("class_sessions(start_time)", { ascending: true })
-            .limit(3);
+            .eq("status", "confirmed");
+
+          // Filter for upcoming in memory
+          const leadUpcoming =
+            leadBookings
+              ?.filter(
+                (booking: any) => booking.class_sessions?.start_time >= now,
+              )
+              .sort((a: any, b: any) => {
+                const aTime = new Date(
+                  a.class_sessions?.start_time || 0,
+                ).getTime();
+                const bTime = new Date(
+                  b.class_sessions?.start_time || 0,
+                ).getTime();
+                return aTime - bTime;
+              })
+              .slice(0, 3) || [];
 
           if (leadUpcoming && leadUpcoming.length > 0) {
             directUpcoming = leadUpcoming;
