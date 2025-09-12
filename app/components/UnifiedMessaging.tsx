@@ -228,7 +228,7 @@ export default function UnifiedMessaging({
       // Format conversations for display
       const formattedConversations = (allConversations || []).map(
         (conv: any) => ({
-          id: conv.conversation_id || `${conv.contact_type}-${conv.contact_id}`,
+          id: conv.conv_id || `${conv.contact_type}-${conv.contact_id}`,
           contact_id: conv.contact_id,
           contact_name: conv.contact_name || "Unknown",
           contact_email: conv.contact_email || "",
