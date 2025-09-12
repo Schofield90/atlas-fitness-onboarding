@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/app/lib/supabase/server";
+import { createClient as createServerClient } from "@/app/lib/supabase/server";
 import twilio from "twilio";
 import { Resend } from "resend";
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createServerClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
 
             if (twilioMessage.sid) {
               sendSuccess = true;
-              await supabase
+              const { error: updateError } = await supabase
                 .from("messages")
                 .update({
                   status: "sent",
@@ -134,6 +134,10 @@ export async function POST(request: NextRequest) {
                   twilio_sid: twilioMessage.sid,
                 })
                 .eq("id", insertedMessage.id);
+
+              if (updateError) {
+                console.error("Error updating message status:", updateError);
+              }
             }
           } else {
             // If Twilio not configured, just mark as sent
@@ -213,9 +217,16 @@ export async function POST(request: NextRequest) {
         .eq("id", insertedMessage.id);
     }
 
+    // Fetch the updated message to return with correct status
+    const { data: updatedMessage } = await supabase
+      .from("messages")
+      .select()
+      .eq("id", insertedMessage.id)
+      .single();
+
     return NextResponse.json({
       success: true,
-      message: insertedMessage,
+      message: updatedMessage || insertedMessage,
     });
   } catch (error) {
     console.error("Error in message send API:", error);

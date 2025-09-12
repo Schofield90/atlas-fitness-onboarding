@@ -422,37 +422,21 @@ export default function UnifiedMessaging({
 
         const result = await response.json();
 
-        // Update optimistic message to sent status
+        // Update optimistic message with real data from server
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === optimisticMessage.id
-              ? { ...msg, id: result.message?.id || msg.id, status: "sent" }
+              ? {
+                  ...msg,
+                  id: result.message?.id || msg.id,
+                  status: result.message?.status || "sent",
+                  sent_at: result.message?.sent_at,
+                }
               : msg,
           ),
         );
 
-        // Actually send the message via Twilio/Email
-        if (messageType === "sms" || messageType === "whatsapp") {
-          await fetch("/api/twilio/send", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              to: selectedConversation.contact_phone,
-              message: messageContent,
-              type: messageType,
-            }),
-          });
-        } else if (messageType === "email") {
-          await fetch("/api/resend/send", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              to: selectedConversation.contact_email,
-              subject: "Message from Atlas Fitness",
-              body: messageContent,
-            }),
-          });
-        }
+        // No need for duplicate API calls - /api/messages/send already handles Twilio/Resend
       }
 
       toast.success("Message sent!");
