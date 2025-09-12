@@ -69,7 +69,6 @@ export default function DashboardPage() {
         }
 
         setUser(currentUser);
-        setUser(user);
 
         // Check if user is admin
         const adminEmails = ["sam@atlas-gyms.co.uk", "sam@gymleadhub.co.uk"];
