@@ -122,7 +122,7 @@
     "@tanstack/react-table": "^8.20.6",
     "@types/node-telegram-bot-api": "^0.64.10",
     "@types/nodemailer": "^6.4.16",
-    "@types/papaparse": "^5.3.15",
+    "@types/papaparse": "^5.3.16",
     "@upstash/redis": "^1.35.3",
     "@vercel/analytics": "^1.4.0",
     "@vercel/speed-insights": "^1.0.14",

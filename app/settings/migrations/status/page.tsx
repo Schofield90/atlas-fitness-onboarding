@@ -1,0 +1,562 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/app/lib/supabase/client";
+import {
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Clock,
+  RefreshCw,
+  Download,
+  Eye,
+  ChevronRight,
+  Users,
+  CreditCard,
+  Calendar,
+  FileText,
+  Loader2,
+  BarChart3,
+  AlertTriangle,
+  CheckCircle2,
+} from "lucide-react";
+import toast from "@/app/lib/toast";
+
+const supabase = createClient();
+
+interface MigrationJob {
+  id: string;
+  source_system: string;
+  status: string;
+  total_records: number;
+  processed_records: number;
+  successful_records: number;
+  failed_records: number;
+  created_at: string;
+  started_at?: string;
+  completed_at?: string;
+  ai_analysis?: any;
+}
+
+interface MigrationConflict {
+  id: string;
+  conflict_type: string;
+  existing_data: any;
+  incoming_data: any;
+  resolution_strategy?: string;
+}
+
+export default function MigrationStatusPage() {
+  const router = useRouter();
+  const [jobs, setJobs] = useState<MigrationJob[]>([]);
+  const [selectedJob, setSelectedJob] = useState<MigrationJob | null>(null);
+  const [conflicts, setConflicts] = useState<MigrationConflict[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [polling, setPolling] = useState(false);
+
+  useEffect(() => {
+    loadMigrationJobs();
+    // Poll for updates every 5 seconds
+    const interval = setInterval(loadMigrationJobs, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (selectedJob) {
+      loadJobDetails(selectedJob.id);
+    }
+  }, [selectedJob]);
+
+  const loadMigrationJobs = async () => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: userProfile } = await supabase
+        .from("users")
+        .select("organization_id")
+        .eq("id", user.id)
+        .single();
+
+      if (!userProfile) return;
+
+      const { data, error } = await supabase
+        .from("migration_jobs")
+        .select("*")
+        .eq("organization_id", userProfile.organization_id)
+        .order("created_at", { ascending: false });
+
+      if (!error && data) {
+        setJobs(data);
+
+        // Auto-select active job
+        const activeJob = data.find((job) =>
+          ["processing", "analyzing", "mapping"].includes(job.status),
+        );
+        if (activeJob && !selectedJob) {
+          setSelectedJob(activeJob);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading jobs:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadJobDetails = async (jobId: string) => {
+    try {
+      // Fetch conflicts
+      const response = await fetch(`/api/migration/jobs/${jobId}/conflicts`);
+      if (response.ok) {
+        const result = await response.json();
+        setConflicts(result.conflicts || []);
+      }
+    } catch (error) {
+      console.error("Error loading job details:", error);
+    }
+  };
+
+  const resolveConflict = async (conflictId: string, resolution: string) => {
+    try {
+      const response = await fetch(
+        `/api/migration/jobs/${selectedJob?.id}/conflicts`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conflictId, resolution }),
+        },
+      );
+
+      if (response.ok) {
+        toast.success("Conflict resolved");
+        loadJobDetails(selectedJob!.id);
+      }
+    } catch (error) {
+      console.error("Error resolving conflict:", error);
+      toast.error("Failed to resolve conflict");
+    }
+  };
+
+  const cancelJob = async (jobId: string) => {
+    if (!confirm("Are you sure you want to cancel this migration?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("migration_jobs")
+        .update({ status: "cancelled" })
+        .eq("id", jobId);
+
+      if (!error) {
+        toast.success("Migration cancelled");
+        loadMigrationJobs();
+      }
+    } catch (error) {
+      console.error("Error cancelling job:", error);
+      toast.error("Failed to cancel migration");
+    }
+  };
+
+  const retryJob = async (jobId: string) => {
+    try {
+      const response = await fetch(`/api/migration/jobs/${jobId}/retry`, {
+        method: "POST",
+      });
+
+      if (response.ok) {
+        toast.success("Migration restarted");
+        loadMigrationJobs();
+      }
+    } catch (error) {
+      console.error("Error retrying job:", error);
+      toast.error("Failed to restart migration");
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "completed":
+        return <CheckCircle className="h-5 w-5 text-green-500" />;
+      case "failed":
+        return <XCircle className="h-5 w-5 text-red-500" />;
+      case "processing":
+      case "analyzing":
+      case "mapping":
+        return <RefreshCw className="h-5 w-5 text-blue-500 animate-spin" />;
+      case "cancelled":
+        return <XCircle className="h-5 w-5 text-gray-500" />;
+      default:
+        return <Clock className="h-5 w-5 text-gray-400" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "completed":
+        return "text-green-500 bg-green-900/20";
+      case "failed":
+        return "text-red-500 bg-red-900/20";
+      case "processing":
+      case "analyzing":
+      case "mapping":
+        return "text-blue-500 bg-blue-900/20";
+      case "cancelled":
+        return "text-gray-500 bg-gray-900/20";
+      default:
+        return "text-gray-400 bg-gray-900/20";
+    }
+  };
+
+  const calculateProgress = (job: MigrationJob) => {
+    if (job.total_records === 0) return 0;
+    return Math.round((job.processed_records / job.total_records) * 100);
+  };
+
+  const formatDuration = (start: string, end?: string) => {
+    const startTime = new Date(start).getTime();
+    const endTime = end ? new Date(end).getTime() : Date.now();
+    const duration = Math.floor((endTime - startTime) / 1000);
+
+    if (duration < 60) return `${duration}s`;
+    if (duration < 3600) return `${Math.floor(duration / 60)}m`;
+    return `${Math.floor(duration / 3600)}h ${Math.floor((duration % 3600) / 60)}m`;
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-900 text-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2">Migration Status</h1>
+          <p className="text-gray-400">
+            Track and manage your data migration jobs
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Jobs List */}
+          <div className="lg:col-span-1">
+            <div className="bg-gray-800 rounded-lg p-6">
+              <h2 className="text-xl font-semibold mb-4">Migration Jobs</h2>
+
+              {jobs.length === 0 ? (
+                <div className="text-center py-8">
+                  <FileText className="h-12 w-12 text-gray-600 mx-auto mb-3" />
+                  <p className="text-gray-400">No migration jobs yet</p>
+                  <button
+                    onClick={() => router.push("/settings/migrations")}
+                    className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Start Migration
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {jobs.map((job) => (
+                    <div
+                      key={job.id}
+                      onClick={() => setSelectedJob(job)}
+                      className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                        selectedJob?.id === job.id
+                          ? "bg-blue-900/20 border-blue-500"
+                          : "bg-gray-700 border-gray-600 hover:bg-gray-700/70"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium capitalize">
+                          {job.source_system}
+                        </span>
+                        {getStatusIcon(job.status)}
+                      </div>
+                      <div className="text-sm text-gray-400">
+                        {new Date(job.created_at).toLocaleDateString()}
+                      </div>
+                      <div className="mt-2">
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="text-gray-400">Progress</span>
+                          <span>{calculateProgress(job)}%</span>
+                        </div>
+                        <div className="w-full bg-gray-600 rounded-full h-2">
+                          <div
+                            className="bg-blue-500 h-2 rounded-full transition-all"
+                            style={{ width: `${calculateProgress(job)}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Job Details */}
+          <div className="lg:col-span-2">
+            {selectedJob ? (
+              <div className="space-y-6">
+                {/* Status Overview */}
+                <div className="bg-gray-800 rounded-lg p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-semibold">Job Details</h2>
+                    <div className="flex gap-2">
+                      {selectedJob.status === "failed" && (
+                        <button
+                          onClick={() => retryJob(selectedJob.id)}
+                          className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                          Retry
+                        </button>
+                      )}
+                      {["processing", "analyzing", "mapping"].includes(
+                        selectedJob.status,
+                      ) && (
+                        <button
+                          onClick={() => cancelJob(selectedJob.id)}
+                          className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
+                        >
+                          <XCircle className="h-4 w-4" />
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div>
+                      <p className="text-sm text-gray-400">Status</p>
+                      <div
+                        className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(selectedJob.status)}`}
+                      >
+                        {selectedJob.status}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-400">Duration</p>
+                      <p className="text-lg font-medium">
+                        {selectedJob.started_at
+                          ? formatDuration(
+                              selectedJob.started_at,
+                              selectedJob.completed_at,
+                            )
+                          : "-"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="mb-6">
+                    <div className="flex justify-between text-sm mb-2">
+                      <span className="text-gray-400">Overall Progress</span>
+                      <span>{calculateProgress(selectedJob)}%</span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-3">
+                      <div
+                        className="bg-gradient-to-r from-blue-500 to-blue-400 h-3 rounded-full transition-all"
+                        style={{ width: `${calculateProgress(selectedJob)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Statistics */}
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="bg-gray-700 rounded-lg p-3 text-center">
+                      <FileText className="h-6 w-6 text-blue-500 mx-auto mb-2" />
+                      <p className="text-2xl font-bold">
+                        {selectedJob.total_records}
+                      </p>
+                      <p className="text-xs text-gray-400">Total Records</p>
+                    </div>
+                    <div className="bg-gray-700 rounded-lg p-3 text-center">
+                      <Loader2 className="h-6 w-6 text-yellow-500 mx-auto mb-2" />
+                      <p className="text-2xl font-bold">
+                        {selectedJob.processed_records}
+                      </p>
+                      <p className="text-xs text-gray-400">Processed</p>
+                    </div>
+                    <div className="bg-gray-700 rounded-lg p-3 text-center">
+                      <CheckCircle2 className="h-6 w-6 text-green-500 mx-auto mb-2" />
+                      <p className="text-2xl font-bold">
+                        {selectedJob.successful_records}
+                      </p>
+                      <p className="text-xs text-gray-400">Successful</p>
+                    </div>
+                    <div className="bg-gray-700 rounded-lg p-3 text-center">
+                      <AlertTriangle className="h-6 w-6 text-red-500 mx-auto mb-2" />
+                      <p className="text-2xl font-bold">
+                        {selectedJob.failed_records}
+                      </p>
+                      <p className="text-xs text-gray-400">Failed</p>
+                    </div>
+                  </div>
+
+                  {/* AI Analysis Results */}
+                  {selectedJob.ai_analysis && (
+                    <div className="mt-6 pt-6 border-t border-gray-700">
+                      <h3 className="font-medium mb-3">AI Analysis Results</h3>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-400">
+                            Confidence Score:
+                          </span>
+                          <span className="ml-2">
+                            {(
+                              selectedJob.ai_analysis.confidence_score * 100
+                            ).toFixed(0)}
+                            %
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Headers Found:</span>
+                          <span className="ml-2">
+                            {selectedJob.ai_analysis.headers_found}
+                          </span>
+                        </div>
+                        {selectedJob.ai_analysis.detected_types && (
+                          <div className="col-span-2">
+                            <span className="text-gray-400">
+                              Detected Types:
+                            </span>
+                            <div className="flex gap-2 mt-2">
+                              {Object.entries(
+                                selectedJob.ai_analysis.detected_types,
+                              ).map(([type, count]) => (
+                                <span
+                                  key={type}
+                                  className="px-2 py-1 bg-gray-700 rounded-md text-xs"
+                                >
+                                  {type}: {count}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Conflicts */}
+                {conflicts.length > 0 && (
+                  <div className="bg-gray-800 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <AlertCircle className="h-5 w-5 text-yellow-500" />
+                      Conflicts Requiring Resolution ({conflicts.length})
+                    </h3>
+                    <div className="space-y-3">
+                      {conflicts.slice(0, 5).map((conflict) => (
+                        <div
+                          key={conflict.id}
+                          className="bg-gray-700 rounded-lg p-4"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium">
+                              {conflict.conflict_type.replace("_", " ")}
+                            </span>
+                            {!conflict.resolution_strategy && (
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() =>
+                                    resolveConflict(conflict.id, "skip")
+                                  }
+                                  className="px-2 py-1 bg-gray-600 text-white rounded text-xs hover:bg-gray-500"
+                                >
+                                  Skip
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    resolveConflict(conflict.id, "update")
+                                  }
+                                  className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                                >
+                                  Update
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    resolveConflict(conflict.id, "merge")
+                                  }
+                                  className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+                                >
+                                  Merge
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            <p>
+                              Existing:{" "}
+                              {JSON.stringify(conflict.existing_data).slice(
+                                0,
+                                50,
+                              )}
+                              ...
+                            </p>
+                            <p>
+                              Incoming:{" "}
+                              {JSON.stringify(conflict.incoming_data).slice(
+                                0,
+                                50,
+                              )}
+                              ...
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Actions */}
+                {selectedJob.status === "completed" && (
+                  <div className="bg-gray-800 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold mb-4">Next Steps</h3>
+                    <div className="space-y-3">
+                      <button
+                        onClick={() => router.push("/leads")}
+                        className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 flex items-center justify-between"
+                      >
+                        <span className="flex items-center gap-3">
+                          <Users className="h-5 w-5" />
+                          View Imported Clients
+                        </span>
+                        <ChevronRight className="h-5 w-5" />
+                      </button>
+                      <button className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 flex items-center justify-between">
+                        <span className="flex items-center gap-3">
+                          <Download className="h-5 w-5" />
+                          Download Import Report
+                        </span>
+                        <ChevronRight className="h-5 w-5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="bg-gray-800 rounded-lg p-12 text-center">
+                <BarChart3 className="h-16 w-16 text-gray-600 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-2">
+                  Select a Migration Job
+                </h3>
+                <p className="text-gray-400">
+                  Choose a job from the list to view details and progress
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
