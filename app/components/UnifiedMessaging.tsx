@@ -8,6 +8,7 @@ import {
   Loader2,
   User,
   Bell,
+  Check,
   CheckCheck,
   Bot,
   Clock,
@@ -355,7 +356,8 @@ export default function UnifiedMessaging({
       read: false,
       type: messageType,
       direction: "outbound",
-      status: "pending",
+      // Only add status for general messages, not coaching messages
+      ...(isCoachingConversation ? {} : { status: "pending" }),
     };
 
     setMessages((prev) => [...prev, optimisticMessage]);
@@ -674,11 +676,15 @@ export default function UnifiedMessaging({
                           <span className="text-xs opacity-75">
                             {formatBritishDateTime(message.created_at)}
                           </span>
-                          {message.status && (
+                          {message.status && message.status !== "pending" && (
                             <span
                               className={`text-xs ${getStatusColor(message.status)}`}
                             >
                               {message.status === "read" ? (
+                                <CheckCheck className="h-3 w-3" />
+                              ) : message.status === "sent" ? (
+                                <Check className="h-3 w-3" />
+                              ) : message.status === "delivered" ? (
                                 <CheckCheck className="h-3 w-3" />
                               ) : (
                                 message.status
