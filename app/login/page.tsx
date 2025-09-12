@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import SimpleLoginPage from "@/app/simple-login/page";
 
 export default function LoginPage() {
-  const [supabase] = useState(() => createClient());
   const router = useRouter();
   const searchParams = useSearchParams();
   const [processing, setProcessing] = useState(true);
@@ -14,6 +13,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     const handleMagicLink = async () => {
+      const supabase = createClient();
       // Check if we have a magic link token in the URL hash
       const hashParams = new URLSearchParams(window.location.hash.slice(1));
       const accessToken = hashParams.get("access_token");

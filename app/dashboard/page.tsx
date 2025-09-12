@@ -18,7 +18,6 @@ import {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const supabase = createClient();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
@@ -28,6 +27,7 @@ export default function DashboardPage() {
     // Check if user is logged in and get organization
     const checkAuth = async () => {
       console.log("Dashboard: Checking authentication...");
+      const supabase = createClient();
       try {
         // First try to get the session from storage
         const {
