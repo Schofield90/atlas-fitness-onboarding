@@ -32,7 +32,7 @@ export default function DashboardLayout({
   const [staffPermissions, setStaffPermissions] = useState<any>(null);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState<number>(0);
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
 
   useEffect(() => {
     setMounted(true);
