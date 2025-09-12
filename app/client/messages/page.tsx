@@ -67,8 +67,26 @@ export default function ClientMessagesPage() {
 
   const initConversation = async () => {
     try {
+      // Get current session to ensure we're authenticated
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        console.error("No session found");
+        alert("Please sign in to use the messaging feature.");
+        return;
+      }
+
       // Create or get the conversation for this client
-      const resp = await fetch("/api/client/conversations", { method: "POST" });
+      const resp = await fetch("/api/client/conversations", {
+        method: "POST",
+        credentials: "include", // Include cookies for authentication
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`, // Add auth header as backup
+        },
+      });
       const data = await resp.json();
 
       console.log("Conversation API response:", data);
@@ -88,6 +106,19 @@ export default function ClientMessagesPage() {
       }
 
       setConversationId(data.conversation_id);
+
+      // Verify the conversation exists in the database before proceeding
+      const { data: convCheck } = await supabase
+        .from("conversations")
+        .select("id")
+        .eq("id", data.conversation_id)
+        .single();
+
+      if (!convCheck) {
+        console.error("Conversation not found in database");
+        throw new Error("Conversation creation failed");
+      }
+
       await loadMessages(data.conversation_id);
       subscribeToMessages(data.conversation_id);
     } catch (error) {
@@ -158,35 +189,12 @@ export default function ClientMessagesPage() {
         console.error("Failed to initialize conversation:", initError);
       }
 
-      // If still no ID after initialization, generate a deterministic fallback
+      // If still no ID after initialization, we cannot proceed
       if (!currentConversationId) {
-        // Create a deterministic UUID based on client ID and organization ID
-        // This ensures the same client always gets the same conversation ID
-        const fallbackSeed = `${client.id}-${client.organization_id}`;
-        currentConversationId = crypto.randomUUID();
-        console.warn("Using fallback conversation ID:", currentConversationId);
-        setConversationId(currentConversationId);
-
-        // Try to create the conversation record in the background
-        try {
-          const resp = await fetch("/api/client/conversations", {
-            method: "POST",
-          });
-          if (resp.ok) {
-            const data = await resp.json();
-            if (data.conversation_id) {
-              currentConversationId = data.conversation_id;
-              setConversationId(data.conversation_id);
-              console.log(
-                "Updated to server conversation ID:",
-                data.conversation_id,
-              );
-            }
-          }
-        } catch (bgError) {
-          console.warn("Background conversation creation failed:", bgError);
-          // Continue with fallback ID
-        }
+        console.error("Failed to create conversation");
+        alert("Unable to start chat. Please refresh the page and try again.");
+        setSending(false);
+        return;
       }
     }
 
