@@ -40,14 +40,6 @@ export function createClient() {
         "X-Client-Info": "atlas-fitness-onboarding",
       },
     },
-    cookies: {
-      // Use secure cookie settings
-      domain: window.location.hostname,
-      path: "/",
-      sameSite: "strict",
-      secure: window.location.protocol === "https:",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    },
   });
 
   // Store on window for cross-module access
