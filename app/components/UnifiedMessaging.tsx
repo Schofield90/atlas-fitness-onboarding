@@ -210,6 +210,48 @@ export default function UnifiedMessaging({
 
   const loadConversations = async () => {
     try {
+      // Get all conversations (clients and leads) using new unified function
+      const { data: allConversations, error: convError } = await supabase.rpc(
+        "get_all_conversations",
+        {
+          p_user_id: userData.id,
+          p_organization_id: userData.organization_id,
+        },
+      );
+
+      if (convError) {
+        console.error("Error loading conversations:", convError);
+        // Fallback to old method if new function doesn't exist
+        return loadConversationsOldMethod();
+      }
+
+      // Format conversations for display
+      const formattedConversations = (allConversations || []).map(
+        (conv: any) => ({
+          id: conv.conversation_id || `${conv.contact_type}-${conv.contact_id}`,
+          contact_id: conv.contact_id,
+          contact_name: conv.contact_name || "Unknown",
+          contact_email: conv.contact_email || "",
+          contact_phone: conv.contact_phone || "",
+          last_message: conv.last_message || "",
+          last_message_time: conv.last_message_time,
+          unread_count: conv.unread_count || 0,
+          sender_type: conv.sender_type || "client",
+          type: conv.contact_type === "client" ? "general" : "coaching",
+          membership_status: conv.contact_type === "client" ? "Client" : "Lead",
+        }),
+      );
+
+      setConversations(formattedConversations);
+    } catch (error) {
+      console.error("Error loading conversations:", error);
+      // Fallback to old method
+      loadConversationsOldMethod();
+    }
+  };
+
+  const loadConversationsOldMethod = async () => {
+    try {
       // Get all coaching conversations
       const { data: coachingData } = await supabase.rpc(
         "get_coach_conversations",
@@ -538,12 +580,12 @@ export default function UnifiedMessaging({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 h-[700px] flex">
+    <div className="bg-gray-800 rounded-lg shadow-lg border border-gray-700 h-[700px] flex">
       {/* Conversations List */}
-      <div className="w-1/3 border-r border-gray-200 flex flex-col">
-        <div className="p-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-            <MessageCircle className="h-5 w-5 text-blue-600" />
+      <div className="w-1/3 border-r border-gray-700 flex flex-col bg-gray-800">
+        <div className="p-4 border-b border-gray-700">
+          <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+            <MessageCircle className="h-5 w-5 text-blue-400" />
             All Messages
           </h3>
           <div className="relative">
@@ -553,14 +595,14 @@ export default function UnifiedMessaging({
               placeholder="Search conversations..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto bg-gray-800">
           {filteredConversations.length === 0 ? (
-            <div className="p-4 text-center text-gray-500">
+            <div className="p-4 text-center text-gray-400">
               <MessageCircle className="h-12 w-12 mx-auto mb-2 opacity-50" />
               <p>No conversations yet</p>
             </div>
@@ -572,17 +614,17 @@ export default function UnifiedMessaging({
                   onClick={() => setSelectedConversation(conversation)}
                   className={`w-full text-left p-3 rounded-lg transition-colors ${
                     selectedConversation?.id === conversation.id
-                      ? "bg-blue-50 border border-blue-200"
-                      : "hover:bg-gray-50"
+                      ? "bg-gray-700 border border-blue-500"
+                      : "hover:bg-gray-700"
                   }`}
                 >
                   <div className="flex justify-between items-start mb-1">
                     <div className="flex-1">
-                      <span className="font-medium text-gray-900 truncate">
+                      <span className="font-medium text-white truncate">
                         {conversation.contact_name}
                       </span>
                       {conversation.membership_status && (
-                        <span className="ml-2 text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">
+                        <span className="ml-2 text-xs px-2 py-1 rounded-full bg-gray-700 text-gray-400">
                           {conversation.membership_status}
                         </span>
                       )}
@@ -602,7 +644,7 @@ export default function UnifiedMessaging({
                     ) : (
                       <User className="h-3 w-3 text-green-500" />
                     )}
-                    <p className="text-sm text-gray-600 truncate">
+                    <p className="text-sm text-gray-400 truncate">
                       {conversation.last_message}
                     </p>
                   </div>
@@ -625,17 +667,17 @@ export default function UnifiedMessaging({
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col bg-gray-900">
         {selectedConversation ? (
           <>
             {/* Chat Header */}
-            <div className="p-4 border-b border-gray-200 bg-gray-50">
+            <div className="p-4 border-b border-gray-700 bg-gray-800">
               <div className="flex justify-between items-center">
                 <div>
-                  <h4 className="font-medium text-gray-900">
+                  <h4 className="font-medium text-white">
                     {selectedConversation.contact_name}
                   </h4>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-400">
                     {selectedConversation.contact_email ||
                       selectedConversation.contact_phone}
                   </p>
@@ -655,7 +697,7 @@ export default function UnifiedMessaging({
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-900">
               {messages.map((message) => (
                 <div
                   key={message.id}
@@ -856,11 +898,11 @@ export default function UnifiedMessaging({
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-gray-500">
+          <div className="flex-1 flex items-center justify-center text-gray-400 bg-gray-900">
             <div className="text-center">
               <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>Select a conversation to start messaging</p>
-              <p className="text-sm mt-1">
+              <p className="text-sm mt-1 text-gray-500">
                 All your coaching and general messages in one place
               </p>
             </div>
