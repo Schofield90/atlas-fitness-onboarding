@@ -1,32 +1,22 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 export function CookieFixer() {
+  const hasCleanedRef = useRef(false);
+
   useEffect(() => {
+    // Only run once per mount to avoid excessive cleaning
+    if (hasCleanedRef.current) return;
+    hasCleanedRef.current = true;
+
     // Check for corrupted Supabase auth cookies and clear them
     if (typeof window !== "undefined") {
       try {
-        // Clear ALL Supabase-related cookies that might be corrupted
-        const cookiesToClear = [
-          "sb-access-token",
-          "sb-refresh-token",
-          "supabase-auth-token",
-          "sb-lzlrojoaxrqvmhempnkn-auth-token",
-          "sb-lzlrojoaxrqvmhempnkn-auth-token-code-verifier",
-        ];
-
-        cookiesToClear.forEach((cookieName) => {
-          // Clear for all possible paths and domains
-          document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-          document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.vercel.app;`;
-          document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=atlas-fitness-onboarding.vercel.app;`;
-          document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.atlas-fitness-onboarding.vercel.app;`;
-        });
-
-        // Get all cookies and clear any that look corrupted or malformed
+        // Get all cookies
         const cookies = document.cookie.split(";");
         let clearedCount = 0;
+        const corruptedCookies: string[] = [];
 
         cookies.forEach((cookie) => {
           const trimmed = cookie.trim();
@@ -39,8 +29,15 @@ export function CookieFixer() {
           const value = trimmed.substring(equalIndex + 1);
 
           if (name && value) {
-            // Check for various corruption patterns
-            const isCorrupted =
+            // Check for chunked cookies (atlas-fitness-auth.0, atlas-fitness-auth.1, etc.)
+            if (name.match(/^atlas-fitness-auth\.\d+$/)) {
+              corruptedCookies.push(name);
+              console.log(
+                `Cleared corrupted cookie: ${name} (value started with: ${value.substring(0, 50)}...)`,
+              );
+            }
+            // Check for other corruption patterns
+            else if (
               value.startsWith("base64-") ||
               value.startsWith('"base64-') ||
               value.includes("base64-eyJ") ||
@@ -53,24 +50,9 @@ export function CookieFixer() {
               // Check for base64 fragments in wrong places
               value.match(/[^a-zA-Z0-9+/=]base64-/) ||
               // Check for encoding issues
-              value.includes("%22base64-");
-
-            if (isCorrupted) {
-              // Clear the corrupted cookie with all possible domain/path combinations
-              const domains = [
-                "",
-                "domain=.vercel.app;",
-                "domain=atlas-fitness-onboarding.vercel.app;",
-                "domain=.atlas-fitness-onboarding.vercel.app;",
-              ];
-
-              domains.forEach((domain) => {
-                document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; ${domain}`;
-                document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/client; ${domain}`;
-                document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/client-portal; ${domain}`;
-              });
-
-              clearedCount++;
+              value.includes("%22base64-")
+            ) {
+              corruptedCookies.push(name);
               console.log(
                 `Cleared corrupted cookie: ${name} (value started with: ${value.substring(0, 50)}...)`,
               );
@@ -78,29 +60,50 @@ export function CookieFixer() {
           }
         });
 
-        if (clearedCount > 0) {
+        // Clear all corrupted cookies
+        if (corruptedCookies.length > 0) {
+          corruptedCookies.forEach((name) => {
+            // Clear with various domain/path combinations to ensure removal
+            const clearCommands = [
+              `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`,
+              `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.vercel.app;`,
+              `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname};`,
+              `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict;`,
+            ];
+
+            clearCommands.forEach((cmd) => {
+              document.cookie = cmd;
+            });
+            clearedCount++;
+          });
+
           console.log(`CookieFixer: Cleared ${clearedCount} corrupted cookies`);
+
+          // If we cleared the main auth cookie chunks, also clear the base cookie
+          if (
+            corruptedCookies.some((name) =>
+              name.startsWith("atlas-fitness-auth."),
+            )
+          ) {
+            document.cookie =
+              "atlas-fitness-auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            console.log("Also cleared base atlas-fitness-auth cookie");
+          }
         }
 
-        // Clear localStorage items that look corrupted
+        // Clear corrupted localStorage items
         const keysToRemove: string[] = [];
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
-          if (
-            key &&
-            (key.includes("supabase") ||
-              key.includes("sb-") ||
-              key.includes("auth"))
-          ) {
+          if (key) {
             const value = localStorage.getItem(key);
-            // Check for corruption patterns
+            // Check for corruption patterns in auth-related keys
             if (
+              (key.includes("supabase") || key.includes("auth")) &&
               value &&
               (value.startsWith("base64-") ||
-                value.startsWith('"base64-') ||
                 value.includes("base64-eyJ") ||
-                value.includes('\\"base64-') ||
-                value.match(/[^a-zA-Z0-9+/=]base64-/))
+                value.includes('\\"base64-'))
             ) {
               keysToRemove.push(key);
             }
@@ -112,21 +115,16 @@ export function CookieFixer() {
           console.log(`Cleared corrupted localStorage: ${key}`);
         });
 
-        // Clear sessionStorage as well
+        // Clear corrupted sessionStorage items
         const sessionKeysToRemove: string[] = [];
         for (let i = 0; i < sessionStorage.length; i++) {
           const key = sessionStorage.key(i);
-          if (
-            key &&
-            (key.includes("supabase") ||
-              key.includes("sb-") ||
-              key.includes("auth"))
-          ) {
+          if (key) {
             const value = sessionStorage.getItem(key);
             if (
+              (key.includes("supabase") || key.includes("auth")) &&
               value &&
               (value.startsWith("base64-") ||
-                value.startsWith('"base64-') ||
                 value.includes("base64-eyJ") ||
                 value.includes('\\"base64-'))
             ) {
@@ -141,20 +139,6 @@ export function CookieFixer() {
         });
       } catch (error) {
         console.error("Error fixing cookies:", error);
-        // If all else fails, try to clear everything Supabase-related
-        try {
-          document.cookie.split(";").forEach((cookie) => {
-            const name = cookie.trim().split("=")[0];
-            if (name && (name.includes("sb-") || name.includes("supabase"))) {
-              document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-            }
-          });
-        } catch (clearError) {
-          console.error(
-            "Failed to clear cookies in error handler:",
-            clearError,
-          );
-        }
       }
     }
   }, []);
