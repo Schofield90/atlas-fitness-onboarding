@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { createClient } from "@/app/lib/supabase/client";
+import { getSupabaseClient } from "@/app/lib/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 
@@ -29,7 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Initialize client only in browser
-    const client = createClient();
+    const client = getSupabaseClient();
 
     // Handle SSR case where client is null
     if (!client) {
@@ -126,7 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      const client = createClient();
+      const client = getSupabaseClient();
       if (!client) return;
       await client.auth.signOut();
       setSession(null);
@@ -139,7 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshSession = async () => {
     try {
-      const client = createClient();
+      const client = getSupabaseClient();
       if (!client) return;
       const {
         data: { session: refreshedSession },
