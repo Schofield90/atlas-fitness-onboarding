@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createMiddlewareClient } from '@/app/lib/supabase/middleware'
 
+// Use Node.js runtime instead of Edge Runtime to avoid compatibility issues
+export const runtime = 'nodejs'
+
 // Public routes that don't require authentication
 const publicRoutes = [
   '/',
