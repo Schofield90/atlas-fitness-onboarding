@@ -42,16 +42,55 @@ export default function ClientDashboard() {
   }, [client]);
 
   const checkAuth = async () => {
+    // First try to get the session from storage
     const {
       data: { session },
+      error: sessionError,
     } = await supabase.auth.getSession();
 
+    // If no session in memory, try to restore from storage/cookies
     if (!session) {
-      router.push("/login-otp");
+      // Check if we have a user (this will restore session from cookies if available)
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        // Only redirect if we truly have no session
+        router.push("/login-otp");
+        return;
+      }
+
+      // If we have a user but no session, refresh the session
+      const {
+        data: { session: refreshedSession },
+        error: refreshError,
+      } = await supabase.auth.refreshSession();
+
+      if (!refreshedSession) {
+        router.push("/login-otp");
+        return;
+      }
+
+      // Use the refreshed session
+      const { data: clientData } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("user_id", refreshedSession.user.id)
+        .single();
+
+      if (!clientData) {
+        router.push("/login-otp");
+        return;
+      }
+
+      setClient(clientData);
+      setLoading(false);
       return;
     }
 
-    // Get client details
+    // Get client details using the session
     const { data: clientData } = await supabase
       .from("clients")
       .select("*")
