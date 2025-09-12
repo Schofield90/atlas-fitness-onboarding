@@ -29,7 +29,7 @@ export default function ClientDashboard() {
     memberSince: null as string | null,
   });
   const [upcomingBookings, setUpcomingBookings] = useState<any[]>([]);
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
 
   useEffect(() => {
     checkAuth();

@@ -7,7 +7,7 @@ import NutritionDashboard from "@/app/components/nutrition/NutritionDashboard";
 
 export default function NutritionPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const [loading, setLoading] = useState(true);
   const [client, setClient] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);

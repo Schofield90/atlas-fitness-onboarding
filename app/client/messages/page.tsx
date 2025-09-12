@@ -4,11 +4,12 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/client";
 import { Send, ChevronLeft, MessageCircle, User, Clock } from "lucide-react";
-import { CookieFixer } from "@/app/components/CookieFixer";
+
+// Create Supabase client outside component to ensure singleton
+const supabase = createClient();
 
 export default function ClientMessagesPage() {
   const router = useRouter();
-  const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [client, setClient] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
@@ -342,7 +343,6 @@ export default function ClientMessagesPage() {
 
   return (
     <div className="min-h-screen bg-gray-900">
-      <CookieFixer />
       {/* Header */}
       <header className="bg-gray-800 shadow-sm border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

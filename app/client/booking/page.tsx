@@ -27,7 +27,7 @@ interface ClassSession {
 
 export default function ClientBookingPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const [classes, setClasses] = useState<ClassSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedClass, setSelectedClass] = useState<ClassSession | null>(null);
