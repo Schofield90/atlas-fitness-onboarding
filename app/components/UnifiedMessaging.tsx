@@ -74,8 +74,20 @@ export default function UnifiedMessaging({
 
   useEffect(() => {
     loadConversations();
-    const cleanup = setupRealtimeSubscriptions();
-    return cleanup;
+
+    // Setup realtime with error handling
+    let cleanup: (() => void) | undefined;
+    try {
+      cleanup = setupRealtimeSubscriptions();
+    } catch (error) {
+      console.error("Failed to setup realtime subscriptions:", error);
+    }
+
+    return () => {
+      if (cleanup) {
+        cleanup();
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userData.id]);
 
@@ -105,7 +117,7 @@ export default function UnifiedMessaging({
   }, [messages]);
 
   const setupRealtimeSubscriptions = () => {
-    // Subscribe to coaching messages
+    // Subscribe to coaching messages with error handling
     const coachingSubscription = supabase
       .channel("unified-coach-messages")
       .on(
@@ -120,9 +132,15 @@ export default function UnifiedMessaging({
           handleNewMessage(payload.new as any);
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          console.log("Coaching messages subscription active");
+        } else if (status === "CHANNEL_ERROR") {
+          console.error("Error subscribing to coaching messages");
+        }
+      });
 
-    // Subscribe to general messages
+    // Subscribe to general messages with error handling
     const generalSubscription = supabase
       .channel("unified-general-messages")
       .on(
@@ -137,11 +155,26 @@ export default function UnifiedMessaging({
           handleNewMessage(payload.new as any);
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          console.log("General messages subscription active");
+        } else if (status === "CHANNEL_ERROR") {
+          console.error("Error subscribing to general messages");
+        }
+      });
 
     return () => {
-      coachingSubscription.unsubscribe();
-      generalSubscription.unsubscribe();
+      // Safe unsubscribe with error handling
+      try {
+        if (coachingSubscription) {
+          supabase.removeChannel(coachingSubscription);
+        }
+        if (generalSubscription) {
+          supabase.removeChannel(generalSubscription);
+        }
+      } catch (error) {
+        console.error("Error unsubscribing from channels:", error);
+      }
     };
   };
 
