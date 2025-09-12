@@ -1,0 +1,849 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import { createClient } from "@/app/lib/supabase/client";
+import {
+  MessageCircle,
+  Send,
+  Loader2,
+  User,
+  Bell,
+  CheckCheck,
+  Bot,
+  Clock,
+  Search,
+  Mail,
+  Phone,
+  MessageSquare,
+  ChevronDown,
+  X,
+  Plus,
+} from "lucide-react";
+import toast from "@/app/lib/toast";
+import { formatBritishDateTime } from "@/app/lib/utils/british-format";
+
+interface Message {
+  id: string;
+  content: string;
+  sender_type: "member" | "coach" | "ai" | "gym";
+  sender_id: string;
+  sender_name?: string;
+  created_at: string;
+  read: boolean;
+  type?: "sms" | "whatsapp" | "email";
+  direction?: "inbound" | "outbound";
+  status?: "pending" | "sent" | "delivered" | "failed" | "read";
+}
+
+interface Conversation {
+  id: string;
+  contact_id: string;
+  contact_name: string;
+  contact_email: string;
+  contact_phone: string;
+  last_message: string;
+  last_message_time: string;
+  unread_count: number;
+  sender_type: "member" | "coach" | "ai" | "gym";
+  type: "coaching" | "general";
+  membership_status?: string;
+}
+
+export default function UnifiedMessaging({
+  userData,
+  initialContactId,
+}: {
+  userData: any;
+  initialContactId?: string;
+}) {
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedConversation, setSelectedConversation] =
+    useState<Conversation | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputMessage, setInputMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [messageType, setMessageType] = useState<"sms" | "whatsapp" | "email">(
+    "whatsapp",
+  );
+  const [showReplyArea, setShowReplyArea] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [supabase] = useState(() => createClient());
+
+  useEffect(() => {
+    loadConversations();
+    const cleanup = setupRealtimeSubscriptions();
+    return cleanup;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userData.id]);
+
+  useEffect(() => {
+    if (initialContactId && conversations.length > 0) {
+      const conversation = conversations.find(
+        (c) =>
+          c.contact_id === initialContactId ||
+          c.contact_id === initialContactId.replace("lead-", ""),
+      );
+      if (conversation) {
+        setSelectedConversation(conversation);
+      }
+    }
+  }, [initialContactId, conversations]);
+
+  useEffect(() => {
+    if (selectedConversation) {
+      loadMessages(selectedConversation.contact_id);
+      markMessagesAsRead(selectedConversation.contact_id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedConversation]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const setupRealtimeSubscriptions = () => {
+    // Subscribe to coaching messages
+    const coachingSubscription = supabase
+      .channel("unified-coach-messages")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "member_coach_messages",
+          filter: `coach_id=eq.${userData.id}`,
+        },
+        (payload) => {
+          handleNewMessage(payload.new as any);
+        },
+      )
+      .subscribe();
+
+    // Subscribe to general messages
+    const generalSubscription = supabase
+      .channel("unified-general-messages")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `organization_id=eq.${userData.organization_id}`,
+        },
+        (payload) => {
+          handleNewMessage(payload.new as any);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      coachingSubscription.unsubscribe();
+      generalSubscription.unsubscribe();
+    };
+  };
+
+  const handleNewMessage = (newMessage: any) => {
+    // Update conversations list
+    loadConversations();
+
+    // If this message is for the current conversation, add it to messages
+    if (
+      selectedConversation &&
+      (newMessage.member_id === selectedConversation.contact_id ||
+        newMessage.lead_id === selectedConversation.contact_id)
+    ) {
+      setMessages((prev) => [...prev, formatMessage(newMessage)]);
+    }
+  };
+
+  const formatMessage = (msg: any): Message => {
+    return {
+      id: msg.id,
+      content: msg.content || msg.body || msg.message || "",
+      sender_type:
+        msg.sender_type || (msg.direction === "inbound" ? "member" : "gym"),
+      sender_id: msg.sender_id || msg.user_id || "",
+      sender_name: msg.sender_name || "",
+      created_at: msg.created_at,
+      read: msg.read || msg.status === "read" || false,
+      type: msg.type,
+      direction: msg.direction,
+      status: msg.status,
+    };
+  };
+
+  const loadConversations = async () => {
+    try {
+      // Get all coaching conversations
+      const { data: coachingData } = await supabase.rpc(
+        "get_coach_conversations",
+        {
+          coach_user_id: userData.id,
+        },
+      );
+
+      const coachingConversations = (coachingData || []).map((conv: any) => ({
+        id: `coach-${conv.member_id}`,
+        contact_id: conv.member_id,
+        contact_name: conv.member_name,
+        contact_email: conv.member_email,
+        contact_phone: conv.member_phone || "",
+        last_message: conv.last_message,
+        last_message_time: conv.last_message_time,
+        unread_count: conv.unread_count,
+        sender_type: conv.sender_type,
+        type: "coaching" as const,
+        membership_status: "Member",
+      }));
+
+      // Get all general conversations from leads
+      const { data: leads } = await supabase
+        .from("leads")
+        .select("*")
+        .eq("org_id", userData.organization_id)
+        .order("updated_at", { ascending: false })
+        .limit(50);
+
+      // Get recent messages for leads
+      const { data: recentMessages } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("organization_id", userData.organization_id)
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      const generalConversations = (leads || [])
+        .map((lead: any) => {
+          const leadMessages = (recentMessages || []).filter(
+            (m) => m.lead_id === lead.id,
+          );
+          const lastMessage = leadMessages[0];
+          const unreadCount = leadMessages.filter(
+            (m) => m.direction === "inbound" && m.status !== "read",
+          ).length;
+
+          return {
+            id: `general-${lead.id}`,
+            contact_id: lead.id,
+            contact_name:
+              `${lead.first_name || ""} ${lead.last_name || ""}`.trim() ||
+              lead.name ||
+              "Unknown",
+            contact_email: lead.email || "",
+            contact_phone: lead.phone || "",
+            last_message: lastMessage?.body || "No messages yet",
+            last_message_time: lastMessage?.created_at || lead.created_at,
+            unread_count: unreadCount,
+            sender_type:
+              lastMessage?.direction === "inbound" ? "member" : "gym",
+            type: "general" as const,
+            membership_status: lead.status === "converted" ? "Member" : "Lead",
+          };
+        })
+        .filter((conv: any) => conv.last_message !== "No messages yet");
+
+      // Combine and sort all conversations
+      const allConversations = [
+        ...coachingConversations,
+        ...generalConversations,
+      ].sort(
+        (a, b) =>
+          new Date(b.last_message_time).getTime() -
+          new Date(a.last_message_time).getTime(),
+      );
+
+      setConversations(allConversations);
+    } catch (error) {
+      console.error("Error loading conversations:", error);
+    }
+  };
+
+  const loadMessages = async (contactId: string) => {
+    try {
+      const formattedMessages: Message[] = [];
+
+      // Load coaching messages
+      const { data: coachingMessages } = await supabase
+        .from("member_coach_messages")
+        .select("*")
+        .or(
+          `member_id.eq.${contactId},member_id.eq.${contactId.replace("lead-", "")}`,
+        )
+        .eq("coach_id", userData.id)
+        .order("created_at", { ascending: true });
+
+      if (coachingMessages) {
+        formattedMessages.push(...coachingMessages.map(formatMessage));
+      }
+
+      // Load general messages
+      const { data: generalMessages } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("lead_id", contactId.replace("lead-", ""))
+        .eq("organization_id", userData.organization_id)
+        .order("created_at", { ascending: true });
+
+      if (generalMessages) {
+        formattedMessages.push(...generalMessages.map(formatMessage));
+      }
+
+      // Sort all messages by time
+      formattedMessages.sort(
+        (a, b) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+      );
+
+      setMessages(formattedMessages);
+    } catch (error) {
+      console.error("Error loading messages:", error);
+    }
+  };
+
+  const markMessagesAsRead = async (contactId: string) => {
+    try {
+      // Mark coaching messages as read
+      await supabase
+        .from("member_coach_messages")
+        .update({ read: true })
+        .eq("member_id", contactId)
+        .eq("coach_id", userData.id)
+        .eq("sender_type", "member")
+        .eq("read", false);
+
+      // Mark general messages as read
+      await supabase
+        .from("messages")
+        .update({ status: "read", read_at: new Date().toISOString() })
+        .eq("lead_id", contactId.replace("lead-", ""))
+        .eq("organization_id", userData.organization_id)
+        .eq("direction", "inbound")
+        .eq("status", "pending");
+
+      // Update conversations list
+      setConversations((prev) =>
+        prev.map((conv) =>
+          conv.contact_id === contactId ? { ...conv, unread_count: 0 } : conv,
+        ),
+      );
+    } catch (error) {
+      console.error("Error marking messages as read:", error);
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!inputMessage.trim() || !selectedConversation || isLoading) return;
+
+    const messageContent = inputMessage.trim();
+    const isCoachingConversation = selectedConversation.type === "coaching";
+
+    setInputMessage("");
+    setIsLoading(true);
+    setShowReplyArea(false);
+    setReplyingTo(null);
+
+    // Add optimistic message
+    const optimisticMessage: Message = {
+      id: `temp-${Date.now()}`,
+      content: messageContent,
+      sender_type: isCoachingConversation ? "coach" : "gym",
+      sender_id: userData.id,
+      sender_name: userData.full_name || "Coach",
+      created_at: new Date().toISOString(),
+      read: false,
+      type: messageType,
+      direction: "outbound",
+      status: "pending",
+    };
+
+    setMessages((prev) => [...prev, optimisticMessage]);
+
+    try {
+      if (isCoachingConversation) {
+        // Send as coaching message
+        const { data, error } = await supabase
+          .from("member_coach_messages")
+          .insert({
+            member_id: selectedConversation.contact_id,
+            coach_id: userData.id,
+            organization_id: userData.organization_id,
+            content: messageContent,
+            sender_type: "coach",
+            sender_id: userData.id,
+            sender_name: userData.full_name || "Coach",
+            read: false,
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Update optimistic message with real data
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === optimisticMessage.id ? formatMessage(data) : msg,
+          ),
+        );
+
+        // Create notification for member
+        await supabase.from("notifications").insert({
+          user_id: selectedConversation.contact_id,
+          type: "coach_message",
+          title: "Message from your coach",
+          message: `${userData.full_name} sent you a message`,
+          data: {
+            coach_id: userData.id,
+            message: messageContent,
+          },
+        });
+      } else {
+        // Send as general message
+        const payload = {
+          leadId: selectedConversation.contact_id,
+          type: messageType,
+          to:
+            messageType === "email"
+              ? selectedConversation.contact_email
+              : selectedConversation.contact_phone,
+          subject:
+            messageType === "email" ? "Message from Atlas Fitness" : undefined,
+          body: messageContent,
+        };
+
+        const response = await fetch("/api/messages/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) throw new Error("Failed to send message");
+
+        const result = await response.json();
+
+        // Update optimistic message to sent status
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === optimisticMessage.id
+              ? { ...msg, id: result.message?.id || msg.id, status: "sent" }
+              : msg,
+          ),
+        );
+
+        // Actually send the message via Twilio/Email
+        if (messageType === "sms" || messageType === "whatsapp") {
+          await fetch("/api/twilio/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              to: selectedConversation.contact_phone,
+              message: messageContent,
+              type: messageType,
+            }),
+          });
+        } else if (messageType === "email") {
+          await fetch("/api/resend/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              to: selectedConversation.contact_email,
+              subject: "Message from Atlas Fitness",
+              body: messageContent,
+            }),
+          });
+        }
+      }
+
+      toast.success("Message sent!");
+      loadConversations(); // Refresh conversations
+    } catch (error) {
+      console.error("Error sending message:", error);
+      toast.error("Failed to send message");
+
+      // Remove optimistic message on error
+      setMessages((prev) =>
+        prev.filter((msg) => msg.id !== optimisticMessage.id),
+      );
+      setInputMessage(messageContent); // Restore message
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleReply = (message: Message) => {
+    setReplyingTo(message);
+    setShowReplyArea(true);
+
+    // Auto-detect message type based on the message being replied to
+    if (message.type) {
+      setMessageType(message.type);
+    }
+  };
+
+  const filteredConversations = conversations.filter(
+    (conv) =>
+      conv.contact_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      conv.contact_email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      conv.contact_phone.includes(searchQuery.toLowerCase()),
+  );
+
+  const getMessageTypeIcon = (type?: string) => {
+    switch (type) {
+      case "email":
+        return <Mail className="h-3 w-3" />;
+      case "whatsapp":
+        return <MessageSquare className="h-3 w-3 text-green-500" />;
+      case "sms":
+        return <MessageCircle className="h-3 w-3 text-blue-500" />;
+      default:
+        return <MessageCircle className="h-3 w-3" />;
+    }
+  };
+
+  const getStatusColor = (status?: string) => {
+    switch (status) {
+      case "pending":
+        return "text-yellow-500";
+      case "sent":
+        return "text-blue-500";
+      case "delivered":
+        return "text-green-500";
+      case "read":
+        return "text-green-600";
+      case "failed":
+        return "text-red-500";
+      default:
+        return "text-gray-400";
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 h-[700px] flex">
+      {/* Conversations List */}
+      <div className="w-1/3 border-r border-gray-200 flex flex-col">
+        <div className="p-4 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <MessageCircle className="h-5 w-5 text-blue-600" />
+            All Messages
+          </h3>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search conversations..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {filteredConversations.length === 0 ? (
+            <div className="p-4 text-center text-gray-500">
+              <MessageCircle className="h-12 w-12 mx-auto mb-2 opacity-50" />
+              <p>No conversations yet</p>
+            </div>
+          ) : (
+            <div className="space-y-1 p-2">
+              {filteredConversations.map((conversation) => (
+                <button
+                  key={conversation.id}
+                  onClick={() => setSelectedConversation(conversation)}
+                  className={`w-full text-left p-3 rounded-lg transition-colors ${
+                    selectedConversation?.id === conversation.id
+                      ? "bg-blue-50 border border-blue-200"
+                      : "hover:bg-gray-50"
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-1">
+                    <div className="flex-1">
+                      <span className="font-medium text-gray-900 truncate">
+                        {conversation.contact_name}
+                      </span>
+                      {conversation.membership_status && (
+                        <span className="ml-2 text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">
+                          {conversation.membership_status}
+                        </span>
+                      )}
+                    </div>
+                    {conversation.unread_count > 0 && (
+                      <span className="bg-blue-600 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
+                        {conversation.unread_count}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 mb-1">
+                    {conversation.sender_type === "ai" ? (
+                      <Bot className="h-3 w-3 text-purple-500" />
+                    ) : conversation.sender_type === "coach" ||
+                      conversation.sender_type === "gym" ? (
+                      <User className="h-3 w-3 text-blue-500" />
+                    ) : (
+                      <User className="h-3 w-3 text-green-500" />
+                    )}
+                    <p className="text-sm text-gray-600 truncate">
+                      {conversation.last_message}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Clock className="h-3 w-3 text-gray-400" />
+                    <span className="text-xs text-gray-400">
+                      {formatBritishDateTime(conversation.last_message_time)}
+                    </span>
+                    {conversation.type === "coaching" && (
+                      <span className="ml-auto text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded">
+                        Coaching
+                      </span>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Chat Area */}
+      <div className="flex-1 flex flex-col">
+        {selectedConversation ? (
+          <>
+            {/* Chat Header */}
+            <div className="p-4 border-b border-gray-200 bg-gray-50">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h4 className="font-medium text-gray-900">
+                    {selectedConversation.contact_name}
+                  </h4>
+                  <p className="text-sm text-gray-500">
+                    {selectedConversation.contact_email ||
+                      selectedConversation.contact_phone}
+                  </p>
+                </div>
+                <button
+                  onClick={() =>
+                    window.open(
+                      `/clients/${selectedConversation.contact_id}`,
+                      "_blank",
+                    )
+                  }
+                  className="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
+                >
+                  View Profile
+                </button>
+              </div>
+            </div>
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`group flex ${
+                    message.sender_type === "coach" ||
+                    message.sender_type === "gym"
+                      ? "justify-end"
+                      : "justify-start"
+                  }`}
+                >
+                  <div className="flex items-start gap-2 max-w-[70%]">
+                    {(message.sender_type === "member" ||
+                      message.sender_type === "ai") && (
+                      <div
+                        className={`p-2 rounded-full ${
+                          message.sender_type === "ai"
+                            ? "bg-purple-600"
+                            : "bg-green-600"
+                        }`}
+                      >
+                        {message.sender_type === "ai" ? (
+                          <Bot className="h-4 w-4 text-white" />
+                        ) : (
+                          <User className="h-4 w-4 text-white" />
+                        )}
+                      </div>
+                    )}
+                    <div className="flex flex-col">
+                      <div
+                        className={`px-4 py-2 rounded-lg ${
+                          message.sender_type === "coach" ||
+                          message.sender_type === "gym"
+                            ? "bg-blue-600 text-white"
+                            : message.sender_type === "ai"
+                              ? "bg-purple-100 text-purple-900"
+                              : "bg-gray-100 text-gray-900"
+                        }`}
+                      >
+                        {message.sender_type !== "coach" &&
+                          message.sender_type !== "gym" && (
+                            <p className="text-xs font-semibold mb-1 opacity-75">
+                              {message.sender_name ||
+                                (message.sender_type === "ai"
+                                  ? "AI Assistant"
+                                  : "Member")}
+                            </p>
+                          )}
+                        <p className="whitespace-pre-wrap">{message.content}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          {message.type && getMessageTypeIcon(message.type)}
+                          <span className="text-xs opacity-75">
+                            {formatBritishDateTime(message.created_at)}
+                          </span>
+                          {message.status && (
+                            <span
+                              className={`text-xs ${getStatusColor(message.status)}`}
+                            >
+                              {message.status === "read" ? (
+                                <CheckCheck className="h-3 w-3" />
+                              ) : (
+                                message.status
+                              )}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {/* Quick reply button for inbound messages */}
+                      {(message.sender_type === "member" ||
+                        message.sender_type === "ai") && (
+                        <button
+                          onClick={() => handleReply(message)}
+                          className="mt-1 text-xs text-blue-600 hover:text-blue-700 opacity-0 group-hover:opacity-100 transition-opacity self-start"
+                        >
+                          Quick Reply →
+                        </button>
+                      )}
+                    </div>
+                    {(message.sender_type === "coach" ||
+                      message.sender_type === "gym") && (
+                      <div className="p-2 rounded-full bg-blue-600">
+                        <User className="h-4 w-4 text-white" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {isLoading && (
+                <div className="flex justify-end">
+                  <div className="bg-blue-600 text-white px-4 py-2 rounded-lg">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  </div>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Reply Area (shows when replying) */}
+            {showReplyArea && replyingTo && (
+              <div className="px-4 py-2 bg-blue-50 border-t border-blue-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <p className="text-xs text-blue-600 font-medium">
+                      Replying to:
+                    </p>
+                    <p className="text-sm text-gray-700 truncate">
+                      {replyingTo.content}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowReplyArea(false);
+                      setReplyingTo(null);
+                    }}
+                    className="ml-2 text-gray-500 hover:text-gray-700"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Message Input */}
+            <div className="p-4 border-t border-gray-200 bg-gray-50">
+              {selectedConversation.type === "general" && (
+                <div className="flex gap-2 mb-2">
+                  <button
+                    onClick={() => setMessageType("whatsapp")}
+                    className={`px-3 py-1 rounded-lg text-sm ${
+                      messageType === "whatsapp"
+                        ? "bg-green-600 text-white"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                    }`}
+                  >
+                    WhatsApp
+                  </button>
+                  <button
+                    onClick={() => setMessageType("sms")}
+                    className={`px-3 py-1 rounded-lg text-sm ${
+                      messageType === "sms"
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                    }`}
+                  >
+                    SMS
+                  </button>
+                  <button
+                    onClick={() => setMessageType("email")}
+                    className={`px-3 py-1 rounded-lg text-sm ${
+                      messageType === "email"
+                        ? "bg-purple-600 text-white"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                    }`}
+                  >
+                    Email
+                  </button>
+                </div>
+              )}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  sendMessage();
+                }}
+                className="flex gap-2"
+              >
+                <input
+                  type="text"
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  placeholder={
+                    replyingTo
+                      ? `Reply to message...`
+                      : `Type your ${selectedConversation.type === "coaching" ? "coaching" : messageType} message...`
+                  }
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={isLoading}
+                />
+                <button
+                  type="submit"
+                  disabled={!inputMessage.trim() || isLoading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <>
+                      <Send className="h-5 w-5" />
+                      Send
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-gray-500">
+            <div className="text-center">
+              <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Select a conversation to start messaging</p>
+              <p className="text-sm mt-1">
+                All your coaching and general messages in one place
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

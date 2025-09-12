@@ -1,453 +1,453 @@
-'use client'
+"use client";
 
-import { useState, useEffect, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { createClient } from '@/app/lib/supabase/client'
-import DashboardLayout from '@/app/components/DashboardLayout'
-import { createClient as createSupabaseClient } from '@/app/lib/supabase/client'
-import EnhancedChatInterface from '@/app/components/chat/EnhancedChatInterface'
-import CoachMessaging from '@/app/components/CoachMessaging'
-import { MessageSquare, Mail, Phone, Clock, User, Search, Bot, MessageCircle } from 'lucide-react'
-import { formatBritishDateTime } from '@/app/lib/utils/british-format'
-import AIToggleControl from '@/app/components/automation/AIToggleControl'
-import { isFeatureEnabled } from '@/app/lib/feature-flags'
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { createClient } from "@/app/lib/supabase/client";
+import DashboardLayout from "@/app/components/DashboardLayout";
+import UnifiedMessaging from "@/app/components/UnifiedMessaging";
+import {
+  MessageSquare,
+  Mail,
+  Phone,
+  Clock,
+  User,
+  Search,
+  Bot,
+  MessageCircle,
+} from "lucide-react";
+import { formatBritishDateTime } from "@/app/lib/utils/british-format";
+import { isFeatureEnabled } from "@/app/lib/feature-flags";
 
 interface Conversation {
-  id: string
-  customer_id: string
-  customer_name: string
-  customer_email: string
-  customer_phone: string
-  last_message: string
-  last_message_type: 'email' | 'sms' | 'whatsapp' | 'call'
-  last_message_time: string
-  unread_count: number
-  total_messages: number
+  id: string;
+  customer_id: string;
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
+  last_message: string;
+  last_message_type: "email" | "sms" | "whatsapp" | "call";
+  last_message_time: string;
+  unread_count: number;
+  total_messages: number;
 }
 
 function ConversationsContent() {
-  const [useEnhanced, setUseEnhanced] = useState(true)
-  const [activeTab, setActiveTab] = useState<'conversations' | 'coaching'>('conversations')
-  const [userData, setUserData] = useState<any>(null)
-  const supabase = createClient()
-  const searchParams = useSearchParams()
-  const contactParam = searchParams.get('contact')
+  const [userData, setUserData] = useState<any>(null);
+  const [supabase] = useState(() => createClient());
+  const searchParams = useSearchParams();
+  const contactParam = searchParams.get("contact");
+  const router = useRouter();
 
   useEffect(() => {
-    loadUserData()
-  }, [])
+    loadUserData();
+  }, []);
 
   const loadUserData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
       const { data: userDataRow } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', user.id)
-        .single()
+        .from("users")
+        .select("*")
+        .eq("id", user.id)
+        .single();
       const { data: userOrg } = await supabase
-        .from('user_organizations')
-        .select('organization_id')
-        .eq('user_id', user.id)
-        .single()
+        .from("user_organizations")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .single();
       // Provide a minimal fallback shape to keep coaching UI working
       setUserData({
         ...(userDataRow || {}),
         id: user.id,
-        full_name: userDataRow?.full_name || user.email?.split('@')[0] || 'Coach',
-        organization_id: userOrg?.organization_id || null
-      })
+        full_name:
+          userDataRow?.full_name || user.email?.split("@")[0] || "Coach",
+        organization_id: userOrg?.organization_id || null,
+      });
     } catch (_) {
       // If anything fails, still set a minimal user so the UI renders
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
-        setUserData({ id: user.id, full_name: user.email?.split('@')[0] || 'Coach', organization_id: null })
+        setUserData({
+          id: user.id,
+          full_name: user.email?.split("@")[0] || "Coach",
+          organization_id: null,
+        });
       }
     }
-  }
+  };
 
-  if (useEnhanced && activeTab === 'conversations') {
+  // Removed - moved above
+
+  // Fallback loading state while user data loads
+  if (!userData) {
     return (
       <DashboardLayout>
-        <div className="mb-6">
-          <div className="border-b border-gray-700">
-            <nav className="-mb-px flex space-x-8">
-              <button
-                onClick={() => setActiveTab('conversations')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'conversations'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4" />
-                  General Conversations
-                </div>
-              </button>
-              <button
-                onClick={() => setActiveTab('coaching')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'coaching'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <MessageCircle className="h-4 w-4" />
-                  Member Coaching
-                </div>
-              </button>
-            </nav>
-          </div>
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="text-gray-400">Loading conversations...</div>
         </div>
-        <EnhancedChatInterface />
       </DashboardLayout>
-    )
+    );
   }
 
-  if (activeTab === 'coaching') {
-    return (
-      <DashboardLayout>
-        <div className="mb-6">
-          <div className="border-b border-gray-700">
-            <nav className="-mb-px flex space-x-8">
-              <button
-                onClick={() => setActiveTab('conversations')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'conversations'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4" />
-                  General Conversations
-                </div>
-              </button>
-              <button
-                onClick={() => setActiveTab('coaching')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'coaching'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <MessageCircle className="h-4 w-4" />
-                  Member Coaching
-                </div>
-              </button>
-            </nav>
-          </div>
-        </div>
-        {userData && (
-          <CoachMessaging coachData={userData} initialMemberId={contactParam || undefined} />
-        )}
-      </DashboardLayout>
-    )
-  }
+  return (
+    <DashboardLayout>
+      {userData && (
+        <UnifiedMessaging
+          userData={userData}
+          initialContactId={contactParam || undefined}
+        />
+      )}
+    </DashboardLayout>
+  );
+}
 
-  // Keep the old implementation as fallback
-  const [conversations, setConversations] = useState<Conversation[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [organizationId, setOrganizationId] = useState<string | null>(null)
-  const [contactsCount, setContactsCount] = useState(0)
-  const router = useRouter()
-  const supabaseClientForRead = createSupabaseClient()
+// Old code for reference - not used anymore
+function OldConversationsContent() {
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [contactsCount, setContactsCount] = useState(0);
+  const router = useRouter();
+  const supabase = createClient();
 
   useEffect(() => {
-    fetchConversations()
-  }, [])
+    fetchConversations();
+  }, []);
 
   useEffect(() => {
     // When landing on conversations, mark inbound messages as read for this org
     const markOrgMessagesRead = async () => {
       try {
-        const { data: { user } } = await supabaseClientForRead.auth.getUser()
-        if (!user) return
+        const {
+          data: { user },
+        } = await supabaseClientForRead.auth.getUser();
+        if (!user) return;
         const { data: userOrg } = await supabaseClientForRead
-          .from('user_organizations')
-          .select('organization_id')
-          .eq('user_id', user.id)
-          .single()
-        if (!userOrg?.organization_id) return
+          .from("user_organizations")
+          .select("organization_id")
+          .eq("user_id", user.id)
+          .single();
+        if (!userOrg?.organization_id) return;
         await supabaseClientForRead
-          .from('messages')
-          .update({ read_at: new Date().toISOString(), status: 'read' })
-          .eq('organization_id', userOrg.organization_id)
-          .eq('direction', 'inbound')
-          .is('read_at', null)
+          .from("messages")
+          .update({ read_at: new Date().toISOString(), status: "read" })
+          .eq("organization_id", userOrg.organization_id)
+          .eq("direction", "inbound")
+          .is("read_at", null);
       } catch (_) {}
-    }
-    markOrgMessagesRead()
-  }, [])
+    };
+    markOrgMessagesRead();
+  }, []);
 
   const fetchConversations = async () => {
     try {
-      setLoading(true)
+      setLoading(true);
 
       // Get current user's organization
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
 
       const { data: userOrg } = await supabase
-        .from('user_organizations')
-        .select('organization_id')
-        .eq('user_id', user.id)
-        .single()
+        .from("user_organizations")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .single();
 
-      if (!userOrg) return
+      if (!userOrg) return;
 
-      setOrganizationId(userOrg.organization_id)
+      setOrganizationId(userOrg.organization_id);
 
       // Fetch all recent messages grouped by customer
       // Get leads and clients instead of contacts (which doesn't have org_id)
       const [leadsResult, clientsResult] = await Promise.all([
         supabase
-          .from('leads')
-          .select('id, first_name, last_name, email, phone')
-          .eq('org_id', userOrg.organization_id)
-          .order('updated_at', { ascending: false })
+          .from("leads")
+          .select("id, first_name, last_name, email, phone")
+          .eq("org_id", userOrg.organization_id)
+          .order("updated_at", { ascending: false })
           .limit(50),
         supabase
-          .from('clients')
-          .select('id, first_name, last_name, email, phone')
-          .eq('org_id', userOrg.organization_id)
-          .order('updated_at', { ascending: false })
-          .limit(50)
-      ])
-      
+          .from("clients")
+          .select("id, first_name, last_name, email, phone")
+          .eq("org_id", userOrg.organization_id)
+          .order("updated_at", { ascending: false })
+          .limit(50),
+      ]);
+
       // Combine leads and clients into customers list
       const customers = [
-        ...(leadsResult.data || []).map(l => ({
+        ...(leadsResult.data || []).map((l) => ({
           id: l.id,
-          name: `${l.first_name || ''} ${l.last_name || ''}`.trim() || 'Unknown',
+          name:
+            `${l.first_name || ""} ${l.last_name || ""}`.trim() || "Unknown",
           email: l.email,
-          phone: l.phone
+          phone: l.phone,
         })),
-        ...(clientsResult.data || []).map(c => ({
+        ...(clientsResult.data || []).map((c) => ({
           id: c.id,
-          name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
+          name:
+            `${c.first_name || ""} ${c.last_name || ""}`.trim() || "Unknown",
           email: c.email,
-          phone: c.phone
-        }))
-      ]
+          phone: c.phone,
+        })),
+      ];
 
       if (!customers) {
-        setContactsCount(0)
-        return
+        setContactsCount(0);
+        return;
       }
 
-      setContactsCount(customers.length)
+      setContactsCount(customers.length);
 
       // Create maps for customer lookup
-      const customerById = new Map(customers.map(c => [c.id, c]))
-      const customerByPhone = new Map<string, typeof customers[0]>()
-      const customerByEmail = new Map<string, typeof customers[0]>()
-      
+      const customerById = new Map(customers.map((c) => [c.id, c]));
+      const customerByPhone = new Map<string, (typeof customers)[0]>();
+      const customerByEmail = new Map<string, (typeof customers)[0]>();
+
       // Build phone and email maps
-      const phoneNumbers: string[] = []
-      const emailAddresses: string[] = []
-      
+      const phoneNumbers: string[] = [];
+      const emailAddresses: string[] = [];
+
       for (const customer of customers) {
         if (customer.phone) {
-          const normalizedPhone = customer.phone.startsWith('+') ? customer.phone : `+44${customer.phone.substring(1)}`
-          phoneNumbers.push(customer.phone, normalizedPhone)
-          customerByPhone.set(customer.phone, customer)
-          customerByPhone.set(normalizedPhone, customer)
+          const normalizedPhone = customer.phone.startsWith("+")
+            ? customer.phone
+            : `+44${customer.phone.substring(1)}`;
+          phoneNumbers.push(customer.phone, normalizedPhone);
+          customerByPhone.set(customer.phone, customer);
+          customerByPhone.set(normalizedPhone, customer);
         }
         if (customer.email) {
-          emailAddresses.push(customer.email)
-          customerByEmail.set(customer.email, customer)
+          emailAddresses.push(customer.email);
+          customerByEmail.set(customer.email, customer);
         }
       }
 
       // Fetch messages from the unified messages table
       const { data: messages } = await supabase
-        .from('messages')
-        .select(`
+        .from("messages")
+        .select(
+          `
           *,
           lead:leads!messages_lead_id_fkey(id, first_name, last_name, email, phone),
           user:users!messages_user_id_fkey(id, full_name, email)
-        `)
-        .eq('organization_id', userOrg.organization_id)
-        .order('created_at', { ascending: false })
-        .limit(500)
-      
+        `,
+        )
+        .eq("organization_id", userOrg.organization_id)
+        .order("created_at", { ascending: false })
+        .limit(500);
+
       // Also fetch from log tables for backwards compatibility
       const [smsResults, whatsappResults, emailResults] = await Promise.all([
-        phoneNumbers.length > 0 
-          ? supabase
-              .from('sms_logs')
-              .select('*')
-              .or(phoneNumbers.map(p => `to.eq.${p}`).concat(phoneNumbers.map(p => `from_number.eq.${p}`)).join(','))
-              .order('created_at', { ascending: false })
-              .limit(100)
-          : Promise.resolve({ data: [] }),
-        
         phoneNumbers.length > 0
           ? supabase
-              .from('whatsapp_logs')
-              .select('*')
-              .or(phoneNumbers.map(p => `to.eq.${p}`).concat(phoneNumbers.map(p => `from_number.eq.${p}`)).join(','))
-              .order('created_at', { ascending: false })
+              .from("sms_logs")
+              .select("*")
+              .or(
+                phoneNumbers
+                  .map((p) => `to.eq.${p}`)
+                  .concat(phoneNumbers.map((p) => `from_number.eq.${p}`))
+                  .join(","),
+              )
+              .order("created_at", { ascending: false })
               .limit(100)
           : Promise.resolve({ data: [] }),
-        
+
+        phoneNumbers.length > 0
+          ? supabase
+              .from("whatsapp_logs")
+              .select("*")
+              .or(
+                phoneNumbers
+                  .map((p) => `to.eq.${p}`)
+                  .concat(phoneNumbers.map((p) => `from_number.eq.${p}`))
+                  .join(","),
+              )
+              .order("created_at", { ascending: false })
+              .limit(100)
+          : Promise.resolve({ data: [] }),
+
         emailAddresses.length > 0
           ? supabase
-              .from('email_logs')
-              .select('*')
-              .in('to_email', emailAddresses)
-              .order('created_at', { ascending: false })
+              .from("email_logs")
+              .select("*")
+              .in("to_email", emailAddresses)
+              .order("created_at", { ascending: false })
               .limit(100)
-          : Promise.resolve({ data: [] })
-      ])
+          : Promise.resolve({ data: [] }),
+      ]);
 
       // Group messages by customer
-      const messagesByCustomer = new Map<string, Array<{message: any, type: 'sms' | 'whatsapp' | 'email'}>>()
-      
+      const messagesByCustomer = new Map<
+        string,
+        Array<{ message: any; type: "sms" | "whatsapp" | "email" }>
+      >();
+
       // Process messages from unified messages table first
       if (messages && messages.length > 0) {
         for (const msg of messages) {
-          const customerId = msg.lead_id
+          const customerId = msg.lead_id;
           if (customerId) {
             if (!messagesByCustomer.has(customerId)) {
-              messagesByCustomer.set(customerId, [])
+              messagesByCustomer.set(customerId, []);
             }
-            messagesByCustomer.get(customerId)!.push({ 
+            messagesByCustomer.get(customerId)!.push({
               message: {
                 ...msg,
                 message: msg.content || msg.message,
-                from_number: msg.direction === 'inbound' ? msg.phone_number : null,
-                to: msg.direction === 'outbound' ? msg.phone_number : null
-              }, 
-              type: msg.type as 'sms' | 'whatsapp' | 'email' 
-            })
+                from_number:
+                  msg.direction === "inbound" ? msg.phone_number : null,
+                to: msg.direction === "outbound" ? msg.phone_number : null,
+              },
+              type: msg.type as "sms" | "whatsapp" | "email",
+            });
           }
         }
       }
-      
+
       // Process SMS messages from logs
       for (const msg of smsResults.data || []) {
-        const customer = customerByPhone.get(msg.to) || customerByPhone.get(msg.from_number)
+        const customer =
+          customerByPhone.get(msg.to) || customerByPhone.get(msg.from_number);
         if (customer) {
           if (!messagesByCustomer.has(customer.id)) {
-            messagesByCustomer.set(customer.id, [])
+            messagesByCustomer.set(customer.id, []);
           }
-          messagesByCustomer.get(customer.id)!.push({ message: msg, type: 'sms' })
+          messagesByCustomer
+            .get(customer.id)!
+            .push({ message: msg, type: "sms" });
         }
       }
-      
-      // Process WhatsApp messages  
+
+      // Process WhatsApp messages
       for (const msg of whatsappResults.data || []) {
-        const customer = customerByPhone.get(msg.to) || customerByPhone.get(msg.from_number)
+        const customer =
+          customerByPhone.get(msg.to) || customerByPhone.get(msg.from_number);
         if (customer) {
           if (!messagesByCustomer.has(customer.id)) {
-            messagesByCustomer.set(customer.id, [])
+            messagesByCustomer.set(customer.id, []);
           }
-          messagesByCustomer.get(customer.id)!.push({ message: msg, type: 'whatsapp' })
+          messagesByCustomer
+            .get(customer.id)!
+            .push({ message: msg, type: "whatsapp" });
         }
       }
-      
+
       // Process email messages
       for (const msg of emailResults.data || []) {
-        const customer = customerByEmail.get(msg.to_email)
+        const customer = customerByEmail.get(msg.to_email);
         if (customer) {
           if (!messagesByCustomer.has(customer.id)) {
-            messagesByCustomer.set(customer.id, [])
+            messagesByCustomer.set(customer.id, []);
           }
-          messagesByCustomer.get(customer.id)!.push({ message: msg, type: 'email' })
+          messagesByCustomer
+            .get(customer.id)!
+            .push({ message: msg, type: "email" });
         }
       }
-      
+
       // Build conversations from grouped messages
-      const conversationsData: Conversation[] = []
-      
+      const conversationsData: Conversation[] = [];
+
       for (const [customerId, messages] of messagesByCustomer) {
-        const customer = customerById.get(customerId)
-        if (!customer) continue
-        
+        const customer = customerById.get(customerId);
+        if (!customer) continue;
+
         // Sort messages by date and get the latest
-        messages.sort((a, b) => 
-          new Date(b.message.created_at).getTime() - new Date(a.message.created_at).getTime()
-        )
-        
-        const latest = messages[0]
+        messages.sort(
+          (a, b) =>
+            new Date(b.message.created_at).getTime() -
+            new Date(a.message.created_at).getTime(),
+        );
+
+        const latest = messages[0];
         if (latest) {
           conversationsData.push({
             id: customer.id,
             customer_id: customer.id,
-            customer_name: customer.name || 'Unknown',
-            customer_email: customer.email || '',
-            customer_phone: customer.phone || '',
-            last_message: latest.message.message || latest.message.subject || 'No content',
+            customer_name: customer.name || "Unknown",
+            customer_email: customer.email || "",
+            customer_phone: customer.phone || "",
+            last_message:
+              latest.message.message || latest.message.subject || "No content",
             last_message_type: latest.type,
             last_message_time: latest.message.created_at,
             unread_count: 0, // TODO: Implement unread tracking
-            total_messages: messages.length
-          })
+            total_messages: messages.length,
+          });
         }
       }
 
       // Sort by most recent message
-      conversationsData.sort((a, b) => 
-        new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime()
-      )
+      conversationsData.sort(
+        (a, b) =>
+          new Date(b.last_message_time).getTime() -
+          new Date(a.last_message_time).getTime(),
+      );
 
-      console.log('Found conversations:', conversationsData.length)
-      console.log('Messages from unified table:', messages?.length || 0)
-      console.log('Messages from SMS logs:', smsResults.data?.length || 0)
-      console.log('Messages from WhatsApp logs:', whatsappResults.data?.length || 0)
-      console.log('Messages from Email logs:', emailResults.data?.length || 0)
-      
-      setConversations(conversationsData)
+      console.log("Found conversations:", conversationsData.length);
+      console.log("Messages from unified table:", messages?.length || 0);
+      console.log("Messages from SMS logs:", smsResults.data?.length || 0);
+      console.log(
+        "Messages from WhatsApp logs:",
+        whatsappResults.data?.length || 0,
+      );
+      console.log("Messages from Email logs:", emailResults.data?.length || 0);
+
+      setConversations(conversationsData);
     } catch (error) {
-      console.error('Error fetching conversations:', error)
+      console.error("Error fetching conversations:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const getMessageIcon = (type: string) => {
     switch (type) {
-      case 'email':
-        return <Mail className="h-5 w-5" />
-      case 'sms':
-      case 'whatsapp':
-        return <MessageSquare className="h-5 w-5" />
-      case 'call':
-        return <Phone className="h-5 w-5" />
+      case "email":
+        return <Mail className="h-5 w-5" />;
+      case "sms":
+      case "whatsapp":
+        return <MessageSquare className="h-5 w-5" />;
+      case "call":
+        return <Phone className="h-5 w-5" />;
       default:
-        return <MessageSquare className="h-5 w-5" />
+        return <MessageSquare className="h-5 w-5" />;
     }
-  }
+  };
 
   const getMessageColor = (type: string) => {
     switch (type) {
-      case 'email':
-        return 'text-blue-400'
-      case 'sms':
-        return 'text-green-400'
-      case 'whatsapp':
-        return 'text-green-500'
-      case 'call':
-        return 'text-purple-400'
+      case "email":
+        return "text-blue-400";
+      case "sms":
+        return "text-green-400";
+      case "whatsapp":
+        return "text-green-500";
+      case "call":
+        return "text-purple-400";
       default:
-        return 'text-gray-400'
+        return "text-gray-400";
     }
-  }
+  };
 
-  const filteredConversations = conversations.filter(conv => {
-    const search = searchTerm.toLowerCase()
-    return conv.customer_name.toLowerCase().includes(search) ||
-           conv.customer_email.toLowerCase().includes(search) ||
-           conv.customer_phone.includes(search) ||
-           conv.last_message.toLowerCase().includes(search)
-  })
+  const filteredConversations = conversations.filter((conv) => {
+    const search = searchTerm.toLowerCase();
+    return (
+      conv.customer_name.toLowerCase().includes(search) ||
+      conv.customer_email.toLowerCase().includes(search) ||
+      conv.customer_phone.includes(search) ||
+      conv.last_message.toLowerCase().includes(search)
+    );
+  });
 
   return (
     <DashboardLayout>
@@ -458,11 +458,11 @@ function ConversationsContent() {
             <p className="text-gray-400">Recent messages with your customers</p>
           </div>
           <div className="flex gap-2">
-            {isFeatureEnabled('conversationsNewButton') && contactsCount > 0 ? (
+            {isFeatureEnabled("conversationsNewButton") && contactsCount > 0 ? (
               <button
                 onClick={() => {
                   // Toggle to enhanced view which has the new conversation button
-                  setUseEnhanced(true)
+                  setUseEnhanced(true);
                 }}
                 className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2"
               >
@@ -474,7 +474,11 @@ function ConversationsContent() {
                 <button
                   disabled
                   className="px-4 py-2 bg-gray-600 text-gray-400 rounded-lg flex items-center gap-2 cursor-not-allowed opacity-60"
-                  title={contactsCount === 0 ? "Add contacts first to start conversations" : "Feature not available"}
+                  title={
+                    contactsCount === 0
+                      ? "Add contacts first to start conversations"
+                      : "Feature not available"
+                  }
                 >
                   <MessageSquare className="h-4 w-4" />
                   New Conversation
@@ -490,7 +494,7 @@ function ConversationsContent() {
               onClick={() => setUseEnhanced(!useEnhanced)}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
             >
-              Switch to {useEnhanced ? 'Classic' : 'Enhanced'} View
+              Switch to {useEnhanced ? "Classic" : "Enhanced"} View
             </button>
           </div>
         </div>
@@ -518,7 +522,9 @@ function ConversationsContent() {
           <div className="text-center py-12">
             <MessageSquare className="h-12 w-12 text-gray-600 mx-auto mb-4" />
             <p className="text-gray-400">
-              {searchTerm ? 'No conversations found matching your search' : 'No conversations yet'}
+              {searchTerm
+                ? "No conversations found matching your search"
+                : "No conversations yet"}
             </p>
           </div>
         ) : (
@@ -526,7 +532,9 @@ function ConversationsContent() {
             {filteredConversations.map((conversation) => (
               <div
                 key={conversation.id}
-                onClick={() => router.push(`/customers/${conversation.customer_id}`)}
+                onClick={() =>
+                  router.push(`/customers/${conversation.customer_id}`)
+                }
                 className="bg-gray-800 rounded-lg p-4 hover:bg-gray-700 cursor-pointer transition-colors"
               >
                 <div className="flex items-start justify-between">
@@ -541,22 +549,31 @@ function ConversationsContent() {
                         </h3>
                         <div className="flex items-center space-x-2 text-sm text-gray-400">
                           <Clock className="h-4 w-4" />
-                          <span>{formatBritishDateTime(conversation.last_message_time)}</span>
+                          <span>
+                            {formatBritishDateTime(
+                              conversation.last_message_time,
+                            )}
+                          </span>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2 text-sm text-gray-400 mb-2">
                         {conversation.customer_email && (
-                          <span className="truncate">{conversation.customer_email}</span>
+                          <span className="truncate">
+                            {conversation.customer_email}
+                          </span>
                         )}
-                        {conversation.customer_email && conversation.customer_phone && (
-                          <span>•</span>
-                        )}
+                        {conversation.customer_email &&
+                          conversation.customer_phone && <span>•</span>}
                         {conversation.customer_phone && (
                           <span>{conversation.customer_phone}</span>
                         )}
                       </div>
                       <div className="flex items-start space-x-2">
-                        <div className={getMessageColor(conversation.last_message_type)}>
+                        <div
+                          className={getMessageColor(
+                            conversation.last_message_type,
+                          )}
+                        >
                           {getMessageIcon(conversation.last_message_type)}
                         </div>
                         <p className="text-gray-300 line-clamp-2">
@@ -579,19 +596,21 @@ function ConversationsContent() {
         )}
       </div>
     </DashboardLayout>
-  )
+  );
 }
 
 export default function ConversationsPage() {
   return (
-    <Suspense fallback={
-      <DashboardLayout>
-        <div className="flex items-center justify-center min-h-[50vh]">
-          <div className="text-gray-400">Loading conversations...</div>
-        </div>
-      </DashboardLayout>
-    }>
+    <Suspense
+      fallback={
+        <DashboardLayout>
+          <div className="flex items-center justify-center min-h-[50vh]">
+            <div className="text-gray-400">Loading conversations...</div>
+          </div>
+        </DashboardLayout>
+      }
+    >
       <ConversationsContent />
     </Suspense>
-  )
+  );
 }
