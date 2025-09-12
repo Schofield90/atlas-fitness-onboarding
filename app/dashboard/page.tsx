@@ -18,7 +18,7 @@ import {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [supabase] = useState(() => createClient());
+  const supabase = createClient();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [organizationId, setOrganizationId] = useState<string | null>(null);

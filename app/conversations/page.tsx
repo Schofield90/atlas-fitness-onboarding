@@ -33,7 +33,7 @@ interface Conversation {
 
 function ConversationsContent() {
   const [userData, setUserData] = useState<any>(null);
-  const [supabase] = useState(() => createClient());
+  const supabase = createClient();
   const searchParams = useSearchParams();
   const contactParam = searchParams.get("contact");
   const router = useRouter();
