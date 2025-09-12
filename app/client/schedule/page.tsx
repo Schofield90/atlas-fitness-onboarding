@@ -55,7 +55,7 @@ export default function ClientSchedulePage() {
     } = await supabase.auth.getSession();
 
     if (!session) {
-      router.push("/client-portal/login");
+      router.push("/login-otp");
       return;
     }
 
@@ -66,7 +66,7 @@ export default function ClientSchedulePage() {
       .single();
 
     if (!clientData) {
-      router.push("/client-portal/login");
+      router.push("/login-otp");
       return;
     }
 

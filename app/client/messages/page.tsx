@@ -33,7 +33,7 @@ export default function ClientMessagesPage() {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        router.push("/client-portal/login");
+        router.push("/login-otp");
         return;
       }
 

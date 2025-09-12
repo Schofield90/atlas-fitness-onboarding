@@ -75,7 +75,7 @@ export default function ClientBookingPage() {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) {
-        router.push("/client-portal/login");
+        router.push("/login-otp");
         return;
       }
 

@@ -59,7 +59,7 @@ export default function ClientDashboardPage() {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) {
-        router.push("/client-portal/login");
+        router.push("/login-otp");
         return;
       }
 
@@ -153,7 +153,7 @@ export default function ClientDashboardPage() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.push("/client-portal/login");
+    router.push("/login-otp");
   };
 
   const cancelBooking = async (bookingId: string) => {

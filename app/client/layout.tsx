@@ -35,33 +35,67 @@ export default function ClientLayout({
   }, []);
 
   const checkAuth = async () => {
+    // First try to get the session from storage
     const {
       data: { session },
     } = await supabase.auth.getSession();
 
+    // If no session in memory, try to restore from storage/cookies
     if (!session) {
-      router.push("/client-portal/login");
-      return;
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.push("/login-otp");
+        return;
+      }
+
+      // If we have a user but no session, refresh the session
+      const {
+        data: { session: refreshedSession },
+      } = await supabase.auth.refreshSession();
+
+      if (!refreshedSession) {
+        router.push("/login-otp");
+        return;
+      }
+
+      // Use the refreshed session for client lookup
+      const { data: clientData } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!clientData) {
+        router.push("/login-otp");
+        return;
+      }
+
+      setClient(clientData);
+      setLoading(false);
+    } else {
+      // We have a session, proceed normally
+      const { data: clientData } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("user_id", session.user.id)
+        .single();
+
+      if (!clientData) {
+        router.push("/login-otp");
+        return;
+      }
+
+      setClient(clientData);
+      setLoading(false);
     }
-
-    const { data: clientData } = await supabase
-      .from("clients")
-      .select("*")
-      .eq("user_id", session.user.id)
-      .single();
-
-    if (!clientData) {
-      router.push("/client-portal/login");
-      return;
-    }
-
-    setClient(clientData);
-    setLoading(false);
   };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.push("/client-portal/login");
+    router.push("/login-otp");
   };
 
   const navigation = [
