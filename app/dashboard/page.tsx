@@ -27,47 +27,61 @@ export default function DashboardPage() {
   useEffect(() => {
     // Check if user is logged in and get organization
     const checkAuth = async () => {
+      console.log("Dashboard: Checking authentication...");
       try {
         // First try to get the session from storage
         const {
           data: { session },
         } = await supabase.auth.getSession();
 
+        console.log(
+          "Dashboard: Session status:",
+          session ? "Found" : "Not found",
+        );
         let currentUser = session?.user;
 
         // If no session in memory, try to restore from storage/cookies
         if (!session) {
+          console.log("Dashboard: No session, trying to restore...");
           const {
             data: { user: restoredUser },
           } = await supabase.auth.getUser();
 
           if (!restoredUser) {
+            console.log("Dashboard: No user found, redirecting to login");
             // Only redirect if we're not already on the login page
             const currentPath = window.location.pathname;
             if (currentPath !== "/login") {
-              router.push("/login");
+              window.location.href = "/login";
             }
             return;
           }
 
+          console.log("Dashboard: User found, refreshing session...");
           // If we have a user but no session, refresh the session
           const {
             data: { session: refreshedSession },
           } = await supabase.auth.refreshSession();
 
           if (!refreshedSession) {
-            router.push("/login");
+            console.log(
+              "Dashboard: Failed to refresh session, redirecting to login",
+            );
+            window.location.href = "/login";
             return;
           }
 
           currentUser = refreshedSession.user;
+          console.log("Dashboard: Session refreshed successfully");
         }
 
         if (!currentUser) {
-          router.push("/login");
+          console.log("Dashboard: No current user, redirecting to login");
+          window.location.href = "/login";
           return;
         }
 
+        console.log("Dashboard: User authenticated:", currentUser.email);
         setUser(currentUser);
 
         // Check if user is admin

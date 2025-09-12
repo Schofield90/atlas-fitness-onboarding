@@ -77,7 +77,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else if (event === "SIGNED_OUT") {
         setSession(null);
         setUser(null);
-        router.push("/login");
+        // Only redirect if not already on a public page
+        if (
+          !window.location.pathname.includes("/login") &&
+          !window.location.pathname.includes("/signup") &&
+          !window.location.pathname.includes("/signin")
+        ) {
+          router.push("/login");
+        }
       } else if (event === "USER_UPDATED") {
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
