@@ -28,6 +28,13 @@ export default function DashboardPage() {
     const checkAuth = async () => {
       console.log("Dashboard: Checking authentication...");
       const supabase = createClient();
+
+      // Handle SSR case where client is null
+      if (!supabase) {
+        setLoading(false);
+        return;
+      }
+
       try {
         // First try to get the session from storage
         const {

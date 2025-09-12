@@ -1,11 +1,12 @@
 import { createBrowserClient } from "@supabase/ssr";
 import type { Database } from "./database.types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 // Create and export a function that returns the singleton client
-export function createClient() {
+export function createClient(): SupabaseClient<Database> | null {
   // During SSR, return null to prevent errors
   if (typeof window === "undefined") {
-    return null as any;
+    return null;
   }
 
   // Use window global for true singleton across all modules
@@ -23,27 +24,27 @@ export function createClient() {
   ).trim();
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error("Missing Supabase environment variables");
+    console.error("Missing Supabase environment variables");
+    return null;
   }
 
-  const client = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: true,
-      storageKey: "atlas-fitness-auth",
-      storage: window.localStorage,
-      flowType: "pkce",
-    },
-    global: {
-      headers: {
-        "X-Client-Info": "atlas-fitness-onboarding",
+  try {
+    const client = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+        storageKey: "atlas-fitness-auth",
+        flowType: "pkce",
       },
-    },
-  });
+    });
 
-  // Store on window for cross-module access
-  globalWindow.__atlasSupabaseClient = client;
+    // Store on window for cross-module access
+    globalWindow.__atlasSupabaseClient = client;
 
-  return client;
+    return client;
+  } catch (error) {
+    console.error("Failed to create Supabase client:", error);
+    return null;
+  }
 }

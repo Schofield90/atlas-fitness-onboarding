@@ -31,6 +31,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Initialize client only in browser
     const client = createClient();
 
+    // Handle SSR case where client is null
+    if (!client) {
+      setLoading(false);
+      return;
+    }
+
     // Check active session
     const checkSession = async () => {
       try {
@@ -121,6 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     try {
       const client = createClient();
+      if (!client) return;
       await client.auth.signOut();
       setSession(null);
       setUser(null);
@@ -133,6 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshSession = async () => {
     try {
       const client = createClient();
+      if (!client) return;
       const {
         data: { session: refreshedSession },
       } = await client.auth.refreshSession();
