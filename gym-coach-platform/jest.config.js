@@ -23,6 +23,9 @@ const config = {
     '^@/app/(.*)$': '<rootDir>/app/$1',
     '\\.(css|less|scss)$': 'identity-obj-proxy',
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(jose|@supabase|@stripe))'
+  ],
   setupFilesAfterEnv: ['<rootDir>/__tests__/setup/jest.setup.ts'],
   collectCoverageFrom: [
     'components/**/*.{ts,tsx}',
