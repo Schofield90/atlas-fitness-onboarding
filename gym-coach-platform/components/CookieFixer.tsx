@@ -1,0 +1,102 @@
+'use client'
+
+import { useEffect } from 'react'
+
+export function CookieFixer() {
+  useEffect(() => {
+    // Clean up corrupted cookies on mount
+    const cleanCorruptedCookies = () => {
+      if (typeof document === 'undefined') return
+
+      try {
+        const cookies = document.cookie.split(';').reduce((acc, cookie) => {
+          const [key, value] = cookie.trim().split('=')
+          if (key && value) {
+            try {
+              acc[key] = decodeURIComponent(value)
+            } catch (e) {
+              // Handle malformed cookie values
+              acc[key] = value
+            }
+          }
+          return acc
+        }, {} as Record<string, string>)
+
+      // Look for chunked auth cookies (atlas-fitness-auth.0, atlas-fitness-auth.1, etc.)
+      const authCookiePrefix = 'atlas-fitness-auth.'
+      const chunkedCookies = Object.keys(cookies).filter(key => key.startsWith(authCookiePrefix))
+      
+      if (chunkedCookies.length > 0) {
+        console.warn(`Detected ${chunkedCookies.length} corrupted chunked cookies, cleaning up...`)
+        
+        // Clear all chunked cookies
+        chunkedCookies.forEach(cookieName => {
+          document.cookie = `${cookieName}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`
+          console.log(`Cleared corrupted cookie: ${cookieName}`)
+        })
+
+        // Clear the main auth cookie too in case it's corrupted
+        document.cookie = `atlas-fitness-auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`
+        
+        // Clear any related sessionStorage items
+        try {
+          const keysToRemove = []
+          for (let i = 0; i < sessionStorage.length; i++) {
+            const key = sessionStorage.key(i)
+            if (key && key.startsWith('supabase.atlas-fitness-auth')) {
+              keysToRemove.push(key)
+            }
+          }
+          keysToRemove.forEach(key => {
+            sessionStorage.removeItem(key)
+            console.log(`Cleared corrupted sessionStorage item: ${key}`)
+          })
+        } catch (e) {
+          // Ignore if sessionStorage is not available
+        }
+
+        // Force page reload after cleanup to reinitialize auth state
+        if (chunkedCookies.length > 0) {
+          setTimeout(() => {
+            console.log('Cookie cleanup completed, reloading page...')
+            window.location.reload()
+          }, 100)
+        }
+      }
+
+      // Also clean up any other Supabase auth related cookies that might be corrupted
+      const supabaseCookies = Object.keys(cookies).filter(key => 
+        key.includes('sb-') && key.includes('auth-token')
+      )
+      
+      if (supabaseCookies.length > 0) {
+        supabaseCookies.forEach(cookieName => {
+          if (cookieName.includes('.')) { // Chunked cookie pattern
+            document.cookie = `${cookieName}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`
+            console.log(`Cleared corrupted Supabase cookie: ${cookieName}`)
+          }
+        })
+      } catch (error) {
+        console.error('Error during cookie cleanup:', error)
+      }
+    }
+
+    // Run cleanup immediately
+    cleanCorruptedCookies()
+
+    // Also run cleanup when the page becomes visible (in case cookies were corrupted in another tab)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        cleanCorruptedCookies()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [])
+
+  return null // This component renders nothing
+}

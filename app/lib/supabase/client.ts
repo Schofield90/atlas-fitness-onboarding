@@ -3,15 +3,9 @@ import type { Database } from "./database.types";
 
 // Create and export a function that returns the singleton client
 export function createClient() {
-  // During SSR, return a proxy that throws helpful errors
+  // During SSR, return null to prevent errors
   if (typeof window === "undefined") {
-    return new Proxy({} as ReturnType<typeof createBrowserClient<Database>>, {
-      get() {
-        throw new Error(
-          "Supabase client accessed during SSR. Use this client only in useEffect or event handlers.",
-        );
-      },
-    });
+    return null as any;
   }
 
   // Use window global for true singleton across all modules
@@ -45,6 +39,14 @@ export function createClient() {
       headers: {
         "X-Client-Info": "atlas-fitness-onboarding",
       },
+    },
+    cookies: {
+      // Use secure cookie settings
+      domain: window.location.hostname,
+      path: "/",
+      sameSite: "strict",
+      secure: window.location.protocol === "https:",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
     },
   });
 
