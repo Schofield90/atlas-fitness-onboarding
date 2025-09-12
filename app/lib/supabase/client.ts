@@ -5,6 +5,11 @@ let browserClient: ReturnType<typeof createBrowserClient<Database>> | null =
   null;
 
 export function createClient() {
+  // Don't create client during SSR/build time
+  if (typeof window === "undefined") {
+    return null as any; // Return null during SSR, components should handle this
+  }
+
   if (browserClient) return browserClient;
 
   // Trim to avoid stray newlines (e.g., %0A) breaking Realtime websocket auth
@@ -17,8 +22,5 @@ export function createClient() {
   return browserClient;
 }
 
-// Export singleton instance for convenience
-export const supabase = createClient();
-
 // Export default
-export default supabase;
+export default createClient;
