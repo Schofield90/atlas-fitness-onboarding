@@ -4,10 +4,8 @@ import { useState } from "react";
 import { createClient } from "@/app/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
-// Create Supabase client outside component to ensure singleton
-const supabase = createClient();
-
 export default function SimpleLoginPage() {
+  const [supabase] = useState(() => createClient());
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);

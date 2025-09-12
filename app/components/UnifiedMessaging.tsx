@@ -69,7 +69,7 @@ export default function UnifiedMessaging({
   const [showReplyArea, setShowReplyArea] = useState(false);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [supabase] = useState(() => createClient());
+  const supabase = createClient();
 
   useEffect(() => {
     loadConversations();
