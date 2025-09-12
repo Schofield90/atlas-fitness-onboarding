@@ -24,7 +24,7 @@ export default function ClientMembershipPage() {
     creditsUsed: 0,
     creditsRemaining: 0,
   });
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
 
   useEffect(() => {
     checkAuth();

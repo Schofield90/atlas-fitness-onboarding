@@ -44,7 +44,7 @@ interface ClientInfo {
 
 export default function ClientDashboardPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const [client, setClient] = useState<ClientInfo | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);

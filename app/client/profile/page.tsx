@@ -41,7 +41,7 @@ export default function ClientProfilePage() {
     emergency_contact_phone: "",
     medical_notes: "",
   });
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
 
   useEffect(() => {
     checkAuth();

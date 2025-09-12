@@ -37,7 +37,7 @@ export default function ClientSchedulePage() {
     classType: "all",
     instructor: "all",
   });
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
 
   useEffect(() => {
     checkAuth();

@@ -14,7 +14,7 @@ export default function ClientBookingsPage() {
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [creditsRemaining, setCreditsRemaining] = useState(0);
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
 
   useEffect(() => {
     checkAuth();

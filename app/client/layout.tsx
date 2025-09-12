@@ -16,7 +16,6 @@ import {
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/app/lib/supabase/client";
-import { CookieFixer } from "@/app/components/CookieFixer";
 
 export default function ClientLayout({
   children,
@@ -28,7 +27,7 @@ export default function ClientLayout({
   const [client, setClient] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
 
   useEffect(() => {
     checkAuth();
@@ -136,7 +135,6 @@ export default function ClientLayout({
 
   return (
     <div className="min-h-screen bg-gray-900">
-      <CookieFixer />
       {/* Mobile menu */}
       <div
         className={`fixed inset-0 z-50 lg:hidden ${mobileMenuOpen ? "" : "hidden"}`}
