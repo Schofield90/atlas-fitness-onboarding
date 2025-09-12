@@ -1,18 +1,26 @@
-import { createBrowserClient } from '@supabase/ssr'
-import type { Database } from './database.types'
+import { createBrowserClient } from "@supabase/ssr";
+import type { Database } from "./database.types";
 
-let browserClient: ReturnType<typeof createBrowserClient<Database>> | null = null
+let browserClient: ReturnType<typeof createBrowserClient<Database>> | null =
+  null;
 
 export function createClient() {
-  if (browserClient) return browserClient
+  if (browserClient) return browserClient;
 
   // Trim to avoid stray newlines (e.g., %0A) breaking Realtime websocket auth
-  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim()
-  const supabaseAnonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim()
+  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || "").trim();
+  const supabaseAnonKey = (
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+  ).trim();
 
-  browserClient = createBrowserClient<Database>(
-    supabaseUrl,
-    supabaseAnonKey
-  )
-  return browserClient
+  browserClient = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true,
+      storageKey: "atlas-fitness-auth",
+      storage: typeof window !== "undefined" ? window.localStorage : undefined,
+    },
+  });
+  return browserClient;
 }

@@ -7,6 +7,7 @@ import { OrganizationProvider } from "@/app/hooks/useOrganization";
 import { ErrorBoundaryProvider } from "@/app/components/errors";
 import TeamChatNotificationProvider from "@/app/components/notifications/TeamChatNotificationProvider";
 import { CookieFixer } from "@/app/components/CookieFixer";
+import { AuthProvider } from "@/app/components/providers/AuthProvider";
 // import FloatingChatWidget from "@/app/components/team-chat/FloatingChatWidget";
 // import { ToastProvider } from '@/app/components/providers/toast-provider'
 
@@ -28,15 +29,17 @@ export default function RootLayout({
       <body className={inter.className}>
         <CookieFixer />
         <ErrorBoundaryProvider>
-          <AnalyticsProvider>
-            <OrganizationProvider>
-              <TeamChatNotificationProvider>
-                {/* <ToastProvider /> */}
-                {children}
-                {/* <FloatingChatWidget /> */}
-              </TeamChatNotificationProvider>
-            </OrganizationProvider>
-          </AnalyticsProvider>
+          <AuthProvider>
+            <AnalyticsProvider>
+              <OrganizationProvider>
+                <TeamChatNotificationProvider>
+                  {/* <ToastProvider /> */}
+                  {children}
+                  {/* <FloatingChatWidget /> */}
+                </TeamChatNotificationProvider>
+              </OrganizationProvider>
+            </AnalyticsProvider>
+          </AuthProvider>
         </ErrorBoundaryProvider>
       </body>
     </html>

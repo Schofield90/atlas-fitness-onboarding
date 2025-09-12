@@ -82,6 +82,7 @@ const adminRoutes = [
   '/dashboard',
   '/leads',
   '/messages',
+  '/conversations',  // Add conversations route
   '/automations',
   '/calendar',
   '/booking',
@@ -155,13 +156,26 @@ export async function middleware(request: NextRequest) {
   // Create supabase client
   const supabase = createMiddlewareClient(request, res)
 
-  // Get session
+  // Get session and refresh if needed
   const {
     data: { session },
   } = await supabase.auth.getSession()
 
-  // No session - return 401 for API, redirect to login for pages
+  // If no session, try to get user and refresh
   if (!session) {
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (user) {
+      // User exists but session expired, try to refresh
+      const { data: { session: refreshedSession } } = await supabase.auth.refreshSession()
+      
+      if (refreshedSession) {
+        // Successfully refreshed, continue with the request
+        return res
+      }
+    }
+    
+    // No session and couldn't refresh - return 401 for API, redirect to login for pages
     if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
