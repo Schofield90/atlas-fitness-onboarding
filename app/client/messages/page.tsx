@@ -28,38 +28,74 @@ export default function ClientMessagesPage() {
 
   const checkAuth = async () => {
     try {
+      // First try to get the session from storage
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
 
-      if (!user) {
-        router.push("/login-otp");
-        return;
+      let userId: string | null = null;
+
+      // If no session in memory, try to restore from storage/cookies
+      if (!session) {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+          router.push("/login-otp");
+          return;
+        }
+
+        // If we have a user but no session, refresh the session
+        const {
+          data: { session: refreshedSession },
+        } = await supabase.auth.refreshSession();
+
+        if (!refreshedSession) {
+          router.push("/login-otp");
+          return;
+        }
+
+        userId = user.id;
+      } else {
+        userId = session.user.id;
       }
 
       // Get client info
       const { data: clientData, error: clientError } = await supabase
         .from("clients")
         .select("*, organizations(*)")
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .single();
 
       if (clientError || !clientData) {
         // Try by email
-        const { data: clientByEmail } = await supabase
-          .from("clients")
-          .select("*, organizations(*)")
-          .eq("email", user.email)
-          .single();
+        const userEmail =
+          session?.user?.email ||
+          (await supabase.auth.getUser()).data.user?.email;
+        if (userEmail) {
+          const { data: clientByEmail } = await supabase
+            .from("clients")
+            .select("*, organizations(*)")
+            .eq("email", userEmail)
+            .single();
 
-        if (clientByEmail) {
-          setClient(clientByEmail);
+          if (clientByEmail) {
+            setClient(clientByEmail);
+          } else {
+            router.push("/login-otp");
+            return;
+          }
+        } else {
+          router.push("/login-otp");
+          return;
         }
       } else {
         setClient(clientData);
       }
     } catch (error) {
       console.error("Error checking auth:", error);
+      router.push("/login-otp");
     } finally {
       setLoading(false);
     }
