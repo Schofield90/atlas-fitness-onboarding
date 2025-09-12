@@ -43,18 +43,19 @@ export default function LoginPage() {
             .eq("user_id", data.user?.id)
             .single();
 
-          // Redirect based on user type
+          // Use window.location for redirect to ensure full page reload
+          // This ensures the AuthProvider picks up the new session
           if (client) {
             // User is a client, redirect to client portal
-            router.push("/client");
+            window.location.href = "/client";
           } else {
             // Check for redirect parameter
             const redirect = searchParams.get("redirect");
             if (redirect) {
-              router.push(redirect);
+              window.location.href = redirect;
             } else {
               // Default to dashboard for non-clients
-              router.push("/dashboard");
+              window.location.href = "/dashboard";
             }
           }
         } catch (err) {

@@ -41,10 +41,11 @@ export default function SimpleLoginPage() {
           console.log("Could not fix org, but continuing...");
         }
 
-        // Redirect to dashboard
+        // Use window.location for redirect to ensure full page reload
+        // This ensures the AuthProvider picks up the new session
         setTimeout(() => {
-          router.push("/dashboard");
-        }, 1000);
+          window.location.href = "/dashboard";
+        }, 500);
       }
     } catch (error: any) {
       setMessage("Error: " + error.message);
