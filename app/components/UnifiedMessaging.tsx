@@ -709,7 +709,7 @@ export default function UnifiedMessaging({
                           <span className="text-xs opacity-75">
                             {formatBritishDateTime(message.created_at)}
                           </span>
-                          {message.status && message.status !== "pending" && (
+                          {message.status && (
                             <span
                               className={`text-xs ${getStatusColor(message.status)}`}
                             >
