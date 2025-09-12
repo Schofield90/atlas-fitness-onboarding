@@ -27,16 +27,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Get the singleton client - don't create a new one
-  const supabase = createClient();
-
   useEffect(() => {
+    // Initialize client only in browser
+    const client = createClient();
+
     // Check active session
     const checkSession = async () => {
       try {
         const {
           data: { session: currentSession },
-        } = await supabase.auth.getSession();
+        } = await client.auth.getSession();
 
         if (currentSession) {
           setSession(currentSession);
@@ -45,13 +45,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Try to restore from storage
           const {
             data: { user: restoredUser },
-          } = await supabase.auth.getUser();
+          } = await client.auth.getUser();
 
           if (restoredUser) {
             // Refresh the session
             const {
               data: { session: refreshedSession },
-            } = await supabase.auth.refreshSession();
+            } = await client.auth.refreshSession();
             if (refreshedSession) {
               setSession(refreshedSession);
               setUser(refreshedSession.user);
@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+    } = client.auth.onAuthStateChange(async (event, currentSession) => {
       console.log("Auth state changed:", event);
 
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
@@ -98,11 +98,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async () => {
         const {
           data: { session: currentSession },
-        } = await supabase.auth.getSession();
+        } = await client.auth.getSession();
         if (currentSession) {
           const {
             data: { session: refreshedSession },
-          } = await supabase.auth.refreshSession();
+          } = await client.auth.refreshSession();
           if (refreshedSession) {
             setSession(refreshedSession);
             setUser(refreshedSession.user);
@@ -116,11 +116,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       subscription.unsubscribe();
       clearInterval(refreshInterval);
     };
-  }, [supabase, router]);
+  }, [router]);
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
+      const client = createClient();
+      await client.auth.signOut();
       setSession(null);
       setUser(null);
       router.push("/login");
@@ -131,9 +132,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshSession = async () => {
     try {
+      const client = createClient();
       const {
         data: { session: refreshedSession },
-      } = await supabase.auth.refreshSession();
+      } = await client.auth.refreshSession();
       if (refreshedSession) {
         setSession(refreshedSession);
         setUser(refreshedSession.user);

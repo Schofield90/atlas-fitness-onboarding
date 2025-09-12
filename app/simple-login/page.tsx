@@ -5,7 +5,6 @@ import { createClient } from "@/app/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
 export default function SimpleLoginPage() {
-  const [supabase] = useState(() => createClient());
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -19,6 +18,7 @@ export default function SimpleLoginPage() {
     setMessage("");
 
     try {
+      const supabase = createClient();
       // Sign in
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -58,6 +58,7 @@ export default function SimpleLoginPage() {
     setMessage("");
 
     try {
+      const supabase = createClient();
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
