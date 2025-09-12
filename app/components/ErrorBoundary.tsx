@@ -1,54 +1,61 @@
-'use client'
+"use client";
 
-import React, { Component, ErrorInfo, ReactNode } from 'react'
-import { AlertTriangle } from 'lucide-react'
+import React, { Component, ErrorInfo, ReactNode } from "react";
+import { AlertTriangle } from "lucide-react";
 
 interface Props {
-  children: ReactNode
-  fallback?: ReactNode
-  componentName?: string
+  children: ReactNode;
+  fallback?: ReactNode;
+  componentName?: string;
 }
 
 interface State {
-  hasError: boolean
-  error: Error | null
-  errorInfo: ErrorInfo | null
+  hasError: boolean;
+  error: Error | null;
+  errorInfo: ErrorInfo | null;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
-    super(props)
-    this.state = { hasError: false, error: null, errorInfo: null }
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
   static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error, errorInfo: null }
+    return { hasError: true, error, errorInfo: null };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error(`Error in ${this.props.componentName || 'component'}:`, error, errorInfo)
-    this.setState({ error, errorInfo })
-    
+    console.error(
+      `Error in ${this.props.componentName || "component"}:`,
+      error,
+      errorInfo,
+    );
+    this.setState({ error, errorInfo });
+
     // Log to error reporting service
-    if (typeof window !== 'undefined') {
-      fetch('/api/errors/report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+    if (typeof window !== "undefined") {
+      fetch("/api/errors/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          error: error.toString(),
-          errorInfo: errorInfo.componentStack,
-          component: this.props.componentName,
+          message: error.message,
+          stack: error.stack,
           url: window.location.href,
-          timestamp: new Date().toISOString()
-        })
-      }).catch(err => console.error('Failed to report error:', err))
+          userAgent: navigator.userAgent,
+          timestamp: new Date().toISOString(),
+          severity: "high",
+          category: "javascript",
+          component: this.props.componentName || "ErrorBoundary",
+        }),
+      }).catch((err) => console.error("Failed to report error:", err));
     }
   }
 
   render() {
     if (this.state.hasError) {
       if (this.props.fallback) {
-        return this.props.fallback
+        return this.props.fallback;
       }
 
       return (
@@ -58,11 +65,11 @@ export class ErrorBoundary extends Component<Props, State> {
             Something went wrong
           </h3>
           <p className="text-sm text-red-700 dark:text-red-300 text-center mb-4">
-            {this.props.componentName 
+            {this.props.componentName
               ? `An error occurred in the ${this.props.componentName} component.`
-              : 'An unexpected error occurred.'}
+              : "An unexpected error occurred."}
           </p>
-          {process.env.NODE_ENV === 'development' && this.state.error && (
+          {process.env.NODE_ENV === "development" && this.state.error && (
             <details className="mt-4 w-full">
               <summary className="cursor-pointer text-sm text-red-600 dark:text-red-400 hover:underline">
                 Show error details
@@ -80,9 +87,9 @@ export class ErrorBoundary extends Component<Props, State> {
             Reload Page
           </button>
         </div>
-      )
+      );
     }
 
-    return this.props.children
+    return this.props.children;
   }
 }
