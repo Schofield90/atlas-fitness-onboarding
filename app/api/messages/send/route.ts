@@ -109,14 +109,32 @@ export async function POST(request: NextRequest) {
 
             const fromNumber =
               messageType === "whatsapp"
-                ? `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER}`
-                : process.env.TWILIO_PHONE_NUMBER;
+                ? `whatsapp:${process.env.TWILIO_WHATSAPP_FROM || process.env.TWILIO_WHATSAPP_NUMBER}`
+                : process.env.TWILIO_SMS_FROM ||
+                  process.env.TWILIO_PHONE_NUMBER;
 
             const toNumber =
               messageType === "whatsapp" &&
               !recipientAddress.startsWith("whatsapp:")
                 ? `whatsapp:${recipientAddress}`
                 : recipientAddress;
+
+            if (!fromNumber) {
+              console.error(
+                "Twilio from number not configured for",
+                messageType,
+              );
+              throw new Error(
+                `Twilio from number not configured for ${messageType}`,
+              );
+            }
+
+            console.log("Sending Twilio message:", {
+              messageType,
+              from: fromNumber,
+              to: toNumber,
+              bodyLength: messageContent.length,
+            });
 
             const twilioMessage = await twilioClient.messages.create({
               body: messageContent,
