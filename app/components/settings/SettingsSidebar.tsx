@@ -33,6 +33,7 @@ const settingsNavigation = [
       { name: "Business Profile", href: "/settings/business", icon: Building2 },
       { name: "Locations", href: "/settings/locations", icon: MapPin },
       { name: "My Staff", href: "/settings/staff", icon: Users },
+      { name: "Data Migrations", href: "/settings/migrations", icon: Upload },
       {
         name: "Custom Fields",
         href: "/settings/custom-fields",
@@ -90,15 +91,9 @@ const settingsNavigation = [
     ],
   },
   {
-    category: "DATA",
-    items: [
-      { name: "Migrations", href: "/settings/migrations", icon: Upload },
-      { name: "Data & Privacy", href: "/settings/data", icon: Database },
-    ],
-  },
-  {
     category: "SYSTEM",
     items: [
+      { name: "Data & Privacy", href: "/settings/data", icon: Database },
       { name: "Notifications", href: "/settings/notifications", icon: Bell },
       { name: "Security", href: "/settings/security", icon: Shield },
       { name: "Audit Logs", href: "/settings/audit", icon: Activity },
