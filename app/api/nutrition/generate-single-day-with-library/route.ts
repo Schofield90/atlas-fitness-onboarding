@@ -309,40 +309,32 @@ Use British measurements (g, ml). Return JSON:
     const planDate = new Date(date);
     const dateString = planDate.toISOString().split("T")[0]; // Format as YYYY-MM-DD
 
-    // First, we need to find or create a client record
+    // First, we need to find the client record
     let clientId = null;
 
-    // Check if there's a client record for this user
+    // Check if there's a client record for this user by user_id
     const { data: clientRecord } = await supabaseAdmin
       .from("clients")
       .select("id")
-      .eq("id", userWithOrg.id)
+      .eq("user_id", userWithOrg.id)
       .single();
 
     if (clientRecord) {
       clientId = clientRecord.id;
       console.log("Found existing client record:", clientId);
     } else {
-      // Try to create a client record
-      console.log(
-        "No client record found, attempting to create one for user:",
-        userWithOrg.id,
-      );
-      const { data: newClient, error: clientError } = await supabaseAdmin
+      // If no client by user_id, check if the user is a client themselves
+      const { data: clientById } = await supabaseAdmin
         .from("clients")
-        .insert({
-          id: userWithOrg.id,
-          organization_id: userWithOrg.organizationId,
-          // Add any other required fields for clients table
-        })
-        .select()
+        .select("id")
+        .eq("id", userWithOrg.id)
         .single();
 
-      if (newClient) {
-        clientId = newClient.id;
-        console.log("Created client record:", clientId);
-      } else if (clientError) {
-        console.log("Could not create client record:", clientError.message);
+      if (clientById) {
+        clientId = clientById.id;
+        console.log("User is a client themselves:", clientId);
+      } else {
+        console.log("No client record found for user:", userWithOrg.id);
         // Continue without client_id - it might be nullable
       }
     }

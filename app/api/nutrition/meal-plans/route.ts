@@ -28,14 +28,27 @@ export async function GET(request: NextRequest) {
     // Get all active meal plans for the profile
     console.log("Fetching meal plans for profile:", profileId);
 
-    // Use correct column names from 20250910_create_meal_plans_table.sql schema
-    // Try to order by date if it exists, otherwise by created_at
-    const { data: mealPlans, error } = await supabaseAdmin
+    // Use correct column names after migrations (profile_id instead of nutrition_profile_id, status instead of is_active)
+    // First try with profile_id (new column name)
+    let { data: mealPlans, error } = await supabaseAdmin
       .from("meal_plans")
       .select("*")
-      .eq("nutrition_profile_id", profileId)
-      .eq("is_active", true)
-      .order("created_at", { ascending: false }); // Order by created_at for now
+      .eq("profile_id", profileId)
+      .eq("status", "active")
+      .order("created_at", { ascending: false });
+
+    // If no results, try with old column names for backward compatibility
+    if ((!mealPlans || mealPlans.length === 0) && !error) {
+      const result = await supabaseAdmin
+        .from("meal_plans")
+        .select("*")
+        .eq("nutrition_profile_id", profileId)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
+
+      mealPlans = result.data;
+      error = result.error;
+    }
 
     if (error) {
       console.error("Error fetching meal plans:", {
