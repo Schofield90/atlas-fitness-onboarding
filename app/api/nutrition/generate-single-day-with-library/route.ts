@@ -309,7 +309,45 @@ Use British measurements (g, ml). Return JSON:
     const planDate = new Date(date);
     const dateString = planDate.toISOString().split("T")[0]; // Format as YYYY-MM-DD
 
-    // First check if a meal plan already exists for this date
+    // First, we need to find or create a client record
+    let clientId = null;
+
+    // Check if there's a client record for this user
+    const { data: clientRecord } = await supabaseAdmin
+      .from("clients")
+      .select("id")
+      .eq("id", userWithOrg.id)
+      .single();
+
+    if (clientRecord) {
+      clientId = clientRecord.id;
+      console.log("Found existing client record:", clientId);
+    } else {
+      // Try to create a client record
+      console.log(
+        "No client record found, attempting to create one for user:",
+        userWithOrg.id,
+      );
+      const { data: newClient, error: clientError } = await supabaseAdmin
+        .from("clients")
+        .insert({
+          id: userWithOrg.id,
+          organization_id: userWithOrg.organizationId,
+          // Add any other required fields for clients table
+        })
+        .select()
+        .single();
+
+      if (newClient) {
+        clientId = newClient.id;
+        console.log("Created client record:", clientId);
+      } else if (clientError) {
+        console.log("Could not create client record:", clientError.message);
+        // Continue without client_id - it might be nullable
+      }
+    }
+
+    // Check if a meal plan already exists for this date
     // Using the actual column names from the database
     const { data: existingPlan } = await supabaseAdmin
       .from("meal_plans")
@@ -323,20 +361,27 @@ Use British measurements (g, ml). Return JSON:
 
     if (existingPlan) {
       // Update existing plan - using the actual column names from the database
+      const updateData: any = {
+        name: `Meal Plan ${dateString}`,
+        meal_data: mealPlanWithDate,
+        status: "active", // Changed from is_active
+        total_calories: totals.calories, // Changed from daily_calories
+        total_protein: totals.protein, // Changed from daily_protein
+        total_carbs: totals.carbs, // Changed from daily_carbs
+        total_fat: totals.fat, // Changed from daily_fat
+        start_date: dateString,
+        end_date: dateString,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Only add client_id if we have one
+      if (clientId) {
+        updateData.client_id = clientId;
+      }
+
       const { data, error } = await supabaseAdmin
         .from("meal_plans")
-        .update({
-          name: `Meal Plan ${dateString}`,
-          meal_data: mealPlanWithDate,
-          status: "active", // Changed from is_active
-          total_calories: totals.calories, // Changed from daily_calories
-          total_protein: totals.protein, // Changed from daily_protein
-          total_carbs: totals.carbs, // Changed from daily_carbs
-          total_fat: totals.fat, // Changed from daily_fat
-          start_date: dateString,
-          end_date: dateString,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq("id", existingPlan.id)
         .select()
         .single();
@@ -344,24 +389,30 @@ Use British measurements (g, ml). Return JSON:
       saveError = error;
     } else {
       // Create new plan - using the actual column names from the database
+      const insertData: any = {
+        profile_id: nutritionProfile.id, // Changed from nutrition_profile_id
+        organization_id: userWithOrg.organizationId,
+        name: `Meal Plan ${dateString}`,
+        meal_data: mealPlanWithDate,
+        status: "active", // Changed from is_active
+        total_calories: totals.calories, // Changed from daily_calories
+        total_protein: totals.protein, // Changed from daily_protein
+        total_carbs: totals.carbs, // Changed from daily_carbs
+        total_fat: totals.fat, // Changed from daily_fat
+        start_date: dateString,
+        end_date: dateString,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      // Only add client_id if we have one
+      if (clientId) {
+        insertData.client_id = clientId;
+      }
+
       const { data, error } = await supabaseAdmin
         .from("meal_plans")
-        .insert({
-          profile_id: nutritionProfile.id, // Changed from nutrition_profile_id
-          client_id: userWithOrg.id, // Added required client_id
-          organization_id: userWithOrg.organizationId,
-          name: `Meal Plan ${dateString}`,
-          meal_data: mealPlanWithDate,
-          status: "active", // Changed from is_active
-          total_calories: totals.calories, // Changed from daily_calories
-          total_protein: totals.protein, // Changed from daily_protein
-          total_carbs: totals.carbs, // Changed from daily_carbs
-          total_fat: totals.fat, // Changed from daily_fat
-          start_date: dateString,
-          end_date: dateString,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
+        .insert(insertData)
         .select()
         .single();
       savedPlan = data;

@@ -100,3 +100,58 @@ beforeAll(() => {
 afterAll(() => {
   console.error = originalConsoleError
 })
+
+// Messaging system test utilities
+global.createMockConversation = (overrides = {}) => ({
+  id: 'conv-test-123',
+  organization_id: 'org-123',
+  client_id: 'client-123',
+  coach_id: 'coach-123',
+  title: 'Test Conversation',
+  status: 'active',
+  last_message_at: new Date().toISOString(),
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+  ...overrides
+})
+
+global.createMockMessage = (overrides = {}) => ({
+  id: 'msg-test-123',
+  conversation_id: 'conv-test-123',
+  sender_id: 'user-123',
+  sender_type: 'coach',
+  content: 'Test message',
+  message_type: 'text',
+  read_at: null,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+  ...overrides
+})
+
+global.createMockSupabaseError = (code = '23503', message = 'Foreign key constraint violation') => ({
+  code,
+  message,
+  details: `Key constraint violation in messaging system: ${message}`,
+  hint: 'Ensure all referenced entities exist before creating relationships'
+})
+
+// Mock console methods for capturing foreign key errors in tests
+global.captureConsoleErrors = () => {
+  const errors: string[] = []
+  const originalError = console.error
+  
+  console.error = (...args: any[]) => {
+    const errorMsg = args.join(' ')
+    if (errorMsg.includes('foreign key') || errorMsg.includes('constraint')) {
+      errors.push(errorMsg)
+    }
+    originalError.apply(console, args)
+  }
+  
+  return {
+    errors,
+    restore: () => {
+      console.error = originalError
+    }
+  }
+}

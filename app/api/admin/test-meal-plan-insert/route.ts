@@ -42,21 +42,73 @@ export async function GET() {
 
     const profile = profiles[0];
 
-    // Test 3: Try to insert a simple meal plan - using correct column names
-    const testDate = new Date().toISOString().split("T")[0];
-
-    // Get a client_id (user) to use
-    const { data: users } = await supabaseAdmin
-      .from("profiles")
+    // First, let's check what the clients table expects
+    const { data: clients, error: clientsError } = await supabaseAdmin
+      .from("clients")
       .select("id")
       .eq("organization_id", profile.organization_id)
       .limit(1);
 
-    const clientId = users?.[0]?.id || profile.id; // Use profile.id as fallback
+    // If no clients exist, try to create one or find an alternative
+    let clientId = null;
 
-    const testPlan = {
+    if (clients && clients.length > 0) {
+      clientId = clients[0].id;
+      console.log("Found existing client:", clientId);
+    } else {
+      // Check if we can use NULL for client_id or if we need to create a client
+      console.log("No clients found, checking if client_id can be null...");
+
+      // Try getting a user/profile that might work
+      const { data: users } = await supabaseAdmin
+        .from("profiles")
+        .select("id")
+        .eq("organization_id", profile.organization_id)
+        .limit(1);
+
+      if (users && users.length > 0) {
+        // Try to find if this user exists in clients table
+        const { data: userClient } = await supabaseAdmin
+          .from("clients")
+          .select("id")
+          .eq("id", users[0].id)
+          .single();
+
+        if (userClient) {
+          clientId = userClient.id;
+          console.log("Found user in clients table:", clientId);
+        } else {
+          // Create a client record if possible
+          console.log(
+            "Attempting to create client record for user:",
+            users[0].id,
+          );
+          const { data: newClient, error: createError } = await supabaseAdmin
+            .from("clients")
+            .insert({
+              id: users[0].id,
+              organization_id: profile.organization_id,
+            })
+            .select()
+            .single();
+
+          if (newClient) {
+            clientId = newClient.id;
+            console.log("Created new client:", clientId);
+          } else if (createError) {
+            console.log("Failed to create client:", createError.message);
+            // Try without client_id (it might be nullable)
+            clientId = null;
+          }
+        }
+      }
+    }
+
+    // Test 3: Try to insert a simple meal plan - using correct column names
+    const testDate = new Date().toISOString().split("T")[0];
+
+    const testPlan: any = {
       profile_id: profile.id, // Changed from nutrition_profile_id
-      client_id: clientId, // Added required field
       organization_id: profile.organization_id,
       name: `Test Plan ${Date.now()}`,
       meal_data: {
@@ -71,6 +123,11 @@ export async function GET() {
       start_date: testDate,
       end_date: testDate,
     };
+
+    // Only add client_id if we have one
+    if (clientId) {
+      testPlan.client_id = clientId;
+    }
 
     console.log("Attempting to insert:", JSON.stringify(testPlan, null, 2));
 
