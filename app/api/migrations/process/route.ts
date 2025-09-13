@@ -8,6 +8,12 @@ export async function POST(request: NextRequest) {
   try {
     const { jobId, mappings } = await request.json();
 
+    console.log("Process endpoint called with:", {
+      jobId,
+      mappingsCount: mappings?.length,
+    });
+    console.log("First mapping:", mappings?.[0]);
+
     if (!jobId || !mappings) {
       return NextResponse.json(
         { success: false, error: "Missing required fields" },
@@ -94,17 +100,19 @@ async function processInBackground(jobId: string, job: any, mappings: any[]) {
     let successful = 0;
     let failed = 0;
 
-    // Group mappings by table
+    // Group mappings by table (default to clients if no target_table specified)
     const tableMappings = mappings.reduce(
       (acc, m) => {
-        if (m.target_table) {
-          acc[m.target_table] = acc[m.target_table] || [];
-          acc[m.target_table].push(m);
-        }
+        const table = m.target_table || "clients"; // Default to clients table
+        acc[table] = acc[table] || [];
+        acc[table].push(m);
         return acc;
       },
       {} as Record<string, any[]>,
     );
+
+    console.log("Mappings by table:", Object.keys(tableMappings));
+    console.log("Client mappings count:", tableMappings.clients?.length || 0);
 
     // Process clients first (as other records may reference them)
     if (tableMappings.clients) {
