@@ -47,6 +47,19 @@ interface FieldMapping {
 
 type WizardStep = "upload" | "analysis" | "mapping" | "review" | "import";
 
+// Helper function to generate file preview
+async function generateFilePreview(file: File): Promise<string[]> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split("\n").slice(0, 5); // First 5 lines
+      resolve(lines.filter((line) => line.trim()));
+    };
+    reader.readAsText(file.slice(0, 1024)); // First 1KB for preview
+  });
+}
+
 export function MigrationWizard({
   organizationId,
   onComplete,
@@ -65,6 +78,7 @@ export function MigrationWizard({
   // Step 1: File Upload
   const handleFileUpload = useCallback(
     async (files: FileList) => {
+      console.log("handleFileUpload called with files:", files);
       setIsLoading(true);
       setError("");
 
@@ -295,18 +309,6 @@ export function MigrationWizard({
     [onComplete],
   );
 
-  // Helper function to generate file preview
-  async function generateFilePreview(file: File): Promise<string[]> {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = e.target?.result as string;
-        const lines = text.split("\n").slice(0, 5); // First 5 lines
-        resolve(lines.filter((line) => line.trim()));
-      };
-      reader.readAsText(file.slice(0, 1024)); // First 1KB for preview
-    });
-  }
 
   const renderStepIndicator = () => {
     const steps = [
@@ -376,7 +378,10 @@ export function MigrationWizard({
           <CardContent>
             <div
               className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center hover:border-blue-500 cursor-pointer transition-all bg-gray-800/50 hover:bg-gray-800/80"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => {
+                console.log("Upload area clicked, triggering file input");
+                fileInputRef.current?.click();
+              }}
               onDragEnter={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -397,6 +402,7 @@ export function MigrationWizard({
               onDrop={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                console.log("Files dropped:", e.dataTransfer.files);
                 e.currentTarget.classList.remove(
                   "border-blue-500",
                   "bg-gray-800",
@@ -404,6 +410,8 @@ export function MigrationWizard({
                 const files = e.dataTransfer.files;
                 if (files && files.length > 0) {
                   handleFileUpload(files);
+                } else {
+                  console.log("No files in drop event");
                 }
               }}
             >
@@ -430,11 +438,14 @@ export function MigrationWizard({
               accept=".csv,.xlsx,.xls"
               className="hidden"
               onChange={(e) => {
+                console.log("File input changed, files:", e.target.files);
                 const files = e.target.files;
                 if (files && files.length > 0) {
                   handleFileUpload(files);
                   // Reset input so same file can be selected again
                   e.target.value = "";
+                } else {
+                  console.log("No files selected");
                 }
               }}
             />
