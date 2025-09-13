@@ -105,6 +105,7 @@ export default function NutritionTab({
   const [aiMealPlan, setAiMealPlan] = useState<AIGeneratedMealPlan | null>(
     null,
   );
+  const [nutritionProfile, setNutritionProfile] = useState<any>(null);
   const [nutritionLogs, setNutritionLogs] = useState<NutritionLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -206,6 +207,9 @@ export default function NutritionTab({
       }
 
       console.log("Nutrition profile found:", nutritionProfile);
+
+      // Set the nutrition profile in state
+      setNutritionProfile(nutritionProfile);
 
       // Set the nutrition profile in state if found
       if (nutritionProfile) {
