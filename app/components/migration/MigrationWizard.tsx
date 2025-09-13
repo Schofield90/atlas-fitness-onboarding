@@ -60,6 +60,7 @@ export function MigrationWizard({
   const [fieldMappings, setFieldMappings] = useState<FieldMapping[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Step 1: File Upload
   const handleFileUpload = useCallback(
@@ -359,14 +360,14 @@ export function MigrationWizard({
     );
   };
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
   const renderUploadStep = () => {
     return (
       <div className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-white">Upload Your GoTeamUp Data</CardTitle>
+            <CardTitle className="text-white">
+              Upload Your GoTeamUp Data
+            </CardTitle>
             <CardDescription className="text-gray-400">
               Upload CSV or Excel files containing your member data, class
               bookings, and payment history
@@ -376,6 +377,10 @@ export function MigrationWizard({
             <div
               className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center hover:border-blue-500 cursor-pointer transition-all bg-gray-800/50 hover:bg-gray-800/80"
               onClick={() => fileInputRef.current?.click()}
+              onDragEnter={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
               onDragOver={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -384,12 +389,18 @@ export function MigrationWizard({
               onDragLeave={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                e.currentTarget.classList.remove("border-blue-500", "bg-gray-800");
+                e.currentTarget.classList.remove(
+                  "border-blue-500",
+                  "bg-gray-800",
+                );
               }}
               onDrop={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                e.currentTarget.classList.remove("border-blue-500", "bg-gray-800");
+                e.currentTarget.classList.remove(
+                  "border-blue-500",
+                  "bg-gray-800",
+                );
                 const files = e.dataTransfer.files;
                 if (files && files.length > 0) {
                   handleFileUpload(files);
@@ -399,17 +410,13 @@ export function MigrationWizard({
               <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
               <div className="space-y-2">
                 <div>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      fileInputRef.current?.click();
-                    }}
-                    className="text-lg font-medium text-blue-500 hover:text-blue-400 underline"
-                  >
+                  <span className="text-lg font-medium text-blue-500 hover:text-blue-400 underline cursor-pointer">
                     Click to upload
-                  </button>
-                  <span className="text-gray-400 text-lg"> or drag and drop</span>
+                  </span>
+                  <span className="text-gray-400 text-lg">
+                    {" "}
+                    or drag and drop
+                  </span>
                 </div>
                 <p className="text-sm text-gray-500">
                   CSV, Excel files up to 100MB
@@ -421,84 +428,90 @@ export function MigrationWizard({
               type="file"
               multiple
               accept=".csv,.xlsx,.xls"
-              style={{ display: 'none' }}
+              className="hidden"
               onChange={(e) => {
                 const files = e.target.files;
                 if (files && files.length > 0) {
                   handleFileUpload(files);
                   // Reset input so same file can be selected again
-                  e.target.value = '';
+                  e.target.value = "";
                 }
               }}
             />
 
-          {uploadedFiles.length > 0 && (
-            <div className="mt-6 space-y-3">
-              <h4 className="font-medium text-gray-900">Uploaded Files:</h4>
-              {uploadedFiles.map((upload, index) => (
-                <div key={index} className="p-4 bg-gray-50 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center">
-                      <FileText className="w-5 h-5 text-blue-600 mr-2" />
-                      <span className="font-medium">{upload.file.name}</span>
-                      <span className="ml-2 text-sm text-gray-500">
-                        ({(upload.file.size / 1024 / 1024).toFixed(1)} MB)
-                      </span>
+            {uploadedFiles.length > 0 && (
+              <div className="mt-6 space-y-3">
+                <h4 className="font-medium text-white">Uploaded Files:</h4>
+                {uploadedFiles.map((upload, index) => (
+                  <div
+                    key={index}
+                    className="p-4 bg-gray-700 rounded-lg border border-gray-600"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center">
+                        <FileText className="w-5 h-5 text-blue-400 mr-2" />
+                        <span className="font-medium text-white">
+                          {upload.file.name}
+                        </span>
+                        <span className="ml-2 text-sm text-gray-400">
+                          ({(upload.file.size / 1024 / 1024).toFixed(1)} MB)
+                        </span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          setUploadedFiles((prev) =>
+                            prev.filter((_, i) => i !== index),
+                          )
+                        }
+                        className="text-gray-400 hover:text-white"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        setUploadedFiles((prev) =>
-                          prev.filter((_, i) => i !== index),
-                        )
-                      }
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
+                    <div className="text-sm text-gray-300">
+                      <strong>Preview:</strong>
+                      <pre className="mt-1 text-xs overflow-x-auto text-gray-400 bg-gray-800 p-2 rounded">
+                        {upload.preview.slice(0, 3).join("\n")}
+                      </pre>
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-600">
-                    <strong>Preview:</strong>
-                    <pre className="mt-1 text-xs overflow-x-auto">
-                      {upload.preview.slice(0, 3).join("\n")}
-                    </pre>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
+            )}
+
+            <div className="mt-6">
+              <label className="block text-sm font-medium text-white mb-2">
+                Migration Name
+              </label>
+              <input
+                type="text"
+                value={migrationName}
+                onChange={(e) => setMigrationName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-600 bg-gray-800 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="e.g., GoTeamUp Migration January 2024"
+              />
             </div>
-          )}
+          </CardContent>
+        </Card>
 
-          <div className="mt-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Migration Name
-            </label>
-            <input
-              type="text"
-              value={migrationName}
-              onChange={(e) => setMigrationName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="e.g., GoTeamUp Migration January 2024"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button
-          onClick={startAnalysis}
-          disabled={
-            uploadedFiles.length === 0 || !migrationName.trim() || isLoading
-          }
-        >
-          {isLoading ? "Starting..." : "Start Analysis"}
-          <ArrowRight className="w-4 h-4 ml-2" />
-        </Button>
+        <div className="flex justify-between">
+          <Button variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button
+            onClick={startAnalysis}
+            disabled={
+              uploadedFiles.length === 0 || !migrationName.trim() || isLoading
+            }
+          >
+            {isLoading ? "Starting..." : "Start Analysis"}
+            <ArrowRight className="w-4 h-4 ml-2" />
+          </Button>
+        </div>
       </div>
-    </div>
-  );
+    );
   };
 
   const renderAnalysisStep = () => (

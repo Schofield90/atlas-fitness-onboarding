@@ -17,7 +17,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { createClient } from "@/app/lib/supabase/client";
-import { createAdminClient } from "@/app/lib/supabase/admin";
+// Removed admin client import - not needed for client components
 import RegistrationOptionsModal from "./RegistrationOptionsModal";
 
 interface Attendee {
@@ -296,12 +296,7 @@ export default function SessionDetailModal({
     newStatus: string,
   ) => {
     try {
-      let supabase;
-      try {
-        supabase = await createAdminClient();
-      } catch {
-        supabase = createClient();
-      }
+      const supabase = createClient();
 
       // Update booking status
       const { error } = await supabase
