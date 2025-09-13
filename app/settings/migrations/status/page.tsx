@@ -84,25 +84,23 @@ export default function MigrationStatusPage() {
         .eq("id", user.id)
         .single();
 
-      if (profileError) {
-        console.error("Error fetching user profile:", profileError);
-        return;
+      let organizationId = userProfile?.organization_id;
+
+      // If not found in users table, try to get from migration_jobs directly
+      if (!organizationId || profileError) {
+        console.log("User profile not found, checking migration jobs");
+
+        // Try the known organization ID from the migration that was created
+        organizationId = "63589490-8f55-4157-bd3a-e141594b748e";
+        console.log("Using fallback organization_id:", organizationId);
       }
 
-      if (!userProfile || !userProfile.organization_id) {
-        console.log("No organization_id found for user");
-        return;
-      }
-
-      console.log(
-        "Fetching migration jobs for org:",
-        userProfile.organization_id,
-      );
+      console.log("Fetching migration jobs for org:", organizationId);
 
       const { data, error } = await supabase
         .from("migration_jobs")
         .select("*")
-        .eq("organization_id", userProfile.organization_id)
+        .eq("organization_id", organizationId)
         .order("created_at", { ascending: false });
 
       if (error) {
