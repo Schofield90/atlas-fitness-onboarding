@@ -73,15 +73,31 @@ export default function MigrationStatusPage() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        console.log("No user found");
+        return;
+      }
 
-      const { data: userProfile } = await supabase
+      const { data: userProfile, error: profileError } = await supabase
         .from("users")
         .select("organization_id")
         .eq("id", user.id)
         .single();
 
-      if (!userProfile) return;
+      if (profileError) {
+        console.error("Error fetching user profile:", profileError);
+        return;
+      }
+
+      if (!userProfile || !userProfile.organization_id) {
+        console.log("No organization_id found for user");
+        return;
+      }
+
+      console.log(
+        "Fetching migration jobs for org:",
+        userProfile.organization_id,
+      );
 
       const { data, error } = await supabase
         .from("migration_jobs")
@@ -89,11 +105,14 @@ export default function MigrationStatusPage() {
         .eq("organization_id", userProfile.organization_id)
         .order("created_at", { ascending: false });
 
-      if (!error && data) {
-        setJobs(data);
+      if (error) {
+        console.error("Error fetching migration jobs:", error);
+      } else {
+        console.log("Migration jobs fetched:", data);
+        setJobs(data || []);
 
         // Auto-select active job
-        const activeJob = data.find((job) =>
+        const activeJob = data?.find((job) =>
           ["processing", "analyzing", "mapping"].includes(job.status),
         );
         if (activeJob && !selectedJob) {
