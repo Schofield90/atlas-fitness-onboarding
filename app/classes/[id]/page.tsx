@@ -159,27 +159,45 @@ export default function ClassDetailPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const { error } = await supabase
+      // Build update object - only include metadata if the column exists
+      const updateData: any = {
+        name: formData.name,
+        description: formData.description,
+        price_pennies: formData.price_pennies,
+        duration_minutes: formData.duration_minutes,
+        default_capacity: formData.capacity,
+        color: formData.color,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Try to update with metadata first
+      let { error } = await supabase
         .from("programs")
         .update({
-          name: formData.name,
-          description: formData.description,
-          price_pennies: formData.price_pennies,
-          duration_minutes: formData.duration_minutes,
-          default_capacity: formData.capacity,
-          color: formData.color,
+          ...updateData,
           metadata: {
             ...formData.metadata,
             category: formData.category,
-            location: formData.location, // Store location in metadata
-            instructor_types: formData.instructor_types, // Store in metadata instead
+            location: formData.location,
+            instructor_types: formData.instructor_types,
           },
-          updated_at: new Date().toISOString(),
         })
         .eq("id", classId)
         .eq("organization_id", organizationId);
 
-      if (error) throw error;
+      // If metadata column doesn't exist, update without it
+      if (error && error.message.includes("metadata")) {
+        console.log("Metadata column not found, updating without it");
+        const { error: retryError } = await supabase
+          .from("programs")
+          .update(updateData)
+          .eq("id", classId)
+          .eq("organization_id", organizationId);
+        
+        if (retryError) throw retryError;
+      } else if (error) {
+        throw error;
+      }
 
       alert("Class type updated successfully");
       router.push("/classes");
