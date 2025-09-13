@@ -33,7 +33,20 @@ export async function GET(request: NextRequest) {
       .from("class_sessions")
       .select(
         `
-        *,
+        id,
+        organization_id,
+        program_id,
+        trainer_id,
+        start_time,
+        end_time,
+        duration_minutes,
+        instructor_name,
+        location,
+        is_active,
+        created_at,
+        updated_at,
+        max_capacity,
+        capacity,
         program:programs(name, description, price_pennies, max_participants, default_capacity),
         bookings:class_bookings!left(
           id,
@@ -85,20 +98,29 @@ export async function GET(request: NextRequest) {
 
     // Transform classes to ensure capacity is correctly set
     // Use the class session's max_capacity first, then fall back to program's max_participants or default_capacity
-    const transformedClasses = (classes || []).map((cls) => ({
-      ...cls,
-      capacity:
+    const transformedClasses = (classes || []).map((cls) => {
+      // Debug logging for capacity values
+      console.log(`[API] Class ${cls.id} capacity values:`, {
+        max_capacity: cls.max_capacity,
+        capacity_field: cls.capacity,
+        program_max_participants: cls.program?.max_participants,
+        program_default_capacity: cls.program?.default_capacity,
+      });
+
+      const finalCapacity =
         cls.max_capacity ||
+        cls.capacity ||
         cls.program?.max_participants ||
         cls.program?.default_capacity ||
-        20,
-      // Also ensure max_capacity is set for consistency
-      max_capacity:
-        cls.max_capacity ||
-        cls.program?.max_participants ||
-        cls.program?.default_capacity ||
-        20,
-    }));
+        20;
+
+      return {
+        ...cls,
+        capacity: finalCapacity,
+        // Also ensure max_capacity is set for consistency
+        max_capacity: finalCapacity,
+      };
+    });
 
     return NextResponse.json({ classes: transformedClasses });
   } catch (error) {
