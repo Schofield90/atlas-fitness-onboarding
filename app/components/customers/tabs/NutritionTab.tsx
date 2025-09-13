@@ -200,18 +200,18 @@ export default function NutritionTab({
         fatGrams: nutritionProfile?.fat_grams,
       });
 
+      // Always fetch client data for fallback values
+      const { data: clientData } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("id", customerId)
+        .single();
+
+      console.log("Client data:", clientData);
+
       // If no profile exists yet, that's ok - the client might not have set one up yet
       if (!nutritionProfile) {
         console.log("No nutrition profile found for client_id:", customerId);
-
-        // Check if there's any profile data in the clients table itself
-        const { data: clientData } = await supabase
-          .from("clients")
-          .select("*")
-          .eq("id", customerId)
-          .single();
-
-        console.log("Client data:", clientData);
       }
 
       console.log("Final nutrition profile:", nutritionProfile);
@@ -219,17 +219,24 @@ export default function NutritionTab({
       // Set the nutrition profile in state
       setNutritionProfile(nutritionProfile);
 
-      // Set the nutrition profile in state if found
-      if (nutritionProfile) {
+      // Set the nutrition profile in state if found (or create from client data)
+      if (nutritionProfile || clientData) {
         // Convert to NutritionPlan format for display
         // Use the correct column names from the nutrition_profiles table
+        // Fall back to client data if nutrition profile doesn't have values
         const plan: NutritionPlan = {
-          id: nutritionProfile.id,
+          id: nutritionProfile?.id || "client-default",
           name: "Current Nutrition Plan",
-          calories_target: nutritionProfile.target_calories || 2000,
-          protein_target: nutritionProfile.protein_grams || 150,
-          carbs_target: nutritionProfile.carbs_grams || 200,
-          fat_target: nutritionProfile.fat_grams || 70,
+          calories_target:
+            nutritionProfile?.target_calories ||
+            clientData?.target_calories ||
+            2000,
+          protein_target:
+            nutritionProfile?.protein_grams || clientData?.protein_grams || 150,
+          carbs_target:
+            nutritionProfile?.carbs_grams || clientData?.carbs_grams || 200,
+          fat_target:
+            nutritionProfile?.fat_grams || clientData?.fat_grams || 70,
           water_target: 2500, // Default water target
           meal_plan: nutritionProfile.nutrition_preferences,
           restrictions: nutritionProfile.nutrition_preferences?.allergies || [],
@@ -330,32 +337,48 @@ export default function NutritionTab({
 
   const savePlan = async () => {
     try {
-      if (activePlan) {
-        // Update existing plan
+      // Map the form data to the correct database columns
+      const profileData = {
+        target_calories: planForm.calories_target,
+        protein_grams: planForm.protein_target,
+        carbs_grams: planForm.carbs_target,
+        fat_grams: planForm.fat_target,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (nutritionProfile) {
+        // Update existing nutrition profile
         const { error } = await supabase
-          .from("nutrition_plans")
-          .update({
-            ...planForm,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", activePlan.id);
+          .from("nutrition_profiles")
+          .update(profileData)
+          .eq("id", nutritionProfile.id);
 
         if (error) throw error;
       } else {
-        // Create new plan
-        const { error } = await supabase.from("nutrition_plans").insert({
+        // Create new nutrition profile
+        const { error } = await supabase.from("nutrition_profiles").insert({
           organization_id: organizationId,
           client_id: customerId,
-          customer_id: customerId,
-          name: "Custom Nutrition Plan",
-          ...planForm,
-          status: "active",
-          start_date: new Date().toISOString(),
+          ...profileData,
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
         });
 
         if (error) throw error;
+      }
+
+      // Also update the clients table with the target values
+      const { error: clientError } = await supabase
+        .from("clients")
+        .update({
+          target_calories: planForm.calories_target,
+          protein_grams: planForm.protein_target,
+          carbs_grams: planForm.carbs_target,
+          fat_grams: planForm.fat_target,
+        })
+        .eq("id", customerId);
+
+      if (clientError) {
+        console.error("Error updating client nutrition targets:", clientError);
       }
 
       await fetchNutritionData();
