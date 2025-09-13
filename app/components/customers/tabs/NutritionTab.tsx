@@ -137,17 +137,20 @@ export default function NutritionTab({
   const supabase = createClient();
 
   useEffect(() => {
-    fetchNutritionData();
-  }, [customerId]);
+    console.log("NutritionTab mounted/updated with customerId:", customerId, "organizationId:", organizationId);
+    if (customerId && organizationId) {
+      fetchNutritionData();
+    }
+  }, [customerId, organizationId]);
 
   const fetchNutritionData = async () => {
     try {
       setLoading(true);
 
       // Fetch nutrition profile - using direct client_id match
-      console.log("Fetching nutrition profile for client:", customerId);
+      console.log("Fetching nutrition profile for client:", customerId, "org:", organizationId);
 
-      // First get the nutrition profile by client_id
+      // First get the nutrition profile by client_id and organization_id
       let { data: nutritionProfile, error: profileError } = await supabase
         .from("nutrition_profiles")
         .select(`
@@ -155,9 +158,33 @@ export default function NutritionTab({
           nutrition_preferences (*)
         `)
         .eq("client_id", customerId)
+        .eq("organization_id", organizationId)
         .maybeSingle();
+      
+      // If not found with org_id, try without it (for backwards compatibility)
+      if (!nutritionProfile && !profileError) {
+        const { data: profileWithoutOrg } = await supabase
+          .from("nutrition_profiles")
+          .select(`
+            *,
+            nutrition_preferences (*)
+          `)
+          .eq("client_id", customerId)
+          .maybeSingle();
+          
+        nutritionProfile = profileWithoutOrg;
+      }
 
-      console.log("Direct nutrition profile query result:", { nutritionProfile, profileError });
+      console.log("Direct nutrition profile query result:", { 
+        nutritionProfile, 
+        profileError,
+        hasProfile: !!nutritionProfile,
+        profileId: nutritionProfile?.id,
+        targetCalories: nutritionProfile?.target_calories,
+        proteinGrams: nutritionProfile?.protein_grams,
+        carbsGrams: nutritionProfile?.carbs_grams,
+        fatGrams: nutritionProfile?.fat_grams
+      });
 
       // If no profile exists yet, that's ok - the client might not have set one up yet
       if (!nutritionProfile) {
@@ -207,7 +234,19 @@ export default function NutritionTab({
           water_target: plan.water_target,
         });
         
-        console.log("Converted nutrition plan:", plan);
+        console.log("Converted nutrition plan:", {
+          planId: plan.id,
+          calories: plan.calories_target,
+          protein: plan.protein_target,
+          carbs: plan.carbs_target,
+          fat: plan.fat_target,
+          originalProfile: {
+            target_calories: nutritionProfile.target_calories,
+            protein_grams: nutritionProfile.protein_grams,
+            carbs_grams: nutritionProfile.carbs_grams,
+            fat_grams: nutritionProfile.fat_grams
+          }
+        });
       } else {
         console.log("No nutrition profile to convert");
       }
