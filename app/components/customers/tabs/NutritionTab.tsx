@@ -102,7 +102,9 @@ export default function NutritionTab({
   organizationId,
 }: NutritionTabProps) {
   const [activePlan, setActivePlan] = useState<NutritionPlan | null>(null);
-  const [aiMealPlan, setAiMealPlan] = useState<AIGeneratedMealPlan | null>(null);
+  const [aiMealPlan, setAiMealPlan] = useState<AIGeneratedMealPlan | null>(
+    null,
+  );
   const [nutritionLogs, setNutritionLogs] = useState<NutritionLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -141,73 +143,144 @@ export default function NutritionTab({
     try {
       setLoading(true);
 
-      // Fetch active nutrition plan
-      const { data: planData, error: planError } = await supabase
-        .from("nutrition_plans")
-        .select("*")
-        .or(`client_id.eq.${customerId},customer_id.eq.${customerId}`)
-        .eq("organization_id", organizationId)
-        .eq("status", "active")
-        .single();
+      // Fetch nutrition profile first - try multiple approaches
+      console.log("Fetching nutrition profile for customer:", customerId);
 
-      if (!planError && planData) {
-        setActivePlan(planData);
+      // First try direct client_id match
+      let { data: nutritionProfile, error: profileError } = await supabase
+        .from("nutrition_profiles")
+        .select("*")
+        .eq("client_id", customerId)
+        .maybeSingle();
+
+      // If not found, try by lead_id
+      if (!nutritionProfile) {
+        const result = await supabase
+          .from("nutrition_profiles")
+          .select("*")
+          .eq("lead_id", customerId)
+          .maybeSingle();
+        nutritionProfile = result.data;
+      }
+
+      // If still not found, check if this customer exists in clients table and get their user_id
+      if (!nutritionProfile) {
+        const { data: clientData } = await supabase
+          .from("clients")
+          .select("user_id, email")
+          .eq("id", customerId)
+          .single();
+
+        if (clientData?.user_id) {
+          // Try to find profile by user_id
+          const { data: profileByUser } = await supabase
+            .from("nutrition_profiles")
+            .select("*")
+            .eq("user_id", clientData.user_id)
+            .maybeSingle();
+          nutritionProfile = profileByUser;
+        }
+
+        // Also try by email if we have it
+        if (!nutritionProfile && clientData?.email) {
+          const { data: clientByEmail } = await supabase
+            .from("clients")
+            .select("id")
+            .eq("email", clientData.email)
+            .eq("org_id", organizationId);
+
+          if (clientByEmail && clientByEmail.length > 0) {
+            for (const c of clientByEmail) {
+              const { data: profileByClientId } = await supabase
+                .from("nutrition_profiles")
+                .select("*")
+                .eq("client_id", c.id)
+                .maybeSingle();
+              if (profileByClientId) {
+                nutritionProfile = profileByClientId;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      console.log("Nutrition profile found:", nutritionProfile);
+
+      // Set the nutrition profile in state if found
+      if (nutritionProfile) {
+        // Convert to NutritionPlan format for display
+        const plan: NutritionPlan = {
+          id: nutritionProfile.id,
+          name: "Current Nutrition Plan",
+          calories_target:
+            nutritionProfile.daily_calories ||
+            nutritionProfile.target_calories ||
+            2000,
+          protein_target:
+            nutritionProfile.daily_protein ||
+            nutritionProfile.target_protein ||
+            150,
+          carbs_target:
+            nutritionProfile.daily_carbs ||
+            nutritionProfile.target_carbs ||
+            200,
+          fat_target:
+            nutritionProfile.daily_fat || nutritionProfile.target_fat || 70,
+          water_target: nutritionProfile.water_intake_ml || 2500,
+          meal_plan: nutritionProfile.preferences,
+          restrictions: nutritionProfile.dietary_restrictions || [],
+          preferences: nutritionProfile.food_preferences || [],
+          start_date: nutritionProfile.created_at,
+          status: "active",
+          created_at: nutritionProfile.created_at,
+          updated_at:
+            nutritionProfile.updated_at || nutritionProfile.created_at,
+        };
+        setActivePlan(plan);
         setPlanForm({
-          calories_target: planData.calories_target,
-          protein_target: planData.protein_target,
-          carbs_target: planData.carbs_target,
-          fat_target: planData.fat_target,
-          water_target: planData.water_target,
+          calories_target: plan.calories_target,
+          protein_target: plan.protein_target,
+          carbs_target: plan.carbs_target,
+          fat_target: plan.fat_target,
+          water_target: plan.water_target,
         });
       }
 
-      // First, try to find the nutrition profile for this client
-      console.log("Fetching nutrition profile for customer:", customerId);
-      const { data: nutritionProfile } = await supabase
-        .from("nutrition_profiles")
-        .select("id")
-        .eq("client_id", customerId)
-        .single();
-      
-      console.log("Nutrition profile found:", nutritionProfile);
-
       // Fetch AI-generated meal plan from meal_plans table
-      console.log("Fetching AI meal plan for customer:", customerId, "org:", organizationId);
-      
-      // Build query conditions
-      let conditions = [`client_id.eq.${customerId}`, `member_id.eq.${customerId}`];
+      console.log("Fetching AI meal plan for customer:", customerId);
+
+      // Build comprehensive query conditions
+      let conditions = [
+        `client_id.eq.${customerId}`,
+        `member_id.eq.${customerId}`,
+        `lead_id.eq.${customerId}`,
+      ];
+
       if (nutritionProfile?.id) {
         conditions.push(`profile_id.eq.${nutritionProfile.id}`);
         conditions.push(`nutrition_profile_id.eq.${nutritionProfile.id}`);
       }
-      
+
+      // Try to get meal plans with multiple approaches
       let { data: aiPlanData, error: aiPlanError } = await supabase
         .from("meal_plans")
         .select("*")
-        .or(conditions.join(','))
-        .eq("organization_id", organizationId)
+        .or(conditions.join(","))
         .order("created_at", { ascending: false })
-        .limit(1);
-      
-      // If no data found with org_id, try without it (for legacy data)
-      if ((!aiPlanData || aiPlanData.length === 0) && !aiPlanError) {
-        console.log("No meal plan found with org_id, trying without...");
-        const result = await supabase
-          .from("meal_plans")
-          .select("*")
-          .or(conditions.join(','))
-          .order("created_at", { ascending: false })
-          .limit(1);
-        
-        aiPlanData = result.data;
-        aiPlanError = result.error;
-      }
+        .limit(5); // Get last 5 to find the most relevant one
 
       console.log("AI Plan Query Result:", { aiPlanData, aiPlanError });
-      
+
       if (!aiPlanError && aiPlanData && aiPlanData.length > 0) {
-        console.log("Setting AI meal plan:", aiPlanData[0]);
-        setAiMealPlan(aiPlanData[0]);
+        // Find the most recent plan with actual meal data
+        const validPlan =
+          aiPlanData.find(
+            (plan) => plan.meal_data || plan.plan_data || plan.meals_per_day,
+          ) || aiPlanData[0];
+
+        console.log("Setting AI meal plan:", validPlan);
+        setAiMealPlan(validPlan);
       } else {
         console.log("No AI meal plan found or error:", aiPlanError);
       }
@@ -219,8 +292,9 @@ export default function NutritionTab({
       const { data: logsData, error: logsError } = await supabase
         .from("nutrition_logs")
         .select("*")
-        .or(`client_id.eq.${customerId},customer_id.eq.${customerId}`)
-        .eq("organization_id", organizationId)
+        .or(
+          `client_id.eq.${customerId},customer_id.eq.${customerId},lead_id.eq.${customerId}`,
+        )
         .gte("date", thirtyDaysAgo.toISOString())
         .order("date", { ascending: false });
 
@@ -384,7 +458,7 @@ export default function NutritionTab({
   }
 
   console.log("Rendering NutritionTab - aiMealPlan:", aiMealPlan);
-  
+
   // Function to generate test meal plan
   const generateTestMealPlan = async () => {
     try {
@@ -401,36 +475,122 @@ export default function NutritionTab({
         daily_carbs: 200,
         daily_fat: 70,
         meal_data: {
-          weeks: [{
-            week: 1,
-            days: [
-              {
-                day: "Monday",
-                meals: [
-                  { type: "Breakfast", name: "Protein Oatmeal", calories: 400, protein: 30, carbs: 50, fat: 10, description: "Oats with protein powder, berries, and almonds" },
-                  { type: "Snack", name: "Greek Yogurt", calories: 150, protein: 20, carbs: 15, fat: 3, description: "Plain Greek yogurt with honey" },
-                  { type: "Lunch", name: "Grilled Chicken Salad", calories: 500, protein: 45, carbs: 30, fat: 20, description: "Mixed greens, grilled chicken, avocado, olive oil dressing" },
-                  { type: "Snack", name: "Protein Shake", calories: 200, protein: 25, carbs: 20, fat: 5, description: "Whey protein with banana" },
-                  { type: "Dinner", name: "Salmon & Sweet Potato", calories: 600, protein: 40, carbs: 60, fat: 25, description: "Grilled salmon, roasted sweet potato, steamed broccoli" }
-                ],
-                totals: { calories: 1850, protein: 160, carbs: 175, fat: 63 }
-              },
-              {
-                day: "Tuesday",
-                meals: [
-                  { type: "Breakfast", name: "Scrambled Eggs & Toast", calories: 450, protein: 35, carbs: 40, fat: 15, description: "3 eggs, whole grain toast, spinach" },
-                  { type: "Snack", name: "Apple & Almond Butter", calories: 200, protein: 6, carbs: 25, fat: 10, description: "Apple slices with 2 tbsp almond butter" },
-                  { type: "Lunch", name: "Turkey Wrap", calories: 480, protein: 40, carbs: 45, fat: 15, description: "Whole wheat wrap with turkey, veggies, hummus" },
-                  { type: "Snack", name: "Cottage Cheese", calories: 180, protein: 24, carbs: 10, fat: 4, description: "Low-fat cottage cheese with berries" },
-                  { type: "Dinner", name: "Steak & Quinoa", calories: 650, protein: 45, carbs: 55, fat: 28, description: "Lean steak, quinoa, roasted vegetables" }
-                ],
-                totals: { calories: 1960, protein: 150, carbs: 175, fat: 72 }
-              }
-            ]
-          }]
+          weeks: [
+            {
+              week: 1,
+              days: [
+                {
+                  day: "Monday",
+                  meals: [
+                    {
+                      type: "Breakfast",
+                      name: "Protein Oatmeal",
+                      calories: 400,
+                      protein: 30,
+                      carbs: 50,
+                      fat: 10,
+                      description:
+                        "Oats with protein powder, berries, and almonds",
+                    },
+                    {
+                      type: "Snack",
+                      name: "Greek Yogurt",
+                      calories: 150,
+                      protein: 20,
+                      carbs: 15,
+                      fat: 3,
+                      description: "Plain Greek yogurt with honey",
+                    },
+                    {
+                      type: "Lunch",
+                      name: "Grilled Chicken Salad",
+                      calories: 500,
+                      protein: 45,
+                      carbs: 30,
+                      fat: 20,
+                      description:
+                        "Mixed greens, grilled chicken, avocado, olive oil dressing",
+                    },
+                    {
+                      type: "Snack",
+                      name: "Protein Shake",
+                      calories: 200,
+                      protein: 25,
+                      carbs: 20,
+                      fat: 5,
+                      description: "Whey protein with banana",
+                    },
+                    {
+                      type: "Dinner",
+                      name: "Salmon & Sweet Potato",
+                      calories: 600,
+                      protein: 40,
+                      carbs: 60,
+                      fat: 25,
+                      description:
+                        "Grilled salmon, roasted sweet potato, steamed broccoli",
+                    },
+                  ],
+                  totals: { calories: 1850, protein: 160, carbs: 175, fat: 63 },
+                },
+                {
+                  day: "Tuesday",
+                  meals: [
+                    {
+                      type: "Breakfast",
+                      name: "Scrambled Eggs & Toast",
+                      calories: 450,
+                      protein: 35,
+                      carbs: 40,
+                      fat: 15,
+                      description: "3 eggs, whole grain toast, spinach",
+                    },
+                    {
+                      type: "Snack",
+                      name: "Apple & Almond Butter",
+                      calories: 200,
+                      protein: 6,
+                      carbs: 25,
+                      fat: 10,
+                      description: "Apple slices with 2 tbsp almond butter",
+                    },
+                    {
+                      type: "Lunch",
+                      name: "Turkey Wrap",
+                      calories: 480,
+                      protein: 40,
+                      carbs: 45,
+                      fat: 15,
+                      description:
+                        "Whole wheat wrap with turkey, veggies, hummus",
+                    },
+                    {
+                      type: "Snack",
+                      name: "Cottage Cheese",
+                      calories: 180,
+                      protein: 24,
+                      carbs: 10,
+                      fat: 4,
+                      description: "Low-fat cottage cheese with berries",
+                    },
+                    {
+                      type: "Dinner",
+                      name: "Steak & Quinoa",
+                      calories: 650,
+                      protein: 45,
+                      carbs: 55,
+                      fat: 28,
+                      description: "Lean steak, quinoa, roasted vegetables",
+                    },
+                  ],
+                  totals: { calories: 1960, protein: 150, carbs: 175, fat: 72 },
+                },
+              ],
+            },
+          ],
         },
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       };
 
       const { data, error } = await supabase
@@ -452,13 +612,15 @@ export default function NutritionTab({
       alert("Error creating test meal plan");
     }
   };
-  
+
   return (
     <div className="space-y-6">
       {/* Debug button for testing */}
       {!aiMealPlan && (
         <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-4">
-          <p className="text-yellow-400 mb-2">No AI meal plan found for this client.</p>
+          <p className="text-yellow-400 mb-2">
+            No AI meal plan found for this client.
+          </p>
           <button
             onClick={generateTestMealPlan}
             className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
@@ -467,7 +629,7 @@ export default function NutritionTab({
           </button>
         </div>
       )}
-      
+
       {/* AI Generated Meal Plan Section */}
       {aiMealPlan && (
         <div className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 rounded-lg p-6 border border-purple-700/50">
@@ -501,44 +663,62 @@ export default function NutritionTab({
             <div className="space-y-4">
               {/* Display meal plan details */}
               {(() => {
-                const mealData = aiMealPlan.meal_data || aiMealPlan.plan_data || aiMealPlan;
+                const mealData =
+                  aiMealPlan.meal_data || aiMealPlan.plan_data || aiMealPlan;
                 console.log("Meal data to display:", mealData);
-                
-                if (typeof mealData === 'object' && mealData) {
+
+                if (typeof mealData === "object" && mealData) {
                   // Check if it's a weekly plan
                   if (mealData.weeks || mealData.days) {
-                    const days = mealData.weeks ? 
-                      (mealData.weeks[0]?.days || []) : 
-                      (mealData.days || []);
-                    
+                    const days = mealData.weeks
+                      ? mealData.weeks[0]?.days || []
+                      : mealData.days || [];
+
                     return (
                       <div className="space-y-4">
                         {days.slice(0, 7).map((day: any, index: number) => (
-                          <div key={index} className="bg-gray-800/50 rounded-lg p-4">
+                          <div
+                            key={index}
+                            className="bg-gray-800/50 rounded-lg p-4"
+                          >
                             <h4 className="text-white font-medium mb-3">
                               {day.day || `Day ${index + 1}`}
                             </h4>
                             <div className="space-y-2">
-                              {day.meals?.map((meal: any, mealIndex: number) => (
-                                <div key={mealIndex} className="bg-gray-700/50 rounded p-3">
-                                  <div className="flex justify-between items-start">
-                                    <div className="flex-1">
-                                      <h5 className="text-purple-300 font-medium">
-                                        {meal.type || meal.name}
-                                      </h5>
-                                      <p className="text-gray-300 text-sm mt-1">
-                                        {meal.description || meal.foods?.join(', ')}
-                                      </p>
-                                    </div>
-                                    <div className="text-right text-xs space-y-1">
-                                      <div className="text-orange-400">{meal.calories || 0} cal</div>
-                                      <div className="text-red-400">{meal.protein || 0}g protein</div>
-                                      <div className="text-yellow-400">{meal.carbs || 0}g carbs</div>
-                                      <div className="text-purple-400">{meal.fat || 0}g fat</div>
+                              {day.meals?.map(
+                                (meal: any, mealIndex: number) => (
+                                  <div
+                                    key={mealIndex}
+                                    className="bg-gray-700/50 rounded p-3"
+                                  >
+                                    <div className="flex justify-between items-start">
+                                      <div className="flex-1">
+                                        <h5 className="text-purple-300 font-medium">
+                                          {meal.type || meal.name}
+                                        </h5>
+                                        <p className="text-gray-300 text-sm mt-1">
+                                          {meal.description ||
+                                            meal.foods?.join(", ")}
+                                        </p>
+                                      </div>
+                                      <div className="text-right text-xs space-y-1">
+                                        <div className="text-orange-400">
+                                          {meal.calories || 0} cal
+                                        </div>
+                                        <div className="text-red-400">
+                                          {meal.protein || 0}g protein
+                                        </div>
+                                        <div className="text-yellow-400">
+                                          {meal.carbs || 0}g carbs
+                                        </div>
+                                        <div className="text-purple-400">
+                                          {meal.fat || 0}g fat
+                                        </div>
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                              ))}
+                                ),
+                              )}
                             </div>
                             {day.totals && (
                               <div className="mt-3 pt-3 border-t border-gray-700 flex justify-around text-sm">
@@ -565,21 +745,32 @@ export default function NutritionTab({
                     return (
                       <div className="space-y-3">
                         {mealData.meals.map((meal: any, index: number) => (
-                          <div key={index} className="bg-gray-700/50 rounded p-3">
+                          <div
+                            key={index}
+                            className="bg-gray-700/50 rounded p-3"
+                          >
                             <div className="flex justify-between items-start">
                               <div className="flex-1">
                                 <h5 className="text-purple-300 font-medium">
                                   {meal.type || meal.name}
                                 </h5>
                                 <p className="text-gray-300 text-sm mt-1">
-                                  {meal.description || meal.foods?.join(', ')}
+                                  {meal.description || meal.foods?.join(", ")}
                                 </p>
                               </div>
                               <div className="text-right text-xs space-y-1">
-                                <div className="text-orange-400">{meal.calories || 0} cal</div>
-                                <div className="text-red-400">{meal.protein || 0}g protein</div>
-                                <div className="text-yellow-400">{meal.carbs || 0}g carbs</div>
-                                <div className="text-purple-400">{meal.fat || 0}g fat</div>
+                                <div className="text-orange-400">
+                                  {meal.calories || 0} cal
+                                </div>
+                                <div className="text-red-400">
+                                  {meal.protein || 0}g protein
+                                </div>
+                                <div className="text-yellow-400">
+                                  {meal.carbs || 0}g carbs
+                                </div>
+                                <div className="text-purple-400">
+                                  {meal.fat || 0}g fat
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -588,49 +779,75 @@ export default function NutritionTab({
                     );
                   }
                 }
-                
+
                 // If we have plan metadata but no structured meal data
-                if (mealData.name || mealData.description || mealData.daily_calories) {
+                if (
+                  mealData.name ||
+                  mealData.description ||
+                  mealData.daily_calories
+                ) {
                   return (
                     <div className="space-y-3">
                       <div className="bg-gray-700/50 rounded p-4">
-                        <h4 className="text-white font-medium mb-2">Plan Details</h4>
+                        <h4 className="text-white font-medium mb-2">
+                          Plan Details
+                        </h4>
                         {mealData.name && (
                           <p className="text-gray-300">Name: {mealData.name}</p>
                         )}
                         {mealData.description && (
-                          <p className="text-gray-300 text-sm mt-1">{mealData.description}</p>
+                          <p className="text-gray-300 text-sm mt-1">
+                            {mealData.description}
+                          </p>
                         )}
                         <div className="grid grid-cols-4 gap-3 mt-3">
                           {mealData.daily_calories && (
                             <div>
-                              <div className="text-orange-400 font-medium">{mealData.daily_calories}</div>
-                              <div className="text-xs text-gray-500">calories/day</div>
+                              <div className="text-orange-400 font-medium">
+                                {mealData.daily_calories}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                calories/day
+                              </div>
                             </div>
                           )}
                           {mealData.daily_protein && (
                             <div>
-                              <div className="text-red-400 font-medium">{mealData.daily_protein}g</div>
-                              <div className="text-xs text-gray-500">protein/day</div>
+                              <div className="text-red-400 font-medium">
+                                {mealData.daily_protein}g
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                protein/day
+                              </div>
                             </div>
                           )}
                           {mealData.daily_carbs && (
                             <div>
-                              <div className="text-yellow-400 font-medium">{mealData.daily_carbs}g</div>
-                              <div className="text-xs text-gray-500">carbs/day</div>
+                              <div className="text-yellow-400 font-medium">
+                                {mealData.daily_carbs}g
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                carbs/day
+                              </div>
                             </div>
                           )}
                           {mealData.daily_fat && (
                             <div>
-                              <div className="text-purple-400 font-medium">{mealData.daily_fat}g</div>
-                              <div className="text-xs text-gray-500">fat/day</div>
+                              <div className="text-purple-400 font-medium">
+                                {mealData.daily_fat}g
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                fat/day
+                              </div>
                             </div>
                           )}
                         </div>
                       </div>
                       <div className="text-xs text-gray-500 bg-gray-800 p-2 rounded">
                         <details>
-                          <summary className="cursor-pointer text-gray-400">Debug: View raw data</summary>
+                          <summary className="cursor-pointer text-gray-400">
+                            Debug: View raw data
+                          </summary>
                           <pre className="mt-2 text-xs overflow-auto max-h-40">
                             {JSON.stringify(mealData, null, 2)}
                           </pre>
@@ -639,12 +856,14 @@ export default function NutritionTab({
                     </div>
                   );
                 }
-                
+
                 return (
                   <div className="text-gray-400 text-center py-4">
                     <p>Unable to display meal plan format</p>
                     <details className="mt-2">
-                      <summary className="cursor-pointer text-xs">Debug info</summary>
+                      <summary className="cursor-pointer text-xs">
+                        Debug info
+                      </summary>
                       <pre className="mt-2 text-xs text-left overflow-auto max-h-40">
                         {JSON.stringify(mealData, null, 2)}
                       </pre>
@@ -652,9 +871,10 @@ export default function NutritionTab({
                   </div>
                 );
               })()}
-              
+
               <div className="text-xs text-gray-500 mt-4">
-                Generated on {new Date(aiMealPlan.created_at).toLocaleDateString('en-GB')}
+                Generated on{" "}
+                {new Date(aiMealPlan.created_at).toLocaleDateString("en-GB")}
               </div>
             </div>
           )}
