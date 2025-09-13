@@ -368,8 +368,89 @@ export default function NutritionTab({
 
   console.log("Rendering NutritionTab - aiMealPlan:", aiMealPlan);
   
+  // Function to generate test meal plan
+  const generateTestMealPlan = async () => {
+    try {
+      const testPlan = {
+        organization_id: organizationId,
+        client_id: customerId,
+        member_id: customerId,
+        name: "7-Day Balanced Nutrition Plan",
+        description: "AI-generated meal plan for optimal nutrition",
+        duration_days: 7,
+        meals_per_day: 5,
+        daily_calories: 2000,
+        daily_protein: 150,
+        daily_carbs: 200,
+        daily_fat: 70,
+        meal_data: {
+          weeks: [{
+            week: 1,
+            days: [
+              {
+                day: "Monday",
+                meals: [
+                  { type: "Breakfast", name: "Protein Oatmeal", calories: 400, protein: 30, carbs: 50, fat: 10, description: "Oats with protein powder, berries, and almonds" },
+                  { type: "Snack", name: "Greek Yogurt", calories: 150, protein: 20, carbs: 15, fat: 3, description: "Plain Greek yogurt with honey" },
+                  { type: "Lunch", name: "Grilled Chicken Salad", calories: 500, protein: 45, carbs: 30, fat: 20, description: "Mixed greens, grilled chicken, avocado, olive oil dressing" },
+                  { type: "Snack", name: "Protein Shake", calories: 200, protein: 25, carbs: 20, fat: 5, description: "Whey protein with banana" },
+                  { type: "Dinner", name: "Salmon & Sweet Potato", calories: 600, protein: 40, carbs: 60, fat: 25, description: "Grilled salmon, roasted sweet potato, steamed broccoli" }
+                ],
+                totals: { calories: 1850, protein: 160, carbs: 175, fat: 63 }
+              },
+              {
+                day: "Tuesday",
+                meals: [
+                  { type: "Breakfast", name: "Scrambled Eggs & Toast", calories: 450, protein: 35, carbs: 40, fat: 15, description: "3 eggs, whole grain toast, spinach" },
+                  { type: "Snack", name: "Apple & Almond Butter", calories: 200, protein: 6, carbs: 25, fat: 10, description: "Apple slices with 2 tbsp almond butter" },
+                  { type: "Lunch", name: "Turkey Wrap", calories: 480, protein: 40, carbs: 45, fat: 15, description: "Whole wheat wrap with turkey, veggies, hummus" },
+                  { type: "Snack", name: "Cottage Cheese", calories: 180, protein: 24, carbs: 10, fat: 4, description: "Low-fat cottage cheese with berries" },
+                  { type: "Dinner", name: "Steak & Quinoa", calories: 650, protein: 45, carbs: 55, fat: 28, description: "Lean steak, quinoa, roasted vegetables" }
+                ],
+                totals: { calories: 1960, protein: 150, carbs: 175, fat: 72 }
+              }
+            ]
+          }]
+        },
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      const { data, error } = await supabase
+        .from("meal_plans")
+        .insert(testPlan)
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error creating test meal plan:", error);
+        alert("Failed to create test meal plan: " + error.message);
+      } else {
+        console.log("Test meal plan created:", data);
+        alert("Test meal plan created successfully!");
+        await fetchNutritionData(); // Reload data
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Error creating test meal plan");
+    }
+  };
+  
   return (
     <div className="space-y-6">
+      {/* Debug button for testing */}
+      {!aiMealPlan && (
+        <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-4">
+          <p className="text-yellow-400 mb-2">No AI meal plan found for this client.</p>
+          <button
+            onClick={generateTestMealPlan}
+            className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
+          >
+            Generate Test Meal Plan
+          </button>
+        </div>
+      )}
+      
       {/* AI Generated Meal Plan Section */}
       {aiMealPlan && (
         <div className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 rounded-lg p-6 border border-purple-700/50">
