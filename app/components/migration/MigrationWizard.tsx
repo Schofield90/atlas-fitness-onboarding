@@ -363,62 +363,61 @@ export function MigrationWizard({
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Upload Your GoTeamUp Data</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-white">Upload Your GoTeamUp Data</CardTitle>
+          <CardDescription className="text-gray-400">
             Upload CSV or Excel files containing your member data, class
             bookings, and payment history
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div
-            className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center hover:border-blue-500 cursor-pointer transition-colors bg-gray-800/50 hover:bg-gray-800"
-            onClick={() => document.getElementById("file-upload")?.click()}
-            onDragOver={(e) => {
-              e.preventDefault();
-              e.currentTarget.classList.add("border-blue-500", "bg-gray-800");
-            }}
-            onDragLeave={(e) => {
-              e.preventDefault();
-              e.currentTarget.classList.remove("border-blue-500", "bg-gray-800");
-            }}
-            onDrop={(e) => {
-              e.preventDefault();
-              e.currentTarget.classList.remove("border-blue-500", "bg-gray-800");
-              if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                handleFileUpload(e.dataTransfer.files);
-              }
-            }}
+          <label 
+            htmlFor="file-upload-input"
+            className="block"
           >
-            <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <button
-              type="button"
-              className="text-lg font-medium text-blue-500 hover:text-blue-400 mb-2 underline"
-              onClick={(e) => {
-                e.stopPropagation();
-                document.getElementById("file-upload")?.click();
+            <div
+              className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center hover:border-blue-500 cursor-pointer transition-all bg-gray-800/50 hover:bg-gray-800/80"
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.currentTarget.classList.add("border-blue-500", "bg-gray-800");
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                e.currentTarget.classList.remove("border-blue-500", "bg-gray-800");
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.currentTarget.classList.remove("border-blue-500", "bg-gray-800");
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                  handleFileUpload(e.dataTransfer.files);
+                }
               }}
             >
-              Click to upload
-            </button>
-            <div className="text-sm text-gray-400">
-              or drag and drop
-            </div>
-            <div className="text-sm text-gray-500 mt-2">
-              CSV, Excel files up to 100MB
+              <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <div className="space-y-2">
+                <p className="text-lg font-medium">
+                  <span className="text-blue-500 hover:text-blue-400 underline cursor-pointer">
+                    Click to upload
+                  </span>
+                  <span className="text-gray-400"> or drag and drop</span>
+                </p>
+                <p className="text-sm text-gray-500">
+                  CSV, Excel files up to 100MB
+                </p>
+              </div>
             </div>
             <input
-              id="file-upload"
+              id="file-upload-input"
               type="file"
               multiple
               accept=".csv,.xlsx,.xls"
-              className="hidden"
+              className="sr-only"
               onChange={(e) => {
                 if (e.target.files && e.target.files.length > 0) {
                   handleFileUpload(e.target.files);
                 }
               }}
             />
-          </div>
+          </label>
 
           {uploadedFiles.length > 0 && (
             <div className="mt-6 space-y-3">
