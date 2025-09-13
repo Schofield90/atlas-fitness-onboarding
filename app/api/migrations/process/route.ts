@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get the migration job and file
     const { data: job, error: jobError } = await supabase
@@ -387,7 +387,7 @@ async function processPayments(
       }
 
       // Try to match with existing client
-      const emailField = data.find(
+      const emailField = mappings.find(
         (m) => m.target_field === "email",
       )?.source_field;
       if (emailField && row[emailField]) {
