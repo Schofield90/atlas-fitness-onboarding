@@ -49,6 +49,28 @@ interface NutritionPlan {
   updated_at: string;
 }
 
+interface AIGeneratedMealPlan {
+  id: string;
+  nutrition_profile_id?: string;
+  member_id?: string;
+  client_id?: string;
+  organization_id: string;
+  name?: string;
+  description?: string;
+  duration_days?: number;
+  meals_per_day?: number;
+  daily_calories?: number;
+  daily_protein?: number;
+  daily_carbs?: number;
+  daily_fat?: number;
+  daily_fiber?: number;
+  meal_data?: any;
+  plan_data?: any;
+  date?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
 interface NutritionLog {
   id: string;
   date: string;
@@ -80,6 +102,7 @@ export default function NutritionTab({
   organizationId,
 }: NutritionTabProps) {
   const [activePlan, setActivePlan] = useState<NutritionPlan | null>(null);
+  const [aiMealPlan, setAiMealPlan] = useState<AIGeneratedMealPlan | null>(null);
   const [nutritionLogs, setNutritionLogs] = useState<NutritionLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -88,6 +111,7 @@ export default function NutritionTab({
   );
   const [showAddMeal, setShowAddMeal] = useState(false);
   const [editingPlan, setEditingPlan] = useState(false);
+  const [showAIMealPlan, setShowAIMealPlan] = useState(false);
 
   const [planForm, setPlanForm] = useState({
     calories_target: 2000,
@@ -135,6 +159,19 @@ export default function NutritionTab({
           fat_target: planData.fat_target,
           water_target: planData.water_target,
         });
+      }
+
+      // Fetch AI-generated meal plan from meal_plans table
+      const { data: aiPlanData, error: aiPlanError } = await supabase
+        .from("meal_plans")
+        .select("*")
+        .or(`client_id.eq.${customerId},member_id.eq.${customerId}`)
+        .eq("organization_id", organizationId)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (!aiPlanError && aiPlanData && aiPlanData.length > 0) {
+        setAiMealPlan(aiPlanData[0]);
       }
 
       // Fetch nutrition logs for the last 30 days
@@ -310,12 +347,145 @@ export default function NutritionTab({
 
   return (
     <div className="space-y-6">
+      {/* AI Generated Meal Plan Section */}
+      {aiMealPlan && (aiMealPlan.meal_data || aiMealPlan.plan_data) && (
+        <div className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 rounded-lg p-6 border border-purple-700/50">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-medium text-white flex items-center gap-2">
+              <Apple className="h-5 w-5 text-purple-500" />
+              AI-Generated Meal Plan
+              <span className="text-xs bg-purple-600/30 px-2 py-1 rounded-full text-purple-300">
+                Personalized
+              </span>
+            </h3>
+            <button
+              onClick={() => setShowAIMealPlan(!showAIMealPlan)}
+              className="px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
+            >
+              {showAIMealPlan ? (
+                <>
+                  <X className="h-4 w-4" />
+                  Hide
+                </>
+              ) : (
+                <>
+                  <Utensils className="h-4 w-4" />
+                  View Details
+                </>
+              )}
+            </button>
+          </div>
+
+          {showAIMealPlan && (
+            <div className="space-y-4">
+              {/* Display meal plan details */}
+              {(() => {
+                const mealData = aiMealPlan.meal_data || aiMealPlan.plan_data;
+                if (typeof mealData === 'object' && mealData) {
+                  // Check if it's a weekly plan
+                  if (mealData.weeks || mealData.days) {
+                    const days = mealData.weeks ? 
+                      (mealData.weeks[0]?.days || []) : 
+                      (mealData.days || []);
+                    
+                    return (
+                      <div className="space-y-4">
+                        {days.slice(0, 7).map((day: any, index: number) => (
+                          <div key={index} className="bg-gray-800/50 rounded-lg p-4">
+                            <h4 className="text-white font-medium mb-3">
+                              {day.day || `Day ${index + 1}`}
+                            </h4>
+                            <div className="space-y-2">
+                              {day.meals?.map((meal: any, mealIndex: number) => (
+                                <div key={mealIndex} className="bg-gray-700/50 rounded p-3">
+                                  <div className="flex justify-between items-start">
+                                    <div className="flex-1">
+                                      <h5 className="text-purple-300 font-medium">
+                                        {meal.type || meal.name}
+                                      </h5>
+                                      <p className="text-gray-300 text-sm mt-1">
+                                        {meal.description || meal.foods?.join(', ')}
+                                      </p>
+                                    </div>
+                                    <div className="text-right text-xs space-y-1">
+                                      <div className="text-orange-400">{meal.calories || 0} cal</div>
+                                      <div className="text-red-400">{meal.protein || 0}g protein</div>
+                                      <div className="text-yellow-400">{meal.carbs || 0}g carbs</div>
+                                      <div className="text-purple-400">{meal.fat || 0}g fat</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            {day.totals && (
+                              <div className="mt-3 pt-3 border-t border-gray-700 flex justify-around text-sm">
+                                <span className="text-orange-400">
+                                  Total: {day.totals.calories || 0} cal
+                                </span>
+                                <span className="text-red-400">
+                                  P: {day.totals.protein || 0}g
+                                </span>
+                                <span className="text-yellow-400">
+                                  C: {day.totals.carbs || 0}g
+                                </span>
+                                <span className="text-purple-400">
+                                  F: {day.totals.fat || 0}g
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  } else if (mealData.meals) {
+                    // Single day plan
+                    return (
+                      <div className="space-y-3">
+                        {mealData.meals.map((meal: any, index: number) => (
+                          <div key={index} className="bg-gray-700/50 rounded p-3">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <h5 className="text-purple-300 font-medium">
+                                  {meal.type || meal.name}
+                                </h5>
+                                <p className="text-gray-300 text-sm mt-1">
+                                  {meal.description || meal.foods?.join(', ')}
+                                </p>
+                              </div>
+                              <div className="text-right text-xs space-y-1">
+                                <div className="text-orange-400">{meal.calories || 0} cal</div>
+                                <div className="text-red-400">{meal.protein || 0}g protein</div>
+                                <div className="text-yellow-400">{meal.carbs || 0}g carbs</div>
+                                <div className="text-purple-400">{meal.fat || 0}g fat</div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  }
+                }
+                return (
+                  <div className="text-gray-400 text-center py-4">
+                    Unable to display meal plan format
+                  </div>
+                );
+              })()}
+              
+              <div className="text-xs text-gray-500 mt-4">
+                Generated on {new Date(aiMealPlan.created_at).toLocaleDateString('en-GB')}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Nutrition Plan Overview */}
       <div className="bg-gray-800 rounded-lg p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-medium text-white flex items-center gap-2">
             <Target className="h-5 w-5 text-green-500" />
-            Nutrition Plan
+            Nutrition Targets
           </h3>
           <button
             onClick={() => setEditingPlan(!editingPlan)}
@@ -329,7 +499,7 @@ export default function NutritionTab({
             ) : (
               <>
                 <Edit className="h-4 w-4" />
-                Edit Plan
+                Edit Targets
               </>
             )}
           </button>
