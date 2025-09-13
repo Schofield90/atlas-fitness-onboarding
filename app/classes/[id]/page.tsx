@@ -49,6 +49,12 @@ export default function ClassDetailPage() {
     color: "#3B82F6",
     metadata: {},
   });
+  
+  const [updateOptions, setUpdateOptions] = useState({
+    updateFutureSessions: false,
+    updateAllSessions: false,
+    effectiveDate: new Date().toISOString().split('T')[0],
+  });
 
   useEffect(() => {
     if (classId && organizationId) {
@@ -199,8 +205,34 @@ export default function ClassDetailPage() {
         throw error;
       }
 
+      // Update class sessions if requested
+      if (updateOptions.updateFutureSessions || updateOptions.updateAllSessions) {
+        let query = supabase
+          .from("class_sessions")
+          .update({ max_capacity: formData.capacity })
+          .eq("program_id", classId)
+          .eq("organization_id", organizationId);
+
+        if (updateOptions.updateFutureSessions) {
+          // Only update sessions on or after the effective date
+          query = query.gte("start_time", updateOptions.effectiveDate + "T00:00:00");
+        }
+
+        const { error: sessionsError } = await query;
+        
+        if (sessionsError) {
+          console.error("Error updating class sessions:", sessionsError);
+          alert("Warning: Class type updated but sessions may not have been updated");
+        } else {
+          console.log("Successfully updated class sessions capacity");
+        }
+      }
+
       alert("Class type updated successfully");
-      router.push("/classes");
+      
+      // Reload to show updated data
+      await loadClassSessions();
+      
     } catch (error: any) {
       console.error("Error saving class type:", error);
       alert("Failed to save changes: " + error.message);
@@ -452,6 +484,70 @@ export default function ClassDetailPage() {
                         max="100"
                       />
                     </div>
+                  </div>
+
+                  {/* Capacity Update Options */}
+                  <div className="bg-gray-900/50 rounded-lg p-4 border border-gray-700">
+                    <h3 className="text-sm font-medium text-gray-300 mb-3">
+                      Apply Capacity Changes To:
+                    </h3>
+                    <div className="space-y-2">
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={updateOptions.updateFutureSessions}
+                          onChange={(e) =>
+                            setUpdateOptions({
+                              ...updateOptions,
+                              updateFutureSessions: e.target.checked,
+                              updateAllSessions: false, // Uncheck all if future is checked
+                            })
+                          }
+                          className="mr-2 rounded border-gray-600 bg-gray-700 text-orange-500 focus:ring-orange-500"
+                        />
+                        <span className="text-sm text-gray-300">
+                          Future sessions only (from effective date)
+                        </span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={updateOptions.updateAllSessions}
+                          onChange={(e) =>
+                            setUpdateOptions({
+                              ...updateOptions,
+                              updateAllSessions: e.target.checked,
+                              updateFutureSessions: false, // Uncheck future if all is checked
+                            })
+                          }
+                          className="mr-2 rounded border-gray-600 bg-gray-700 text-orange-500 focus:ring-orange-500"
+                        />
+                        <span className="text-sm text-gray-300">
+                          All existing sessions
+                        </span>
+                      </label>
+                      {updateOptions.updateFutureSessions && (
+                        <div className="mt-2 ml-6">
+                          <label className="block text-xs text-gray-400 mb-1">
+                            Effective Date:
+                          </label>
+                          <input
+                            type="date"
+                            value={updateOptions.effectiveDate}
+                            onChange={(e) =>
+                              setUpdateOptions({
+                                ...updateOptions,
+                                effectiveDate: e.target.value,
+                              })
+                            }
+                            className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Leave unchecked to only update the default for new sessions
+                    </p>
                   </div>
 
                   <div>
