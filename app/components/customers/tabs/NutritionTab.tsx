@@ -144,69 +144,36 @@ export default function NutritionTab({
     try {
       setLoading(true);
 
-      // Fetch nutrition profile first - try multiple approaches
-      console.log("Fetching nutrition profile for customer:", customerId);
+      // Fetch nutrition profile - using direct client_id match
+      console.log("Fetching nutrition profile for client:", customerId);
 
-      // First try direct client_id match
+      // First get the nutrition profile by client_id
       let { data: nutritionProfile, error: profileError } = await supabase
         .from("nutrition_profiles")
-        .select("*")
+        .select(`
+          *,
+          nutrition_preferences (*)
+        `)
         .eq("client_id", customerId)
         .maybeSingle();
 
-      // If not found, try by lead_id
-      if (!nutritionProfile) {
-        const result = await supabase
-          .from("nutrition_profiles")
-          .select("*")
-          .eq("lead_id", customerId)
-          .maybeSingle();
-        nutritionProfile = result.data;
-      }
+      console.log("Direct nutrition profile query result:", { nutritionProfile, profileError });
 
-      // If still not found, check if this customer exists in clients table and get their user_id
+      // If no profile exists yet, that's ok - the client might not have set one up yet
       if (!nutritionProfile) {
+        console.log("No nutrition profile found for client_id:", customerId);
+        
+        // Check if there's any profile data in the clients table itself
         const { data: clientData } = await supabase
           .from("clients")
-          .select("user_id, email")
+          .select("*")
           .eq("id", customerId)
           .single();
-
-        if (clientData?.user_id) {
-          // Try to find profile by user_id
-          const { data: profileByUser } = await supabase
-            .from("nutrition_profiles")
-            .select("*")
-            .eq("user_id", clientData.user_id)
-            .maybeSingle();
-          nutritionProfile = profileByUser;
-        }
-
-        // Also try by email if we have it
-        if (!nutritionProfile && clientData?.email) {
-          const { data: clientByEmail } = await supabase
-            .from("clients")
-            .select("id")
-            .eq("email", clientData.email)
-            .eq("org_id", organizationId);
-
-          if (clientByEmail && clientByEmail.length > 0) {
-            for (const c of clientByEmail) {
-              const { data: profileByClientId } = await supabase
-                .from("nutrition_profiles")
-                .select("*")
-                .eq("client_id", c.id)
-                .maybeSingle();
-              if (profileByClientId) {
-                nutritionProfile = profileByClientId;
-                break;
-              }
-            }
-          }
-        }
+          
+        console.log("Client data:", clientData);
       }
 
-      console.log("Nutrition profile found:", nutritionProfile);
+      console.log("Final nutrition profile:", nutritionProfile);
 
       // Set the nutrition profile in state
       setNutritionProfile(nutritionProfile);
@@ -214,32 +181,22 @@ export default function NutritionTab({
       // Set the nutrition profile in state if found
       if (nutritionProfile) {
         // Convert to NutritionPlan format for display
+        // Use the correct column names from the nutrition_profiles table
         const plan: NutritionPlan = {
           id: nutritionProfile.id,
           name: "Current Nutrition Plan",
-          calories_target:
-            nutritionProfile.daily_calories ||
-            nutritionProfile.target_calories ||
-            2000,
-          protein_target:
-            nutritionProfile.daily_protein ||
-            nutritionProfile.target_protein ||
-            150,
-          carbs_target:
-            nutritionProfile.daily_carbs ||
-            nutritionProfile.target_carbs ||
-            200,
-          fat_target:
-            nutritionProfile.daily_fat || nutritionProfile.target_fat || 70,
-          water_target: nutritionProfile.water_intake_ml || 2500,
-          meal_plan: nutritionProfile.preferences,
-          restrictions: nutritionProfile.dietary_restrictions || [],
-          preferences: nutritionProfile.food_preferences || [],
+          calories_target: nutritionProfile.target_calories || 2000,
+          protein_target: nutritionProfile.protein_grams || 150,
+          carbs_target: nutritionProfile.carbs_grams || 200,
+          fat_target: nutritionProfile.fat_grams || 70,
+          water_target: 2500, // Default water target
+          meal_plan: nutritionProfile.nutrition_preferences,
+          restrictions: nutritionProfile.nutrition_preferences?.allergies || [],
+          preferences: nutritionProfile.nutrition_preferences?.liked_foods || [],
           start_date: nutritionProfile.created_at,
           status: "active",
           created_at: nutritionProfile.created_at,
-          updated_at:
-            nutritionProfile.updated_at || nutritionProfile.created_at,
+          updated_at: nutritionProfile.updated_at || nutritionProfile.created_at,
         };
         setActivePlan(plan);
         setPlanForm({
@@ -249,30 +206,34 @@ export default function NutritionTab({
           fat_target: plan.fat_target,
           water_target: plan.water_target,
         });
+        
+        console.log("Converted nutrition plan:", plan);
+      } else {
+        console.log("No nutrition profile to convert");
       }
 
       // Fetch AI-generated meal plan from meal_plans table
-      console.log("Fetching AI meal plan for customer:", customerId);
+      console.log("Fetching AI meal plan for client:", customerId);
 
-      // Build comprehensive query conditions
-      let conditions = [
-        `client_id.eq.${customerId}`,
-        `member_id.eq.${customerId}`,
-        `lead_id.eq.${customerId}`,
-      ];
-
-      if (nutritionProfile?.id) {
-        conditions.push(`profile_id.eq.${nutritionProfile.id}`);
-        conditions.push(`nutrition_profile_id.eq.${nutritionProfile.id}`);
-      }
-
-      // Try to get meal plans with multiple approaches
-      let { data: aiPlanData, error: aiPlanError } = await supabase
+      // Query meal plans by client_id or profile_id
+      let mealPlanQuery = supabase
         .from("meal_plans")
         .select("*")
-        .or(conditions.join(","))
+        .eq("client_id", customerId)
         .order("created_at", { ascending: false })
-        .limit(5); // Get last 5 to find the most relevant one
+        .limit(5);
+        
+      // If we have a nutrition profile, also search by profile_id
+      if (nutritionProfile?.id) {
+        mealPlanQuery = supabase
+          .from("meal_plans")
+          .select("*")
+          .or(`client_id.eq.${customerId},profile_id.eq.${nutritionProfile.id}`)
+          .order("created_at", { ascending: false })
+          .limit(5);
+      }
+      
+      let { data: aiPlanData, error: aiPlanError } = await mealPlanQuery;
 
       console.log("AI Plan Query Result:", { aiPlanData, aiPlanError });
 
