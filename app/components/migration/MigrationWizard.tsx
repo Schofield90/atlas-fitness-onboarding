@@ -499,6 +499,7 @@ export function MigrationWizard({
       </div>
     </div>
   );
+  };
 
   const renderAnalysisStep = () => (
     <div className="space-y-6">
