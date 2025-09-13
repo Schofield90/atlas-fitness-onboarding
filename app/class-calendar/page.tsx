@@ -17,6 +17,7 @@ import { getCurrentUserOrganization } from "@/app/lib/organization-service";
 export const dynamic = "force-dynamic";
 
 export default function ClassCalendarPage() {
+  const [error, setError] = useState<string | null>(null);
   const [showAddClass, setShowAddClass] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [selectedView, setSelectedView] = useState<"calendar" | "list">(
@@ -53,15 +54,18 @@ export default function ClassCalendarPage() {
         console.log("Current user organization:", { orgId, error });
 
         if (error || !orgId) {
-          throw new Error("No organization found for user");
+          console.error("Organization error details:", { error, orgId });
+          throw new Error(error || "No organization found for user");
         }
 
         console.log("Using organization ID:", orgId);
         setOrganizationId(orgId);
       } catch (error) {
         console.error("Error initializing booking:", error);
-        // Do not use hardcoded fallback - redirect to onboarding instead
-        window.location.href = "/onboarding";
+        setLoading(false);
+        // Show error message instead of redirecting immediately
+        const errorMessage = error instanceof Error ? error.message : "Failed to initialize calendar";
+        throw new Error(errorMessage);
       }
     };
 
@@ -287,6 +291,26 @@ export default function ClassCalendarPage() {
       alert("Failed to add class. Please try again.");
     }
   };
+
+  // Show error state if there's an error
+  if (error) {
+    return (
+      <DashboardLayout userData={null}>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center max-w-md">
+            <h2 className="text-2xl font-bold text-white mb-4">Unable to Load Class Calendar</h2>
+            <p className="text-gray-400 mb-6">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout userData={null}>
