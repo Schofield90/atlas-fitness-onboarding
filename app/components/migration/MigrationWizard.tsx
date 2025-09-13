@@ -333,7 +333,7 @@ export function MigrationWizard({
                     ? "bg-blue-600 border-blue-600 text-white"
                     : isCompleted
                       ? "bg-green-500 border-green-500 text-white"
-                      : "bg-gray-100 border-gray-300 text-gray-400"
+                      : "bg-gray-700 border-gray-600 text-gray-400"
                 }`}
               >
                 <Icon className="w-5 h-5" />
@@ -341,16 +341,16 @@ export function MigrationWizard({
               <span
                 className={`ml-2 text-sm font-medium ${
                   isActive
-                    ? "text-blue-600"
+                    ? "text-blue-400"
                     : isCompleted
-                      ? "text-green-500"
+                      ? "text-green-400"
                       : "text-gray-400"
                 }`}
               >
                 {step.label}
               </span>
               {index < steps.length - 1 && (
-                <ArrowRight className="w-4 h-4 text-gray-300 mx-4" />
+                <ArrowRight className="w-4 h-4 text-gray-500 mx-4" />
               )}
             </div>
           );
@@ -371,15 +371,40 @@ export function MigrationWizard({
         </CardHeader>
         <CardContent>
           <div
-            className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 cursor-pointer"
+            className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center hover:border-blue-500 cursor-pointer transition-colors bg-gray-800/50 hover:bg-gray-800"
             onClick={() => document.getElementById("file-upload")?.click()}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.currentTarget.classList.add("border-blue-500", "bg-gray-800");
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              e.currentTarget.classList.remove("border-blue-500", "bg-gray-800");
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.currentTarget.classList.remove("border-blue-500", "bg-gray-800");
+              if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                handleFileUpload(e.dataTransfer.files);
+              }
+            }}
           >
-            <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <div className="text-lg font-medium text-gray-900 mb-2">
-              Choose files or drag and drop
+            <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+            <button
+              type="button"
+              className="text-lg font-medium text-blue-500 hover:text-blue-400 mb-2 underline"
+              onClick={(e) => {
+                e.stopPropagation();
+                document.getElementById("file-upload")?.click();
+              }}
+            >
+              Click to upload
+            </button>
+            <div className="text-sm text-gray-400">
+              or drag and drop
             </div>
-            <div className="text-sm text-gray-500">
-              CSV or Excel files up to 100MB each
+            <div className="text-sm text-gray-500 mt-2">
+              CSV, Excel files up to 100MB
             </div>
             <input
               id="file-upload"
@@ -387,9 +412,11 @@ export function MigrationWizard({
               multiple
               accept=".csv,.xlsx,.xls"
               className="hidden"
-              onChange={(e) =>
-                e.target.files && handleFileUpload(e.target.files)
-              }
+              onChange={(e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                  handleFileUpload(e.target.files);
+                }
+              }}
             />
           </div>
 
@@ -673,10 +700,10 @@ export function MigrationWizard({
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+        <h1 className="text-2xl font-bold text-white mb-2">
           GoTeamUp Migration Wizard
         </h1>
-        <p className="text-gray-600">
+        <p className="text-gray-400">
           Follow these steps to import your GoTeamUp data into Atlas Fitness CRM
         </p>
       </div>
@@ -684,10 +711,10 @@ export function MigrationWizard({
       {renderStepIndicator()}
 
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+        <div className="mb-6 p-4 bg-red-900/20 border border-red-700 rounded-lg">
           <div className="flex items-center">
             <AlertCircle className="w-5 h-5 text-red-500 mr-2" />
-            <span className="text-red-700">{error}</span>
+            <span className="text-red-400">{error}</span>
           </div>
         </div>
       )}
