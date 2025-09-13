@@ -368,17 +368,26 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({
         </div>
         
         {/* Day columns */}
-        {days.map((day, dayIndex) => (
-          <div key={dayIndex} className="border-r border-gray-700 last:border-r-0">
-            {/* Day header */}
-            <div className="h-16 border-b border-gray-700 p-3 bg-gray-800/30">
-              <div className="text-center">
-                <div className="font-semibold text-white text-sm">{day}</div>
-                <div className="text-xs text-gray-400 mt-1">
-                  {new Date(Date.now() + dayIndex * 24 * 60 * 60 * 1000).getDate()}
+        {days.map((day, dayIndex) => {
+          // Calculate the actual date for this day of the week
+          const startOfWeek = new Date(currentDate);
+          const dayOfWeek = startOfWeek.getDay();
+          const diff = startOfWeek.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust for Monday start
+          const monday = new Date(startOfWeek.setDate(diff));
+          const actualDate = new Date(monday);
+          actualDate.setDate(monday.getDate() + dayIndex);
+          
+          return (
+            <div key={dayIndex} className="border-r border-gray-700 last:border-r-0">
+              {/* Day header */}
+              <div className="h-16 border-b border-gray-700 p-3 bg-gray-800/30">
+                <div className="text-center">
+                  <div className="font-semibold text-white text-sm">{day}</div>
+                  <div className="text-xs text-gray-400 mt-1">
+                    {actualDate.getDate()}
+                  </div>
                 </div>
               </div>
-            </div>
             
             {/* Time slots */}
             <div className="relative">
@@ -418,7 +427,8 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({
               {/* Add class button overlay - removed for now as it blocks clicks */}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
       
       {/* Current time indicator - only render on client */}
