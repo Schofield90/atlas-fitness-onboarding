@@ -1,7 +1,4 @@
-// Force dynamic rendering since this page uses authentication
-export const dynamic = "force-dynamic";
-
-("use client");
+"use client";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -42,7 +39,6 @@ export default function AdminLandingPageBuilderPage() {
   };
 
   const handleSave = async (content: any[]) => {
-    // Get page details with better UX
     const name = prompt("Enter a name for this admin landing page:");
     if (name === null) return;
 
@@ -63,17 +59,16 @@ export default function AdminLandingPageBuilderPage() {
 
     setSaving(true);
     try {
-      // Save to landing_pages table with is_admin_page flag
       const { data, error } = await supabase
         .from("landing_pages")
         .insert({
           name: finalName,
-          slug: `admin-${finalSlug}`, // Prefix with admin to avoid conflicts
+          slug: \`admin-\${finalSlug}\`,
           title: finalName,
           description: finalDescription,
           content,
           status: "draft",
-          is_admin_page: true, // Mark as admin page
+          is_admin_page: true,
           meta_title: finalName,
           meta_description: finalDescription,
           custom_styles: {},
@@ -123,7 +118,6 @@ export default function AdminLandingPageBuilderPage() {
 
         <div className="max-w-4xl mx-auto p-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Start from Scratch */}
             <button
               onClick={() => setShowBuilder(true)}
               className="bg-gray-800 rounded-lg p-8 hover:bg-gray-750 transition-colors text-left group"
@@ -155,7 +149,6 @@ export default function AdminLandingPageBuilderPage() {
               </div>
             </button>
 
-            {/* AI Template Import */}
             <button
               onClick={() => setShowAIImport(true)}
               className="bg-gray-800 rounded-lg p-8 hover:bg-gray-750 transition-colors text-left group"
@@ -185,7 +178,6 @@ export default function AdminLandingPageBuilderPage() {
             </button>
           </div>
 
-          {/* Templates Section */}
           <div className="mt-12">
             <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
               <Globe className="w-6 h-6 text-purple-500" />
@@ -233,5 +225,3 @@ export default function AdminLandingPageBuilderPage() {
     />
   );
 }
-// temp
-// Deployment fix
