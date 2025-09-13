@@ -163,6 +163,12 @@ Format as JSON with these exact keys: field_mappings, data_quality, recommendati
     return NextResponse.json({
       success: true,
       analysis: aiAnalysis,
+      mappings: Object.entries(aiAnalysis.field_mappings || {}).map(([source, target]) => ({
+        source_field: source,
+        target_field: target,
+        confidence: 0.9,
+        editable: true
+      })),
       recordCount: lines.length - 1,
       headers
     });
