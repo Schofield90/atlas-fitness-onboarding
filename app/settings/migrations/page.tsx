@@ -217,36 +217,7 @@ GTU003,Bob,Johnson,bob.j@example.com,07345678901,1992-08-30,Male,"789 Park Road"
       const fileName = `${job.id}/${uploadedFile.name}`;
       console.log("Uploading file to storage:", fileName);
 
-      // First check if the bucket exists
-      const { data: buckets } = await supabase.storage.listBuckets();
-      console.log(
-        "Available storage buckets:",
-        buckets?.map((b) => b.name),
-      );
-
-      const bucketExists = buckets?.some((b) => b.name === "migrations");
-      if (!bucketExists) {
-        console.log("Creating migrations bucket...");
-        const { error: bucketError } = await supabase.storage.createBucket(
-          "migrations",
-          {
-            public: false,
-            allowedMimeTypes: [
-              "text/csv",
-              "application/vnd.ms-excel",
-              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            ],
-          },
-        );
-
-        if (bucketError && !bucketError.message?.includes("already exists")) {
-          console.error("Bucket creation error:", bucketError);
-          throw new Error(
-            "Storage bucket not available. Please contact support.",
-          );
-        }
-      }
-
+      // Try to upload directly - the bucket should exist from SQL migration
       const { error: uploadError } = await supabase.storage
         .from("migrations")
         .upload(fileName, uploadedFile);
