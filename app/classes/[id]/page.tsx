@@ -77,7 +77,7 @@ export default function ClassDetailPage() {
           price_pennies: data.price_pennies || 0,
           duration_minutes: data.duration_minutes || 60,
           capacity: data.default_capacity || 20,
-          location: data.location || "",
+          location: data.metadata?.location || "", // Load location from metadata
           instructor_types: data.metadata?.instructor_types || [], // Load from metadata
           category: data.metadata?.category || "",
           color: data.color || "#3B82F6",
@@ -167,11 +167,11 @@ export default function ClassDetailPage() {
           price_pennies: formData.price_pennies,
           duration_minutes: formData.duration_minutes,
           default_capacity: formData.capacity,
-          location: formData.location,
           color: formData.color,
           metadata: {
             ...formData.metadata,
             category: formData.category,
+            location: formData.location, // Store location in metadata
             instructor_types: formData.instructor_types, // Store in metadata instead
           },
           updated_at: new Date().toISOString(),
