@@ -82,6 +82,25 @@ export default function MigrationsPage() {
     setCurrentStep(2);
   };
 
+  const downloadTemplate = () => {
+    const csvContent = `member_id,first_name,last_name,email,phone,date_of_birth,gender,address,city,postcode,country,emergency_contact_name,emergency_contact_phone,membership_status,membership_type,membership_start_date,payment_method,notes
+GTU001,John,Doe,john.doe@example.com,07123456789,1990-01-15,Male,"123 Main Street",London,SW1A 1AA,United Kingdom,Jane Doe,07987654321,Active,Premium Monthly,2023-01-15,Direct Debit,Existing member from GoTeamUp
+GTU002,Jane,Smith,jane.smith@example.com,07234567890,1985-05-20,Female,"456 High Street",Manchester,M1 1AA,United Kingdom,John Smith,07876543210,Active,Standard Monthly,2023-03-10,Card,Personal training client
+GTU003,Bob,Johnson,bob.j@example.com,07345678901,1992-08-30,Male,"789 Park Road",Birmingham,B1 1AA,United Kingdom,Sarah Johnson,07765432109,Paused,Premium Annual,2022-06-01,Direct Debit,On holiday until next month`;
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'goteamup_import_template.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    toast.success("Template downloaded!");
+  };
+
   const startMigration = async () => {
     if (!uploadedFile || !userData) return;
 
@@ -463,7 +482,10 @@ export default function MigrationsPage() {
                   Download our sample GoTeamUp template to see the expected
                   format
                 </p>
-                <button className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 flex items-center gap-2">
+                <button 
+                  onClick={downloadTemplate}
+                  className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 flex items-center gap-2"
+                >
                   <Download className="h-4 w-4" />
                   Download Template
                 </button>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
   Upload,
   FileText,
@@ -359,65 +359,78 @@ export function MigrationWizard({
     );
   };
 
-  const renderUploadStep = () => (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-white">Upload Your GoTeamUp Data</CardTitle>
-          <CardDescription className="text-gray-400">
-            Upload CSV or Excel files containing your member data, class
-            bookings, and payment history
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <label 
-            htmlFor="file-upload-input"
-            className="block"
-          >
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const renderUploadStep = () => {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-white">Upload Your GoTeamUp Data</CardTitle>
+            <CardDescription className="text-gray-400">
+              Upload CSV or Excel files containing your member data, class
+              bookings, and payment history
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <div
               className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center hover:border-blue-500 cursor-pointer transition-all bg-gray-800/50 hover:bg-gray-800/80"
+              onClick={() => fileInputRef.current?.click()}
               onDragOver={(e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 e.currentTarget.classList.add("border-blue-500", "bg-gray-800");
               }}
               onDragLeave={(e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 e.currentTarget.classList.remove("border-blue-500", "bg-gray-800");
               }}
               onDrop={(e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 e.currentTarget.classList.remove("border-blue-500", "bg-gray-800");
-                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                  handleFileUpload(e.dataTransfer.files);
+                const files = e.dataTransfer.files;
+                if (files && files.length > 0) {
+                  handleFileUpload(files);
                 }
               }}
             >
               <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
               <div className="space-y-2">
-                <p className="text-lg font-medium">
-                  <span className="text-blue-500 hover:text-blue-400 underline cursor-pointer">
+                <div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      fileInputRef.current?.click();
+                    }}
+                    className="text-lg font-medium text-blue-500 hover:text-blue-400 underline"
+                  >
                     Click to upload
-                  </span>
-                  <span className="text-gray-400"> or drag and drop</span>
-                </p>
+                  </button>
+                  <span className="text-gray-400 text-lg"> or drag and drop</span>
+                </div>
                 <p className="text-sm text-gray-500">
                   CSV, Excel files up to 100MB
                 </p>
               </div>
             </div>
             <input
-              id="file-upload-input"
+              ref={fileInputRef}
               type="file"
               multiple
               accept=".csv,.xlsx,.xls"
-              className="sr-only"
+              style={{ display: 'none' }}
               onChange={(e) => {
-                if (e.target.files && e.target.files.length > 0) {
-                  handleFileUpload(e.target.files);
+                const files = e.target.files;
+                if (files && files.length > 0) {
+                  handleFileUpload(files);
+                  // Reset input so same file can be selected again
+                  e.target.value = '';
                 }
               }}
             />
-          </label>
 
           {uploadedFiles.length > 0 && (
             <div className="mt-6 space-y-3">

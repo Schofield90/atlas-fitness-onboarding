@@ -161,13 +161,30 @@ export default function NutritionTab({
         });
       }
 
+      // First, try to find the nutrition profile for this client
+      console.log("Fetching nutrition profile for customer:", customerId);
+      const { data: nutritionProfile } = await supabase
+        .from("nutrition_profiles")
+        .select("id")
+        .eq("client_id", customerId)
+        .single();
+      
+      console.log("Nutrition profile found:", nutritionProfile);
+
       // Fetch AI-generated meal plan from meal_plans table
-      // Try with organization_id first
       console.log("Fetching AI meal plan for customer:", customerId, "org:", organizationId);
+      
+      // Build query conditions
+      let conditions = [`client_id.eq.${customerId}`, `member_id.eq.${customerId}`];
+      if (nutritionProfile?.id) {
+        conditions.push(`profile_id.eq.${nutritionProfile.id}`);
+        conditions.push(`nutrition_profile_id.eq.${nutritionProfile.id}`);
+      }
+      
       let { data: aiPlanData, error: aiPlanError } = await supabase
         .from("meal_plans")
         .select("*")
-        .or(`client_id.eq.${customerId},member_id.eq.${customerId}`)
+        .or(conditions.join(','))
         .eq("organization_id", organizationId)
         .order("created_at", { ascending: false })
         .limit(1);
@@ -178,7 +195,7 @@ export default function NutritionTab({
         const result = await supabase
           .from("meal_plans")
           .select("*")
-          .or(`client_id.eq.${customerId},member_id.eq.${customerId}`)
+          .or(conditions.join(','))
           .order("created_at", { ascending: false })
           .limit(1);
         
