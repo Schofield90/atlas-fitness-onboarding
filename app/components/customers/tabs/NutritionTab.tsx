@@ -23,6 +23,7 @@ import {
   Cookie,
   Beef,
   Wheat,
+  User,
 } from "lucide-react";
 import { formatBritishDate } from "@/app/lib/utils/british-format";
 
@@ -106,6 +107,7 @@ export default function NutritionTab({
     null,
   );
   const [nutritionProfile, setNutritionProfile] = useState<any>(null);
+  const [clientData, setClientData] = useState<any>(null);
   const [nutritionLogs, setNutritionLogs] = useState<NutritionLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -207,12 +209,25 @@ export default function NutritionTab({
         .eq("id", customerId)
         .single();
 
+      // Store client data in state
+      setClientData(clientData);
+
       console.log("Client data:", {
         id: clientData?.id,
         target_calories: clientData?.target_calories,
         protein_grams: clientData?.protein_grams,
         carbs_grams: clientData?.carbs_grams,
         fat_grams: clientData?.fat_grams,
+        height_cm: clientData?.height_cm,
+        weight_kg: clientData?.weight_kg,
+        goal_weight_kg: clientData?.goal_weight_kg,
+        fitness_goal: clientData?.fitness_goal,
+        activity_level: clientData?.activity_level,
+        bmr: clientData?.bmr,
+        tdee: clientData?.tdee,
+        dietary_type: clientData?.dietary_type,
+        meals_per_day: clientData?.meals_per_day,
+        allergies: clientData?.allergies,
       });
 
       // If no profile exists yet, that's ok - the client might not have set one up yet
@@ -543,6 +558,151 @@ export default function NutritionTab({
 
   return (
     <div className="space-y-6">
+      {/* Client Profile Overview */}
+      {clientData && (
+        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-medium text-white flex items-center gap-2">
+              <User className="h-5 w-5 text-blue-500" />
+              Client Profile & Goals
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {/* Height */}
+            <div className="bg-gray-900 rounded-lg p-3">
+              <div className="text-xs text-gray-400 mb-1">Height</div>
+              <div className="text-xl font-bold text-white">
+                {clientData.height_cm ? `${clientData.height_cm} cm` : "-"}
+              </div>
+              {clientData.height_cm && (
+                <div className="text-xs text-gray-500">
+                  {Math.floor(clientData.height_cm / 30.48)}'
+                  {Math.round((clientData.height_cm % 30.48) / 2.54)}"
+                </div>
+              )}
+            </div>
+
+            {/* Current Weight */}
+            <div className="bg-gray-900 rounded-lg p-3">
+              <div className="text-xs text-gray-400 mb-1">Current Weight</div>
+              <div className="text-xl font-bold text-white">
+                {clientData.weight_kg ? `${clientData.weight_kg} kg` : "-"}
+              </div>
+              {clientData.weight_kg && (
+                <div className="text-xs text-gray-500">
+                  {(clientData.weight_kg * 2.205).toFixed(1)} lbs
+                </div>
+              )}
+            </div>
+
+            {/* BMI */}
+            <div className="bg-gray-900 rounded-lg p-3">
+              <div className="text-xs text-gray-400 mb-1">BMI</div>
+              <div className="text-xl font-bold text-white">
+                {clientData.height_cm && clientData.weight_kg
+                  ? (
+                      clientData.weight_kg /
+                      Math.pow(clientData.height_cm / 100, 2)
+                    ).toFixed(1)
+                  : "-"}
+              </div>
+              {clientData.height_cm && clientData.weight_kg && (
+                <div className="text-xs text-gray-500">
+                  {(() => {
+                    const bmi =
+                      clientData.weight_kg /
+                      Math.pow(clientData.height_cm / 100, 2);
+                    if (bmi < 18.5) return "Underweight";
+                    if (bmi < 25) return "Normal";
+                    if (bmi < 30) return "Overweight";
+                    return "Obese";
+                  })()}
+                </div>
+              )}
+            </div>
+
+            {/* Fitness Goal */}
+            <div className="bg-gray-900 rounded-lg p-3">
+              <div className="text-xs text-gray-400 mb-1">Fitness Goal</div>
+              <div className="text-lg font-bold text-white capitalize">
+                {clientData.fitness_goal
+                  ? clientData.fitness_goal.replace(/_/g, " ")
+                  : "-"}
+              </div>
+            </div>
+
+            {/* Activity Level */}
+            <div className="bg-gray-900 rounded-lg p-3">
+              <div className="text-xs text-gray-400 mb-1">Activity Level</div>
+              <div className="text-lg font-bold text-white capitalize">
+                {clientData.activity_level
+                  ? clientData.activity_level.replace(/_/g, " ")
+                  : "-"}
+              </div>
+            </div>
+          </div>
+
+          {/* Additional Stats Row */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+            {/* BMR */}
+            <div className="bg-gray-900 rounded-lg p-3">
+              <div className="text-xs text-gray-400 mb-1">
+                BMR (Basal Metabolic Rate)
+              </div>
+              <div className="text-xl font-bold text-white">
+                {clientData.bmr ? `${Math.round(clientData.bmr)} cal` : "-"}
+              </div>
+            </div>
+
+            {/* TDEE */}
+            <div className="bg-gray-900 rounded-lg p-3">
+              <div className="text-xs text-gray-400 mb-1">
+                TDEE (Total Daily Energy)
+              </div>
+              <div className="text-xl font-bold text-white">
+                {clientData.tdee ? `${Math.round(clientData.tdee)} cal` : "-"}
+              </div>
+            </div>
+
+            {/* Dietary Type */}
+            <div className="bg-gray-900 rounded-lg p-3">
+              <div className="text-xs text-gray-400 mb-1">Dietary Type</div>
+              <div className="text-lg font-bold text-white capitalize">
+                {clientData.dietary_type || "-"}
+              </div>
+            </div>
+
+            {/* Meals Per Day */}
+            <div className="bg-gray-900 rounded-lg p-3">
+              <div className="text-xs text-gray-400 mb-1">Meals Per Day</div>
+              <div className="text-xl font-bold text-white">
+                {clientData.meals_per_day || "3"}
+              </div>
+            </div>
+          </div>
+
+          {/* Allergies & Preferences */}
+          {clientData.allergies && clientData.allergies.length > 0 && (
+            <div className="mt-4 bg-gray-900 rounded-lg p-3">
+              <div className="text-xs text-gray-400 mb-2">
+                Allergies & Restrictions
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {clientData.allergies.map((allergy, index) => (
+                  <span
+                    key={index}
+                    className="px-2 py-1 bg-red-900/30 text-red-400 rounded-full text-xs"
+                  >
+                    {allergy}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Show message if no AI meal plan */}
       {!aiMealPlan && nutritionProfile && (
         <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-4">
