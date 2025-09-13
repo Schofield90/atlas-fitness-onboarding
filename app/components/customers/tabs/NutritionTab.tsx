@@ -207,14 +207,26 @@ export default function NutritionTab({
         .eq("id", customerId)
         .single();
 
-      console.log("Client data:", clientData);
+      console.log("Client data:", {
+        id: clientData?.id,
+        target_calories: clientData?.target_calories,
+        protein_grams: clientData?.protein_grams,
+        carbs_grams: clientData?.carbs_grams,
+        fat_grams: clientData?.fat_grams,
+      });
 
       // If no profile exists yet, that's ok - the client might not have set one up yet
       if (!nutritionProfile) {
         console.log("No nutrition profile found for client_id:", customerId);
       }
 
-      console.log("Final nutrition profile:", nutritionProfile);
+      console.log("Final nutrition profile:", {
+        id: nutritionProfile?.id,
+        target_calories: nutritionProfile?.target_calories,
+        protein_grams: nutritionProfile?.protein_grams,
+        carbs_grams: nutritionProfile?.carbs_grams,
+        fat_grams: nutritionProfile?.fat_grams,
+      });
 
       // Set the nutrition profile in state
       setNutritionProfile(nutritionProfile);
@@ -238,16 +250,40 @@ export default function NutritionTab({
           fat_target:
             nutritionProfile?.fat_grams || clientData?.fat_grams || 70,
           water_target: 2500, // Default water target
-          meal_plan: nutritionProfile.nutrition_preferences,
-          restrictions: nutritionProfile.nutrition_preferences?.allergies || [],
+          meal_plan: nutritionProfile?.nutrition_preferences,
+          restrictions:
+            nutritionProfile?.nutrition_preferences?.allergies || [],
           preferences:
-            nutritionProfile.nutrition_preferences?.liked_foods || [],
-          start_date: nutritionProfile.created_at,
+            nutritionProfile?.nutrition_preferences?.liked_foods || [],
+          start_date: nutritionProfile?.created_at || new Date().toISOString(),
           status: "active",
-          created_at: nutritionProfile.created_at,
+          created_at: nutritionProfile?.created_at || new Date().toISOString(),
           updated_at:
-            nutritionProfile.updated_at || nutritionProfile.created_at,
+            nutritionProfile?.updated_at ||
+            nutritionProfile?.created_at ||
+            new Date().toISOString(),
         };
+
+        console.log("Created nutrition plan with values:", {
+          planId: plan.id,
+          calories_target: plan.calories_target,
+          protein_target: plan.protein_target,
+          carbs_target: plan.carbs_target,
+          fat_target: plan.fat_target,
+          fromNutritionProfile: {
+            calories: nutritionProfile?.target_calories,
+            protein: nutritionProfile?.protein_grams,
+            carbs: nutritionProfile?.carbs_grams,
+            fat: nutritionProfile?.fat_grams,
+          },
+          fromClientData: {
+            calories: clientData?.target_calories,
+            protein: clientData?.protein_grams,
+            carbs: clientData?.carbs_grams,
+            fat: clientData?.fat_grams,
+          },
+        });
+
         setActivePlan(plan);
         setPlanForm({
           calories_target: plan.calories_target,
@@ -264,10 +300,10 @@ export default function NutritionTab({
           carbs: plan.carbs_target,
           fat: plan.fat_target,
           originalProfile: {
-            target_calories: nutritionProfile.target_calories,
-            protein_grams: nutritionProfile.protein_grams,
-            carbs_grams: nutritionProfile.carbs_grams,
-            fat_grams: nutritionProfile.fat_grams,
+            target_calories: nutritionProfile?.target_calories,
+            protein_grams: nutritionProfile?.protein_grams,
+            carbs_grams: nutritionProfile?.carbs_grams,
+            fat_grams: nutritionProfile?.fat_grams,
           },
         });
       } else {
@@ -956,56 +992,36 @@ export default function NutritionTab({
                 <Flame className="h-5 w-5 text-orange-500" />
               </div>
               <div className="text-2xl font-bold text-white">
-                {nutritionProfile?.target_calories ||
-                  activePlan?.calories_target ||
-                  2000}
+                {activePlan?.calories_target || 2000}
               </div>
               <div className="text-xs text-gray-400">Calories</div>
-              {nutritionProfile?.target_calories && (
-                <div className="text-xs text-green-400 mt-1">From Profile</div>
-              )}
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center mb-2">
                 <Beef className="h-5 w-5 text-red-500" />
               </div>
               <div className="text-2xl font-bold text-white">
-                {nutritionProfile?.protein_grams ||
-                  activePlan?.protein_target ||
-                  150}
-                g
+                {activePlan?.protein_target || 150}g
               </div>
               <div className="text-xs text-gray-400">Protein</div>
-              {nutritionProfile?.protein_grams && (
-                <div className="text-xs text-green-400 mt-1">From Profile</div>
-              )}
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center mb-2">
                 <Wheat className="h-5 w-5 text-yellow-500" />
               </div>
               <div className="text-2xl font-bold text-white">
-                {nutritionProfile?.carbs_grams ||
-                  activePlan?.carbs_target ||
-                  200}
-                g
+                {activePlan?.carbs_target || 200}g
               </div>
               <div className="text-xs text-gray-400">Carbs</div>
-              {nutritionProfile?.carbs_grams && (
-                <div className="text-xs text-green-400 mt-1">From Profile</div>
-              )}
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center mb-2">
                 <Cookie className="h-5 w-5 text-purple-500" />
               </div>
               <div className="text-2xl font-bold text-white">
-                {nutritionProfile?.fat_grams || activePlan?.fat_target || 70}g
+                {activePlan?.fat_target || 70}g
               </div>
               <div className="text-xs text-gray-400">Fat</div>
-              {nutritionProfile?.fat_grams && (
-                <div className="text-xs text-green-400 mt-1">From Profile</div>
-              )}
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center mb-2">
