@@ -13,6 +13,7 @@ export async function POST(request: NextRequest) {
       mappingsCount: mappings?.length,
     });
     console.log("First mapping:", mappings?.[0]);
+    console.log("All mappings:", JSON.stringify(mappings, null, 2));
 
     if (!jobId || !mappings) {
       return NextResponse.json(
@@ -100,8 +101,25 @@ async function processInBackground(jobId: string, job: any, mappings: any[]) {
     let successful = 0;
     let failed = 0;
 
+    // If mappings is empty or undefined, try to get from the job's field_mappings
+    let effectiveMappings = mappings;
+    if (!mappings || mappings.length === 0) {
+      console.log("No mappings provided, checking job field_mappings");
+      if (job.field_mappings) {
+        // Convert field_mappings object to array format
+        effectiveMappings = Object.entries(job.field_mappings).map(
+          ([source, target]) => ({
+            source_field: source,
+            target_field: target as string,
+            target_table: "clients",
+          }),
+        );
+        console.log("Using job field_mappings:", effectiveMappings);
+      }
+    }
+
     // Group mappings by table (default to clients if no target_table specified)
-    const tableMappings = mappings.reduce(
+    const tableMappings = effectiveMappings.reduce(
       (acc, m) => {
         const table = m.target_table || "clients"; // Default to clients table
         acc[table] = acc[table] || [];
@@ -113,6 +131,7 @@ async function processInBackground(jobId: string, job: any, mappings: any[]) {
 
     console.log("Mappings by table:", Object.keys(tableMappings));
     console.log("Client mappings count:", tableMappings.clients?.length || 0);
+    console.log("Client mappings detail:", tableMappings.clients);
 
     // Process clients first (as other records may reference them)
     if (tableMappings.clients) {
@@ -208,14 +227,26 @@ async function processClients(
   let successful = 0;
   let failed = 0;
 
+  console.log("processClients called with:", {
+    dataCount: data.length,
+    mappingsCount: mappings.length,
+    organizationId,
+    jobId,
+  });
+  console.log("Mappings in processClients:", mappings);
+
   // Extract unique clients based on email
   const emailMapping = mappings.find((m) => m.target_field === "email");
   if (!emailMapping) {
-    console.error("No email field mapping found");
+    console.error("No email field mapping found in mappings:", mappings);
     return { processed, successful, failed };
   }
 
   const uniqueClients = new Map();
+
+  console.log("Email mapping:", emailMapping);
+  console.log("First data row:", data[0]);
+  console.log("Data row keys:", data[0] ? Object.keys(data[0]) : "No data");
 
   for (const row of data) {
     const email = row[emailMapping.source_field];
@@ -223,6 +254,8 @@ async function processClients(
       uniqueClients.set(email, row);
     }
   }
+
+  console.log("Unique clients found:", uniqueClients.size);
 
   // Process each unique client
   for (const [email, row] of uniqueClients) {
