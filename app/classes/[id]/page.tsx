@@ -42,7 +42,7 @@ export default function ClassDetailPage() {
     description: "",
     price_pennies: 0,
     duration_minutes: 60,
-    capacity: 20,
+    capacity: 0,  // Will be set from database
     location: "",
     instructor_types: [] as string[],
     category: "",
@@ -82,7 +82,7 @@ export default function ClassDetailPage() {
           description: data.description || "",
           price_pennies: data.price_pennies || 0,
           duration_minutes: data.duration_minutes || 60,
-          capacity: data.default_capacity || 20,
+          capacity: data.default_capacity || data.max_participants || 20,
           location: data.metadata?.location || "", // Load location from metadata
           instructor_types: data.metadata?.instructor_types || [], // Load from metadata
           category: data.metadata?.category || "",

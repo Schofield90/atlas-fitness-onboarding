@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       .eq("status", "confirmed");
 
     const maxCapacity =
-      classSession.capacity || classSession.max_capacity || 12;
+      classSession.capacity || classSession.max_capacity;
     if (bookingCount && bookingCount >= maxCapacity) {
       return NextResponse.json({ error: "Class is full" }, { status: 400 });
     }
