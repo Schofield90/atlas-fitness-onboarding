@@ -42,18 +42,18 @@ export default function ClassDetailPage() {
     description: "",
     price_pennies: 0,
     duration_minutes: 60,
-    capacity: 0,  // Will be set from database
+    capacity: 0, // Will be set from database
     location: "",
     instructor_types: [] as string[],
     category: "",
     color: "#3B82F6",
     metadata: {},
   });
-  
+
   const [updateOptions, setUpdateOptions] = useState({
     updateFutureSessions: false,
     updateAllSessions: false,
-    effectiveDate: new Date().toISOString().split('T')[0],
+    effectiveDate: new Date().toISOString().split("T")[0],
   });
 
   useEffect(() => {
@@ -171,7 +171,8 @@ export default function ClassDetailPage() {
         description: formData.description,
         price_pennies: formData.price_pennies,
         duration_minutes: formData.duration_minutes,
-        default_capacity: formData.capacity,
+        max_participants: formData.capacity, // Use max_participants as that's the actual column name in programs table
+        default_capacity: formData.capacity, // Keep for backward compatibility if column exists
         color: formData.color,
         updated_at: new Date().toISOString(),
       };
@@ -199,14 +200,17 @@ export default function ClassDetailPage() {
           .update(updateData)
           .eq("id", classId)
           .eq("organization_id", organizationId);
-        
+
         if (retryError) throw retryError;
       } else if (error) {
         throw error;
       }
 
       // Update class sessions if requested
-      if (updateOptions.updateFutureSessions || updateOptions.updateAllSessions) {
+      if (
+        updateOptions.updateFutureSessions ||
+        updateOptions.updateAllSessions
+      ) {
         let query = supabase
           .from("class_sessions")
           .update({ max_capacity: formData.capacity })
@@ -215,24 +219,28 @@ export default function ClassDetailPage() {
 
         if (updateOptions.updateFutureSessions) {
           // Only update sessions on or after the effective date
-          query = query.gte("start_time", updateOptions.effectiveDate + "T00:00:00");
+          query = query.gte(
+            "start_time",
+            updateOptions.effectiveDate + "T00:00:00",
+          );
         }
 
         const { error: sessionsError } = await query;
-        
+
         if (sessionsError) {
           console.error("Error updating class sessions:", sessionsError);
-          alert("Warning: Class type updated but sessions may not have been updated");
+          alert(
+            "Warning: Class type updated but sessions may not have been updated",
+          );
         } else {
           console.log("Successfully updated class sessions capacity");
         }
       }
 
       alert("Class type updated successfully");
-      
+
       // Reload to show updated data
       await loadClassSessions();
-      
     } catch (error: any) {
       console.error("Error saving class type:", error);
       alert("Failed to save changes: " + error.message);
@@ -546,7 +554,8 @@ export default function ClassDetailPage() {
                       )}
                     </div>
                     <p className="text-xs text-gray-500 mt-2">
-                      Leave unchecked to only update the default for new sessions
+                      Leave unchecked to only update the default for new
+                      sessions
                     </p>
                   </div>
 

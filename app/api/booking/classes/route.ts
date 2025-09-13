@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       .select(
         `
         *,
-        program:programs(name, description, price_pennies, default_capacity),
+        program:programs(name, description, price_pennies, max_participants, default_capacity),
         bookings:class_bookings!left(
           id,
           customer_id,
@@ -84,11 +84,20 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform classes to ensure capacity is correctly set
+    // Use the class session's max_capacity first, then fall back to program's max_participants or default_capacity
     const transformedClasses = (classes || []).map((cls) => ({
       ...cls,
-      capacity: cls.max_capacity || cls.program?.default_capacity || 20,
+      capacity:
+        cls.max_capacity ||
+        cls.program?.max_participants ||
+        cls.program?.default_capacity ||
+        20,
       // Also ensure max_capacity is set for consistency
-      max_capacity: cls.max_capacity || cls.program?.default_capacity || 20,
+      max_capacity:
+        cls.max_capacity ||
+        cls.program?.max_participants ||
+        cls.program?.default_capacity ||
+        20,
     }));
 
     return NextResponse.json({ classes: transformedClasses });
@@ -157,7 +166,7 @@ export async function POST(request: NextRequest) {
         instructor_name: instructor,
         start_time: startTime,
         duration_minutes: duration,
-        capacity,
+        max_capacity: capacity, // Use max_capacity as that's the actual column name
         location: room,
         is_active: true,
       })
@@ -202,7 +211,7 @@ export async function PUT(request: NextRequest) {
         instructor_name: updateData.instructor,
         start_time: updateData.startTime,
         duration_minutes: updateData.duration,
-        capacity: updateData.capacity,
+        max_capacity: updateData.capacity, // Use max_capacity as that's the actual column name
         location: updateData.room,
       })
       .eq("id", classId)
