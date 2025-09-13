@@ -26,7 +26,19 @@ import {
   MapPin,
   Info,
 } from "lucide-react";
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays, addWeeks, addMonths, isSameDay, isWithinInterval, differenceInMinutes } from "date-fns";
+import {
+  format,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  addDays,
+  addWeeks,
+  addMonths,
+  isSameDay,
+  isWithinInterval,
+  differenceInMinutes,
+} from "date-fns";
 
 // Types
 interface StaffCalendarBooking {
@@ -57,7 +69,7 @@ interface StaffCalendarBooking {
   confirmed_client_count?: number;
 }
 
-type BookingType = 
+type BookingType =
   | "pt_session_121"
   | "group_class"
   | "gym_floor_time"
@@ -69,7 +81,12 @@ type BookingType =
   | "break_time"
   | "training_session";
 
-type BookingStatus = "confirmed" | "tentative" | "cancelled" | "completed" | "no_show";
+type BookingStatus =
+  | "confirmed"
+  | "tentative"
+  | "cancelled"
+  | "completed"
+  | "no_show";
 
 type CalendarView = "day" | "week" | "month";
 
@@ -82,17 +99,32 @@ interface SharedStaffCalendarProps {
 }
 
 // Booking type configuration
-const BOOKING_TYPE_CONFIG: Record<BookingType, { label: string; icon: React.ElementType; color: string }> = {
-  pt_session_121: { label: "1-2-1 PT Session", icon: Dumbbell, color: "#3B82F6" },
+const BOOKING_TYPE_CONFIG: Record<
+  BookingType,
+  { label: string; icon: React.ElementType; color: string }
+> = {
+  pt_session_121: {
+    label: "1-2-1 PT Session",
+    icon: Dumbbell,
+    color: "#3B82F6",
+  },
   group_class: { label: "Group Class", icon: Users, color: "#10B981" },
   gym_floor_time: { label: "Gym Floor Time", icon: Building, color: "#F59E0B" },
   staff_meeting: { label: "Staff Meeting", icon: Users, color: "#EF4444" },
   consultation: { label: "Consultation", icon: UserCheck, color: "#8B5CF6" },
-  equipment_maintenance: { label: "Maintenance", icon: Wrench, color: "#6B7280" },
+  equipment_maintenance: {
+    label: "Maintenance",
+    icon: Wrench,
+    color: "#6B7280",
+  },
   facility_cleaning: { label: "Cleaning", icon: Sparkles, color: "#06B6D4" },
   private_event: { label: "Private Event", icon: Calendar, color: "#EC4899" },
   break_time: { label: "Break", icon: Coffee, color: "#84CC16" },
-  training_session: { label: "Training", icon: GraduationCap, color: "#F97316" },
+  training_session: {
+    label: "Training",
+    icon: GraduationCap,
+    color: "#F97316",
+  },
 };
 
 // Time slots from 6 AM to 9 PM in 30-minute increments
@@ -120,15 +152,21 @@ export default function SharedStaffCalendar({
   const [bookings, setBookings] = useState<StaffCalendarBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedBooking, setSelectedBooking] = useState<StaffCalendarBooking | null>(null);
+  const [selectedBooking, setSelectedBooking] =
+    useState<StaffCalendarBooking | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     staffId: "",
     bookingType: "" as BookingType | "",
   });
-  const [staffMembers, setStaffMembers] = useState<Array<{ id: string; name: string }>>([]);
-  const [newBookingSlot, setNewBookingSlot] = useState<{ date: Date; time: string } | null>(null);
+  const [staffMembers, setStaffMembers] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
+  const [newBookingSlot, setNewBookingSlot] = useState<{
+    date: Date;
+    time: string;
+  } | null>(null);
 
   // Calculate date range based on view
   const dateRange = useMemo(() => {
@@ -167,19 +205,28 @@ export default function SharedStaffCalendar({
         .neq("status", "cancelled")
         .order("start_time", { ascending: true });
 
+      if (filters.staffId) {
+        query = query.eq("staff_id", filters.staffId);
+      }
+      if (filters.bookingType) {
+        query = query.eq("booking_type", filters.bookingType);
+      }
+
       // First attempt with the view
       let { data, error } = await query;
 
       // If the view doesn't exist, fallback to class_sessions
       if (error?.code === "42P01") {
         console.log("View not found, falling back to class_sessions");
-        
+
         const { data: sessions, error: sessionError } = await supabase
           .from("class_sessions")
-          .select(`
+          .select(
+            `
             *,
             program:programs(name, description, price_pennies)
-          `)
+          `,
+          )
           .eq("organization_id", organizationId)
           .gte("start_time", dateRange.start.toISOString())
           .lte("start_time", dateRange.end.toISOString())
@@ -195,7 +242,10 @@ export default function SharedStaffCalendar({
             booking_type: "group_class" as BookingType,
             status: "confirmed" as BookingStatus,
             start_time: session.start_time,
-            end_time: new Date(new Date(session.start_time).getTime() + (session.duration_minutes || 60) * 60000).toISOString(),
+            end_time: new Date(
+              new Date(session.start_time).getTime() +
+                (session.duration_minutes || 60) * 60000,
+            ).toISOString(),
             all_day: false,
             staff_id: session.instructor_id,
             staff_name: session.instructor_name,
@@ -220,24 +270,6 @@ export default function SharedStaffCalendar({
         }
       }
 
-      query = supabase
-        .from("staff_calendar_bookings_view")
-        .select("*")
-        .eq("organization_id", organizationId)
-        .gte("start_time", dateRange.start.toISOString())
-        .lte("start_time", dateRange.end.toISOString())
-        .neq("status", "cancelled")
-        .order("start_time", { ascending: true });
-
-      if (filters.staffId) {
-        query = query.eq("staff_id", filters.staffId);
-      }
-      if (filters.bookingType) {
-        query = query.eq("booking_type", filters.bookingType);
-      }
-
-      const { data, error } = await query;
-
       if (error) throw error;
       setBookings(data || []);
     } catch (err) {
@@ -261,8 +293,9 @@ export default function SharedStaffCalendar({
       setStaffMembers(
         (data || []).map((staff) => ({
           id: staff.user_id,
-          name: `${staff.first_name} ${staff.last_name}`.trim() || "Unknown Staff",
-        }))
+          name:
+            `${staff.first_name} ${staff.last_name}`.trim() || "Unknown Staff",
+        })),
       );
     } catch (err) {
       console.error("Error fetching staff:", err);
@@ -283,7 +316,7 @@ export default function SharedStaffCalendar({
         },
         () => {
           fetchBookings();
-        }
+        },
       )
       .subscribe();
 
@@ -332,21 +365,26 @@ export default function SharedStaffCalendar({
   };
 
   // Create/Update booking
-  const handleSaveBooking = async (bookingData: Partial<StaffCalendarBooking>) => {
+  const handleSaveBooking = async (
+    bookingData: Partial<StaffCalendarBooking>,
+  ) => {
     try {
       setError(null);
 
       // Check for conflicts
-      const { data: conflicts } = await supabase.rpc("check_staff_calendar_conflicts", {
-        p_staff_id: bookingData.staff_id || currentUserId,
-        p_start_time: bookingData.start_time,
-        p_end_time: bookingData.end_time,
-        p_exclude_booking_id: bookingData.id || null,
-      });
+      const { data: conflicts } = await supabase.rpc(
+        "check_staff_calendar_conflicts",
+        {
+          p_staff_id: bookingData.staff_id || currentUserId,
+          p_start_time: bookingData.start_time,
+          p_end_time: bookingData.end_time,
+          p_exclude_booking_id: bookingData.id || null,
+        },
+      );
 
       if (conflicts && conflicts.length > 0) {
         const confirmOverride = confirm(
-          `This time slot conflicts with "${conflicts[0].title}". Do you want to continue anyway?`
+          `This time slot conflicts with "${conflicts[0].title}". Do you want to continue anyway?`,
         );
         if (!confirmOverride) return;
       }
@@ -365,11 +403,13 @@ export default function SharedStaffCalendar({
         if (error) throw error;
       } else {
         // Create new
-        const { error } = await supabase.from("staff_calendar_bookings").insert({
-          ...bookingData,
-          organization_id: organizationId,
-          created_by: currentUserId,
-        });
+        const { error } = await supabase
+          .from("staff_calendar_bookings")
+          .insert({
+            ...bookingData,
+            organization_id: organizationId,
+            created_by: currentUserId,
+          });
 
         if (error) throw error;
       }
@@ -418,7 +458,10 @@ export default function SharedStaffCalendar({
         key={booking.id}
         className="group relative p-2 rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer overflow-hidden"
         style={{
-          backgroundColor: booking.display_color || booking.color_hex || BOOKING_TYPE_CONFIG[booking.booking_type].color,
+          backgroundColor:
+            booking.display_color ||
+            booking.color_hex ||
+            BOOKING_TYPE_CONFIG[booking.booking_type].color,
         }}
         onClick={() => {
           setSelectedBooking(booking);
@@ -437,9 +480,13 @@ export default function SharedStaffCalendar({
         <div className="flex items-start gap-2">
           <Icon className="w-4 h-4 text-white/90 mt-0.5 flex-shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-white truncate">{booking.title}</p>
+            <p className="text-xs font-medium text-white truncate">
+              {booking.title}
+            </p>
             {booking.staff_full_name && (
-              <p className="text-xs text-white/80 truncate">{booking.staff_full_name}</p>
+              <p className="text-xs text-white/80 truncate">
+                {booking.staff_full_name}
+              </p>
             )}
             {booking.location && (
               <p className="text-xs text-white/70 truncate flex items-center gap-1 mt-0.5">
@@ -487,11 +534,32 @@ export default function SharedStaffCalendar({
   const renderCalendarGrid = () => {
     switch (view) {
       case "day":
-        return <DayView date={currentDate} bookings={bookings} renderBooking={renderBooking} onSlotClick={handleSlotClick} />;
+        return (
+          <DayView
+            date={currentDate}
+            bookings={bookings}
+            renderBooking={renderBooking}
+            onSlotClick={handleSlotClick}
+          />
+        );
       case "week":
-        return <WeekView startDate={dateRange.start} bookings={bookings} renderBooking={renderBooking} onSlotClick={handleSlotClick} />;
+        return (
+          <WeekView
+            startDate={dateRange.start}
+            bookings={bookings}
+            renderBooking={renderBooking}
+            onSlotClick={handleSlotClick}
+          />
+        );
       case "month":
-        return <MonthView startDate={dateRange.start} bookings={bookings} renderBooking={renderBooking} onSlotClick={handleSlotClick} />;
+        return (
+          <MonthView
+            startDate={dateRange.start}
+            bookings={bookings}
+            renderBooking={renderBooking}
+            onSlotClick={handleSlotClick}
+          />
+        );
     }
   };
 
@@ -529,7 +597,14 @@ export default function SharedStaffCalendar({
                 <ChevronRight className="w-5 h-5 text-gray-400" />
               </button>
               <span className="text-white font-medium ml-2">
-                {format(currentDate, view === "day" ? "EEEE, MMMM d, yyyy" : view === "week" ? "'Week of' MMM d, yyyy" : "MMMM yyyy")}
+                {format(
+                  currentDate,
+                  view === "day"
+                    ? "EEEE, MMMM d, yyyy"
+                    : view === "week"
+                      ? "'Week of' MMM d, yyyy"
+                      : "MMMM yyyy",
+                )}
               </span>
             </div>
           </div>
@@ -542,7 +617,9 @@ export default function SharedStaffCalendar({
                   key={v}
                   onClick={() => setView(v)}
                   className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                    view === v ? "bg-orange-600 text-white" : "text-gray-400 hover:text-white"
+                    view === v
+                      ? "bg-orange-600 text-white"
+                      : "text-gray-400 hover:text-white"
                   }`}
                 >
                   {v.charAt(0).toUpperCase() + v.slice(1)}
@@ -554,7 +631,9 @@ export default function SharedStaffCalendar({
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`p-2 rounded-lg transition-colors ${
-                showFilters ? "bg-orange-600 text-white" : "bg-gray-700 text-gray-400 hover:text-white"
+                showFilters
+                  ? "bg-orange-600 text-white"
+                  : "bg-gray-700 text-gray-400 hover:text-white"
               }`}
             >
               <Filter className="w-5 h-5" />
@@ -582,7 +661,9 @@ export default function SharedStaffCalendar({
           <div className="mt-4 p-4 bg-gray-700 rounded-lg flex flex-wrap gap-4">
             <select
               value={filters.staffId}
-              onChange={(e) => setFilters({ ...filters, staffId: e.target.value })}
+              onChange={(e) =>
+                setFilters({ ...filters, staffId: e.target.value })
+              }
               className="px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-orange-500"
             >
               <option value="">All Staff</option>
@@ -595,7 +676,12 @@ export default function SharedStaffCalendar({
 
             <select
               value={filters.bookingType}
-              onChange={(e) => setFilters({ ...filters, bookingType: e.target.value as BookingType | "" })}
+              onChange={(e) =>
+                setFilters({
+                  ...filters,
+                  bookingType: e.target.value as BookingType | "",
+                })
+              }
               className="px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-orange-500"
             >
               <option value="">All Types</option>
@@ -672,7 +758,9 @@ function DayView({
   renderBooking: (booking: StaffCalendarBooking) => React.ReactNode;
   onSlotClick: (date: Date, time: string) => void;
 }) {
-  const dayBookings = bookings.filter((b) => isSameDay(new Date(b.start_time), date));
+  const dayBookings = bookings.filter((b) =>
+    isSameDay(new Date(b.start_time), date),
+  );
 
   return (
     <div className="bg-gray-800 rounded-lg overflow-hidden">
@@ -680,7 +768,10 @@ function DayView({
         {/* Time column */}
         <div className="divide-y divide-gray-700">
           {TIME_SLOTS.map((slot) => (
-            <div key={slot.value} className="h-16 px-2 py-1 text-xs text-gray-400 text-right">
+            <div
+              key={slot.value}
+              className="h-16 px-2 py-1 text-xs text-gray-400 text-right"
+            >
               {slot.label}
             </div>
           ))}
@@ -732,9 +823,14 @@ function WeekView({
         {/* Header */}
         <div className="h-12 bg-gray-700"></div>
         {weekDays.map((day) => (
-          <div key={day.toISOString()} className="h-12 bg-gray-700 p-2 text-center">
+          <div
+            key={day.toISOString()}
+            className="h-12 bg-gray-700 p-2 text-center"
+          >
             <div className="text-xs text-gray-400">{format(day, "EEE")}</div>
-            <div className="text-sm font-medium text-white">{format(day, "d")}</div>
+            <div className="text-sm font-medium text-white">
+              {format(day, "d")}
+            </div>
           </div>
         ))}
 
@@ -748,7 +844,9 @@ function WeekView({
               const slotBookings = bookings.filter((b) => {
                 const bookingDate = new Date(b.start_time);
                 const bookingTime = format(bookingDate, "HH:mm");
-                return isSameDay(bookingDate, day) && bookingTime === slot.value;
+                return (
+                  isSameDay(bookingDate, day) && bookingTime === slot.value
+                );
               });
 
               return (
@@ -758,7 +856,9 @@ function WeekView({
                   onClick={() => onSlotClick(day, slot.value)}
                 >
                   <div className="flex flex-col gap-1">
-                    {slotBookings.slice(0, 2).map((booking) => renderBooking(booking))}
+                    {slotBookings
+                      .slice(0, 2)
+                      .map((booking) => renderBooking(booking))}
                     {slotBookings.length > 2 && (
                       <div className="text-xs text-gray-400 text-center">
                         +{slotBookings.length - 2} more
@@ -790,7 +890,10 @@ function MonthView({
   const endDate = endOfMonth(startDate);
   const startWeek = startOfWeek(startDate, { weekStartsOn: 1 });
   const endWeek = endOfWeek(endDate, { weekStartsOn: 1 });
-  const totalDays = Math.ceil((endWeek.getTime() - startWeek.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const totalDays =
+    Math.ceil(
+      (endWeek.getTime() - startWeek.getTime()) / (1000 * 60 * 60 * 24),
+    ) + 1;
   const weeks = Math.ceil(totalDays / 7);
 
   return (
@@ -798,7 +901,10 @@ function MonthView({
       <div className="grid grid-cols-7 divide-x divide-gray-700">
         {/* Header */}
         {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-          <div key={day} className="h-10 bg-gray-700 p-2 text-center text-sm font-medium text-white">
+          <div
+            key={day}
+            className="h-10 bg-gray-700 p-2 text-center text-sm font-medium text-white"
+          >
             {day}
           </div>
         ))}
@@ -807,7 +913,9 @@ function MonthView({
         {Array.from({ length: weeks * 7 }, (_, i) => {
           const day = addDays(startWeek, i);
           const isCurrentMonth = day >= startDate && day <= endDate;
-          const dayBookings = bookings.filter((b) => isSameDay(new Date(b.start_time), day));
+          const dayBookings = bookings.filter((b) =>
+            isSameDay(new Date(b.start_time), day),
+          );
 
           return (
             <div
@@ -817,7 +925,9 @@ function MonthView({
               } hover:bg-gray-700/50 cursor-pointer transition-colors`}
               onClick={() => onSlotClick(day, "09:00")}
             >
-              <div className={`text-sm mb-1 ${isCurrentMonth ? "text-white" : "text-gray-600"}`}>
+              <div
+                className={`text-sm mb-1 ${isCurrentMonth ? "text-white" : "text-gray-600"}`}
+              >
                 {format(day, "d")}
               </div>
               <div className="space-y-1">
@@ -826,18 +936,23 @@ function MonthView({
                     key={booking.id}
                     className="text-xs p-1 rounded truncate"
                     style={{
-                      backgroundColor: booking.display_color || BOOKING_TYPE_CONFIG[booking.booking_type].color,
+                      backgroundColor:
+                        booking.display_color ||
+                        BOOKING_TYPE_CONFIG[booking.booking_type].color,
                       color: "white",
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
                     }}
                   >
-                    {format(new Date(booking.start_time), "HH:mm")} {booking.title}
+                    {format(new Date(booking.start_time), "HH:mm")}{" "}
+                    {booking.title}
                   </div>
                 ))}
                 {dayBookings.length > 3 && (
-                  <div className="text-xs text-gray-400">+{dayBookings.length - 3} more</div>
+                  <div className="text-xs text-gray-400">
+                    +{dayBookings.length - 3} more
+                  </div>
                 )}
               </div>
             </div>
@@ -866,41 +981,43 @@ function BookingModal({
   onDelete: (bookingId: string) => void;
   onClose: () => void;
 }) {
-  const [formData, setFormData] = useState<Partial<StaffCalendarBooking>>(() => {
-    if (booking) {
-      return { ...booking };
-    }
-    if (newSlot) {
-      const [hours, minutes] = newSlot.time.split(":").map(Number);
-      const startTime = new Date(newSlot.date);
-      startTime.setHours(hours, minutes, 0, 0);
-      const endTime = new Date(startTime);
-      endTime.setHours(hours + 1, minutes, 0, 0);
+  const [formData, setFormData] = useState<Partial<StaffCalendarBooking>>(
+    () => {
+      if (booking) {
+        return { ...booking };
+      }
+      if (newSlot) {
+        const [hours, minutes] = newSlot.time.split(":").map(Number);
+        const startTime = new Date(newSlot.date);
+        startTime.setHours(hours, minutes, 0, 0);
+        const endTime = new Date(startTime);
+        endTime.setHours(hours + 1, minutes, 0, 0);
 
+        return {
+          title: "",
+          description: "",
+          booking_type: "gym_floor_time",
+          status: "confirmed",
+          start_time: startTime.toISOString(),
+          end_time: endTime.toISOString(),
+          staff_id: currentUserId,
+          location: "",
+          notes: "",
+        };
+      }
       return {
         title: "",
         description: "",
         booking_type: "gym_floor_time",
         status: "confirmed",
-        start_time: startTime.toISOString(),
-        end_time: endTime.toISOString(),
+        start_time: new Date().toISOString(),
+        end_time: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
         staff_id: currentUserId,
         location: "",
         notes: "",
       };
-    }
-    return {
-      title: "",
-      description: "",
-      booking_type: "gym_floor_time",
-      status: "confirmed",
-      start_time: new Date().toISOString(),
-      end_time: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-      staff_id: currentUserId,
-      location: "",
-      notes: "",
-    };
-  });
+    },
+  );
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -920,11 +1037,15 @@ function BookingModal({
         <div className="p-6 space-y-4">
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">Title</label>
+            <label className="block text-sm font-medium text-gray-400 mb-2">
+              Title
+            </label>
             <input
               type="text"
               value={formData.title || ""}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, title: e.target.value })
+              }
               className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-orange-500"
               placeholder="e.g., PT Session with John"
             />
@@ -932,10 +1053,17 @@ function BookingModal({
 
           {/* Booking Type */}
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">Type</label>
+            <label className="block text-sm font-medium text-gray-400 mb-2">
+              Type
+            </label>
             <select
               value={formData.booking_type || "gym_floor_time"}
-              onChange={(e) => setFormData({ ...formData, booking_type: e.target.value as BookingType })}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  booking_type: e.target.value as BookingType,
+                })
+              }
               className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-orange-500"
               disabled={booking?.class_session_id ? true : false}
             >
@@ -946,16 +1074,22 @@ function BookingModal({
               ))}
             </select>
             {booking?.class_session_id && (
-              <p className="text-xs text-gray-500 mt-1">Auto-synced from class schedule</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Auto-synced from class schedule
+              </p>
             )}
           </div>
 
           {/* Staff Member */}
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">Staff Member</label>
+            <label className="block text-sm font-medium text-gray-400 mb-2">
+              Staff Member
+            </label>
             <select
               value={formData.staff_id || currentUserId}
-              onChange={(e) => setFormData({ ...formData, staff_id: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, staff_id: e.target.value })
+              }
               className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-orange-500"
             >
               <option value={currentUserId}>Me</option>
@@ -972,20 +1106,45 @@ function BookingModal({
           {/* Date and Time */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-2">Start Date & Time</label>
+              <label className="block text-sm font-medium text-gray-400 mb-2">
+                Start Date & Time
+              </label>
               <input
                 type="datetime-local"
-                value={formData.start_time ? format(new Date(formData.start_time), "yyyy-MM-dd'T'HH:mm") : ""}
-                onChange={(e) => setFormData({ ...formData, start_time: new Date(e.target.value).toISOString() })}
+                value={
+                  formData.start_time
+                    ? format(
+                        new Date(formData.start_time),
+                        "yyyy-MM-dd'T'HH:mm",
+                      )
+                    : ""
+                }
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    start_time: new Date(e.target.value).toISOString(),
+                  })
+                }
                 className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-orange-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-2">End Date & Time</label>
+              <label className="block text-sm font-medium text-gray-400 mb-2">
+                End Date & Time
+              </label>
               <input
                 type="datetime-local"
-                value={formData.end_time ? format(new Date(formData.end_time), "yyyy-MM-dd'T'HH:mm") : ""}
-                onChange={(e) => setFormData({ ...formData, end_time: new Date(e.target.value).toISOString() })}
+                value={
+                  formData.end_time
+                    ? format(new Date(formData.end_time), "yyyy-MM-dd'T'HH:mm")
+                    : ""
+                }
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    end_time: new Date(e.target.value).toISOString(),
+                  })
+                }
                 className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-orange-500"
               />
             </div>
@@ -993,24 +1152,37 @@ function BookingModal({
 
           {/* Location */}
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">Location</label>
+            <label className="block text-sm font-medium text-gray-400 mb-2">
+              Location
+            </label>
             <input
               type="text"
               value={formData.location || ""}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, location: e.target.value })
+              }
               className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-orange-500"
               placeholder="e.g., Main Floor, Studio 1, PT Area"
             />
           </div>
 
           {/* Capacity (for certain types) */}
-          {["group_class", "training_session", "private_event"].includes(formData.booking_type || "") && (
+          {["group_class", "training_session", "private_event"].includes(
+            formData.booking_type || "",
+          ) && (
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-2">Max Capacity</label>
+              <label className="block text-sm font-medium text-gray-400 mb-2">
+                Max Capacity
+              </label>
               <input
                 type="number"
                 value={formData.max_capacity || ""}
-                onChange={(e) => setFormData({ ...formData, max_capacity: parseInt(e.target.value) })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    max_capacity: parseInt(e.target.value),
+                  })
+                }
                 className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-orange-500"
                 placeholder="Maximum number of participants"
               />
@@ -1019,10 +1191,14 @@ function BookingModal({
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">Description</label>
+            <label className="block text-sm font-medium text-gray-400 mb-2">
+              Description
+            </label>
             <textarea
               value={formData.description || ""}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
               className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-orange-500"
               rows={3}
               placeholder="Additional details..."
@@ -1031,10 +1207,14 @@ function BookingModal({
 
           {/* Notes */}
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">Internal Notes</label>
+            <label className="block text-sm font-medium text-gray-400 mb-2">
+              Internal Notes
+            </label>
             <textarea
               value={formData.notes || ""}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, notes: e.target.value })
+              }
               className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:border-orange-500"
               rows={2}
               placeholder="Staff-only notes..."

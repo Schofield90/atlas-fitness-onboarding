@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       .select(
         `
         *,
-        program:programs(name, description, price_pennies),
+        program:programs(name, description, price_pennies, default_capacity),
         bookings:class_bookings!left(
           id,
           customer_id,
@@ -83,7 +83,15 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ classes });
+    // Transform classes to ensure capacity is correctly set
+    const transformedClasses = (classes || []).map((cls) => ({
+      ...cls,
+      capacity: cls.max_capacity || cls.program?.default_capacity || 20,
+      // Also ensure max_capacity is set for consistency
+      max_capacity: cls.max_capacity || cls.program?.default_capacity || 20,
+    }));
+
+    return NextResponse.json({ classes: transformedClasses });
   } catch (error) {
     console.error("Error in GET /api/booking/classes:", error);
     return createErrorResponse(error);
