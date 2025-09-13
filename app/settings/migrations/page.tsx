@@ -47,13 +47,41 @@ export default function MigrationsPage() {
       return;
     }
 
-    const { data: userProfile } = await supabase
+    // First try to get from users table
+    const { data: userProfile, error: userError } = await supabase
       .from("users")
       .select("*")
       .eq("id", user.id)
       .single();
 
-    setUserData(userProfile);
+    if (userProfile) {
+      console.log("User profile from users table:", userProfile);
+      setUserData(userProfile);
+      return;
+    }
+
+    // If not in users table, try user_organizations to get organization_id
+    const { data: userOrg, error: orgError } = await supabase
+      .from("user_organizations")
+      .select("organization_id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (userOrg) {
+      console.log("User organization found:", userOrg);
+      setUserData({
+        id: user.id,
+        email: user.email,
+        organization_id: userOrg.organization_id,
+      });
+      return;
+    }
+
+    console.error("Could not find user profile or organization", {
+      userError,
+      orgError,
+    });
+    toast.error("Could not find your organization. Please contact support.");
   };
 
   const handleSelectedFile = async (file: File | undefined | null) => {
@@ -137,10 +165,34 @@ GTU003,Bob,Johnson,bob.j@example.com,07345678901,1992-08-30,Male,"789 Park Road"
   };
 
   const startMigration = async () => {
-    if (!uploadedFile || !userData) return;
+    console.log("startMigration called", { uploadedFile, userData });
+
+    if (!uploadedFile) {
+      toast.error("No file selected");
+      return;
+    }
+
+    if (!userData) {
+      toast.error("User data not loaded. Please refresh the page.");
+      return;
+    }
+
+    // Check for organization_id
+    if (!userData.organization_id) {
+      console.error("No organization_id found in userData:", userData);
+      toast.error(
+        "No organization found. Please ensure you're logged in to an organization.",
+      );
+      return;
+    }
 
     setUploading(true);
     try {
+      console.log(
+        "Creating migration job with org_id:",
+        userData.organization_id,
+      );
+
       // Create migration job
       const { data: job, error: jobError } = await supabase
         .from("migration_jobs")
@@ -153,18 +205,68 @@ GTU003,Bob,Johnson,bob.j@example.com,07345678901,1992-08-30,Male,"789 Park Road"
         .select()
         .single();
 
-      if (jobError) throw jobError;
+      if (jobError) {
+        console.error("Job creation error:", jobError);
+        throw jobError;
+      }
+
+      console.log("Migration job created:", job);
       setMigrationJob(job);
 
       // Upload file to Supabase Storage
       const fileName = `${job.id}/${uploadedFile.name}`;
+      console.log("Uploading file to storage:", fileName);
+
+      // First check if the bucket exists
+      const { data: buckets } = await supabase.storage.listBuckets();
+      console.log(
+        "Available storage buckets:",
+        buckets?.map((b) => b.name),
+      );
+
+      const bucketExists = buckets?.some((b) => b.name === "migrations");
+      if (!bucketExists) {
+        console.log("Creating migrations bucket...");
+        const { error: bucketError } = await supabase.storage.createBucket(
+          "migrations",
+          {
+            public: false,
+            allowedMimeTypes: [
+              "text/csv",
+              "application/vnd.ms-excel",
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ],
+          },
+        );
+
+        if (bucketError && !bucketError.message?.includes("already exists")) {
+          console.error("Bucket creation error:", bucketError);
+          throw new Error(
+            "Storage bucket not available. Please contact support.",
+          );
+        }
+      }
+
       const { error: uploadError } = await supabase.storage
         .from("migrations")
         .upload(fileName, uploadedFile);
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error("File upload error:", uploadError);
+        // If bucket doesn't exist error, provide clearer message
+        if (
+          uploadError.message?.includes("bucket") ||
+          uploadError.message?.includes("not found")
+        ) {
+          throw new Error(
+            "Storage is not configured. Please contact support to enable file uploads.",
+          );
+        }
+        throw uploadError;
+      }
 
       // Save file metadata
+      console.log("Saving file metadata");
       const { error: fileError } = await supabase
         .from("migration_files")
         .insert({
@@ -176,13 +278,18 @@ GTU003,Bob,Johnson,bob.j@example.com,07345678901,1992-08-30,Male,"789 Park Road"
           storage_path: fileName,
         });
 
-      if (fileError) throw fileError;
+      if (fileError) {
+        console.error("File metadata error:", fileError);
+        throw fileError;
+      }
 
       // Start AI analysis
+      console.log("Starting AI analysis for job:", job.id);
       await analyzeWithAI(job.id);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Upload error:", error);
-      toast.error("Failed to upload file");
+      const errorMessage = error?.message || "Failed to upload file";
+      toast.error(errorMessage);
       setUploading(false);
     }
   };
