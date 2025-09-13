@@ -157,7 +157,70 @@ export default function SharedStaffCalendar({
       setLoading(true);
       setError(null);
 
+      // Try to use the view first, fallback to class_sessions if it doesn't exist
       let query = supabase
+        .from("staff_calendar_bookings_view")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .gte("start_time", dateRange.start.toISOString())
+        .lte("start_time", dateRange.end.toISOString())
+        .neq("status", "cancelled")
+        .order("start_time", { ascending: true });
+
+      // First attempt with the view
+      let { data, error } = await query;
+
+      // If the view doesn't exist, fallback to class_sessions
+      if (error?.code === "42P01") {
+        console.log("View not found, falling back to class_sessions");
+        
+        const { data: sessions, error: sessionError } = await supabase
+          .from("class_sessions")
+          .select(`
+            *,
+            program:programs(name, description, price_pennies)
+          `)
+          .eq("organization_id", organizationId)
+          .gte("start_time", dateRange.start.toISOString())
+          .lte("start_time", dateRange.end.toISOString())
+          .order("start_time", { ascending: true });
+
+        if (!sessionError && sessions) {
+          // Transform class_sessions to match calendar booking format
+          data = sessions.map((session) => ({
+            id: session.id,
+            organization_id: session.organization_id,
+            title: session.program?.name || "Class Session",
+            description: session.program?.description,
+            booking_type: "group_class" as BookingType,
+            status: "confirmed" as BookingStatus,
+            start_time: session.start_time,
+            end_time: new Date(new Date(session.start_time).getTime() + (session.duration_minutes || 60) * 60000).toISOString(),
+            all_day: false,
+            staff_id: session.instructor_id,
+            staff_name: session.instructor_name,
+            location: session.location,
+            room_area: session.location,
+            max_capacity: session.capacity || session.max_capacity,
+            current_bookings: session.current_bookings || 0,
+            color_hex: "#10B981",
+            class_session_id: session.id,
+            metadata: { synced_from_class: true },
+            notes: null,
+            created_at: session.created_at,
+            updated_at: session.updated_at,
+            display_color: "#10B981",
+            staff_email: null,
+            staff_full_name: session.instructor_name,
+            confirmed_client_count: session.current_bookings || 0,
+          }));
+          error = null;
+        } else {
+          error = sessionError;
+        }
+      }
+
+      query = supabase
         .from("staff_calendar_bookings_view")
         .select("*")
         .eq("organization_id", organizationId)
