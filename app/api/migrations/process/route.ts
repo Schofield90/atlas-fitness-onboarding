@@ -115,6 +115,21 @@ async function processInBackground(jobId: string, job: any, mappings: any[]) {
           }),
         );
         console.log("Using job field_mappings:", effectiveMappings);
+      } else {
+        console.error("No field mappings found in job or request");
+        // Return error instead of proceeding with empty mappings
+        await supabaseAdmin
+          .from("migration_jobs")
+          .update({
+            status: "failed",
+            completed_at: new Date().toISOString(),
+          })
+          .eq("id", jobId);
+
+        return NextResponse.json(
+          { success: false, error: "No field mappings configured" },
+          { status: 400 },
+        );
       }
     }
 
@@ -305,13 +320,25 @@ async function processClients(
 
       for (const mapping of mappings) {
         if (mapping.source_field && row[mapping.source_field] !== undefined) {
+          // Determine data type based on target field if not specified
+          let dataType = mapping.data_type;
+          if (!dataType) {
+            if (mapping.target_field === "date_of_birth") {
+              dataType = "date";
+            } else if (["age", "phone"].includes(mapping.target_field)) {
+              dataType = "string"; // Keep phone as string
+            } else {
+              dataType = "string"; // Default to string
+            }
+          }
+
           const value = transformValue(
             row[mapping.source_field],
-            mapping.data_type,
+            dataType,
             mapping.transformation_rule,
           );
 
-          if (value !== null) {
+          if (value !== null && value !== "") {
             clientData[mapping.target_field] = value;
           }
         }
