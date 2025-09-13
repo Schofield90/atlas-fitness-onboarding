@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/client";
 import {
@@ -31,6 +31,8 @@ export default function MigrationsPage() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [fieldMappings, setFieldMappings] = useState<any[]>([]);
   const [userData, setUserData] = useState<any>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [isDragActive, setIsDragActive] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -54,10 +56,7 @@ export default function MigrationsPage() {
     setUserData(userProfile);
   };
 
-  const handleFileUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const file = event.target.files?.[0];
+  const handleSelectedFile = async (file: File | undefined | null) => {
     if (!file) return;
 
     // Validate file type
@@ -67,7 +66,9 @@ export default function MigrationsPage() {
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     ];
 
-    if (!validTypes.includes(file.type)) {
+    const hasValidMime = !!file.type && validTypes.includes(file.type);
+    const hasValidExtension = /\.(csv|xlsx|xls)$/i.test(file.name);
+    if (!(hasValidMime || hasValidExtension)) {
       toast.error("Please upload a CSV or Excel file");
       return;
     }
@@ -82,22 +83,56 @@ export default function MigrationsPage() {
     setCurrentStep(2);
   };
 
+  const onFileInputChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    await handleSelectedFile(file);
+    // allow selecting the same file again by resetting value
+    if (event.target) {
+      event.target.value = "";
+    }
+  };
+
+  const onDrop = async (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragActive(false);
+    if (uploading) return;
+    const files = event.dataTransfer?.files;
+    if (files && files.length > 0) {
+      await handleSelectedFile(files[0]);
+    }
+  };
+
+  const onDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!isDragActive) setIsDragActive(true);
+  };
+
+  const onDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragActive(false);
+  };
+
   const downloadTemplate = () => {
     const csvContent = `member_id,first_name,last_name,email,phone,date_of_birth,gender,address,city,postcode,country,emergency_contact_name,emergency_contact_phone,membership_status,membership_type,membership_start_date,payment_method,notes
 GTU001,John,Doe,john.doe@example.com,07123456789,1990-01-15,Male,"123 Main Street",London,SW1A 1AA,United Kingdom,Jane Doe,07987654321,Active,Premium Monthly,2023-01-15,Direct Debit,Existing member from GoTeamUp
 GTU002,Jane,Smith,jane.smith@example.com,07234567890,1985-05-20,Female,"456 High Street",Manchester,M1 1AA,United Kingdom,John Smith,07876543210,Active,Standard Monthly,2023-03-10,Card,Personal training client
 GTU003,Bob,Johnson,bob.j@example.com,07345678901,1992-08-30,Male,"789 Park Road",Birmingham,B1 1AA,United Kingdom,Sarah Johnson,07765432109,Paused,Premium Annual,2022-06-01,Direct Debit,On holiday until next month`;
-    
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = 'goteamup_import_template.csv';
+    a.download = "goteamup_import_template.csv";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
-    
+
     toast.success("Template downloaded!");
   };
 
@@ -342,24 +377,43 @@ GTU003,Bob,Johnson,bob.j@example.com,07345678901,1992-08-30,Male,"789 Park Road"
               {/* Step Content */}
               {currentStep === 1 && (
                 <div className="space-y-4">
-                  <div className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center">
+                  <div
+                    className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                      isDragActive
+                        ? "border-blue-500 bg-gray-800/50"
+                        : "border-gray-600"
+                    }`}
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={onDragOver}
+                    onDragLeave={onDragLeave}
+                    onDrop={onDrop}
+                    data-testid="migrations-dropzone"
+                  >
                     <FileSpreadsheet className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <label className="cursor-pointer">
-                      <span className="text-blue-500 hover:text-blue-400 font-medium">
+                    <div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          fileInputRef.current?.click();
+                        }}
+                        className="text-blue-500 hover:text-blue-400 font-medium underline"
+                      >
                         Click to upload
-                      </span>
+                      </button>
                       <span className="text-gray-400"> or drag and drop</span>
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept=".csv,.xlsx,.xls"
-                        onChange={handleFileUpload}
-                        disabled={uploading}
-                      />
-                    </label>
+                    </div>
                     <p className="text-sm text-gray-500 mt-2">
                       CSV, Excel files up to 100MB
                     </p>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      className="hidden"
+                      accept=".csv,.xlsx,.xls"
+                      onChange={onFileInputChange}
+                      disabled={uploading}
+                    />
                   </div>
                 </div>
               )}
@@ -482,7 +536,7 @@ GTU003,Bob,Johnson,bob.j@example.com,07345678901,1992-08-30,Male,"789 Park Road"
                   Download our sample GoTeamUp template to see the expected
                   format
                 </p>
-                <button 
+                <button
                   onClick={downloadTemplate}
                   className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 flex items-center gap-2"
                 >
