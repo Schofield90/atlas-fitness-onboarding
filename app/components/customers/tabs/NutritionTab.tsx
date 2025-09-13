@@ -162,16 +162,37 @@ export default function NutritionTab({
       }
 
       // Fetch AI-generated meal plan from meal_plans table
-      const { data: aiPlanData, error: aiPlanError } = await supabase
+      // Try with organization_id first
+      console.log("Fetching AI meal plan for customer:", customerId, "org:", organizationId);
+      let { data: aiPlanData, error: aiPlanError } = await supabase
         .from("meal_plans")
         .select("*")
         .or(`client_id.eq.${customerId},member_id.eq.${customerId}`)
         .eq("organization_id", organizationId)
         .order("created_at", { ascending: false })
         .limit(1);
+      
+      // If no data found with org_id, try without it (for legacy data)
+      if ((!aiPlanData || aiPlanData.length === 0) && !aiPlanError) {
+        console.log("No meal plan found with org_id, trying without...");
+        const result = await supabase
+          .from("meal_plans")
+          .select("*")
+          .or(`client_id.eq.${customerId},member_id.eq.${customerId}`)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        
+        aiPlanData = result.data;
+        aiPlanError = result.error;
+      }
 
+      console.log("AI Plan Query Result:", { aiPlanData, aiPlanError });
+      
       if (!aiPlanError && aiPlanData && aiPlanData.length > 0) {
+        console.log("Setting AI meal plan:", aiPlanData[0]);
         setAiMealPlan(aiPlanData[0]);
+      } else {
+        console.log("No AI meal plan found or error:", aiPlanError);
       }
 
       // Fetch nutrition logs for the last 30 days
@@ -345,10 +366,12 @@ export default function NutritionTab({
     );
   }
 
+  console.log("Rendering NutritionTab - aiMealPlan:", aiMealPlan);
+  
   return (
     <div className="space-y-6">
       {/* AI Generated Meal Plan Section */}
-      {aiMealPlan && (aiMealPlan.meal_data || aiMealPlan.plan_data) && (
+      {aiMealPlan && (
         <div className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 rounded-lg p-6 border border-purple-700/50">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-white flex items-center gap-2">
@@ -380,7 +403,9 @@ export default function NutritionTab({
             <div className="space-y-4">
               {/* Display meal plan details */}
               {(() => {
-                const mealData = aiMealPlan.meal_data || aiMealPlan.plan_data;
+                const mealData = aiMealPlan.meal_data || aiMealPlan.plan_data || aiMealPlan;
+                console.log("Meal data to display:", mealData);
+                
                 if (typeof mealData === 'object' && mealData) {
                   // Check if it's a weekly plan
                   if (mealData.weeks || mealData.days) {
@@ -465,9 +490,67 @@ export default function NutritionTab({
                     );
                   }
                 }
+                
+                // If we have plan metadata but no structured meal data
+                if (mealData.name || mealData.description || mealData.daily_calories) {
+                  return (
+                    <div className="space-y-3">
+                      <div className="bg-gray-700/50 rounded p-4">
+                        <h4 className="text-white font-medium mb-2">Plan Details</h4>
+                        {mealData.name && (
+                          <p className="text-gray-300">Name: {mealData.name}</p>
+                        )}
+                        {mealData.description && (
+                          <p className="text-gray-300 text-sm mt-1">{mealData.description}</p>
+                        )}
+                        <div className="grid grid-cols-4 gap-3 mt-3">
+                          {mealData.daily_calories && (
+                            <div>
+                              <div className="text-orange-400 font-medium">{mealData.daily_calories}</div>
+                              <div className="text-xs text-gray-500">calories/day</div>
+                            </div>
+                          )}
+                          {mealData.daily_protein && (
+                            <div>
+                              <div className="text-red-400 font-medium">{mealData.daily_protein}g</div>
+                              <div className="text-xs text-gray-500">protein/day</div>
+                            </div>
+                          )}
+                          {mealData.daily_carbs && (
+                            <div>
+                              <div className="text-yellow-400 font-medium">{mealData.daily_carbs}g</div>
+                              <div className="text-xs text-gray-500">carbs/day</div>
+                            </div>
+                          )}
+                          {mealData.daily_fat && (
+                            <div>
+                              <div className="text-purple-400 font-medium">{mealData.daily_fat}g</div>
+                              <div className="text-xs text-gray-500">fat/day</div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-500 bg-gray-800 p-2 rounded">
+                        <details>
+                          <summary className="cursor-pointer text-gray-400">Debug: View raw data</summary>
+                          <pre className="mt-2 text-xs overflow-auto max-h-40">
+                            {JSON.stringify(mealData, null, 2)}
+                          </pre>
+                        </details>
+                      </div>
+                    </div>
+                  );
+                }
+                
                 return (
                   <div className="text-gray-400 text-center py-4">
-                    Unable to display meal plan format
+                    <p>Unable to display meal plan format</p>
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-xs">Debug info</summary>
+                      <pre className="mt-2 text-xs text-left overflow-auto max-h-40">
+                        {JSON.stringify(mealData, null, 2)}
+                      </pre>
+                    </details>
                   </div>
                 );
               })()}
