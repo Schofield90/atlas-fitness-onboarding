@@ -137,7 +137,12 @@ export default function NutritionTab({
   const supabase = createClient();
 
   useEffect(() => {
-    console.log("NutritionTab mounted/updated with customerId:", customerId, "organizationId:", organizationId);
+    console.log(
+      "NutritionTab mounted/updated with customerId:",
+      customerId,
+      "organizationId:",
+      organizationId,
+    );
     if (customerId && organizationId) {
       fetchNutritionData();
     }
@@ -148,55 +153,64 @@ export default function NutritionTab({
       setLoading(true);
 
       // Fetch nutrition profile - using direct client_id match
-      console.log("Fetching nutrition profile for client:", customerId, "org:", organizationId);
+      console.log(
+        "Fetching nutrition profile for client:",
+        customerId,
+        "org:",
+        organizationId,
+      );
 
       // First get the nutrition profile by client_id and organization_id
       let { data: nutritionProfile, error: profileError } = await supabase
         .from("nutrition_profiles")
-        .select(`
+        .select(
+          `
           *,
           nutrition_preferences (*)
-        `)
+        `,
+        )
         .eq("client_id", customerId)
         .eq("organization_id", organizationId)
         .maybeSingle();
-      
+
       // If not found with org_id, try without it (for backwards compatibility)
       if (!nutritionProfile && !profileError) {
         const { data: profileWithoutOrg } = await supabase
           .from("nutrition_profiles")
-          .select(`
+          .select(
+            `
             *,
             nutrition_preferences (*)
-          `)
+          `,
+          )
           .eq("client_id", customerId)
           .maybeSingle();
-          
+
         nutritionProfile = profileWithoutOrg;
       }
 
-      console.log("Direct nutrition profile query result:", { 
-        nutritionProfile, 
+      console.log("Direct nutrition profile query result:", {
+        nutritionProfile,
         profileError,
         hasProfile: !!nutritionProfile,
         profileId: nutritionProfile?.id,
         targetCalories: nutritionProfile?.target_calories,
         proteinGrams: nutritionProfile?.protein_grams,
         carbsGrams: nutritionProfile?.carbs_grams,
-        fatGrams: nutritionProfile?.fat_grams
+        fatGrams: nutritionProfile?.fat_grams,
       });
 
       // If no profile exists yet, that's ok - the client might not have set one up yet
       if (!nutritionProfile) {
         console.log("No nutrition profile found for client_id:", customerId);
-        
+
         // Check if there's any profile data in the clients table itself
         const { data: clientData } = await supabase
           .from("clients")
           .select("*")
           .eq("id", customerId)
           .single();
-          
+
         console.log("Client data:", clientData);
       }
 
@@ -219,11 +233,13 @@ export default function NutritionTab({
           water_target: 2500, // Default water target
           meal_plan: nutritionProfile.nutrition_preferences,
           restrictions: nutritionProfile.nutrition_preferences?.allergies || [],
-          preferences: nutritionProfile.nutrition_preferences?.liked_foods || [],
+          preferences:
+            nutritionProfile.nutrition_preferences?.liked_foods || [],
           start_date: nutritionProfile.created_at,
           status: "active",
           created_at: nutritionProfile.created_at,
-          updated_at: nutritionProfile.updated_at || nutritionProfile.created_at,
+          updated_at:
+            nutritionProfile.updated_at || nutritionProfile.created_at,
         };
         setActivePlan(plan);
         setPlanForm({
@@ -233,7 +249,7 @@ export default function NutritionTab({
           fat_target: plan.fat_target,
           water_target: plan.water_target,
         });
-        
+
         console.log("Converted nutrition plan:", {
           planId: plan.id,
           calories: plan.calories_target,
@@ -244,8 +260,8 @@ export default function NutritionTab({
             target_calories: nutritionProfile.target_calories,
             protein_grams: nutritionProfile.protein_grams,
             carbs_grams: nutritionProfile.carbs_grams,
-            fat_grams: nutritionProfile.fat_grams
-          }
+            fat_grams: nutritionProfile.fat_grams,
+          },
         });
       } else {
         console.log("No nutrition profile to convert");
@@ -261,7 +277,7 @@ export default function NutritionTab({
         .eq("client_id", customerId)
         .order("created_at", { ascending: false })
         .limit(5);
-        
+
       // If we have a nutrition profile, also search by profile_id
       if (nutritionProfile?.id) {
         mealPlanQuery = supabase
@@ -271,7 +287,7 @@ export default function NutritionTab({
           .order("created_at", { ascending: false })
           .limit(5);
       }
-      
+
       let { data: aiPlanData, error: aiPlanError } = await mealPlanQuery;
 
       console.log("AI Plan Query Result:", { aiPlanData, aiPlanError });
@@ -472,7 +488,8 @@ export default function NutritionTab({
       {!aiMealPlan && nutritionProfile && (
         <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-4">
           <p className="text-yellow-400">
-            No AI meal plan found for this client. The client needs to generate their meal plan from their portal.
+            No AI meal plan found for this client. The client needs to generate
+            their meal plan from their portal.
           </p>
         </div>
       )}
@@ -648,44 +665,72 @@ export default function NutritionTab({
                           </p>
                         )}
                         <div className="grid grid-cols-4 gap-3 mt-3">
-                          {mealData.daily_calories && (
+                          {(mealData.daily_calories ||
+                            aiMealPlan?.daily_calories) && (
                             <div>
                               <div className="text-orange-400 font-medium">
-                                {mealData.daily_calories}
+                                {mealData.daily_calories ||
+                                  aiMealPlan?.daily_calories}
                               </div>
                               <div className="text-xs text-gray-500">
                                 calories/day
                               </div>
+                              {nutritionProfile?.target_calories && (
+                                <div className="text-xs text-green-400 mt-1">
+                                  Target: {nutritionProfile.target_calories}
+                                </div>
+                              )}
                             </div>
                           )}
-                          {mealData.daily_protein && (
+                          {(mealData.daily_protein ||
+                            aiMealPlan?.daily_protein) && (
                             <div>
                               <div className="text-red-400 font-medium">
-                                {mealData.daily_protein}g
+                                {mealData.daily_protein ||
+                                  aiMealPlan?.daily_protein}
+                                g
                               </div>
                               <div className="text-xs text-gray-500">
                                 protein/day
                               </div>
+                              {nutritionProfile?.protein_grams && (
+                                <div className="text-xs text-green-400 mt-1">
+                                  Target: {nutritionProfile.protein_grams}g
+                                </div>
+                              )}
                             </div>
                           )}
-                          {mealData.daily_carbs && (
+                          {(mealData.daily_carbs ||
+                            aiMealPlan?.daily_carbs) && (
                             <div>
                               <div className="text-yellow-400 font-medium">
-                                {mealData.daily_carbs}g
+                                {mealData.daily_carbs ||
+                                  aiMealPlan?.daily_carbs}
+                                g
                               </div>
                               <div className="text-xs text-gray-500">
                                 carbs/day
                               </div>
+                              {nutritionProfile?.carbs_grams && (
+                                <div className="text-xs text-green-400 mt-1">
+                                  Target: {nutritionProfile.carbs_grams}g
+                                </div>
+                              )}
                             </div>
                           )}
-                          {mealData.daily_fat && (
+                          {(mealData.daily_fat || aiMealPlan?.daily_fat) && (
                             <div>
                               <div className="text-purple-400 font-medium">
-                                {mealData.daily_fat}g
+                                {mealData.daily_fat || aiMealPlan?.daily_fat}g
                               </div>
                               <div className="text-xs text-gray-500">
                                 fat/day
                               </div>
+                              {nutritionProfile?.fat_grams && (
+                                <div className="text-xs text-green-400 mt-1">
+                                  Target: {nutritionProfile.fat_grams}g
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -718,6 +763,42 @@ export default function NutritionTab({
                   </div>
                 );
               })()}
+
+              {/* Warning if meal plan doesn't match current profile */}
+              {nutritionProfile &&
+                aiMealPlan &&
+                (() => {
+                  const planCalories =
+                    aiMealPlan.daily_calories ||
+                    aiMealPlan.meal_data?.daily_calories;
+                  const profileCalories = nutritionProfile.target_calories;
+                  const mismatch =
+                    planCalories &&
+                    profileCalories &&
+                    Math.abs(planCalories - profileCalories) > 50;
+
+                  if (mismatch) {
+                    return (
+                      <div className="bg-yellow-900/30 border border-yellow-600 rounded-lg p-3 mt-4">
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="h-4 w-4 text-yellow-500 mt-0.5" />
+                          <div>
+                            <p className="text-yellow-400 text-sm font-medium">
+                              Profile Mismatch Detected
+                            </p>
+                            <p className="text-yellow-200 text-xs mt-1">
+                              This meal plan was generated with {planCalories}{" "}
+                              calories but the client's current target is{" "}
+                              {profileCalories} calories. Consider regenerating
+                              the meal plan with updated targets.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
 
               <div className="text-xs text-gray-500 mt-4">
                 Generated on{" "}
@@ -852,36 +933,56 @@ export default function NutritionTab({
                 <Flame className="h-5 w-5 text-orange-500" />
               </div>
               <div className="text-2xl font-bold text-white">
-                {activePlan?.calories_target || 2000}
+                {nutritionProfile?.target_calories ||
+                  activePlan?.calories_target ||
+                  2000}
               </div>
               <div className="text-xs text-gray-400">Calories</div>
+              {nutritionProfile?.target_calories && (
+                <div className="text-xs text-green-400 mt-1">From Profile</div>
+              )}
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center mb-2">
                 <Beef className="h-5 w-5 text-red-500" />
               </div>
               <div className="text-2xl font-bold text-white">
-                {activePlan?.protein_target || 150}g
+                {nutritionProfile?.protein_grams ||
+                  activePlan?.protein_target ||
+                  150}
+                g
               </div>
               <div className="text-xs text-gray-400">Protein</div>
+              {nutritionProfile?.protein_grams && (
+                <div className="text-xs text-green-400 mt-1">From Profile</div>
+              )}
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center mb-2">
                 <Wheat className="h-5 w-5 text-yellow-500" />
               </div>
               <div className="text-2xl font-bold text-white">
-                {activePlan?.carbs_target || 200}g
+                {nutritionProfile?.carbs_grams ||
+                  activePlan?.carbs_target ||
+                  200}
+                g
               </div>
               <div className="text-xs text-gray-400">Carbs</div>
+              {nutritionProfile?.carbs_grams && (
+                <div className="text-xs text-green-400 mt-1">From Profile</div>
+              )}
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center mb-2">
                 <Cookie className="h-5 w-5 text-purple-500" />
               </div>
               <div className="text-2xl font-bold text-white">
-                {activePlan?.fat_target || 70}g
+                {nutritionProfile?.fat_grams || activePlan?.fat_target || 70}g
               </div>
               <div className="text-xs text-gray-400">Fat</div>
+              {nutritionProfile?.fat_grams && (
+                <div className="text-xs text-green-400 mt-1">From Profile</div>
+              )}
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center mb-2">
