@@ -527,6 +527,35 @@ export default function MigrationStatusPage() {
                           <button
                             onClick={async () => {
                               const response = await fetch(
+                                `/api/migration/jobs/${selectedJob.id}/parse-csv`,
+                                {
+                                  method: "POST",
+                                },
+                              );
+                              const data = await response.json();
+                              console.log("Parse CSV result:", data);
+                              if (data.logs) {
+                                data.logs.forEach((log: string) =>
+                                  console.log(log),
+                                );
+                              }
+                              if (data.success) {
+                                toast.success(
+                                  `Parsed ${data.stats.totalRows} rows - created ${data.stats.recordsCreated} records`,
+                                );
+                                loadMigrationJobs();
+                              } else {
+                                toast.error(`Parse failed: ${data.error}`);
+                              }
+                            }}
+                            className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+                          >
+                            <FileText className="h-4 w-4" />
+                            Parse CSV
+                          </button>
+                          <button
+                            onClick={async () => {
+                              const response = await fetch(
                                 `/api/migration/jobs/${selectedJob.id}/test-process`,
                                 {
                                   method: "POST",
