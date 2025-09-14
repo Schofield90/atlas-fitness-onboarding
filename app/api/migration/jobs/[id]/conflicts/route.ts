@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { migrationService } from "@/app/lib/services/migration-service";
-import { getCurrentUser } from "@/app/lib/auth/organization";
+import {
+  getCurrentUser,
+  getUserOrganization,
+} from "@/app/lib/auth/organization";
 import { supabaseAdmin } from "@/app/lib/supabase/admin";
 
 /**
@@ -23,6 +26,9 @@ export async function GET(
       );
     }
 
+    // Get user's organization
+    const userOrganizationId = await getUserOrganization(user.id);
+
     // Verify job exists and user has access
     const { data: job, error: jobError } = await supabaseAdmin
       .from("migration_jobs")
@@ -37,7 +43,7 @@ export async function GET(
       );
     }
 
-    if (job.organization_id !== user.organization_id) {
+    if (job.organization_id !== userOrganizationId) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
         { status: 401 },
@@ -89,6 +95,9 @@ export async function POST(
       );
     }
 
+    // Get user's organization
+    const userOrganizationId = await getUserOrganization(user.id);
+
     // Verify conflict exists and belongs to this job
     const { data: conflict, error: conflictError } = await supabaseAdmin
       .from("migration_conflicts")
@@ -105,7 +114,7 @@ export async function POST(
 
     if (
       conflict.migration_job_id !== jobId ||
-      conflict.organization_id !== user.organization_id
+      conflict.organization_id !== userOrganizationId
     ) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },

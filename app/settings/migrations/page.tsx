@@ -47,15 +47,15 @@ export default function MigrationsPage() {
       return;
     }
 
-    // First try to get from users table
+    // First try to get from user_profiles table
     const { data: userProfile, error: userError } = await supabase
-      .from("users")
+      .from("user_profiles")
       .select("*")
       .eq("id", user.id)
       .single();
 
     if (userProfile) {
-      console.log("User profile from users table:", userProfile);
+      console.log("User profile from user_profiles table:", userProfile);
       setUserData(userProfile);
       return;
     }
