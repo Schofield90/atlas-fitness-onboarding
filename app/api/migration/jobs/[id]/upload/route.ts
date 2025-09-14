@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { migrationService } from "@/app/lib/services/migration-service";
-import { getCurrentUser } from "@/app/lib/auth/organization";
+import { createClient } from "@/app/lib/supabase/server";
 import { supabaseAdmin } from "@/app/lib/supabase/admin";
 
 /**
@@ -15,10 +15,28 @@ export async function POST(
     const jobId = params.id;
 
     // Get current user
-    const user = await getCurrentUser();
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     if (!user) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
+        { status: 401 },
+      );
+    }
+
+    // Get user's organization from user_organizations table
+    const { data: userOrg } = await supabase
+      .from("user_organizations")
+      .select("organization_id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!userOrg?.organization_id) {
+      return NextResponse.json(
+        { success: false, error: "User organization not found" },
         { status: 401 },
       );
     }
@@ -37,7 +55,7 @@ export async function POST(
       );
     }
 
-    if (job.organization_id !== user.organization_id) {
+    if (job.organization_id !== userOrg.organization_id) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
         { status: 401 },
@@ -65,7 +83,7 @@ export async function POST(
     const uploadResults = await migrationService.uploadMigrationFiles(
       jobId,
       files,
-      user.organization_id,
+      userOrg.organization_id,
     );
 
     return NextResponse.json({
