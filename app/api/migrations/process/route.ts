@@ -350,6 +350,11 @@ async function processClients(
       }
 
       // Create client
+      console.log(
+        `Attempting to insert client ${email} with data:`,
+        clientData,
+      );
+
       const { data: newClient, error: insertError } = await supabaseAdmin
         .from("clients")
         .insert(clientData)
@@ -357,8 +362,16 @@ async function processClients(
         .single();
 
       if (insertError) {
-        throw insertError;
+        console.error(`Supabase insert error for ${email}:`, insertError);
+        throw new Error(
+          `Database insert failed: ${insertError.message || JSON.stringify(insertError)}`,
+        );
       }
+
+      console.log(
+        `Successfully inserted client ${email} with ID:`,
+        newClient?.id,
+      );
 
       // Record success
       await supabaseAdmin.from("migration_records").insert({
@@ -378,16 +391,36 @@ async function processClients(
     } catch (error) {
       failed++;
 
-      // Record failure
+      // Get detailed error message
+      let errorMessage = "Unknown error";
+      let errorDetails = {};
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        errorDetails = {
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+        };
+      } else if (typeof error === "object" && error !== null) {
+        errorMessage = JSON.stringify(error);
+        errorDetails = error;
+      }
+
+      console.error(`Failed to import client ${email}:`, error);
+      console.error("Client data that failed:", clientData);
+
+      // Record failure with detailed error
       await supabaseAdmin.from("migration_records").insert({
         migration_job_id: jobId,
         organization_id: organizationId,
         source_record_id: email,
         record_type: "client",
         source_data: row,
+        mapped_data: clientData, // Include the mapped data to see what was attempted
         status: "failed",
-        error_message: error instanceof Error ? error.message : "Unknown error",
-        error_details: { error },
+        error_message: errorMessage,
+        error_details: errorDetails,
       });
 
       // Log error
