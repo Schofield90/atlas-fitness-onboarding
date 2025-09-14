@@ -316,7 +316,11 @@ async function processClients(
       const clientData: any = {
         organization_id: organizationId,
         created_at: new Date().toISOString(),
+        metadata: {}, // Initialize metadata for address fields
       };
+
+      // Fields that should go into metadata instead of direct columns
+      const metadataFields = ["address", "city", "postcode", "country"];
 
       for (const mapping of mappings) {
         if (mapping.source_field && row[mapping.source_field] !== undefined) {
@@ -339,9 +343,29 @@ async function processClients(
           );
 
           if (value !== null && value !== "") {
-            clientData[mapping.target_field] = value;
+            // Check if this field should go into metadata
+            if (metadataFields.includes(mapping.target_field)) {
+              clientData.metadata[mapping.target_field] = value;
+            } else {
+              clientData[mapping.target_field] = value;
+            }
           }
         }
+      }
+
+      // Also store the full address in metadata if we have address components
+      if (row["Address Line 1"] || row["Address Line 2"]) {
+        clientData.metadata.address_line_1 = row["Address Line 1"] || "";
+        clientData.metadata.address_line_2 = row["Address Line 2"] || "";
+      }
+      if (row["City"]) {
+        clientData.metadata.city = row["City"];
+      }
+      if (row["Postcode"]) {
+        clientData.metadata.postcode = row["Postcode"];
+      }
+      if (row["Country"]) {
+        clientData.metadata.country = row["Country"];
       }
 
       // Ensure required fields

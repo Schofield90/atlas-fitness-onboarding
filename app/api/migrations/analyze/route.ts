@@ -75,7 +75,10 @@ Sample data (first 5 rows):
 ${sampleRows.map(row => row.join(', ')).join('\n')}
 
 Provide a JSON response with:
-1. field_mappings: Map each CSV column to our database fields (clients table has: first_name, last_name, email, phone, date_of_birth, address, city, postcode, country, emergency_contact_name, emergency_contact_phone, notes)
+1. field_mappings: Map each CSV column to our database fields. Available fields are:
+   - Direct fields: first_name, last_name, email, phone, date_of_birth, gender, status, notes, emergency_contact_name, emergency_contact_phone
+   - Address fields (will be stored in metadata): Address Line 1, Address Line 2, City, Postcode, Country
+   Note: Do NOT map to 'address', 'city', 'postcode', or 'country' directly as these don't exist in the table.
 2. data_quality: Assessment of data completeness and quality
 3. recommendations: Any suggestions for the migration
 
