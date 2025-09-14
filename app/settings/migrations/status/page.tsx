@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Trash2,
+  Bug,
 } from "lucide-react";
 import toast from "@/app/lib/toast";
 
@@ -55,6 +56,8 @@ export default function MigrationStatusPage() {
   const [conflicts, setConflicts] = useState<MigrationConflict[]>([]);
   const [loading, setLoading] = useState(true);
   const [polling, setPolling] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<any>(null);
+  const [showDebug, setShowDebug] = useState(false);
 
   useEffect(() => {
     loadMigrationJobs();
@@ -271,6 +274,29 @@ export default function MigrationStatusPage() {
     return `${Math.floor(duration / 3600)}h ${Math.floor((duration % 3600) / 60)}m`;
   };
 
+  const runDebugCheck = async () => {
+    try {
+      const jobId = selectedJob?.id;
+      const url = jobId
+        ? `/api/migration/debug?jobId=${jobId}`
+        : "/api/migration/debug";
+
+      const response = await fetch(url);
+      const data = await response.json();
+      setDebugInfo(data);
+      setShowDebug(true);
+
+      if (data.summary?.status?.includes("Issues found")) {
+        toast.error("Migration system issues detected - check debug info");
+      } else {
+        toast.success("All migration system checks passed");
+      }
+    } catch (error) {
+      console.error("Debug check failed:", error);
+      toast.error("Failed to run debug check");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -284,11 +310,116 @@ export default function MigrationStatusPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Migration Status</h1>
-          <p className="text-gray-400">
-            Track and manage your data migration jobs
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">Migration Status</h1>
+              <p className="text-gray-400">
+                Track and manage your data migration jobs
+              </p>
+            </div>
+            <button
+              onClick={runDebugCheck}
+              className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 flex items-center gap-2"
+            >
+              <Bug className="h-4 w-4" />
+              Debug System
+            </button>
+          </div>
         </div>
+
+        {/* Debug Info Panel */}
+        {showDebug && debugInfo && (
+          <div className="mb-8 bg-gray-800 rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <Bug className="h-5 w-5" />
+                Debug Information
+              </h2>
+              <button
+                onClick={() => setShowDebug(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Summary */}
+              <div className="p-3 bg-gray-700 rounded">
+                <p className="font-medium mb-2">Summary</p>
+                <p
+                  className={`text-sm ${debugInfo.summary?.status?.includes("Issues") ? "text-red-400" : "text-green-400"}`}
+                >
+                  {debugInfo.summary?.status}
+                </p>
+              </div>
+
+              {/* Checks */}
+              <div className="space-y-2">
+                <p className="font-medium">System Checks:</p>
+                {Object.entries(debugInfo.checks || {}).map(
+                  ([key, check]: [string, any]) => (
+                    <div key={key} className="p-2 bg-gray-700 rounded text-sm">
+                      <div className="flex items-start justify-between">
+                        <span className="font-mono">{key}:</span>
+                        <span
+                          className={
+                            check.status?.includes("✅")
+                              ? "text-green-400"
+                              : "text-red-400"
+                          }
+                        >
+                          {check.status}
+                        </span>
+                      </div>
+                      {check.error && (
+                        <p className="text-red-400 text-xs mt-1">
+                          Error: {check.error}
+                        </p>
+                      )}
+                      {check.hint && (
+                        <p className="text-yellow-400 text-xs mt-1">
+                          Hint: {check.hint}
+                        </p>
+                      )}
+                    </div>
+                  ),
+                )}
+              </div>
+
+              {/* SQL Fix if needed */}
+              {debugInfo.sqlFix && (
+                <div className="p-3 bg-red-900/20 border border-red-500 rounded">
+                  <p className="font-medium text-red-400 mb-2">
+                    Action Required:
+                  </p>
+                  <p className="text-sm mb-2">{debugInfo.sqlFix.message}</p>
+                  <pre className="bg-gray-900 p-2 rounded text-xs overflow-x-auto">
+                    {debugInfo.sqlFix.sql}
+                  </pre>
+                  <a
+                    href={debugInfo.sqlFix.dashboardUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 mt-2 text-blue-400 hover:text-blue-300 text-sm"
+                  >
+                    Open Supabase SQL Editor →
+                  </a>
+                </div>
+              )}
+
+              {/* Raw JSON for debugging */}
+              <details className="cursor-pointer">
+                <summary className="text-sm text-gray-400 hover:text-white">
+                  View Raw Debug Data
+                </summary>
+                <pre className="mt-2 p-2 bg-gray-900 rounded text-xs overflow-x-auto">
+                  {JSON.stringify(debugInfo, null, 2)}
+                </pre>
+              </details>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Jobs List */}
