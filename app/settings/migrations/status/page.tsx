@@ -20,6 +20,7 @@ import {
   BarChart3,
   AlertTriangle,
   CheckCircle2,
+  Trash2,
 } from "lucide-react";
 import toast from "@/app/lib/toast";
 
@@ -196,6 +197,31 @@ export default function MigrationStatusPage() {
     }
   };
 
+  const deleteJob = async (jobId: string) => {
+    if (!confirm("Are you sure you want to delete this migration job?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("migration_jobs")
+        .delete()
+        .eq("id", jobId);
+
+      if (!error) {
+        toast.success("Migration job deleted");
+        if (selectedJob?.id === jobId) {
+          setSelectedJob(null);
+        }
+        loadMigrationJobs();
+      } else {
+        console.error("Error deleting job:", error);
+        toast.error("Failed to delete migration job");
+      }
+    } catch (error) {
+      console.error("Error deleting job:", error);
+      toast.error("Failed to delete migration job");
+    }
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "completed":
@@ -286,34 +312,62 @@ export default function MigrationStatusPage() {
                   {jobs.map((job) => (
                     <div
                       key={job.id}
-                      onClick={() => setSelectedJob(job)}
-                      className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                      className={`p-4 rounded-lg border transition-all ${
                         selectedJob?.id === job.id
                           ? "bg-blue-900/20 border-blue-500"
                           : "bg-gray-700 border-gray-600 hover:bg-gray-700/70"
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium capitalize">
-                          {job.source_system}
-                        </span>
-                        {getStatusIcon(job.status)}
-                      </div>
-                      <div className="text-sm text-gray-400">
-                        {new Date(job.created_at).toLocaleDateString()}
-                      </div>
-                      <div className="mt-2">
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="text-gray-400">Progress</span>
-                          <span>{calculateProgress(job)}%</span>
+                      <div
+                        onClick={() => setSelectedJob(job)}
+                        className="cursor-pointer"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium capitalize">
+                            {job.source_system}
+                          </span>
+                          {getStatusIcon(job.status)}
                         </div>
-                        <div className="w-full bg-gray-600 rounded-full h-2">
-                          <div
-                            className="bg-blue-500 h-2 rounded-full transition-all"
-                            style={{ width: `${calculateProgress(job)}%` }}
-                          />
+                        <div className="text-sm text-gray-400 space-y-1">
+                          <div>
+                            {new Date(job.created_at).toLocaleDateString()} at{" "}
+                            {new Date(job.created_at).toLocaleTimeString()}
+                          </div>
+                          {job.started_at && (
+                            <div className="text-xs">
+                              Started:{" "}
+                              {new Date(job.started_at).toLocaleTimeString()}
+                            </div>
+                          )}
+                        </div>
+                        <div className="mt-2">
+                          <div className="flex justify-between text-sm mb-1">
+                            <span className="text-gray-400">Progress</span>
+                            <span>{calculateProgress(job)}%</span>
+                          </div>
+                          <div className="w-full bg-gray-600 rounded-full h-2">
+                            <div
+                              className="bg-blue-500 h-2 rounded-full transition-all"
+                              style={{ width: `${calculateProgress(job)}%` }}
+                            />
+                          </div>
                         </div>
                       </div>
+                      {(job.status === "failed" ||
+                        job.status === "cancelled") && (
+                        <div className="mt-3 pt-3 border-t border-gray-600">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteJob(job.id);
+                            }}
+                            className="w-full px-3 py-1.5 bg-red-600/20 text-red-400 rounded-lg hover:bg-red-600/30 flex items-center justify-center gap-2 text-sm"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Delete Job
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -331,12 +385,30 @@ export default function MigrationStatusPage() {
                     <h2 className="text-xl font-semibold">Job Details</h2>
                     <div className="flex gap-2">
                       {selectedJob.status === "failed" && (
+                        <>
+                          <button
+                            onClick={() => retryJob(selectedJob.id)}
+                            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                            Retry
+                          </button>
+                          <button
+                            onClick={() => deleteJob(selectedJob.id)}
+                            className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Delete
+                          </button>
+                        </>
+                      )}
+                      {selectedJob.status === "cancelled" && (
                         <button
-                          onClick={() => retryJob(selectedJob.id)}
-                          className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                          onClick={() => deleteJob(selectedJob.id)}
+                          className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
                         >
-                          <RefreshCw className="h-4 w-4" />
-                          Retry
+                          <Trash2 className="h-4 w-4" />
+                          Delete
                         </button>
                       )}
                       {["processing", "analyzing", "mapping"].includes(
@@ -370,6 +442,22 @@ export default function MigrationStatusPage() {
                               selectedJob.started_at,
                               selectedJob.completed_at,
                             )
+                          : "-"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-400">Created</p>
+                      <p className="text-sm">
+                        {new Date(selectedJob.created_at).toLocaleDateString()}{" "}
+                        at{" "}
+                        {new Date(selectedJob.created_at).toLocaleTimeString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-400">Started</p>
+                      <p className="text-sm">
+                        {selectedJob.started_at
+                          ? `${new Date(selectedJob.started_at).toLocaleDateString()} at ${new Date(selectedJob.started_at).toLocaleTimeString()}`
                           : "-"}
                       </p>
                     </div>
