@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MigrationService } from "@/app/lib/services/migration-service";
-import {
-  getCurrentUser,
-  getUserOrganization,
-} from "@/app/lib/auth/organization";
+import { createClient } from "@/app/lib/supabase/server";
 import { supabaseAdmin } from "@/app/lib/supabase/admin";
 
 const migrationService = new MigrationService();
@@ -19,8 +16,12 @@ export async function GET(
   try {
     const jobId = params.id;
 
-    // Get current user
-    const user = await getCurrentUser();
+    // Get current user from Supabase auth
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     if (!user) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
@@ -28,12 +29,14 @@ export async function GET(
       );
     }
 
-    // Get user's organization
-    let userOrganizationId: string;
-    try {
-      userOrganizationId = await getUserOrganization(user.id);
-    } catch (error) {
-      console.error("Error getting user organization:", error);
+    // Get user's organization from user_organizations table
+    const { data: userOrg } = await supabase
+      .from("user_organizations")
+      .select("organization_id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!userOrg?.organization_id) {
       return NextResponse.json(
         { success: false, error: "User organization not found" },
         { status: 401 },
@@ -54,7 +57,7 @@ export async function GET(
       );
     }
 
-    if (job.organization_id !== userOrganizationId) {
+    if (job.organization_id !== userOrg.organization_id) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
         { status: 401 },
@@ -97,8 +100,12 @@ export async function POST(
       );
     }
 
-    // Get current user
-    const user = await getCurrentUser();
+    // Get current user from Supabase auth
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     if (!user) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
@@ -106,12 +113,14 @@ export async function POST(
       );
     }
 
-    // Get user's organization
-    let userOrganizationId: string;
-    try {
-      userOrganizationId = await getUserOrganization(user.id);
-    } catch (error) {
-      console.error("Error getting user organization:", error);
+    // Get user's organization from user_organizations table
+    const { data: userOrg } = await supabase
+      .from("user_organizations")
+      .select("organization_id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!userOrg?.organization_id) {
       return NextResponse.json(
         { success: false, error: "User organization not found" },
         { status: 401 },
@@ -134,7 +143,7 @@ export async function POST(
 
     if (
       conflict.migration_job_id !== jobId ||
-      conflict.organization_id !== userOrganizationId
+      conflict.organization_id !== userOrg.organization_id
     ) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
