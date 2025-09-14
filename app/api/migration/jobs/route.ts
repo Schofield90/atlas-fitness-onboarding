@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/app/lib/supabase/admin";
 import { migrationService } from "@/app/lib/services/migration-service";
-import { getCurrentUser } from "@/app/lib/auth/organization";
+import { createClient } from "@/app/lib/supabase/server";
 
 /**
  * GET /api/migration/jobs
@@ -20,8 +20,29 @@ export async function GET(request: NextRequest) {
     }
 
     // Get current user and verify organization access
-    const user = await getCurrentUser();
-    if (!user || user.organization_id !== organizationId) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 },
+      );
+    }
+
+    // Get user's organization from user_organizations table
+    const { data: userOrg } = await supabase
+      .from("user_organizations")
+      .select("organization_id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (
+      !userOrg?.organization_id ||
+      userOrg.organization_id !== organizationId
+    ) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
         { status: 401 },
@@ -76,8 +97,29 @@ export async function POST(request: NextRequest) {
     }
 
     // Get current user and verify organization access
-    const user = await getCurrentUser();
-    if (!user || user.organization_id !== organizationId) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 },
+      );
+    }
+
+    // Get user's organization from user_organizations table
+    const { data: userOrg } = await supabase
+      .from("user_organizations")
+      .select("organization_id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (
+      !userOrg?.organization_id ||
+      userOrg.organization_id !== organizationId
+    ) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
         { status: 401 },
