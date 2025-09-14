@@ -85,101 +85,96 @@ export async function POST(
       `Processing file: ${file.file_name}, storage path: ${file.storage_path}`,
     );
 
-    // Download the file from Supabase storage
-    const { data: fileData, error: downloadError } = await supabaseAdmin.storage
-      .from("migration-files")
-      .download(file.storage_path);
+    // Try multiple approaches to get the file
+    let csvText: string | null = null;
 
-    if (downloadError || !fileData) {
-      log(`Download error: ${downloadError?.message || "No file data"}`);
+    // Approach 1: Try authenticated download
+    try {
+      const { data: fileData, error: downloadError } =
+        await supabaseAdmin.storage
+          .from("migration-files")
+          .download(file.storage_path);
 
-      // Try public URL approach
-      const publicUrl = `https://lzlrojoaxrqvmhempnkn.supabase.co/storage/v1/object/public/migration-files/${file.storage_path}`;
-      log(`Trying public URL: ${publicUrl}`);
+      if (!downloadError && fileData) {
+        csvText = await fileData.text();
+        log(
+          `Downloaded ${csvText.length} characters via authenticated download`,
+        );
+      } else {
+        log(
+          `Authenticated download failed: ${downloadError?.message || "No file data"}`,
+        );
+      }
+    } catch (e: any) {
+      log(`Authenticated download exception: ${e.message}`);
+    }
 
-      const response = await fetch(publicUrl);
-      if (!response.ok) {
+    // Approach 2: Try public URL with service key
+    if (!csvText) {
+      try {
+        const {
+          data: { publicUrl },
+        } = supabaseAdmin.storage
+          .from("migration-files")
+          .getPublicUrl(file.storage_path);
+
+        log(`Trying public URL with service key: ${publicUrl}`);
+        const response = await fetch(publicUrl);
+
+        if (response.ok) {
+          csvText = await response.text();
+          log(`Downloaded ${csvText.length} characters from public URL`);
+        } else {
+          log(`Public URL failed: ${response.status} ${response.statusText}`);
+        }
+      } catch (e: any) {
+        log(`Public URL exception: ${e.message}`);
+      }
+    }
+
+    // Approach 3: Direct public URL
+    if (!csvText) {
+      const directUrl = `https://lzlrojoaxrqvmhempnkn.supabase.co/storage/v1/object/public/migration-files/${file.storage_path}`;
+      log(`Trying direct public URL: ${directUrl}`);
+
+      try {
+        const response = await fetch(directUrl);
+        if (response.ok) {
+          csvText = await response.text();
+          log(`Downloaded ${csvText.length} characters from direct URL`);
+        } else {
+          log(`Direct URL failed: ${response.status} ${response.statusText}`);
+          return NextResponse.json(
+            {
+              success: false,
+              error: "Failed to download file from storage",
+              logs,
+            },
+            { status: 500 },
+          );
+        }
+      } catch (e: any) {
+        log(`Direct URL exception: ${e.message}`);
         return NextResponse.json(
-          { success: false, error: "Failed to download file", logs },
+          {
+            success: false,
+            error: `Storage access failed: ${e.message}`,
+            logs,
+          },
           { status: 500 },
         );
       }
-
-      const csvText = await response.text();
-      log(`Downloaded ${csvText.length} characters from public URL`);
-
-      // Parse CSV
-      const parseResult = Papa.parse(csvText, {
-        header: true,
-        skipEmptyLines: true,
-        transformHeader: (header) => header.trim(),
-      });
-
-      if (parseResult.errors.length > 0) {
-        log(`Parse errors: ${JSON.stringify(parseResult.errors.slice(0, 3))}`);
-      }
-
-      log(`Parsed ${parseResult.data.length} rows from CSV`);
-
-      // Create migration records
-      const records = [];
-      const batchSize = 50;
-
-      for (let i = 0; i < Math.min(parseResult.data.length, 500); i++) {
-        const row = parseResult.data[i] as any;
-        records.push({
-          migration_job_id: jobId,
-          organization_id: userOrg.organization_id,
-          source_row_number: i + 2, // +2 because row 1 is headers
-          source_data: row,
-          status: "pending",
-          record_type: "client",
-        });
-      }
-
-      log(
-        `Creating ${records.length} migration records in batches of ${batchSize}`,
-      );
-
-      // Insert in batches
-      for (let i = 0; i < records.length; i += batchSize) {
-        const batch = records.slice(i, i + batchSize);
-        const { error: insertError } = await supabaseAdmin
-          .from("migration_records")
-          .insert(batch);
-
-        if (insertError) {
-          log(`Batch ${i / batchSize + 1} error: ${insertError.message}`);
-        } else {
-          log(`Batch ${i / batchSize + 1} inserted successfully`);
-        }
-      }
-
-      // Update job status
-      await supabaseAdmin
-        .from("migration_jobs")
-        .update({
-          status: "ready_to_process",
-          total_records: parseResult.data.length,
-        })
-        .eq("id", jobId);
-
-      log(`Job updated with ${parseResult.data.length} total records`);
-
-      return NextResponse.json({
-        success: true,
-        logs,
-        stats: {
-          totalRows: parseResult.data.length,
-          recordsCreated: records.length,
-          sampleData: parseResult.data.slice(0, 2),
-        },
-      });
     }
 
-    // Parse the CSV file
-    const csvText = await fileData.text();
-    log(`File size: ${csvText.length} characters`);
+    if (!csvText) {
+      return NextResponse.json(
+        { success: false, error: "Could not retrieve CSV content", logs },
+        { status: 500 },
+      );
+    }
+
+    // Parse CSV
+    log(`Starting to parse ${csvText.length} characters of CSV data`);
 
     const parseResult = Papa.parse(csvText, {
       header: true,
