@@ -75,21 +75,37 @@ Sample data (first 5 rows):
 ${sampleRows.map(row => row.join(', ')).join('\n')}
 
 Provide a JSON response with:
-1. field_mappings: Map each CSV column to our database fields. Available fields are:
-   - Direct fields: first_name, last_name, email, phone, date_of_birth, gender, status, notes, emergency_contact_name, emergency_contact_phone
-   - Address fields (will be stored in metadata): Address Line 1, Address Line 2, City, Postcode, Country
-   Note: Do NOT map to 'address', 'city', 'postcode', or 'country' directly as these don't exist in the table.
+1. field_mappings: A FLAT object mapping CSV column names to database field names. 
+   IMPORTANT: This must be a simple key-value object where keys are CSV column names and values are database field names.
+   
+   Available database fields:
+   - first_name, last_name, email, phone, date_of_birth, gender, status, notes, emergency_contact_name, emergency_contact_phone
+   - For address fields that will be stored in metadata, still use these field names: address, city, postcode, country
+   
+   Example format:
+   {
+     "First Name": "first_name",
+     "Last Name": "last_name",
+     "Email": "email",
+     "Phone": "phone",
+     "DOB": "date_of_birth",
+     "City": "city",
+     "Postcode": "postcode",
+     "Address Line 1": "address"
+   }
+   
 2. data_quality: Assessment of data completeness and quality
 3. recommendations: Any suggestions for the migration
 
-Format as JSON with these exact keys: field_mappings, data_quality, recommendations`;
+Format as JSON with these exact keys: field_mappings, data_quality, recommendations
+The field_mappings MUST be a flat object, not nested.`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
-          content: "You are a data migration expert. Analyze CSV data and provide structured migration guidance."
+          content: "You are a data migration expert. Analyze CSV data and provide structured migration guidance. IMPORTANT: When creating field_mappings, always return a FLAT object mapping CSV column names (keys) to database field names (values). Never nest objects within field_mappings."
         },
         {
           role: "user",
