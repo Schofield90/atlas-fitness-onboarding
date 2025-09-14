@@ -78,35 +78,24 @@ export default function MigrationStatusPage() {
         return;
       }
 
-      const { data: userProfile, error: profileError } = await supabase
-        .from("user_profiles")
+      // Get organization_id from user_organizations table
+      const { data: userOrg } = await supabase
+        .from("user_organizations")
         .select("organization_id")
-        .eq("id", user.id)
+        .eq("user_id", user.id)
         .single();
 
-      let organizationId = userProfile?.organization_id;
+      let organizationId = userOrg?.organization_id;
 
-      // If not found in user_profiles table, try user_organizations
-      if (!organizationId || profileError) {
-        console.log("User profile not found, checking user_organizations");
-
-        const { data: userOrg } = await supabase
-          .from("user_organizations")
-          .select("organization_id")
-          .eq("user_id", user.id)
-          .single();
-
-        if (userOrg?.organization_id) {
-          organizationId = userOrg.organization_id;
-          console.log(
-            "Found organization_id from user_organizations:",
-            organizationId,
-          );
-        } else {
-          // Use fallback for testing
-          organizationId = "63589490-8f55-4157-bd3a-e141594b748e";
-          console.log("Using fallback organization_id:", organizationId);
-        }
+      if (!organizationId) {
+        // Use fallback for testing
+        organizationId = "63589490-8f55-4157-bd3a-e141594b748e";
+        console.log("Using fallback organization_id:", organizationId);
+      } else {
+        console.log(
+          "Found organization_id from user_organizations:",
+          organizationId,
+        );
       }
 
       console.log("Fetching migration jobs for org:", organizationId);

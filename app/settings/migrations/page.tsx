@@ -47,20 +47,7 @@ export default function MigrationsPage() {
       return;
     }
 
-    // First try to get from user_profiles table
-    const { data: userProfile, error: userError } = await supabase
-      .from("user_profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
-
-    if (userProfile) {
-      console.log("User profile from user_profiles table:", userProfile);
-      setUserData(userProfile);
-      return;
-    }
-
-    // If not in users table, try user_organizations to get organization_id
+    // Get organization_id from user_organizations table
     const { data: userOrg, error: orgError } = await supabase
       .from("user_organizations")
       .select("organization_id")
