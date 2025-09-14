@@ -144,7 +144,7 @@ export async function GET(request: NextRequest) {
           // Check for conflicts
           const { data: conflicts, error: conflictsError } = await supabaseAdmin
             .from("migration_conflicts")
-            .select("id, conflict_type, resolution_status")
+            .select("id, conflict_type, resolution_strategy, resolved_at")
             .eq("migration_job_id", jobId)
             .limit(5);
 
@@ -186,7 +186,7 @@ export async function GET(request: NextRequest) {
         `,
         )
         .eq("migration_job_id", testJobId)
-        .eq("resolution_status", "pending")
+        .is("resolved_at", null)
         .limit(1);
 
       debugInfo.checks.conflictQueryTest = {

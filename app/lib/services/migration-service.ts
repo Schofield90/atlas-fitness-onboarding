@@ -305,7 +305,7 @@ export class MigrationService {
         `,
         )
         .eq("migration_job_id", jobId)
-        .eq("resolution_status", "pending")
+        .is("resolved_at", null) // Use resolved_at to check if pending
         .order("created_at", { ascending: true });
 
       if (error) {
@@ -334,9 +334,7 @@ export class MigrationService {
       await this.supabase
         .from("migration_conflicts")
         .update({
-          resolution_status: "resolved",
-          resolution_action: resolution.action,
-          resolution_data: resolution.data,
+          resolution_strategy: resolution.action,
           resolved_by: userId,
           resolved_at: new Date().toISOString(),
         })
