@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { migrationService } from "@/app/lib/services/migration-service";
+import { MigrationService } from "@/app/lib/services/migration-service";
 import {
   getCurrentUser,
   getUserOrganization,
 } from "@/app/lib/auth/organization";
 import { supabaseAdmin } from "@/app/lib/supabase/admin";
+
+const migrationService = new MigrationService();
 
 /**
  * GET /api/migration/jobs/[id]/conflicts
@@ -27,7 +29,16 @@ export async function GET(
     }
 
     // Get user's organization
-    const userOrganizationId = await getUserOrganization(user.id);
+    let userOrganizationId: string;
+    try {
+      userOrganizationId = await getUserOrganization(user.id);
+    } catch (error) {
+      console.error("Error getting user organization:", error);
+      return NextResponse.json(
+        { success: false, error: "User organization not found" },
+        { status: 401 },
+      );
+    }
 
     // Verify job exists and user has access
     const { data: job, error: jobError } = await supabaseAdmin
@@ -96,7 +107,16 @@ export async function POST(
     }
 
     // Get user's organization
-    const userOrganizationId = await getUserOrganization(user.id);
+    let userOrganizationId: string;
+    try {
+      userOrganizationId = await getUserOrganization(user.id);
+    } catch (error) {
+      console.error("Error getting user organization:", error);
+      return NextResponse.json(
+        { success: false, error: "User organization not found" },
+        { status: 401 },
+      );
+    }
 
     // Verify conflict exists and belongs to this job
     const { data: conflict, error: conflictError } = await supabaseAdmin
@@ -125,7 +145,7 @@ export async function POST(
     // Resolve the conflict
     await migrationService.resolveMigrationConflict(
       conflictId,
-      resolution,
+      { action: resolution },
       user.id,
     );
 
