@@ -525,6 +525,35 @@ export default function MigrationStatusPage() {
                             Retry
                           </button>
                           <button
+                            onClick={async () => {
+                              const response = await fetch(
+                                `/api/migration/jobs/${selectedJob.id}/test-process`,
+                                {
+                                  method: "POST",
+                                },
+                              );
+                              const data = await response.json();
+                              console.log("Test process result:", data);
+                              if (data.logs) {
+                                data.logs.forEach((log: string) =>
+                                  console.log(log),
+                                );
+                              }
+                              if (data.success) {
+                                toast.success(
+                                  "Test process completed - check console",
+                                );
+                                loadMigrationJobs();
+                              } else {
+                                toast.error(`Test failed: ${data.error}`);
+                              }
+                            }}
+                            className="px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
+                          >
+                            <Bug className="h-4 w-4" />
+                            Test Process
+                          </button>
+                          <button
                             onClick={() => deleteJob(selectedJob.id)}
                             className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
                           >
