@@ -619,6 +619,60 @@ export default function SimpleMigrationPage() {
                       attendance records to your imported clients using their
                       name or email.
                     </p>
+                    {uploadProgress === 0 && (
+                      <button
+                        onClick={async () => {
+                          const input = document.getElementById(
+                            "attendance-upload",
+                          ) as HTMLInputElement;
+                          const file = input?.files?.[0];
+                          if (file) {
+                            console.log("Running debug analysis...");
+                            // Upload file temporarily for analysis
+                            const debugFileName = `debug/${Date.now()}.csv`;
+                            const { error: uploadError } =
+                              await supabase.storage
+                                .from("migrations")
+                                .upload(debugFileName, file);
+
+                            if (!uploadError) {
+                              const response = await fetch(
+                                "/api/migration/simple/debug-attendance",
+                                {
+                                  method: "POST",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({
+                                    organizationId,
+                                    fileName: debugFileName,
+                                  }),
+                                },
+                              );
+
+                              const result = await response.json();
+                              console.log("Debug Analysis Results:", result);
+
+                              if (result.success) {
+                                alert(
+                                  `Match Analysis:\n\n${result.summary.matchRate} of rows match existing clients.\n\nCheck console for detailed analysis.`,
+                                );
+                              }
+
+                              // Clean up debug file
+                              await supabase.storage
+                                .from("migrations")
+                                .remove([debugFileName]);
+                            }
+                          } else {
+                            alert("Please select a file first");
+                          }
+                        }}
+                        className="mt-2 px-3 py-1 bg-yellow-600 text-white text-xs rounded hover:bg-yellow-700"
+                      >
+                        Debug: Analyze Why Matches Are Failing
+                      </button>
+                    )}
                   </div>
 
                   <div className="mb-6">
@@ -701,6 +755,32 @@ export default function SimpleMigrationPage() {
                           <Upload className="inline h-4 w-4 mr-2" />
                           Select CSV File
                         </label>
+                        <div className="mt-4">
+                          <button
+                            onClick={async () => {
+                              const input = document.getElementById(
+                                "attendance-upload",
+                              ) as HTMLInputElement;
+                              const file = input?.files?.[0];
+                              if (file) {
+                                const text = await file.text();
+                                const lines = text.split("\n").slice(0, 5);
+                                console.log("First 5 rows of your CSV:");
+                                lines.forEach((line, i) =>
+                                  console.log(`Row ${i}: ${line}`),
+                                );
+                                alert(
+                                  "Check console for first 5 rows of your CSV file",
+                                );
+                              } else {
+                                alert("Please select a file first");
+                              }
+                            }}
+                            className="text-sm text-gray-400 hover:text-white underline"
+                          >
+                            Preview CSV Format
+                          </button>
+                        </div>
                       </>
                     )}
                   </div>
