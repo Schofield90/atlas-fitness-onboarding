@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { authenticateRequest, createApiResponse } from '@/lib/api/middleware'
+import { authenticateRequest, createApiResponse, handleApiRoute, sanitizeErrorMessage } from '@/lib/api/middleware'
 import { leadsToCSV, generateExportFilename } from '@/lib/utils/csv-export'
 import { Lead } from '@/types/database'
 
@@ -14,14 +14,9 @@ interface ExportQuery {
 }
 
 export async function GET(request: NextRequest) {
-  try {
-    const authResult = await authenticateRequest(request)
-    if (authResult.error) {
-      return createApiResponse(null, authResult.error, authResult.status)
-    }
-
-    const user = authResult.user!
+  return handleApiRoute(request, async (req) => {
     const supabase = await createClient()
+    const user = req.user
     const { searchParams } = new URL(request.url)
 
     // Parse query parameters
@@ -34,13 +29,18 @@ export async function GET(request: NextRequest) {
       includeHeaders: searchParams.get('includeHeaders') || 'true'
     }
 
-    // Validate limit
+    // Enhanced input validation and sanitization
     const limit = parseInt(query.limit || '1000', 10)
     if (isNaN(limit) || limit <= 0 || limit > 10000) {
-      return NextResponse.json(
-        { error: 'Limit must be between 1 and 10000' },
-        { status: 400 }
-      )
+      throw new Error('Export limit exceeds allowed range')
+    }
+
+    // Sanitize search parameter to prevent injection
+    if (query.search) {
+      query.search = query.search.trim().substring(0, 100)
+      if (!/^[a-zA-Z0-9@._\-\s]*$/.test(query.search)) {
+        throw new Error('Invalid search parameters')
+      }
     }
 
     // Build Supabase query
@@ -67,29 +67,28 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Database error:', error)
-      return NextResponse.json(
-        { error: 'Failed to fetch leads' },
-        { status: 500 }
-      )
+      throw new Error('Data export failed')
     }
 
     if (!leads || leads.length === 0) {
-      return NextResponse.json(
-        { error: 'No leads found matching the criteria' },
-        { status: 404 }
-      )
+      throw new Error('No data found for export')
     }
 
-    // Handle JSON export
+    // Handle JSON export with sanitized data
     if (query.format === 'json') {
-      return NextResponse.json({
-        data: leads,
+      return {
+        data: leads.map(lead => ({
+          ...lead,
+          // Remove any potential sensitive fields
+          metadata: undefined,
+          ai_analysis: lead.ai_analysis ? { status: lead.ai_analysis.status || 'processed' } : null
+        })),
         meta: {
           total: leads.length,
-          exported_at: new Date().toISOString(),
-          organization_id: user.organization_id
+          exported_at: new Date().toISOString()
+          // Don't expose organization_id in response
         }
-      })
+      }
     }
 
     // Handle CSV export
@@ -124,55 +123,44 @@ export async function GET(request: NextRequest) {
     // Generate filename
     const filename = generateExportFilename('leads')
 
-    // Return CSV response
+    // Return CSV response with security headers
     return new NextResponse(csvContent, {
       status: 200,
       headers: {
         'Content-Type': 'text/csv; charset=utf-8',
         'Content-Disposition': `attachment; filename="${filename}"`,
         'X-Total-Records': leads.length.toString(),
-        'X-Export-Date': new Date().toISOString()
+        'X-Export-Date': new Date().toISOString(),
+        'X-Content-Type-Options': 'nosniff',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       }
     })
-
-  } catch (error) {
-    console.error('Export error:', error)
-    return NextResponse.json(
-      { 
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    )
-  }
+  }, { requireAuth: true, rateLimit: true })
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const authResult = await authenticateRequest(request)
-    if (authResult.error) {
-      return createApiResponse(null, authResult.error, authResult.status)
-    }
-
-    const user = authResult.user!
+  return handleApiRoute(request, async (req) => {
     const supabase = await createClient()
+    const user = req.user
     const body = await request.json()
 
-    // Extract lead IDs from request body
+    // Enhanced input validation
     const { leadIds, format = 'csv', fields } = body
 
     if (!leadIds || !Array.isArray(leadIds) || leadIds.length === 0) {
-      return NextResponse.json(
-        { error: 'Lead IDs are required' },
-        { status: 400 }
-      )
+      throw new Error('Valid lead identifiers required')
     }
 
     if (leadIds.length > 10000) {
-      return NextResponse.json(
-        { error: 'Cannot export more than 10000 leads at once' },
-        { status: 400 }
-      )
+      throw new Error('Export batch size exceeds limit')
+    }
+
+    // Validate lead IDs are valid UUIDs
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    if (!leadIds.every(id => typeof id === 'string' && uuidRegex.test(id))) {
+      throw new Error('Invalid identifier format')
     }
 
     // Fetch specific leads
@@ -185,30 +173,28 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Database error:', error)
-      return NextResponse.json(
-        { error: 'Failed to fetch leads' },
-        { status: 500 }
-      )
+      throw new Error('Data retrieval failed')
     }
 
     if (!leads || leads.length === 0) {
-      return NextResponse.json(
-        { error: 'No leads found with the provided IDs' },
-        { status: 404 }
-      )
+      throw new Error('No data found for the specified selection')
     }
 
-    // Handle JSON export
+    // Handle JSON export with sanitized data
     if (format === 'json') {
-      return NextResponse.json({
-        data: leads,
+      return {
+        data: leads.map(lead => ({
+          ...lead,
+          // Remove sensitive fields
+          metadata: undefined,
+          ai_analysis: lead.ai_analysis ? { status: lead.ai_analysis.status || 'processed' } : null
+        })),
         meta: {
           total: leads.length,
           requested: leadIds.length,
-          exported_at: new Date().toISOString(),
-          organization_id: user.organization_id
+          exported_at: new Date().toISOString()
         }
-      })
+      }
     }
 
     // Handle CSV export
@@ -240,7 +226,7 @@ export async function POST(request: NextRequest) {
     // Generate filename
     const filename = generateExportFilename('leads-selected')
 
-    // Return CSV response
+    // Return CSV response with security headers
     return new NextResponse(csvContent, {
       status: 200,
       headers: {
@@ -248,18 +234,12 @@ export async function POST(request: NextRequest) {
         'Content-Disposition': `attachment; filename="${filename}"`,
         'X-Total-Records': leads.length.toString(),
         'X-Requested-Records': leadIds.length.toString(),
-        'X-Export-Date': new Date().toISOString()
+        'X-Export-Date': new Date().toISOString(),
+        'X-Content-Type-Options': 'nosniff',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       }
     })
-
-  } catch (error) {
-    console.error('Export error:', error)
-    return NextResponse.json(
-      { 
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    )
-  }
+  }, { requireAuth: true, rateLimit: true })
 }
