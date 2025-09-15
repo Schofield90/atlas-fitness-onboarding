@@ -28,7 +28,7 @@ export default function MigrationsPage() {
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [migrationJob, setMigrationJob] = useState<any>(null);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [fieldMappings, setFieldMappings] = useState<any[]>([]);
   const [userData, setUserData] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -71,65 +71,78 @@ export default function MigrationsPage() {
     toast.error("Could not find your organization. Please contact support.");
   };
 
-  const handleSelectedFile = async (file: File | undefined | null) => {
-    if (!file) return;
+  const handleSelectedFiles = async (files: FileList | File[] | null) => {
+    if (!files || files.length === 0) return;
 
-    // Validate file type
     const validTypes = [
       "text/csv",
       "application/vnd.ms-excel",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     ];
 
-    const hasValidMime = !!file.type && validTypes.includes(file.type);
-    const hasValidExtension = /\.(csv|xlsx|xls)$/i.test(file.name);
-    if (!(hasValidMime || hasValidExtension)) {
-      toast.error("Please upload a CSV or Excel file");
+    const validFiles: File[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+
+      const hasValidMime = !!file.type && validTypes.includes(file.type);
+      const hasValidExtension = /\.(csv|xlsx|xls)$/i.test(file.name);
+
+      if (!(hasValidMime || hasValidExtension)) {
+        toast.error(`${file.name} is not a CSV or Excel file`);
+        continue;
+      }
+
+      // Validate file size (100MB max)
+      if (file.size > 100 * 1024 * 1024) {
+        toast.error(`${file.name} exceeds 100MB limit`);
+        continue;
+      }
+
+      validFiles.push(file);
+    }
+
+    if (validFiles.length === 0) {
+      toast.error("No valid files selected");
       return;
     }
 
-    // Validate file size (100MB max)
-    if (file.size > 100 * 1024 * 1024) {
-      toast.error("File size must be less than 100MB");
+    if (validFiles.length > 3) {
+      toast.error("Maximum 3 files allowed (clients, attendance, payments)");
       return;
     }
 
-    setUploadedFile(file);
+    setUploadedFiles(validFiles);
     setCurrentStep(2);
   };
 
   const onFileInputChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
-    const file = event.target.files?.[0];
-    await handleSelectedFile(file);
-    // allow selecting the same file again by resetting value
-    if (event.target) {
-      event.target.value = "";
+    const files = event.target.files;
+    if (files) {
+      await handleSelectedFiles(files);
     }
   };
 
-  const onDrop = async (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
+  const onDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragActive(true);
+  };
+
+  const onDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
     setIsDragActive(false);
-    if (uploading) return;
-    const files = event.dataTransfer?.files;
-    if (files && files.length > 0) {
-      await handleSelectedFile(files[0]);
+  };
+
+  const onDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragActive(false);
+
+    const files = e.dataTransfer.files;
+    if (files) {
+      await handleSelectedFiles(files);
     }
-  };
-
-  const onDragOver = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (!isDragActive) setIsDragActive(true);
-  };
-
-  const onDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setIsDragActive(false);
   };
 
   const downloadTemplate = () => {
@@ -152,10 +165,10 @@ GTU003,Bob,Johnson,bob.j@example.com,07345678901,1992-08-30,Male,"789 Park Road"
   };
 
   const startMigration = async () => {
-    console.log("startMigration called", { uploadedFile, userData });
+    console.log("startMigration called", { uploadedFiles, userData });
 
-    if (!uploadedFile) {
-      toast.error("No file selected");
+    if (uploadedFiles.length === 0) {
+      toast.error("No files selected");
       return;
     }
 
@@ -200,50 +213,61 @@ GTU003,Bob,Johnson,bob.j@example.com,07345678901,1992-08-30,Male,"789 Park Road"
       console.log("Migration job created:", job);
       setMigrationJob(job);
 
-      // Upload file to Supabase Storage
-      const fileName = `${job.id}/${uploadedFile.name}`;
-      console.log("Uploading file to storage:", fileName);
+      // Upload all files to Supabase Storage
+      for (const file of uploadedFiles) {
+        const fileName = `${job.id}/${file.name}`;
+        console.log("Uploading file to storage:", fileName);
 
-      // Try to upload directly - the bucket should exist from SQL migration
-      const { error: uploadError } = await supabase.storage
-        .from("migrations")
-        .upload(fileName, uploadedFile);
+        // Try to upload directly - the bucket should exist from SQL migration
+        const { error: uploadError } = await supabase.storage
+          .from("migrations")
+          .upload(fileName, file);
 
-      if (uploadError) {
-        console.error("File upload error:", uploadError);
-        // If bucket doesn't exist error, provide clearer message
-        if (
-          uploadError.message?.includes("bucket") ||
-          uploadError.message?.includes("not found")
-        ) {
-          throw new Error(
-            "Storage is not configured. Please contact support to enable file uploads.",
-          );
+        if (uploadError) {
+          console.error("File upload error:", uploadError);
+          // If bucket doesn't exist error, provide clearer message
+          if (
+            uploadError.message?.includes("bucket") ||
+            uploadError.message?.includes("not found")
+          ) {
+            throw new Error(
+              "Storage is not configured. Please contact support to enable file uploads.",
+            );
+          }
+          throw uploadError;
         }
-        throw uploadError;
+
+        // Save file metadata
+        console.log("Saving file metadata for", file.name);
+        const { error: fileError } = await supabase
+          .from("migration_files")
+          .insert({
+            migration_job_id: job.id,
+            organization_id: userData.organization_id,
+            file_name: file.name,
+            file_size: file.size,
+            file_type: file.type,
+            storage_path: fileName,
+          });
+
+        if (fileError) {
+          console.error("File metadata error:", fileError);
+          throw fileError;
+        }
       }
 
-      // Save file metadata
-      console.log("Saving file metadata");
-      const { error: fileError } = await supabase
-        .from("migration_files")
-        .insert({
-          migration_job_id: job.id,
-          organization_id: userData.organization_id,
-          file_name: uploadedFile.name,
-          file_size: uploadedFile.size,
-          file_type: uploadedFile.type,
-          storage_path: fileName,
-        });
+      // Update job status to completed
+      await supabase
+        .from("migration_jobs")
+        .update({ status: "completed" })
+        .eq("id", job.id);
 
-      if (fileError) {
-        console.error("File metadata error:", fileError);
-        throw fileError;
-      }
+      toast.success(
+        `Successfully uploaded ${uploadedFiles.length} file(s). Navigate to Status tab to process them.`,
+      );
 
-      // Start AI analysis
-      console.log("Starting AI analysis for job:", job.id);
-      await analyzeWithAI(job.id);
+      // Navigate to status page
+      router.push("/settings/migrations/status");
     } catch (error: any) {
       console.error("Upload error:", error);
       const errorMessage = error?.message || "Failed to upload file";
@@ -469,13 +493,14 @@ GTU003,Bob,Johnson,bob.j@example.com,07345678901,1992-08-30,Male,"789 Park Road"
                       <span className="text-gray-400"> or drag and drop</span>
                     </div>
                     <p className="text-sm text-gray-500 mt-2">
-                      CSV, Excel files up to 100MB
+                      Select up to 3 CSV files (clients, attendance, payments)
                     </p>
                     <input
                       ref={fileInputRef}
                       type="file"
                       className="hidden"
                       accept=".csv,.xlsx,.xls"
+                      multiple
                       onChange={onFileInputChange}
                       disabled={uploading}
                     />
@@ -483,21 +508,25 @@ GTU003,Bob,Johnson,bob.j@example.com,07345678901,1992-08-30,Male,"789 Park Road"
                 </div>
               )}
 
-              {currentStep === 2 && uploadedFile && (
+              {currentStep === 2 && uploadedFiles.length > 0 && (
                 <div className="space-y-4">
-                  <div className="bg-gray-700 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <FileSpreadsheet className="h-8 w-8 text-blue-500" />
-                        <div>
-                          <p className="font-medium">{uploadedFile.name}</p>
-                          <p className="text-sm text-gray-400">
-                            {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
-                          </p>
+                  <div className="space-y-2">
+                    {uploadedFiles.map((file, index) => (
+                      <div key={index} className="bg-gray-700 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <FileSpreadsheet className="h-8 w-8 text-blue-500" />
+                            <div>
+                              <p className="font-medium">{file.name}</p>
+                              <p className="text-sm text-gray-400">
+                                {(file.size / 1024 / 1024).toFixed(2)} MB
+                              </p>
+                            </div>
+                          </div>
+                          <CheckCircle className="h-6 w-6 text-green-500" />
                         </div>
                       </div>
-                      <CheckCircle className="h-6 w-6 text-green-500" />
-                    </div>
+                    ))}
                   </div>
 
                   <button
@@ -512,7 +541,8 @@ GTU003,Bob,Johnson,bob.j@example.com,07345678901,1992-08-30,Male,"789 Park Road"
                       </>
                     ) : (
                       <>
-                        Start AI Analysis
+                        Upload {uploadedFiles.length} File
+                        {uploadedFiles.length > 1 ? "s" : ""}
                         <ArrowRight className="h-5 w-5" />
                       </>
                     )}
