@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "../components/DashboardLayout";
 import { createClient } from "@/app/lib/supabase/client";
+import { AttendanceStatsWidget } from "../components/dashboard/AttendanceStatsWidget";
+import { PaymentStatsWidget } from "../components/dashboard/PaymentStatsWidget";
 import {
   Calendar,
   Users,
@@ -301,6 +303,16 @@ export default function DashboardPage() {
             <h3 className="text-lg font-semibold mb-2">Settings</h3>
             <p className="text-gray-400 text-sm">Configure your system</p>
           </button>
+        </div>
+
+        {/* Attendance Statistics */}
+        <div className="mt-8">
+          <AttendanceStatsWidget />
+        </div>
+
+        {/* Payment Statistics */}
+        <div className="mt-8">
+          <PaymentStatsWidget />
         </div>
 
         {/* Recent Activity */}
