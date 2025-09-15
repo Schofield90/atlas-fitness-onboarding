@@ -61,9 +61,9 @@ export default function MigrationStatusPage() {
 
   useEffect(() => {
     loadMigrationJobs();
-    // Poll for updates every 30 seconds (reduced from 5 seconds)
-    const interval = setInterval(loadMigrationJobs, 30000);
-    return () => clearInterval(interval);
+    // Polling disabled temporarily for performance
+    // const interval = setInterval(loadMigrationJobs, 30000);
+    // return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
