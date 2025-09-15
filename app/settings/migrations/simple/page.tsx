@@ -426,6 +426,68 @@ export default function SimpleMigrationPage() {
           <p className="text-gray-400">Import your data in 3 simple steps</p>
         </div>
 
+        {/* Quick Fix Button - Very Prominent */}
+        <div className="mb-8 p-6 bg-yellow-900/30 border-2 border-yellow-500 rounded-lg">
+          <div className="flex items-center gap-3 mb-3">
+            <AlertCircle className="h-6 w-6 text-yellow-400" />
+            <h2 className="text-xl font-bold text-yellow-400">
+              Quick Fix: Payments Not Showing?
+            </h2>
+          </div>
+          <p className="text-gray-300 mb-4">
+            If you've imported payments but they're not visible in client
+            profiles, click the button below to link your leads with their
+            corresponding client records.
+          </p>
+          <button
+            onClick={async () => {
+              try {
+                const orgId = localStorage.getItem("organizationId");
+                if (!orgId) {
+                  alert("Organization ID not found. Please refresh the page.");
+                  return;
+                }
+
+                toast.info("Linking leads to clients...");
+
+                const res = await fetch(
+                  "/api/migration/simple/link-leads-clients",
+                  {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ organizationId: orgId }),
+                  },
+                );
+                const result = await res.json();
+
+                if (result.success) {
+                  const message = `✅ Successfully linked ${result.summary?.leadsLinked || 0} leads to clients!\n\n${result.message}`;
+                  alert(message);
+
+                  if (result.summary?.leadsLinked > 0) {
+                    toast.success(
+                      "Payments should now be visible in client profiles!",
+                    );
+                  }
+                } else {
+                  alert(
+                    `❌ Error: ${result.error || "Failed to link leads with clients"}`,
+                  );
+                }
+              } catch (error) {
+                console.error("Link error:", error);
+                alert(
+                  "❌ Failed to link leads with clients. Check console for details.",
+                );
+              }
+            }}
+            className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-semibold text-lg transition-colors flex items-center gap-3 shadow-lg"
+          >
+            <RefreshCw className="h-5 w-5" />
+            🔗 Link Leads to Clients (Fix Payment Display)
+          </button>
+        </div>
+
         {/* Progress Steps */}
         <div className="mb-12">
           <div className="flex items-center justify-between">
@@ -1004,6 +1066,42 @@ export default function SimpleMigrationPage() {
               )}
             </div>
           )}
+        </div>
+
+        {/* Quick Fix Tools */}
+        <div className="mt-8 p-4 bg-gray-800 rounded-lg border border-gray-700">
+          <h3 className="text-lg font-semibold mb-3 text-yellow-400">
+            Quick Fix Tools
+          </h3>
+          <button
+            onClick={async () => {
+              try {
+                const orgId = localStorage.getItem("organizationId");
+                const res = await fetch(
+                  "/api/migration/simple/link-leads-clients",
+                  {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ organizationId: orgId }),
+                  },
+                );
+                const result = await res.json();
+                alert(
+                  `Linking complete!\n\nLeads linked to clients: ${result.summary?.leadsLinked || 0}\nClients updated: ${result.summary?.clientsUpdated || 0}\n\n${result.message}`,
+                );
+                window.location.reload(); // Refresh to show payments
+              } catch (error) {
+                alert("Failed to link leads with clients");
+              }
+            }}
+            className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg transition-colors font-medium"
+          >
+            🔗 Link Leads to Clients (Fix Payment Display)
+          </button>
+          <p className="text-sm text-gray-400 mt-2">
+            This will connect leads with their corresponding clients based on
+            email matching, allowing payments to show in the profile tabs.
+          </p>
         </div>
 
         {/* Navigation */}

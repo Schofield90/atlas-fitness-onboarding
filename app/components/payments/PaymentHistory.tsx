@@ -27,29 +27,74 @@ export function PaymentHistory({ clientId, clientName }: PaymentHistoryProps) {
   const [lastPayment, setLastPayment] = useState<string | null>(null);
   const [currentMonthTotal, setCurrentMonthTotal] = useState(0);
   const [showAll, setShowAll] = useState(false);
+  const [actualClientId, setActualClientId] = useState<string | null>(null);
 
   useEffect(() => {
     if (clientId) {
-      fetchPayments();
+      findAndFetchPayments();
     }
   }, [clientId]);
 
-  const fetchPayments = async () => {
+  const findAndFetchPayments = async () => {
     try {
       const supabase = createClient();
+
+      // First, check if this is a lead ID and get the associated client
+      // Try multiple strategies to find the client
+      let searchId = clientId;
+
+      // Strategy 1: Check if this is already a client ID
+      const { data: directClient } = await supabase
+        .from("clients")
+        .select("id")
+        .eq("id", clientId)
+        .single();
+
+      if (!directClient) {
+        // Strategy 2: Check if this is a lead ID with a client_id reference
+        const { data: lead } = await supabase
+          .from("leads")
+          .select("client_id")
+          .eq("id", clientId)
+          .single();
+
+        if (lead?.client_id) {
+          searchId = lead.client_id;
+        } else {
+          // Strategy 3: Check if any client has this as their lead_id
+          const { data: clientByLeadId } = await supabase
+            .from("clients")
+            .select("id")
+            .eq("lead_id", clientId)
+            .single();
+
+          if (clientByLeadId) {
+            searchId = clientByLeadId.id;
+          }
+        }
+      }
+
+      setActualClientId(searchId);
+
+      console.log(
+        "PaymentHistory: Searching for payments with ID:",
+        searchId,
+        "Original ID:",
+        clientId,
+      );
 
       // Fetch payment records from both transactions and payments tables
       const [transactionsResult, paymentsResult] = await Promise.all([
         supabase
           .from("transactions")
           .select("*")
-          .eq("client_id", clientId)
+          .eq("client_id", searchId)
           .eq("type", "payment")
           .order("created_at", { ascending: false }),
         supabase
           .from("payments")
           .select("*")
-          .eq("client_id", clientId)
+          .eq("client_id", searchId)
           .order("payment_date", { ascending: false }),
       ]);
 
