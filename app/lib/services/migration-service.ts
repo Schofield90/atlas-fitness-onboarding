@@ -386,7 +386,7 @@ export class MigrationService {
     try {
       // Upload to Supabase Storage
       const { data, error } = await this.supabase.storage
-        .from("migration-uploads")
+        .from("migrations")
         .upload(filePath, file, {
           cacheControl: "3600",
           upsert: false,
@@ -438,7 +438,7 @@ export class MigrationService {
     try {
       // Download file content
       const { data: fileContent, error } = await this.supabase.storage
-        .from("migration-uploads")
+        .from("migrations")
         .download(file.storage_path);
 
       if (error) {
@@ -632,7 +632,7 @@ export class MigrationService {
     for (const result of uploadResults) {
       try {
         await this.supabase.storage
-          .from("migration-uploads")
+          .from("migrations")
           .remove([result.filePath]);
       } catch (error) {
         console.error("Error cleaning up file:", error);

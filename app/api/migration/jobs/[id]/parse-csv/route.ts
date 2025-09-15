@@ -92,7 +92,7 @@ export async function POST(
     try {
       const { data: fileData, error: downloadError } =
         await supabaseAdmin.storage
-          .from("migration-uploads")
+          .from("migrations")
           .download(file.storage_path);
 
       if (!downloadError && fileData) {
@@ -102,7 +102,7 @@ export async function POST(
         );
       } else {
         log(
-          `Authenticated download failed from migration-uploads bucket: ${downloadError?.message || "No file data"}`,
+          `Authenticated download failed from migrations bucket: ${downloadError?.message || "No file data"}`,
         );
       }
     } catch (e: any) {
@@ -115,7 +115,7 @@ export async function POST(
         const {
           data: { publicUrl },
         } = supabaseAdmin.storage
-          .from("migration-uploads")
+          .from("migrations")
           .getPublicUrl(file.storage_path);
 
         log(`Trying public URL with service key: ${publicUrl}`);
@@ -126,7 +126,7 @@ export async function POST(
           log(`Downloaded ${csvText.length} characters from public URL`);
         } else {
           log(
-            `Public URL failed from migration-uploads bucket: ${response.status} ${response.statusText}`,
+            `Public URL failed from migrations bucket: ${response.status} ${response.statusText}`,
           );
         }
       } catch (e: any) {
@@ -138,7 +138,7 @@ export async function POST(
     if (!csvText) {
       const supabaseUrl =
         process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-      const directUrl = `${supabaseUrl}/storage/v1/object/public/migration-uploads/${file.storage_path}`;
+      const directUrl = `${supabaseUrl}/storage/v1/object/public/migrations/${file.storage_path}`;
       log(`Trying direct public URL: ${directUrl}`);
 
       try {
@@ -148,13 +148,13 @@ export async function POST(
           log(`Downloaded ${csvText.length} characters from direct URL`);
         } else {
           log(
-            `Direct URL failed from migration-uploads bucket: ${response.status} ${response.statusText}`,
+            `Direct URL failed from migrations bucket: ${response.status} ${response.statusText}`,
           );
           return NextResponse.json(
             {
               success: false,
               error:
-                "Failed to download file from migration-uploads bucket - check bucket permissions and file existence",
+                "Failed to download file from migrations bucket - check bucket permissions and file existence",
               logs,
             },
             { status: 500 },
@@ -178,7 +178,7 @@ export async function POST(
         {
           success: false,
           error:
-            "Could not retrieve CSV content from migration-uploads bucket - all download methods failed",
+            "Could not retrieve CSV content from migrations bucket - all download methods failed",
           logs,
         },
         { status: 500 },

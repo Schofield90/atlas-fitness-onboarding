@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     // Download the file from storage
     const { data: fileData, error: downloadError } = await supabase.storage
-      .from("migration-uploads")
+      .from("migrations")
       .download(file.storage_path);
 
     if (downloadError) {
