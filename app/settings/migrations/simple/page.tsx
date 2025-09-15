@@ -336,6 +336,32 @@ export default function SimpleMigrationPage() {
           `${step === "clients" ? "Clients" : step === "attendance" ? "Attendance" : "Payments"} imported successfully!`,
         );
 
+        // Run automatic matching after each import
+        try {
+          toast.info("Running automatic matching...");
+          const matchResponse = await fetch(
+            "/api/migration/simple/auto-match",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ organizationId }),
+            },
+          );
+
+          const matchResult = await matchResponse.json();
+          if (matchResult.success && matchResult.stats) {
+            const { leadsLinked, clientsLinked, paymentsLinked } =
+              matchResult.stats;
+            if (leadsLinked > 0 || clientsLinked > 0 || paymentsLinked > 0) {
+              toast.success(
+                `Automatically linked: ${leadsLinked} leads, ${clientsLinked} clients, ${paymentsLinked} payments`,
+              );
+            }
+          }
+        } catch (matchError) {
+          console.log("Auto-matching failed (non-critical):", matchError);
+        }
+
         // Auto-advance to next step
         if (step === "clients" && currentStep === 1) {
           setCurrentStep(2);
