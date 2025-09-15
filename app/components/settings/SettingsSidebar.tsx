@@ -33,7 +33,11 @@ const settingsNavigation = [
       { name: "Business Profile", href: "/settings/business", icon: Building2 },
       { name: "Locations", href: "/settings/locations", icon: MapPin },
       { name: "My Staff", href: "/settings/staff", icon: Users },
-      { name: "Data Migrations", href: "/settings/migrations", icon: Upload },
+      {
+        name: "Data Migrations",
+        href: "/settings/migrations/simple",
+        icon: Upload,
+      },
       {
         name: "Custom Fields",
         href: "/settings/custom-fields",
