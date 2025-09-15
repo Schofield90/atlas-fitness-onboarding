@@ -613,13 +613,41 @@ export default function MigrationStatusPage() {
                       {["processing", "analyzing", "mapping"].includes(
                         selectedJob.status,
                       ) && (
-                        <button
-                          onClick={() => cancelJob(selectedJob.id)}
-                          className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
-                        >
-                          <XCircle className="h-4 w-4" />
-                          Cancel
-                        </button>
+                        <>
+                          <button
+                            onClick={async () => {
+                              toast.info("Fixing stuck job status...");
+                              const response = await fetch(
+                                `/api/migration/jobs/${selectedJob.id}/fix-status`,
+                                {
+                                  method: "POST",
+                                },
+                              );
+                              const data = await response.json();
+                              if (data.success) {
+                                toast.success(
+                                  `Status fixed! Clients: ${data.counts.clients}, Bookings: ${data.counts.bookings}`,
+                                );
+                                loadMigrationJobs();
+                              } else {
+                                toast.error(
+                                  `Failed to fix status: ${data.error}`,
+                                );
+                              }
+                            }}
+                            className="px-3 py-1.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 flex items-center gap-2"
+                          >
+                            <AlertCircle className="h-4 w-4" />
+                            Fix Status
+                          </button>
+                          <button
+                            onClick={() => cancelJob(selectedJob.id)}
+                            className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
+                          >
+                            <XCircle className="h-4 w-4" />
+                            Cancel
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -839,37 +867,77 @@ export default function MigrationStatusPage() {
                             {selectedJob.migration_files.length} file(s). Click
                             below to process all files at once.
                           </p>
-                          <button
-                            onClick={async () => {
-                              toast.info("Processing all uploaded files...");
-                              const response = await fetch(
-                                `/api/migration/jobs/${selectedJob.id}/process-simple`,
-                                {
-                                  method: "POST",
-                                },
-                              );
-                              const data = await response.json();
-                              console.log("Process all result:", data);
-                              if (data.logs) {
-                                data.logs.forEach((log: string) =>
-                                  console.log(log),
+                          <div className="flex gap-2 flex-wrap">
+                            <button
+                              onClick={async () => {
+                                toast.info("Processing all uploaded files...");
+                                const response = await fetch(
+                                  `/api/migration/jobs/${selectedJob.id}/process-simple`,
+                                  {
+                                    method: "POST",
+                                  },
                                 );
-                              }
-                              if (data.success) {
-                                const r = data.results;
-                                toast.success(
-                                  `Import complete! Clients: ${r.clients.imported}, Attendance: ${r.attendance.imported}, Payments: ${r.payments.imported}`,
+                                const data = await response.json();
+                                console.log("Process all result:", data);
+                                if (data.logs) {
+                                  data.logs.forEach((log: string) =>
+                                    console.log(log),
+                                  );
+                                }
+                                if (data.success) {
+                                  const r = data.results;
+                                  toast.success(
+                                    `Import complete! Clients: ${r.clients.imported}, Attendance: ${r.attendance.imported}, Payments: ${r.payments.imported}`,
+                                  );
+                                  loadMigrationJobs();
+                                } else {
+                                  toast.error(`Process failed: ${data.error}`);
+                                }
+                              }}
+                              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+                            >
+                              <Upload className="h-5 w-5" />
+                              Process All Files
+                            </button>
+                            <button
+                              onClick={async () => {
+                                toast.info(
+                                  "Processing attendance with improved matching...",
                                 );
-                                loadMigrationJobs();
-                              } else {
-                                toast.error(`Process failed: ${data.error}`);
-                              }
-                            }}
-                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
-                          >
-                            <Upload className="h-5 w-5" />
-                            Process All Files
-                          </button>
+                                const response = await fetch(
+                                  `/api/migration/jobs/${selectedJob.id}/process-attendance`,
+                                  {
+                                    method: "POST",
+                                  },
+                                );
+                                const data = await response.json();
+                                if (data.success) {
+                                  toast.success(
+                                    `Attendance imported! ${data.results.imported} records added`,
+                                  );
+                                  if (
+                                    data.unmatchedSample &&
+                                    data.unmatchedSample.length > 0
+                                  ) {
+                                    console.log(
+                                      "Unmatched names:",
+                                      data.unmatchedSample,
+                                    );
+                                    toast.info(
+                                      `${data.results.no_match} records couldn't be matched`,
+                                    );
+                                  }
+                                  loadMigrationJobs();
+                                } else {
+                                  toast.error(`Process failed: ${data.error}`);
+                                }
+                              }}
+                              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                            >
+                              <Calendar className="h-5 w-5" />
+                              Process Attendance Only
+                            </button>
+                          </div>
                         </div>
                       )}
 
