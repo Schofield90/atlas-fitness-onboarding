@@ -515,33 +515,40 @@ export default function MigrationStatusPage() {
                   <div className="flex items-center justify-between mb-6">
                     <h2 className="text-xl font-semibold">Job Details</h2>
                     <div className="flex gap-2">
-                      {selectedJob.status === "ready_to_process" && (
+                      {(selectedJob.status === "pending" ||
+                        selectedJob.status === "analyzing") && (
                         <button
                           onClick={async () => {
+                            toast.info("Starting processing...");
                             const response = await fetch(
-                              `/api/migrations/process`,
+                              `/api/migration/jobs/${selectedJob.id}/start-processing`,
                               {
                                 method: "POST",
-                                headers: {
-                                  "Content-Type": "application/json",
-                                },
-                                body: JSON.stringify({ jobId: selectedJob.id }),
                               },
                             );
                             const data = await response.json();
                             if (data.success) {
-                              toast.success("Processing started!");
-                              await loadMigrationJobs();
-                            } else {
-                              toast.error(
-                                `Failed to start processing: ${data.error}`,
+                              toast.success(
+                                `Processing complete! ${data.data.successful} successful, ${data.data.failed} failed`,
                               );
+                              await loadMigrationJobs();
+                              // Refresh the selected job
+                              const { data: updatedJob } = await supabase
+                                .from("migration_jobs")
+                                .select("*")
+                                .eq("id", selectedJob.id)
+                                .single();
+                              if (updatedJob) {
+                                setSelectedJob(updatedJob);
+                              }
+                            } else {
+                              toast.error(`Failed to process: ${data.error}`);
                             }
                           }}
-                          className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                          className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
                         >
                           <Loader2 className="h-4 w-4" />
-                          Process Data
+                          Start Processing
                         </button>
                       )}
                       {selectedJob.status === "failed" && (
