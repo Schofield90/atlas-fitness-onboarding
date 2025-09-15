@@ -32,7 +32,6 @@
       "schedule": "0 * * * *"
     }
   ],
-  "regions": ["lhr1"],
   "headers": [
     {
       "source": "/(.*)",
