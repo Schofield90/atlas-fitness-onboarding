@@ -125,6 +125,7 @@ export async function POST(request: NextRequest) {
           null;
 
         if (!date) {
+          console.log("Skipped: No date found in row");
           skipped++;
           continue;
         }
@@ -142,6 +143,7 @@ export async function POST(request: NextRequest) {
         }
 
         if (!clientId) {
+          console.log(`Skipped: No matching client for ${name || email}`);
           skipped++;
           continue;
         }
@@ -200,13 +202,23 @@ export async function POST(request: NextRequest) {
     const hasMore = endIdx < totalRecords;
     const progress = Math.round((endIdx / totalRecords) * 100);
 
-    // Update job metadata with progress
+    // Get existing metadata to accumulate counts
+    const { data: jobData } = await supabaseAdmin
+      .from("migration_jobs")
+      .select("metadata")
+      .eq("id", migrationJobId)
+      .single();
+
+    const previousImported = jobData?.metadata?.attendance_imported || 0;
+    const previousSkipped = jobData?.metadata?.attendance_skipped || 0;
+
+    // Update job metadata with accumulated progress
     await supabaseAdmin
       .from("migration_jobs")
       .update({
         metadata: {
-          attendance_imported: imported,
-          attendance_skipped: skipped,
+          attendance_imported: previousImported + imported,
+          attendance_skipped: previousSkipped + skipped,
           attendance_progress: progress,
           attendance_total: totalRecords,
           attendance_offset: endIdx,
