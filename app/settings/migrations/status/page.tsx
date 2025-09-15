@@ -827,6 +827,52 @@ export default function MigrationStatusPage() {
                 {/* Actions */}
                 {selectedJob.status === "completed" && (
                   <>
+                    {/* Process All Files Button for completed jobs with files */}
+                    {selectedJob.migration_files &&
+                      selectedJob.migration_files.length > 0 && (
+                        <div className="bg-gray-800 rounded-lg p-6 mb-6">
+                          <h3 className="text-lg font-semibold mb-4">
+                            Process Uploaded Files
+                          </h3>
+                          <p className="text-sm text-gray-400 mb-4">
+                            You have uploaded{" "}
+                            {selectedJob.migration_files.length} file(s). Click
+                            below to process all files at once.
+                          </p>
+                          <button
+                            onClick={async () => {
+                              toast.info("Processing all uploaded files...");
+                              const response = await fetch(
+                                `/api/migration/jobs/${selectedJob.id}/process-all`,
+                                {
+                                  method: "POST",
+                                },
+                              );
+                              const data = await response.json();
+                              console.log("Process all result:", data);
+                              if (data.logs) {
+                                data.logs.forEach((log: string) =>
+                                  console.log(log),
+                                );
+                              }
+                              if (data.success) {
+                                const r = data.results;
+                                toast.success(
+                                  `Import complete! Clients: ${r.clients.imported}, Attendance: ${r.attendance.imported}, Payments: ${r.payments.imported}`,
+                                );
+                                loadMigrationJobs();
+                              } else {
+                                toast.error(`Process failed: ${data.error}`);
+                              }
+                            }}
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+                          >
+                            <Upload className="h-5 w-5" />
+                            Process All Files
+                          </button>
+                        </div>
+                      )}
+
                     {/* Additional Data Import Section */}
                     <div className="bg-gray-800 rounded-lg p-6 mb-6">
                       <h3 className="text-lg font-semibold mb-4">
