@@ -271,6 +271,19 @@ export default function SimpleMigrationPage() {
           `Attendance import complete! ${totalImported} records imported`,
         );
 
+        // Refresh the actual counts from database
+        const { count: newAttendanceCount } = await supabase
+          .from("bookings")
+          .select("*", { count: "exact", head: true })
+          .eq("organization_id", organizationId);
+
+        if (newAttendanceCount) {
+          setImportCounts((prev) => ({
+            ...prev,
+            attendance: newAttendanceCount,
+          }));
+        }
+
         // Auto-advance to next step
         if (currentStep === 2) {
           setCurrentStep(3);
