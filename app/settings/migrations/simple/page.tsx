@@ -521,6 +521,54 @@ export default function SimpleMigrationPage() {
             <RefreshCw className="h-6 w-6" />
             🔧 Fix All Existing Data (One-Click Solution)
           </button>
+
+          <button
+            onClick={async () => {
+              try {
+                const orgId = localStorage.getItem("organizationId");
+                if (!orgId) {
+                  alert("Organization ID not found. Please refresh the page.");
+                  return;
+                }
+
+                const res = await fetch("/api/migration/simple/diagnose-data", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ organizationId: orgId }),
+                });
+                const result = await res.json();
+
+                if (result.success) {
+                  const s = result.summary;
+                  const d = result.davidWrightson;
+
+                  const message =
+                    `📊 DATA DIAGNOSTIC REPORT\n\n` +
+                    `SUMMARY:\n` +
+                    `• Leads: ${s.totalLeads} total (${s.leadsLinked} linked, ${s.leadsUnlinked} unlinked)\n` +
+                    `• Clients: ${s.totalClients} total (${s.clientsLinked} with lead ref)\n` +
+                    `• Payments: ${s.totalPayments} total (${s.paymentsWithClient} linked, ${s.paymentsOrphaned} orphaned)\n\n` +
+                    `DAVID WRIGHTSON STATUS:\n` +
+                    `${d.status}\n` +
+                    `${d.lead ? `Lead ID: ${d.lead.id}` : "Lead not found"}\n` +
+                    `${d.client ? `Client ID: ${d.client.id}` : "Client not found"}\n` +
+                    `${d.payments.length > 0 ? `Payments found: ${d.payments.length}` : "No payments found"}\n\n` +
+                    `Check console for detailed samples.`;
+
+                  alert(message);
+                  console.log("Full diagnostic data:", result);
+                } else {
+                  alert(`❌ Error: ${result.error || "Diagnosis failed"}`);
+                }
+              } catch (error) {
+                console.error("Diagnose error:", error);
+                alert("❌ Failed to diagnose data.");
+              }
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors flex items-center gap-2 shadow-lg w-full mt-3"
+          >
+            📊 Diagnose Data Issues
+          </button>
         </div>
 
         {/* Progress Steps */}
