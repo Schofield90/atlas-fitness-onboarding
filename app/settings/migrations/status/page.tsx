@@ -565,7 +565,7 @@ export default function MigrationStatusPage() {
                             onClick={async () => {
                               toast.info("Processing all uploaded files...");
                               const response = await fetch(
-                                `/api/migration/jobs/${selectedJob.id}/process-all`,
+                                `/api/migration/jobs/${selectedJob.id}/process-simple`,
                                 {
                                   method: "POST",
                                 },
@@ -843,7 +843,7 @@ export default function MigrationStatusPage() {
                             onClick={async () => {
                               toast.info("Processing all uploaded files...");
                               const response = await fetch(
-                                `/api/migration/jobs/${selectedJob.id}/process-all`,
+                                `/api/migration/jobs/${selectedJob.id}/process-simple`,
                                 {
                                   method: "POST",
                                 },
