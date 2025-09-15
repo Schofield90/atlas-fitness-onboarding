@@ -46,6 +46,8 @@ export default function SimpleMigrationPage() {
   const [organizationId, setOrganizationId] = useState<string>("");
   const [migrationJobId, setMigrationJobId] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     checkExistingData();
@@ -166,7 +168,75 @@ export default function SimpleMigrationPage() {
 
       if (uploadError) throw uploadError;
 
-      // Process the specific step
+      // For attendance, use batch processing if file is large
+      if (step === "attendance") {
+        setIsProcessing(true);
+        setUploadProgress(0);
+
+        let offset = 0;
+        let hasMore = true;
+        let totalImported = 0;
+
+        while (hasMore) {
+          const response = await fetch(
+            `/api/migration/simple/attendance-batch`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                organizationId,
+                migrationJobId,
+                fileName,
+                offset,
+              }),
+            },
+          );
+
+          const result = await response.json();
+
+          if (!result.success) {
+            throw new Error(result.error || "Batch processing failed");
+          }
+
+          totalImported += result.imported;
+          hasMore = result.hasMore;
+          offset = result.nextOffset || 0;
+          setUploadProgress(result.progress);
+
+          // Update UI with progress
+          if (hasMore) {
+            toast.info(
+              `Processing: ${result.progress}% complete (${totalImported} imported so far)`,
+            );
+          }
+        }
+
+        setIsProcessing(false);
+        setUploadProgress(100);
+
+        // Final result
+        const result = { success: true, imported: totalImported };
+
+        // Update counts and status
+        setImportCounts((prev) => ({
+          ...prev,
+          attendance: prev.attendance + totalImported,
+        }));
+
+        setStepStatus((prev) => ({ ...prev, attendance: "completed" }));
+        toast.success(
+          `Attendance import complete! ${totalImported} records imported`,
+        );
+
+        // Auto-advance to next step
+        if (currentStep === 2) {
+          setCurrentStep(3);
+        }
+
+        return; // Exit early for attendance
+      }
+
+      // For other steps, use regular processing
       const response = await fetch(`/api/migration/simple/${step}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -186,7 +256,10 @@ export default function SimpleMigrationPage() {
           [step]: prev[step] + result.imported,
         }));
 
-        setStepStatus((prev) => ({ ...prev, [step]: "completed" }));
+        // Only mark as completed if it's not attendance, or if attendance has significant data
+        if (step !== "attendance" || result.imported > 0) {
+          setStepStatus((prev) => ({ ...prev, [step]: "completed" }));
+        }
 
         toast.success(
           `${step === "clients" ? "Clients" : step === "attendance" ? "Attendance" : "Payments"} imported successfully!`,
@@ -387,20 +460,42 @@ export default function SimpleMigrationPage() {
                     <CheckCircle2 className="h-6 w-6 text-green-500" />
                     <div>
                       <p className="font-semibold text-green-400">
-                        Attendance Already Imported!
+                        {importCounts.attendance < 100
+                          ? "Partial Attendance Data Found"
+                          : "Attendance Already Imported!"}
                       </p>
                       <p className="text-sm text-gray-300">
                         You have {importCounts.attendance} attendance records
                       </p>
+                      {importCounts.attendance < 100 && (
+                        <p className="text-xs text-yellow-400 mt-1">
+                          This seems low - you may want to import more
+                          attendance data
+                        </p>
+                      )}
                     </div>
                   </div>
-                  <button
-                    onClick={() => setCurrentStep(3)}
-                    className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
-                  >
-                    Continue to Payments
-                    <ArrowRight className="h-4 w-4" />
-                  </button>
+                  <div className="flex gap-2 mt-4">
+                    <button
+                      onClick={() => {
+                        setStepStatus((prev) => ({
+                          ...prev,
+                          attendance: "not_started",
+                        }));
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                    >
+                      <Upload className="h-4 w-4" />
+                      Import More Attendance
+                    </button>
+                    <button
+                      onClick={() => setCurrentStep(3)}
+                      className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center gap-2"
+                    >
+                      Skip to Payments
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <>
@@ -423,27 +518,54 @@ export default function SimpleMigrationPage() {
                   </div>
 
                   <div className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center">
-                    <FileText className="h-12 w-12 text-gray-500 mx-auto mb-4" />
-                    <p className="mb-4">
-                      Drop your attendance CSV file here or click to browse
-                    </p>
-                    <input
-                      type="file"
-                      accept=".csv"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleFileUpload("attendance", file);
-                      }}
-                      className="hidden"
-                      id="attendance-upload"
-                    />
-                    <label
-                      htmlFor="attendance-upload"
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer inline-block"
-                    >
-                      <Upload className="inline h-4 w-4 mr-2" />
-                      Select CSV File
-                    </label>
+                    {isProcessing ? (
+                      <div className="space-y-4">
+                        <RefreshCw className="h-12 w-12 text-blue-500 mx-auto animate-spin" />
+                        <p className="font-semibold">
+                          Processing Large File...
+                        </p>
+                        <div className="max-w-md mx-auto">
+                          <div className="flex justify-between text-sm mb-2">
+                            <span>Progress</span>
+                            <span>{uploadProgress}%</span>
+                          </div>
+                          <div className="w-full bg-gray-700 rounded-full h-3">
+                            <div
+                              className="bg-blue-500 h-3 rounded-full transition-all"
+                              style={{ width: `${uploadProgress}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-gray-400 mt-2">
+                            Processing in batches to handle large dataset...
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <FileText className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+                        <p className="mb-4">
+                          Drop your attendance CSV file here or click to browse
+                        </p>
+                        <input
+                          type="file"
+                          accept=".csv"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleFileUpload("attendance", file);
+                          }}
+                          className="hidden"
+                          id="attendance-upload"
+                          disabled={isProcessing}
+                        />
+                        <label
+                          htmlFor="attendance-upload"
+                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer inline-block"
+                        >
+                          <Upload className="inline h-4 w-4 mr-2" />
+                          Select CSV File
+                        </label>
+                      </>
+                    )}
                   </div>
                 </>
               )}
