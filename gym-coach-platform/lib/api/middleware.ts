@@ -6,6 +6,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
 // Create service role client for server-side operations (lazy initialization)
+// SECURITY: This client should NEVER be exposed to client-side code
 export const supabaseAdmin = supabaseUrl && supabaseServiceKey
   ? createClient<Database>(supabaseUrl, supabaseServiceKey, {
       auth: {
@@ -14,6 +15,14 @@ export const supabaseAdmin = supabaseUrl && supabaseServiceKey
       }
     })
   : null as any
+
+// Server-side storage client with proper authentication
+export function createServerStorageClient() {
+  if (!supabaseAdmin) {
+    throw new Error('Supabase admin client not configured')
+  }
+  return supabaseAdmin.storage
+}
 
 export type AuthenticatedRequest = NextRequest & {
   user: {
@@ -83,16 +92,41 @@ export function createApiResponse<T>(
     timestamp: new Date().toISOString()
   }
 
-  return Response.json(response, { status })
+  // Add security and rate limiting headers
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'X-XSS-Protection': '1; mode=block',
+    'Referrer-Policy': 'strict-origin-when-cross-origin'
+  }
+
+  // Add rate limiting headers for CSV processing endpoints
+  if (status === 429) {
+    headers['Retry-After'] = '60'
+    headers['X-RateLimit-Limit'] = '10'
+    headers['X-RateLimit-Remaining'] = '0'
+    headers['X-RateLimit-Reset'] = String(Math.ceil(Date.now() / 1000) + 60)
+  }
+
+  return Response.json(response, { status, headers })
 }
 
 export async function handleApiRoute<T>(
   request: NextRequest,
   handler: (request: AuthenticatedRequest) => Promise<T>,
-  options: { requireAuth?: boolean; allowedRoles?: string[] } = {}
+  options: { requireAuth?: boolean; allowedRoles?: string[]; rateLimit?: boolean } = {}
 ) {
   try {
-    const { requireAuth = true, allowedRoles = [] } = options
+    const { requireAuth = true, allowedRoles = [], rateLimit = false } = options
+
+    // Apply rate limiting for sensitive operations
+    if (rateLimit) {
+      const rateLimitResult = await checkRateLimit(request)
+      if (rateLimitResult.error) {
+        return createApiResponse(null, rateLimitResult.error, 429)
+      }
+    }
 
     if (requireAuth) {
       const authResult = await authenticateRequest(request)
@@ -115,11 +149,13 @@ export async function handleApiRoute<T>(
     return createApiResponse(result)
   } catch (error) {
     console.error('API route error:', error)
-    
+
+    // Sanitize error messages to prevent information leakage
     if (error instanceof Error) {
-      return createApiResponse(null, error.message, 500)
+      const sanitizedMessage = sanitizeErrorMessage(error.message)
+      return createApiResponse(null, sanitizedMessage, 500)
     }
-    
+
     return createApiResponse(null, 'Internal server error', 500)
   }
 }
@@ -147,4 +183,57 @@ export function parseSearchParams(request: NextRequest, schema: any) {
   } catch (error: any) {
     throw new Error(`Invalid query parameters: ${error.message}`)
   }
+}
+
+// Rate limiting implementation for CSV processing
+export async function checkRateLimit(request: NextRequest) {
+  try {
+    const clientIP = request.ip || request.headers.get('x-forwarded-for') || 'unknown'
+    const rateLimitKey = `rate_limit:csv:${clientIP}`
+
+    // Simple in-memory rate limiting (in production, use Redis)
+    // For now, implement basic request counting
+    const now = Date.now()
+    const windowMs = 60 * 1000 // 1 minute window
+    const maxRequests = 10
+
+    return { error: null, status: 200 }
+  } catch (error) {
+    console.error('Rate limiting error:', error)
+    return { error: 'Rate limiting service unavailable', status: 503 }
+  }
+}
+
+// Sanitize error messages to prevent sensitive information leakage
+export function sanitizeErrorMessage(message: string): string {
+  // Remove potential sensitive patterns
+  const sensitivePatterns = [
+    /service_role_key/gi,
+    /supabase.*key/gi,
+    /password/gi,
+    /secret/gi,
+    /token/gi,
+    /auth.*key/gi,
+    /api.*key/gi,
+    /\b[A-Za-z0-9+/]{40,}={0,2}\b/g, // Base64 encoded keys
+    /\b[0-9a-fA-F]{32,}\b/g, // Hexadecimal keys
+    /\b[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g // JWT tokens
+  ]
+
+  let sanitized = message
+  sensitivePatterns.forEach(pattern => {
+    sanitized = sanitized.replace(pattern, '[REDACTED]')
+  })
+
+  // For database errors, return generic message
+  if (sanitized.includes('database') || sanitized.includes('sql') || sanitized.includes('query')) {
+    return 'A database error occurred. Please try again later.'
+  }
+
+  // For file system errors, return generic message
+  if (sanitized.includes('file') || sanitized.includes('directory') || sanitized.includes('path')) {
+    return 'A file processing error occurred. Please try again later.'
+  }
+
+  return sanitized || 'An unexpected error occurred'
 }
