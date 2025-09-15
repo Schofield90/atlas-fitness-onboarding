@@ -381,7 +381,7 @@ export class MigrationService {
     organizationId: string,
   ): Promise<FileUploadResult> {
     const fileName = `${Date.now()}-${file.name}`;
-    const filePath = `migrations/${organizationId}/${jobId}/${fileName}`;
+    const filePath = `${jobId}/${fileName}`;
 
     try {
       // Upload to Supabase Storage
@@ -402,13 +402,11 @@ export class MigrationService {
         .insert({
           migration_job_id: jobId,
           organization_id: organizationId,
-          filename: fileName,
-          original_filename: file.name,
+          file_name: file.name,
           file_type: this.getFileExtension(file.name),
-          file_size_bytes: file.size,
-          mime_type: file.type,
+          file_size: file.size,
           storage_path: data.path,
-          processing_status: "uploaded",
+          status: "uploaded",
         })
         .select("id")
         .single();
@@ -458,7 +456,7 @@ export class MigrationService {
       await this.supabase
         .from("migration_files")
         .update({
-          processing_status: "processed",
+          upload_status: "completed",
           detected_data_types: analysis.dataTypes,
           column_analysis: analysis.columns,
           data_quality_score: analysis.qualityScore,
@@ -483,7 +481,7 @@ export class MigrationService {
       await this.supabase
         .from("migration_files")
         .update({
-          processing_status: "failed",
+          upload_status: "failed",
         })
         .eq("id", file.id);
 
