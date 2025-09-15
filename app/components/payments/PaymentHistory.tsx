@@ -38,35 +38,73 @@ export function PaymentHistory({ clientId, clientName }: PaymentHistoryProps) {
     try {
       const supabase = createClient();
 
-      // Fetch payment records from transactions table
-      const { data: transactions, error } = await supabase
-        .from("transactions")
-        .select("*")
-        .eq("client_id", clientId)
-        .eq("type", "payment")
-        .order("created_at", { ascending: false });
+      // Fetch payment records from both transactions and payments tables
+      const [transactionsResult, paymentsResult] = await Promise.all([
+        supabase
+          .from("transactions")
+          .select("*")
+          .eq("client_id", clientId)
+          .eq("type", "payment")
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("payments")
+          .select("*")
+          .eq("client_id", clientId)
+          .order("payment_date", { ascending: false }),
+      ]);
 
-      if (error) {
-        console.error("Error fetching payments:", error);
-        return;
+      if (transactionsResult.error) {
+        console.error("Error fetching transactions:", transactionsResult.error);
       }
 
-      setPayments(transactions || []);
-      setTotalPayments(transactions?.length || 0);
+      if (paymentsResult.error) {
+        console.error("Error fetching payments:", paymentsResult.error);
+      }
+
+      // Combine and format payments from both sources
+      const allPayments: PaymentRecord[] = [];
+
+      // Add transactions
+      if (transactionsResult.data) {
+        allPayments.push(...transactionsResult.data);
+      }
+
+      // Add imported payments (format them to match PaymentRecord structure)
+      if (paymentsResult.data) {
+        paymentsResult.data.forEach((payment) => {
+          allPayments.push({
+            id: payment.id,
+            amount: payment.amount,
+            type: "payment",
+            created_at: payment.payment_date || payment.created_at,
+            status: payment.payment_status || "completed",
+            description:
+              payment.description || `Payment via ${payment.payment_method}`,
+            currency: payment.currency || "GBP",
+          });
+        });
+      }
+
+      // Sort by date (newest first)
+      allPayments.sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
+
+      setPayments(allPayments);
+      setTotalPayments(allPayments.length);
 
       // Calculate total amount
       const total =
-        transactions?.reduce(
-          (sum, payment) => sum + (payment.amount || 0),
-          0,
-        ) || 0;
+        allPayments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) ||
+        0;
       setTotalAmount(total);
 
       // Calculate current month total
       const currentMonth = new Date().getMonth();
       const currentYear = new Date().getFullYear();
       const monthTotal =
-        transactions?.reduce((sum, payment) => {
+        allPayments?.reduce((sum, payment) => {
           const date = new Date(payment.created_at);
           if (
             date.getMonth() === currentMonth &&
@@ -79,8 +117,8 @@ export function PaymentHistory({ clientId, clientName }: PaymentHistoryProps) {
       setCurrentMonthTotal(monthTotal);
 
       // Get last payment date
-      if (transactions && transactions.length > 0) {
-        setLastPayment(transactions[0].created_at);
+      if (allPayments && allPayments.length > 0) {
+        setLastPayment(allPayments[0].created_at);
       }
     } catch (error) {
       console.error("Error fetching payments:", error);

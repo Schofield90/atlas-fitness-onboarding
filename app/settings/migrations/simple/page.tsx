@@ -238,7 +238,20 @@ export default function SimpleMigrationPage() {
           const result = await response.json();
 
           if (!result.success) {
-            throw new Error(result.error || "Batch processing failed");
+            // Handle fail-safe error
+            setIsProcessing(false);
+            setUploadProgress(0);
+            setStepStatus((prev) => ({ ...prev, attendance: "error" }));
+
+            toast.error(result.error || "Import failed");
+            if (result.message) {
+              toast.error(result.message);
+            }
+
+            // Show detailed error in console
+            console.error("Import stopped:", result);
+
+            return; // Exit the import loop
           }
 
           totalImported += result.imported;

@@ -261,6 +261,40 @@ export async function POST(request: NextRequest) {
     const previousImported = jobData?.metadata?.attendance_imported || 0;
     const previousSkipped = jobData?.metadata?.attendance_skipped || 0;
 
+    // Fail-safe: If we've processed 5% and have 0 imports, stop processing
+    if (progress >= 5 && previousImported === 0 && imported === 0) {
+      console.error(
+        "Stopping import: No records matched after processing 5% of file",
+      );
+
+      await supabaseAdmin
+        .from("migration_jobs")
+        .update({
+          status: "failed",
+          metadata: {
+            attendance_imported: 0,
+            attendance_skipped: previousSkipped + skipped,
+            attendance_progress: progress,
+            attendance_total: totalRecords,
+            attendance_error:
+              "No records matched clients. Please check that client names/emails in your CSV match those in the database.",
+            attendance_complete: true,
+          },
+        })
+        .eq("id", migrationJobId);
+
+      return NextResponse.json({
+        success: false,
+        error:
+          "No records could be matched to existing clients. Import stopped.",
+        imported: 0,
+        skipped: previousSkipped + skipped,
+        progress,
+        message:
+          "Please ensure client names/emails in your CSV exactly match those in the database.",
+      });
+    }
+
     // Update job metadata with accumulated progress
     await supabaseAdmin
       .from("migration_jobs")
