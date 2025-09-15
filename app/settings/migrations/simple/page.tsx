@@ -439,53 +439,112 @@ export default function SimpleMigrationPage() {
             profiles, click the button below to link your leads with their
             corresponding client records.
           </p>
-          <button
-            onClick={async () => {
-              try {
-                const orgId = localStorage.getItem("organizationId");
-                if (!orgId) {
-                  alert("Organization ID not found. Please refresh the page.");
-                  return;
-                }
+          <div className="flex gap-3">
+            <button
+              onClick={async () => {
+                try {
+                  const orgId = localStorage.getItem("organizationId");
+                  if (!orgId) {
+                    alert(
+                      "Organization ID not found. Please refresh the page.",
+                    );
+                    return;
+                  }
 
-                toast.info("Linking leads to clients...");
+                  toast.info("Linking leads to clients by email...");
 
-                const res = await fetch(
-                  "/api/migration/simple/link-leads-clients",
-                  {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ organizationId: orgId }),
-                  },
-                );
-                const result = await res.json();
+                  const res = await fetch(
+                    "/api/migration/simple/link-leads-clients",
+                    {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ organizationId: orgId }),
+                    },
+                  );
+                  const result = await res.json();
 
-                if (result.success) {
-                  const message = `✅ Successfully linked ${result.summary?.leadsLinked || 0} leads to clients!\n\n${result.message}`;
-                  alert(message);
+                  if (result.success) {
+                    const message = `✅ Linked ${result.summary?.leadsLinked || 0} leads by EMAIL\n\n${result.message}`;
+                    alert(message);
 
-                  if (result.summary?.leadsLinked > 0) {
-                    toast.success(
-                      "Payments should now be visible in client profiles!",
+                    if (result.summary?.leadsLinked > 0) {
+                      toast.success(
+                        "Payments should now be visible in client profiles!",
+                      );
+                    }
+                  } else {
+                    alert(
+                      `❌ Error: ${result.error || "Failed to link leads with clients"}`,
                     );
                   }
-                } else {
+                } catch (error) {
+                  console.error("Link error:", error);
                   alert(
-                    `❌ Error: ${result.error || "Failed to link leads with clients"}`,
+                    "❌ Failed to link leads with clients. Check console for details.",
                   );
                 }
-              } catch (error) {
-                console.error("Link error:", error);
-                alert(
-                  "❌ Failed to link leads with clients. Check console for details.",
-                );
-              }
-            }}
-            className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-semibold text-lg transition-colors flex items-center gap-3 shadow-lg"
-          >
-            <RefreshCw className="h-5 w-5" />
-            🔗 Link Leads to Clients (Fix Payment Display)
-          </button>
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors flex items-center gap-2 shadow-lg"
+            >
+              <RefreshCw className="h-5 w-5" />
+              Link by Email
+            </button>
+
+            <button
+              onClick={async () => {
+                try {
+                  const orgId = localStorage.getItem("organizationId");
+                  if (!orgId) {
+                    alert(
+                      "Organization ID not found. Please refresh the page.",
+                    );
+                    return;
+                  }
+
+                  toast.info("Linking leads to clients by name...");
+
+                  const res = await fetch(
+                    "/api/migration/simple/link-by-name",
+                    {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ organizationId: orgId }),
+                    },
+                  );
+                  const result = await res.json();
+
+                  if (result.success) {
+                    const message = `✅ Linked ${result.summary?.leadsLinked || 0} leads by NAME\n\n${result.message}`;
+                    alert(message);
+
+                    if (result.summary?.leadsLinked > 0) {
+                      toast.success(
+                        "Payments should now be visible in client profiles!",
+                      );
+
+                      // Show some of the linked pairs
+                      if (result.linkedPairs && result.linkedPairs.length > 0) {
+                        console.log("Linked pairs:", result.linkedPairs);
+                      }
+                    }
+                  } else {
+                    alert(
+                      `❌ Error: ${result.error || "Failed to link leads with clients"}`,
+                    );
+                  }
+                } catch (error) {
+                  console.error("Link error:", error);
+                  alert(
+                    "❌ Failed to link leads with clients. Check console for details.",
+                  );
+                }
+              }}
+              className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors flex items-center gap-2 shadow-lg"
+            >
+              <RefreshCw className="h-5 w-5" />
+              Link by Name (Recommended)
+            </button>
+          </div>
         </div>
 
         {/* Progress Steps */}
