@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   Trash2,
   Bug,
+  Upload,
 } from "lucide-react";
 import toast from "@/app/lib/toast";
 
@@ -862,28 +863,166 @@ export default function MigrationStatusPage() {
 
                 {/* Actions */}
                 {selectedJob.status === "completed" && (
-                  <div className="bg-gray-800 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold mb-4">Next Steps</h3>
-                    <div className="space-y-3">
-                      <button
-                        onClick={() => router.push("/leads")}
-                        className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 flex items-center justify-between"
-                      >
-                        <span className="flex items-center gap-3">
-                          <Users className="h-5 w-5" />
-                          View Imported Clients
-                        </span>
-                        <ChevronRight className="h-5 w-5" />
-                      </button>
-                      <button className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 flex items-center justify-between">
-                        <span className="flex items-center gap-3">
-                          <Download className="h-5 w-5" />
-                          Download Import Report
-                        </span>
-                        <ChevronRight className="h-5 w-5" />
-                      </button>
+                  <>
+                    {/* Additional Data Import Section */}
+                    <div className="bg-gray-800 rounded-lg p-6 mb-6">
+                      <h3 className="text-lg font-semibold mb-4">Import Additional Data</h3>
+                      <p className="text-sm text-gray-400 mb-4">
+                        Now that clients are imported, you can add their attendance and payment history.
+                      </p>
+                      
+                      <div className="space-y-4">
+                        {/* Attendance Import */}
+                        <div className="border border-gray-700 rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-5 w-5 text-blue-400" />
+                              <h4 className="font-medium">Attendance Data</h4>
+                            </div>
+                            {selectedJob.metadata?.attendance_imported && (
+                              <span className="text-xs bg-green-600/20 text-green-400 px-2 py-1 rounded">
+                                ✓ Imported
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-400 mb-3">
+                            Upload CSV with attendance/booking history
+                          </p>
+                          <input
+                            type="file"
+                            accept=".csv"
+                            id="attendance-file"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              
+                              const formData = new FormData();
+                              formData.append("file", file);
+                              
+                              toast.info("Importing attendance data...");
+                              
+                              try {
+                                const response = await fetch(
+                                  `/api/migration/jobs/${selectedJob.id}/import-attendance`,
+                                  {
+                                    method: "POST",
+                                    body: formData,
+                                  }
+                                );
+                                
+                                const data = await response.json();
+                                
+                                if (data.success) {
+                                  toast.success(
+                                    `Imported ${data.stats.imported} attendance records`
+                                  );
+                                  loadMigrationJobs();
+                                } else {
+                                  toast.error(data.error);
+                                }
+                              } catch (error) {
+                                toast.error("Failed to import attendance data");
+                              }
+                            }}
+                          />
+                          <label
+                            htmlFor="attendance-file"
+                            className="w-full px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 cursor-pointer"
+                          >
+                            <Upload className="h-4 w-4" />
+                            Upload Attendance CSV
+                          </label>
+                        </div>
+
+                        {/* Payment Import */}
+                        <div className="border border-gray-700 rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <CreditCard className="h-5 w-5 text-green-400" />
+                              <h4 className="font-medium">Payment Data</h4>
+                            </div>
+                            {selectedJob.metadata?.payments_imported && (
+                              <span className="text-xs bg-green-600/20 text-green-400 px-2 py-1 rounded">
+                                ✓ Imported
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-400 mb-3">
+                            Upload CSV with payment history
+                          </p>
+                          <input
+                            type="file"
+                            accept=".csv"
+                            id="payment-file"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              
+                              const formData = new FormData();
+                              formData.append("file", file);
+                              
+                              toast.info("Importing payment data...");
+                              
+                              try {
+                                const response = await fetch(
+                                  `/api/migration/jobs/${selectedJob.id}/import-payments`,
+                                  {
+                                    method: "POST",
+                                    body: formData,
+                                  }
+                                );
+                                
+                                const data = await response.json();
+                                
+                                if (data.success) {
+                                  toast.success(
+                                    `Imported ${data.stats.imported} payment records`
+                                  );
+                                  loadMigrationJobs();
+                                } else {
+                                  toast.error(data.error);
+                                }
+                              } catch (error) {
+                                toast.error("Failed to import payment data");
+                              }
+                            }}
+                          />
+                          <label
+                            htmlFor="payment-file"
+                            className="w-full px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2 cursor-pointer"
+                          >
+                            <Upload className="h-4 w-4" />
+                            Upload Payment CSV
+                          </label>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+
+                    <div className="bg-gray-800 rounded-lg p-6">
+                      <h3 className="text-lg font-semibold mb-4">Next Steps</h3>
+                      <div className="space-y-3">
+                        <button
+                          onClick={() => router.push("/leads")}
+                          className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 flex items-center justify-between"
+                        >
+                          <span className="flex items-center gap-3">
+                            <Users className="h-5 w-5" />
+                            View Imported Clients
+                          </span>
+                          <ChevronRight className="h-5 w-5" />
+                        </button>
+                        <button className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 flex items-center justify-between">
+                          <span className="flex items-center gap-3">
+                            <Download className="h-5 w-5" />
+                            Download Import Report
+                          </span>
+                          <ChevronRight className="h-5 w-5" />
+                        </button>
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
             ) : (
