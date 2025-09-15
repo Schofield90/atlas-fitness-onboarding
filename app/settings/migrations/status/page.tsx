@@ -563,71 +563,34 @@ export default function MigrationStatusPage() {
                           </button>
                           <button
                             onClick={async () => {
+                              toast.info("Processing all uploaded files...");
                               const response = await fetch(
-                                `/api/migration/jobs/${selectedJob.id}/parse-csv`,
+                                `/api/migration/jobs/${selectedJob.id}/process-all`,
                                 {
                                   method: "POST",
                                 },
                               );
                               const data = await response.json();
-                              console.log("Parse CSV result:", data);
+                              console.log("Process all result:", data);
                               if (data.logs) {
                                 data.logs.forEach((log: string) =>
                                   console.log(log),
                                 );
                               }
                               if (data.success) {
+                                const r = data.results;
                                 toast.success(
-                                  `Parsed ${data.stats.totalRows} rows - created ${data.stats.recordsCreated} records`,
+                                  `Import complete! Clients: ${r.clients.imported}, Attendance: ${r.attendance.imported}, Payments: ${r.payments.imported}`,
                                 );
-                                // Reload jobs and update the selected job
-                                await loadMigrationJobs();
-                                // Refresh the selected job details
-                                const { data: updatedJob } = await supabase
-                                  .from("migration_jobs")
-                                  .select("*")
-                                  .eq("id", selectedJob.id)
-                                  .single();
-                                if (updatedJob) {
-                                  setSelectedJob(updatedJob);
-                                }
+                                loadMigrationJobs();
                               } else {
-                                toast.error(`Parse failed: ${data.error}`);
+                                toast.error(`Process failed: ${data.error}`);
                               }
                             }}
                             className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
                           >
-                            <FileText className="h-4 w-4" />
-                            Parse CSV
-                          </button>
-                          <button
-                            onClick={async () => {
-                              const response = await fetch(
-                                `/api/migration/jobs/${selectedJob.id}/test-process`,
-                                {
-                                  method: "POST",
-                                },
-                              );
-                              const data = await response.json();
-                              console.log("Test process result:", data);
-                              if (data.logs) {
-                                data.logs.forEach((log: string) =>
-                                  console.log(log),
-                                );
-                              }
-                              if (data.success) {
-                                toast.success(
-                                  "Test process completed - check console",
-                                );
-                                loadMigrationJobs();
-                              } else {
-                                toast.error(`Test failed: ${data.error}`);
-                              }
-                            }}
-                            className="px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
-                          >
-                            <Bug className="h-4 w-4" />
-                            Test Process
+                            <CheckCircle className="h-4 w-4" />
+                            Process All Files
                           </button>
                           <button
                             onClick={() => deleteJob(selectedJob.id)}
@@ -866,11 +829,14 @@ export default function MigrationStatusPage() {
                   <>
                     {/* Additional Data Import Section */}
                     <div className="bg-gray-800 rounded-lg p-6 mb-6">
-                      <h3 className="text-lg font-semibold mb-4">Import Additional Data</h3>
+                      <h3 className="text-lg font-semibold mb-4">
+                        Import Additional Data
+                      </h3>
                       <p className="text-sm text-gray-400 mb-4">
-                        Now that clients are imported, you can add their attendance and payment history.
+                        Now that clients are imported, you can add their
+                        attendance and payment history.
                       </p>
-                      
+
                       <div className="space-y-4">
                         {/* Attendance Import */}
                         <div className="border border-gray-700 rounded-lg p-4">
@@ -896,26 +862,26 @@ export default function MigrationStatusPage() {
                             onChange={async (e) => {
                               const file = e.target.files?.[0];
                               if (!file) return;
-                              
+
                               const formData = new FormData();
                               formData.append("file", file);
-                              
+
                               toast.info("Importing attendance data...");
-                              
+
                               try {
                                 const response = await fetch(
                                   `/api/migration/jobs/${selectedJob.id}/import-attendance`,
                                   {
                                     method: "POST",
                                     body: formData,
-                                  }
+                                  },
                                 );
-                                
+
                                 const data = await response.json();
-                                
+
                                 if (data.success) {
                                   toast.success(
-                                    `Imported ${data.stats.imported} attendance records`
+                                    `Imported ${data.stats.imported} attendance records`,
                                   );
                                   loadMigrationJobs();
                                 } else {
@@ -959,26 +925,26 @@ export default function MigrationStatusPage() {
                             onChange={async (e) => {
                               const file = e.target.files?.[0];
                               if (!file) return;
-                              
+
                               const formData = new FormData();
                               formData.append("file", file);
-                              
+
                               toast.info("Importing payment data...");
-                              
+
                               try {
                                 const response = await fetch(
                                   `/api/migration/jobs/${selectedJob.id}/import-payments`,
                                   {
                                     method: "POST",
                                     body: formData,
-                                  }
+                                  },
                                 );
-                                
+
                                 const data = await response.json();
-                                
+
                                 if (data.success) {
                                   toast.success(
-                                    `Imported ${data.stats.imported} payment records`
+                                    `Imported ${data.stats.imported} payment records`,
                                   );
                                   loadMigrationJobs();
                                 } else {
