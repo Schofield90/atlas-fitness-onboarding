@@ -206,7 +206,7 @@ GTU003,Bob,Johnson,bob.j@example.com,07345678901,1992-08-30,Male,"789 Park Road"
 
       // Try to upload directly - the bucket should exist from SQL migration
       const { error: uploadError } = await supabase.storage
-        .from("migration-uploads")
+        .from("migrations")
         .upload(fileName, uploadedFile);
 
       if (uploadError) {
