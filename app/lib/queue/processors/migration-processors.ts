@@ -25,28 +25,34 @@ export async function processClients({
         const sourceData = record.source_data;
 
         // Extract client data from the source
+        // Parse name into first and last
+        const fullName =
+          sourceData.Name ||
+          sourceData.name ||
+          `${sourceData["First Name"] || ""} ${sourceData["Last Name"] || ""}`.trim() ||
+          "Unknown Client";
+
+        const nameParts = fullName.split(" ");
+        const firstName = nameParts[0] || "";
+        const lastName = nameParts.slice(1).join(" ") || "";
+
         const clientData = {
           organization_id: organizationId,
-          name:
-            sourceData.Name ||
-            sourceData.name ||
-            `${sourceData["First Name"] || ""} ${sourceData["Last Name"] || ""}`.trim() ||
-            "Unknown Client",
+          org_id: organizationId, // Both fields for compatibility
+          name: fullName,
+          first_name:
+            sourceData["First Name"] || sourceData.FirstName || firstName,
+          last_name: sourceData["Last Name"] || sourceData.LastName || lastName,
           email: sourceData.Email || sourceData.email || null,
           phone:
             sourceData.Phone || sourceData.phone || sourceData.Mobile || null,
           date_of_birth: sourceData.DOB || sourceData["Date of Birth"] || null,
-          address: sourceData.Address || sourceData.address || null,
-          city: sourceData.City || sourceData.city || null,
-          state: sourceData.State || sourceData.state || null,
-          country: sourceData.Country || sourceData.country || null,
-          postcode: sourceData.Postcode || sourceData["Postal Code"] || null,
           emergency_contact_name: sourceData["Emergency Contact"] || null,
           emergency_contact_phone: sourceData["Emergency Phone"] || null,
-          medical_conditions: sourceData["Medical Conditions"] || null,
+          medical_notes: sourceData["Medical Conditions"] || null,
           notes: sourceData.Notes || sourceData.notes || null,
           source: "migration",
-          source_id: sourceData.id || sourceData.ID || null,
+          client_type: "gym_member",
           status: sourceData.Status === "Inactive" ? "inactive" : "active",
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
