@@ -75,7 +75,7 @@ async function processInBackground(jobId: string, job: any, mappings: any[]) {
 
     // Download and parse file
     const { data: fileData } = await supabaseAdmin.storage
-      .from("migrations")
+      .from("migration-uploads")
       .download(file.storage_path);
 
     if (!fileData) {
