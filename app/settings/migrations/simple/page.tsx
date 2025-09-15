@@ -287,6 +287,8 @@ export default function SimpleMigrationPage() {
         // Auto-advance to next step
         if (currentStep === 2) {
           setCurrentStep(3);
+          setIsProcessing(false); // Reset processing state
+          setUploadProgress(0); // Reset progress
         }
 
         return; // Exit early for attendance
@@ -333,6 +335,8 @@ export default function SimpleMigrationPage() {
     } catch (error: any) {
       console.error(`Error importing ${step}:`, error);
       setStepStatus((prev) => ({ ...prev, [step]: "error" }));
+      setIsProcessing(false); // Reset processing state on error
+      setUploadProgress(0); // Reset progress on error
       toast.error(`Failed to import ${step}: ${error.message}`);
     }
   };

@@ -89,10 +89,28 @@ export async function POST(request: NextRequest) {
       `Processing batch: ${startIdx} to ${endIdx} of ${totalRecords} total records`,
     );
 
+    // Log the first row's keys to understand the CSV structure
+    if (startIdx === 0 && batchData.length > 0) {
+      console.log("CSV Column Headers:", Object.keys(batchData[0]));
+      console.log("First row data:", batchData[0]);
+    }
+
     for (const row of batchData as any[]) {
       try {
-        // Find client identifier (try multiple field names)
+        // Find client identifier (try multiple field names - case insensitive)
+        const findField = (fieldNames: string[]) => {
+          for (const key of Object.keys(row)) {
+            for (const fieldName of fieldNames) {
+              if (key.toLowerCase().includes(fieldName.toLowerCase())) {
+                return row[key];
+              }
+            }
+          }
+          return null;
+        };
+
         const email =
+          findField(["email", "e-mail", "mail"]) ||
           row.Email ||
           row.email ||
           row["Email Address"] ||
@@ -100,7 +118,18 @@ export async function POST(request: NextRequest) {
           row["Member Email"] ||
           null;
 
-        const name =
+        // Try to find name from various possible columns
+        let name =
+          findField([
+            "name",
+            "client",
+            "member",
+            "customer",
+            "person",
+            "user",
+            "student",
+            "participant",
+          ]) ||
           row.Name ||
           row.name ||
           row["Client Name"] ||
@@ -112,6 +141,26 @@ export async function POST(request: NextRequest) {
           (row["First Name"] && row["Last Name"])
             ? `${row["First Name"]} ${row["Last Name"]}`
             : null;
+
+        // If still no name, try the first non-date column that contains text
+        if (!name) {
+          for (const key of Object.keys(row)) {
+            const value = row[key];
+            if (value && typeof value === "string" && value.length > 2) {
+              // Check if it's not a date and not a number
+              if (
+                !value.match(/^\d{1,4}[-\/]\d{1,2}[-\/]\d{1,4}$/) &&
+                !value.match(/^\d+(\.\d+)?$/) &&
+                !key.toLowerCase().includes("date") &&
+                !key.toLowerCase().includes("time")
+              ) {
+                name = value;
+                console.log(`Using column '${key}' as name field: ${value}`);
+                break;
+              }
+            }
+          }
+        }
 
         // Find date (try multiple field names)
         const date =
