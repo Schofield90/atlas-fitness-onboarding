@@ -48,6 +48,7 @@ export default function SimpleMigrationPage() {
   const [loading, setLoading] = useState(true);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isDragging, setIsDragging] = useState<string | null>(null);
 
   useEffect(() => {
     checkExistingData();
@@ -154,19 +155,61 @@ export default function SimpleMigrationPage() {
     step: "clients" | "attendance" | "payments",
     file: File,
   ) => {
-    if (!file || !organizationId) return;
+    console.log("handleFileUpload called:", {
+      step,
+      file: file?.name,
+      organizationId,
+    });
+
+    if (!file || !organizationId) {
+      console.error("Missing file or organizationId:", {
+        file: !!file,
+        organizationId,
+      });
+      toast.error("Missing required data for upload");
+      return;
+    }
 
     // Update status to in_progress
     setStepStatus((prev) => ({ ...prev, [step]: "in_progress" }));
 
     try {
+      // Ensure we have a migration job ID
+      let jobId = migrationJobId;
+      if (!jobId) {
+        const { data: newJob, error: jobError } = await supabase
+          .from("migration_jobs")
+          .insert({
+            organization_id: organizationId,
+            source_system: "csv_import",
+            status: "in_progress",
+            total_records: 0,
+            processed_records: 0,
+          })
+          .select()
+          .single();
+
+        if (jobError || !newJob) {
+          throw new Error("Failed to create migration job");
+        }
+        jobId = newJob.id;
+        setMigrationJobId(jobId);
+      }
+
       // Upload file to storage
-      const fileName = `${migrationJobId}/${step}_${Date.now()}.csv`;
-      const { error: uploadError } = await supabase.storage
+      const fileName = `${jobId}/${step}_${Date.now()}.csv`;
+      console.log("Uploading file:", fileName);
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from("migrations")
         .upload(fileName, file);
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error("Storage upload error:", uploadError);
+        throw uploadError;
+      }
+
+      console.log("File uploaded successfully:", uploadData);
 
       // For attendance, use batch processing if file is large
       if (step === "attendance") {
@@ -185,7 +228,7 @@ export default function SimpleMigrationPage() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 organizationId,
-                migrationJobId,
+                migrationJobId: jobId,
                 fileName,
                 offset,
               }),
@@ -242,7 +285,7 @@ export default function SimpleMigrationPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           organizationId,
-          migrationJobId,
+          migrationJobId: jobId,
           fileName,
         }),
       });
@@ -293,6 +336,46 @@ export default function SimpleMigrationPage() {
       return <AlertCircle className="h-8 w-8 text-red-500" />;
     } else {
       return <Circle className="h-8 w-8 text-gray-500" />;
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent, step: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(step);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(null);
+  };
+
+  const handleDrop = (
+    e: React.DragEvent,
+    step: "clients" | "attendance" | "payments",
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(null);
+
+    console.log("Files dropped:", e.dataTransfer.files.length);
+    const files = Array.from(e.dataTransfer.files);
+    const csvFile = files.find((file) => {
+      console.log("File:", file.name, "Type:", file.type);
+      return (
+        file.type === "text/csv" ||
+        file.type === "application/vnd.ms-excel" ||
+        file.name.endsWith(".csv")
+      );
+    });
+
+    if (csvFile) {
+      console.log("CSV file found, uploading:", csvFile.name);
+      handleFileUpload(step, csvFile);
+    } else {
+      console.error("No CSV file found in dropped files");
+      toast.error("Please drop a CSV file");
     }
   };
 
@@ -418,7 +501,16 @@ export default function SimpleMigrationPage() {
                     </div>
                   </div>
 
-                  <div className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center">
+                  <div
+                    className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                      isDragging === "clients"
+                        ? "border-blue-500 bg-blue-900/20"
+                        : "border-gray-600"
+                    }`}
+                    onDragOver={(e) => handleDragOver(e, "clients")}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, "clients")}
+                  >
                     <FileText className="h-12 w-12 text-gray-500 mx-auto mb-4" />
                     <p className="mb-4">
                       Drop your client CSV file here or click to browse
@@ -427,8 +519,17 @@ export default function SimpleMigrationPage() {
                       type="file"
                       accept=".csv"
                       onChange={(e) => {
+                        console.log(
+                          "Client file input changed:",
+                          e.target.files,
+                        );
                         const file = e.target.files?.[0];
-                        if (file) handleFileUpload("clients", file);
+                        if (file) {
+                          console.log("Client file selected:", file.name);
+                          handleFileUpload("clients", file);
+                        } else {
+                          console.log("No file selected");
+                        }
                       }}
                       className="hidden"
                       id="client-upload"
@@ -517,7 +618,18 @@ export default function SimpleMigrationPage() {
                     </div>
                   </div>
 
-                  <div className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center">
+                  <div
+                    className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                      isDragging === "attendance"
+                        ? "border-green-500 bg-green-900/20"
+                        : "border-gray-600"
+                    }`}
+                    onDragOver={(e) =>
+                      !isProcessing && handleDragOver(e, "attendance")
+                    }
+                    onDragLeave={!isProcessing ? handleDragLeave : undefined}
+                    onDrop={(e) => !isProcessing && handleDrop(e, "attendance")}
+                  >
                     {isProcessing ? (
                       <div className="space-y-4">
                         <RefreshCw className="h-12 w-12 text-blue-500 mx-auto animate-spin" />
@@ -550,8 +662,20 @@ export default function SimpleMigrationPage() {
                           type="file"
                           accept=".csv"
                           onChange={(e) => {
+                            console.log(
+                              "Attendance file input changed:",
+                              e.target.files,
+                            );
                             const file = e.target.files?.[0];
-                            if (file) handleFileUpload("attendance", file);
+                            if (file) {
+                              console.log(
+                                "Attendance file selected:",
+                                file.name,
+                              );
+                              handleFileUpload("attendance", file);
+                            } else {
+                              console.log("No file selected");
+                            }
                           }}
                           className="hidden"
                           id="attendance-upload"
@@ -631,7 +755,16 @@ export default function SimpleMigrationPage() {
                     </div>
                   </div>
 
-                  <div className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center">
+                  <div
+                    className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                      isDragging === "payments"
+                        ? "border-purple-500 bg-purple-900/20"
+                        : "border-gray-600"
+                    }`}
+                    onDragOver={(e) => handleDragOver(e, "payments")}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, "payments")}
+                  >
                     <FileText className="h-12 w-12 text-gray-500 mx-auto mb-4" />
                     <p className="mb-4">
                       Drop your payment CSV file here or click to browse
@@ -640,8 +773,17 @@ export default function SimpleMigrationPage() {
                       type="file"
                       accept=".csv"
                       onChange={(e) => {
+                        console.log(
+                          "Payment file input changed:",
+                          e.target.files,
+                        );
                         const file = e.target.files?.[0];
-                        if (file) handleFileUpload("payments", file);
+                        if (file) {
+                          console.log("Payment file selected:", file.name);
+                          handleFileUpload("payments", file);
+                        } else {
+                          console.log("No file selected");
+                        }
                       }}
                       className="hidden"
                       id="payment-upload"
