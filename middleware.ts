@@ -106,6 +106,11 @@ const superAdminRoutes = [
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const res = NextResponse.next()
+
+  // Emergency bypass - if middleware is causing issues
+  if (process.env.BYPASS_MIDDLEWARE === 'true') {
+    return res
+  }
   
   // Block debug routes in production or if not explicitly enabled
   const isDebugRoute = debugRoutes.some(route => 
@@ -156,10 +161,33 @@ export async function middleware(request: NextRequest) {
   // Create supabase client
   const supabase = createMiddlewareClient(request, res)
 
-  // Get session and refresh if needed
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+  // Wrap in try-catch with timeout to prevent hanging
+  let session = null
+
+  try {
+    // Add timeout to prevent hanging
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Auth timeout')), 5000)
+    )
+
+    // Get session and refresh if needed
+    const sessionPromise = supabase.auth.getSession()
+    const result = await Promise.race([sessionPromise, timeoutPromise])
+
+    session = (result as any).data?.session
+  } catch (error) {
+    console.error('Middleware auth error:', error)
+    // If auth times out or fails, treat as no session for public routes
+    // but allow public routes to continue
+    if (isPublicRoute) {
+      return res
+    }
+    // For non-public routes, redirect to login
+    if (!pathname.startsWith('/api/')) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+    return NextResponse.json({ error: 'Auth service unavailable' }, { status: 503 })
+  }
 
   // If no session, try to get user and refresh
   if (!session) {
