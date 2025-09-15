@@ -457,120 +457,71 @@ export default function SimpleMigrationPage() {
           <div className="flex items-center gap-3 mb-3">
             <AlertCircle className="h-6 w-6 text-yellow-400" />
             <h2 className="text-xl font-bold text-yellow-400">
-              Quick Fix: Payments Not Showing?
+              One-Time Fix for Existing Data
             </h2>
           </div>
           <p className="text-gray-300 mb-4">
-            If you've imported payments but they're not visible in client
-            profiles, click the button below to link your leads with their
-            corresponding client records.
+            If you imported data before the automatic matching was enabled,
+            click below to fix all existing records. This will link all your
+            leads, clients, and payments properly.
           </p>
-          <div className="flex gap-3">
-            <button
-              onClick={async () => {
-                try {
-                  const orgId = localStorage.getItem("organizationId");
-                  if (!orgId) {
-                    alert(
-                      "Organization ID not found. Please refresh the page.",
-                    );
-                    return;
-                  }
-
-                  toast.info("Linking leads to clients by email...");
-
-                  const res = await fetch(
-                    "/api/migration/simple/link-leads-clients",
-                    {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ organizationId: orgId }),
-                    },
-                  );
-                  const result = await res.json();
-
-                  if (result.success) {
-                    const message = `✅ Linked ${result.summary?.leadsLinked || 0} leads by EMAIL\n\n${result.message}`;
-                    alert(message);
-
-                    if (result.summary?.leadsLinked > 0) {
-                      toast.success(
-                        "Payments should now be visible in client profiles!",
-                      );
-                    }
-                  } else {
-                    alert(
-                      `❌ Error: ${result.error || "Failed to link leads with clients"}`,
-                    );
-                  }
-                } catch (error) {
-                  console.error("Link error:", error);
-                  alert(
-                    "❌ Failed to link leads with clients. Check console for details.",
-                  );
+          <button
+            onClick={async () => {
+              try {
+                const orgId = localStorage.getItem("organizationId");
+                if (!orgId) {
+                  alert("Organization ID not found. Please refresh the page.");
+                  return;
                 }
-              }}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors flex items-center gap-2 shadow-lg"
-            >
-              <RefreshCw className="h-5 w-5" />
-              Link by Email
-            </button>
 
-            <button
-              onClick={async () => {
-                try {
-                  const orgId = localStorage.getItem("organizationId");
-                  if (!orgId) {
-                    alert(
-                      "Organization ID not found. Please refresh the page.",
-                    );
-                    return;
-                  }
+                toast.info(
+                  "Fixing all existing data... This may take a moment.",
+                );
 
-                  toast.info("Linking leads to clients by name...");
+                const res = await fetch(
+                  "/api/migration/simple/fix-existing-data",
+                  {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ organizationId: orgId }),
+                  },
+                );
+                const result = await res.json();
 
-                  const res = await fetch(
-                    "/api/migration/simple/link-by-name",
-                    {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ organizationId: orgId }),
-                    },
+                if (result.success) {
+                  const details = result.details || {};
+                  const message =
+                    `✅ Successfully fixed ${result.summary?.totalFixed || 0} records!\n\n` +
+                    `${details.leads || ""}\n` +
+                    `${details.clients || ""}\n` +
+                    `${details.payments || ""}\n` +
+                    `${details.bookings || ""}\n\n` +
+                    `Payments should now be visible in all client profiles!`;
+
+                  alert(message);
+                  toast.success(
+                    "All data has been fixed! Payments are now visible.",
                   );
-                  const result = await res.json();
 
-                  if (result.success) {
-                    const message = `✅ Linked ${result.summary?.leadsLinked || 0} leads by NAME\n\n${result.message}`;
-                    alert(message);
-
-                    if (result.summary?.leadsLinked > 0) {
-                      toast.success(
-                        "Payments should now be visible in client profiles!",
-                      );
-
-                      // Show some of the linked pairs
-                      if (result.linkedPairs && result.linkedPairs.length > 0) {
-                        console.log("Linked pairs:", result.linkedPairs);
-                      }
-                    }
-                  } else {
-                    alert(
-                      `❌ Error: ${result.error || "Failed to link leads with clients"}`,
-                    );
-                  }
-                } catch (error) {
-                  console.error("Link error:", error);
-                  alert(
-                    "❌ Failed to link leads with clients. Check console for details.",
-                  );
+                  // Redirect to leads page to see the results
+                  setTimeout(() => {
+                    window.location.href = "/leads";
+                  }, 2000);
+                } else {
+                  alert(`❌ Error: ${result.error || "Failed to fix data"}`);
                 }
-              }}
-              className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors flex items-center gap-2 shadow-lg"
-            >
-              <RefreshCw className="h-5 w-5" />
-              Link by Name (Recommended)
-            </button>
-          </div>
+              } catch (error) {
+                console.error("Fix error:", error);
+                alert(
+                  "❌ Failed to fix existing data. Check console for details.",
+                );
+              }
+            }}
+            className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-lg font-bold text-lg transition-colors flex items-center gap-3 shadow-lg w-full"
+          >
+            <RefreshCw className="h-6 w-6" />
+            🔧 Fix All Existing Data (One-Click Solution)
+          </button>
         </div>
 
         {/* Progress Steps */}
@@ -1151,42 +1102,6 @@ export default function SimpleMigrationPage() {
               )}
             </div>
           )}
-        </div>
-
-        {/* Quick Fix Tools */}
-        <div className="mt-8 p-4 bg-gray-800 rounded-lg border border-gray-700">
-          <h3 className="text-lg font-semibold mb-3 text-yellow-400">
-            Quick Fix Tools
-          </h3>
-          <button
-            onClick={async () => {
-              try {
-                const orgId = localStorage.getItem("organizationId");
-                const res = await fetch(
-                  "/api/migration/simple/link-leads-clients",
-                  {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ organizationId: orgId }),
-                  },
-                );
-                const result = await res.json();
-                alert(
-                  `Linking complete!\n\nLeads linked to clients: ${result.summary?.leadsLinked || 0}\nClients updated: ${result.summary?.clientsUpdated || 0}\n\n${result.message}`,
-                );
-                window.location.reload(); // Refresh to show payments
-              } catch (error) {
-                alert("Failed to link leads with clients");
-              }
-            }}
-            className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg transition-colors font-medium"
-          >
-            🔗 Link Leads to Clients (Fix Payment Display)
-          </button>
-          <p className="text-sm text-gray-400 mt-2">
-            This will connect leads with their corresponding clients based on
-            email matching, allowing payments to show in the profile tabs.
-          </p>
         </div>
 
         {/* Navigation */}
