@@ -89,6 +89,9 @@ export async function POST(
           h.toLowerCase(),
         );
 
+        log(`File: ${file.name}, Headers: ${headers.join(", ")}`);
+        log(`First row sample: ${JSON.stringify(preview.data[0])}`);
+
         // Detect file type based on headers
         if (
           headers.some((h) => h.includes("first") && h.includes("name")) ||
@@ -247,10 +250,20 @@ export async function POST(
           transformHeader: (header) => header.trim().toLowerCase(),
         });
 
+        log(`Parsed ${parseResult.data.length} attendance records`);
+
+        // Log first row to see headers
+        if (parseResult.data.length > 0) {
+          log(
+            `Sample attendance row headers: ${JSON.stringify(Object.keys(parseResult.data[0]))}`,
+          );
+        }
+
         const bookings = [];
 
         for (const row of parseResult.data as any[]) {
           try {
+            // All headers are lowercase due to transformHeader
             const dateValue =
               row.date ||
               row["class date"] ||
@@ -262,12 +275,16 @@ export async function POST(
               row["client name"] ||
               row["member name"] ||
               row.name ||
-              row.member;
+              row.member ||
+              row.customer;
             const email = row.email || row["email address"];
             const className =
               row["class name"] || row.activity || row.class || row.service;
 
             if (!dateValue || !clientName) {
+              log(
+                `Skipping attendance record: missing date (${dateValue}) or client name (${clientName})`,
+              );
               results.attendance.skipped++;
               continue;
             }
@@ -276,11 +293,16 @@ export async function POST(
             let clientId = null;
             if (email && clientByEmail.has(email.toLowerCase())) {
               clientId = clientByEmail.get(email.toLowerCase());
+              log(`Matched client by email: ${email}`);
             } else if (clientByName.has(clientName.toLowerCase())) {
               clientId = clientByName.get(clientName.toLowerCase());
+              log(`Matched client by name: ${clientName}`);
             }
 
             if (!clientId) {
+              log(
+                `Could not match client: ${clientName} (email: ${email || "none"})`,
+              );
               results.attendance.skipped++;
               continue;
             }
