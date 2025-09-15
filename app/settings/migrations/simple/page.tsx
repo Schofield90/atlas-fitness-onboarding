@@ -772,7 +772,7 @@ export default function SimpleMigrationPage() {
                           <Upload className="inline h-4 w-4 mr-2" />
                           Select CSV File
                         </label>
-                        <div className="mt-4">
+                        <div className="mt-4 space-y-2">
                           <button
                             onClick={async () => {
                               const input = document.getElementById(
@@ -780,22 +780,101 @@ export default function SimpleMigrationPage() {
                               ) as HTMLInputElement;
                               const file = input?.files?.[0];
                               if (file) {
-                                const text = await file.text();
-                                const lines = text.split("\n").slice(0, 5);
-                                console.log("First 5 rows of your CSV:");
-                                lines.forEach((line, i) =>
-                                  console.log(`Row ${i}: ${line}`),
-                                );
-                                alert(
-                                  "Check console for first 5 rows of your CSV file",
-                                );
-                              } else {
-                                alert("Please select a file first");
+                                // Upload file for preview
+                                const previewFileName = `preview/${Date.now()}.csv`;
+                                const { error: uploadError } =
+                                  await supabase.storage
+                                    .from("migrations")
+                                    .upload(previewFileName, file);
+
+                                if (!uploadError) {
+                                  const response = await fetch(
+                                    "/api/migration/simple/preview-csv",
+                                    {
+                                      method: "POST",
+                                      headers: {
+                                        "Content-Type": "application/json",
+                                      },
+                                      body: JSON.stringify({
+                                        organizationId,
+                                        fileName: previewFileName,
+                                      }),
+                                    },
+                                  );
+
+                                  const result = await response.json();
+                                  if (result.success) {
+                                    console.log("CSV Preview:", result);
+
+                                    // Show column selection dialog
+                                    const nameCol = prompt(
+                                      `Which column contains client names?\nAvailable columns: ${result.headers.join(", ")}\n\nSuggested: ${result.suggestion.nameColumn}`,
+                                      result.suggestion.nameColumn,
+                                    );
+
+                                    const dateCol = prompt(
+                                      `Which column contains dates?\nAvailable columns: ${result.headers.join(", ")}\n\nSuggested: ${result.suggestion.dateColumn}`,
+                                      result.suggestion.dateColumn,
+                                    );
+
+                                    if (nameCol && dateCol) {
+                                      // Run custom import with selected columns
+                                      const importResponse = await fetch(
+                                        "/api/migration/simple/attendance-custom",
+                                        {
+                                          method: "POST",
+                                          headers: {
+                                            "Content-Type": "application/json",
+                                          },
+                                          body: JSON.stringify({
+                                            organizationId,
+                                            fileName: previewFileName,
+                                            nameColumn: nameCol,
+                                            emailColumn:
+                                              result.suggestion.emailColumn,
+                                            dateColumn: dateCol,
+                                          }),
+                                        },
+                                      );
+
+                                      const importResult =
+                                        await importResponse.json();
+                                      console.log(
+                                        "Import result:",
+                                        importResult,
+                                      );
+
+                                      if (
+                                        importResult.success &&
+                                        importResult.imported > 0
+                                      ) {
+                                        toast.success(
+                                          `Imported ${importResult.imported} attendance records!`,
+                                        );
+                                        checkExistingData(); // Refresh counts
+                                      } else {
+                                        toast.error(
+                                          importResult.message ||
+                                            "No records could be matched",
+                                        );
+                                        console.log(
+                                          "Unmatched samples:",
+                                          importResult.unmatchedSamples,
+                                        );
+                                      }
+                                    }
+                                  }
+
+                                  // Clean up preview file
+                                  await supabase.storage
+                                    .from("migrations")
+                                    .remove([previewFileName]);
+                                }
                               }
                             }}
-                            className="text-sm text-gray-400 hover:text-white underline"
+                            className="text-sm text-blue-400 hover:text-blue-300 underline"
                           >
-                            Preview CSV Format
+                            Custom Import with Column Selection
                           </button>
                         </div>
                       </>
