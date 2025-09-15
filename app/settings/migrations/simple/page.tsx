@@ -478,35 +478,34 @@ export default function SimpleMigrationPage() {
                   "Fixing all existing data... This may take a moment.",
                 );
 
-                const res = await fetch(
-                  "/api/migration/simple/fix-existing-data",
-                  {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ organizationId: orgId }),
-                  },
-                );
+                const res = await fetch("/api/migration/simple/quick-fix", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ organizationId: orgId }),
+                });
                 const result = await res.json();
 
                 if (result.success) {
-                  const details = result.details || {};
-                  const message =
-                    `✅ Successfully fixed ${result.summary?.totalFixed || 0} records!\n\n` +
-                    `${details.leads || ""}\n` +
-                    `${details.clients || ""}\n` +
-                    `${details.payments || ""}\n` +
-                    `${details.bookings || ""}\n\n` +
-                    `Payments should now be visible in all client profiles!`;
+                  const message = result.message || "Fix complete!";
+                  alert(`✅ ${message}`);
 
-                  alert(message);
-                  toast.success(
-                    "All data has been fixed! Payments are now visible.",
-                  );
+                  if (
+                    result.stats?.leadsLinked > 0 ||
+                    result.stats?.paymentsFixed > 0
+                  ) {
+                    toast.success(
+                      "Data has been fixed! Check your client profiles.",
+                    );
 
-                  // Redirect to leads page to see the results
-                  setTimeout(() => {
-                    window.location.href = "/leads";
-                  }, 2000);
+                    // Redirect to leads page to see the results
+                    setTimeout(() => {
+                      window.location.href = "/leads";
+                    }, 2000);
+                  } else {
+                    toast.info(
+                      "No unlinked records found. Your data is already properly linked!",
+                    );
+                  }
                 } else {
                   alert(`❌ Error: ${result.error || "Failed to fix data"}`);
                 }
