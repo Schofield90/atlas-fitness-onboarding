@@ -271,11 +271,11 @@ export default function LeadDetailPage() {
             </div>
 
             {/* Attendance History - Show if lead has a connected client */}
-            {lead.client_id && (
+            {(lead.client_id || lead.id) && (
               <>
                 <div className="mb-6">
                   <AttendanceHistory
-                    clientId={lead.client_id}
+                    clientId={lead.client_id || lead.id}
                     clientName={lead.name}
                   />
                 </div>
@@ -283,7 +283,7 @@ export default function LeadDetailPage() {
                 {/* Payment History */}
                 <div className="mb-6">
                   <PaymentHistory
-                    clientId={lead.client_id}
+                    clientId={lead.client_id || lead.id}
                     clientName={lead.name}
                   />
                 </div>
