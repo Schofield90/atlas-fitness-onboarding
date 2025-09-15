@@ -122,16 +122,67 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Try to match client
+        // Try to match client using multiple strategies
         let clientId = null;
 
+        // Strategy 1: Email match (exact)
         if (email && clientByEmail.has(email.toLowerCase().trim())) {
           clientId = clientByEmail.get(email.toLowerCase().trim());
-        } else if (name && clientByName.has(name.toLowerCase().trim())) {
+        }
+
+        // Strategy 2: Name match (exact)
+        if (!clientId && name && clientByName.has(name.toLowerCase().trim())) {
           clientId = clientByName.get(name.toLowerCase().trim());
         }
 
+        // Strategy 3: Fuzzy name match
+        if (!clientId && name) {
+          const normalizedName = name.toLowerCase().trim().replace(/\s+/g, " ");
+
+          // Check if any client name contains this name or vice versa
+          for (const [clientName, id] of clientByName) {
+            if (
+              clientName.includes(normalizedName) ||
+              normalizedName.includes(clientName)
+            ) {
+              clientId = id;
+              break;
+            }
+          }
+
+          // Strategy 4: Name parts matching
+          if (!clientId) {
+            const nameParts = normalizedName.split(" ");
+            for (const [clientName, id] of clientByName) {
+              const clientParts = clientName.split(" ");
+              let matchCount = 0;
+
+              for (const part of nameParts) {
+                if (part.length > 2 && clientParts.includes(part)) {
+                  matchCount++;
+                }
+              }
+
+              // If we match at least 2 parts or 1 part for single-word names
+              if (
+                matchCount >= 2 ||
+                (matchCount === 1 && nameParts.length === 1)
+              ) {
+                clientId = id;
+                console.log(
+                  `Matched payment for "${name}" to client "${clientName}" via name parts`,
+                );
+                break;
+              }
+            }
+          }
+        }
+
         if (!clientId) {
+          // Log what we couldn't match for debugging
+          console.log(
+            `Could not match payment - Name: "${name}", Email: "${email}"`,
+          );
           skipped++;
           continue;
         }
