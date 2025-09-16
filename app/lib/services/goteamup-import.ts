@@ -106,7 +106,7 @@ export class GoTeamUpImporter {
     }
 
     // Create new customer (using customers table as it's the newer structure)
-    // Note: Using 'name' field instead of first_name/last_name which may not exist
+    // Note: Only using fields that actually exist in the database
     const { data: newCustomer, error } = await this.supabase
       .from("customers")
       .insert({
@@ -114,7 +114,7 @@ export class GoTeamUpImporter {
         email: email.toLowerCase().trim(),
         name: name || email.split("@")[0], // Use name or email prefix as fallback
         status: "active",
-        source: "goteamup_import",
+        // Removed 'source' field as it doesn't exist in the table
         created_at: new Date().toISOString(),
       })
       .select("id")
