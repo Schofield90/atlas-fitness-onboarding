@@ -105,23 +105,14 @@ export class GoTeamUpImporter {
       return null;
     }
 
-    // Parse name if provided
-    let firstName = "";
-    let lastName = "";
-    if (name) {
-      const nameParts = name.trim().split(" ");
-      firstName = nameParts[0] || "";
-      lastName = nameParts.slice(1).join(" ") || "";
-    }
-
     // Create new customer (using customers table as it's the newer structure)
+    // Note: Using 'name' field instead of first_name/last_name which may not exist
     const { data: newCustomer, error } = await this.supabase
       .from("customers")
       .insert({
         organization_id: this.organizationId,
         email: email.toLowerCase().trim(),
-        first_name: firstName,
-        last_name: lastName,
+        name: name || email.split("@")[0], // Use name or email prefix as fallback
         status: "active",
         source: "goteamup_import",
         created_at: new Date().toISOString(),

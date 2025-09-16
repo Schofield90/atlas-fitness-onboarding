@@ -65,6 +65,17 @@ export async function createClient() {
       autoRefreshToken: false, // Disable auto-refresh on server side
       persistSession: false, // Don't persist session on server
       detectSessionInUrl: false, // Don't detect session in URL on server
+      storage: {
+        // Use a no-op storage to prevent any localStorage/sessionStorage access
+        getItem: async () => null,
+        setItem: async () => {},
+        removeItem: async () => {},
+      },
+    },
+    global: {
+      headers: {
+        "x-supabase-server-component": "true",
+      },
     },
   });
 }
