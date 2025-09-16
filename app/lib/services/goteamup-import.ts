@@ -121,7 +121,7 @@ export class GoTeamUpImporter {
           .from("clients")
           .select("id")
           .eq("email", email.toLowerCase().trim())
-          .eq("org_id", this.organizationId)
+          .eq("organization_id", this.organizationId)
           .single();
 
         if (!client) {
@@ -238,7 +238,7 @@ export class GoTeamUpImporter {
             .from("clients")
             .select("id")
             .eq("email", email.toLowerCase().trim())
-            .eq("org_id", this.organizationId)
+            .eq("organization_id", this.organizationId)
             .single();
 
           if (client) {
@@ -340,7 +340,7 @@ export class GoTeamUpImporter {
     const { data: clients } = await this.supabase
       .from("clients")
       .select("id")
-      .eq("org_id", this.organizationId);
+      .eq("organization_id", this.organizationId);
 
     if (!clients) return;
 
