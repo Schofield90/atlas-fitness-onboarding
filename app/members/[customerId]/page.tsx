@@ -1135,6 +1135,65 @@ export default function CustomerProfilePage() {
             </div>
           )}
 
+          {/* Payments Tab */}
+          {activeTab === "payments" && (
+            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+              <h3 className="text-lg font-semibold text-white mb-4">
+                Payment History
+              </h3>
+              {payments.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <CreditCard className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No payments recorded yet</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {payments.map((payment) => (
+                    <div
+                      key={payment.id}
+                      className="flex items-start justify-between p-4 bg-gray-700 rounded-lg"
+                    >
+                      <div className="flex-1">
+                        <h4 className="text-white font-medium">
+                          £
+                          {(
+                            (payment.amount_pennies || payment.amount || 0) /
+                            100
+                          ).toFixed(2)}
+                        </h4>
+                        <p className="text-gray-400 text-sm mt-1">
+                          {payment.description ||
+                            payment.payment_method ||
+                            "Payment"}
+                        </p>
+                        <p className="text-gray-500 text-xs mt-2">
+                          {new Date(
+                            payment.created_at || payment.payment_date,
+                          ).toLocaleDateString("en-GB")}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span
+                          className={`px-2 py-1 rounded text-xs ${
+                            payment.status === "completed"
+                              ? "bg-green-900/20 text-green-400"
+                              : payment.status === "pending"
+                                ? "bg-yellow-900/20 text-yellow-400"
+                                : payment.status === "failed"
+                                  ? "bg-red-900/20 text-red-400"
+                                  : "bg-gray-700 text-gray-400"
+                          }`}
+                        >
+                          {payment.status || "completed"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Memberships Tab */}
           {activeTab === "memberships" && (
             <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
