@@ -15,16 +15,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get organization ID from user
-    const { data: profile } = await supabase
-      .from("profiles")
+    // Get organization ID from user's organization membership
+    const { data: userOrg } = await supabase
+      .from("organization_members")
       .select("organization_id")
-      .eq("id", user.id)
+      .eq("user_id", user.id)
+      .eq("is_active", true)
       .single();
 
-    if (!profile?.organization_id) {
+    if (!userOrg?.organization_id) {
       return NextResponse.json(
-        { error: "No organization found" },
+        {
+          error:
+            "No organization found. Please ensure you have an active organization membership.",
+        },
         { status: 400 },
       );
     }
@@ -55,7 +59,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create importer
-    const importer = new GoTeamUpImporter(profile.organization_id);
+    const importer = new GoTeamUpImporter(userOrg.organization_id);
 
     // Auto-detect type if not specified
     let importType = fileType;
