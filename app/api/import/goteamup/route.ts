@@ -78,8 +78,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "CSV file is empty" }, { status: 400 });
     }
 
-    // Create importer
-    const importer = new GoTeamUpImporter(organizationId);
+    // Create importer with supabase client
+    const importer = new GoTeamUpImporter(supabase, organizationId);
 
     // Auto-detect type if not specified
     let importType = fileType;
