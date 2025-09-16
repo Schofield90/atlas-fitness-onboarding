@@ -9,6 +9,8 @@ import {
   CheckCircle,
   XCircle,
   Loader2,
+  Calendar,
+  AlertTriangle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -24,6 +26,13 @@ interface ImportError {
   error: string;
 }
 
+interface MonthlyChunk {
+  month: string;
+  year: number;
+  rows: string[][];
+  count: number;
+}
+
 export default function ImportPage() {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
@@ -36,6 +45,116 @@ export default function ImportPage() {
   const [errors, setErrors] = useState<ImportError[]>([]);
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState<boolean | null>(null);
+  const [showChunkDialog, setShowChunkDialog] = useState(false);
+  const [chunks, setChunks] = useState<MonthlyChunk[]>([]);
+  const [currentChunk, setCurrentChunk] = useState(0);
+  const [totalRows, setTotalRows] = useState(0);
+  const [headers, setHeaders] = useState<string[]>([]);
+  const [rawData, setRawData] = useState<string[][]>([]);
+
+  const CHUNK_SIZE_LIMIT = 500; // Rows per chunk for safety
+
+  const parseCSVData = (text: string): string[][] => {
+    const lines = text.split("\n").filter((line) => line.trim());
+    return lines.map((line) => {
+      // Handle quoted values properly
+      const result: string[] = [];
+      let current = "";
+      let inQuotes = false;
+
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === "," && !inQuotes) {
+          result.push(current.trim());
+          current = "";
+        } else {
+          current += char;
+        }
+      }
+
+      result.push(current.trim());
+      return result.map((cell) => cell.replace(/^"|"$/g, ""));
+    });
+  };
+
+  const splitByMonth = (
+    data: string[][],
+    headers: string[],
+  ): MonthlyChunk[] => {
+    const dateIndex = headers.findIndex((h) =>
+      h.toLowerCase().includes("date"),
+    );
+
+    if (dateIndex === -1) {
+      // If no date column, split by fixed size
+      const chunks: MonthlyChunk[] = [];
+      for (let i = 0; i < data.length; i += CHUNK_SIZE_LIMIT) {
+        chunks.push({
+          month: `Batch ${chunks.length + 1}`,
+          year: 0,
+          rows: data.slice(i, Math.min(i + CHUNK_SIZE_LIMIT, data.length)),
+          count: Math.min(CHUNK_SIZE_LIMIT, data.length - i),
+        });
+      }
+      return chunks;
+    }
+
+    // Group by month/year
+    const monthGroups = new Map<string, string[][]>();
+
+    for (const row of data) {
+      const dateStr = row[dateIndex];
+      if (!dateStr) continue;
+
+      // Parse date (handle DD/MM/YYYY and YYYY-MM-DD formats)
+      let month: number, year: number;
+
+      if (dateStr.includes("/")) {
+        const parts = dateStr.split("/");
+        if (parts.length === 3) {
+          month = parseInt(parts[1]);
+          year = parseInt(parts[2]);
+        } else continue;
+      } else if (dateStr.includes("-")) {
+        const parts = dateStr.split("-");
+        if (parts.length === 3) {
+          year = parseInt(parts[0]);
+          month = parseInt(parts[1]);
+        } else continue;
+      } else {
+        continue;
+      }
+
+      const key = `${year}-${month.toString().padStart(2, "0")}`;
+      if (!monthGroups.has(key)) {
+        monthGroups.set(key, []);
+      }
+      monthGroups.get(key)!.push(row);
+    }
+
+    // Convert to chunks
+    const chunks: MonthlyChunk[] = [];
+    const sortedKeys = Array.from(monthGroups.keys()).sort();
+
+    for (const key of sortedKeys) {
+      const [year, month] = key.split("-").map(Number);
+      const monthName = new Date(year, month - 1).toLocaleString("default", {
+        month: "long",
+      });
+
+      chunks.push({
+        month: monthName,
+        year: year,
+        rows: monthGroups.get(key)!,
+        count: monthGroups.get(key)!.length,
+      });
+    }
+
+    return chunks;
+  };
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -46,32 +165,42 @@ export default function ImportPage() {
     setErrors([]);
     setMessage("");
     setSuccess(null);
+    setShowChunkDialog(false);
 
-    // Read and preview first 5 rows
+    // Read and preview file
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
-      const lines = text.split("\n").filter((line) => line.trim());
-      const previewData = lines
-        .slice(0, 6)
-        .map((line) =>
-          line.split(",").map((cell) => cell.trim().replace(/"/g, "")),
-        );
-      setPreview(previewData);
+      const allData = parseCSVData(text);
 
-      // Auto-detect file type
-      if (previewData.length > 0) {
-        const headers = previewData[0].map((h) => h.toLowerCase());
+      if (allData.length > 0) {
+        const headers = allData[0];
+        const data = allData.slice(1);
+
+        setHeaders(headers);
+        setRawData(data);
+        setTotalRows(data.length);
+        setPreview([headers, ...data.slice(0, 5)]);
+
+        // Auto-detect file type
+        const headerLower = headers.map((h) => h.toLowerCase());
         if (
-          headers.some((h) => h.includes("amount") || h.includes("payment"))
+          headerLower.some((h) => h.includes("amount") || h.includes("payment"))
         ) {
           setFileType("payments");
         } else if (
-          headers.some((h) => h.includes("class") || h.includes("time"))
+          headerLower.some((h) => h.includes("class") || h.includes("time"))
         ) {
           setFileType("attendance");
         } else {
           setFileType("auto");
+        }
+
+        // Check if file is large and needs chunking
+        if (data.length > CHUNK_SIZE_LIMIT) {
+          const monthlyChunks = splitByMonth(data, headers);
+          setChunks(monthlyChunks);
+          setShowChunkDialog(true);
         }
       }
     };
@@ -86,41 +215,125 @@ export default function ImportPage() {
     maxFiles: 1,
   });
 
-  const handleImport = async () => {
+  const handleImport = async (useChunks: boolean = false) => {
     if (!file) return;
 
     setImporting(true);
     setMessage("");
     setErrors([]);
+    setShowChunkDialog(false);
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("type", fileType);
+      if (useChunks && chunks.length > 0) {
+        // Import chunks sequentially
+        let totalStats: ImportStats = {
+          total: 0,
+          success: 0,
+          errors: 0,
+          skipped: 0,
+        };
+        let allErrors: ImportError[] = [];
 
-      const response = await fetch("/api/import/goteamup", {
-        method: "POST",
-        body: formData,
-      });
+        for (let i = 0; i < chunks.length; i++) {
+          setCurrentChunk(i);
+          setMessage(
+            `Processing ${chunks[i].month} ${chunks[i].year} (${i + 1}/${chunks.length})...`,
+          );
 
-      const result = await response.json();
+          // Create CSV content for this chunk
+          const chunkContent = [
+            headers.join(","),
+            ...chunks[i].rows.map((row) => row.join(",")),
+          ].join("\n");
 
-      if (response.ok) {
+          const chunkFile = new File(
+            [chunkContent],
+            `${file.name}-${chunks[i].month}-${chunks[i].year}.csv`,
+            {
+              type: "text/csv",
+            },
+          );
+
+          const formData = new FormData();
+          formData.append("file", chunkFile);
+          formData.append("type", fileType);
+
+          const response = await fetch("/api/import/goteamup", {
+            method: "POST",
+            body: formData,
+          });
+
+          const result = await response.json();
+
+          if (response.ok) {
+            totalStats.total += result.stats.total;
+            totalStats.success += result.stats.success;
+            totalStats.errors += result.stats.errors;
+            totalStats.skipped += result.stats.skipped;
+
+            if (result.errors) {
+              allErrors.push(...result.errors);
+            }
+          } else if (response.status === 504) {
+            // Timeout on chunk - try to split it further
+            setMessage(
+              `Chunk for ${chunks[i].month} ${chunks[i].year} is still too large. Please try a smaller date range.`,
+            );
+            setSuccess(false);
+            return;
+          } else {
+            throw new Error(result.error || "Import failed");
+          }
+        }
+
         setSuccess(true);
-        setStats(result.stats);
-        setMessage(result.message || "Import completed successfully");
-        if (result.errors && result.errors.length > 0) {
-          setErrors(result.errors.slice(0, 10)); // Show first 10 errors
+        setStats(totalStats);
+        setMessage(
+          `Import completed successfully for all ${chunks.length} months`,
+        );
+        if (allErrors.length > 0) {
+          setErrors(allErrors.slice(0, 10)); // Show first 10 errors
         }
       } else {
-        setSuccess(false);
-        setMessage(result.error || "Import failed");
+        // Single import (original logic)
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("type", fileType);
+
+        const response = await fetch("/api/import/goteamup", {
+          method: "POST",
+          body: formData,
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          setSuccess(true);
+          setStats(result.stats);
+          setMessage(result.message || "Import completed successfully");
+          if (result.errors && result.errors.length > 0) {
+            setErrors(result.errors.slice(0, 10));
+          }
+        } else if (response.status === 504) {
+          // Suggest chunking
+          const monthlyChunks = splitByMonth(rawData, headers);
+          setChunks(monthlyChunks);
+          setShowChunkDialog(true);
+          setSuccess(false);
+          setMessage(
+            "File is too large to process. Would you like to split it by month?",
+          );
+        } else {
+          setSuccess(false);
+          setMessage(result.error || "Import failed");
+        }
       }
     } catch (error: any) {
       setSuccess(false);
       setMessage(error.message || "Import failed");
     } finally {
       setImporting(false);
+      setCurrentChunk(0);
     }
   };
 
@@ -132,6 +345,79 @@ export default function ImportPage() {
           Upload your CSV exports from GoTeamUp to import payments and
           attendance data
         </p>
+
+        {/* Chunk Dialog */}
+        {showChunkDialog && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+              <div className="flex items-start mb-4">
+                <AlertTriangle className="w-6 h-6 text-yellow-500 mr-3 flex-shrink-0 mt-1" />
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">
+                    Large File Detected
+                  </h3>
+                  <p className="text-gray-600 text-sm">
+                    Your file contains {totalRows} rows which may take too long
+                    to process. We recommend splitting it by month for faster
+                    processing.
+                  </p>
+                </div>
+              </div>
+
+              {chunks.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-sm font-medium mb-2">
+                    Data will be split into {chunks.length} chunks:
+                  </p>
+                  <div className="max-h-40 overflow-y-auto bg-gray-50 rounded p-2">
+                    {chunks.map((chunk, i) => (
+                      <div
+                        key={i}
+                        className="flex justify-between text-sm py-1"
+                      >
+                        <span>
+                          {chunk.month} {chunk.year}
+                        </span>
+                        <span className="text-gray-500">
+                          {chunk.count} rows
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleImport(true)}
+                  className="flex-1 bg-blue-600 text-white rounded-lg py-2 px-4 hover:bg-blue-700 flex items-center justify-center"
+                  disabled={importing}
+                >
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Split by Month
+                </button>
+                <button
+                  onClick={() => {
+                    setShowChunkDialog(false);
+                    handleImport(false);
+                  }}
+                  className="flex-1 bg-gray-200 text-gray-700 rounded-lg py-2 px-4 hover:bg-gray-300"
+                  disabled={importing}
+                >
+                  Import Anyway
+                </button>
+              </div>
+
+              <button
+                onClick={() => setShowChunkDialog(false)}
+                className="w-full mt-2 text-sm text-gray-500 hover:text-gray-700"
+                disabled={importing}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Upload Area */}
         <div
@@ -163,7 +449,7 @@ export default function ImportPage() {
                 <div>
                   <p className="font-medium">{file.name}</p>
                   <p className="text-sm text-gray-500">
-                    {(file.size / 1024).toFixed(2)} KB
+                    {(file.size / 1024).toFixed(2)} KB • {totalRows} rows
                   </p>
                 </div>
               </div>
@@ -180,6 +466,32 @@ export default function ImportPage() {
                 </select>
               </div>
             </div>
+
+            {/* Large file warning */}
+            {totalRows > CHUNK_SIZE_LIMIT && !showChunkDialog && (
+              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start">
+                <AlertTriangle className="w-5 h-5 text-yellow-600 mr-2 flex-shrink-0" />
+                <div className="text-sm">
+                  <p className="font-medium text-yellow-800">
+                    Large file detected
+                  </p>
+                  <p className="text-yellow-700">
+                    This file contains {totalRows} rows. For best results, we
+                    recommend splitting by month.
+                  </p>
+                  <button
+                    onClick={() => {
+                      const monthlyChunks = splitByMonth(rawData, headers);
+                      setChunks(monthlyChunks);
+                      setShowChunkDialog(true);
+                    }}
+                    className="mt-2 text-yellow-800 underline hover:no-underline"
+                  >
+                    Split by month now →
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Preview */}
             {preview.length > 0 && (
@@ -215,9 +527,32 @@ export default function ImportPage() {
               </div>
             )}
 
+            {/* Import Progress */}
+            {importing && chunks.length > 1 && (
+              <div className="mb-4">
+                <div className="flex justify-between text-sm mb-1">
+                  <span>
+                    Processing {chunks[currentChunk]?.month}{" "}
+                    {chunks[currentChunk]?.year}
+                  </span>
+                  <span>
+                    {currentChunk + 1} of {chunks.length}
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all"
+                    style={{
+                      width: `${((currentChunk + 1) / chunks.length) * 100}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Import Button */}
             <button
-              onClick={handleImport}
+              onClick={() => handleImport()}
               disabled={importing}
               className={`w-full py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center ${
                 importing
@@ -228,7 +563,9 @@ export default function ImportPage() {
               {importing ? (
                 <>
                   <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  Importing...
+                  {chunks.length > 1
+                    ? `Processing ${currentChunk + 1}/${chunks.length}...`
+                    : "Importing..."}
                 </>
               ) : (
                 <>
@@ -241,7 +578,7 @@ export default function ImportPage() {
         )}
 
         {/* Results */}
-        {message && (
+        {message && !showChunkDialog && (
           <div
             className={`mt-8 p-4 rounded-lg flex items-start ${
               success ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"
@@ -309,15 +646,19 @@ export default function ImportPage() {
           </h3>
           <div className="space-y-2 text-sm text-gray-700">
             <p>
-              <strong>Payments CSV:</strong> Must include columns: Date, Client
-              Name, Email, Amount, Payment Method, Description, Status
+              <strong>File Size:</strong> Files with more than 500 rows will
+              automatically prompt for monthly splitting
+            </p>
+            <p>
+              <strong>Payments CSV:</strong> Must include columns: Date,
+              Customer/Client Name, Email, Amount
             </p>
             <p>
               <strong>Attendance CSV:</strong> Must include columns: Date, Time,
-              Client Name, Email, Class Name, Instructor, Status
+              Customer, Email, Class Type, Venue, Instructors, Status
             </p>
             <p>
-              <strong>Important:</strong> Clients must already exist in the
+              <strong>Important:</strong> Customers must already exist in the
               system with matching email addresses
             </p>
           </div>
