@@ -73,8 +73,9 @@ export function createAdminClient() {
   return adminClient;
 }
 
-// Export alias for backward compatibility
-export const supabaseAdmin = createAdminClient();
+// Export a getter for backward compatibility that creates the client lazily
+export const supabaseAdmin =
+  typeof window === "undefined" ? createAdminClient() : (null as any);
 
 // Helper to get user with organization using admin client
 export async function getUserWithOrgAdmin(userId: string) {
