@@ -24,8 +24,9 @@ import {
 import { Button } from "@/app/components/ui/Button";
 import { Progress } from "@/app/components/ui/progress";
 import { Badge } from "@/app/components/ui/Badge";
-import { migrationAnalytics } from "@/app/lib/analytics/migration-tracker";
-import { migrationExperiments } from "@/app/lib/analytics/ab-testing";
+// Analytics imports temporarily removed for deployment
+// import { migrationAnalytics } from "@/app/lib/analytics/migration-tracker";
+// import { migrationExperiments } from "@/app/lib/analytics/ab-testing";
 
 interface MigrationWizardProps {
   organizationId: string;
@@ -81,31 +82,31 @@ export function MigrationWizard({
   const [error, setError] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Initialize analytics and A/B testing
-  React.useEffect(() => {
-    // Start migration session tracking
-    migrationAnalytics.startMigrationSession("migration_wizard", {
-      organizationId,
-      organizationSize,
-      userType: "gym_owner", // Could be determined from user profile
-    });
+  // Initialize analytics and A/B testing - temporarily disabled for deployment
+  // React.useEffect(() => {
+  //   // Start migration session tracking
+  //   // migrationAnalytics.startMigrationSession("migration_wizard", {
+  //     organizationId,
+  //     organizationSize,
+  //     userType: "gym_owner", // Could be determined from user profile
+  //   });
 
-    // Get A/B test variant for wizard flow
-    const wizardVariant = migrationExperiments.getWizardFlowVariant(
-      userId,
-      organizationSize,
-    );
+  //   // Get A/B test variant for wizard flow
+  //   const wizardVariant = migrationExperiments.getWizardFlowVariant(
+  //     userId,
+  //     organizationSize,
+  //   );
 
-    // Track experiment assignment
-    migrationAnalytics.setABTestVariant("migration_wizard_flow", wizardVariant);
+  //   // Track experiment assignment
+  //   // migrationAnalytics.setABTestVariant("migration_wizard_flow", wizardVariant);
 
-    // Cleanup on unmount
-    return () => {
-      if (currentStep !== "import" && currentStep !== "review") {
-        migrationAnalytics.trackAbandonment(currentStep, "component_unmount");
-      }
-    };
-  }, [organizationId, userId, organizationSize]);
+  //   // Cleanup on unmount
+  //   return () => {
+  //     if (currentStep !== "import" && currentStep !== "review") {
+  //       // migrationAnalytics.trackAbandonment(currentStep, "component_unmount");
+  //     }
+  //   };
+  // }, [organizationId, userId, organizationSize]);
 
   // Step 1: File Upload
   const handleFileUpload = useCallback(
@@ -113,7 +114,7 @@ export function MigrationWizard({
       console.log("handleFileUpload called with files:", files);
 
       // Track file upload initiation
-      migrationAnalytics.trackFileUpload("click_select", files.length);
+      // migrationAnalytics.trackFileUpload("click_select", files.length);
 
       setIsLoading(true);
       setError("");
@@ -146,7 +147,7 @@ export function MigrationWizard({
           }
 
           // Track file validation
-          migrationAnalytics.trackFileValidation(file, isValid, errors);
+          // migrationAnalytics.trackFileValidation(file, isValid, errors);
 
           if (!isValid) {
             throw new Error(`File ${file.name}: ${errors.join(", ")}`);
@@ -165,11 +166,11 @@ export function MigrationWizard({
           (sum, upload) => sum + upload.file.size,
           0,
         );
-        migrationAnalytics.trackFileUploadComplete(
-          uploads.length,
-          totalSize,
-          uploadDuration,
-        );
+        // // migrationAnalytics.trackFileUploadComplete(
+        //   uploads.length,
+        //   totalSize,
+        //   uploadDuration,
+        // );
 
         if (!migrationName) {
           const defaultName = `GoTeamUp Migration ${new Date().toLocaleDateString()}`;
@@ -181,12 +182,12 @@ export function MigrationWizard({
         setError(errorMessage);
 
         // Track upload error
-        migrationAnalytics.trackError(
-          "upload_error",
-          errorMessage,
-          true,
-          "show_error_message",
-        );
+        // migrationAnalytics.trackError(
+        //   "upload_error",
+        //   errorMessage,
+        //   true,
+        //   "show_error_message",
+        // );
       } finally {
         setIsLoading(false);
       }
@@ -235,11 +236,11 @@ export function MigrationWizard({
         (sum, file) => sum + (file.analysis?.recordCount || 0),
         0,
       );
-      migrationAnalytics.trackAnalysisStart(
-        jobData.jobId,
-        uploadedFiles.length,
-        estimatedRecords,
-      );
+      // migrationAnalytics.trackAnalysisStart(
+      //   jobData.jobId,
+      //   uploadedFiles.length,
+      //   estimatedRecords,
+      // );
 
       // Upload files
       const formData = new FormData();
