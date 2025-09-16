@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/app/lib/supabase/client";
+import { createAdminClient } from "@/app/lib/supabase/admin";
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const supabase = createClient();
+    const supabase = createAdminClient();
 
     // Fetch from both tables like PaymentHistory component does
     const [transactionsResult, paymentsResult] = await Promise.all([

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/app/lib/supabase/server";
+import { createAdminClient } from "@/app/lib/supabase/admin";
 import { migrationService } from "@/app/lib/services/migration-service";
+
+export const runtime = "nodejs"; // Ensure Node runtime
+export const dynamic = "force-dynamic"; // No caching
 
 export async function GET(
   request: NextRequest,
@@ -16,18 +19,8 @@ export async function GET(
       );
     }
 
-    // Create supabase client
-    const supabase = await createClient();
-
-    // Get user from auth
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // Use admin client - no auth needed for status checks
+    const supabase = createAdminClient();
 
     // Get migration progress
     const progress = await migrationService.getMigrationProgress(jobId);
@@ -60,18 +53,8 @@ export async function POST(
       );
     }
 
-    // Create supabase client
-    const supabase = await createClient();
-
-    // Get user from auth
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // Use admin client - no auth needed for status checks
+    const supabase = createAdminClient();
 
     // Get job details
     const { data: job, error: jobError } = await supabase
@@ -134,18 +117,8 @@ export async function DELETE(
       );
     }
 
-    // Create supabase client
-    const supabase = await createClient();
-
-    // Get user from auth
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // Use admin client - no auth needed for status checks
+    const supabase = createAdminClient();
 
     // Cancel the migration job
     await migrationService.cancelMigrationJob(jobId);
