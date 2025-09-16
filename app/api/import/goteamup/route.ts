@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { GoTeamUpImporter, parseCSV } from "@/app/lib/services/goteamup-import";
 
+export const maxDuration = 60; // Set max duration to 60 seconds for Vercel
+
 export async function POST(request: NextRequest) {
   try {
     // Check authentication
@@ -120,6 +122,19 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("Import error:", error);
+
+    // Handle timeout specifically
+    if (error.message?.includes("timeout") || error.message?.includes("504")) {
+      return NextResponse.json(
+        {
+          error:
+            "Import is taking too long. Try importing a smaller file or split your data into multiple files.",
+          details: "Maximum processing time is 60 seconds",
+        },
+        { status: 504 },
+      );
+    }
+
     return NextResponse.json(
       { error: error.message || "Import failed" },
       { status: 500 },
