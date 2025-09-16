@@ -254,21 +254,27 @@ export default function ClassBookingsTab({
         const sessionIds = fallbackData
           .map((b) => b.class_session_id)
           .filter(Boolean);
-        const { data: sessions } = await supabase
-          .from("class_sessions")
-          .select("*, programs(name, description)")
-          .in("id", sessionIds);
 
-        const sessionMap =
-          sessions?.reduce((acc, s) => {
-            acc[s.id] = s;
-            return acc;
-          }, {}) || {};
+        if (sessionIds.length > 0) {
+          const { data: sessions } = await supabase
+            .from("class_sessions")
+            .select("*, programs(name, description)")
+            .in("id", sessionIds);
 
-        data = fallbackData.map((booking) => ({
-          ...booking,
-          class_sessions: sessionMap[booking.class_session_id],
-        }));
+          const sessionMap =
+            sessions?.reduce((acc, s) => {
+              acc[s.id] = s;
+              return acc;
+            }, {}) || {};
+
+          data = fallbackData.map((booking) => ({
+            ...booking,
+            class_sessions: sessionMap[booking.class_session_id],
+          }));
+        } else {
+          // No class_session_ids, just use the booking data as is
+          data = fallbackData;
+        }
       }
     }
 
@@ -277,6 +283,28 @@ export default function ClassBookingsTab({
     // Transform bookings to match expected format
     const bookingsWithClassType = (data || []).map((booking) => {
       const session = booking.class_sessions || booking.class_session;
+
+      // Handle bookings without session data (imported or simple bookings)
+      if (!session && (booking.notes || booking.booking_date)) {
+        return {
+          ...booking,
+          class_session: {
+            id: booking.id,
+            start_time: booking.booking_date || booking.created_at,
+            end_time: booking.booking_date || booking.created_at,
+            max_capacity: 0,
+            current_bookings: 0,
+            instructor_name: booking.instructor_name || "Staff",
+            class_type: {
+              id: "imported",
+              name: booking.notes?.split("-")[0]?.trim() || "Class Session",
+              description: booking.notes || "Imported attendance",
+              color: "#10B981",
+            },
+          },
+        };
+      }
+
       return {
         ...booking,
         class_session: session
