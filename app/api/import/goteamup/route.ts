@@ -1,36 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
 import { GoTeamUpImporter, parseCSV } from "@/app/lib/services/goteamup-import";
-import type { Database } from "@/app/lib/supabase/database.types";
+import { createClient } from "@/app/lib/supabase/server";
 
 export const maxDuration = 60; // Set max duration to 60 seconds for Vercel
-
-// Create a simple server client for API routes
-async function createAPIClient() {
-  const cookieStore = await cookies();
-
-  return createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          const cookie = cookieStore.get(name);
-          return cookie?.value;
-        },
-        set(name: string, value: string, options: any) {
-          // API routes can't set cookies in response
-          // but we need to provide the function
-        },
-        remove(name: string, options: any) {
-          // API routes can't remove cookies in response
-          // but we need to provide the function
-        },
-      },
-    },
-  );
-}
 
 export async function POST(request: NextRequest) {
   console.log("GoTeamUp import endpoint called");
@@ -42,51 +14,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Server-side only" }, { status: 500 });
     }
 
-    // Create supabase client
-    const supabase = await createAPIClient();
+    // Create supabase client using the standard server client
+    const supabase = await createClient();
 
-    // Get session first (like middleware does)
+    // Get user from auth
     const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
-    console.log("Session check:", {
-      hasSession: !!session,
-      userId: session?.user?.id,
-      error: sessionError,
-    });
+    console.log("Auth check:", { userId: user?.id, error: authError });
 
-    if (sessionError || !session || !session.user) {
-      console.error("Auth failed:", sessionError || "No session");
-
-      // Try to get user as fallback
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        console.error("No user either:", userError);
-        return NextResponse.json(
-          { error: "Unauthorized - please log in again" },
-          { status: 401 },
-        );
-      }
-
-      // User exists but session might be expired, try to use it anyway
-      console.log("Found user without session, continuing:", user.id);
-    }
-
-    const userId =
-      session?.user?.id || (await supabase.auth.getUser()).data.user?.id;
-
-    if (!userId) {
+    if (authError || !user) {
+      console.error("Auth failed:", authError);
       return NextResponse.json(
-        { error: "Unable to identify user" },
+        { error: "Unauthorized - please log in again" },
         { status: 401 },
       );
     }
+
+    const userId = user.id;
 
     // Get organization ID from user's organization membership
     // Check both tables (same logic as middleware)
