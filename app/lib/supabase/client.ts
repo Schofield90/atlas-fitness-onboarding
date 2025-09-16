@@ -5,11 +5,9 @@ let browserClient: ReturnType<typeof createBrowserClient<Database>> | null =
   null;
 
 export function createClient() {
-  // Throw explicit error if used in server context
+  // Don't create client during SSR/build time
   if (typeof window === "undefined") {
-    throw new Error(
-      "Browser Supabase client cannot be used in server/API routes. Use createClient() from '@/app/lib/supabase/server' or createAdminClient() from '@/app/lib/supabase/admin' instead.",
-    );
+    return null as any; // Return null during SSR, components should handle this
   }
 
   if (browserClient) return browserClient;
