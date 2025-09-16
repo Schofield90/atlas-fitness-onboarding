@@ -208,10 +208,10 @@ export class GoTeamUpImporter {
       const row = data[i];
       progress.processed++;
       progress.currentItem =
-        row["Client Name"] || row["Name"] || `Row ${i + 1}`;
+        row["Customer"] || row["Client Name"] || row["Name"] || `Row ${i + 1}`;
 
       try {
-        // Find client by email
+        // Find customer by email
         const email = row["Email"] || row["email"];
         if (!email) {
           progress.skipped++;
@@ -219,16 +219,36 @@ export class GoTeamUpImporter {
           continue;
         }
 
-        const { data: client } = await this.supabase
-          .from("clients")
+        // Try to find in customers table first, then clients
+        let customerId: string | null = null;
+
+        // First try customers table
+        const { data: customer } = await this.supabase
+          .from("customers")
           .select("id")
           .eq("email", email.toLowerCase().trim())
-          .eq("org_id", this.organizationId)
+          .eq("organization_id", this.organizationId)
           .single();
 
-        if (!client) {
+        if (customer) {
+          customerId = customer.id;
+        } else {
+          // Fall back to clients table
+          const { data: client } = await this.supabase
+            .from("clients")
+            .select("id")
+            .eq("email", email.toLowerCase().trim())
+            .eq("org_id", this.organizationId)
+            .single();
+
+          if (client) {
+            customerId = client.id;
+          }
+        }
+
+        if (!customerId) {
           progress.skipped++;
-          errors.push({ row: i + 1, error: `Client not found: ${email}` });
+          errors.push({ row: i + 1, error: `Customer not found: ${email}` });
           continue;
         }
 
@@ -236,14 +256,21 @@ export class GoTeamUpImporter {
         const bookingDate = this.parseDate(row["Date"] || row["date"] || "");
         const bookingTime = row["Time"] || row["time"] || "09:00";
         const className =
-          row["Class Name"] || row["Class"] || row["Session"] || "Class";
-        const instructor = row["Instructor"] || row["Trainer"] || "Staff";
+          row["Class Type"] ||
+          row["Class Name"] ||
+          row["Class"] ||
+          row["Session"] ||
+          "Class";
+        const instructor =
+          row["Instructors"] || row["Instructor"] || row["Trainer"] || "Staff";
+        const venue = row["Venue"] || "";
+        const status = row["Status"] || "Registered";
 
         // Check for duplicate
         const { data: existing } = await this.supabase
           .from("class_bookings")
           .select("id")
-          .eq("client_id", client.id)
+          .eq("customer_id", customerId)
           .eq("booking_date", bookingDate)
           .eq("booking_time", bookingTime)
           .single();
@@ -253,19 +280,25 @@ export class GoTeamUpImporter {
           continue;
         }
 
-        // Insert attendance
-        const attendedAt = `${bookingDate}T${bookingTime}:00`;
+        // Determine booking status based on Status field
+        const bookingStatus =
+          status.toLowerCase() === "attended" ? "completed" : "confirmed";
+        const attendedAt =
+          status.toLowerCase() === "attended"
+            ? `${bookingDate}T${bookingTime}:00`
+            : null;
 
+        // Insert attendance
         const { error } = await this.supabase.from("class_bookings").insert({
           organization_id: this.organizationId,
-          client_id: client.id,
-          customer_id: client.id,
+          client_id: customerId, // Still required for legacy
+          customer_id: customerId,
           booking_date: bookingDate,
           booking_time: bookingTime,
-          booking_status: "completed",
+          booking_status: bookingStatus,
           booking_type: "attendance_import",
           attended_at: attendedAt,
-          notes: `${className} - ${instructor}`,
+          notes: `${className} - ${instructor} - ${venue}`,
           payment_status: "succeeded",
           created_at: new Date().toISOString(),
         });
