@@ -160,6 +160,37 @@ export default function CustomerProfilePage() {
             sortedBookings[0].booking_date || sortedBookings[0].attended_at;
         }
 
+        // Calculate lifetime value from payments
+        let lifetimeValue = 0;
+
+        // Get payments from both tables
+        const [paymentsResult, transactionsResult] = await Promise.all([
+          supabase
+            .from("payments")
+            .select("amount")
+            .eq("client_id", customerId)
+            .or("payment_status.eq.completed,payment_status.is.null"),
+          supabase
+            .from("transactions")
+            .select("amount")
+            .eq("client_id", customerId)
+            .eq("type", "payment"),
+        ]);
+
+        // Sum up payments (amounts are stored in pounds, not pennies)
+        if (paymentsResult.data) {
+          lifetimeValue += paymentsResult.data.reduce(
+            (sum, p) => sum + (p.amount || 0),
+            0,
+          );
+        }
+        if (transactionsResult.data) {
+          lifetimeValue += transactionsResult.data.reduce(
+            (sum, t) => sum + (t.amount || 0),
+            0,
+          );
+        }
+
         // Normalize to CustomerProfile shape
         const name = (
           data.name || `${data.first_name || ""} ${data.last_name || ""}`
@@ -169,6 +200,7 @@ export default function CustomerProfilePage() {
           name,
           total_visits: totalVisits,
           last_visit_date: lastVisitDate,
+          lifetime_value: lifetimeValue * 100, // Convert to pennies for display (as UI expects pennies)
           created_at: data.created_at,
           updated_at: data.updated_at,
         };
@@ -177,6 +209,7 @@ export default function CustomerProfilePage() {
 
         console.log(`Calculated Total Visits for ${name}: ${totalVisits}`);
         console.log(`Last Visit: ${lastVisitDate}`);
+        console.log(`Lifetime Value: £${lifetimeValue.toFixed(2)}`);
       }
     } catch (error) {
       console.error("Error loading customer:", error);
@@ -300,7 +333,7 @@ export default function CustomerProfilePage() {
         importedPayments.forEach((ip) => {
           allPayments.push({
             ...ip,
-            amount_pennies: ip.amount,
+            amount: ip.amount, // Already in pounds, not pennies
             created_at: ip.payment_date || ip.created_at,
             status: ip.payment_status || "completed",
             source: "payments",
@@ -1291,10 +1324,11 @@ export default function CustomerProfilePage() {
                       <div className="flex-1">
                         <h4 className="text-white font-medium">
                           £
-                          {(
-                            (payment.amount_pennies || payment.amount || 0) /
-                            100
-                          ).toFixed(2)}
+                          {(payment.amount_pennies
+                            ? payment.amount_pennies / 100 // If amount_pennies exists, it's in pennies
+                            : payment.amount || 0
+                          ) // Otherwise amount is already in pounds
+                            .toFixed(2)}
                         </h4>
                         <p className="text-gray-400 text-sm mt-1">
                           {payment.description ||
