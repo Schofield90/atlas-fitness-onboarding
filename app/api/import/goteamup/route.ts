@@ -16,14 +16,34 @@ export async function POST(request: NextRequest) {
     }
 
     // Get organization ID from user's organization membership
-    const { data: userOrg } = await supabase
-      .from("organization_members")
+    // Check both tables (same logic as middleware)
+    let organizationId: string | null = null;
+
+    // First check organization_staff table (new structure)
+    const { data: staffOrg } = await supabase
+      .from("organization_staff")
       .select("organization_id")
       .eq("user_id", user.id)
       .eq("is_active", true)
       .single();
 
-    if (!userOrg?.organization_id) {
+    if (staffOrg?.organization_id) {
+      organizationId = staffOrg.organization_id;
+    } else {
+      // Fallback to organization_members table (old structure)
+      const { data: memberOrg } = await supabase
+        .from("organization_members")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .single();
+
+      if (memberOrg?.organization_id) {
+        organizationId = memberOrg.organization_id;
+      }
+    }
+
+    if (!organizationId) {
       return NextResponse.json(
         {
           error:
@@ -59,7 +79,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create importer
-    const importer = new GoTeamUpImporter(userOrg.organization_id);
+    const importer = new GoTeamUpImporter(organizationId);
 
     // Auto-detect type if not specified
     let importType = fileType;
