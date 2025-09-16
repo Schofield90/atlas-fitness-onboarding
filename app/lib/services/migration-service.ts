@@ -66,15 +66,14 @@ export class MigrationService {
           organization_id: config.organizationId,
           name: config.name,
           description: config.description,
-          source_platform: config.sourcePlatform,
+          source_system: config.sourcePlatform,
           status: "pending",
           settings: config.settings,
           created_by: userId,
-          // Temporary values - will be updated after file upload
-          original_filename: "pending",
-          file_size_bytes: 0,
-          file_type: "pending",
-          storage_path: "pending",
+          total_records: 0,
+          processed_records: 0,
+          successful_records: 0,
+          failed_records: 0,
         })
         .select("id")
         .single();
