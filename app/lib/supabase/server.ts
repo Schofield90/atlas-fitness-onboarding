@@ -34,7 +34,27 @@ export async function createClient() {
     } as any;
   }
 
-  const cookieStore = await cookies();
+  // Check if we're in a server context without cookies available
+  let cookieStore;
+  try {
+    cookieStore = await cookies();
+  } catch (error) {
+    // Return a basic client without cookie support for build/edge runtime
+    return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
+      cookies: {
+        get() {
+          return undefined;
+        },
+        set() {},
+        remove() {},
+      },
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
+      },
+    });
+  }
 
   return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {
@@ -65,12 +85,7 @@ export async function createClient() {
       autoRefreshToken: false, // Disable auto-refresh on server side
       persistSession: false, // Don't persist session on server
       detectSessionInUrl: false, // Don't detect session in URL on server
-      storage: {
-        // Use a no-op storage to prevent any localStorage/sessionStorage access
-        getItem: async () => null,
-        setItem: async () => {},
-        removeItem: async () => {},
-      },
+      flowType: "pkce", // Use PKCE flow for better security
     },
     global: {
       headers: {
