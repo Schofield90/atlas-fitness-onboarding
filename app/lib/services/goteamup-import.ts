@@ -202,7 +202,7 @@ export class GoTeamUpImporter {
   // Import payments from parsed CSV data with batch processing
   public async importPayments(
     data: any[],
-    batchSize: number = 50,
+    batchSize: number = 25,
   ): Promise<ImportResult> {
     const progress: ImportProgress = {
       total: data.length,
@@ -338,7 +338,7 @@ export class GoTeamUpImporter {
   // Import attendance from parsed CSV data with batch processing
   public async importAttendance(
     data: any[],
-    batchSize: number = 50,
+    batchSize: number = 25,
   ): Promise<ImportResult> {
     const progress: ImportProgress = {
       total: data.length,
