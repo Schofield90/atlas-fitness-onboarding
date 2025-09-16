@@ -3,8 +3,17 @@ import type { Database } from "./database.types";
 
 let adminClient: ReturnType<typeof createClient<Database>> | null = null;
 
-// Create a Supabase client with the service role key
-// This bypasses Row Level Security (RLS) policies
+/**
+ * Creates a Supabase client with the service role key.
+ * This client bypasses Row Level Security (RLS) policies and should ONLY be used
+ * for backend jobs, data imports, and administrative tasks.
+ *
+ * SECURITY WARNING: Never expose the service role key to client-side code.
+ * This client has full database access and ignores all security policies.
+ *
+ * @returns Supabase admin client with service role privileges
+ * @throws Error if used in browser context
+ */
 export function createAdminClient() {
   // Return cached client if available
   if (adminClient) {
@@ -67,6 +76,7 @@ export function createAdminClient() {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
+      detectSessionInUrl: false, // Don't look for session in URL
     },
   });
 

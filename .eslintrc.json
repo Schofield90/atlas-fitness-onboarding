@@ -42,6 +42,35 @@
           }
         ]
       }
+    },
+    {
+      "files": [
+        "app/api/migration/**/*.ts",
+        "app/api/migration/**/*.tsx",
+        "app/api/import/**/*.ts",
+        "app/api/import/**/*.tsx"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@/app/lib/supabase/client",
+                "message": "Migration/import routes MUST NOT use browser client. Use ONLY createAdminClient() from admin.ts for stateless operations."
+              },
+              {
+                "name": "@/app/lib/supabase/server",
+                "message": "Migration/import routes MUST NOT use SSR server client with cookies. Use ONLY createAdminClient() from admin.ts for stateless operations."
+              },
+              {
+                "name": "next/headers",
+                "message": "Migration/import routes MUST NOT use cookies or headers from Next.js. Use token-based auth instead."
+              }
+            ]
+          }
+        ]
+      }
     }
   ]
 }

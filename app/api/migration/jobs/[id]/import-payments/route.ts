@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/app/lib/supabase/server";
-import { supabaseAdmin } from "@/app/lib/supabase/admin";
+import { createAdminClient } from "@/app/lib/supabase/admin";
 import Papa from "papaparse";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 /**
  * POST /api/migration/jobs/[id]/import-payments
  * Import payment data and match to existing clients
+ * Requires x-import-token header for authentication
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const jobId = params.id;
+  const { id: jobId } = await params;
   const logs: string[] = [];
 
   const log = (message: string) => {
@@ -22,32 +25,31 @@ export async function POST(
   try {
     log(`Starting payment import for job ${jobId}`);
 
-    // Get current user
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    // Verify import token
+    const importToken = request.headers.get("x-import-token");
+    if (!importToken || importToken !== process.env.IMPORT_TOKEN) {
       return NextResponse.json(
-        { success: false, error: "Unauthorized", logs },
+        { success: false, error: "Unauthorized - Invalid import token", logs },
         { status: 401 },
       );
     }
 
-    // Get user's organization
-    const { data: userOrg } = await supabase
-      .from("user_organizations")
+    // Get organization from job record using admin client
+    const supabaseAdmin = createAdminClient();
+    const { data: job, error: jobError } = await supabaseAdmin
+      .from("migration_jobs")
       .select("organization_id")
-      .eq("user_id", user.id)
+      .eq("id", jobId)
       .single();
 
-    if (!userOrg?.organization_id) {
+    if (jobError || !job?.organization_id) {
       return NextResponse.json(
-        { success: false, error: "User organization not found", logs },
-        { status: 401 },
+        { success: false, error: "Migration job not found", logs },
+        { status: 404 },
       );
     }
+
+    const organizationId = job.organization_id;
 
     // Get form data with file
     const formData = await request.formData();
@@ -76,7 +78,7 @@ export async function POST(
     const { data: clients } = await supabaseAdmin
       .from("clients")
       .select("id, name, first_name, last_name, email, phone")
-      .eq("organization_id", userOrg.organization_id);
+      .eq("organization_id", organizationId);
 
     // Create lookup maps
     const clientByName = new Map();
@@ -193,7 +195,7 @@ export async function POST(
         // Create payment record
         payments.push({
           client_id: clientId,
-          organization_id: userOrg.organization_id,
+          organization_id: organizationId,
           amount: amount,
           payment_date: dateValue,
           payment_method: method.toLowerCase(),
@@ -219,41 +221,63 @@ export async function POST(
       }
     }
 
-    // Insert payments in batches
-    const batchSize = 50;
+    // Insert payments in batches to handle large datasets
+    const batchSize = 100;
+    let totalInserted = 0;
+
     for (let i = 0; i < payments.length; i += batchSize) {
       const batch = payments.slice(i, i + batchSize);
-      const { error } = await supabaseAdmin.from("payments").insert(batch);
+      const { error, data } = await supabaseAdmin
+        .from("payments")
+        .insert(batch)
+        .select("id");
 
       if (error) {
-        log(`Batch insert error: ${error.message}`);
+        log(
+          `Batch ${Math.floor(i / batchSize) + 1} insert error: ${error.message}`,
+        );
+        errorCount += batch.length;
+      } else {
+        totalInserted += data?.length || 0;
+        log(
+          `Batch ${Math.floor(i / batchSize) + 1}: Inserted ${data?.length || 0} payments`,
+        );
       }
     }
+
+    log(`Total payments inserted: ${totalInserted}`);
 
     log(
       `Import complete - Success: ${successCount}, Skipped: ${skipCount}, Errors: ${errorCount}`,
     );
 
     // Update migration job with payment import status
-    await supabaseAdmin
+    const { error: updateError } = await supabaseAdmin
       .from("migration_jobs")
       .update({
         metadata: {
           payments_imported: true,
-          payments_count: successCount,
+          payments_count: totalInserted,
+          payments_errors: errorCount,
           payments_import_date: new Date().toISOString(),
         },
+        status: totalInserted > 0 ? "completed" : "failed",
       })
       .eq("id", jobId);
+
+    if (updateError) {
+      log(`Failed to update job status: ${updateError.message}`);
+    }
 
     return NextResponse.json({
       success: true,
       logs,
       stats: {
         total: parseResult.data.length,
-        imported: successCount,
+        imported: totalInserted,
         skipped: skipCount,
         errors: errorCount,
+        batches: Math.ceil(payments.length / batchSize),
       },
     });
   } catch (error: any) {
