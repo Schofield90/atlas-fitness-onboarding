@@ -17,6 +17,7 @@ export interface ImportResult {
     success: number;
     errors: number;
     skipped: number;
+    newClients?: number;
   };
   errors?: Array<{ row: number; error: string }>;
 }
@@ -25,15 +26,19 @@ export class GoTeamUpImporter {
   private supabase: any;
   private organizationId: string;
   private progressCallback?: (progress: ImportProgress) => void;
+  private createMissingClients: boolean;
+  private newClientsCreated: number = 0;
 
   constructor(
     supabase: any,
     organizationId: string,
     progressCallback?: (progress: ImportProgress) => void,
+    createMissingClients: boolean = true, // Default to creating missing clients
   ) {
     this.supabase = supabase;
     this.organizationId = organizationId;
     this.progressCallback = progressCallback;
+    this.createMissingClients = createMissingClients;
   }
 
   // Parse UK date format (DD/MM/YYYY) or US format (MM/DD/YYYY)
@@ -64,6 +69,76 @@ export class GoTeamUpImporter {
     const amount = parseFloat(cleanAmount);
     if (isNaN(amount)) return 0;
     return Math.round(amount * 100); // Convert to pennies
+  }
+
+  // Helper to create or find a client/customer
+  private async findOrCreateClient(
+    email: string,
+    name?: string,
+  ): Promise<string | null> {
+    // First try to find existing client
+    const { data: existingClient } = await this.supabase
+      .from("clients")
+      .select("id")
+      .eq("email", email.toLowerCase().trim())
+      .eq("organization_id", this.organizationId)
+      .single();
+
+    if (existingClient) {
+      return existingClient.id;
+    }
+
+    // Try customers table too
+    const { data: existingCustomer } = await this.supabase
+      .from("customers")
+      .select("id")
+      .eq("email", email.toLowerCase().trim())
+      .eq("organization_id", this.organizationId)
+      .single();
+
+    if (existingCustomer) {
+      return existingCustomer.id;
+    }
+
+    // If not found and we should create missing clients
+    if (!this.createMissingClients) {
+      return null;
+    }
+
+    // Parse name if provided
+    let firstName = "";
+    let lastName = "";
+    if (name) {
+      const nameParts = name.trim().split(" ");
+      firstName = nameParts[0] || "";
+      lastName = nameParts.slice(1).join(" ") || "";
+    }
+
+    // Create new customer (using customers table as it's the newer structure)
+    const { data: newCustomer, error } = await this.supabase
+      .from("customers")
+      .insert({
+        organization_id: this.organizationId,
+        email: email.toLowerCase().trim(),
+        first_name: firstName,
+        last_name: lastName,
+        status: "active",
+        source: "goteamup_import",
+        created_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      console.error("Error creating customer:", error);
+      return null;
+    }
+
+    if (newCustomer?.id) {
+      this.newClientsCreated++;
+    }
+
+    return newCustomer?.id || null;
   }
 
   // Auto-detect file type based on headers
@@ -117,16 +192,18 @@ export class GoTeamUpImporter {
           continue;
         }
 
-        const { data: client } = await this.supabase
-          .from("clients")
-          .select("id")
-          .eq("email", email.toLowerCase().trim())
-          .eq("organization_id", this.organizationId)
-          .single();
+        // Get name from row data
+        const name = row["Client Name"] || row["Name"] || row["Customer"] || "";
 
-        if (!client) {
+        // Find or create client
+        const clientId = await this.findOrCreateClient(email, name);
+
+        if (!clientId) {
           progress.skipped++;
-          errors.push({ row: i + 1, error: `Client not found: ${email}` });
+          errors.push({
+            row: i + 1,
+            error: `Could not find or create client: ${email}`,
+          });
           continue;
         }
 
@@ -138,7 +215,7 @@ export class GoTeamUpImporter {
         const { data: existing } = await this.supabase
           .from("payments")
           .select("id")
-          .eq("client_id", client.id)
+          .eq("client_id", clientId)
           .eq("payment_date", paymentDate)
           .eq("amount", amount)
           .single();
@@ -151,7 +228,7 @@ export class GoTeamUpImporter {
         // Insert payment
         const { error } = await this.supabase.from("payments").insert({
           organization_id: this.organizationId,
-          client_id: client.id,
+          client_id: clientId,
           amount: amount,
           payment_date: paymentDate,
           payment_method: (row["Payment Method"] || row["Method"] || "card")
@@ -179,14 +256,20 @@ export class GoTeamUpImporter {
       }
     }
 
+    const message =
+      this.newClientsCreated > 0
+        ? `Import completed: ${progress.success} successful, ${this.newClientsCreated} new clients created, ${progress.skipped} skipped, ${progress.errors} errors`
+        : `Import completed: ${progress.success} successful, ${progress.skipped} skipped, ${progress.errors} errors`;
+
     return {
       success: progress.errors === 0,
-      message: `Import completed: ${progress.success} successful, ${progress.skipped} skipped, ${progress.errors} errors`,
+      message,
       stats: {
         total: progress.total,
         success: progress.success,
         errors: progress.errors,
         skipped: progress.skipped,
+        newClients: this.newClientsCreated,
       },
       errors: errors.length > 0 ? errors : undefined,
     };
@@ -219,36 +302,18 @@ export class GoTeamUpImporter {
           continue;
         }
 
-        // Try to find in customers table first, then clients
-        let customerId: string | null = null;
+        // Get name from row data
+        const name = row["Customer"] || row["Client Name"] || row["Name"] || "";
 
-        // First try customers table
-        const { data: customer } = await this.supabase
-          .from("customers")
-          .select("id")
-          .eq("email", email.toLowerCase().trim())
-          .eq("organization_id", this.organizationId)
-          .single();
-
-        if (customer) {
-          customerId = customer.id;
-        } else {
-          // Fall back to clients table
-          const { data: client } = await this.supabase
-            .from("clients")
-            .select("id")
-            .eq("email", email.toLowerCase().trim())
-            .eq("organization_id", this.organizationId)
-            .single();
-
-          if (client) {
-            customerId = client.id;
-          }
-        }
+        // Find or create customer
+        const customerId = await this.findOrCreateClient(email, name);
 
         if (!customerId) {
           progress.skipped++;
-          errors.push({ row: i + 1, error: `Customer not found: ${email}` });
+          errors.push({
+            row: i + 1,
+            error: `Could not find or create customer: ${email}`,
+          });
           continue;
         }
 
@@ -322,14 +387,20 @@ export class GoTeamUpImporter {
     // Update client statistics after import
     await this.updateClientStatistics();
 
+    const message =
+      this.newClientsCreated > 0
+        ? `Import completed: ${progress.success} successful, ${this.newClientsCreated} new customers created, ${progress.skipped} skipped, ${progress.errors} errors`
+        : `Import completed: ${progress.success} successful, ${progress.skipped} skipped, ${progress.errors} errors`;
+
     return {
       success: progress.errors === 0,
-      message: `Import completed: ${progress.success} successful, ${progress.skipped} skipped, ${progress.errors} errors`,
+      message,
       stats: {
         total: progress.total,
         success: progress.success,
         errors: progress.errors,
         skipped: progress.skipped,
+        newClients: this.newClientsCreated,
       },
       errors: errors.length > 0 ? errors : undefined,
     };
