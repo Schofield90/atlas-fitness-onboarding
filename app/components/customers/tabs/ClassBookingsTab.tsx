@@ -211,7 +211,7 @@ export default function ClassBookingsTab({
       .select(
         `
         *,
-        class_sessions!inner (
+        class_sessions (
           id,
           name,
           start_time,
@@ -230,7 +230,7 @@ export default function ClassBookingsTab({
       )
       .or(`client_id.eq.${customerId},customer_id.eq.${customerId}`)
       .eq("organization_id", organizationId)
-      .in("booking_status", ["confirmed", "attended"])
+      .in("booking_status", ["confirmed", "attended", "completed"])
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -240,7 +240,7 @@ export default function ClassBookingsTab({
         .from("class_bookings")
         .select("*")
         .or(`client_id.eq.${customerId},customer_id.eq.${customerId}`)
-        .in("booking_status", ["confirmed", "attended"]);
+        .in("booking_status", ["confirmed", "attended", "completed"]);
 
       if (fallbackError) {
         console.error("Fallback query also failed:", fallbackError);
