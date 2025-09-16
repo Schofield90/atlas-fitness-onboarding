@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/app/lib/supabase/server";
+import { cookies } from "next/headers";
+import { createServerClientNoAuth } from "@/app/lib/supabase/server-no-auth";
 import { GoTeamUpImporter, parseCSV } from "@/app/lib/services/goteamup-import";
 
 export const maxDuration = 60; // Set max duration to 60 seconds for Vercel
@@ -14,19 +15,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Server-side only" }, { status: 500 });
     }
 
-    // Check authentication
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    // Get auth token from cookies
+    const cookieStore = await cookies();
+    const authToken = cookieStore.get("sb-lzlrojoaxrqvmhempnkn-auth-token");
 
-    console.log("Auth check:", { userId: user?.id, error: authError });
-
-    if (authError || !user) {
-      console.error("Auth failed:", authError);
+    if (!authToken) {
+      console.error("No auth token found");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Parse the auth token to get user info
+    let userId: string | null = null;
+    try {
+      const tokenData = JSON.parse(authToken.value);
+      userId = tokenData?.user?.id || null;
+    } catch (e) {
+      console.error("Failed to parse auth token:", e);
+      return NextResponse.json(
+        { error: "Invalid auth token" },
+        { status: 401 },
+      );
+    }
+
+    if (!userId) {
+      console.error("No user ID in auth token");
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    console.log("Auth check:", { userId });
+
+    // Create service role client (bypasses RLS)
+    const supabase = createServerClientNoAuth();
 
     // Get organization ID from user's organization membership
     // Check both tables (same logic as middleware)
@@ -36,7 +55,7 @@ export async function POST(request: NextRequest) {
     const { data: staffOrg } = await supabase
       .from("organization_staff")
       .select("organization_id")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .eq("is_active", true)
       .single();
 
@@ -47,7 +66,7 @@ export async function POST(request: NextRequest) {
       const { data: memberOrg } = await supabase
         .from("organization_members")
         .select("organization_id")
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .eq("is_active", true)
         .single();
 
@@ -57,7 +76,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!organizationId) {
-      console.error("No organization found for user:", user.id);
+      console.error("No organization found for user:", userId);
       return NextResponse.json(
         {
           error:
