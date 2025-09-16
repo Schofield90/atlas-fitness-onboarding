@@ -68,5 +68,6 @@
   "env": {
     "NEXT_TELEMETRY_DISABLED": "1",
     "NODE_OPTIONS": "--max-old-space-size=4096"
-  }
+  },
+  "_comment": "Force rebuild 2025-01-19 to clear cached auth errors"
 }
