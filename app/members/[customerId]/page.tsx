@@ -324,16 +324,20 @@ export default function CustomerProfilePage() {
 
       // Update the customer's lifetime_value in the database
       if (totalValue > 0) {
+        // Update in clients table (where the data is actually loaded from)
         const { error: updateError } = await supabase
-          .from("customers")
+          .from("clients")
           .update({ lifetime_value: totalValue })
           .eq("id", customerId);
 
         if (!updateError) {
+          console.log("Updated lifetime_value in clients table");
           // Update local state
           setCustomer((prev) =>
             prev ? { ...prev, lifetime_value: totalValue } : prev,
           );
+        } else {
+          console.error("Error updating lifetime_value:", updateError);
         }
       }
     } catch (error) {
