@@ -5,6 +5,8 @@ import { GoTeamUpImporter, parseCSV } from "@/app/lib/services/goteamup-import";
 export const maxDuration = 60; // Set max duration to 60 seconds for Vercel
 
 export async function POST(request: NextRequest) {
+  console.log("GoTeamUp import endpoint called");
+
   try {
     // Check authentication
     const supabase = await createClient();
@@ -13,7 +15,10 @@ export async function POST(request: NextRequest) {
       error: authError,
     } = await supabase.auth.getUser();
 
+    console.log("Auth check:", { userId: user?.id, error: authError });
+
     if (authError || !user) {
+      console.error("Auth failed:", authError);
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -46,6 +51,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!organizationId) {
+      console.error("No organization found for user:", user.id);
       return NextResponse.json(
         {
           error:
@@ -54,6 +60,8 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+
+    console.log("Organization found:", organizationId);
 
     // Parse form data
     const formData = await request.formData();

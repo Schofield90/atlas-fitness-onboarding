@@ -1,0 +1,6 @@
+Customer,Email,Date,Time,Class Type,Venue,Instructors,Status
+John Doe,john@example.com,10/09/2023,09:00,CrossFit,Main Gym,Coach Mike,Attended
+Jane Smith,jane@example.com,10/09/2023,09:00,CrossFit,Main Gym,Coach Mike,Attended
+Bob Wilson,bob@example.com,11/09/2023,10:00,Yoga,Studio A,Sarah,Attended
+Alice Brown,alice@example.com,11/09/2023,10:00,Yoga,Studio A,Sarah,Registered
+Tom Davis,tom@example.com,12/09/2023,18:00,Boxing,Ring 1,Jake,Attended
