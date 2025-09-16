@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import {
   Upload,
@@ -11,6 +11,8 @@ import {
   Loader2,
   Calendar,
   AlertTriangle,
+  RefreshCw,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -52,8 +54,108 @@ export default function ImportPage() {
   const [totalRows, setTotalRows] = useState(0);
   const [headers, setHeaders] = useState<string[]>([]);
   const [rawData, setRawData] = useState<string[][]>([]);
+  const [backgroundJob, setBackgroundJob] = useState<{
+    jobId: string;
+    progress: any;
+    polling: boolean;
+  } | null>(null);
 
   const CHUNK_SIZE_LIMIT = 200; // Reduced to 200 rows per chunk for better processing
+
+  // Poll background job progress
+  useEffect(() => {
+    if (!backgroundJob?.jobId || !backgroundJob.polling) return;
+
+    const pollProgress = async () => {
+      try {
+        const response = await fetch(
+          `/api/import/goteamup/status/${backgroundJob.jobId}`,
+        );
+        if (response.ok) {
+          const result = await response.json();
+
+          setBackgroundJob((prev) => ({
+            ...prev!,
+            progress: result.progress,
+          }));
+
+          // Stop polling if completed or failed
+          if (
+            result.progress.status === "completed" ||
+            result.progress.status === "failed"
+          ) {
+            setBackgroundJob((prev) => ({
+              ...prev!,
+              polling: false,
+            }));
+
+            setImporting(false);
+
+            if (result.progress.status === "completed") {
+              setSuccess(true);
+              setStats({
+                total: result.progress.totalRecords,
+                success: result.progress.successfulImports,
+                errors: result.progress.failedImports,
+                skipped:
+                  result.progress.totalRecords -
+                  result.progress.successfulImports -
+                  result.progress.failedImports,
+              });
+              setMessage("Background import completed successfully!");
+            } else {
+              setSuccess(false);
+              setMessage("Background import failed. You can try resuming it.");
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error polling progress:", error);
+      }
+    };
+
+    const interval = setInterval(pollProgress, 2000); // Poll every 2 seconds
+    pollProgress(); // Initial poll
+
+    return () => clearInterval(interval);
+  }, [backgroundJob?.jobId, backgroundJob?.polling]);
+
+  const resumeBackgroundJob = async (jobId: string) => {
+    try {
+      const response = await fetch(`/api/import/goteamup/status/${jobId}`, {
+        method: "POST",
+      });
+
+      if (response.ok) {
+        setBackgroundJob({
+          jobId,
+          progress: null,
+          polling: true,
+        });
+        setImporting(true);
+        setMessage("Resuming import...");
+      }
+    } catch (error) {
+      console.error("Error resuming job:", error);
+      setMessage("Failed to resume import");
+    }
+  };
+
+  const cancelBackgroundJob = async (jobId: string) => {
+    try {
+      const response = await fetch(`/api/import/goteamup/status/${jobId}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        setBackgroundJob(null);
+        setImporting(false);
+        setMessage("Import cancelled");
+      }
+    } catch (error) {
+      console.error("Error cancelling job:", error);
+    }
+  };
 
   const parseCSVData = (text: string): string[][] => {
     const lines = text.split("\n").filter((line) => line.trim());
@@ -315,19 +417,36 @@ export default function ImportPage() {
         formData.append("file", file);
         formData.append("type", fileType);
 
+        // Use PUT method for background processing on large files
+        const method = totalRows > 100 ? "PUT" : "POST";
         const response = await fetch("/api/import/goteamup", {
-          method: "POST",
+          method,
           body: formData,
         });
 
         const result = await response.json();
 
         if (response.ok) {
-          setSuccess(true);
-          setStats(result.stats);
-          setMessage(result.message || "Import completed successfully");
-          if (result.errors && result.errors.length > 0) {
-            setErrors(result.errors.slice(0, 10));
+          if (result.backgroundProcessing) {
+            // Start background job tracking
+            setBackgroundJob({
+              jobId: result.jobId,
+              progress: null,
+              polling: true,
+            });
+            setMessage(
+              "Import started in background. This may take several minutes...",
+            );
+            // Don't set importing to false here - let the polling handle it
+          } else {
+            // Direct processing completed
+            setSuccess(true);
+            setStats(result.stats);
+            setMessage(result.message || "Import completed successfully");
+            if (result.errors && result.errors.length > 0) {
+              setErrors(result.errors.slice(0, 10));
+            }
+            setImporting(false);
           }
         } else if (response.status === 504) {
           // Suggest chunking
@@ -560,6 +679,89 @@ export default function ImportPage() {
               </div>
             )}
 
+            {/* Background Job Progress */}
+            {backgroundJob && (
+              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center">
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin text-blue-600" />
+                    <span className="font-medium text-blue-800">
+                      {backgroundJob.progress?.currentStep ||
+                        "Processing in background..."}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    {backgroundJob.progress?.status === "failed" && (
+                      <button
+                        onClick={() => resumeBackgroundJob(backgroundJob.jobId)}
+                        className="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 flex items-center"
+                      >
+                        <RefreshCw className="w-3 h-3 mr-1" />
+                        Resume
+                      </button>
+                    )}
+                    <button
+                      onClick={() => cancelBackgroundJob(backgroundJob.jobId)}
+                      className="text-sm text-gray-600 hover:text-gray-800"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {backgroundJob.progress && (
+                  <>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span>
+                        {backgroundJob.progress.processedRecords} of{" "}
+                        {backgroundJob.progress.totalRecords} records
+                      </span>
+                      <span>{backgroundJob.progress.progressPercentage}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full transition-all"
+                        style={{
+                          width: `${backgroundJob.progress.progressPercentage}%`,
+                        }}
+                      />
+                    </div>
+
+                    {backgroundJob.progress.estimatedTimeRemaining && (
+                      <p className="text-xs text-gray-600">
+                        Estimated time remaining:{" "}
+                        {Math.round(
+                          backgroundJob.progress.estimatedTimeRemaining,
+                        )}{" "}
+                        minutes
+                      </p>
+                    )}
+
+                    <div className="grid grid-cols-3 gap-4 mt-3 text-sm">
+                      <div>
+                        <p className="text-gray-600">Success</p>
+                        <p className="font-bold text-green-600">
+                          {backgroundJob.progress.successfulImports}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">Failed</p>
+                        <p className="font-bold text-red-600">
+                          {backgroundJob.progress.failedImports}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">Status</p>
+                        <p className="font-bold capitalize">
+                          {backgroundJob.progress.status}
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
             {/* Import Button */}
             <button
               onClick={() => handleImport()}
@@ -656,8 +858,14 @@ export default function ImportPage() {
           </h3>
           <div className="space-y-2 text-sm text-gray-700">
             <p>
-              <strong>File Size:</strong> Files with more than 200 rows will
-              automatically prompt for weekly splitting
+              <strong>File Size:</strong> Files with more than 100 rows will
+              automatically use background processing. Files with more than 200
+              rows will prompt for weekly splitting.
+            </p>
+            <p>
+              <strong>Background Processing:</strong> Large imports run in the
+              background and can be monitored in real-time. You can cancel or
+              resume failed imports.
             </p>
             <p>
               <strong>Payments CSV:</strong> Must include columns: Date,
@@ -665,11 +873,12 @@ export default function ImportPage() {
             </p>
             <p>
               <strong>Attendance CSV:</strong> Must include columns: Date, Time,
-              Customer, Email, Class Type, Venue, Instructors, Status
+              Customer, Email, Class Type, Venue, Instructors, Status. Class
+              sessions will be automatically created.
             </p>
             <p>
-              <strong>Important:</strong> Customers must already exist in the
-              system with matching email addresses
+              <strong>Client Creation:</strong> Clients with missing email
+              addresses will be automatically created if they don't exist.
             </p>
           </div>
         </div>
