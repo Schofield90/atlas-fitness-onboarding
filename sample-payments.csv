@@ -1,0 +1,16 @@
+Date,Client Name,Email,Amount,Payment Method,Description,Status
+15/01/2025,Sam Schofield,sam@example.com,129.00,Direct Debit,Monthly membership - January,Paid
+15/01/2025,Raj Selvarajan,raj@example.com,45.00,Card,12 month membership,Paid
+15/01/2025,Adam Spenceley,adam@example.com,50.00,Bank Transfer,Full Member York,Paid
+16/01/2025,Alan Richardson,alan@example.com,50.00,Direct Debit,Full Member York,Paid
+16/01/2025,Angela Fairclough,angela@example.com,55.00,Card,Month to Month,Paid
+17/01/2025,Ben Bellwood,ben@example.com,50.00,Direct Debit,Full Member York,Paid
+18/01/2025,Colin Roe,colin@example.com,50.00,Bank Transfer,Full Member York,Paid
+20/01/2025,Alastair Jenkinson,alastair@example.com,0.00,Lifetime,Lifetime membership,Paid
+20/01/2025,Alex Parrish,alex@example.com,129.00,Card,Monthly membership,Paid
+22/01/2025,Sam Schofield,sam@example.com,35.00,Card,Personal Training Session,Paid
+25/01/2025,Raj Selvarajan,raj@example.com,199.00,Card,6 Week Transformation,Paid
+28/01/2025,Adam Spenceley,adam@example.com,50.00,Direct Debit,Full Member York - February,Pending
+01/02/2025,Sam Schofield,sam@example.com,129.00,Direct Debit,Monthly membership - February,Pending
+05/02/2025,Angela Fairclough,angela@example.com,25.00,Cash,Drop-in class,Paid
+10/02/2025,Ben Bellwood,ben@example.com,350.00,Bank Transfer,Block of 10 Sessions,Paid

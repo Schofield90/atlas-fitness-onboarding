@@ -139,6 +139,27 @@ export default function CustomerProfilePage() {
       if (error) throw error;
 
       if (data) {
+        // Calculate total visits from class_bookings
+        const { data: bookings } = await supabase
+          .from("class_bookings")
+          .select("id, booking_date, attended_at")
+          .or(`client_id.eq.${customerId},customer_id.eq.${customerId}`)
+          .not("attended_at", "is", null);
+
+        const totalVisits = bookings?.length || 0;
+
+        // Find the most recent visit
+        let lastVisitDate = data.last_visit || data.last_visit_date;
+        if (bookings && bookings.length > 0) {
+          const sortedBookings = bookings.sort((a, b) => {
+            const dateA = new Date(a.booking_date || a.attended_at);
+            const dateB = new Date(b.booking_date || b.attended_at);
+            return dateB.getTime() - dateA.getTime();
+          });
+          lastVisitDate =
+            sortedBookings[0].booking_date || sortedBookings[0].attended_at;
+        }
+
         // Normalize to CustomerProfile shape
         const name = (
           data.name || `${data.first_name || ""} ${data.last_name || ""}`
@@ -146,13 +167,16 @@ export default function CustomerProfilePage() {
         const normalized: any = {
           ...data,
           name,
-          total_visits: data.total_visits || 0,
-          last_visit_date: data.last_visit || data.last_visit_date,
+          total_visits: totalVisits,
+          last_visit_date: lastVisitDate,
           created_at: data.created_at,
           updated_at: data.updated_at,
         };
         setCustomer(normalized);
         setEditForm(normalized);
+
+        console.log(`Calculated Total Visits for ${name}: ${totalVisits}`);
+        console.log(`Last Visit: ${lastVisitDate}`);
       }
     } catch (error) {
       console.error("Error loading customer:", error);
