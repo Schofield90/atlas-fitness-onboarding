@@ -223,23 +223,119 @@ export default function CustomerProfilePage() {
     try {
       console.log("Loading payments for customerId:", customerId);
 
-      const { data, error } = await supabase
+      // Load from payment_transactions table
+      const { data: paymentTransactions, error: ptError } = await supabase
         .from("payment_transactions")
         .select("*")
         .eq("customer_id", customerId)
         .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("Payment query error:", error);
-        throw error;
+      if (ptError) {
+        console.error("Payment transactions query error:", ptError);
       }
 
-      console.log("Loaded payments:", data?.length || 0, "records");
-      if (data && data.length > 0) {
-        console.log("Sample payment:", data[0]);
+      // Also load from payments table (for imported payments)
+      const { data: importedPayments, error: ipError } = await supabase
+        .from("payments")
+        .select("*")
+        .eq("client_id", customerId)
+        .order("payment_date", { ascending: false });
+
+      if (ipError) {
+        console.error("Imported payments query error:", ipError);
       }
 
-      setPayments(data || []);
+      // Also check transactions table
+      const { data: transactions, error: tError } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("client_id", customerId)
+        .eq("type", "payment")
+        .order("created_at", { ascending: false });
+
+      if (tError) {
+        console.error("Transactions query error:", tError);
+      }
+
+      // Combine all payments
+      const allPayments = [];
+
+      // Add payment_transactions
+      if (paymentTransactions) {
+        paymentTransactions.forEach((pt) => {
+          allPayments.push({
+            ...pt,
+            amount: pt.amount_pennies,
+            source: "payment_transactions",
+          });
+        });
+      }
+
+      // Add imported payments
+      if (importedPayments) {
+        importedPayments.forEach((ip) => {
+          allPayments.push({
+            ...ip,
+            amount_pennies: ip.amount,
+            created_at: ip.payment_date || ip.created_at,
+            status: ip.payment_status || "completed",
+            source: "payments",
+          });
+        });
+      }
+
+      // Add transactions
+      if (transactions) {
+        transactions.forEach((t) => {
+          allPayments.push({
+            ...t,
+            amount_pennies: t.amount,
+            status: t.status || "completed",
+            source: "transactions",
+          });
+        });
+      }
+
+      // Sort by date
+      allPayments.sort((a, b) => {
+        const dateA = new Date(a.created_at || a.payment_date);
+        const dateB = new Date(b.created_at || b.payment_date);
+        return dateB.getTime() - dateA.getTime();
+      });
+
+      console.log("Total payments loaded:", allPayments.length);
+      console.log("Sources:", {
+        payment_transactions: paymentTransactions?.length || 0,
+        payments: importedPayments?.length || 0,
+        transactions: transactions?.length || 0,
+      });
+
+      setPayments(allPayments);
+
+      // Calculate and update lifetime value
+      const totalValue = allPayments.reduce((sum, payment) => {
+        const amount = payment.amount_pennies || payment.amount || 0;
+        return sum + amount;
+      }, 0);
+
+      console.log(
+        "Calculated lifetime value: £" + (totalValue / 100).toFixed(2),
+      );
+
+      // Update the customer's lifetime_value in the database
+      if (totalValue > 0) {
+        const { error: updateError } = await supabase
+          .from("customers")
+          .update({ lifetime_value: totalValue })
+          .eq("id", customerId);
+
+        if (!updateError) {
+          // Update local state
+          setCustomer((prev) =>
+            prev ? { ...prev, lifetime_value: totalValue } : prev,
+          );
+        }
+      }
     } catch (error) {
       console.error("Error loading payments:", error);
     }
