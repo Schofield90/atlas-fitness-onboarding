@@ -26,7 +26,7 @@ export async function POST(request: Request) {
       console.log("Using admin client for booking");
     } catch (adminError) {
       console.log("Admin client not available, using regular server client");
-      supabase = await createClient();
+      supabase = createClient();
     }
 
     console.log("Booking request:", {

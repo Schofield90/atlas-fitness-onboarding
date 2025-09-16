@@ -3,7 +3,7 @@ import { createClient } from "@/app/lib/supabase/server";
 
 export async function GET() {
   try {
-    const supabase = await createClient();
+    const supabase = createClient();
 
     // Get the organization ID (using hardcoded for now due to auth issues)
     const organizationId = "63589490-8f55-4157-bd3a-e141594b748e";

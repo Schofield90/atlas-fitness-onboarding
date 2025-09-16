@@ -7,7 +7,7 @@ export async function DELETE(
   { params }: { params: { id: string } },
 ) {
   try {
-    const supabase = await createClient();
+    const supabase = createClient();
 
     // Check authentication
     const {

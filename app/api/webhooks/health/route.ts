@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     const startTime = Date.now();
 
     // Check if user is authenticated (optional - make this public if needed for monitoring)
-    const supabase = await createClient();
+    const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();

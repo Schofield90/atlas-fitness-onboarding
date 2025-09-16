@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const supabase = await createClient();
+  const supabase = createClient();
 
   // Verify state and get organization
   const { data: oauthState } = await supabase

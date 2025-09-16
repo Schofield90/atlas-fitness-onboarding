@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
     // 1. Check authentication
     try {
-      const supabase = await createClient();
+      const supabase = createClient();
       const {
         data: { user },
         error: authError,

@@ -17,7 +17,7 @@ export async function GET(
     const jobId = params.id;
 
     // Get current user from Supabase auth
-    const supabase = await createClient();
+    const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -101,7 +101,7 @@ export async function POST(
     }
 
     // Get current user from Supabase auth
-    const supabase = await createClient();
+    const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();

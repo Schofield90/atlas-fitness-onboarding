@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = await createClient();
+    const supabase = createClient();
 
     // First, fetch the token
     const { data: tokenData, error: tokenError } = await supabase

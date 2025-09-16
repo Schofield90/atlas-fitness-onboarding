@@ -11,7 +11,7 @@ export async function POST(
     const jobId = params.id;
     console.log("Starting processing for job:", jobId);
 
-    const supabase = await createClient();
+    const supabase = createClient();
 
     // Verify user authentication
     const {

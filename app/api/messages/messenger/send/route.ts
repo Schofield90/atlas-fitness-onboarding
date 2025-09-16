@@ -4,7 +4,7 @@ import { MetaMessengerClient } from "@/app/lib/meta/client";
 import { decrypt } from "@/app/lib/encryption";
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
+  const supabase = createClient();
 
   // Check authentication
   const {
