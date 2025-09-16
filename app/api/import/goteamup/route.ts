@@ -8,6 +8,12 @@ export async function POST(request: NextRequest) {
   console.log("GoTeamUp import endpoint called");
 
   try {
+    // Ensure we're in server environment
+    if (typeof window !== "undefined") {
+      console.error("Import API called from client side!");
+      return NextResponse.json({ error: "Server-side only" }, { status: 500 });
+    }
+
     // Check authentication
     const supabase = await createClient();
     const {
@@ -82,7 +88,7 @@ export async function POST(request: NextRequest) {
 
     // Parse CSV
     const fileContent = await file.text();
-    const rows = await parseCSVContent(fileContent);
+    const rows = parseCSVContent(fileContent);
 
     if (!rows || rows.length === 0) {
       return NextResponse.json({ error: "CSV file is empty" }, { status: 400 });
@@ -150,32 +156,54 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Helper to parse CSV content
-async function parseCSVContent(content: string): Promise<any[]> {
-  return new Promise((resolve, reject) => {
-    const lines = content.split("\n");
-    if (lines.length < 2) {
-      resolve([]);
-      return;
+// Helper to parse CSV content (handles quoted values properly)
+function parseCSVContent(content: string): any[] {
+  const lines = content.split("\n");
+  if (lines.length < 2) {
+    return [];
+  }
+
+  // Parse headers
+  const headers = parseCSVLine(lines[0]);
+  const data = [];
+
+  // Parse data rows
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+
+    const values = parseCSVLine(line);
+    const row: any = {};
+
+    headers.forEach((header, index) => {
+      row[header] = values[index] || "";
+    });
+
+    data.push(row);
+  }
+
+  return data;
+}
+
+// Helper to parse a single CSV line (handles quoted values)
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === "," && !inQuotes) {
+      result.push(current.trim());
+      current = "";
+    } else {
+      current += char;
     }
+  }
 
-    const headers = lines[0].split(",").map((h) => h.trim().replace(/"/g, ""));
-    const data = [];
-
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-
-      const values = line.split(",").map((v) => v.trim().replace(/"/g, ""));
-      const row: any = {};
-
-      headers.forEach((header, index) => {
-        row[header] = values[index] || "";
-      });
-
-      data.push(row);
-    }
-
-    resolve(data);
-  });
+  result.push(current.trim());
+  return result.map((cell) => cell.replace(/^"|"$/g, ""));
 }
