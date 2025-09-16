@@ -1,9 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { createServerClientNoAuth } from "@/app/lib/supabase/server-no-auth";
 import { GoTeamUpImporter, parseCSV } from "@/app/lib/services/goteamup-import";
+import type { Database } from "@/app/lib/supabase/database.types";
 
 export const maxDuration = 60; // Set max duration to 60 seconds for Vercel
+
+// Create a simple server client for API routes
+async function createAPIClient() {
+  const cookieStore = await cookies();
+
+  return createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          const cookie = cookieStore.get(name);
+          return cookie?.value;
+        },
+        set(name: string, value: string, options: any) {
+          // API routes can't set cookies in response
+          // but we need to provide the function
+        },
+        remove(name: string, options: any) {
+          // API routes can't remove cookies in response
+          // but we need to provide the function
+        },
+      },
+    },
+  );
+}
 
 export async function POST(request: NextRequest) {
   console.log("GoTeamUp import endpoint called");
@@ -15,37 +42,51 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Server-side only" }, { status: 500 });
     }
 
-    // Get auth token from cookies
-    const cookieStore = await cookies();
-    const authToken = cookieStore.get("sb-lzlrojoaxrqvmhempnkn-auth-token");
+    // Create supabase client
+    const supabase = await createAPIClient();
 
-    if (!authToken) {
-      console.error("No auth token found");
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // Get session first (like middleware does)
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
+
+    console.log("Session check:", {
+      hasSession: !!session,
+      userId: session?.user?.id,
+      error: sessionError,
+    });
+
+    if (sessionError || !session || !session.user) {
+      console.error("Auth failed:", sessionError || "No session");
+
+      // Try to get user as fallback
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        console.error("No user either:", userError);
+        return NextResponse.json(
+          { error: "Unauthorized - please log in again" },
+          { status: 401 },
+        );
+      }
+
+      // User exists but session might be expired, try to use it anyway
+      console.log("Found user without session, continuing:", user.id);
     }
 
-    // Parse the auth token to get user info
-    let userId: string | null = null;
-    try {
-      const tokenData = JSON.parse(authToken.value);
-      userId = tokenData?.user?.id || null;
-    } catch (e) {
-      console.error("Failed to parse auth token:", e);
+    const userId =
+      session?.user?.id || (await supabase.auth.getUser()).data.user?.id;
+
+    if (!userId) {
       return NextResponse.json(
-        { error: "Invalid auth token" },
+        { error: "Unable to identify user" },
         { status: 401 },
       );
     }
-
-    if (!userId) {
-      console.error("No user ID in auth token");
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    console.log("Auth check:", { userId });
-
-    // Create service role client (bypasses RLS)
-    const supabase = createServerClientNoAuth();
 
     // Get organization ID from user's organization membership
     // Check both tables (same logic as middleware)
