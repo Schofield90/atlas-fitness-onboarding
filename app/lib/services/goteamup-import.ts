@@ -71,12 +71,13 @@ export class GoTeamUpImporter {
     return Math.round(amount * 100); // Convert to pennies
   }
 
-  // Helper to create or find a client/customer
+  // Helper to create or find a client
+  // Using clients table as primary since that's what payments use
   private async findOrCreateClient(
     email: string,
     name?: string,
   ): Promise<string | null> {
-    // First try to find existing client
+    // First try to find existing client (primary table)
     const { data: existingClient } = await this.supabase
       .from("clients")
       .select("id")
@@ -88,48 +89,58 @@ export class GoTeamUpImporter {
       return existingClient.id;
     }
 
-    // Try customers table too
-    const { data: existingCustomer } = await this.supabase
-      .from("customers")
-      .select("id")
-      .eq("email", email.toLowerCase().trim())
-      .eq("organization_id", this.organizationId)
-      .single();
-
-    if (existingCustomer) {
-      return existingCustomer.id;
-    }
-
     // If not found and we should create missing clients
     if (!this.createMissingClients) {
       return null;
     }
 
-    // Create new customer (using customers table as it's the newer structure)
-    // Note: Only using fields that actually exist in the database
-    const { data: newCustomer, error } = await this.supabase
-      .from("customers")
+    // Create new client in clients table (same table payments use)
+    const { data: newClient, error } = await this.supabase
+      .from("clients")
       .insert({
         organization_id: this.organizationId,
         email: email.toLowerCase().trim(),
         name: name || email.split("@")[0], // Use name or email prefix as fallback
         status: "active",
-        // Removed 'source' field as it doesn't exist in the table
         created_at: new Date().toISOString(),
+        // Add any other required fields that exist in clients table
+        total_visits: 0,
+        lifetime_value: 0,
       })
       .select("id")
       .single();
 
     if (error) {
-      console.error("Error creating customer:", error);
-      return null;
+      console.error("Error creating client:", error);
+      // If clients table fails, try customers table as fallback
+      const { data: newCustomer, error: customerError } = await this.supabase
+        .from("customers")
+        .insert({
+          organization_id: this.organizationId,
+          email: email.toLowerCase().trim(),
+          name: name || email.split("@")[0],
+          status: "active",
+          created_at: new Date().toISOString(),
+        })
+        .select("id")
+        .single();
+
+      if (customerError) {
+        console.error("Error creating customer:", customerError);
+        return null;
+      }
+
+      if (newCustomer?.id) {
+        this.newClientsCreated++;
+      }
+      return newCustomer?.id || null;
     }
 
-    if (newCustomer?.id) {
+    if (newClient?.id) {
       this.newClientsCreated++;
     }
 
-    return newCustomer?.id || null;
+    return newClient?.id || null;
   }
 
   // Auto-detect file type based on headers
