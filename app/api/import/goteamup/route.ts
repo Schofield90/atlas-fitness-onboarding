@@ -1,10 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoTeamUpImporter, parseCSV } from "@/app/lib/services/goteamup-import";
 import { createClient } from "@/app/lib/supabase/server";
+import { migrationService } from "@/app/lib/services/migration-service";
 
 export const maxDuration = 60; // Set max duration to 60 seconds for Vercel
 
+// Background job processing for large imports
 export async function POST(request: NextRequest) {
+  return handleImportRequest(request, false); // Direct processing
+}
+
+// New endpoint for background processing
+export async function PUT(request: NextRequest) {
+  return handleImportRequest(request, true); // Background processing
+}
+
+async function handleImportRequest(
+  request: NextRequest,
+  useBackgroundProcessing: boolean,
+) {
   console.log("GoTeamUp import endpoint called");
 
   try {
@@ -121,26 +135,81 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Import data
-    let result;
-    if (importType === "payments") {
-      result = await importer.importPayments(rows);
-    } else if (importType === "attendance") {
-      result = await importer.importAttendance(rows);
-    } else {
-      return NextResponse.json(
-        { error: "Invalid import type" },
-        { status: 400 },
-      );
-    }
+    // Check if we should use background processing for large files
+    const shouldUseBackground = useBackgroundProcessing || rows.length > 100;
 
-    return NextResponse.json({
-      success: result.success,
-      message: result.message,
-      stats: result.stats,
-      errors: result.errors,
-      type: importType,
-    });
+    if (shouldUseBackground) {
+      // Create migration job for background processing
+      const jobId = await migrationService.createMigrationJob(
+        {
+          organizationId,
+          name: `GoTeamUp ${importType} Import - ${file.name}`,
+          description: `Importing ${rows.length} records from ${file.name}`,
+          sourcePlatform: "goteamup",
+          settings: {
+            skipDuplicates: true,
+            validateData: true,
+            createBackup: false,
+            batchSize: 50,
+          },
+        },
+        userId,
+      );
+
+      // Create temporary file for processing
+      const tempFile = new File([fileContent], file.name, { type: "text/csv" });
+
+      // Upload file to migration system
+      await migrationService.uploadMigrationFiles(
+        jobId,
+        [tempFile],
+        organizationId,
+      );
+
+      // Start background processing
+      await processGoTeamUpImportInBackground(
+        jobId,
+        organizationId,
+        rows,
+        importType,
+      );
+
+      return NextResponse.json({
+        success: true,
+        message: `Import started in background. Processing ${rows.length} records.`,
+        stats: {
+          total: rows.length,
+          success: 0,
+          errors: 0,
+          skipped: 0,
+        },
+        jobId,
+        type: importType,
+        backgroundProcessing: true,
+      });
+    } else {
+      // Direct processing for small files
+      let result;
+      if (importType === "payments") {
+        result = await importer.importPayments(rows);
+      } else if (importType === "attendance") {
+        result = await importer.importAttendance(rows);
+      } else {
+        return NextResponse.json(
+          { error: "Invalid import type" },
+          { status: 400 },
+        );
+      }
+
+      return NextResponse.json({
+        success: result.success,
+        message: result.message,
+        stats: result.stats,
+        errors: result.errors,
+        type: importType,
+        backgroundProcessing: false,
+      });
+    }
   } catch (error: any) {
     console.error("Import error:", error);
 
@@ -213,4 +282,110 @@ function parseCSVLine(line: string): string[] {
 
   result.push(current.trim());
   return result.map((cell) => cell.replace(/^"|"$/g, ""));
+}
+
+// Background processing function for GoTeamUp imports
+async function processGoTeamUpImportInBackground(
+  jobId: string,
+  organizationId: string,
+  rows: any[],
+  importType: string,
+) {
+  try {
+    const supabase = await createClient();
+
+    // Update job status to processing
+    await supabase
+      .from("migration_jobs")
+      .update({
+        status: "processing",
+        started_at: new Date().toISOString(),
+        total_records: rows.length,
+      })
+      .eq("id", jobId);
+
+    // Create progress tracking callback
+    let lastProgress = { processed: 0, success: 0, errors: 0, skipped: 0 };
+
+    const progressCallback = async (progress: any) => {
+      // Update progress every 10 records to avoid too many database calls
+      if (
+        progress.processed - lastProgress.processed >= 10 ||
+        progress.processed === progress.total
+      ) {
+        await supabase
+          .from("migration_jobs")
+          .update({
+            processed_records: progress.processed,
+            successful_imports: progress.success,
+            failed_imports: progress.errors,
+            progress_percentage: Math.round(
+              (progress.processed / progress.total) * 100,
+            ),
+          })
+          .eq("id", jobId);
+
+        lastProgress = { ...progress };
+      }
+    };
+
+    // Create importer with progress callback
+    const importer = new GoTeamUpImporter(
+      supabase,
+      organizationId,
+      progressCallback,
+      true,
+    );
+
+    // Process the import
+    let result;
+    if (importType === "payments") {
+      result = await importer.importPayments(rows, 50); // Use batch size of 50
+    } else if (importType === "attendance") {
+      result = await importer.importAttendance(rows, 50);
+    } else {
+      throw new Error("Invalid import type");
+    }
+
+    // Update final job status
+    await supabase
+      .from("migration_jobs")
+      .update({
+        status: result.success ? "completed" : "failed",
+        completed_at: new Date().toISOString(),
+        processed_records: result.stats.total,
+        successful_imports: result.stats.success,
+        failed_imports: result.stats.errors,
+        progress_percentage: 100,
+        error_message: result.success ? null : result.message,
+      })
+      .eq("id", jobId);
+
+    // Log any errors
+    if (result.errors && result.errors.length > 0) {
+      for (const error of result.errors) {
+        await supabase.from("migration_logs").insert({
+          migration_job_id: jobId,
+          log_level: "error",
+          message: `Row ${error.row}: ${error.error}`,
+          created_at: new Date().toISOString(),
+        });
+      }
+    }
+
+    console.log(`Background import completed for job ${jobId}:`, result.stats);
+  } catch (error) {
+    console.error(`Background import failed for job ${jobId}:`, error);
+
+    // Update job as failed
+    const supabase = await createClient();
+    await supabase
+      .from("migration_jobs")
+      .update({
+        status: "failed",
+        completed_at: new Date().toISOString(),
+        error_message: error instanceof Error ? error.message : "Unknown error",
+      })
+      .eq("id", jobId);
+  }
 }

@@ -94,42 +94,78 @@ export class GoTeamUpImporter {
       return null;
     }
 
+    // Parse name into first_name and last_name
+    const fullName = name || email.split("@")[0];
+    const nameParts = fullName.trim().split(" ");
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || "";
+
     // Create new client in clients table (same table payments use)
-    // Only using minimal fields that should exist
+    // Handle both organization_id and org_id for compatibility
+    const clientData = {
+      organization_id: this.organizationId,
+      org_id: this.organizationId, // Support both for compatibility
+      email: email.toLowerCase().trim(),
+      name: fullName,
+      first_name: firstName,
+      last_name: lastName,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
     const { data: newClient, error } = await this.supabase
       .from("clients")
-      .insert({
-        organization_id: this.organizationId,
-        email: email.toLowerCase().trim(),
-        name: name || email.split("@")[0], // Use name or email prefix as fallback
-        created_at: new Date().toISOString(),
-      })
+      .insert(clientData)
       .select("id")
       .single();
 
     if (error) {
       console.error("Error creating client:", error);
-      // If clients table fails, try customers table as fallback
-      const { data: newCustomer, error: customerError } = await this.supabase
-        .from("customers")
-        .insert({
-          organization_id: this.organizationId,
-          email: email.toLowerCase().trim(),
-          name: name || email.split("@")[0],
-          created_at: new Date().toISOString(),
-        })
+
+      // Try with just the fields that definitely exist
+      const minimalClientData = {
+        organization_id: this.organizationId,
+        email: email.toLowerCase().trim(),
+        name: fullName,
+        created_at: new Date().toISOString(),
+      };
+
+      const { data: minimalClient, error: minimalError } = await this.supabase
+        .from("clients")
+        .insert(minimalClientData)
         .select("id")
         .single();
 
-      if (customerError) {
-        console.error("Error creating customer:", customerError);
-        return null;
+      if (minimalError) {
+        console.error("Error creating minimal client:", minimalError);
+
+        // If clients table fails, try customers table as fallback
+        const { data: newCustomer, error: customerError } = await this.supabase
+          .from("customers")
+          .insert({
+            organization_id: this.organizationId,
+            email: email.toLowerCase().trim(),
+            name: fullName,
+            created_at: new Date().toISOString(),
+          })
+          .select("id")
+          .single();
+
+        if (customerError) {
+          console.error("Error creating customer:", customerError);
+          return null;
+        }
+
+        if (newCustomer?.id) {
+          this.newClientsCreated++;
+        }
+        return newCustomer?.id || null;
       }
 
-      if (newCustomer?.id) {
+      if (minimalClient?.id) {
         this.newClientsCreated++;
       }
-      return newCustomer?.id || null;
+      return minimalClient?.id || null;
     }
 
     if (newClient?.id) {
@@ -163,8 +199,11 @@ export class GoTeamUpImporter {
     return "unknown";
   }
 
-  // Import payments from parsed CSV data
-  public async importPayments(data: any[]): Promise<ImportResult> {
+  // Import payments from parsed CSV data with batch processing
+  public async importPayments(
+    data: any[],
+    batchSize: number = 50,
+  ): Promise<ImportResult> {
     const progress: ImportProgress = {
       total: data.length,
       processed: 0,
@@ -175,82 +214,105 @@ export class GoTeamUpImporter {
 
     const errors: Array<{ row: number; error: string }> = [];
 
-    for (let i = 0; i < data.length; i++) {
-      const row = data[i];
-      progress.processed++;
-      progress.currentItem =
-        row["Client Name"] || row["Name"] || `Row ${i + 1}`;
+    // Process in batches to prevent timeouts
+    for (
+      let batchStart = 0;
+      batchStart < data.length;
+      batchStart += batchSize
+    ) {
+      const batchEnd = Math.min(batchStart + batchSize, data.length);
+      const batch = data.slice(batchStart, batchEnd);
 
-      try {
-        // Find client by email
-        const email = row["Email"] || row["email"];
-        if (!email) {
-          progress.skipped++;
-          errors.push({ row: i + 1, error: "No email found" });
-          continue;
-        }
+      console.log(
+        `Processing payment batch ${Math.floor(batchStart / batchSize) + 1}/${Math.ceil(data.length / batchSize)}`,
+      );
 
-        // Get name from row data
-        const name = row["Client Name"] || row["Name"] || row["Customer"] || "";
+      for (let i = 0; i < batch.length; i++) {
+        const row = batch[i];
+        const globalIndex = batchStart + i;
+        progress.processed++;
+        progress.currentItem =
+          row["Client Name"] || row["Name"] || `Row ${globalIndex + 1}`;
 
-        // Find or create client
-        const clientId = await this.findOrCreateClient(email, name);
+        try {
+          // Find client by email
+          const email = row["Email"] || row["email"];
+          if (!email) {
+            progress.skipped++;
+            errors.push({ row: globalIndex + 1, error: "No email found" });
+            continue;
+          }
 
-        if (!clientId) {
-          progress.skipped++;
-          errors.push({
-            row: i + 1,
-            error: `Could not find or create client: ${email}`,
+          // Get name from row data
+          const name =
+            row["Client Name"] || row["Name"] || row["Customer"] || "";
+
+          // Find or create client
+          const clientId = await this.findOrCreateClient(email, name);
+
+          if (!clientId) {
+            progress.skipped++;
+            errors.push({
+              row: globalIndex + 1,
+              error: `Could not find or create client: ${email}`,
+            });
+            continue;
+          }
+
+          // Parse payment data
+          const paymentDate = this.parseDate(row["Date"] || row["date"] || "");
+          const amount = this.parseAmount(
+            row["Amount"] || row["amount"] || "0",
+          );
+
+          // Check for duplicate
+          const { data: existing } = await this.supabase
+            .from("payments")
+            .select("id")
+            .eq("client_id", clientId)
+            .eq("payment_date", paymentDate)
+            .eq("amount", amount)
+            .single();
+
+          if (existing) {
+            progress.skipped++;
+            continue;
+          }
+
+          // Insert payment - use organization_id consistently
+          const { error } = await this.supabase.from("payments").insert({
+            organization_id: this.organizationId,
+            client_id: clientId,
+            amount: amount,
+            payment_date: paymentDate,
+            payment_method: (row["Payment Method"] || row["Method"] || "card")
+              .toLowerCase()
+              .replace(/\s+/g, "_"),
+            payment_status: (row["Status"] || "paid").toLowerCase(),
+            description: row["Description"] || row["Notes"] || "Payment",
+            payment_type: "membership",
+            created_at: new Date().toISOString(),
           });
-          continue;
-        }
 
-        // Parse payment data
-        const paymentDate = this.parseDate(row["Date"] || row["date"] || "");
-        const amount = this.parseAmount(row["Amount"] || row["amount"] || "0");
-
-        // Check for duplicate
-        const { data: existing } = await this.supabase
-          .from("payments")
-          .select("id")
-          .eq("client_id", clientId)
-          .eq("payment_date", paymentDate)
-          .eq("amount", amount)
-          .single();
-
-        if (existing) {
-          progress.skipped++;
-          continue;
-        }
-
-        // Insert payment
-        const { error } = await this.supabase.from("payments").insert({
-          organization_id: this.organizationId,
-          client_id: clientId,
-          amount: amount,
-          payment_date: paymentDate,
-          payment_method: (row["Payment Method"] || row["Method"] || "card")
-            .toLowerCase()
-            .replace(/\s+/g, "_"),
-          payment_status: (row["Status"] || "paid").toLowerCase(),
-          description: row["Description"] || row["Notes"] || "Payment",
-          payment_type: "membership",
-          created_at: new Date().toISOString(),
-        });
-
-        if (error) {
+          if (error) {
+            progress.errors++;
+            errors.push({ row: globalIndex + 1, error: error.message });
+          } else {
+            progress.success++;
+          }
+        } catch (error: any) {
           progress.errors++;
-          errors.push({ row: i + 1, error: error.message });
-        } else {
-          progress.success++;
+          errors.push({ row: globalIndex + 1, error: error.message });
         }
-      } catch (error: any) {
-        progress.errors++;
-        errors.push({ row: i + 1, error: error.message });
+
+        if (this.progressCallback) {
+          this.progressCallback(progress);
+        }
       }
 
-      if (this.progressCallback) {
-        this.progressCallback(progress);
+      // Small delay between batches to prevent overwhelming the database
+      if (batchStart + batchSize < data.length) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
     }
 
@@ -273,8 +335,11 @@ export class GoTeamUpImporter {
     };
   }
 
-  // Import attendance from parsed CSV data
-  public async importAttendance(data: any[]): Promise<ImportResult> {
+  // Import attendance from parsed CSV data with batch processing
+  public async importAttendance(
+    data: any[],
+    batchSize: number = 50,
+  ): Promise<ImportResult> {
     const progress: ImportProgress = {
       total: data.length,
       processed: 0,
@@ -285,100 +350,152 @@ export class GoTeamUpImporter {
 
     const errors: Array<{ row: number; error: string }> = [];
 
-    for (let i = 0; i < data.length; i++) {
-      const row = data[i];
-      progress.processed++;
-      progress.currentItem =
-        row["Customer"] || row["Client Name"] || row["Name"] || `Row ${i + 1}`;
+    // Process in batches to prevent timeouts
+    for (
+      let batchStart = 0;
+      batchStart < data.length;
+      batchStart += batchSize
+    ) {
+      const batchEnd = Math.min(batchStart + batchSize, data.length);
+      const batch = data.slice(batchStart, batchEnd);
 
-      try {
-        // Find customer by email
-        const email = row["Email"] || row["email"];
-        if (!email) {
-          progress.skipped++;
-          errors.push({ row: i + 1, error: "No email found" });
-          continue;
-        }
+      console.log(
+        `Processing attendance batch ${Math.floor(batchStart / batchSize) + 1}/${Math.ceil(data.length / batchSize)}`,
+      );
 
-        // Get name from row data
-        const name = row["Customer"] || row["Client Name"] || row["Name"] || "";
+      for (let i = 0; i < batch.length; i++) {
+        const row = batch[i];
+        const globalIndex = batchStart + i;
+        progress.processed++;
+        progress.currentItem =
+          row["Customer"] ||
+          row["Client Name"] ||
+          row["Name"] ||
+          `Row ${globalIndex + 1}`;
 
-        // Find or create customer
-        const customerId = await this.findOrCreateClient(email, name);
+        try {
+          // Find customer by email
+          const email = row["Email"] || row["email"];
+          if (!email) {
+            progress.skipped++;
+            errors.push({ row: globalIndex + 1, error: "No email found" });
+            continue;
+          }
 
-        if (!customerId) {
-          progress.skipped++;
-          errors.push({
-            row: i + 1,
-            error: `Could not find or create customer: ${email}`,
+          // Get name from row data
+          const name =
+            row["Customer"] || row["Client Name"] || row["Name"] || "";
+
+          // Find or create customer
+          const customerId = await this.findOrCreateClient(email, name);
+
+          if (!customerId) {
+            progress.skipped++;
+            errors.push({
+              row: globalIndex + 1,
+              error: `Could not find or create customer: ${email}`,
+            });
+            continue;
+          }
+
+          // Parse attendance data
+          const bookingDate = this.parseDate(row["Date"] || row["date"] || "");
+          const bookingTime = row["Time"] || row["time"] || "09:00";
+          const className =
+            row["Class Type"] ||
+            row["Class Name"] ||
+            row["Class"] ||
+            row["Session"] ||
+            "Class";
+          const instructor =
+            row["Instructors"] ||
+            row["Instructor"] ||
+            row["Trainer"] ||
+            "Staff";
+          const venue = row["Venue"] || "";
+          const status = row["Status"] || "Registered";
+
+          // Create datetime strings for session matching
+          const sessionStartTime = `${bookingDate}T${bookingTime}:00`;
+          const sessionEndTime = this.calculateEndTime(
+            sessionStartTime,
+            className,
+          );
+
+          // Auto-create or find class session
+          let sessionId = await this.findOrCreateClassSession({
+            organizationId: this.organizationId,
+            className,
+            instructor,
+            venue,
+            startTime: sessionStartTime,
+            endTime: sessionEndTime,
+            date: bookingDate,
           });
-          continue;
-        }
 
-        // Parse attendance data
-        const bookingDate = this.parseDate(row["Date"] || row["date"] || "");
-        const bookingTime = row["Time"] || row["time"] || "09:00";
-        const className =
-          row["Class Type"] ||
-          row["Class Name"] ||
-          row["Class"] ||
-          row["Session"] ||
-          "Class";
-        const instructor =
-          row["Instructors"] || row["Instructor"] || row["Trainer"] || "Staff";
-        const venue = row["Venue"] || "";
-        const status = row["Status"] || "Registered";
+          // Check for duplicate booking
+          const { data: existing } = await this.supabase
+            .from("class_bookings")
+            .select("id")
+            .eq("customer_id", customerId)
+            .eq("booking_date", bookingDate)
+            .eq("booking_time", bookingTime)
+            .single();
 
-        // Check for duplicate
-        const { data: existing } = await this.supabase
-          .from("class_bookings")
-          .select("id")
-          .eq("customer_id", customerId)
-          .eq("booking_date", bookingDate)
-          .eq("booking_time", bookingTime)
-          .single();
+          if (existing) {
+            progress.skipped++;
+            continue;
+          }
 
-        if (existing) {
-          progress.skipped++;
-          continue;
-        }
+          // Determine booking status based on Status field
+          const bookingStatus =
+            status.toLowerCase() === "attended" ? "completed" : "confirmed";
+          const attendedAt =
+            status.toLowerCase() === "attended" ? sessionStartTime : null;
 
-        // Determine booking status based on Status field
-        const bookingStatus =
-          status.toLowerCase() === "attended" ? "completed" : "confirmed";
-        const attendedAt =
-          status.toLowerCase() === "attended"
-            ? `${bookingDate}T${bookingTime}:00`
-            : null;
+          // Insert attendance with session reference
+          const bookingData: any = {
+            organization_id: this.organizationId,
+            client_id: customerId, // Still required for legacy
+            customer_id: customerId,
+            booking_date: bookingDate,
+            booking_time: bookingTime,
+            booking_status: bookingStatus,
+            booking_type: "attendance_import",
+            attended_at: attendedAt,
+            notes: `${className} - ${instructor} - ${venue}`,
+            payment_status: "succeeded",
+            created_at: new Date().toISOString(),
+          };
 
-        // Insert attendance
-        const { error } = await this.supabase.from("class_bookings").insert({
-          organization_id: this.organizationId,
-          client_id: customerId, // Still required for legacy
-          customer_id: customerId,
-          booking_date: bookingDate,
-          booking_time: bookingTime,
-          booking_status: bookingStatus,
-          booking_type: "attendance_import",
-          attended_at: attendedAt,
-          notes: `${className} - ${instructor} - ${venue}`,
-          payment_status: "succeeded",
-          created_at: new Date().toISOString(),
-        });
+          // Add session reference if created
+          if (sessionId) {
+            bookingData.class_session_id = sessionId;
+          }
 
-        if (error) {
+          const { error } = await this.supabase
+            .from("class_bookings")
+            .insert(bookingData);
+
+          if (error) {
+            progress.errors++;
+            errors.push({ row: globalIndex + 1, error: error.message });
+          } else {
+            progress.success++;
+          }
+        } catch (error: any) {
           progress.errors++;
-          errors.push({ row: i + 1, error: error.message });
-        } else {
-          progress.success++;
+          errors.push({ row: globalIndex + 1, error: error.message });
         }
-      } catch (error: any) {
-        progress.errors++;
-        errors.push({ row: i + 1, error: error.message });
+
+        if (this.progressCallback) {
+          this.progressCallback(progress);
+        }
       }
 
-      if (this.progressCallback) {
-        this.progressCallback(progress);
+      // Small delay between batches to prevent overwhelming the database
+      if (batchStart + batchSize < data.length) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
     }
 
@@ -468,6 +585,106 @@ export class GoTeamUpImporter {
           console.log("Statistics update skipped for client:", client.id);
         }
       }
+    }
+  }
+
+  // Helper to calculate end time for a session based on class type
+  private calculateEndTime(startTime: string, className: string): string {
+    const start = new Date(startTime);
+    let durationMinutes = 60; // Default 1 hour
+
+    // Estimate duration based on class name patterns
+    const classNameLower = className.toLowerCase();
+    if (classNameLower.includes("yoga") || classNameLower.includes("stretch")) {
+      durationMinutes = 75;
+    } else if (
+      classNameLower.includes("hiit") ||
+      classNameLower.includes("bootcamp")
+    ) {
+      durationMinutes = 45;
+    } else if (
+      classNameLower.includes("spin") ||
+      classNameLower.includes("cycle")
+    ) {
+      durationMinutes = 45;
+    } else if (classNameLower.includes("pilates")) {
+      durationMinutes = 55;
+    }
+
+    const endTime = new Date(start.getTime() + durationMinutes * 60000);
+    return endTime.toISOString();
+  }
+
+  // Helper to find or create a class session
+  private async findOrCreateClassSession({
+    organizationId,
+    className,
+    instructor,
+    venue,
+    startTime,
+    endTime,
+    date,
+  }: {
+    organizationId: string;
+    className: string;
+    instructor: string;
+    venue: string;
+    startTime: string;
+    endTime: string;
+    date: string;
+  }): Promise<string | null> {
+    try {
+      // First try to find existing session within 15 minutes of the start time
+      const startBuffer = new Date(
+        new Date(startTime).getTime() - 15 * 60000,
+      ).toISOString();
+      const endBuffer = new Date(
+        new Date(startTime).getTime() + 15 * 60000,
+      ).toISOString();
+
+      const { data: existingSession } = await this.supabase
+        .from("class_sessions")
+        .select("id")
+        .eq("organization_id", organizationId)
+        .gte("start_time", startBuffer)
+        .lte("start_time", endBuffer)
+        .single();
+
+      if (existingSession) {
+        return existingSession.id;
+      }
+
+      // Create new session if not found
+      const sessionData = {
+        organization_id: organizationId,
+        name: className,
+        description: `Imported from GoTeamUp - ${instructor}`,
+        start_time: startTime,
+        end_time: endTime,
+        max_capacity: 20, // Default capacity
+        current_bookings: 0,
+        status: "completed", // Mark as completed since it's historical data
+        location: venue || null,
+        instructor_notes: `Instructor: ${instructor}`,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const { data: newSession, error } = await this.supabase
+        .from("class_sessions")
+        .insert(sessionData)
+        .select("id")
+        .single();
+
+      if (error) {
+        console.error("Error creating class session:", error);
+        return null;
+      }
+
+      return newSession?.id || null;
+    } catch (error) {
+      console.error("Error in findOrCreateClassSession:", error);
+      return null;
     }
   }
 }
