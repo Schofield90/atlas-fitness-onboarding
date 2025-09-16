@@ -221,13 +221,24 @@ export default function CustomerProfilePage() {
 
   const loadPayments = async () => {
     try {
+      console.log("Loading payments for customerId:", customerId);
+
       const { data, error } = await supabase
         .from("payment_transactions")
         .select("*")
-        .or(`customer_id.eq.${customerId},client_id.eq.${customerId}`)
+        .eq("customer_id", customerId)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Payment query error:", error);
+        throw error;
+      }
+
+      console.log("Loaded payments:", data?.length || 0, "records");
+      if (data && data.length > 0) {
+        console.log("Sample payment:", data[0]);
+      }
+
       setPayments(data || []);
     } catch (error) {
       console.error("Error loading payments:", error);
