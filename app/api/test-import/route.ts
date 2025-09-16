@@ -1,25 +1,59 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/app/lib/supabase/server";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+import type { Database } from "@/app/lib/supabase/database.types";
 
 export async function GET(request: NextRequest) {
   console.log("Test import endpoint called");
 
   try {
-    // Check authentication
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        {
-          error: "Not authenticated",
-          details: authError?.message,
+    // Check authentication with simple server client
+    const cookieStore = await cookies();
+    const supabase = createServerClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            const cookie = cookieStore.get(name);
+            console.log(
+              `Looking for cookie ${name}:`,
+              cookie ? "found" : "not found",
+            );
+            return cookie?.value;
+          },
+          set(name: string, value: string, options: any) {},
+          remove(name: string, options: any) {},
         },
-        { status: 401 },
-      );
+      },
+    );
+
+    // Try to get session first
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
+
+    let user = session?.user;
+
+    if (!user) {
+      // Fallback to getUser if no session
+      const {
+        data: { user: fallbackUser },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !fallbackUser) {
+        return NextResponse.json(
+          {
+            error: "Not authenticated",
+            details: authError?.message || sessionError?.message,
+          },
+          { status: 401 },
+        );
+      }
+
+      user = fallbackUser;
     }
 
     // Check organization membership
