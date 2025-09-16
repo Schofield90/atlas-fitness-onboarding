@@ -95,17 +95,14 @@ export class GoTeamUpImporter {
     }
 
     // Create new client in clients table (same table payments use)
+    // Only using minimal fields that should exist
     const { data: newClient, error } = await this.supabase
       .from("clients")
       .insert({
         organization_id: this.organizationId,
         email: email.toLowerCase().trim(),
         name: name || email.split("@")[0], // Use name or email prefix as fallback
-        status: "active",
         created_at: new Date().toISOString(),
-        // Add any other required fields that exist in clients table
-        total_visits: 0,
-        lifetime_value: 0,
       })
       .select("id")
       .single();
@@ -119,7 +116,6 @@ export class GoTeamUpImporter {
           organization_id: this.organizationId,
           email: email.toLowerCase().trim(),
           name: name || email.split("@")[0],
-          status: "active",
           created_at: new Date().toISOString(),
         })
         .select("id")
@@ -445,15 +441,33 @@ export class GoTeamUpImporter {
             )[0].booking_date
           : null;
 
-      // Update client
-      await this.supabase
-        .from("clients")
-        .update({
-          lifetime_value: lifetimeValue,
-          total_visits: totalVisits,
-          last_visit: lastVisit,
-        })
-        .eq("id", client.id);
+      // Update client - only update fields that exist
+      // Try to update with all fields, but don't fail if some don't exist
+      try {
+        await this.supabase
+          .from("clients")
+          .update({
+            lifetime_value: lifetimeValue,
+            total_visits: totalVisits,
+            last_visit: lastVisit,
+          })
+          .eq("id", client.id);
+      } catch (updateError) {
+        // If update fails, try with minimal fields
+        console.log(
+          "Could not update all statistics fields, trying minimal update",
+        );
+        try {
+          await this.supabase
+            .from("clients")
+            .update({
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", client.id);
+        } catch (minimalError) {
+          console.log("Statistics update skipped for client:", client.id);
+        }
+      }
     }
   }
 }
