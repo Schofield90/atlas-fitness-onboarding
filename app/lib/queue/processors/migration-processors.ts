@@ -24,38 +24,99 @@ export async function processClients({
       try {
         const sourceData = record.source_data;
 
-        // Extract client data from the source
-        // Parse name into first and last
+        // Extract client data from the source - Handle GoTeamUp format
+        // Parse name - GoTeamUp uses "Full Name", "First Name", "Last Name"
         const fullName =
+          sourceData["Full Name"] ||
           sourceData.Name ||
           sourceData.name ||
           `${sourceData["First Name"] || ""} ${sourceData["Last Name"] || ""}`.trim() ||
           "Unknown Client";
 
-        const nameParts = fullName.split(" ");
-        const firstName = nameParts[0] || "";
-        const lastName = nameParts.slice(1).join(" ") || "";
+        const firstName =
+          sourceData["First Name"] ||
+          sourceData.FirstName ||
+          fullName.split(" ")[0] ||
+          "";
+        const lastName =
+          sourceData["Last Name"] ||
+          sourceData.LastName ||
+          fullName.split(" ").slice(1).join(" ") ||
+          "";
+
+        // Extract membership information
+        const activeMembership = sourceData["Active Memberships"] || "";
+        const onHoldMembership = sourceData["On Hold Memberships"] || "";
+        const inactiveMembership = sourceData["Inactive Memberships"] || "";
+
+        // Combine membership info into notes
+        const membershipInfo = [];
+        if (activeMembership)
+          membershipInfo.push(`Active: ${activeMembership}`);
+        if (onHoldMembership)
+          membershipInfo.push(`On Hold: ${onHoldMembership}`);
+        if (inactiveMembership)
+          membershipInfo.push(`Inactive: ${inactiveMembership}`);
+
+        const membershipNotes =
+          membershipInfo.length > 0
+            ? `Memberships: ${membershipInfo.join(", ")}`
+            : "";
+
+        // Extract address information
+        const addressInfo = {
+          address_line_1: sourceData["Address Line 1"] || "",
+          address_line_2: sourceData["Address Line 2"] || "",
+          city: sourceData["City"] || "",
+          region: sourceData["Region"] || "",
+          postcode: sourceData["Postcode"] || "",
+          country: sourceData["Country"] || "",
+        };
 
         const clientData = {
           organization_id: organizationId,
           org_id: organizationId, // Both fields for compatibility
           name: fullName,
-          first_name:
-            sourceData["First Name"] || sourceData.FirstName || firstName,
-          last_name: sourceData["Last Name"] || sourceData.LastName || lastName,
-          email: sourceData.Email || sourceData.email || null,
+          first_name: firstName,
+          last_name: lastName,
+          email: sourceData["Email"] || sourceData.email || null,
           phone:
-            sourceData.Phone || sourceData.phone || sourceData.Mobile || null,
-          date_of_birth: sourceData.DOB || sourceData["Date of Birth"] || null,
-          emergency_contact_name: sourceData["Emergency Contact"] || null,
-          emergency_contact_phone: sourceData["Emergency Phone"] || null,
+            sourceData["Phone"] ||
+            sourceData.phone ||
+            sourceData.Mobile ||
+            null,
+          date_of_birth:
+            sourceData["DOB"] || sourceData["Date of Birth"] || null,
+          gender: sourceData["Gender"] || null,
+          emergency_contact_name:
+            sourceData["Emergency Contact Name"] ||
+            sourceData["Emergency Contact"] ||
+            null,
+          emergency_contact_phone:
+            sourceData["Emergency Contact Phone"] ||
+            sourceData["Emergency Phone"] ||
+            null,
           medical_notes: sourceData["Medical Conditions"] || null,
-          notes: sourceData.Notes || sourceData.notes || null,
+          notes:
+            membershipNotes || sourceData.Notes || sourceData.notes || null,
           source: "migration",
           client_type: "gym_member",
-          status: sourceData.Status === "Inactive" ? "inactive" : "active",
+          status: sourceData["Status"] === "inactive" ? "inactive" : "active",
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
+          // Store address in metadata as clients table doesn't have address fields
+          metadata: {
+            address: addressInfo,
+            join_date: sourceData["Join Date"] || null,
+            active_membership: activeMembership || null,
+            on_hold_membership: onHoldMembership || null,
+            inactive_membership: inactiveMembership || null,
+            registrations: sourceData["# Registrations"] || null,
+            attendances: sourceData["# Attendances"] || null,
+            last_payment_amount:
+              sourceData["Last Payment Amount (GBP)"] || null,
+            last_payment_date: sourceData["Last Payment Date"] || null,
+          },
         };
 
         // Check if client with same email already exists
