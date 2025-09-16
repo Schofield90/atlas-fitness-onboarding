@@ -26,9 +26,10 @@ interface ImportError {
   error: string;
 }
 
-interface MonthlyChunk {
-  month: string;
-  year: number;
+interface WeeklyChunk {
+  week: string;
+  startDate: string;
+  endDate: string;
   rows: string[][];
   count: number;
 }
@@ -46,13 +47,13 @@ export default function ImportPage() {
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState<boolean | null>(null);
   const [showChunkDialog, setShowChunkDialog] = useState(false);
-  const [chunks, setChunks] = useState<MonthlyChunk[]>([]);
+  const [chunks, setChunks] = useState<WeeklyChunk[]>([]);
   const [currentChunk, setCurrentChunk] = useState(0);
   const [totalRows, setTotalRows] = useState(0);
   const [headers, setHeaders] = useState<string[]>([]);
   const [rawData, setRawData] = useState<string[][]>([]);
 
-  const CHUNK_SIZE_LIMIT = 500; // Rows per chunk for safety
+  const CHUNK_SIZE_LIMIT = 200; // Reduced to 200 rows per chunk for better processing
 
   const parseCSVData = (text: string): string[][] => {
     const lines = text.split("\n").filter((line) => line.trim());
@@ -80,21 +81,19 @@ export default function ImportPage() {
     });
   };
 
-  const splitByMonth = (
-    data: string[][],
-    headers: string[],
-  ): MonthlyChunk[] => {
+  const splitByWeek = (data: string[][], headers: string[]): WeeklyChunk[] => {
     const dateIndex = headers.findIndex((h) =>
       h.toLowerCase().includes("date"),
     );
 
     if (dateIndex === -1) {
       // If no date column, split by fixed size
-      const chunks: MonthlyChunk[] = [];
+      const chunks: WeeklyChunk[] = [];
       for (let i = 0; i < data.length; i += CHUNK_SIZE_LIMIT) {
         chunks.push({
-          month: `Batch ${chunks.length + 1}`,
-          year: 0,
+          week: `Batch ${chunks.length + 1}`,
+          startDate: "",
+          endDate: "",
           rows: data.slice(i, Math.min(i + CHUNK_SIZE_LIMIT, data.length)),
           count: Math.min(CHUNK_SIZE_LIMIT, data.length - i),
         });
@@ -102,54 +101,70 @@ export default function ImportPage() {
       return chunks;
     }
 
-    // Group by month/year
-    const monthGroups = new Map<string, string[][]>();
+    // Group by week
+    const weekGroups = new Map<string, { rows: string[][]; dates: Date[] }>();
 
     for (const row of data) {
       const dateStr = row[dateIndex];
       if (!dateStr) continue;
 
-      // Parse date (handle DD/MM/YYYY and YYYY-MM-DD formats)
-      let month: number, year: number;
+      let date: Date | null = null;
 
+      // Parse date (handle DD/MM/YYYY format)
       if (dateStr.includes("/")) {
         const parts = dateStr.split("/");
         if (parts.length === 3) {
-          month = parseInt(parts[1]);
-          year = parseInt(parts[2]);
-        } else continue;
+          const day = parseInt(parts[0]);
+          const month = parseInt(parts[1]);
+          const year = parseInt(parts[2]);
+          // Check if it's DD/MM/YYYY or MM/DD/YYYY
+          if (day > 12 && month <= 12) {
+            // Definitely DD/MM/YYYY
+            date = new Date(year, month - 1, day);
+          } else if (month > 12 && day <= 12) {
+            // Definitely MM/DD/YYYY
+            date = new Date(year, day - 1, month);
+          } else {
+            // Assume DD/MM/YYYY as default for UK format
+            date = new Date(year, month - 1, day);
+          }
+        }
       } else if (dateStr.includes("-")) {
-        const parts = dateStr.split("-");
-        if (parts.length === 3) {
-          year = parseInt(parts[0]);
-          month = parseInt(parts[1]);
-        } else continue;
-      } else {
-        continue;
+        // ISO format YYYY-MM-DD
+        date = new Date(dateStr);
       }
 
-      const key = `${year}-${month.toString().padStart(2, "0")}`;
-      if (!monthGroups.has(key)) {
-        monthGroups.set(key, []);
+      if (!date || isNaN(date.getTime())) continue;
+
+      // Get week key (Sunday-based week)
+      const weekStart = new Date(date);
+      weekStart.setDate(date.getDate() - date.getDay()); // Move to Sunday
+      const weekKey = weekStart.toISOString().split("T")[0];
+
+      if (!weekGroups.has(weekKey)) {
+        weekGroups.set(weekKey, { rows: [], dates: [] });
       }
-      monthGroups.get(key)!.push(row);
+      const group = weekGroups.get(weekKey)!;
+      group.rows.push(row);
+      group.dates.push(date);
     }
 
     // Convert to chunks
-    const chunks: MonthlyChunk[] = [];
-    const sortedKeys = Array.from(monthGroups.keys()).sort();
+    const chunks: WeeklyChunk[] = [];
+    const sortedKeys = Array.from(weekGroups.keys()).sort();
 
     for (const key of sortedKeys) {
-      const [year, month] = key.split("-").map(Number);
-      const monthName = new Date(year, month - 1).toLocaleString("default", {
-        month: "long",
-      });
+      const group = weekGroups.get(key)!;
+      const startDate = new Date(key);
+      const endDate = new Date(key);
+      endDate.setDate(endDate.getDate() + 6);
 
       chunks.push({
-        month: monthName,
-        year: year,
-        rows: monthGroups.get(key)!,
-        count: monthGroups.get(key)!.length,
+        week: `Week of ${startDate.toLocaleDateString("en-GB")}`,
+        startDate: startDate.toLocaleDateString("en-GB"),
+        endDate: endDate.toLocaleDateString("en-GB"),
+        rows: group.rows,
+        count: group.rows.length,
       });
     }
 
@@ -198,8 +213,8 @@ export default function ImportPage() {
 
         // Check if file is large and needs chunking
         if (data.length > CHUNK_SIZE_LIMIT) {
-          const monthlyChunks = splitByMonth(data, headers);
-          setChunks(monthlyChunks);
+          const weeklyChunks = splitByWeek(data, headers);
+          setChunks(weeklyChunks);
           setShowChunkDialog(true);
         }
       }
@@ -237,7 +252,7 @@ export default function ImportPage() {
         for (let i = 0; i < chunks.length; i++) {
           setCurrentChunk(i);
           setMessage(
-            `Processing ${chunks[i].month} ${chunks[i].year} (${i + 1}/${chunks.length})...`,
+            `Processing ${chunks[i].week} (${i + 1}/${chunks.length})...`,
           );
 
           // Create CSV content for this chunk
@@ -248,7 +263,7 @@ export default function ImportPage() {
 
           const chunkFile = new File(
             [chunkContent],
-            `${file.name}-${chunks[i].month}-${chunks[i].year}.csv`,
+            `${file.name}-week-${i + 1}.csv`,
             {
               type: "text/csv",
             },
@@ -277,7 +292,7 @@ export default function ImportPage() {
           } else if (response.status === 504) {
             // Timeout on chunk - try to split it further
             setMessage(
-              `Chunk for ${chunks[i].month} ${chunks[i].year} is still too large. Please try a smaller date range.`,
+              `Chunk for ${chunks[i].week} is still too large. Please try a smaller date range or contact support.`,
             );
             setSuccess(false);
             return;
@@ -289,7 +304,7 @@ export default function ImportPage() {
         setSuccess(true);
         setStats(totalStats);
         setMessage(
-          `Import completed successfully for all ${chunks.length} months`,
+          `Import completed successfully for all ${chunks.length} weeks`,
         );
         if (allErrors.length > 0) {
           setErrors(allErrors.slice(0, 10)); // Show first 10 errors
@@ -316,12 +331,12 @@ export default function ImportPage() {
           }
         } else if (response.status === 504) {
           // Suggest chunking
-          const monthlyChunks = splitByMonth(rawData, headers);
-          setChunks(monthlyChunks);
+          const weeklyChunks = splitByWeek(rawData, headers);
+          setChunks(weeklyChunks);
           setShowChunkDialog(true);
           setSuccess(false);
           setMessage(
-            "File is too large to process. Would you like to split it by month?",
+            "File is too large to process. Would you like to split it by week?",
           );
         } else {
           setSuccess(false);
@@ -358,7 +373,7 @@ export default function ImportPage() {
                   </h3>
                   <p className="text-gray-600 text-sm">
                     Your file contains {totalRows} rows which may take too long
-                    to process. We recommend splitting it by month for faster
+                    to process. We recommend splitting it by week for faster
                     processing.
                   </p>
                 </div>
@@ -367,7 +382,7 @@ export default function ImportPage() {
               {chunks.length > 0 && (
                 <div className="mb-4">
                   <p className="text-sm font-medium mb-2">
-                    Data will be split into {chunks.length} chunks:
+                    Data will be split into {chunks.length} weekly chunks:
                   </p>
                   <div className="max-h-40 overflow-y-auto bg-gray-50 rounded p-2">
                     {chunks.map((chunk, i) => (
@@ -375,9 +390,7 @@ export default function ImportPage() {
                         key={i}
                         className="flex justify-between text-sm py-1"
                       >
-                        <span>
-                          {chunk.month} {chunk.year}
-                        </span>
+                        <span>{chunk.week}</span>
                         <span className="text-gray-500">
                           {chunk.count} rows
                         </span>
@@ -394,7 +407,7 @@ export default function ImportPage() {
                   disabled={importing}
                 >
                   <Calendar className="w-4 h-4 mr-2" />
-                  Split by Month
+                  Split by Week
                 </button>
                 <button
                   onClick={() => {
@@ -477,17 +490,17 @@ export default function ImportPage() {
                   </p>
                   <p className="text-yellow-700">
                     This file contains {totalRows} rows. For best results, we
-                    recommend splitting by month.
+                    recommend splitting by week.
                   </p>
                   <button
                     onClick={() => {
-                      const monthlyChunks = splitByMonth(rawData, headers);
-                      setChunks(monthlyChunks);
+                      const weeklyChunks = splitByWeek(rawData, headers);
+                      setChunks(weeklyChunks);
                       setShowChunkDialog(true);
                     }}
                     className="mt-2 text-yellow-800 underline hover:no-underline"
                   >
-                    Split by month now →
+                    Split by week now →
                   </button>
                 </div>
               </div>
@@ -531,10 +544,7 @@ export default function ImportPage() {
             {importing && chunks.length > 1 && (
               <div className="mb-4">
                 <div className="flex justify-between text-sm mb-1">
-                  <span>
-                    Processing {chunks[currentChunk]?.month}{" "}
-                    {chunks[currentChunk]?.year}
-                  </span>
+                  <span>Processing {chunks[currentChunk]?.week}</span>
                   <span>
                     {currentChunk + 1} of {chunks.length}
                   </span>
@@ -646,8 +656,8 @@ export default function ImportPage() {
           </h3>
           <div className="space-y-2 text-sm text-gray-700">
             <p>
-              <strong>File Size:</strong> Files with more than 500 rows will
-              automatically prompt for monthly splitting
+              <strong>File Size:</strong> Files with more than 200 rows will
+              automatically prompt for weekly splitting
             </p>
             <p>
               <strong>Payments CSV:</strong> Must include columns: Date,
