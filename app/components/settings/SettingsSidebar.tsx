@@ -34,8 +34,8 @@ const settingsNavigation = [
       { name: "Locations", href: "/settings/locations", icon: MapPin },
       { name: "My Staff", href: "/settings/staff", icon: Users },
       {
-        name: "Data Migrations",
-        href: "/settings/migrations/simple",
+        name: "Data Import",
+        href: "/dashboard/import",
         icon: Upload,
       },
       {
