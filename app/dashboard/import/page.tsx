@@ -858,9 +858,9 @@ export default function ImportPage() {
           </h3>
           <div className="space-y-2 text-sm text-gray-700">
             <p>
-              <strong>File Size:</strong> Files with more than 100 rows will
-              automatically use background processing. Files with more than 200
-              rows will prompt for weekly splitting.
+              <strong>File Size:</strong> Files with more than 50 rows will
+              automatically use background processing to prevent timeouts. Files
+              with more than 200 rows will prompt for weekly splitting.
             </p>
             <p>
               <strong>Background Processing:</strong> Large imports run in the

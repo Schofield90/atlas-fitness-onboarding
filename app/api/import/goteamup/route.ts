@@ -136,7 +136,8 @@ async function handleImportRequest(
     }
 
     // Check if we should use background processing for large files
-    const shouldUseBackground = useBackgroundProcessing || rows.length > 100;
+    // Use background processing for files with more than 50 rows to avoid timeouts
+    const shouldUseBackground = useBackgroundProcessing || rows.length > 50;
 
     if (shouldUseBackground) {
       // Create migration job for background processing
@@ -150,7 +151,7 @@ async function handleImportRequest(
             skipDuplicates: true,
             validateData: true,
             createBackup: false,
-            batchSize: 50,
+            batchSize: 25,
           },
         },
         userId,
@@ -340,9 +341,9 @@ async function processGoTeamUpImportInBackground(
     // Process the import
     let result;
     if (importType === "payments") {
-      result = await importer.importPayments(rows, 50); // Use batch size of 50
+      result = await importer.importPayments(rows, 25); // Use smaller batch size
     } else if (importType === "attendance") {
-      result = await importer.importAttendance(rows, 50);
+      result = await importer.importAttendance(rows, 25); // Use smaller batch size
     } else {
       throw new Error("Invalid import type");
     }
