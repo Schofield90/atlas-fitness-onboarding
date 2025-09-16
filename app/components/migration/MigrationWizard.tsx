@@ -24,9 +24,13 @@ import {
 import { Button } from "@/app/components/ui/Button";
 import { Progress } from "@/app/components/ui/progress";
 import { Badge } from "@/app/components/ui/Badge";
+import { migrationAnalytics } from "@/app/lib/analytics/migration-tracker";
+import { migrationExperiments } from "@/app/lib/analytics/ab-testing";
 
 interface MigrationWizardProps {
   organizationId: string;
+  userId: string;
+  organizationSize?: "small" | "medium" | "large";
   onComplete: () => void;
   onCancel: () => void;
 }
@@ -62,6 +66,8 @@ async function generateFilePreview(file: File): Promise<string[]> {
 
 export function MigrationWizard({
   organizationId,
+  userId,
+  organizationSize = "medium",
   onComplete,
   onCancel,
 }: MigrationWizardProps) {
@@ -75,23 +81,57 @@ export function MigrationWizard({
   const [error, setError] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Initialize analytics and A/B testing
+  React.useEffect(() => {
+    // Start migration session tracking
+    migrationAnalytics.startMigrationSession("migration_wizard", {
+      organizationId,
+      organizationSize,
+      userType: "gym_owner", // Could be determined from user profile
+    });
+
+    // Get A/B test variant for wizard flow
+    const wizardVariant = migrationExperiments.getWizardFlowVariant(
+      userId,
+      organizationSize,
+    );
+
+    // Track experiment assignment
+    migrationAnalytics.setABTestVariant("migration_wizard_flow", wizardVariant);
+
+    // Cleanup on unmount
+    return () => {
+      if (currentStep !== "import" && currentStep !== "review") {
+        migrationAnalytics.trackAbandonment(currentStep, "component_unmount");
+      }
+    };
+  }, [organizationId, userId, organizationSize]);
+
   // Step 1: File Upload
   const handleFileUpload = useCallback(
     async (files: FileList) => {
       console.log("handleFileUpload called with files:", files);
+
+      // Track file upload initiation
+      migrationAnalytics.trackFileUpload("click_select", files.length);
+
       setIsLoading(true);
       setError("");
+
+      const uploadStartTime = Date.now();
 
       try {
         const uploads: FileUpload[] = [];
 
         for (let i = 0; i < files.length; i++) {
           const file = files[i];
+          let isValid = true;
+          let errors: string[] = [];
 
           // Validate file
           if (file.size > 100 * 1024 * 1024) {
-            // 100MB
-            throw new Error(`File ${file.name} is too large (max 100MB)`);
+            isValid = false;
+            errors.push(`File too large (max 100MB)`);
           }
 
           if (
@@ -101,9 +141,15 @@ export function MigrationWizard({
               "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             ].includes(file.type)
           ) {
-            throw new Error(
-              `File ${file.name} is not a supported format (CSV/Excel only)`,
-            );
+            isValid = false;
+            errors.push(`Not a supported format (CSV/Excel only)`);
+          }
+
+          // Track file validation
+          migrationAnalytics.trackFileValidation(file, isValid, errors);
+
+          if (!isValid) {
+            throw new Error(`File ${file.name}: ${errors.join(", ")}`);
           }
 
           // Generate preview
@@ -113,12 +159,34 @@ export function MigrationWizard({
 
         setUploadedFiles(uploads);
 
+        // Track successful upload completion
+        const uploadDuration = Date.now() - uploadStartTime;
+        const totalSize = uploads.reduce(
+          (sum, upload) => sum + upload.file.size,
+          0,
+        );
+        migrationAnalytics.trackFileUploadComplete(
+          uploads.length,
+          totalSize,
+          uploadDuration,
+        );
+
         if (!migrationName) {
           const defaultName = `GoTeamUp Migration ${new Date().toLocaleDateString()}`;
           setMigrationName(defaultName);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "File upload failed");
+        const errorMessage =
+          err instanceof Error ? err.message : "File upload failed";
+        setError(errorMessage);
+
+        // Track upload error
+        migrationAnalytics.trackError(
+          "upload_error",
+          errorMessage,
+          true,
+          "show_error_message",
+        );
       } finally {
         setIsLoading(false);
       }
@@ -161,6 +229,17 @@ export function MigrationWizard({
 
       const jobData = await jobResponse.json();
       setMigrationJobId(jobData.jobId);
+
+      // Track analysis start
+      const estimatedRecords = uploadedFiles.reduce(
+        (sum, file) => sum + (file.analysis?.recordCount || 0),
+        0,
+      );
+      migrationAnalytics.trackAnalysisStart(
+        jobData.jobId,
+        uploadedFiles.length,
+        estimatedRecords,
+      );
 
       // Upload files
       const formData = new FormData();
@@ -308,7 +387,6 @@ export function MigrationWizard({
     },
     [onComplete],
   );
-
 
   const renderStepIndicator = () => {
     const steps = [

@@ -5,19 +5,20 @@ import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { 
-  Settings, 
-  Activity, 
-  Users, 
-  CreditCard, 
-  Bell, 
-  Shield, 
+import {
+  Settings,
+  Activity,
+  Users,
+  CreditCard,
+  Bell,
+  Shield,
   Palette,
   Database,
   Plug,
   ArrowRight,
   Check,
-  FileText
+  FileText,
+  Upload
 } from 'lucide-react'
 
 interface SettingsSection {
@@ -123,6 +124,15 @@ export default function SettingsPage() {
       href: '/dashboard/settings/data',
       status: 'incomplete',
       badges: ['Backup', 'Import/Export', 'Retention']
+    },
+    {
+      id: 'import',
+      title: 'GoTeamUp Import',
+      description: 'Import your payment and attendance data from GoTeamUp CSV exports',
+      icon: Upload,
+      href: '/dashboard/import',
+      status: 'incomplete',
+      badges: ['CSV', 'Payments', 'Attendance']
     }
   ]
 
@@ -231,7 +241,7 @@ export default function SettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <Button variant="outline" className="justify-start h-auto p-4" asChild>
               <Link href="/dashboard/settings/organization">
                 <div className="text-left">
@@ -264,6 +274,15 @@ export default function SettingsPage() {
                 <div className="text-left">
                   <div className="font-medium">Connect integrations</div>
                   <div className="text-sm text-gray-500 mt-1">Link your existing tools and services</div>
+                </div>
+              </Link>
+            </Button>
+
+            <Button variant="outline" className="justify-start h-auto p-4" asChild>
+              <Link href="/dashboard/import">
+                <div className="text-left">
+                  <div className="font-medium">Import GoTeamUp data</div>
+                  <div className="text-sm text-gray-500 mt-1">Upload payment and attendance CSV files</div>
                 </div>
               </Link>
             </Button>

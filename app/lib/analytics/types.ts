@@ -1,6 +1,12 @@
 export interface AnalyticsEvent {
   id: string;
-  type: 'pageview' | 'click' | 'scroll' | 'form_submit' | 'custom';
+  type:
+    | "pageview"
+    | "click"
+    | "scroll"
+    | "form_submit"
+    | "custom"
+    | "migration";
   timestamp: string;
   sessionId: string;
   visitorId: string;
@@ -12,6 +18,22 @@ export interface AnalyticsEvent {
   screenResolution: string;
   viewport: string;
   metadata?: Record<string, any>;
+}
+
+// Migration-specific event types
+export interface MigrationEvent extends Omit<AnalyticsEvent, "type"> {
+  type: "migration";
+  migrationSessionId: string;
+  migrationJobId?: string;
+  eventName: string;
+  stage:
+    | "session_start"
+    | "upload"
+    | "analysis"
+    | "mapping"
+    | "import"
+    | "completion";
+  variant?: string; // For A/B testing
 }
 
 export interface AnalyticsOverview {
@@ -84,6 +106,44 @@ export interface RecentEvent {
   type: string;
   path: string;
   device: string;
+}
+
+// Migration funnel metrics
+export interface MigrationFunnelMetrics {
+  sessionsStarted: number;
+  filesUploaded: number;
+  analysisCompleted: number;
+  mappingsReviewed: number;
+  importsCompleted: number;
+  overallSuccessRate: number;
+  stageConversionRates: {
+    uploadConversion: number;
+    analysisConversion: number;
+    mappingConversion: number;
+    importConversion: number;
+  };
+}
+
+// Migration performance metrics
+export interface MigrationPerformanceMetrics {
+  avgUploadTime: number;
+  avgAnalysisTime: number;
+  avgMappingTime: number;
+  avgTotalTime: number;
+  successRate: number;
+  errorRate: number;
+  abandonmentRate: number;
+}
+
+// A/B test result tracking
+export interface ABTestResults {
+  experimentName: string;
+  variant: string;
+  participants: number;
+  conversions: number;
+  conversionRate: number;
+  statisticalSignificance: boolean;
+  confidenceInterval: [number, number];
 }
 
 export interface AnalyticsData {
