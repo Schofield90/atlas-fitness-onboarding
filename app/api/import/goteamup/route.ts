@@ -5,7 +5,7 @@ import { GoTeamUpImporter, parseCSV } from "@/app/lib/services/goteamup-import";
 export async function POST(request: NextRequest) {
   try {
     // Check authentication
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
       error: authError,
