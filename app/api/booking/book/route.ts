@@ -8,7 +8,7 @@ import {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = createClient();
     const body = await request.json();
 
     const {
@@ -49,8 +49,7 @@ export async function POST(request: NextRequest) {
       .eq("class_session_id", classSessionId)
       .eq("status", "confirmed");
 
-    const maxCapacity =
-      classSession.capacity || classSession.max_capacity;
+    const maxCapacity = classSession.capacity || classSession.max_capacity;
     if (bookingCount && bookingCount >= maxCapacity) {
       return NextResponse.json({ error: "Class is full" }, { status: 400 });
     }
@@ -159,7 +158,7 @@ Atlas Fitness Team`;
 
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = createClient();
     const searchParams = request.nextUrl.searchParams;
     const bookingId = searchParams.get("bookingId");
     const customerPhone = searchParams.get("customerPhone");

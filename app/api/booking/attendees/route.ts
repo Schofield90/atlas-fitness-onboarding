@@ -21,7 +21,7 @@ export async function GET(request: Request) {
       console.log("Using admin client for fetching attendees");
     } catch (adminError) {
       console.log("Admin client not available, using regular server client");
-      supabase = await createClient();
+      supabase = createClient();
     }
 
     // Use the unified view to get all bookings regardless of table

@@ -23,7 +23,7 @@ export async function POST(
     log(`Starting attendance import for job ${jobId}`);
 
     // Get current user
-    const supabase = await createClient();
+    const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -84,9 +84,10 @@ export async function POST(
 
     clients?.forEach((client) => {
       // Name variations for matching
-      const fullName = client.name || `${client.first_name} ${client.last_name}`;
+      const fullName =
+        client.name || `${client.first_name} ${client.last_name}`;
       clientByName.set(fullName.toLowerCase(), client.id);
-      
+
       if (client.email) {
         clientByEmail.set(client.email.toLowerCase(), client.id);
       }
@@ -103,25 +104,25 @@ export async function POST(
     for (const row of parseResult.data as any[]) {
       try {
         // Find date column (flexible matching)
-        const dateValue = 
-          row.date || 
-          row["class date"] || 
-          row["attendance date"] || 
+        const dateValue =
+          row.date ||
+          row["class date"] ||
+          row["attendance date"] ||
           row["booking date"] ||
           row.when;
 
         // Find time column
-        const timeValue = 
-          row.time || 
-          row["class time"] || 
-          row["start time"] || 
+        const timeValue =
+          row.time ||
+          row["class time"] ||
+          row["start time"] ||
           row["booking time"];
 
         // Find client name
-        const clientName = 
-          row["client name"] || 
-          row["member name"] || 
-          row["full name"] || 
+        const clientName =
+          row["client name"] ||
+          row["member name"] ||
+          row["full name"] ||
           row.name ||
           row.customer ||
           row.member;
@@ -130,19 +131,16 @@ export async function POST(
         const email = row.email || row["email address"];
 
         // Find class/activity
-        const className = 
-          row["class name"] || 
-          row["class type"] || 
-          row.activity || 
+        const className =
+          row["class name"] ||
+          row["class type"] ||
+          row.activity ||
           row.class ||
           row.service;
 
         // Find status
-        const status = 
-          row.status || 
-          row["attendance status"] || 
-          row.attended ||
-          "attended";
+        const status =
+          row.status || row["attendance status"] || row.attended || "attended";
 
         if (!dateValue || !clientName) {
           skipCount++;
@@ -151,7 +149,7 @@ export async function POST(
 
         // Match client
         let clientId = null;
-        
+
         if (email && clientByEmail.has(email.toLowerCase())) {
           clientId = clientByEmail.get(email.toLowerCase());
         } else if (clientByName.has(clientName.toLowerCase())) {
@@ -171,8 +169,12 @@ export async function POST(
           booking_date: dateValue,
           booking_time: timeValue || "00:00",
           booking_type: className || "Class",
-          booking_status: status.toLowerCase().includes("cancel") ? "cancelled" : "attended",
-          attended_at: status.toLowerCase().includes("attend") ? new Date().toISOString() : null,
+          booking_status: status.toLowerCase().includes("cancel")
+            ? "cancelled"
+            : "attended",
+          attended_at: status.toLowerCase().includes("attend")
+            ? new Date().toISOString()
+            : null,
           notes: `Imported from migration job ${jobId}`,
           source: "migration",
           created_at: new Date().toISOString(),
@@ -189,16 +191,16 @@ export async function POST(
     const batchSize = 50;
     for (let i = 0; i < bookings.length; i += batchSize) {
       const batch = bookings.slice(i, i + batchSize);
-      const { error } = await supabaseAdmin
-        .from("bookings")
-        .insert(batch);
+      const { error } = await supabaseAdmin.from("bookings").insert(batch);
 
       if (error) {
         log(`Batch insert error: ${error.message}`);
       }
     }
 
-    log(`Import complete - Success: ${successCount}, Skipped: ${skipCount}, Errors: ${errorCount}`);
+    log(
+      `Import complete - Success: ${successCount}, Skipped: ${skipCount}, Errors: ${errorCount}`,
+    );
 
     // Update migration job with attendance import status
     await supabaseAdmin

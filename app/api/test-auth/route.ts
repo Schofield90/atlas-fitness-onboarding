@@ -5,7 +5,7 @@ import { createAdminClient } from "@/app/lib/supabase/admin";
 export async function GET() {
   try {
     // Test regular client
-    const supabase = await createClient();
+    const supabase = createClient();
     const { data: regularData, error: regularError } = await supabase
       .from("account_claim_tokens")
       .select("count(*)")

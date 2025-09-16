@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
   }
 
   const payload = JSON.parse(body);
-  const supabase = await createClient();
+  const supabase = createClient();
 
   // Process each entry
   for (const entry of payload.entry || []) {

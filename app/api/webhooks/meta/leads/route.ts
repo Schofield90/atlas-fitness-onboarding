@@ -49,7 +49,7 @@ function verifyWebhookSignature(
 }
 
 async function processLeadgenWebhook(entry: MetaWebhookEntry) {
-  const supabase = await createClient();
+  const supabase = createClient();
 
   for (const change of entry.changes) {
     if (change.field !== "leadgen") continue;
@@ -174,7 +174,7 @@ async function processLeadCapture({
   leadId: string;
   formDbId: string;
 }) {
-  const supabase = await createClient();
+  const supabase = createClient();
 
   // Get the integration to retrieve access token
   const { data: integration } = await supabase

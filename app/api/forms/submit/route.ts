@@ -1,28 +1,29 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/app/lib/supabase/server'
-import { headers } from 'next/headers'
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/app/lib/supabase/server";
+import { headers } from "next/headers";
 
 // Configure CORS
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, X-Form-ID',
-}
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, X-Form-ID",
+};
 
 export async function OPTIONS(request: NextRequest) {
-  return NextResponse.json({}, { headers: corsHeaders })
+  return NextResponse.json({}, { headers: corsHeaders });
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const headersList = await headers()
-    const formId = headersList.get('x-form-id') || 'default'
-    const origin = headersList.get('origin') || headersList.get('referer') || ''
-    
-    const data = await request.json()
-    
+    const headersList = await headers();
+    const formId = headersList.get("x-form-id") || "default";
+    const origin =
+      headersList.get("origin") || headersList.get("referer") || "";
+
+    const data = await request.json();
+
     // Extract UTM parameters if provided
-    const { 
+    const {
       first_name,
       last_name,
       email,
@@ -36,38 +37,38 @@ export async function POST(request: NextRequest) {
       utm_medium,
       utm_campaign,
       ...customFields
-    } = data
-    
+    } = data;
+
     // Validate required fields
     if (!first_name || !last_name || !email) {
       return NextResponse.json(
-        { error: 'First name, last name, and email are required' },
-        { status: 400, headers: corsHeaders }
-      )
+        { error: "First name, last name, and email are required" },
+        { status: 400, headers: corsHeaders },
+      );
     }
-    
+
     // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return NextResponse.json(
-        { error: 'Invalid email address' },
-        { status: 400, headers: corsHeaders }
-      )
+        { error: "Invalid email address" },
+        { status: 400, headers: corsHeaders },
+      );
     }
-    
-    const supabase = await createClient()
-    
+
+    const supabase = createClient();
+
     // Check if lead already exists
     const { data: existingLead } = await supabase
-      .from('leads')
-      .select('*')
-      .eq('email', email)
-      .single()
-    
+      .from("leads")
+      .select("*")
+      .eq("email", email)
+      .single();
+
     if (existingLead) {
       // Update existing lead with new information
       const { error: updateError } = await supabase
-        .from('leads')
+        .from("leads")
         .update({
           phone: phone || existingLead.phone,
           fitness_goals: fitness_goals || [],
@@ -80,28 +81,29 @@ export async function POST(request: NextRequest) {
           utm_source,
           utm_medium,
           utm_campaign,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', existingLead.id)
-      
-      if (updateError) throw updateError
-      
+        .eq("id", existingLead.id);
+
+      if (updateError) throw updateError;
+
       // Still trigger webhook for duplicate submission
-      await triggerWebhook('lead_updated', { ...existingLead, ...data })
-      
+      await triggerWebhook("lead_updated", { ...existingLead, ...data });
+
       return NextResponse.json(
-        { 
-          success: true, 
-          message: 'Thank you! We already have your information and will be in touch soon.',
-          leadId: existingLead.id 
+        {
+          success: true,
+          message:
+            "Thank you! We already have your information and will be in touch soon.",
+          leadId: existingLead.id,
         },
-        { headers: corsHeaders }
-      )
+        { headers: corsHeaders },
+      );
     }
-    
+
     // Insert new lead
     const { data: newLead, error: insertError } = await supabase
-      .from('leads')
+      .from("leads")
       .insert({
         first_name,
         last_name,
@@ -117,75 +119,82 @@ export async function POST(request: NextRequest) {
         custom_fields: customFields,
         utm_source,
         utm_medium,
-        utm_campaign
+        utm_campaign,
       })
       .select()
-      .single()
-    
-    if (insertError) throw insertError
-    
+      .single();
+
+    if (insertError) throw insertError;
+
     // Trigger webhook for new lead
-    await triggerWebhook('new_lead', newLead)
-    
+    await triggerWebhook("new_lead", newLead);
+
     // Trigger workflow for form submission
     try {
-      const workflowResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/webhooks/form-submitted`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          formId,
-          formData: newLead,
-          lead: newLead,
-          organizationId: newLead.organization_id || '63589490-8f55-4157-bd3a-e141594b748e', // Hardcoded for now
-          formType: 'website'
-        })
-      })
-      
+      const workflowResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/webhooks/form-submitted`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            formId,
+            formData: newLead,
+            lead: newLead,
+            organizationId:
+              newLead.organization_id || "63589490-8f55-4157-bd3a-e141594b748e", // Hardcoded for now
+            formType: "website",
+          }),
+        },
+      );
+
       if (!workflowResponse.ok) {
-        console.error('Failed to trigger form submitted webhook')
+        console.error("Failed to trigger form submitted webhook");
       }
     } catch (workflowError) {
-      console.error('Error triggering workflow:', workflowError)
+      console.error("Error triggering workflow:", workflowError);
     }
-    
+
     // Send WhatsApp notification if configured
     if (phone) {
-      await sendWhatsAppNotification(phone, first_name)
+      await sendWhatsAppNotification(phone, first_name);
     }
-    
+
     return NextResponse.json(
-      { 
-        success: true, 
-        message: 'Thank you! We\'ll be in touch within 24 hours.',
-        leadId: newLead.id 
+      {
+        success: true,
+        message: "Thank you! We'll be in touch within 24 hours.",
+        leadId: newLead.id,
       },
-      { headers: corsHeaders }
-    )
-    
+      { headers: corsHeaders },
+    );
   } catch (error) {
-    console.error('Form submission error:', error)
+    console.error("Form submission error:", error);
     return NextResponse.json(
-      { error: 'Failed to submit form. Please try again.' },
-      { status: 500, headers: corsHeaders }
-    )
+      { error: "Failed to submit form. Please try again." },
+      { status: 500, headers: corsHeaders },
+    );
   }
 }
 
 // Trigger webhook for integrations
 async function triggerWebhook(event: string, data: any) {
   // This can be expanded to trigger Zapier, Make, etc.
-  console.log(`Webhook triggered: ${event}`, data)
-  
+  console.log(`Webhook triggered: ${event}`, data);
+
   // If webhook URL is configured in env
   if (process.env.LEAD_WEBHOOK_URL) {
     try {
       await fetch(process.env.LEAD_WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event, data, timestamp: new Date().toISOString() })
-      })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event,
+          data,
+          timestamp: new Date().toISOString(),
+        }),
+      });
     } catch (error) {
-      console.error('Webhook error:', error)
+      console.error("Webhook error:", error);
     }
   }
 }
@@ -193,19 +202,22 @@ async function triggerWebhook(event: string, data: any) {
 // Send WhatsApp welcome message
 async function sendWhatsAppNotification(phone: string, firstName: string) {
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/whatsapp/send`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        to: phone,
-        message: `Hi ${firstName}! 👋 Thanks for your interest in Atlas Fitness. I'm here to help you start your fitness journey. When would be a good time for a quick chat about your goals?`
-      })
-    })
-    
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_APP_URL}/api/whatsapp/send`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: phone,
+          message: `Hi ${firstName}! 👋 Thanks for your interest in Atlas Fitness. I'm here to help you start your fitness journey. When would be a good time for a quick chat about your goals?`,
+        }),
+      },
+    );
+
     if (!res.ok) {
-      console.error('WhatsApp notification failed')
+      console.error("WhatsApp notification failed");
     }
   } catch (error) {
-    console.error('WhatsApp error:', error)
+    console.error("WhatsApp error:", error);
   }
 }

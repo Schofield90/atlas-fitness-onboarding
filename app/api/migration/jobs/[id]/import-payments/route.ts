@@ -23,7 +23,7 @@ export async function POST(
     log(`Starting payment import for job ${jobId}`);
 
     // Get current user
-    const supabase = await createClient();
+    const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -85,13 +85,14 @@ export async function POST(
 
     clients?.forEach((client) => {
       // Name variations for matching
-      const fullName = client.name || `${client.first_name} ${client.last_name}`;
+      const fullName =
+        client.name || `${client.first_name} ${client.last_name}`;
       clientByName.set(fullName.toLowerCase(), client.id);
-      
+
       if (client.email) {
         clientByEmail.set(client.email.toLowerCase(), client.id);
       }
-      
+
       if (client.phone) {
         // Normalize phone number (remove non-digits)
         const normalizedPhone = client.phone.replace(/\D/g, "");
@@ -110,28 +111,28 @@ export async function POST(
     for (const row of parseResult.data as any[]) {
       try {
         // Find date column (flexible matching)
-        const dateValue = 
-          row.date || 
-          row["payment date"] || 
-          row["transaction date"] || 
+        const dateValue =
+          row.date ||
+          row["payment date"] ||
+          row["transaction date"] ||
           row["paid date"] ||
           row.when;
 
         // Find amount
-        const amountStr = 
-          row.amount || 
-          row["payment amount"] || 
-          row.total || 
+        const amountStr =
+          row.amount ||
+          row["payment amount"] ||
+          row.total ||
           row.paid ||
           row.value;
-        
+
         const amount = parseFloat(String(amountStr).replace(/[^0-9.-]/g, ""));
 
         // Find client name
-        const clientName = 
-          row["client name"] || 
-          row["customer name"] || 
-          row["member name"] || 
+        const clientName =
+          row["client name"] ||
+          row["customer name"] ||
+          row["member name"] ||
           row.name ||
           row.customer ||
           row.member;
@@ -143,27 +144,24 @@ export async function POST(
         const phone = row.phone || row["phone number"] || row.mobile;
 
         // Find payment method
-        const method = 
-          row["payment method"] || 
-          row.method || 
+        const method =
+          row["payment method"] ||
+          row.method ||
           row.type ||
           row["payment type"] ||
           "card";
 
         // Find description
-        const description = 
-          row.description || 
-          row.notes || 
+        const description =
+          row.description ||
+          row.notes ||
           row.reference ||
           row.details ||
           row.memo ||
           "";
 
         // Find status
-        const status = 
-          row.status || 
-          row["payment status"] ||
-          "completed";
+        const status = row.status || row["payment status"] || "completed";
 
         if (!dateValue || !clientName || isNaN(amount)) {
           skipCount++;
@@ -172,7 +170,7 @@ export async function POST(
 
         // Match client
         let clientId = null;
-        
+
         if (email && clientByEmail.has(email.toLowerCase())) {
           clientId = clientByEmail.get(email.toLowerCase());
         } else if (phone) {
@@ -181,7 +179,7 @@ export async function POST(
             clientId = clientByPhone.get(normalizedPhone);
           }
         }
-        
+
         if (!clientId && clientByName.has(clientName.toLowerCase())) {
           clientId = clientByName.get(clientName.toLowerCase());
         }
@@ -199,8 +197,12 @@ export async function POST(
           amount: amount,
           payment_date: dateValue,
           payment_method: method.toLowerCase(),
-          payment_status: status.toLowerCase() === "failed" ? "failed" : 
-                         status.toLowerCase() === "pending" ? "pending" : "completed",
+          payment_status:
+            status.toLowerCase() === "failed"
+              ? "failed"
+              : status.toLowerCase() === "pending"
+                ? "pending"
+                : "completed",
           description: description || `Payment from ${clientName}`,
           metadata: {
             imported_from: "migration",
@@ -221,16 +223,16 @@ export async function POST(
     const batchSize = 50;
     for (let i = 0; i < payments.length; i += batchSize) {
       const batch = payments.slice(i, i + batchSize);
-      const { error } = await supabaseAdmin
-        .from("payments")
-        .insert(batch);
+      const { error } = await supabaseAdmin.from("payments").insert(batch);
 
       if (error) {
         log(`Batch insert error: ${error.message}`);
       }
     }
 
-    log(`Import complete - Success: ${successCount}, Skipped: ${skipCount}, Errors: ${errorCount}`);
+    log(
+      `Import complete - Success: ${successCount}, Skipped: ${skipCount}, Errors: ${errorCount}`,
+    );
 
     // Update migration job with payment import status
     await supabaseAdmin

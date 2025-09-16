@@ -12,7 +12,7 @@ async function createClientMember(request: NextRequest) {
   // Check authentication and get organization
   const userWithOrg = await requireAuth();
 
-  const supabase = await createClient();
+  const supabase = createClient();
   const body = await request.json();
 
   // Validate required fields
@@ -240,7 +240,7 @@ async function getClients(request: NextRequest) {
     const page = parseInt(searchParams.get("page") || "1");
     const pageSize = parseInt(searchParams.get("page_size") || "50");
 
-    const supabase = await createClient();
+    const supabase = createClient();
 
     // Calculate range for pagination
     const from = (page - 1) * pageSize;

@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     const user = await requireAuth();
     const organizationId = user.organizationId;
 
-    const supabase = await createClient();
+    const supabase = createClient();
     const searchParams = request.nextUrl.searchParams;
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
     const user = await requireAuth();
     const organizationId = user.organizationId;
 
-    const supabase = await createClient();
+    const supabase = createClient();
     const body = await request.json();
 
     const {
@@ -218,7 +218,7 @@ export async function PUT(request: NextRequest) {
     // SECURITY: Get authenticated user's organization
     const user = await requireAuth();
 
-    const supabase = await createClient();
+    const supabase = createClient();
     const body = await request.json();
     const { classId, ...updateData } = body;
 
@@ -264,7 +264,7 @@ export async function DELETE(request: NextRequest) {
     // SECURITY: Get authenticated user's organization
     const user = await requireAuth();
 
-    const supabase = await createClient();
+    const supabase = createClient();
     const searchParams = request.nextUrl.searchParams;
     const classId = searchParams.get("classId");
 

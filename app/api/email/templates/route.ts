@@ -147,7 +147,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const supabase = await createClient();
+    const supabase = createClient();
 
     const { error } = await supabase
       .from("email_templates")

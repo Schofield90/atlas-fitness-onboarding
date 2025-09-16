@@ -5,7 +5,7 @@ import { createAdminClient } from "@/app/lib/supabase/admin";
 export async function POST(request: NextRequest) {
   try {
     // Get current user
-    const supabase = await createClient();
+    const supabase = createClient();
     const {
       data: { user },
       error: authError,

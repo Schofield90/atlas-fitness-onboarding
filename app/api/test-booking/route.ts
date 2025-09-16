@@ -7,7 +7,7 @@ import { createClient } from "@/app/lib/supabase/server";
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = createClient();
     const body = await request.json();
 
     const {
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = createClient();
     const { searchParams } = new URL(request.url);
     const organizationId = searchParams.get("organizationId");
 

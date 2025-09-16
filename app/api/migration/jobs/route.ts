@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get current user and verify organization access
-    const supabase = await createClient();
+    const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get current user and verify organization access
-    const supabase = await createClient();
+    const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();

@@ -22,7 +22,7 @@ export async function POST(
     log(`Starting test process for job ${jobId}`);
 
     // Get current user
-    const supabase = await createClient();
+    const supabase = createClient();
     const {
       data: { user },
       error: authError,

@@ -15,7 +15,7 @@ export async function POST(
     const jobId = params.id;
 
     // Get current user
-    const supabase = await createClient();
+    const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();

@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get authenticated user and organization
-    const supabase = await createClient();
+    const supabase = createClient();
     const {
       data: { user },
       error: userError,
@@ -62,8 +62,10 @@ export async function GET(request: NextRequest) {
 
     // If no questions present, attempt to refresh from Facebook automatically
     if (
-      (!formRecord || !formRecord?.questions) ||
-      (Array.isArray(formRecord?.questions) && formRecord?.questions.length === 0)
+      !formRecord ||
+      !formRecord?.questions ||
+      (Array.isArray(formRecord?.questions) &&
+        formRecord?.questions.length === 0)
     ) {
       try {
         console.log(`Attempting to refresh questions for form ${formId}`);
@@ -165,7 +167,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get authenticated user and organization
-    const supabase = await createClient();
+    const supabase = createClient();
     const {
       data: { user },
       error: userError,
@@ -251,7 +253,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Get authenticated user and organization
-    const supabase = await createClient();
+    const supabase = createClient();
     const {
       data: { user },
       error: userError,

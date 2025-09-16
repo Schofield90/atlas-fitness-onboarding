@@ -4,7 +4,7 @@ import { generateMealPlan } from "@/app/lib/openai";
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = createClient();
 
     // Check authentication
     const {

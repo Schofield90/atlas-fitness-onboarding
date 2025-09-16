@@ -3,7 +3,7 @@ import { createClient } from "@/app/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = createClient();
     const body = await request.json();
 
     const { customerId, organizationId, selectedSessions, startDate, endDate } =
