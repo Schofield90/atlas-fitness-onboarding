@@ -1,4 +1,3 @@
-import { createClient } from "@/app/lib/supabase/server";
 import Papa from "papaparse";
 
 export interface ImportProgress {
@@ -28,10 +27,11 @@ export class GoTeamUpImporter {
   private progressCallback?: (progress: ImportProgress) => void;
 
   constructor(
+    supabase: any,
     organizationId: string,
     progressCallback?: (progress: ImportProgress) => void,
   ) {
-    this.supabase = createClient();
+    this.supabase = supabase;
     this.organizationId = organizationId;
     this.progressCallback = progressCallback;
   }
