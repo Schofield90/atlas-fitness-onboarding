@@ -571,8 +571,9 @@ export class GoTeamUpImporter {
       }
     }
 
-    // Update client statistics after import
-    await this.updateClientStatistics();
+    // Skip client statistics update for performance - this was taking 25+ seconds
+    // Statistics can be updated separately if needed
+    // await this.updateClientStatistics();
 
     const message =
       this.newClientsCreated > 0
@@ -748,9 +749,10 @@ export class GoTeamUpImporter {
         end_time: endTime,
         max_capacity: 20, // Default capacity
         current_bookings: 0,
-        status: "completed", // Mark as completed since it's historical data
+        // status field removed - column doesn't exist in database
         location: venue || null,
-        instructor_notes: `Instructor: ${instructor}`,
+        // instructor_notes field removed - column doesn't exist in database
+        // instructor info is already in the description field
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
