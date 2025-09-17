@@ -517,7 +517,7 @@ export class GoTeamUpImporter {
             status.toLowerCase() === "attended" ? "completed" : "confirmed";
           const attendedAt =
             status.toLowerCase() === "attended"
-              ? new Date(`${bookingDate}T${sessionStartTime}`).toISOString()
+              ? new Date(`${bookingDate}T${sessionStartTime}:00`).toISOString()
               : null;
 
           // Insert attendance into class_bookings table
