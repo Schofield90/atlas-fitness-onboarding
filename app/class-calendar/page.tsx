@@ -60,12 +60,16 @@ export default function ClassCalendarPage() {
 
         console.log("Using organization ID:", orgId);
         setOrganizationId(orgId);
+        setLoading(false);
       } catch (error) {
         console.error("Error initializing booking:", error);
         setLoading(false);
         // Show error message instead of redirecting immediately
-        const errorMessage = error instanceof Error ? error.message : "Failed to initialize calendar";
-        throw new Error(errorMessage);
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Failed to initialize calendar";
+        setError(errorMessage);
       }
     };
 
@@ -78,6 +82,7 @@ export default function ClassCalendarPage() {
       const range = getDateRange(currentDate, calendarView);
       fetchClasses(organizationId, range.start, range.end);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizationId, currentDate, calendarView]);
 
   // Helper function to get date range based on view type
@@ -298,7 +303,9 @@ export default function ClassCalendarPage() {
       <DashboardLayout userData={null}>
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center max-w-md">
-            <h2 className="text-2xl font-bold text-white mb-4">Unable to Load Class Calendar</h2>
+            <h2 className="text-2xl font-bold text-white mb-4">
+              Unable to Load Class Calendar
+            </h2>
             <p className="text-gray-400 mb-6">{error}</p>
             <button
               onClick={() => window.location.reload()}
