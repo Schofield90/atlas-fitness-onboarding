@@ -500,12 +500,15 @@ export class GoTeamUpImporter {
           });
 
           // Check for duplicate booking in class_bookings table
-          const { data: existing } = await this.supabase
+          // Check by customer and booking date to prevent duplicates
+          const { data: existingBookings } = await this.supabase
             .from("class_bookings")
             .select("id")
             .or(`client_id.eq.${customerId},customer_id.eq.${customerId}`)
-            .eq("class_session_id", sessionId)
-            .single();
+            .eq("booking_date", bookingDate)
+            .eq("organization_id", this.organizationId);
+
+          const existing = existingBookings && existingBookings.length > 0;
 
           if (existing) {
             progress.skipped++;
