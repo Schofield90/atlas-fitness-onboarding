@@ -517,7 +517,7 @@ export class GoTeamUpImporter {
             status.toLowerCase() === "attended" ? "completed" : "confirmed";
           const attendedAt =
             status.toLowerCase() === "attended"
-              ? new Date(`${bookingDate}T${sessionStartTime}:00`).toISOString()
+              ? new Date(sessionStartTime).toISOString()
               : null;
 
           // Insert attendance into class_bookings table
@@ -528,12 +528,10 @@ export class GoTeamUpImporter {
             attended_at: attendedAt,
             booking_date: bookingDate,
             created_at: new Date().toISOString(),
+            // Use client_id for the customer reference (UI checks both fields with OR)
+            client_id: customerId,
+            customer_id: null,
           };
-
-          // Set both client_id and customer_id for compatibility
-          // The UI checks for either field using OR condition
-          bookingData.client_id = customerId;
-          bookingData.customer_id = customerId;
 
           const { error, data } = await this.supabase
             .from("class_bookings")
