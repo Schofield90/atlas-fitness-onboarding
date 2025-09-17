@@ -538,6 +538,9 @@ export class GoTeamUpImporter {
 
           if (existing) {
             progress.skipped++;
+            console.log(
+              `[GOTEAMUP-ATTENDANCE] Skipped duplicate booking for ${email} on ${bookingDate} for session ${sessionId}`,
+            );
             continue;
           }
 
@@ -750,7 +753,23 @@ export class GoTeamUpImporter {
     date: string;
   }): Promise<string | null> {
     try {
-      // First try to find existing session within 15 minutes of the start time
+      // First try to find existing session by exact match
+      const { data: exactMatch } = await this.supabase
+        .from("class_sessions")
+        .select("id")
+        .eq("organization_id", organizationId)
+        .eq("name", className)
+        .eq("start_time", startTime)
+        .maybeSingle();
+
+      if (exactMatch) {
+        console.log(
+          `[GOTEAMUP-SESSION] Found exact match session ${exactMatch.id} for ${className} at ${startTime}`,
+        );
+        return exactMatch.id;
+      }
+
+      // If no exact match, try to find within 15 minutes of the start time
       const startBuffer = new Date(
         new Date(startTime).getTime() - 15 * 60000,
       ).toISOString();
@@ -762,9 +781,10 @@ export class GoTeamUpImporter {
         .from("class_sessions")
         .select("id")
         .eq("organization_id", organizationId)
+        .eq("name", className)
         .gte("start_time", startBuffer)
         .lte("start_time", endBuffer)
-        .single();
+        .maybeSingle();
 
       if (existingSession) {
         return existingSession.id;
@@ -798,6 +818,9 @@ export class GoTeamUpImporter {
         return null;
       }
 
+      console.log(
+        `[GOTEAMUP-SESSION] Created new session ${newSession?.id} for ${className} at ${startTime}`,
+      );
       return newSession?.id || null;
     } catch (error) {
       console.error("Error in findOrCreateClassSession:", error);
