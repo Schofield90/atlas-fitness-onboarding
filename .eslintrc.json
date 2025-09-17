@@ -20,6 +20,14 @@
               {
                 "name": "@/app/lib/supabase/client",
                 "message": "API routes must not use browser Supabase client. Use createAdminClient() from admin.ts or createClient() from server.ts."
+              },
+              {
+                "name": "gym-coach-platform/lib/supabase/client",
+                "message": "API routes must not import browser clients. This will cause SSR crashes."
+              },
+              {
+                "name": "@supabase/auth-helpers-nextjs",
+                "message": "API routes should not use auth-helpers. Use @supabase/ssr instead."
               }
             ]
           }
