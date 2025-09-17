@@ -490,7 +490,6 @@ export class GoTeamUpImporter {
             booking_date: bookingDate,
             booking_time: bookingTime,
             booking_status: bookingStatus,
-            booking_type: "attendance_import",
             attended_at: attendedAt,
             notes: `${className} - ${instructor} - ${venue}`,
             payment_status: "succeeded",
