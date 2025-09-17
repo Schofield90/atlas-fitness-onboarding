@@ -17,8 +17,6 @@ import {
 } from "lucide-react";
 import toast from "@/app/lib/toast";
 
-const supabase = createClient();
-
 interface StepStatus {
   clients: "not_started" | "in_progress" | "completed" | "error";
   attendance: "not_started" | "in_progress" | "completed" | "error";
@@ -32,6 +30,7 @@ interface ImportCounts {
 }
 
 export default function SimpleMigrationPage() {
+  const supabase = createClient();
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
   const [stepStatus, setStepStatus] = useState<StepStatus>({
     clients: "not_started",

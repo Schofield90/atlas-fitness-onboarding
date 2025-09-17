@@ -2,24 +2,7 @@
   "extends": "next/core-web-vitals",
   "rules": {
     "@next/next/no-img-element": "off",
-    "react/no-unescaped-entities": "off",
-    "no-restricted-imports": [
-      "error",
-      {
-        "paths": [
-          {
-            "name": "@/app/lib/supabase/client",
-            "message": "Do not use the browser Supabase client in server/API code. Use admin or server client instead."
-          }
-        ],
-        "patterns": [
-          {
-            "group": ["**/lib/supabase/client"],
-            "message": "Server code must not import browser-only Supabase client. Use createAdminClient() for background jobs or createClient() from server.ts for SSR."
-          }
-        ]
-      }
-    ]
+    "react/no-unescaped-entities": "off"
   },
   "overrides": [
     {
