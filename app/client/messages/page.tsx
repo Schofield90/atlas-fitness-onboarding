@@ -5,10 +5,8 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/client";
 import { Send, ChevronLeft, MessageCircle, User, Clock } from "lucide-react";
 
-// Create Supabase client outside component to ensure singleton
-const supabase = createClient();
-
 export default function ClientMessagesPage() {
+  const supabase = createClient();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [client, setClient] = useState<any>(null);

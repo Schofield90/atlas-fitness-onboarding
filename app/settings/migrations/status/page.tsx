@@ -26,8 +26,6 @@ import {
 } from "lucide-react";
 import toast from "@/app/lib/toast";
 
-const supabase = createClient();
-
 interface MigrationJob {
   id: string;
   source_system: string;
@@ -51,6 +49,7 @@ interface MigrationConflict {
 }
 
 export default function MigrationStatusPage() {
+  const supabase = createClient();
   const router = useRouter();
   const [jobs, setJobs] = useState<MigrationJob[]>([]);
   const [selectedJob, setSelectedJob] = useState<MigrationJob | null>(null);

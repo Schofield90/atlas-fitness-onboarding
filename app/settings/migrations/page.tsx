@@ -19,10 +19,9 @@ import {
 } from "lucide-react";
 import toast from "@/app/lib/toast";
 
-const supabase = createClient();
-
 export default function MigrationsPage() {
   const router = useRouter();
+  const supabase = createClient();
   const [activeTab, setActiveTab] = useState("goteamup");
   const [currentStep, setCurrentStep] = useState(1);
   const [uploading, setUploading] = useState(false);
