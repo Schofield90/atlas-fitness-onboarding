@@ -1,13 +1,21 @@
 {
   "framework": "nextjs",
   "outputDirectory": ".next",
-  "buildCommand": "npm run build:fast",
+  "buildCommand": "rm -rf .next && npm run build:fast",
   "devCommand": "npm run dev:turbo",
   "installCommand": "npm install",
   "functions": {
     "app/api/**/*.ts": {
       "maxDuration": 30,
       "memory": 1024
+    },
+    "app/api/migration/jobs/[id]/import-attendance/route.ts": {
+      "maxDuration": 300,
+      "memory": 2048
+    },
+    "app/api/import/goteamup/route.ts": {
+      "maxDuration": 300,
+      "memory": 2048
     },
     "app/api/calendar/sync/route.ts": {
       "maxDuration": 60,
@@ -67,6 +75,7 @@
   },
   "env": {
     "NEXT_TELEMETRY_DISABLED": "1",
-    "NODE_OPTIONS": "--max-old-space-size=4096"
+    "NODE_OPTIONS": "--max-old-space-size=4096",
+    "FORCE_REBUILD": "2024-09-17-v3"
   }
 }
