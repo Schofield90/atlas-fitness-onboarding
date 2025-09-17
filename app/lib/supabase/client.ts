@@ -18,7 +18,13 @@ export function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
   ).trim();
 
-  browserClient = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey);
+  browserClient = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      autoRefreshToken: false, // Disable auto-refresh to prevent SSR issues
+      persistSession: true,
+      detectSessionInUrl: false,
+    },
+  });
   return browserClient;
 }
 

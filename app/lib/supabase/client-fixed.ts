@@ -1,9 +1,15 @@
 import { createBrowserClient } from '@supabase/ssr'
 import type { Database } from './database.types'
+import { isBrowser, safeStorage } from '../utils/is-browser'
 
 let browserClient: ReturnType<typeof createBrowserClient<Database>> | null = null
 
 export function createClient() {
+  // Don't create client during SSR/build
+  if (!isBrowser()) {
+    return null as any;
+  }
+
   if (browserClient) return browserClient
 
   // Trim to avoid stray newlines (e.g., %0A) breaking Realtime websocket auth
@@ -33,33 +39,10 @@ export function createClient() {
       auth: {
         // Fix cookie parsing issues
         persistSession: true,
-        autoRefreshToken: typeof window !== 'undefined', // Only auto-refresh in browser
-        detectSessionInUrl: typeof window !== 'undefined', // Only detect session in browser
-        // Use more robust storage
-        storage: typeof window !== 'undefined' ? {
-          getItem: (key: string) => {
-            try {
-              return localStorage.getItem(key)
-            } catch (error) {
-              console.warn('localStorage getItem error:', error)
-              return null
-            }
-          },
-          setItem: (key: string, value: string) => {
-            try {
-              localStorage.setItem(key, value)
-            } catch (error) {
-              console.warn('localStorage setItem error:', error)
-            }
-          },
-          removeItem: (key: string) => {
-            try {
-              localStorage.removeItem(key)
-            } catch (error) {
-              console.warn('localStorage removeItem error:', error)
-            }
-          },
-        } : undefined,
+        autoRefreshToken: false, // Disable auto-refresh completely
+        detectSessionInUrl: false, // Disable session detection
+        // Use safe storage that checks for browser
+        storage: safeStorage,
       },
       // Global configuration
       global: {
