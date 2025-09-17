@@ -85,6 +85,45 @@ export class GoTeamUpImporter {
     return Math.round(amount * 100); // Convert to pennies
   }
 
+  // Parse time string to 24-hour format (HH:MM)
+  private parseTime(timeStr: string): string {
+    if (!timeStr) return "09:00";
+
+    // Remove extra whitespace
+    timeStr = timeStr.trim();
+
+    // Handle 24-hour format (already correct)
+    if (/^\d{1,2}:\d{2}$/.test(timeStr)) {
+      const [hours, minutes] = timeStr.split(":");
+      return `${hours.padStart(2, "0")}:${minutes}`;
+    }
+
+    // Handle 12-hour format with AM/PM (e.g., "7:30 p.m.", "7:30pm", "7:30 PM")
+    const timeMatch = timeStr.match(/^(\d{1,2}):(\d{2})\s*([ap])\.?m\.?/i);
+    if (timeMatch) {
+      let [_, hours, minutes, meridiem] = timeMatch;
+      let hour = parseInt(hours);
+
+      // Convert to 24-hour format
+      if (meridiem.toLowerCase() === "p" && hour !== 12) {
+        hour += 12;
+      } else if (meridiem.toLowerCase() === "a" && hour === 12) {
+        hour = 0;
+      }
+
+      return `${hour.toString().padStart(2, "0")}:${minutes}`;
+    }
+
+    // Handle hour-only format
+    if (/^\d{1,2}$/.test(timeStr)) {
+      return `${timeStr.padStart(2, "0")}:00`;
+    }
+
+    // Default fallback
+    console.log(`Could not parse time: "${timeStr}", using default 09:00`);
+    return "09:00";
+  }
+
   // Helper to create or find a client
   // Using clients table as primary since that's what payments use
   private async findOrCreateClient(
@@ -421,7 +460,8 @@ export class GoTeamUpImporter {
 
           // Parse attendance data
           const bookingDate = this.parseDate(row["Date"] || row["date"] || "");
-          const bookingTime = row["Time"] || row["time"] || "09:00";
+          const rawTime = row["Time"] || row["time"] || "09:00";
+          const bookingTime = this.parseTime(rawTime); // Parse time to 24-hour format
           const className =
             row["Class Type"] ||
             row["Class Name"] ||
