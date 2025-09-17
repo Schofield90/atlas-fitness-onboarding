@@ -77,9 +77,12 @@ function ImportPageContent() {
 
   // Load upload history from localStorage on mount
   useEffect(() => {
-    const savedHistory = localStorage.getItem("importHistory");
-    if (savedHistory) {
-      try {
+    // Only access localStorage after hydration
+    if (typeof window === "undefined") return;
+
+    try {
+      const savedHistory = localStorage.getItem("importHistory");
+      if (savedHistory) {
         const parsed = JSON.parse(savedHistory);
         setUploadHistory(parsed);
 
@@ -97,16 +100,26 @@ function ImportPageContent() {
           });
           setImporting(true);
         }
-      } catch (error) {
-        console.error("Error loading history:", error);
       }
+    } catch (error) {
+      console.error("Error loading history from localStorage:", error);
+      // Clear corrupted data
+      try {
+        localStorage.removeItem("importHistory");
+      } catch {}
     }
   }, []);
 
   // Save upload history to localStorage whenever it changes
   const saveHistory = (history: UploadHistory[]) => {
     setUploadHistory(history);
-    localStorage.setItem("importHistory", JSON.stringify(history));
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("importHistory", JSON.stringify(history));
+      } catch (error) {
+        console.error("Error saving history to localStorage:", error);
+      }
+    }
   };
 
   // Add to history
@@ -195,6 +208,7 @@ function ImportPageContent() {
     pollProgress(); // Initial poll
 
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backgroundJob?.jobId, backgroundJob?.polling]);
 
   const resumeBackgroundJob = async (jobId: string) => {
