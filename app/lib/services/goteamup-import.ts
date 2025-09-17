@@ -499,13 +499,12 @@ export class GoTeamUpImporter {
             date: bookingDate,
           });
 
-          // Check for duplicate booking
+          // Check for duplicate booking in class_bookings table
           const { data: existing } = await this.supabase
-            .from("bookings")
+            .from("class_bookings")
             .select("id")
-            .eq("client_id", customerId)
-            .eq("booking_date", bookingDate)
-            .eq("booking_time", sessionStartTime)
+            .or(`client_id.eq.${customerId},customer_id.eq.${customerId}`)
+            .eq("class_session_id", sessionId)
             .single();
 
           if (existing) {
@@ -517,28 +516,27 @@ export class GoTeamUpImporter {
           const bookingStatus =
             status.toLowerCase() === "attended" ? "completed" : "confirmed";
           const attendedAt =
-            status.toLowerCase() === "attended" ? sessionStartTime : null;
+            status.toLowerCase() === "attended"
+              ? new Date(`${bookingDate}T${sessionStartTime}`).toISOString()
+              : null;
 
-          // Insert attendance with session reference
+          // Insert attendance into class_bookings table
           const bookingData: any = {
             organization_id: this.organizationId,
-            client_id: customerId,
-            booking_date: bookingDate,
-            booking_time: sessionStartTime, // Use full timestamp instead of just time
+            class_session_id: sessionId,
             booking_status: bookingStatus,
             attended_at: attendedAt,
-            notes: `${className} - ${instructor} - ${venue}`,
-            payment_status: "succeeded",
+            booking_date: bookingDate,
             created_at: new Date().toISOString(),
           };
 
-          // Add session reference if created
-          if (sessionId) {
-            bookingData.class_session_id = sessionId;
-          }
+          // Set both client_id and customer_id for compatibility
+          // The UI checks for either field using OR condition
+          bookingData.client_id = customerId;
+          bookingData.customer_id = customerId;
 
           const { error, data } = await this.supabase
-            .from("bookings")
+            .from("class_bookings")
             .insert(bookingData)
             .select();
 
