@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/app/lib/supabase/server";
-import { supabaseAdmin } from "@/app/lib/supabase/admin";
+import { createAdminClient } from "@/app/lib/supabase/admin";
 import Papa from "papaparse";
 
 /**
@@ -23,7 +22,7 @@ export async function POST(
     log(`Starting CSV parse for job ${jobId}`);
 
     // Get current user
-    const supabase = createClient();
+    const supabase = createAdminClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -51,6 +50,7 @@ export async function POST(
     log(`Organization: ${userOrg.organization_id}`);
 
     // Get migration job and file info
+    const supabaseAdmin = createAdminClient();
     const { data: job, error: jobError } = await supabaseAdmin
       .from("migration_jobs")
       .select(
@@ -209,9 +209,10 @@ export async function POST(
     );
 
     // Insert in batches
+    const supabaseAdminForBatch = createAdminClient();
     for (let i = 0; i < records.length; i += batchSize) {
       const batch = records.slice(i, i + batchSize);
-      const { error: insertError } = await supabaseAdmin
+      const { error: insertError } = await supabaseAdminForBatch
         .from("migration_records")
         .insert(batch);
 
@@ -223,7 +224,8 @@ export async function POST(
     }
 
     // Update job status
-    await supabaseAdmin
+    const supabaseAdminForUpdate = createAdminClient();
+    await supabaseAdminForUpdate
       .from("migration_jobs")
       .update({
         status: "ready_to_process",

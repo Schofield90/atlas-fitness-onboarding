@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/app/lib/supabase/admin";
+import { createAdminClient } from "@/app/lib/supabase/admin";
 import { migrationService } from "@/app/lib/services/migration-service";
-import { createClient } from "@/app/lib/supabase/server";
 
 /**
  * GET /api/migration/jobs
@@ -20,7 +19,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get current user and verify organization access
-    const supabase = createClient();
+    const supabase = createAdminClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -50,6 +49,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch migration jobs for the organization
+    const supabaseAdmin = createAdminClient();
     const { data: jobs, error } = await supabaseAdmin
       .from("migration_dashboard")
       .select("*")
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get current user and verify organization access
-    const supabase = createClient();
+    const supabase = createAdminClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();

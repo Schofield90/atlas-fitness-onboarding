@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/app/lib/supabase/server";
-import { supabaseAdmin } from "@/app/lib/supabase/admin";
+import { createAdminClient } from "@/app/lib/supabase/admin";
 import Papa from "papaparse";
 
 /**
@@ -23,7 +22,7 @@ export async function POST(
     log(`Starting complete migration processing for job ${jobId}`);
 
     // Get current user
-    const supabase = createClient();
+    const supabase = createAdminClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -50,6 +49,7 @@ export async function POST(
     }
 
     // Get all files for this job
+    const supabaseAdmin = createAdminClient();
     const { data: files, error: filesError } = await supabaseAdmin
       .from("migration_files")
       .select("*")
@@ -74,7 +74,8 @@ export async function POST(
       log(`Analyzing file: ${file.file_name}`);
 
       // Download and peek at file content to determine type
-      const { data: fileData } = await supabaseAdmin.storage
+      const supabaseAdminForStorage = createAdminClient();
+      const { data: fileData } = await supabaseAdminForStorage.storage
         .from("migrations")
         .download(file.storage_path);
 
@@ -127,7 +128,8 @@ export async function POST(
     }
 
     // Update job status
-    await supabaseAdmin
+    const supabaseAdminForJobUpdate = createAdminClient();
+    await supabaseAdminForJobUpdate
       .from("migration_jobs")
       .update({
         status: "processing",
@@ -182,7 +184,8 @@ export async function POST(
 
             // Check for existing client
             if (clientData.email) {
-              const { data: existing } = await supabaseAdmin
+              const supabaseAdminForExisting = createAdminClient();
+              const { data: existing } = await supabaseAdminForExisting
                 .from("clients")
                 .select("id")
                 .eq("organization_id", userOrg.organization_id)
@@ -196,7 +199,8 @@ export async function POST(
             }
 
             // Create client
-            const { error: clientError } = await supabaseAdmin
+            const supabaseAdminForClient = createAdminClient();
+            const { error: clientError } = await supabaseAdminForClient
               .from("clients")
               .insert(clientData);
 
@@ -215,7 +219,8 @@ export async function POST(
     }
 
     // Step 2: Load all clients for matching attendance/payments
-    const { data: allClients } = await supabaseAdmin
+    const supabaseAdminForClients = createAdminClient();
+    const { data: allClients } = await supabaseAdminForClients
       .from("clients")
       .select("id, name, first_name, last_name, email, phone")
       .eq("organization_id", userOrg.organization_id);
@@ -327,7 +332,8 @@ export async function POST(
 
         // Batch insert bookings
         if (bookings.length > 0) {
-          const { error } = await supabaseAdmin
+          const supabaseAdminForBookings = createAdminClient();
+          const { error } = await supabaseAdminForBookings
             .from("bookings")
             .insert(bookings);
 
@@ -416,7 +422,8 @@ export async function POST(
 
         // Batch insert payments
         if (payments.length > 0) {
-          const { error } = await supabaseAdmin
+          const supabaseAdminForPayments = createAdminClient();
+          const { error } = await supabaseAdminForPayments
             .from("payments")
             .insert(payments);
 
@@ -428,7 +435,8 @@ export async function POST(
     }
 
     // Update job as completed
-    await supabaseAdmin
+    const supabaseAdminForCompletion = createAdminClient();
+    await supabaseAdminForCompletion
       .from("migration_jobs")
       .update({
         status: "completed",
@@ -454,7 +462,8 @@ export async function POST(
   } catch (error: any) {
     log(`Fatal error: ${error.message}`);
 
-    await supabaseAdmin
+    const supabaseAdminForError = createAdminClient();
+    await supabaseAdminForError
       .from("migration_jobs")
       .update({
         status: "failed",

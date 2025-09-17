@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/app/lib/supabase/server";
-import { supabaseAdmin } from "@/app/lib/supabase/admin";
+import { createAdminClient } from "@/app/lib/supabase/admin";
 import { processClients } from "@/app/lib/queue/processors/migration-processors";
 
 export async function POST(
@@ -11,7 +10,7 @@ export async function POST(
     const jobId = params.id;
     console.log("Starting processing for job:", jobId);
 
-    const supabase = createClient();
+    const supabase = createAdminClient();
 
     // Verify user authentication
     const {
@@ -26,6 +25,7 @@ export async function POST(
     }
 
     // Get the job and verify ownership
+    const supabaseAdmin = createAdminClient();
     const { data: job, error: jobError } = await supabaseAdmin
       .from("migration_jobs")
       .select("*, migration_records(*)")
@@ -59,7 +59,8 @@ export async function POST(
     }
 
     // Get all pending migration records
-    const { data: records, error: recordsError } = await supabaseAdmin
+    const supabaseAdminForRecords = createAdminClient();
+    const { data: records, error: recordsError } = await supabaseAdminForRecords
       .from("migration_records")
       .select("*")
       .eq("migration_job_id", jobId)
@@ -99,7 +100,8 @@ export async function POST(
             successCount++;
 
             // Update record status
-            await supabaseAdmin
+            const supabaseAdminForSuccess = createAdminClient();
+            await supabaseAdminForSuccess
               .from("migration_records")
               .update({
                 status: "completed",
@@ -110,7 +112,8 @@ export async function POST(
             failedCount++;
 
             // Update record status with error
-            await supabaseAdmin
+            const supabaseAdminForError = createAdminClient();
+            await supabaseAdminForError
               .from("migration_records")
               .update({
                 status: "failed",
@@ -123,7 +126,8 @@ export async function POST(
           failedCount++;
           console.error(`Failed to process record ${record.id}:`, error);
 
-          await supabaseAdmin
+          const supabaseAdminForFailure = createAdminClient();
+          await supabaseAdminForFailure
             .from("migration_records")
             .update({
               status: "failed",
@@ -137,7 +141,8 @@ export async function POST(
         processedCount++;
 
         // Update job progress
-        await supabaseAdmin
+        const supabaseAdminForProgress = createAdminClient();
+        await supabaseAdminForProgress
           .from("migration_jobs")
           .update({
             processed_records: processedCount,
@@ -152,7 +157,8 @@ export async function POST(
     // Update final job status
     const finalStatus =
       failedCount === 0 ? "completed" : "completed_with_errors";
-    await supabaseAdmin
+    const supabaseAdminForFinal = createAdminClient();
+    await supabaseAdminForFinal
       .from("migration_jobs")
       .update({
         status: finalStatus,
@@ -176,7 +182,8 @@ export async function POST(
     console.error("Processing error:", error);
 
     // Update job status to failed
-    await supabaseAdmin
+    const supabaseAdminForFailedJob = createAdminClient();
+    await supabaseAdminForFailedJob
       .from("migration_jobs")
       .update({
         status: "failed",
