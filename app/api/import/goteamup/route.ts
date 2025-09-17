@@ -115,8 +115,8 @@ async function handleImportRequest(
     }
 
     // Check if we should use background processing for large files
-    // Use background processing for files with more than 50 rows to avoid timeouts
-    const shouldUseBackground = useBackgroundProcessing || rows.length > 50;
+    // Use background processing for files with more than 10 rows to avoid timeouts
+    const shouldUseBackground = useBackgroundProcessing || rows.length > 10;
 
     if (shouldUseBackground) {
       // Create migration job for background processing
