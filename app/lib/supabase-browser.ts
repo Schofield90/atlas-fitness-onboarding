@@ -22,9 +22,9 @@ export function getSupabaseBrowser() {
       auth: {
         storageKey: "sb-atlas-onboarding-auth",
         storage: window.localStorage,
-        autoRefreshToken: true,
+        autoRefreshToken: false, // Disabled to prevent SSR crashes
         persistSession: true,
-        detectSessionInUrl: true,
+        detectSessionInUrl: false, // Disabled to prevent SSR issues
       },
     },
   );

@@ -1,3 +1,5 @@
+'use client'
+
 import { createBrowserClient } from '@supabase/ssr'
 import { SupabaseClient } from '@supabase/supabase-js'
 
@@ -117,8 +119,8 @@ function createSupabaseClient(): SupabaseClient | null {
     },
     auth: {
       persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
+      autoRefreshToken: false, // CRITICAL: Disable to prevent SSR crashes
+      detectSessionInUrl: false, // Disable to prevent SSR issues
       storageKey: 'atlas-fitness-auth',
       storage: typeof window !== 'undefined' ? {
         getItem: (key: string) => enhancedGet(key),
@@ -129,8 +131,13 @@ function createSupabaseClient(): SupabaseClient | null {
   })
 }
 
-// Singleton instance getter
+// Singleton instance getter - ONLY call from browser components
 export function getSupabaseClient(): SupabaseClient | null {
+  // Guard against SSR/build time
+  if (typeof window === 'undefined') {
+    return null
+  }
+  
   if (!supabaseInstance) {
     supabaseInstance = createSupabaseClient()
     if (supabaseInstance) {
@@ -140,7 +147,9 @@ export function getSupabaseClient(): SupabaseClient | null {
   return supabaseInstance
 }
 
-// Export singleton instance
-export const supabase = getSupabaseClient()
+// DEPRECATED: Do not use module-level export - causes SSR crashes
+// Call getSupabaseClient() instead from within components
+export const supabase = null
 
-export default supabase
+// DEPRECATED: Do not use default export
+export default null
