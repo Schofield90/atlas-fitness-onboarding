@@ -469,7 +469,7 @@ export class GoTeamUpImporter {
             .select("id")
             .eq("client_id", customerId)
             .eq("booking_date", bookingDate)
-            .eq("booking_time", bookingTime)
+            .eq("booking_time", sessionStartTime)
             .single();
 
           if (existing) {
@@ -488,7 +488,7 @@ export class GoTeamUpImporter {
             organization_id: this.organizationId,
             client_id: customerId,
             booking_date: bookingDate,
-            booking_time: bookingTime,
+            booking_time: sessionStartTime, // Use full timestamp instead of just time
             booking_status: bookingStatus,
             attended_at: attendedAt,
             notes: `${className} - ${instructor} - ${venue}`,
