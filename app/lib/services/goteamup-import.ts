@@ -442,9 +442,9 @@ export class GoTeamUpImporter {
 
           // Check for duplicate booking
           const { data: existing } = await this.supabase
-            .from("class_bookings")
+            .from("bookings")
             .select("id")
-            .eq("customer_id", customerId)
+            .eq("client_id", customerId)
             .eq("booking_date", bookingDate)
             .eq("booking_time", bookingTime)
             .single();
@@ -463,8 +463,7 @@ export class GoTeamUpImporter {
           // Insert attendance with session reference
           const bookingData: any = {
             organization_id: this.organizationId,
-            client_id: customerId, // Still required for legacy
-            customer_id: customerId,
+            client_id: customerId,
             booking_date: bookingDate,
             booking_time: bookingTime,
             booking_status: bookingStatus,
@@ -481,7 +480,7 @@ export class GoTeamUpImporter {
           }
 
           const { error, data } = await this.supabase
-            .from("class_bookings")
+            .from("bookings")
             .insert(bookingData)
             .select();
 
@@ -559,7 +558,7 @@ export class GoTeamUpImporter {
 
       // Count visits
       const { data: bookings } = await this.supabase
-        .from("class_bookings")
+        .from("bookings")
         .select("id, booking_date")
         .eq("client_id", client.id)
         .not("attended_at", "is", null);
