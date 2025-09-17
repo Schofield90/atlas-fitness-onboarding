@@ -484,6 +484,17 @@ export class GoTeamUpImporter {
             status.toLowerCase() === "attended" ? sessionStartTime : null;
 
           // Insert attendance with session reference
+          console.log(
+            `[GOTEAMUP-ATTENDANCE-v3] Creating booking data with timestamp fix`,
+            {
+              customerId,
+              bookingDate,
+              originalTime: bookingTime,
+              sessionStartTime,
+              status: bookingStatus,
+            },
+          );
+
           const bookingData: any = {
             organization_id: this.organizationId,
             client_id: customerId,
