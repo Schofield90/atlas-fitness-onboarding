@@ -49,13 +49,24 @@ export class GoTeamUpImporter {
     let parts = dateStr.split("/");
     if (parts.length === 3) {
       const [first, second, year] = parts;
-      // Check if it's actually US format (MM/DD/YYYY) by checking if first > 12
-      if (parseInt(first) > 12) {
-        // Likely US format: MM/DD/YYYY -> YYYY-MM-DD
+      const firstNum = parseInt(first);
+      const secondNum = parseInt(second);
+
+      // Logic to determine format:
+      // If first > 12, it must be DD/MM/YYYY (day > 12)
+      // If second > 12, it must be MM/DD/YYYY (day > 12)
+      // Otherwise, assume MM/DD/YYYY (US format) since that's more common in exported data
+
+      if (firstNum > 12) {
+        // Must be DD/MM/YYYY format
+        return `${year}-${second.padStart(2, "0")}-${first.padStart(2, "0")}`;
+      } else if (secondNum > 12) {
+        // Must be MM/DD/YYYY format
+        return `${year}-${first.padStart(2, "0")}-${second.padStart(2, "0")}`;
+      } else {
+        // Ambiguous case - assume MM/DD/YYYY (US format) since it's more common in exports
         return `${year}-${first.padStart(2, "0")}-${second.padStart(2, "0")}`;
       }
-      // UK format: DD/MM/YYYY -> YYYY-MM-DD
-      return `${year}-${second.padStart(2, "0")}-${first.padStart(2, "0")}`;
     }
     // Try ISO format (YYYY-MM-DD)
     if (dateStr.includes("-")) {
