@@ -15,6 +15,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: jobId } = await params;
+  const startTime = Date.now();
   const logs: string[] = [];
 
   const log = (message: string) => {
@@ -237,16 +238,27 @@ export async function POST(
       log(`Failed to update job status: ${updateError.message}`);
     }
 
+    const duration = Date.now() - startTime;
+    
+    // Structured log for monitoring
+    const importSummary = {
+      jobId,
+      organizationId,
+      duration_ms: duration,
+      total_rows: parseResult.data.length,
+      imported: totalInserted,
+      skipped: skipCount,
+      errors: errorCount,
+      batches: Math.ceil(bookings.length / batchSize),
+      timestamp: new Date().toISOString(),
+    };
+    
+    console.log(`[IMPORT-ATTENDANCE-SUMMARY] ${JSON.stringify(importSummary)}`);
+
     return NextResponse.json({
       success: true,
       logs,
-      stats: {
-        total: parseResult.data.length,
-        imported: totalInserted,
-        skipped: skipCount,
-        errors: errorCount,
-        batches: Math.ceil(bookings.length / batchSize),
-      },
+      stats: importSummary,
     });
   } catch (error: any) {
     log(`Fatal error: ${error.message}`);
