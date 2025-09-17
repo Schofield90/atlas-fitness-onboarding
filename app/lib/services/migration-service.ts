@@ -3,7 +3,6 @@
  * Handles file upload, processing, and data migration with AI analysis
  */
 
-import { createClient } from "@supabase/supabase-js";
 import { enhancedQueueManager } from "../queue/enhanced-queue-manager";
 import { createAdminClient } from "../supabase/admin";
 import { uploadFileToStorage } from "./file-upload-service";

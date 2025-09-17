@@ -15,11 +15,6 @@ let adminClient: ReturnType<typeof createClient<Database>> | null = null;
  * @throws Error if used in browser context
  */
 export function createAdminClient() {
-  // Return cached client if available
-  if (adminClient) {
-    return adminClient;
-  }
-
   // Only check environment variables at runtime, not during build
   if (typeof window !== "undefined") {
     throw new Error("createAdminClient should only be used on the server side");
@@ -31,7 +26,9 @@ export function createAdminClient() {
   // If environment variables are missing, return a mock client to prevent build failures
   if (!supabaseUrl || !serviceRoleKey) {
     console.warn("Missing Supabase environment variables, using mock client");
-
+    
+    // IMPORTANT: Don't cache the mock client - create a new one each time
+    // This prevents issues with module-level initialization
     const mockClient = {
       from: () => ({
         select: () => ({
@@ -68,15 +65,36 @@ export function createAdminClient() {
       },
     } as any;
 
-    adminClient = mockClient;
+    // Don't cache the mock client
     return mockClient;
+  }
+
+  // Return cached real client if available
+  if (adminClient) {
+    return adminClient;
   }
 
   adminClient = createClient<Database>(supabaseUrl, serviceRoleKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
-      detectSessionInUrl: false, // Don't look for session in URL
+      detectSessionInUrl: false,
+      // Completely disable storage to prevent any browser API access
+      storage: {
+        getItem: () => null,
+        setItem: () => {},
+        removeItem: () => {},
+      },
+    },
+    // Disable realtime to prevent WebSocket connections that might fail
+    realtime: {
+      params: {
+        eventsPerSecond: 0,
+      },
+    },
+    // Use node fetch to avoid any browser-specific fetch implementations
+    global: {
+      fetch: typeof window === "undefined" ? fetch : undefined,
     },
   });
 

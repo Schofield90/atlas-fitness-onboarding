@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/app/lib/supabase/server";
-import { supabaseAdmin } from "@/app/lib/supabase/admin";
+import { createAdminClient } from "@/app/lib/supabase/admin";
 
 /**
  * GET /api/migration/debug
@@ -16,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     // 1. Check authentication
     try {
-      const supabase = createClient();
+      const supabase = createAdminClient();
       const {
         data: { user },
         error: authError,
@@ -57,6 +56,7 @@ export async function GET(request: NextRequest) {
         "migration_logs",
       ];
 
+      const supabaseAdmin = createAdminClient();
       for (const tableName of tableChecks) {
         const { data, error } = await supabaseAdmin
           .from(tableName)
@@ -74,6 +74,7 @@ export async function GET(request: NextRequest) {
 
     // 3. Check migration_records columns specifically
     try {
+      const supabaseAdmin = createAdminClient();
       const { data: columns, error: columnsError } = await supabaseAdmin
         .rpc("get_table_columns", { table_name: "migration_records" })
         .single();
@@ -106,6 +107,7 @@ export async function GET(request: NextRequest) {
     } catch (e: any) {
       // Try another approach - check for specific column
       try {
+        const supabaseAdmin = createAdminClient();
         const { data, error } = await supabaseAdmin
           .from("migration_records")
           .select("source_row_number")
@@ -127,6 +129,7 @@ export async function GET(request: NextRequest) {
     const jobId = request.nextUrl.searchParams.get("jobId");
     if (jobId) {
       try {
+        const supabaseAdmin = createAdminClient();
         // Check job exists
         const { data: job, error: jobError } = await supabaseAdmin
           .from("migration_jobs")
@@ -176,6 +179,7 @@ export async function GET(request: NextRequest) {
 
     // 5. Test the exact query that's failing
     try {
+      const supabaseAdmin = createAdminClient();
       const testJobId = jobId || "test-id";
       const { data, error } = await supabaseAdmin
         .from("migration_conflicts")
@@ -205,6 +209,7 @@ export async function GET(request: NextRequest) {
 
     // 6. Check RLS policies
     try {
+      const supabaseAdmin = createAdminClient();
       const { data: policies, error: policiesError } = await supabaseAdmin
         .from("pg_policies")
         .select("*")

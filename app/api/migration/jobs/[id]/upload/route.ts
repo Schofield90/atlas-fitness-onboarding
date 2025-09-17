@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { migrationService } from "@/app/lib/services/migration-service";
-import { createClient } from "@/app/lib/supabase/server";
-import { supabaseAdmin } from "@/app/lib/supabase/admin";
+import { createAdminClient } from "@/app/lib/supabase/admin";
 
 /**
  * POST /api/migration/jobs/[id]/upload
@@ -15,7 +14,7 @@ export async function POST(
     const jobId = params.id;
 
     // Get current user
-    const supabase = createClient();
+    const supabase = createAdminClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -42,6 +41,7 @@ export async function POST(
     }
 
     // Verify job exists and user has access
+    const supabaseAdmin = createAdminClient();
     const { data: job, error: jobError } = await supabaseAdmin
       .from("migration_jobs")
       .select("organization_id")

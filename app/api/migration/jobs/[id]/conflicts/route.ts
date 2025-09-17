@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MigrationService } from "@/app/lib/services/migration-service";
-import { createClient } from "@/app/lib/supabase/server";
-import { supabaseAdmin } from "@/app/lib/supabase/admin";
+import { createAdminClient } from "@/app/lib/supabase/admin";
 
 const migrationService = new MigrationService();
 
@@ -17,7 +16,7 @@ export async function GET(
     const jobId = params.id;
 
     // Get current user from Supabase auth
-    const supabase = createClient();
+    const supabase = createAdminClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -44,6 +43,7 @@ export async function GET(
     }
 
     // Verify job exists and user has access
+    const supabaseAdmin = createAdminClient();
     const { data: job, error: jobError } = await supabaseAdmin
       .from("migration_jobs")
       .select("organization_id")
@@ -101,7 +101,7 @@ export async function POST(
     }
 
     // Get current user from Supabase auth
-    const supabase = createClient();
+    const supabase = createAdminClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -128,6 +128,7 @@ export async function POST(
     }
 
     // Verify conflict exists and belongs to this job
+    const supabaseAdmin = createAdminClient();
     const { data: conflict, error: conflictError } = await supabaseAdmin
       .from("migration_conflicts")
       .select("migration_job_id, organization_id")

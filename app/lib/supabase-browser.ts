@@ -8,6 +8,11 @@ let _client: ReturnType<typeof createBrowserClient<Database>> | null = null;
  * Uses a unique storage key to prevent conflicts
  */
 export function getSupabaseBrowser() {
+  // Guard against SSR/build time
+  if (typeof window === "undefined") {
+    return null as any;
+  }
+
   if (_client) return _client;
 
   _client = createBrowserClient<Database>(
@@ -16,8 +21,10 @@ export function getSupabaseBrowser() {
     {
       auth: {
         storageKey: "sb-atlas-onboarding-auth",
-        storage:
-          typeof window !== "undefined" ? window.localStorage : undefined,
+        storage: window.localStorage,
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
       },
     },
   );
@@ -25,6 +32,6 @@ export function getSupabaseBrowser() {
   return _client;
 }
 
-// Export a ready-to-use instance
-export const supabaseBrowser =
-  typeof window !== "undefined" ? getSupabaseBrowser() : null;
+// DEPRECATED: Do not use module-level export - call getSupabaseBrowser() instead
+// This was causing "document is not defined" errors in server environments
+export const supabaseBrowser = null;

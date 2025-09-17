@@ -33,8 +33,8 @@ export function createClient() {
       auth: {
         // Fix cookie parsing issues
         persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
+        autoRefreshToken: typeof window !== 'undefined', // Only auto-refresh in browser
+        detectSessionInUrl: typeof window !== 'undefined', // Only detect session in browser
         // Use more robust storage
         storage: typeof window !== 'undefined' ? {
           getItem: (key: string) => {

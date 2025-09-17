@@ -28,6 +28,7 @@ export function createClient() {
 
 // For backward compatibility
 export { createClient as createServerSupabaseClient };
+export { createClient as createServerClient };
 
 // Helper to get authenticated client and user
 export async function getAuthenticatedClient() {

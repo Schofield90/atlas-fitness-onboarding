@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/app/lib/supabase/server";
-import { supabaseAdmin } from "@/app/lib/supabase/admin";
+import { createAdminClient } from "@/app/lib/supabase/admin";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
 
@@ -22,7 +21,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createClient();
+    const supabase = createAdminClient();
 
     // Get the migration job and file
     const { data: job, error: jobError } = await supabase
@@ -74,6 +73,7 @@ async function processInBackground(jobId: string, job: any, mappings: any[]) {
     const file = job.migration_files[0];
 
     // Download and parse file
+    const supabaseAdmin = createAdminClient();
     const { data: fileData } = await supabaseAdmin.storage
       .from("migrations")
       .download(file.storage_path);
@@ -118,7 +118,8 @@ async function processInBackground(jobId: string, job: any, mappings: any[]) {
       } else {
         console.error("No field mappings found in job or request");
         // Return error instead of proceeding with empty mappings
-        await supabaseAdmin
+        const supabaseAdminForError = createAdminClient();
+        await supabaseAdminForError
           .from("migration_jobs")
           .update({
             status: "failed",
@@ -188,7 +189,8 @@ async function processInBackground(jobId: string, job: any, mappings: any[]) {
     }
 
     // Update job as completed
-    await supabaseAdmin
+    const supabaseAdminForCompletion = createAdminClient();
+    await supabaseAdminForCompletion
       .from("migration_jobs")
       .update({
         status: "completed",
@@ -200,7 +202,8 @@ async function processInBackground(jobId: string, job: any, mappings: any[]) {
       .eq("id", jobId);
 
     // Log completion
-    await supabaseAdmin.from("migration_logs").insert({
+    const supabaseAdminForLog = createAdminClient();
+    await supabaseAdminForLog.from("migration_logs").insert({
       migration_job_id: jobId,
       organization_id: job.organization_id,
       level: "info",
@@ -211,7 +214,8 @@ async function processInBackground(jobId: string, job: any, mappings: any[]) {
     console.error("Background processing error:", error);
 
     // Update job as failed
-    await supabaseAdmin
+    const supabaseAdminForFailure = createAdminClient();
+    await supabaseAdminForFailure
       .from("migration_jobs")
       .update({
         status: "failed",
@@ -220,7 +224,8 @@ async function processInBackground(jobId: string, job: any, mappings: any[]) {
       .eq("id", jobId);
 
     // Log error
-    await supabaseAdmin.from("migration_logs").insert({
+    const supabaseAdminForErrorLog = createAdminClient();
+    await supabaseAdminForErrorLog.from("migration_logs").insert({
       migration_job_id: jobId,
       organization_id: job.organization_id,
       level: "error",
@@ -278,7 +283,8 @@ async function processClients(
 
     try {
       // Check for existing client
-      const { data: existing } = await supabaseAdmin
+      const supabaseAdminForExisting = createAdminClient();
+      const { data: existing } = await supabaseAdminForExisting
         .from("clients")
         .select("id")
         .eq("email", email)
@@ -287,7 +293,8 @@ async function processClients(
 
       if (existing) {
         // Record as duplicate
-        await supabaseAdmin.from("migration_records").insert({
+        const supabaseAdminForDuplicate = createAdminClient();
+        await supabaseAdminForDuplicate.from("migration_records").insert({
           migration_job_id: jobId,
           organization_id: organizationId,
           source_record_id: email,
@@ -298,7 +305,8 @@ async function processClients(
           target_table: "clients",
         });
 
-        await supabaseAdmin.from("migration_conflicts").insert({
+        const supabaseAdminForConflict = createAdminClient();
+        await supabaseAdminForConflict.from("migration_conflicts").insert({
           migration_job_id: jobId,
           organization_id: organizationId,
           migration_record_id: null,
@@ -379,7 +387,8 @@ async function processClients(
         clientData,
       );
 
-      const { data: newClient, error: insertError } = await supabaseAdmin
+      const supabaseAdminForInsert = createAdminClient();
+      const { data: newClient, error: insertError } = await supabaseAdminForInsert
         .from("clients")
         .insert(clientData)
         .select()
@@ -398,7 +407,8 @@ async function processClients(
       );
 
       // Record success
-      await supabaseAdmin.from("migration_records").insert({
+      const supabaseAdminForSuccess = createAdminClient();
+      await supabaseAdminForSuccess.from("migration_records").insert({
         migration_job_id: jobId,
         organization_id: organizationId,
         source_record_id: email,
@@ -435,7 +445,8 @@ async function processClients(
       console.error("Client data that failed:", clientData);
 
       // Record failure with detailed error
-      await supabaseAdmin.from("migration_records").insert({
+      const supabaseAdminForFailureRecord = createAdminClient();
+      await supabaseAdminForFailureRecord.from("migration_records").insert({
         migration_job_id: jobId,
         organization_id: organizationId,
         source_record_id: email,
@@ -448,7 +459,8 @@ async function processClients(
       });
 
       // Log error
-      await supabaseAdmin.from("migration_logs").insert({
+      const supabaseAdminForErrorLog2 = createAdminClient();
+      await supabaseAdminForErrorLog2.from("migration_logs").insert({
         migration_job_id: jobId,
         organization_id: organizationId,
         level: "error",
@@ -462,7 +474,8 @@ async function processClients(
 
     // Update progress periodically
     if (processed % 10 === 0) {
-      await supabaseAdmin
+      const supabaseAdminForProgress = createAdminClient();
+      await supabaseAdminForProgress
         .from("migration_jobs")
         .update({
           processed_records: processed,
@@ -516,7 +529,8 @@ async function processPayments(
         (m) => m.target_field === "email",
       )?.source_field;
       if (emailField && row[emailField]) {
-        const { data: client } = await supabaseAdmin
+        const supabaseAdminForPaymentClient = createAdminClient();
+        const { data: client } = await supabaseAdminForPaymentClient
           .from("clients")
           .select("id")
           .eq("email", row[emailField])
@@ -529,7 +543,8 @@ async function processPayments(
       }
 
       // Create payment record
-      const { data: newPayment, error: insertError } = await supabaseAdmin
+      const supabaseAdminForPaymentInsert = createAdminClient();
+      const { data: newPayment, error: insertError } = await supabaseAdminForPaymentInsert
         .from("payments")
         .insert(paymentData)
         .select()
@@ -544,7 +559,8 @@ async function processPayments(
       failed++;
 
       // Log error
-      await supabaseAdmin.from("migration_logs").insert({
+      const supabaseAdminForPaymentError = createAdminClient();
+      await supabaseAdminForPaymentError.from("migration_logs").insert({
         migration_job_id: jobId,
         organization_id: organizationId,
         level: "error",

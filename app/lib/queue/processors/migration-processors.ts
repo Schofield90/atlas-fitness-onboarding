@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/app/lib/supabase/admin";
+import { createAdminClient } from "@/app/lib/supabase/admin";
 
 interface ProcessClientsParams {
   jobId: string;
@@ -121,6 +121,7 @@ export async function processClients({
 
         // Check if client with same email already exists
         if (clientData.email) {
+          const supabaseAdmin = createAdminClient();
           const { data: existingClient } = await supabaseAdmin
             .from("clients")
             .select("id")
@@ -130,7 +131,8 @@ export async function processClients({
 
           if (existingClient) {
             // Update existing client
-            const { error: updateError } = await supabaseAdmin
+            const supabaseAdminForUpdate = createAdminClient();
+            const { error: updateError } = await supabaseAdminForUpdate
               .from("clients")
               .update({
                 ...clientData,
@@ -143,7 +145,8 @@ export async function processClients({
             }
 
             // Create migration link
-            await supabaseAdmin.from("migration_links").upsert({
+            const supabaseAdminForLink1 = createAdminClient();
+            await supabaseAdminForLink1.from("migration_links").upsert({
               migration_record_id: record.id,
               target_table: "clients",
               target_id: existingClient.id,
@@ -153,7 +156,8 @@ export async function processClients({
             results.successful++;
           } else {
             // Insert new client
-            const { data: newClient, error: insertError } = await supabaseAdmin
+            const supabaseAdminForInsert = createAdminClient();
+            const { data: newClient, error: insertError } = await supabaseAdminForInsert
               .from("clients")
               .insert(clientData)
               .select()
@@ -164,7 +168,8 @@ export async function processClients({
             }
 
             // Create migration link
-            await supabaseAdmin.from("migration_links").upsert({
+            const supabaseAdminForLink2 = createAdminClient();
+            await supabaseAdminForLink2.from("migration_links").upsert({
               migration_record_id: record.id,
               target_table: "clients",
               target_id: newClient.id,
@@ -175,7 +180,8 @@ export async function processClients({
           }
         } else {
           // No email, insert as new client
-          const { data: newClient, error: insertError } = await supabaseAdmin
+          const supabaseAdminForNoEmail = createAdminClient();
+          const { data: newClient, error: insertError } = await supabaseAdminForNoEmail
             .from("clients")
             .insert(clientData)
             .select()
@@ -186,7 +192,8 @@ export async function processClients({
           }
 
           // Create migration link
-          await supabaseAdmin.from("migration_links").upsert({
+          const supabaseAdminForLink3 = createAdminClient();
+          await supabaseAdminForLink3.from("migration_links").upsert({
             migration_record_id: record.id,
             target_table: "clients",
             target_id: newClient.id,
