@@ -99,10 +99,48 @@ export async function POST(
 
     log(`Loaded ${clients?.length || 0} clients for matching`);
 
+    // Helper function to create new client
+    const createClient = async (email: string, name: string) => {
+      // Parse name into first_name and last_name
+      const nameParts = name.trim().split(" ");
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(" ") || "";
+
+      const { data: newClient, error } = await supabaseAdmin
+        .from("clients")
+        .insert({
+          organization_id: organizationId,
+          email: email.toLowerCase().trim(),
+          name: name.trim(),
+          first_name: firstName,
+          last_name: lastName,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .select("id")
+        .single();
+
+      if (error) {
+        log(`Failed to create client ${email}: ${error.message}`);
+        return null;
+      }
+
+      if (newClient) {
+        log(`Created new client: ${email} (${name})`);
+        // Add to lookup maps
+        clientByEmail.set(email.toLowerCase(), newClient.id);
+        clientByName.set(name.toLowerCase(), newClient.id);
+        newClientsCreated++;
+      }
+
+      return newClient?.id || null;
+    };
+
     // Process attendance records
     let successCount = 0;
     let skipCount = 0;
     let errorCount = 0;
+    let newClientsCreated = 0;
     const bookings = [];
 
     for (const row of parseResult.data as any[]) {
@@ -151,17 +189,34 @@ export async function POST(
           continue;
         }
 
-        // Match client
+        // Match or create client
         let clientId = null;
 
-        if (email && clientByEmail.has(email.toLowerCase())) {
-          clientId = clientByEmail.get(email.toLowerCase());
+        // First try to match by email if available
+        if (email) {
+          const normalizedEmail = email.toLowerCase().trim();
+          if (clientByEmail.has(normalizedEmail)) {
+            clientId = clientByEmail.get(normalizedEmail);
+          } else {
+            // Create new client with email
+            clientId = await createClient(normalizedEmail, clientName);
+          }
         } else if (clientByName.has(clientName.toLowerCase())) {
+          // Try to match by name if no email
           clientId = clientByName.get(clientName.toLowerCase());
         }
 
         if (!clientId) {
-          log(`Could not match client: ${clientName}`);
+          // If still no match and no email, create with generated email
+          const generatedEmail = `${clientName.toLowerCase().replace(/\s+/g, ".")}@imported.local`;
+          log(
+            `No email for ${clientName}, creating with generated email: ${generatedEmail}`,
+          );
+          clientId = await createClient(generatedEmail, clientName);
+        }
+
+        if (!clientId) {
+          log(`Could not match or create client: ${clientName}`);
           skipCount++;
           continue;
         }
@@ -191,12 +246,26 @@ export async function POST(
       }
     }
 
+    log(
+      `Processing complete. Bookings to insert: ${bookings.length}, SuccessCount: ${successCount}`,
+    );
+
     // Insert bookings in batches to handle large datasets
     const batchSize = 100;
     let totalInserted = 0;
 
+    if (bookings.length === 0) {
+      log(
+        `WARNING: No bookings to insert despite processing ${parseResult.data.length} rows`,
+      );
+    }
+
     for (let i = 0; i < bookings.length; i += batchSize) {
       const batch = bookings.slice(i, i + batchSize);
+      log(
+        `Attempting to insert batch ${Math.floor(i / batchSize) + 1} with ${batch.length} bookings`,
+      );
+
       const { error, data } = await supabaseAdmin
         .from("bookings")
         .insert(batch)
@@ -206,6 +275,7 @@ export async function POST(
         log(
           `Batch ${Math.floor(i / batchSize) + 1} insert error: ${error.message}`,
         );
+        log(`Error details: ${JSON.stringify(error)}`);
         errorCount += batch.length;
       } else {
         totalInserted += data?.length || 0;
@@ -215,10 +285,11 @@ export async function POST(
       }
     }
 
+    log(`Bookings array length: ${bookings.length}`);
     log(`Total bookings inserted: ${totalInserted}`);
 
     log(
-      `Import complete - Success: ${successCount}, Skipped: ${skipCount}, Errors: ${errorCount}`,
+      `Import complete - Success: ${successCount}, New Clients: ${newClientsCreated}, Skipped: ${skipCount}, Errors: ${errorCount}`,
     );
 
     // Update migration job with attendance import status
@@ -240,7 +311,7 @@ export async function POST(
     }
 
     const duration = Date.now() - startTime;
-    
+
     // Structured log for monitoring
     const importSummary = {
       jobId,
@@ -248,12 +319,13 @@ export async function POST(
       duration_ms: duration,
       total_rows: parseResult.data.length,
       imported: totalInserted,
+      new_clients: newClientsCreated,
       skipped: skipCount,
       errors: errorCount,
       batches: Math.ceil(bookings.length / batchSize),
       timestamp: new Date().toISOString(),
     };
-    
+
     console.log(`[IMPORT-ATTENDANCE-SUMMARY] ${JSON.stringify(importSummary)}`);
 
     return NextResponse.json({
