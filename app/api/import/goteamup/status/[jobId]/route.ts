@@ -7,10 +7,10 @@ export const dynamic = "force-dynamic"; // No caching
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { jobId: string } },
+  { params }: { params: Promise<{ jobId: string }> },
 ) {
   try {
-    const jobId = params.jobId;
+    const { jobId } = await params;
 
     if (!jobId) {
       return NextResponse.json(
@@ -41,10 +41,10 @@ export async function GET(
 // Resume failed import
 export async function POST(
   request: NextRequest,
-  { params }: { params: { jobId: string } },
+  { params }: { params: Promise<{ jobId: string }> },
 ) {
   try {
-    const jobId = params.jobId;
+    const { jobId } = await params;
 
     if (!jobId) {
       return NextResponse.json(
@@ -105,10 +105,10 @@ export async function POST(
 // Cancel running import
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { jobId: string } },
+  { params }: { params: Promise<{ jobId: string }> },
 ) {
   try {
-    const jobId = params.jobId;
+    const { jobId } = await params;
 
     if (!jobId) {
       return NextResponse.json(
