@@ -48,9 +48,17 @@ export class GoTeamUpImporter {
     // Try UK format first (DD/MM/YYYY)
     let parts = dateStr.split("/");
     if (parts.length === 3) {
-      const [first, second, year] = parts;
+      const [first, second, yearPart] = parts;
       const firstNum = parseInt(first);
       const secondNum = parseInt(second);
+
+      // Handle both 2-digit and 4-digit years
+      let year = yearPart;
+      if (yearPart.length === 2) {
+        const yearNum = parseInt(yearPart);
+        // Assume 20xx for years 00-50, 19xx for years 51-99
+        year = yearNum <= 50 ? `20${yearPart}` : `19${yearPart}`;
+      }
 
       // Logic to determine format:
       // If first > 12, it must be DD/MM/YYYY (day > 12)
@@ -136,7 +144,7 @@ export class GoTeamUpImporter {
       .select("id")
       .eq("email", email.toLowerCase().trim())
       .eq("organization_id", this.organizationId)
-      .single();
+      .maybeSingle();
 
     if (existingClient) {
       return existingClient.id;
@@ -365,7 +373,7 @@ export class GoTeamUpImporter {
 
       // Small delay between batches to prevent overwhelming the database
       if (batchStart + batchSize < data.length) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 200));
       }
     }
 
@@ -391,7 +399,7 @@ export class GoTeamUpImporter {
   // Import attendance from parsed CSV data with batch processing
   public async importAttendance(
     data: any[],
-    batchSize: number = 25,
+    batchSize: number = 10,
   ): Promise<ImportResult> {
     const progress: ImportProgress = {
       total: data.length,
@@ -460,6 +468,14 @@ export class GoTeamUpImporter {
 
           // Parse attendance data
           const bookingDate = this.parseDate(row["Date"] || row["date"] || "");
+          if (!bookingDate) {
+            progress.skipped++;
+            errors.push({
+              row: globalIndex + 1,
+              error: "Invalid or missing date",
+            });
+            continue;
+          }
           const rawTime = row["Time"] || row["time"] || "09:00";
           const bookingTime = this.parseTime(rawTime); // Parse time to 24-hour format
           const className =
@@ -567,7 +583,7 @@ export class GoTeamUpImporter {
 
       // Small delay between batches to prevent overwhelming the database
       if (batchStart + batchSize < data.length) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 200));
       }
     }
 
@@ -667,7 +683,11 @@ export class GoTeamUpImporter {
       const start = new Date(startTime);
 
       if (isNaN(start.getTime())) {
-        throw new Error(`Invalid time value: ${startTime}`);
+        console.error(`[GOTEAMUP-ATTENDANCE] Invalid start time: ${startTime}`);
+        // Return a default end time 1 hour after start
+        const fallbackStart = new Date();
+        const fallbackEnd = new Date(fallbackStart.getTime() + 60 * 60000);
+        return fallbackEnd.toISOString();
       }
 
       let durationMinutes = 60; // Default 1 hour
