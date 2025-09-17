@@ -1,0 +1,6 @@
+Date,Time,Customer,Email,Class Type,Instructors,Status,Venue
+12/01/2024,9:00 a.m.,John Fresh1,fresh1@testdata.com,Morning Yoga,Sarah Johnson,Attended,Main Studio
+12/01/2024,10:00 a.m.,Jane Fresh2,fresh2@testdata.com,HIIT Class,Mike Smith,Attended,Main Studio
+12/01/2024,11:00 a.m.,Bob Fresh3,fresh3@testdata.com,Spin Class,Emma Davis,Registered,Spin Room
+12/02/2024,9:00 a.m.,Alice Fresh4,fresh4@testdata.com,Pilates,Lisa Chen,Attended,Studio B
+12/02/2024,10:00 a.m.,Charlie Fresh5,fresh5@testdata.com,Yoga Class,Sarah Johnson,Attended,Main Studio

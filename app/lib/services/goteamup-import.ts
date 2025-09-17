@@ -333,7 +333,7 @@ export class GoTeamUpImporter {
             .eq("client_id", clientId)
             .eq("payment_date", paymentDate)
             .eq("amount", amount)
-            .single();
+            .maybeSingle();
 
           if (existing) {
             progress.skipped++;
@@ -515,13 +515,23 @@ export class GoTeamUpImporter {
             date: bookingDate,
           });
 
+          if (!sessionId) {
+            progress.errors++;
+            errors.push({
+              row: globalIndex + 1,
+              error: "Could not create or find class session",
+            });
+            continue;
+          }
+
           // Check for duplicate booking in class_bookings table
-          // Check by customer and booking date to prevent duplicates
+          // Check by customer, booking date, AND session to prevent duplicates
           const { data: existingBookings } = await this.supabase
             .from("class_bookings")
             .select("id")
             .or(`client_id.eq.${customerId},customer_id.eq.${customerId}`)
             .eq("booking_date", bookingDate)
+            .eq("class_session_id", sessionId)
             .eq("organization_id", this.organizationId);
 
           const existing = existingBookings && existingBookings.length > 0;
