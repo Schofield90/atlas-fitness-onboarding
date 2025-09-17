@@ -1,0 +1,4 @@
+Date,Time,Customer,Email,Class Type,Instructors,Status,Venue
+12/10/2024,9:00 a.m.,Production Test1,prod-test1@example.com,Morning Yoga,Sarah Johnson,Attended,Main Studio
+12/10/2024,10:00 a.m.,Production Test2,prod-test2@example.com,HIIT Class,Mike Smith,Attended,Main Studio
+12/10/2024,11:00 a.m.,Production Test3,prod-test3@example.com,Spin Class,Emma Davis,Attended,Spin Room
