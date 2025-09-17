@@ -443,10 +443,6 @@ export class GoTeamUpImporter {
             : `${bookingTime}:00`;
           const sessionStartTime = `${bookingDate}T${formattedTime}:00`;
 
-          console.log(
-            `[GOTEAMUP-ATTENDANCE] Parsed date: ${bookingDate}, time: ${bookingTime} -> ${sessionStartTime}`,
-          );
-
           const sessionEndTime = this.calculateEndTime(
             sessionStartTime,
             className,
@@ -484,17 +480,6 @@ export class GoTeamUpImporter {
             status.toLowerCase() === "attended" ? sessionStartTime : null;
 
           // Insert attendance with session reference
-          console.log(
-            `[GOTEAMUP-ATTENDANCE-v3] Creating booking data with timestamp fix`,
-            {
-              customerId,
-              bookingDate,
-              originalTime: bookingTime,
-              sessionStartTime,
-              status: bookingStatus,
-            },
-          );
-
           const bookingData: any = {
             organization_id: this.organizationId,
             client_id: customerId,
@@ -639,14 +624,9 @@ export class GoTeamUpImporter {
   // Helper to calculate end time for a session based on class type
   private calculateEndTime(startTime: string, className: string): string {
     try {
-      console.log(
-        `[GOTEAMUP-ATTENDANCE] Calculating end time for: ${startTime}`,
-      );
-
       const start = new Date(startTime);
 
       if (isNaN(start.getTime())) {
-        console.error(`[GOTEAMUP-ATTENDANCE] Invalid start time: ${startTime}`);
         throw new Error(`Invalid time value: ${startTime}`);
       }
 
@@ -674,11 +654,9 @@ export class GoTeamUpImporter {
       }
 
       const endTime = new Date(start.getTime() + durationMinutes * 60000);
-      const result = endTime.toISOString();
-      console.log(`[GOTEAMUP-ATTENDANCE] Calculated end time: ${result}`);
-      return result;
+      return endTime.toISOString();
     } catch (error) {
-      console.error(`[GOTEAMUP-ATTENDANCE] Error in calculateEndTime:`, error);
+      console.error(`[GOTEAMUP-ATTENDANCE] Error calculating end time:`, error);
       throw error;
     }
   }
