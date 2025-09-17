@@ -83,9 +83,8 @@ export function createAdminClient() {
   return adminClient;
 }
 
-// Export a getter for backward compatibility that creates the client lazily
-export const supabaseAdmin =
-  typeof window === "undefined" ? createAdminClient() : (null as any);
+// DEPRECATED: Do not use supabaseAdmin export. Use createAdminClient() instead.
+// This was causing "document is not defined" errors in server environments.
 
 // Helper to get user with organization using admin client
 export async function getUserWithOrgAdmin(userId: string) {

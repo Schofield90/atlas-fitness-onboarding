@@ -5,7 +5,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { enhancedQueueManager } from "../queue/enhanced-queue-manager";
-import { supabaseAdmin } from "../supabase/admin";
+import { createAdminClient } from "../supabase/admin";
 import { uploadFileToStorage } from "./file-upload-service";
 import { analyzeDataWithAI } from "./ai-data-analyzer";
 
@@ -50,7 +50,7 @@ export interface MigrationProgress {
 }
 
 export class MigrationService {
-  private supabase = supabaseAdmin;
+  private supabase = createAdminClient();
 
   /**
    * Initialize a new migration job
