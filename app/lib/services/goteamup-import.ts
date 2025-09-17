@@ -391,11 +391,18 @@ export class GoTeamUpImporter {
 
           if (!customerId) {
             progress.skipped++;
+            console.error(
+              `[GOTEAMUP-ATTENDANCE] Could not find/create client: ${email} (${name})`,
+            );
             errors.push({
               row: globalIndex + 1,
               error: `Could not find or create customer: ${email}`,
             });
             continue;
+          } else {
+            console.log(
+              `[GOTEAMUP-ATTENDANCE] Using client ID: ${customerId} for ${email}`,
+            );
           }
 
           // Parse attendance data
@@ -473,15 +480,24 @@ export class GoTeamUpImporter {
             bookingData.class_session_id = sessionId;
           }
 
-          const { error } = await this.supabase
+          const { error, data } = await this.supabase
             .from("class_bookings")
-            .insert(bookingData);
+            .insert(bookingData)
+            .select();
 
           if (error) {
             progress.errors++;
+            console.error(
+              `[GOTEAMUP-ATTENDANCE] Insert error for row ${globalIndex + 1}: ${error.message}`,
+            );
+            console.error(`[GOTEAMUP-ATTENDANCE] Error details:`, error);
+            console.error(`[GOTEAMUP-ATTENDANCE] Attempted data:`, bookingData);
             errors.push({ row: globalIndex + 1, error: error.message });
           } else {
             progress.success++;
+            console.log(
+              `[GOTEAMUP-ATTENDANCE] Successfully inserted booking ${data?.[0]?.id}`,
+            );
           }
         } catch (error: any) {
           progress.errors++;
