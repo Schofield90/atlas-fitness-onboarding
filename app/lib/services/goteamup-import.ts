@@ -43,16 +43,19 @@ export class GoTeamUpImporter {
 
   // Parse UK date format (DD/MM/YYYY) or US format (MM/DD/YYYY)
   private parseDate(dateStr: string): string {
+    if (!dateStr) return "";
+
     // Try UK format first (DD/MM/YYYY)
     let parts = dateStr.split("/");
     if (parts.length === 3) {
-      const [day, month, year] = parts;
-      // Check if it's actually US format (MM/DD/YYYY) by checking if day > 12
-      if (parseInt(day) > 12) {
-        // Likely US format
-        return `${year}-${day.padStart(2, "0")}-${month.padStart(2, "0")}`;
+      const [first, second, year] = parts;
+      // Check if it's actually US format (MM/DD/YYYY) by checking if first > 12
+      if (parseInt(first) > 12) {
+        // Likely US format: MM/DD/YYYY -> YYYY-MM-DD
+        return `${year}-${first.padStart(2, "0")}-${second.padStart(2, "0")}`;
       }
-      return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+      // UK format: DD/MM/YYYY -> YYYY-MM-DD
+      return `${year}-${second.padStart(2, "0")}-${first.padStart(2, "0")}`;
     }
     // Try ISO format (YYYY-MM-DD)
     if (dateStr.includes("-")) {
@@ -423,7 +426,16 @@ export class GoTeamUpImporter {
           const status = row["Status"] || "Registered";
 
           // Create datetime strings for session matching
-          const sessionStartTime = `${bookingDate}T${bookingTime}:00`;
+          // Ensure time is in HH:MM format
+          const formattedTime = bookingTime.includes(":")
+            ? bookingTime
+            : `${bookingTime}:00`;
+          const sessionStartTime = `${bookingDate}T${formattedTime}:00`;
+
+          console.log(
+            `[GOTEAMUP-ATTENDANCE] Parsed date: ${bookingDate}, time: ${bookingTime} -> ${sessionStartTime}`,
+          );
+
           const sessionEndTime = this.calculateEndTime(
             sessionStartTime,
             className,
@@ -605,29 +617,49 @@ export class GoTeamUpImporter {
 
   // Helper to calculate end time for a session based on class type
   private calculateEndTime(startTime: string, className: string): string {
-    const start = new Date(startTime);
-    let durationMinutes = 60; // Default 1 hour
+    try {
+      console.log(
+        `[GOTEAMUP-ATTENDANCE] Calculating end time for: ${startTime}`,
+      );
 
-    // Estimate duration based on class name patterns
-    const classNameLower = className.toLowerCase();
-    if (classNameLower.includes("yoga") || classNameLower.includes("stretch")) {
-      durationMinutes = 75;
-    } else if (
-      classNameLower.includes("hiit") ||
-      classNameLower.includes("bootcamp")
-    ) {
-      durationMinutes = 45;
-    } else if (
-      classNameLower.includes("spin") ||
-      classNameLower.includes("cycle")
-    ) {
-      durationMinutes = 45;
-    } else if (classNameLower.includes("pilates")) {
-      durationMinutes = 55;
+      const start = new Date(startTime);
+
+      if (isNaN(start.getTime())) {
+        console.error(`[GOTEAMUP-ATTENDANCE] Invalid start time: ${startTime}`);
+        throw new Error(`Invalid time value: ${startTime}`);
+      }
+
+      let durationMinutes = 60; // Default 1 hour
+
+      // Estimate duration based on class name patterns
+      const classNameLower = className.toLowerCase();
+      if (
+        classNameLower.includes("yoga") ||
+        classNameLower.includes("stretch")
+      ) {
+        durationMinutes = 75;
+      } else if (
+        classNameLower.includes("hiit") ||
+        classNameLower.includes("bootcamp")
+      ) {
+        durationMinutes = 45;
+      } else if (
+        classNameLower.includes("spin") ||
+        classNameLower.includes("cycle")
+      ) {
+        durationMinutes = 45;
+      } else if (classNameLower.includes("pilates")) {
+        durationMinutes = 55;
+      }
+
+      const endTime = new Date(start.getTime() + durationMinutes * 60000);
+      const result = endTime.toISOString();
+      console.log(`[GOTEAMUP-ATTENDANCE] Calculated end time: ${result}`);
+      return result;
+    } catch (error) {
+      console.error(`[GOTEAMUP-ATTENDANCE] Error in calculateEndTime:`, error);
+      throw error;
     }
-
-    const endTime = new Date(start.getTime() + durationMinutes * 60000);
-    return endTime.toISOString();
   }
 
   // Helper to find or create a class session
