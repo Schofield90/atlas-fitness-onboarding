@@ -5,7 +5,7 @@ import { migrationService } from "@/app/lib/services/migration-service";
 
 export const runtime = "nodejs"; // Ensure Node runtime (not edge)
 export const dynamic = "force-dynamic"; // No caching
-export const maxDuration = 60; // Set max duration to 60 seconds for Vercel
+export const maxDuration = 300; // Increase to 5 minutes for large imports
 
 // Background job processing for large imports
 export async function POST(request: NextRequest) {

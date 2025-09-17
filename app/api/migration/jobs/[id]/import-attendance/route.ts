@@ -4,6 +4,7 @@ import Papa from "papaparse";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 300; // Allow 5 minutes for large attendance imports
 
 /**
  * POST /api/migration/jobs/[id]/import-attendance
