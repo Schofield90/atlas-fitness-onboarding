@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import DashboardLayout from "@/app/components/DashboardLayout";
@@ -112,7 +112,7 @@ const STATUS_OPTIONS = [
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-export default function UpcomingBillingPage() {
+function UpcomingBillingPageContent() {
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
 
@@ -942,5 +942,23 @@ export default function UpcomingBillingPage() {
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+export default function UpcomingBillingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-white mb-4 mx-auto"></div>
+            <p className="text-gray-600 dark:text-gray-400">
+              Loading report...
+            </p>
+          </div>
+        </div>
+      }
+    >
+      <UpcomingBillingPageContent />
+    </Suspense>
   );
 }
