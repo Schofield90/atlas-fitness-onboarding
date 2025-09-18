@@ -106,6 +106,29 @@ jest.mock('stripe', () => {
   return { __esModule: true, default: MockStripe }
 })
 
+// Minimal Request polyfill for route handler unit tests
+if (typeof (global as any).Request === 'undefined') {
+  class SimpleRequest {
+    url: string
+    method: string
+    headers: Map<string, string>
+    private _body: any
+    constructor(url: string, init?: { method?: string; headers?: Record<string, string>; body?: any }) {
+      this.url = url
+      this.method = init?.method ?? 'GET'
+      this.headers = new Map(Object.entries(init?.headers || {}))
+      this._body = init?.body
+    }
+    async json() {
+      return typeof this._body === 'string' ? JSON.parse(this._body) : this._body
+    }
+    async text() {
+      return typeof this._body === 'string' ? this._body : JSON.stringify(this._body)
+    }
+  }
+  ;(global as any).Request = SimpleRequest as any
+}
+
 // Minimal Response polyfill for route handler unit tests
 if (typeof (global as any).Response === 'undefined') {
   class SimpleResponse {
