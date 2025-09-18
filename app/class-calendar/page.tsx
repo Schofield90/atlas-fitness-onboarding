@@ -168,6 +168,10 @@ export default function ClassCalendarPage() {
           });
         }
         // Transform the classes to match the expected format
+        console.log(
+          "Transforming classes - input count:",
+          data.classes?.length,
+        );
         const transformedClasses = (data.classes || [])
           .map((cls: any) => {
             const startDate = new Date(cls.start_time);
