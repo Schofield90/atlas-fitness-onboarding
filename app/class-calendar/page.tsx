@@ -175,6 +175,9 @@ export default function ClassCalendarPage() {
         const transformedClasses = (data.classes || [])
           .map((cls: any) => {
             const startDate = new Date(cls.start_time);
+
+            // Use local time components for display
+            // The times stored in the database are already in the correct timezone
             const dayOfWeek = startDate.getDay();
             const hour = startDate.getHours();
             const minutes = startDate.getMinutes();
@@ -194,6 +197,17 @@ export default function ClassCalendarPage() {
               return null;
             }
 
+            // Debug capacity values
+            console.log(
+              `Class ${cls.id} - ${cls.program?.name} capacity debug:`,
+              {
+                capacity_from_api: cls.capacity,
+                max_capacity_from_api: cls.max_capacity,
+                program_max_participants: cls.program?.max_participants,
+                program_default_capacity: cls.program?.default_capacity,
+              },
+            );
+
             return {
               ...cls,
               id: cls.id,
@@ -209,7 +223,11 @@ export default function ClassCalendarPage() {
                 ? cls.bookings.filter((b) => b.booking_status !== "cancelled")
                     .length
                 : 0,
-              capacity: cls.capacity,
+              capacity:
+                cls.max_capacity ||
+                cls.capacity ||
+                cls.program?.default_capacity ||
+                20,
               color: "orange" as const,
               earnings: `£${((cls.program?.price_pennies || 0) / 100).toFixed(0)}`,
               room: cls.location,

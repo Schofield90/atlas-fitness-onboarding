@@ -44,11 +44,14 @@ export default function NutritionDashboard({
   const loadNutritionData = async () => {
     try {
       // Use the API endpoint to fetch profile (bypasses RLS issues)
+      // Add cache-busting to ensure fresh data across devices
       console.log("Loading nutrition data for client:", client?.id);
-      const response = await fetch("/api/nutrition/profile", {
+      const response = await fetch(`/api/nutrition/profile?t=${Date.now()}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          Pragma: "no-cache",
         },
       });
 

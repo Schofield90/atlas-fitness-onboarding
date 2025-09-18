@@ -17,13 +17,42 @@ export async function generateSingleMeal(
   preferences: any,
   dayNumber: number,
   retryCount: number = 0,
+  uniqueSeed: string = Date.now().toString(),
 ): Promise<any> {
   const maxRetries = 2;
 
   // Create a proper meal with AI
-  const systemPrompt = `You are an expert nutritionist and chef. Create a delicious, realistic meal that matches the macronutrient targets. Be creative and specific. Return only valid JSON.`;
+  const systemPrompt = `You are an expert nutritionist and chef. Create a delicious, realistic meal that matches the macronutrient targets. Be creative and specific. Return only valid JSON. Seed: ${uniqueSeed} - use this to ensure variety.`;
 
-  const userPrompt = `Create a delicious ${mealType} meal for Day ${dayNumber} that meets these exact targets:
+  // Add variety by including random elements in the prompt
+  const cuisineTypes = [
+    "Mediterranean",
+    "Asian Fusion",
+    "Mexican",
+    "Italian",
+    "American",
+    "Greek",
+    "Japanese",
+    "Thai",
+    "Indian",
+    "Middle Eastern",
+  ];
+  const randomCuisine =
+    cuisineTypes[Math.floor(Math.random() * cuisineTypes.length)];
+
+  const cookingStyles = [
+    "grilled",
+    "baked",
+    "pan-seared",
+    "roasted",
+    "steamed",
+    "stir-fried",
+    "slow-cooked",
+  ];
+  const randomStyle =
+    cookingStyles[Math.floor(Math.random() * cookingStyles.length)];
+
+  const userPrompt = `Create a delicious ${randomCuisine}-inspired ${mealType} meal for Day ${dayNumber} that meets these exact targets:
 
 Calories: ${targetCalories}
 Protein: ${targetProtein}g  
@@ -35,6 +64,8 @@ Requirements:
 - Include realistic amounts in grams or common units
 - Provide actual cooking instructions
 - Make it appetizing and varied
+- Incorporate ${randomStyle} cooking method where appropriate
+- Focus on ${randomCuisine} flavors and ingredients
 
 Return this exact JSON structure:
 {
@@ -66,7 +97,7 @@ Return this exact JSON structure:
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.8, // Higher for more variety
+      temperature: 0.95, // Higher for more variety
       max_tokens: 800, // More tokens for detailed recipes
       response_format: { type: "json_object" },
     });

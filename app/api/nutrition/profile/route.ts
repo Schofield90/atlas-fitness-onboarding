@@ -192,10 +192,19 @@ export async function GET(request: NextRequest) {
       return createErrorResponse(error, 500);
     } else if (profile) {
       console.log("Found profile via client_id:", profile.id);
-      return NextResponse.json({
-        success: true,
-        data: profile,
-      });
+      return NextResponse.json(
+        {
+          success: true,
+          data: profile,
+        },
+        {
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+            Expires: "0",
+          },
+        },
+      );
     }
 
     // If no profile found, try with organization filter as secondary attempt
