@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
         duration_minutes,
         instructor_name,
         location,
-        is_active,
+        session_status,
         created_at,
         updated_at,
         max_capacity,
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       `,
       )
       .eq("organization_id", organizationId)
-      .eq("is_active", true)
+      .neq("session_status", "cancelled")
       .gte("start_time", start.toISOString())
       .lte("start_time", end.toISOString())
       .order("start_time", { ascending: true });
@@ -164,7 +164,6 @@ export async function POST(request: NextRequest) {
           name: title,
           description: description || `${type} class`,
           price_pennies: price * 100,
-          is_active: true,
         })
         .select()
         .single();
@@ -191,7 +190,7 @@ export async function POST(request: NextRequest) {
         duration_minutes: duration,
         max_capacity: capacity, // Use max_capacity as that's the actual column name
         location: room,
-        is_active: true,
+        session_status: "scheduled",
       })
       .select()
       .single();
@@ -276,7 +275,7 @@ export async function DELETE(request: NextRequest) {
     // SECURITY: Soft delete only if class belongs to user's organization
     const { error } = await supabase
       .from("class_sessions")
-      .update({ is_active: false })
+      .update({ session_status: "cancelled" })
       .eq("id", classId)
       .eq("organization_id", user.organizationId); // SECURITY: Ensure organization ownership
 
