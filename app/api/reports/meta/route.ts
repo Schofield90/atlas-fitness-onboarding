@@ -45,8 +45,8 @@ export async function GET(request: NextRequest) {
           {
             name: "Customer Leaderboard",
             description: "Top attending customers ranked by participation",
-            href: "#",
-            enabled: false,
+            href: "/reports/customer-leaderboard",
+            enabled: true,
           },
           {
             name: "Recent No-Shows & Late Cancels",
