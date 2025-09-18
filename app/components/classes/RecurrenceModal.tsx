@@ -58,13 +58,13 @@ export default function RecurrenceModal({
   onSave,
   classSession,
 }: RecurrenceModalProps) {
-  // Get initial time from classSession if available (convert from UTC to local)
+  // Get initial time from classSession if available (use UTC to maintain consistency)
   const getInitialTime = () => {
     if (classSession?.start_time) {
       const date = new Date(classSession.start_time);
-      // Get local time components
-      const hours = date.getHours().toString().padStart(2, "0");
-      const minutes = date.getMinutes().toString().padStart(2, "0");
+      // Get UTC time components to avoid timezone issues
+      const hours = date.getUTCHours().toString().padStart(2, "0");
+      const minutes = date.getUTCMinutes().toString().padStart(2, "0");
       return `${hours}:${minutes}`;
     }
     return "09:00";
@@ -84,7 +84,7 @@ export default function RecurrenceModal({
     frequency: "weekly",
     interval: 1,
     daysOfWeek: classSession
-      ? [new Date(classSession.start_time).getDay()]
+      ? [new Date(classSession.start_time).getUTCDay()]
       : [1],
     endType: "never",
     endDate: "",
@@ -481,7 +481,8 @@ export default function RecurrenceModal({
             </div>
             <p className="text-xs text-gray-500 mt-2">
               You can add multiple time slots to create classes at different
-              times on the selected days.
+              times on the selected days. Times are stored in UTC to ensure
+              consistency across timezones.
             </p>
           </div>
 
