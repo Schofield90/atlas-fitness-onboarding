@@ -213,7 +213,6 @@ export async function POST(request: NextRequest) {
         parent_session_id: classSessionId,
         start_time: date.toISOString(),
         end_time: new Date(date.getTime() + duration).toISOString(),
-        occurrence_date: date.toISOString().split("T")[0],
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }));
@@ -235,7 +234,6 @@ export async function POST(request: NextRequest) {
             name: programData?.name || "Class Session",
             start_time: sessionStart.toISOString(),
             end_time: sessionEnd.toISOString(),
-            occurrence_date: sessionStart.toISOString().split("T")[0],
             status: "scheduled",
             current_bookings: 0,
             max_capacity:
