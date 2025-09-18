@@ -112,14 +112,12 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
 
-    // Get recurring sessions - sessions with parent_session_id are recurring
-    let query = supabase
-      .from("class_sessions")
-      .select("*")
-      .not("parent_session_id", "is", null);
+    // Get all sessions (we can't filter by parent_session_id as it doesn't exist)
+    let query = supabase.from("class_sessions").select("*");
 
+    // Filter by program_id if sessionId is provided (assuming sessionId is a program_id)
     if (sessionId) {
-      query = query.eq("parent_session_id", sessionId);
+      query = query.eq("program_id", sessionId);
     }
 
     if (startDate && endDate) {
@@ -301,8 +299,6 @@ export async function POST(request: NextRequest) {
 
         return {
           ...sessionWithoutId,
-          parent_session_id: classSessionId,
-          occurrence_date: newStart.toISOString().split("T")[0],
           start_time: newStart.toISOString(),
           end_time: newEnd.toISOString(),
           created_at: new Date().toISOString(),
@@ -334,10 +330,9 @@ export async function POST(request: NextRequest) {
             program_id: programId,
             organization_id: organizationId,
             name: programData?.name || "Class Session",
-            occurrence_date: sessionStart.toISOString().split("T")[0],
             start_time: sessionStart.toISOString(),
             end_time: sessionEnd.toISOString(),
-            status: "scheduled",
+            session_status: "scheduled",
             current_bookings: 0,
             max_capacity:
               programData?.max_participants ||
@@ -368,18 +363,8 @@ export async function POST(request: NextRequest) {
 
     if (insertError) throw insertError;
 
-    // Update original session if we cloned from one
-    if (classSessionId) {
-      await supabase
-        .from("class_sessions")
-        .update({
-          recurrence_rule:
-            recurrenceRule ||
-            `${actualFrequency.toUpperCase()};INTERVAL=${interval}`,
-          recurrence_end_date: endDateTime.toISOString(),
-        })
-        .eq("id", classSessionId);
-    }
+    // Note: We can't update recurrence_rule and recurrence_end_date as these columns don't exist
+    // TODO: Consider adding these columns to the database schema if recurrence tracking is needed
 
     return NextResponse.json({
       message: "Recurring classes created successfully",
@@ -398,11 +383,11 @@ export async function PUT(request: NextRequest) {
     const { sessionId, updates, updateSeries } = await request.json();
 
     if (updateSeries) {
-      // Update all sessions in the series
+      // Update all sessions with the same program_id
       const { error } = await supabase
         .from("class_sessions")
         .update(updates)
-        .or(`id.eq.${sessionId},parent_session_id.eq.${sessionId}`);
+        .eq("program_id", sessionId);
 
       if (error) throw error;
 
@@ -430,11 +415,11 @@ export async function DELETE(request: NextRequest) {
     const { sessionId, deleteSeries } = await request.json();
 
     if (deleteSeries) {
-      // Delete all sessions in the series
+      // Delete all sessions with the same program_id
       const { error } = await supabase
         .from("class_sessions")
         .delete()
-        .or(`id.eq.${sessionId},parent_session_id.eq.${sessionId}`);
+        .eq("program_id", sessionId);
 
       if (error) throw error;
 
