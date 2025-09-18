@@ -53,7 +53,6 @@ export default function ClassDetailPage() {
   const [selectedSessions, setSelectedSessions] = useState<{
     [key: string]: boolean;
   }>({});
-  const [showRecurrenceModal, setShowRecurrenceModal] = useState(false);
   const [selectedSession, setSelectedSession] = useState<any>(null);
   const [updateOptions, setUpdateOptions] = useState({
     updateFutureSessions: false,
