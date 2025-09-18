@@ -34,6 +34,7 @@ export default function ClientDashboard() {
     attendanceCount: 0,
     nextClass: null as any,
     memberSince: null as string | null,
+    classesAttended: 0,
   });
   const [upcomingBookings, setUpcomingBookings] = useState<any[]>([]);
   const [supabase] = useState(() => createClient());
@@ -46,7 +47,7 @@ export default function ClientDashboard() {
     if (client) {
       loadDashboardData();
     }
-  }, [client]);
+  }, [client, attendancePeriod, customDateRange]);
 
   const checkAuth = async () => {
     // First try to get the session from storage
@@ -130,8 +131,41 @@ export default function ClientDashboard() {
   const loadDashboardData = async () => {
     const now = new Date();
     const nowISO = now.toISOString();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    console.log("Start of month:", startOfMonth.toISOString());
+
+    // Calculate date range based on selected period
+    let startDate: Date;
+    let endDate = now;
+
+    switch (attendancePeriod) {
+      case "7days":
+        startDate = new Date(now);
+        startDate.setDate(startDate.getDate() - 7);
+        break;
+      case "month":
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        break;
+      case "year":
+        startDate = new Date(now.getFullYear(), 0, 1);
+        break;
+      case "total":
+        startDate = new Date(2020, 0, 1); // Set to a very old date to get all records
+        break;
+      case "custom":
+        startDate = customDateRange.start
+          ? new Date(customDateRange.start)
+          : new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = customDateRange.end ? new Date(customDateRange.end) : now;
+        break;
+      default:
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    }
+
+    console.log(
+      "Date range:",
+      startDate.toISOString(),
+      "to",
+      endDate.toISOString(),
+    );
 
     // Try direct client bookings first (preferred for multi-tenant)
     let { data: directBookings } = await supabase
@@ -148,7 +182,8 @@ export default function ClientDashboard() {
       `,
       )
       .eq("client_id", client.id)
-      .gte("created_at", startOfMonth.toISOString());
+      .gte("created_at", startDate.toISOString())
+      .lte("created_at", endDate.toISOString());
 
     // Get all confirmed bookings and filter in memory
     // (PostgREST doesn't support filtering on nested relations)
@@ -179,20 +214,8 @@ export default function ClientDashboard() {
         })
         .slice(0, 3) || [];
 
-    let classesThisMonth =
+    let classesAttended =
       directBookings?.filter((b) => b.status === "attended").length || 0;
-    let creditsRemaining = 0;
-
-    // Try to get credits directly for client
-    const { data: directCredits } = await supabase
-      .from("class_credits")
-      .select("*")
-      .eq("client_id", client.id)
-      .single();
-
-    if (directCredits) {
-      creditsRemaining = directCredits.credits_remaining || 0;
-    }
 
     // If no direct data, check lead records (backward compatibility)
     if (
@@ -225,11 +248,12 @@ export default function ClientDashboard() {
             `,
             )
             .eq("customer_id", leadData.id)
-            .gte("created_at", startOfMonth.toISOString());
+            .gte("created_at", startDate.toISOString())
+            .lte("created_at", endDate.toISOString());
 
           if (leadBookings && leadBookings.length > 0) {
             directBookings = leadBookings;
-            classesThisMonth =
+            classesAttended =
               leadBookings.filter((b) => b.status === "attended").length || 0;
           }
         }
@@ -291,10 +315,10 @@ export default function ClientDashboard() {
 
     setUpcomingBookings(directUpcoming || []);
     setStats({
-      classesThisMonth,
-      creditsRemaining,
+      classesAttended,
       nextClass: directUpcoming?.[0] || null,
       memberSince: client.created_at,
+      attendanceCount: classesAttended,
     });
   };
 
@@ -517,7 +541,7 @@ export default function ClientDashboard() {
           </div>
 
           {/* Quick stats */}
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 mb-8">
             <div className="bg-gray-800 overflow-hidden shadow-lg rounded-lg border border-gray-700">
               <div className="p-5">
                 <div className="flex items-center">
@@ -526,32 +550,51 @@ export default function ClientDashboard() {
                   </div>
                   <div className="ml-5 w-0 flex-1">
                     <dl>
-                      <dt className="text-sm font-medium text-gray-400 truncate">
-                        Classes This Month
+                      <dt className="text-sm font-medium text-gray-400 truncate mb-2">
+                        Classes Attended
                       </dt>
                       <dd className="mt-1 text-3xl font-semibold text-white">
-                        {stats.classesThisMonth}
+                        {stats.classesAttended}
                       </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gray-800 overflow-hidden shadow-lg rounded-lg border border-gray-700">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <CreditCard className="h-8 w-8 text-green-500" />
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-400 truncate">
-                        Credits Remaining
-                      </dt>
-                      <dd className="mt-1 text-3xl font-semibold text-white">
-                        {stats.creditsRemaining || "N/A"}
-                      </dd>
+                      <select
+                        value={attendancePeriod}
+                        onChange={(e) =>
+                          setAttendancePeriod(e.target.value as any)
+                        }
+                        className="mt-2 w-full text-xs bg-gray-700 text-gray-300 border-gray-600 rounded-md px-2 py-1"
+                      >
+                        <option value="7days">Last 7 days</option>
+                        <option value="month">This month</option>
+                        <option value="year">This year</option>
+                        <option value="total">All time</option>
+                        <option value="custom">Custom range</option>
+                      </select>
+                      {attendancePeriod === "custom" && (
+                        <div className="mt-2 space-y-1">
+                          <input
+                            type="date"
+                            value={customDateRange.start}
+                            onChange={(e) =>
+                              setCustomDateRange({
+                                ...customDateRange,
+                                start: e.target.value,
+                              })
+                            }
+                            className="w-full text-xs bg-gray-700 text-gray-300 border-gray-600 rounded-md px-2 py-1"
+                          />
+                          <input
+                            type="date"
+                            value={customDateRange.end}
+                            onChange={(e) =>
+                              setCustomDateRange({
+                                ...customDateRange,
+                                end: e.target.value,
+                              })
+                            }
+                            className="w-full text-xs bg-gray-700 text-gray-300 border-gray-600 rounded-md px-2 py-1"
+                          />
+                        </div>
+                      )}
                     </dl>
                   </div>
                 </div>
