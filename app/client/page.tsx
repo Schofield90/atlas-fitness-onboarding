@@ -19,12 +19,19 @@ import { createClient } from "@/app/lib/supabase/client";
 export default function ClientDashboard() {
   const router = useRouter();
   const [client, setClient] = useState<any>(null);
+  const [organizationName, setOrganizationName] = useState<string>("Gym");
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("home");
+  const [attendancePeriod, setAttendancePeriod] = useState<
+    "7days" | "month" | "year" | "total" | "custom"
+  >("month");
+  const [customDateRange, setCustomDateRange] = useState({
+    start: "",
+    end: "",
+  });
   const [stats, setStats] = useState({
-    classesThisMonth: 0,
-    creditsRemaining: 0,
+    attendanceCount: 0,
     nextClass: null as any,
     memberSince: null as string | null,
   });
@@ -103,6 +110,20 @@ export default function ClientDashboard() {
     }
 
     setClient(clientData);
+
+    // Fetch organization name
+    if (clientData.organization_id) {
+      const { data: orgData } = await supabase
+        .from("organizations")
+        .select("name")
+        .eq("id", clientData.organization_id)
+        .single();
+
+      if (orgData) {
+        setOrganizationName(orgData.name);
+      }
+    }
+
     setLoading(false);
   };
 
