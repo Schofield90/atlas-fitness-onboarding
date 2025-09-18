@@ -228,6 +228,69 @@ export default function MealFeedbackChat({
               <Send className="h-5 w-5" />
             </button>
           </div>
+
+          {/* Regenerate Button */}
+          <button
+            onClick={async () => {
+              setLoading(true);
+              try {
+                const response = await fetch("/api/nutrition/regenerate-meal", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    nutritionProfile,
+                    mealType: meal.type,
+                    mealIndex,
+                    preferences: nutritionProfile.preferences || {},
+                    conversationHistory: messages,
+                  }),
+                });
+
+                const result = await response.json();
+
+                if (result.success && result.data) {
+                  onMealUpdate(result.data);
+                  const assistantMessage: ChatMessage = {
+                    role: "assistant",
+                    content:
+                      "I've regenerated this meal based on your preferences and our conversation. The new meal should better match what you're looking for!",
+                    timestamp: new Date(),
+                  };
+                  setMessages((prev) => [...prev, assistantMessage]);
+                } else {
+                  setMessages((prev) => [
+                    ...prev,
+                    {
+                      role: "assistant",
+                      content:
+                        "I couldn't regenerate the meal. Please try again or provide more specific feedback.",
+                      timestamp: new Date(),
+                    },
+                  ]);
+                }
+              } catch (error) {
+                console.error("Error regenerating meal:", error);
+                setMessages((prev) => [
+                  ...prev,
+                  {
+                    role: "assistant",
+                    content:
+                      "There was an error regenerating the meal. Please try again.",
+                    timestamp: new Date(),
+                  },
+                ]);
+              } finally {
+                setLoading(false);
+              }
+            }}
+            disabled={loading}
+            className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            Regenerate This Meal with Updated Preferences
+          </button>
         </div>
       </div>
     </div>
