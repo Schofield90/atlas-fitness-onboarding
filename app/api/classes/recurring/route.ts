@@ -188,6 +188,13 @@ export async function POST(request: NextRequest) {
       }
       organizationId = program.organization_id;
       programData = program;
+      console.log("Program data:", {
+        name: program.name,
+        max_participants: program.max_participants,
+        default_capacity: program.default_capacity,
+        capacity_used:
+          programData?.max_participants || programData?.default_capacity || 20,
+      });
     } else {
       return NextResponse.json(
         { error: "Either classSessionId or programId is required" },
@@ -315,9 +322,27 @@ export async function POST(request: NextRequest) {
         timeSlots.forEach((slot) => {
           const [hours, minutes] = slot.time.split(":").map(Number);
           // Create session start time by combining the date with the time
-          // Use local time, not UTC, to match user's intended time
-          const sessionStart = new Date(date);
-          sessionStart.setHours(hours, minutes, 0, 0);
+          // Create the date string in the format expected by the database
+          // The time from the form is the user's local time, so we need to create
+          // an ISO string that represents that exact time
+          const year = date.getFullYear();
+          const month = (date.getMonth() + 1).toString().padStart(2, "0");
+          const day = date.getDate().toString().padStart(2, "0");
+          const hoursStr = hours.toString().padStart(2, "0");
+          const minutesStr = minutes.toString().padStart(2, "0");
+
+          // Create ISO string directly to avoid timezone conversion
+          // This assumes the user's input time is in UK timezone
+          const sessionStartStr = `${year}-${month}-${day}T${hoursStr}:${minutesStr}:00.000Z`;
+          const sessionStart = new Date(sessionStartStr);
+
+          // Adjust for BST if needed (UK is UTC+1 during BST)
+          // Since we're creating a UTC time directly, we need to subtract 1 hour during BST
+          const isBST = date.getMonth() >= 2 && date.getMonth() <= 9; // Rough BST period (Mar-Oct)
+          if (isBST) {
+            sessionStart.setHours(sessionStart.getHours() - 1);
+          }
+
           const sessionEnd = new Date(
             sessionStart.getTime() + slot.duration * 60 * 1000,
           );
