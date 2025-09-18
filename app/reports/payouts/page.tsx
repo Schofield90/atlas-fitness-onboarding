@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import DashboardLayout from "@/app/components/DashboardLayout";
@@ -37,7 +37,7 @@ import {
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-export default function PayoutsReportPage() {
+function PayoutsReportPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
@@ -527,5 +527,23 @@ export default function PayoutsReportPage() {
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+export default function PayoutsReportPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-white mb-4 mx-auto"></div>
+            <p className="text-gray-600 dark:text-gray-400">
+              Loading report...
+            </p>
+          </div>
+        </div>
+      }
+    >
+      <PayoutsReportPageContent />
+    </Suspense>
   );
 }
