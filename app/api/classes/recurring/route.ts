@@ -67,11 +67,11 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
 
-    // Get recurring sessions
+    // Get recurring sessions - sessions with parent_session_id are recurring
     let query = supabase
       .from("class_sessions")
       .select("*")
-      .eq("is_recurring", true);
+      .not("parent_session_id", "is", null);
 
     if (sessionId) {
       query = query.eq("parent_session_id", sessionId);
@@ -211,7 +211,6 @@ export async function POST(request: NextRequest) {
         ...originalSession,
         id: undefined, // Let DB generate new ID
         parent_session_id: classSessionId,
-        is_recurring: true,
         start_time: date.toISOString(),
         end_time: new Date(date.getTime() + duration).toISOString(),
         occurrence_date: date.toISOString().split("T")[0],
@@ -237,7 +236,6 @@ export async function POST(request: NextRequest) {
             start_time: sessionStart.toISOString(),
             end_time: sessionEnd.toISOString(),
             occurrence_date: sessionStart.toISOString().split("T")[0],
-            is_recurring: true,
             status: "scheduled",
             current_bookings: 0,
             max_capacity:
@@ -274,7 +272,6 @@ export async function POST(request: NextRequest) {
       await supabase
         .from("class_sessions")
         .update({
-          is_recurring: true,
           recurrence_rule:
             recurrenceRule ||
             `${actualFrequency.toUpperCase()};INTERVAL=${interval}`,

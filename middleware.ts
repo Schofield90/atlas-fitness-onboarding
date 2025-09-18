@@ -371,19 +371,23 @@ export async function middleware(request: NextRequest) {
   if (subdomain && SUBDOMAIN_CONFIG[subdomain as keyof typeof SUBDOMAIN_CONFIG]) {
     const config = SUBDOMAIN_CONFIG[subdomain as keyof typeof SUBDOMAIN_CONFIG]
 
-    // Check admin subdomain - requires super admin
+    // Check admin subdomain - requires super admin (sam@gymleadhub.co.uk only)
     if (config.requiresSuperAdmin) {
-      // Check if user has super admin access
-      // This should be checked in the admin pages themselves
-      // For now, just ensure they're authenticated
+      // Only allow sam@gymleadhub.co.uk for admin portal
+      if (session.user.email !== 'sam@gymleadhub.co.uk') {
+        if (pathname.startsWith('/api/')) {
+          return NextResponse.json({ error: 'Unauthorized - Admin access only' }, { status: 403 })
+        }
+        return NextResponse.redirect(new URL('/login', request.url))
+      }
       return res
     }
 
-    // Check members subdomain - requires client account
+    // Check members subdomain - requires client account linked to Atlas Fitness
     if (config.requiresClient) {
       const { data: client } = await supabase
         .from('clients')
-        .select('id')
+        .select('id, organization_id, organizations!inner(name)')
         .eq('user_id', session.user.id)
         .single()
 
@@ -391,9 +395,14 @@ export async function middleware(request: NextRequest) {
         // Not a client, redirect to appropriate login
         return NextResponse.redirect(new URL('/client-portal/login', request.url))
       }
+
+      // Store client's organization info in headers
+      if (client) {
+        res.headers.set('x-client-organization-id', client.organization_id)
+      }
     }
 
-    // Check login subdomain - requires organization
+    // Check login subdomain - requires organization (for gym owners like sam@atlas-gyms.co.uk)
     if (config.requiresOrganization && !pathname.startsWith('/api/')) {
       // Check if user has an organization
       let userOrg = null;
