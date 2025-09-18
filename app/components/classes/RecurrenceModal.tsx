@@ -58,13 +58,13 @@ export default function RecurrenceModal({
   onSave,
   classSession,
 }: RecurrenceModalProps) {
-  // Get initial time from classSession if available (use UTC to maintain consistency)
+  // Get initial time from classSession if available (use local time)
   const getInitialTime = () => {
     if (classSession?.start_time) {
       const date = new Date(classSession.start_time);
-      // Get UTC time components to avoid timezone issues
-      const hours = date.getUTCHours().toString().padStart(2, "0");
-      const minutes = date.getUTCMinutes().toString().padStart(2, "0");
+      // Get local time components to match user's timezone
+      const hours = date.getHours().toString().padStart(2, "0");
+      const minutes = date.getMinutes().toString().padStart(2, "0");
       return `${hours}:${minutes}`;
     }
     return "09:00";
@@ -84,7 +84,7 @@ export default function RecurrenceModal({
     frequency: "weekly",
     interval: 1,
     daysOfWeek: classSession
-      ? [new Date(classSession.start_time).getUTCDay()]
+      ? [new Date(classSession.start_time).getDay()]
       : [1],
     endType: "never",
     endDate: "",

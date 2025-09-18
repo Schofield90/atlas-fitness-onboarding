@@ -240,6 +240,18 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    console.log("About to generate recurrences with:", {
+      startDate: startDate.toISOString(),
+      actualFrequency,
+      interval,
+      endDateTime: endDateTime.toISOString(),
+      maxOccurrences,
+      actualDaysOfWeek,
+      dayNames: actualDaysOfWeek?.map(
+        (d) => ["SU", "MO", "TU", "WE", "TH", "FR", "SA"][d],
+      ),
+    });
+
     const occurrences = generateRecurrences(
       startDate,
       actualFrequency,
@@ -247,6 +259,14 @@ export async function POST(request: NextRequest) {
       endDateTime,
       maxOccurrences,
       actualDaysOfWeek,
+    );
+
+    console.log(
+      `Generated ${occurrences.length} occurrences:`,
+      occurrences.slice(0, 10).map((d) => ({
+        date: d.toLocaleDateString(),
+        day: d.toLocaleDateString("en-US", { weekday: "long" }),
+      })),
     );
 
     // Calculate duration
@@ -266,7 +286,7 @@ export async function POST(request: NextRequest) {
         // Preserve the original time from the session
         const originalDate = new Date(originalSession.start_time);
         const newStart = new Date(date);
-        // Set the time to match the original session time
+        // Set the time to match the original session time (use local time)
         newStart.setHours(
           originalDate.getHours(),
           originalDate.getMinutes(),
@@ -274,6 +294,10 @@ export async function POST(request: NextRequest) {
           originalDate.getMilliseconds(),
         );
         const newEnd = new Date(newStart.getTime() + duration);
+
+        console.log(
+          `Cloning session for ${newStart.toLocaleDateString()} at ${newStart.toLocaleTimeString()}`,
+        );
 
         return {
           ...sessionWithoutId,
@@ -295,9 +319,9 @@ export async function POST(request: NextRequest) {
         timeSlots.forEach((slot) => {
           const [hours, minutes] = slot.time.split(":").map(Number);
           // Create session start time by combining the date with the time
-          // Use UTC to avoid timezone conversion issues
+          // Use local time, not UTC, to match user's intended time
           const sessionStart = new Date(date);
-          sessionStart.setUTCHours(hours, minutes, 0, 0);
+          sessionStart.setHours(hours, minutes, 0, 0);
           const sessionEnd = new Date(
             sessionStart.getTime() + slot.duration * 60 * 1000,
           );
