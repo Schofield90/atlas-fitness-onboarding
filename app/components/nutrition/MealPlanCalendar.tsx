@@ -98,7 +98,7 @@ export default function MealPlanCalendar({
             onDateSelect(date);
             setShowCalendar(false);
           }}
-          disabled={isPast}
+          disabled={false}
           className={`
             p-2 rounded-lg text-sm font-medium transition-all relative
             ${
@@ -154,7 +154,10 @@ export default function MealPlanCalendar({
             {!hasGeneratedMeal(selectedDate) && nutritionProfile && (
               <button
                 onClick={() => onGenerateDay(selectedDate)}
-                disabled={generating}
+                disabled={
+                  generating ||
+                  selectedDate < new Date(new Date().setHours(0, 0, 0, 0))
+                }
                 className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50"
               >
                 {generating ? (

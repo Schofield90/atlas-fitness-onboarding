@@ -51,8 +51,15 @@ export async function GET(request: NextRequest) {
         bookings:class_bookings!left(
           id,
           customer_id,
+          client_id,
           booking_status,
-          created_at
+          created_at,
+          client:clients!left(
+            id,
+            name,
+            email,
+            phone
+          )
         )
       `,
       )
@@ -97,8 +104,21 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Transform classes to ensure capacity is correctly set
-    // Use the class session's max_capacity first, then fall back to program's max_participants or default_capacity
+    // Get all memberships for the organization to determine membership status
+    const { data: memberships } = await supabase
+      .from("customer_memberships")
+      .select("client_id, plan_name, status, start_date, end_date")
+      .eq("organization_id", organizationId)
+      .eq("status", "active");
+
+    const membershipMap = new Map();
+    memberships?.forEach((membership) => {
+      if (membership.client_id) {
+        membershipMap.set(membership.client_id, membership);
+      }
+    });
+
+    // Transform classes to ensure capacity is correctly set and deduplicate bookings
     const transformedClasses = (classes || []).map((cls) => {
       // Debug logging for capacity values
       console.log(`[API] Class ${cls.id} capacity values:`, {
@@ -115,11 +135,34 @@ export async function GET(request: NextRequest) {
         cls.program?.default_capacity ||
         20;
 
+      // Deduplicate bookings based on client_id or customer_id
+      const uniqueBookings = new Map();
+      if (cls.bookings && Array.isArray(cls.bookings)) {
+        cls.bookings.forEach((booking) => {
+          const uniqueId = booking.client_id || booking.customer_id;
+          if (uniqueId && !uniqueBookings.has(uniqueId)) {
+            // Add membership status to the booking
+            const membership = membershipMap.get(booking.client_id);
+            uniqueBookings.set(uniqueId, {
+              ...booking,
+              membership_status: membership?.plan_name || "Pay as you go",
+              membership_active: !!membership,
+            });
+          }
+        });
+      }
+
+      const uniqueBookingsArray = Array.from(uniqueBookings.values());
+      const bookingCount = uniqueBookingsArray.length;
+
       return {
         ...cls,
         capacity: finalCapacity,
-        // Also ensure max_capacity is set for consistency
         max_capacity: finalCapacity,
+        bookings: uniqueBookingsArray,
+        bookings_count: bookingCount,
+        // Keep original bookings for backward compatibility if needed
+        original_bookings: cls.bookings,
       };
     });
 
