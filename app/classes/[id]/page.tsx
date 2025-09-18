@@ -131,7 +131,7 @@ export default function ClassDetailPage() {
     try {
       // Handle creating recurring classes for a class type without existing sessions
       const requestBody: any = {
-        programId: id, // Use the class type ID
+        programId: classId, // Use the class type ID
         recurrenceRule: recurrenceData.rrule,
         endDate: recurrenceData.endDate,
         maxOccurrences: recurrenceData.occurrences,
