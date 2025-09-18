@@ -14,8 +14,10 @@ import {
   Activity,
   Target,
   Brain,
+  Sparkles,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import PreferenceCollectorModal from "./PreferenceCollectorModal";
 
 interface NutritionDashboardProps {
   client: any;
@@ -29,6 +31,7 @@ export default function NutritionDashboard({
   const [nutritionProfile, setNutritionProfile] = useState<any>(null);
   const [activeMealPlan, setActiveMealPlan] = useState<any>(null);
   const [showSetup, setShowSetup] = useState(false);
+  const [showPreferenceModal, setShowPreferenceModal] = useState(false);
   const [activeTab, setActiveTab] = useState<
     "meal-plan" | "macros" | "progress"
   >("meal-plan"); // Default to meal-plan tab
@@ -240,6 +243,13 @@ export default function NutritionDashboard({
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowPreferenceModal(true)}
+                className="px-4 py-2 text-sm bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all flex items-center gap-2 shadow-lg"
+              >
+                <Sparkles className="h-4 w-4" />
+                Make Your Plan More Accurate
+              </button>
               <button
                 onClick={() => router.push("/recipes")}
                 className="px-3 py-1.5 text-sm bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
@@ -458,6 +468,17 @@ export default function NutritionDashboard({
           )}
         </div>
       </div>
+
+      {/* Preference Collector Modal */}
+      <PreferenceCollectorModal
+        isOpen={showPreferenceModal}
+        onClose={() => setShowPreferenceModal(false)}
+        clientId={client?.id}
+        onPreferencesUpdated={() => {
+          loadNutritionData();
+          setShowPreferenceModal(false);
+        }}
+      />
     </div>
   );
 }
