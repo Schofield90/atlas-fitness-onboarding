@@ -78,6 +78,23 @@ export async function POST(request: NextRequest) {
     const selectedMeals = [];
     const usedRecipeIds: string[] = [];
 
+    // Get recently used recipes from the last 7 days to avoid repetition
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const { data: recentlyUsedRecipes } = await supabaseAdmin
+      .from("recipe_usage_log")
+      .select("recipe_id")
+      .eq("user_id", userWithOrg.id)
+      .gte("used_for_date", sevenDaysAgo.toISOString().split("T")[0])
+      .lt("used_for_date", date);
+
+    const recentlyUsedRecipeIds =
+      recentlyUsedRecipes?.map((r) => r.recipe_id) || [];
+    console.log(
+      `Found ${recentlyUsedRecipeIds.length} recently used recipes to avoid`,
+    );
+
     // Try to find suitable recipes from the library for each meal
     for (const target of mealTargets) {
       let query = supabaseAdmin
@@ -88,7 +105,12 @@ export async function POST(request: NextRequest) {
         .gte("calories", target.calories * 0.8) // Within 20% of target
         .lte("calories", target.calories * 1.2)
         .order("rating", { ascending: false })
-        .limit(10);
+        .limit(20); // Increased from 10 to 20 for better variety
+
+      // Exclude recently used recipes
+      if (recentlyUsedRecipeIds.length > 0) {
+        query = query.not("id", "in", `(${recentlyUsedRecipeIds.join(",")})`);
+      }
 
       // Apply dietary preferences
       if (dietaryPrefs.length > 0) {
@@ -103,9 +125,18 @@ export async function POST(request: NextRequest) {
       const { data: recipes, error } = await query;
 
       if (!error && recipes && recipes.length > 0) {
-        // Select a recipe (prefer highly rated ones but add some variety)
+        // Select a recipe with weighted randomization - prefer top recipes but allow variety
+        // Use top 50% of available recipes but still randomize within that range
+        const selectionPool = Math.min(
+          Math.max(5, Math.ceil(recipes.length * 0.5)),
+          recipes.length,
+        );
         const selectedRecipe =
-          recipes[Math.floor(Math.random() * Math.min(3, recipes.length))];
+          recipes[Math.floor(Math.random() * selectionPool)];
+
+        console.log(
+          `Selected recipe ${selectedRecipe.name} from pool of ${selectionPool} out of ${recipes.length} available`,
+        );
 
         selectedMeals.push({
           name: selectedRecipe.name,
@@ -206,57 +237,77 @@ Use British measurements (g, ml). Return JSON:
             type: meal.meal_type,
           });
 
-          // Save to recipe library
+          // Save to recipe library (check for duplicates first)
           let newRecipe = null;
           try {
-            console.log(
-              "Saving recipe to library:",
-              meal.name,
-              "for user:",
-              userWithOrg.id,
-            );
-            const { data, error } = await supabaseAdmin
+            // Check if recipe with same name and similar nutrition already exists
+            const { data: existingRecipes } = await supabaseAdmin
               .from("recipes")
-              .insert({
-                name: meal.name,
-                description: meal.description,
-                meal_type: meal.meal_type,
-                calories: meal.calories,
-                protein: meal.protein,
-                carbs: meal.carbs,
-                fat: meal.fat,
-                prep_time: parseInt(meal.prep_time) || 15,
-                cook_time: parseInt(meal.cook_time) || 20,
-                ingredients: meal.ingredients,
-                instructions: meal.instructions,
-                dietary_tags: dietaryPrefs,
-                allergens: [],
-                source: "ai_generated",
-                created_by: userWithOrg.id,
-                organization_id: userWithOrg.organizationId,
-                status: "active",
-                rating: 0.8, // Default rating for AI generated recipes
-                upvotes: 0,
-                downvotes: 0,
-                times_used: 1,
-              })
-              .select()
-              .single();
+              .select("id, name, calories, protein")
+              .eq("name", meal.name)
+              .eq("organization_id", userWithOrg.organizationId)
+              .eq("status", "active");
 
-            if (!error) {
-              newRecipe = data;
+            const isDuplicate = existingRecipes?.some(
+              (existing) =>
+                Math.abs(existing.calories - meal.calories) < 20 &&
+                Math.abs(existing.protein - meal.protein) < 5,
+            );
+
+            if (isDuplicate) {
               console.log(
-                "Successfully saved recipe to library:",
-                newRecipe.id,
-                newRecipe.name,
+                `Recipe ${meal.name} already exists in library, skipping save`,
               );
             } else {
-              console.error("Error saving recipe to library:", {
-                error: error.message,
-                code: error.code,
-                hint: error.hint,
-                details: error.details,
-              });
+              console.log(
+                "Saving recipe to library:",
+                meal.name,
+                "for user:",
+                userWithOrg.id,
+              );
+              const { data, error } = await supabaseAdmin
+                .from("recipes")
+                .insert({
+                  name: meal.name,
+                  description: meal.description,
+                  meal_type: meal.meal_type,
+                  calories: meal.calories,
+                  protein: meal.protein,
+                  carbs: meal.carbs,
+                  fat: meal.fat,
+                  prep_time: parseInt(meal.prep_time) || 15,
+                  cook_time: parseInt(meal.cook_time) || 20,
+                  ingredients: meal.ingredients,
+                  instructions: meal.instructions,
+                  dietary_tags: dietaryPrefs,
+                  allergens: [],
+                  source: "ai_generated",
+                  created_by: userWithOrg.id,
+                  organization_id: userWithOrg.organizationId,
+                  status: "active",
+                  rating: 0.8, // Default rating for AI generated recipes
+                  upvotes: 0,
+                  downvotes: 0,
+                  times_used: 1,
+                })
+                .select()
+                .single();
+
+              if (!error) {
+                newRecipe = data;
+                console.log(
+                  "Successfully saved recipe to library:",
+                  newRecipe.id,
+                  newRecipe.name,
+                );
+              } else {
+                console.error("Error saving recipe to library:", {
+                  error: error.message,
+                  code: error.code,
+                  hint: error.hint,
+                  details: error.details,
+                });
+              }
             }
           } catch (err) {
             console.error("Error saving recipe to library:", err);
@@ -477,6 +528,27 @@ Use British measurements (g, ml). Return JSON:
             status: "active",
             is_featured: false,
           };
+
+          // Check if recipe with same name and similar nutrition already exists
+          const { data: existingRecipes } = await supabaseAdmin
+            .from("recipes")
+            .select("id, name, calories, protein")
+            .eq("name", recipeData.name)
+            .eq("organization_id", userWithOrg.organizationId)
+            .eq("status", "active");
+
+          const isDuplicate = existingRecipes?.some(
+            (existing) =>
+              Math.abs(existing.calories - recipeData.calories) < 20 &&
+              Math.abs(existing.protein - recipeData.protein) < 5,
+          );
+
+          if (isDuplicate) {
+            console.log(
+              `Recipe ${recipeData.name} already exists in library, skipping save`,
+            );
+            continue; // Skip saving this duplicate recipe
+          }
 
           console.log("Saving recipe:", recipeData.name);
           console.log(
