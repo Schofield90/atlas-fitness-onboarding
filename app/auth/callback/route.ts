@@ -14,6 +14,37 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error && data?.user) {
+      // For Google OAuth, check if user has an existing client account
+      if (data.user.app_metadata?.provider === "google") {
+        const adminSupabase = createAdminClient();
+
+        // Check if this user exists in our clients table
+        const { data: existingClient } = await adminSupabase
+          .from("clients")
+          .select("id, user_id, email")
+          .ilike("email", data.user.email!)
+          .single();
+
+        if (!existingClient) {
+          // User doesn't exist in our system, sign them out and redirect with error
+          await supabase.auth.signOut();
+          return NextResponse.redirect(
+            new URL("/simple-login?error=account_not_found", request.url),
+          );
+        }
+
+        // If client exists but doesn't have user_id, link them
+        if (!existingClient.user_id) {
+          await adminSupabase
+            .from("clients")
+            .update({ user_id: data.user.id })
+            .eq("id", existingClient.id);
+        }
+
+        // Redirect to client portal for Google OAuth users
+        return NextResponse.redirect(new URL("/client", request.url));
+      }
+
       // If this is a signup, check if we need to create an organization
       if (isSignup) {
         // Check if user already has an organization
@@ -48,5 +79,7 @@ export async function GET(request: NextRequest) {
   }
 
   // return the user to an error page with instructions
-  return NextResponse.redirect(new URL("/login", request.url));
+  return NextResponse.redirect(
+    new URL("/simple-login?error=auth_failed", request.url),
+  );
 }
