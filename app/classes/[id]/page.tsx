@@ -53,7 +53,6 @@ export default function ClassDetailPage() {
   const [selectedSessions, setSelectedSessions] = useState<{
     [key: string]: boolean;
   }>({});
-  const [selectedSession, setSelectedSession] = useState<any>(null);
   const [updateOptions, setUpdateOptions] = useState({
     updateFutureSessions: false,
     updateAllSessions: false,
