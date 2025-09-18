@@ -332,7 +332,7 @@ export async function middleware(request: NextRequest) {
     if (!pathname.startsWith('/api/')) {
       // Redirect to appropriate login based on subdomain
       const loginUrl = subdomain === 'members'
-        ? '/client-portal/login'
+        ? '/simple-login'
         : '/login'
       return NextResponse.redirect(new URL(loginUrl, request.url))
     }
@@ -360,7 +360,7 @@ export async function middleware(request: NextRequest) {
 
     // Redirect to appropriate login based on subdomain
     const loginUrl = subdomain === 'members'
-      ? '/client-portal/login'
+      ? '/simple-login'
       : '/login'
     const redirectUrl = new URL(loginUrl, request.url)
     redirectUrl.searchParams.set('redirect', pathname)
@@ -393,7 +393,7 @@ export async function middleware(request: NextRequest) {
 
       if (!client && pathname.startsWith('/client')) {
         // Not a client, redirect to appropriate login
-        return NextResponse.redirect(new URL('/client-portal/login', request.url))
+        return NextResponse.redirect(new URL('/simple-login', request.url))
       }
 
       // Store client's organization info in headers
