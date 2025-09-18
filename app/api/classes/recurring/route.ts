@@ -1,34 +1,37 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/app/lib/supabase/admin';
+import { NextRequest, NextResponse } from "next/server";
+import { createAdminClient } from "@/app/lib/supabase/admin";
 
 interface RecurringClassRequest {
-  classSessionId: string;
-  frequency: 'daily' | 'weekly' | 'monthly';
-  interval: number;
+  classSessionId?: string; // Optional - for cloning existing session
+  programId?: string; // For creating new sessions for a program
+  frequency?: "daily" | "weekly" | "monthly";
+  interval?: number;
   daysOfWeek?: number[]; // 0=Sunday, 6=Saturday
   endDate?: string;
   maxOccurrences?: number;
+  recurrenceRule?: string; // RRULE string from the modal
+  timeSlots?: Array<{ time: string; duration: number }>; // Time slots from the modal
 }
 
 // Simple recurrence generator without external dependencies
 function generateRecurrences(
   startDate: Date,
-  frequency: 'daily' | 'weekly' | 'monthly',
+  frequency: "daily" | "weekly" | "monthly",
   interval: number,
   endDate: Date,
   maxOccurrences: number,
-  daysOfWeek?: number[]
+  daysOfWeek?: number[],
 ): Date[] {
   const occurrences: Date[] = [];
   let currentDate = new Date(startDate);
   let count = 0;
 
   while (currentDate <= endDate && count < maxOccurrences) {
-    if (frequency === 'daily') {
+    if (frequency === "daily") {
       occurrences.push(new Date(currentDate));
       currentDate.setDate(currentDate.getDate() + interval);
       count++;
-    } else if (frequency === 'weekly') {
+    } else if (frequency === "weekly") {
       if (daysOfWeek && daysOfWeek.length > 0) {
         // Generate for specific days of week
         for (let i = 0; i < 7 * interval; i++) {
@@ -43,10 +46,10 @@ function generateRecurrences(
       } else {
         // Simple weekly recurrence
         occurrences.push(new Date(currentDate));
-        currentDate.setDate(currentDate.getDate() + (7 * interval));
+        currentDate.setDate(currentDate.getDate() + 7 * interval);
         count++;
       }
-    } else if (frequency === 'monthly') {
+    } else if (frequency === "monthly") {
       occurrences.push(new Date(currentDate));
       currentDate.setMonth(currentDate.getMonth() + interval);
       count++;
@@ -60,24 +63,22 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = await createAdminClient();
     const searchParams = request.nextUrl.searchParams;
-    const sessionId = searchParams.get('sessionId');
-    const startDate = searchParams.get('startDate');
-    const endDate = searchParams.get('endDate');
+    const sessionId = searchParams.get("sessionId");
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
 
     // Get recurring sessions
     let query = supabase
-      .from('class_sessions')
-      .select('*')
-      .eq('is_recurring', true);
+      .from("class_sessions")
+      .select("*")
+      .eq("is_recurring", true);
 
     if (sessionId) {
-      query = query.eq('parent_session_id', sessionId);
+      query = query.eq("parent_session_id", sessionId);
     }
 
     if (startDate && endDate) {
-      query = query
-        .gte('start_time', startDate)
-        .lte('start_time', endDate);
+      query = query.gte("start_time", startDate).lte("start_time", endDate);
     }
 
     const { data, error } = await query;
@@ -86,7 +87,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ sessions: data });
   } catch (error: any) {
-    console.error('Error fetching recurring classes:', error);
+    console.error("Error fetching recurring classes:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -95,81 +96,193 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createAdminClient();
     const body: RecurringClassRequest = await request.json();
-    
+
     const {
       classSessionId,
-      frequency,
+      programId,
+      frequency = "weekly",
       interval = 1,
       daysOfWeek,
       endDate,
-      maxOccurrences = 52
+      maxOccurrences = 52,
+      recurrenceRule,
+      timeSlots = [],
     } = body;
 
-    // Get the original session
-    const { data: originalSession, error: sessionError } = await supabase
-      .from('class_sessions')
-      .select('*')
-      .eq('id', classSessionId)
-      .single();
+    let originalSession: any = null;
+    let organizationId: string;
 
-    if (sessionError || !originalSession) {
-      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+    // If we have a classSessionId, get the original session to clone
+    if (classSessionId) {
+      const { data: session, error: sessionError } = await supabase
+        .from("class_sessions")
+        .select("*")
+        .eq("id", classSessionId)
+        .single();
+
+      if (sessionError || !session) {
+        return NextResponse.json(
+          { error: "Session not found" },
+          { status: 404 },
+        );
+      }
+      originalSession = session;
+      organizationId = session.organization_id;
+    } else if (programId) {
+      // Creating new sessions for a program without cloning
+      const { data: program, error: programError } = await supabase
+        .from("programs")
+        .select("*")
+        .eq("id", programId)
+        .single();
+
+      if (programError || !program) {
+        return NextResponse.json(
+          { error: "Program not found" },
+          { status: 404 },
+        );
+      }
+      organizationId = program.organization_id;
+    } else {
+      return NextResponse.json(
+        { error: "Either classSessionId or programId is required" },
+        { status: 400 },
+      );
     }
 
     // Generate occurrences
-    const startDate = new Date(originalSession.start_time);
-    const endDateTime = endDate ? new Date(endDate) : new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 year default
-    
+    const startDate = originalSession
+      ? new Date(originalSession.start_time)
+      : new Date();
+    const endDateTime = endDate
+      ? new Date(endDate)
+      : new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 year default
+
+    // Parse RRULE if provided (from the modal)
+    let actualFrequency = frequency;
+    let actualDaysOfWeek = daysOfWeek;
+
+    if (recurrenceRule && recurrenceRule.startsWith("FREQ=")) {
+      const parts = recurrenceRule.split(";");
+      parts.forEach((part) => {
+        if (part.startsWith("FREQ=")) {
+          actualFrequency = part.replace("FREQ=", "").toLowerCase() as any;
+        } else if (part.startsWith("BYDAY=")) {
+          const days = part.replace("BYDAY=", "").split(",");
+          const dayMap: { [key: string]: number } = {
+            SU: 0,
+            MO: 1,
+            TU: 2,
+            WE: 3,
+            TH: 4,
+            FR: 5,
+            SA: 6,
+          };
+          actualDaysOfWeek = days
+            .map((d) => dayMap[d])
+            .filter((d) => d !== undefined);
+        }
+      });
+    }
+
     const occurrences = generateRecurrences(
       startDate,
-      frequency,
+      actualFrequency,
       interval,
       endDateTime,
       maxOccurrences,
-      daysOfWeek
+      actualDaysOfWeek,
     );
 
     // Calculate duration
-    const duration = new Date(originalSession.end_time).getTime() - new Date(originalSession.start_time).getTime();
+    const duration = originalSession
+      ? new Date(originalSession.end_time).getTime() -
+        new Date(originalSession.start_time).getTime()
+      : 60 * 60 * 1000; // Default 1 hour
 
-    // Create recurring sessions
-    const sessions = occurrences.slice(1).map(date => ({ // Skip first as it's the original
-      ...originalSession,
-      id: undefined, // Let DB generate new ID
-      parent_session_id: classSessionId,
-      is_recurring: true,
-      start_time: date.toISOString(),
-      end_time: new Date(date.getTime() + duration).toISOString(),
-      occurrence_date: date.toISOString().split('T')[0],
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }));
+    // Create sessions array
+    let sessions: any[] = [];
+
+    if (originalSession) {
+      // Clone existing session for each occurrence (skip first as it's the original)
+      sessions = occurrences.slice(1).map((date) => ({
+        ...originalSession,
+        id: undefined, // Let DB generate new ID
+        parent_session_id: classSessionId,
+        is_recurring: true,
+        start_time: date.toISOString(),
+        end_time: new Date(date.getTime() + duration).toISOString(),
+        occurrence_date: date.toISOString().split("T")[0],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }));
+    } else if (programId && timeSlots.length > 0) {
+      // Create new sessions from time slots
+      sessions = [];
+      occurrences.forEach((date) => {
+        timeSlots.forEach((slot) => {
+          const [hours, minutes] = slot.time.split(":").map(Number);
+          const sessionStart = new Date(date);
+          sessionStart.setHours(hours, minutes, 0, 0);
+          const sessionEnd = new Date(
+            sessionStart.getTime() + slot.duration * 60 * 1000,
+          );
+
+          sessions.push({
+            program_id: programId,
+            organization_id: organizationId,
+            start_time: sessionStart.toISOString(),
+            end_time: sessionEnd.toISOString(),
+            occurrence_date: sessionStart.toISOString().split("T")[0],
+            is_recurring: true,
+            status: "scheduled",
+            current_capacity: 0,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+        });
+      });
+    }
+
+    if (sessions.length === 0) {
+      return NextResponse.json(
+        {
+          error:
+            "No sessions to create. Please check your recurrence settings and time slots.",
+        },
+        { status: 400 },
+      );
+    }
 
     // Insert all sessions
     const { data: createdSessions, error: insertError } = await supabase
-      .from('class_sessions')
+      .from("class_sessions")
       .insert(sessions)
       .select();
 
     if (insertError) throw insertError;
 
-    // Update original session
-    await supabase
-      .from('class_sessions')
-      .update({
-        is_recurring: true,
-        recurrence_rule: `${frequency.toUpperCase()};INTERVAL=${interval}`,
-        recurrence_end_date: endDateTime.toISOString()
-      })
-      .eq('id', classSessionId);
+    // Update original session if we cloned from one
+    if (classSessionId) {
+      await supabase
+        .from("class_sessions")
+        .update({
+          is_recurring: true,
+          recurrence_rule:
+            recurrenceRule ||
+            `${actualFrequency.toUpperCase()};INTERVAL=${interval}`,
+          recurrence_end_date: endDateTime.toISOString(),
+        })
+        .eq("id", classSessionId);
+    }
 
     return NextResponse.json({
-      message: 'Recurring classes created successfully',
-      count: createdSessions?.length || 0,
-      sessions: createdSessions
+      message: "Recurring classes created successfully",
+      instances: createdSessions?.length || 0,
+      sessions: createdSessions,
     });
   } catch (error: any) {
-    console.error('Error creating recurring classes:', error);
+    console.error("Error creating recurring classes:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -182,26 +295,26 @@ export async function PUT(request: NextRequest) {
     if (updateSeries) {
       // Update all sessions in the series
       const { error } = await supabase
-        .from('class_sessions')
+        .from("class_sessions")
         .update(updates)
         .or(`id.eq.${sessionId},parent_session_id.eq.${sessionId}`);
 
       if (error) throw error;
 
-      return NextResponse.json({ message: 'Series updated successfully' });
+      return NextResponse.json({ message: "Series updated successfully" });
     } else {
       // Update single occurrence
       const { error } = await supabase
-        .from('class_sessions')
+        .from("class_sessions")
         .update(updates)
-        .eq('id', sessionId);
+        .eq("id", sessionId);
 
       if (error) throw error;
 
-      return NextResponse.json({ message: 'Session updated successfully' });
+      return NextResponse.json({ message: "Session updated successfully" });
     }
   } catch (error: any) {
-    console.error('Error updating recurring class:', error);
+    console.error("Error updating recurring class:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -214,26 +327,26 @@ export async function DELETE(request: NextRequest) {
     if (deleteSeries) {
       // Delete all sessions in the series
       const { error } = await supabase
-        .from('class_sessions')
+        .from("class_sessions")
         .delete()
         .or(`id.eq.${sessionId},parent_session_id.eq.${sessionId}`);
 
       if (error) throw error;
 
-      return NextResponse.json({ message: 'Series deleted successfully' });
+      return NextResponse.json({ message: "Series deleted successfully" });
     } else {
       // Delete single occurrence
       const { error } = await supabase
-        .from('class_sessions')
+        .from("class_sessions")
         .delete()
-        .eq('id', sessionId);
+        .eq("id", sessionId);
 
       if (error) throw error;
 
-      return NextResponse.json({ message: 'Session deleted successfully' });
+      return NextResponse.json({ message: "Session deleted successfully" });
     }
   } catch (error: any) {
-    console.error('Error deleting recurring class:', error);
+    console.error("Error deleting recurring class:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

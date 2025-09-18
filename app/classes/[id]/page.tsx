@@ -128,20 +128,27 @@ export default function ClassDetailPage() {
   };
 
   const handleCreateRecurringClasses = async (recurrenceData: any) => {
-    if (!selectedSession) return;
-
     try {
+      // Handle creating recurring classes for a class type without existing sessions
+      const requestBody: any = {
+        programId: id, // Use the class type ID
+        recurrenceRule: recurrenceData.rrule,
+        endDate: recurrenceData.endDate,
+        maxOccurrences: recurrenceData.occurrences,
+        timeSlots: recurrenceData.timeSlots, // Include time slots from the modal
+      };
+
+      // If we have a selected session, include its ID (for cloning an existing session)
+      if (selectedSession) {
+        requestBody.classSessionId = selectedSession.id;
+      }
+
       const response = await fetch("/api/classes/recurring", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          classSessionId: selectedSession.id,
-          recurrenceRule: recurrenceData.rrule,
-          endDate: recurrenceData.endDate,
-          maxOccurrences: recurrenceData.occurrences,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();

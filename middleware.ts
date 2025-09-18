@@ -2,6 +2,59 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createMiddlewareClient } from '@/app/lib/supabase/middleware'
 
+// Subdomain configuration
+const SUBDOMAIN_CONFIG = {
+  'admin': {
+    name: 'Admin Portal',
+    description: 'SaaS business owners only',
+    allowedPaths: ['/admin', '/api/admin'],
+    redirectPath: '/admin',
+    requiresSuperAdmin: true
+  },
+  'login': {
+    name: 'Gym Owner Portal',
+    description: 'Gym owners platform',
+    allowedPaths: [
+      '/dashboard',
+      '/booking',
+      '/classes',
+      '/leads',
+      '/analytics',
+      '/settings',
+      '/messages',
+      '/conversations',
+      '/automations',
+      '/calendar',
+      '/staff',
+      '/forms',
+      '/billing',
+      '/memberships',
+      '/members',
+      '/ai-config',
+      '/customers',
+      '/integrations',
+      '/api'
+    ],
+    redirectPath: '/dashboard',
+    requiresOrganization: true
+  },
+  'members': {
+    name: 'Member Portal',
+    description: 'Gym members portal',
+    allowedPaths: [
+      '/client',
+      '/book',
+      '/[org]',
+      '/api/booking',
+      '/api/client',
+      '/api/booking-by-slug'
+    ],
+    redirectPath: '/client/dashboard',
+    requiresClient: true,
+    allowPublicBooking: true
+  }
+};
+
 // Public routes that don't require authentication
 const publicRoutes = [
   '/',
@@ -10,14 +63,14 @@ const publicRoutes = [
   '/simple-login',
   '/signin',
   '/signup',
-  '/signup-simple',     // Simplified signup page
+  '/signup-simple',
   '/auth/callback',
   '/client-portal/login',
   '/client-access',
-  '/login-otp',         // Public OTP-based login page
-  '/join',              // Public join page
-  '/book',              // Public booking pages for customers (all slugs)
-  '/meta-review',       // Meta App Review test page
+  '/login-otp',
+  '/join',
+  '/book',
+  '/meta-review',
   // Public API endpoints
   '/api/auth',
   '/api/client-portal',
@@ -26,19 +79,18 @@ const publicRoutes = [
   '/api/public-api',
   '/api/booking-by-slug',
   '/api/analytics',
-  '/api/login-otp',       // Public API for OTP login
-  '/api/setup-otp-table',  // Setup OTP table (temporary public access)
-  '/api/debug-clients',    // Debug endpoint to check client emails
-  '/api/test-client-lookup',    // Test endpoint for debugging email lookup
-  '/api/check-database',    // Check what's actually in the database
-  '/api/test-nutrition-access',    // Test nutrition database access
-  '/api/admin/fix-organization-staff',    // Organization staff migration
-  '/api/admin/fix-nutrition-schema',    // Nutrition schema migration
-  '/api/admin/create-meal-plans-table',    // Meal plans table migration
-  '/api/fix-messaging-view',    // Fix messaging view and conversation function
-  // Migration import routes - bypass auth entirely (use token auth instead)
-  '/api/migration',    // All migration endpoints use admin client
-  '/api/import/goteamup'    // GoTeamUp import endpoints use admin client
+  '/api/login-otp',
+  '/api/setup-otp-table',
+  '/api/debug-clients',
+  '/api/test-client-lookup',
+  '/api/check-database',
+  '/api/test-nutrition-access',
+  '/api/admin/fix-organization-staff',
+  '/api/admin/fix-nutrition-schema',
+  '/api/admin/create-meal-plans-table',
+  '/api/fix-messaging-view',
+  '/api/migration',
+  '/api/import/goteamup'
 ]
 
 // Client-only routes
@@ -85,7 +137,7 @@ const adminRoutes = [
   '/dashboard',
   '/leads',
   '/messages',
-  '/conversations',  // Add conversations route
+  '/conversations',
   '/automations',
   '/calendar',
   '/booking',
@@ -94,11 +146,11 @@ const adminRoutes = [
   '/settings',
   '/billing',
   '/memberships',
-  '/members',      // Add members route
+  '/members',
   '/ai-config',
   '/classes',
   '/customers',
-  '/integrations'  // Add integrations to admin routes
+  '/integrations'
 ]
 
 // Super admin routes that bypass organization checks
@@ -106,20 +158,105 @@ const superAdminRoutes = [
   '/admin'
 ]
 
+function extractSubdomain(hostname: string): string {
+  // Handle localhost for development
+  if (hostname.includes('localhost')) {
+    // Check for subdomain in localhost (e.g., admin.localhost:3000)
+    const parts = hostname.split('.')
+    if (parts.length > 1 && parts[0] !== 'www') {
+      return parts[0]
+    }
+    return ''
+  }
+
+  // Handle production domains
+  if (hostname.includes('gymleadhub.co.uk')) {
+    const parts = hostname.split('.')
+    if (parts.length > 2 && parts[0] !== 'www') {
+      return parts[0]
+    }
+  }
+
+  // Handle Vercel preview deployments
+  if (hostname.includes('vercel.app')) {
+    // For Vercel, we don't enforce subdomains
+    return ''
+  }
+
+  return ''
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  const res = NextResponse.next()
+  const hostname = request.headers.get('host') || ''
+  const subdomain = extractSubdomain(hostname)
+
+  // Create response object early
+  let res = NextResponse.next()
+
+  // Add subdomain information to headers
+  if (subdomain) {
+    res.headers.set('x-subdomain', subdomain)
+    const config = SUBDOMAIN_CONFIG[subdomain as keyof typeof SUBDOMAIN_CONFIG]
+    if (config) {
+      res.headers.set('x-subdomain-name', config.name)
+    }
+  }
 
   // Emergency bypass - if middleware is causing issues
   if (process.env.BYPASS_MIDDLEWARE === 'true') {
     return res
   }
-  
+
+  // Handle subdomain-specific routing (only in production)
+  if (hostname.includes('gymleadhub.co.uk') && subdomain) {
+    const config = SUBDOMAIN_CONFIG[subdomain as keyof typeof SUBDOMAIN_CONFIG]
+
+    if (config) {
+      // Check if the current path is allowed for this subdomain
+      const isAllowedPath = config.allowedPaths.some(path =>
+        pathname === path ||
+        pathname.startsWith(path + '/') ||
+        (path === '/[org]' && pathname.match(/^\/[^\/]+$/)) // Handle dynamic org routes
+      )
+
+      // Always allow auth routes, static files, and API routes
+      const isAuthRoute = pathname.startsWith('/signin') ||
+                         pathname.startsWith('/signup') ||
+                         pathname.startsWith('/auth')
+      const isStaticFile = pathname.startsWith('/_next') ||
+                          pathname.includes('.')
+
+      if (!isAllowedPath && !isAuthRoute && !isStaticFile) {
+        // Redirect to the correct subdomain if trying to access wrong area
+        if (pathname.startsWith('/admin') && subdomain !== 'admin') {
+          return NextResponse.redirect(new URL(pathname, `https://admin.gymleadhub.co.uk`))
+        }
+        if (pathname.startsWith('/dashboard') && subdomain !== 'login') {
+          return NextResponse.redirect(new URL(pathname, `https://login.gymleadhub.co.uk`))
+        }
+        if (pathname.startsWith('/client') && subdomain !== 'members') {
+          return NextResponse.redirect(new URL(pathname, `https://members.gymleadhub.co.uk`))
+        }
+
+        // Otherwise, redirect to the subdomain's default page
+        if (pathname === '/') {
+          return NextResponse.redirect(new URL(config.redirectPath, request.url))
+        }
+      }
+
+      // Redirect root to appropriate dashboard
+      if (pathname === '/' && config.redirectPath) {
+        return NextResponse.redirect(new URL(config.redirectPath, request.url))
+      }
+    }
+  }
+
   // Block debug routes in production or if not explicitly enabled
-  const isDebugRoute = debugRoutes.some(route => 
+  const isDebugRoute = debugRoutes.some(route =>
     pathname === route || pathname.startsWith(route + '/')
   )
-  
+
   // Also block debug API routes - but allow specific test endpoints
   const allowedTestEndpoints = [
     '/api/test-email',
@@ -130,20 +267,20 @@ export async function middleware(request: NextRequest) {
     '/api/email-status',
     '/api/check-magic-link'
   ]
-  
+
   const isAllowedTestEndpoint = allowedTestEndpoints.some(endpoint => pathname === endpoint)
-  
+
   const isDebugApiRoute = !isAllowedTestEndpoint && (
-    pathname.startsWith('/api/debug/') || 
+    pathname.startsWith('/api/debug/') ||
     pathname.startsWith('/api/test/') ||
     pathname.startsWith('/api/quick-add-class')
   )
-  
+
   if (isDebugRoute || isDebugApiRoute) {
     // Only allow debug routes in development or if ENABLE_DEBUG_ROUTES=true
     const isDevelopment = process.env.NODE_ENV === 'development'
     const debugEnabled = process.env.ENABLE_DEBUG_ROUTES === 'true'
-    
+
     if (!isDevelopment && !debugEnabled) {
       if (isDebugApiRoute) {
         return NextResponse.json({ error: 'Debug API routes are disabled in production' }, { status: 403 })
@@ -151,12 +288,18 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
   }
-  
+
   // Check if route is public
-  const isPublicRoute = publicRoutes.some(route => 
+  const isPublicRoute = publicRoutes.some(route =>
     pathname === route || pathname.startsWith(route + '/')
   )
-  
+
+  // Special handling for members subdomain public booking routes
+  if (subdomain === 'members' && (pathname.startsWith('/book') || pathname.match(/^\/[^\/]+$/))) {
+    // Allow public access to booking pages on members subdomain
+    return res
+  }
+
   if (isPublicRoute) {
     return res
   }
@@ -187,7 +330,11 @@ export async function middleware(request: NextRequest) {
     }
     // For non-public routes, redirect to login
     if (!pathname.startsWith('/api/')) {
-      return NextResponse.redirect(new URL('/login', request.url))
+      // Redirect to appropriate login based on subdomain
+      const loginUrl = subdomain === 'members'
+        ? '/client-portal/login'
+        : '/login'
+      return NextResponse.redirect(new URL(loginUrl, request.url))
     }
     return NextResponse.json({ error: 'Auth service unavailable' }, { status: 503 })
   }
@@ -195,28 +342,108 @@ export async function middleware(request: NextRequest) {
   // If no session, try to get user and refresh
   if (!session) {
     const { data: { user } } = await supabase.auth.getUser()
-    
+
     if (user) {
       // User exists but session expired, try to refresh
       const { data: { session: refreshedSession } } = await supabase.auth.refreshSession()
-      
+
       if (refreshedSession) {
         // Successfully refreshed, continue with the request
         return res
       }
     }
-    
+
     // No session and couldn't refresh - return 401 for API, redirect to login for pages
     if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    const redirectUrl = new URL('/login', request.url)
+
+    // Redirect to appropriate login based on subdomain
+    const loginUrl = subdomain === 'members'
+      ? '/client-portal/login'
+      : '/login'
+    const redirectUrl = new URL(loginUrl, request.url)
     redirectUrl.searchParams.set('redirect', pathname)
     return NextResponse.redirect(redirectUrl)
   }
 
+  // Subdomain-specific authentication checks
+  if (subdomain && SUBDOMAIN_CONFIG[subdomain as keyof typeof SUBDOMAIN_CONFIG]) {
+    const config = SUBDOMAIN_CONFIG[subdomain as keyof typeof SUBDOMAIN_CONFIG]
+
+    // Check admin subdomain - requires super admin
+    if (config.requiresSuperAdmin) {
+      // Check if user has super admin access
+      // This should be checked in the admin pages themselves
+      // For now, just ensure they're authenticated
+      return res
+    }
+
+    // Check members subdomain - requires client account
+    if (config.requiresClient) {
+      const { data: client } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .single()
+
+      if (!client && pathname.startsWith('/client')) {
+        // Not a client, redirect to appropriate login
+        return NextResponse.redirect(new URL('/client-portal/login', request.url))
+      }
+    }
+
+    // Check login subdomain - requires organization
+    if (config.requiresOrganization && !pathname.startsWith('/api/')) {
+      // Check if user has an organization
+      let userOrg = null;
+
+      // First check organization_staff table (new structure)
+      const { data: staffOrg } = await supabase
+        .from('organization_staff')
+        .select('organization_id, role')
+        .eq('user_id', session.user.id)
+        .eq('is_active', true)
+        .single()
+
+      if (staffOrg) {
+        userOrg = staffOrg;
+      } else {
+        // Fallback to organization_members table (old structure)
+        const { data: memberOrg } = await supabase
+          .from('organization_members')
+          .select('organization_id, role')
+          .eq('user_id', session.user.id)
+          .eq('is_active', true)
+          .single()
+
+        if (memberOrg) {
+          userOrg = memberOrg;
+        }
+      }
+
+      if (!userOrg && !pathname.startsWith('/onboarding')) {
+        // User doesn't belong to any organization
+        if (pathname.startsWith('/api/')) {
+          return NextResponse.json({ error: 'Organization required' }, { status: 403 })
+        }
+        const redirectUrl = new URL('/onboarding/create-organization', request.url)
+        redirectUrl.searchParams.set('redirect', pathname)
+        return NextResponse.redirect(redirectUrl)
+      }
+
+      // Store organization ID in headers for API routes
+      if (userOrg) {
+        res.headers.set('x-organization-id', userOrg.organization_id)
+        res.headers.set('x-user-role', userOrg.role)
+      }
+    }
+
+    return res
+  }
+
   // Check if user is trying to access super admin routes
-  const isSuperAdminRoute = superAdminRoutes.some(route => 
+  const isSuperAdminRoute = superAdminRoutes.some(route =>
     pathname.startsWith(route)
   )
 
@@ -227,7 +454,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Check if user is trying to access client routes
-  const isClientRoute = clientRoutes.some(route => 
+  const isClientRoute = clientRoutes.some(route =>
     pathname.startsWith(route)
   )
 
@@ -243,7 +470,7 @@ export async function middleware(request: NextRequest) {
       // Not a client, redirect to main dashboard
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
-    
+
     return res
   }
 
@@ -253,14 +480,14 @@ export async function middleware(request: NextRequest) {
   }
 
   // Check if user is trying to access admin routes
-  const isAdminRoute = adminRoutes.some(route => 
+  const isAdminRoute = adminRoutes.some(route =>
     pathname.startsWith(route)
   )
 
   if (isAdminRoute) {
     // Check if user has an organization - check both tables
     let userOrg = null;
-    
+
     // First check organization_staff table (new structure)
     const { data: staffOrg } = await supabase
       .from('organization_staff')
@@ -268,7 +495,7 @@ export async function middleware(request: NextRequest) {
       .eq('user_id', session.user.id)
       .eq('is_active', true)
       .single()
-    
+
     if (staffOrg) {
       userOrg = staffOrg;
     } else {
@@ -279,7 +506,7 @@ export async function middleware(request: NextRequest) {
         .eq('user_id', session.user.id)
         .eq('is_active', true)
         .single()
-      
+
       if (memberOrg) {
         userOrg = memberOrg;
       }
