@@ -274,6 +274,46 @@ function AttendancesReportPageContent() {
     revalidateOnFocus: false,
   });
 
+  // Build stats URL
+  const statsUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set("date_from", filters.dateFrom);
+    params.set("date_to", filters.dateTo);
+
+    if (filters.customerId) params.set("customer_id", filters.customerId);
+    if (filters.classTypeId) params.set("class_type_id", filters.classTypeId);
+    if (filters.venueId) params.set("venue_id", filters.venueId);
+    if (filters.instructorId) params.set("instructor_id", filters.instructorId);
+    if (filters.membershipId) params.set("membership_id", filters.membershipId);
+
+    filters.bookingMethods.forEach((method) =>
+      params.append("booking_method", method),
+    );
+    filters.bookingSources.forEach((source) =>
+      params.append("booking_source", source),
+    );
+    filters.statuses.forEach((status) => params.append("status", status));
+
+    params.set("include_future", filters.includeFuture.toString());
+
+    return `/api/reports/attendances/stats?${params.toString()}`;
+  }, [filters]);
+
+  // Fetch stats separately
+  const { data: statsData } = useSWR<{
+    success: boolean;
+    data: {
+      totalBookings: number;
+      attendedCount: number;
+      noShowCount: number;
+      cancelledCount: number;
+      registeredCount: number;
+      attendanceRate: number;
+    };
+  }>(statsUrl, fetcher, {
+    revalidateOnFocus: false,
+  });
+
   // Handle filter changes
   const updateFilters = (newFilters: Partial<FilterState>) => {
     setFilters((prev) => ({ ...prev, ...newFilters, page: 1 })); // Reset to page 1 on filter change
@@ -352,18 +392,30 @@ function AttendancesReportPageContent() {
 
   // Calculate summary stats
   const summaryStats = useMemo(() => {
+    // Use stats from dedicated endpoint if available
+    if (statsData?.data) {
+      return statsData.data;
+    }
+
+    // Fallback to calculating from current data
     if (!attendanceData?.data) return null;
 
     if (filters.groupBy === "each" && attendanceData.data.attendances) {
       const records = attendanceData.data.attendances;
+      // Use pagination.total_count for total bookings
+      const totalCount =
+        attendanceData.data.pagination?.total_count || records.length;
+
       return {
-        totalBookings: records.length,
+        totalBookings: totalCount,
         attendedCount: records.filter((r) => r.attendance_status === "attended")
           .length,
         noShowCount: records.filter((r) => r.attendance_status === "no_show")
           .length,
         cancelledCount: records.filter(
-          (r) => r.attendance_status === "late_cancelled",
+          (r) =>
+            r.attendance_status === "late_cancelled" ||
+            r.attendance_status === "cancelled",
         ).length,
         attendanceRate:
           records.length > 0
@@ -402,7 +454,7 @@ function AttendancesReportPageContent() {
     }
 
     return null;
-  }, [attendanceData, filters.groupBy]);
+  }, [attendanceData, filters.groupBy, statsData]);
 
   if (!mounted) {
     return (
@@ -1098,48 +1150,47 @@ function AttendancesReportPageContent() {
                 </div>
 
                 {/* Pagination */}
-                {attendanceData.data.pagination &&
-                  attendanceData.data.pagination.total_pages > 1 && (
-                    <div className="p-6 border-t border-gray-700">
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm text-gray-400">
-                          Page {attendanceData.data.pagination.page} of{" "}
-                          {attendanceData.data.pagination.total_pages}
-                        </div>
+                {attendanceData.data.pagination && (
+                  <div className="p-6 border-t border-gray-700">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-gray-400">
+                        Page {attendanceData.data.pagination.page} of{" "}
+                        {attendanceData.data.pagination.total_pages}
+                      </div>
 
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() =>
-                              updateFilters({
-                                page: Math.max(1, filters.page - 1),
-                              })
-                            }
-                            disabled={filters.page <= 1}
-                            className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Previous
-                          </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() =>
+                            updateFilters({
+                              page: Math.max(1, filters.page - 1),
+                            })
+                          }
+                          disabled={filters.page <= 1}
+                          className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Previous
+                        </button>
 
-                          <span className="px-3 py-1 text-white">
-                            {filters.page}
-                          </span>
+                        <span className="px-3 py-1 text-white">
+                          {filters.page}
+                        </span>
 
-                          <button
-                            onClick={() =>
-                              updateFilters({ page: filters.page + 1 })
-                            }
-                            disabled={
-                              filters.page >=
-                              attendanceData.data.pagination.total_pages
-                            }
-                            className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Next
-                          </button>
-                        </div>
+                        <button
+                          onClick={() =>
+                            updateFilters({ page: filters.page + 1 })
+                          }
+                          disabled={
+                            filters.page >=
+                            attendanceData.data.pagination.total_pages
+                          }
+                          className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Next
+                        </button>
                       </div>
                     </div>
-                  )}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="p-8 text-center">

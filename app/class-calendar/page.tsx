@@ -183,7 +183,7 @@ export default function ClassCalendarPage() {
             // Calculate time slot for 30-minute intervals
             // 0 = 6:00 AM, 1 = 6:30 AM, 2 = 7:00 AM, etc.
             const timeSlot = (hour - 6) * 2 + (minutes >= 30 ? 1 : 0);
-            if (hour < 6 || hour > 21 || (hour === 21 && minutes > 0)) {
+            if (hour < 6 || hour >= 22) {
               console.log(
                 `Skipping class at ${hour}:${minutes} - outside calendar range`,
               );
@@ -212,6 +212,11 @@ export default function ClassCalendarPage() {
               day,
               timeSlot,
               startTime: cls.start_time,
+              // Add debug fields
+              _debug_hour: hour,
+              _debug_minutes: minutes,
+              _debug_dayOfWeek: dayOfWeek,
+              _debug_calculatedDay: day,
             };
           })
           .filter((cls) => cls !== null); // Remove null entries for classes outside time range
