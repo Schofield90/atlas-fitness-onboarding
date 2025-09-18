@@ -41,7 +41,6 @@ export default function ClassDetailPage() {
     name: "",
     description: "",
     price_pennies: 0,
-    duration_minutes: 60,
     capacity: 0, // Will be set from database
     location: "",
     instructor_types: [] as string[],
@@ -81,7 +80,6 @@ export default function ClassDetailPage() {
           name: data.name || "",
           description: data.description || "",
           price_pennies: data.price_pennies || 0,
-          duration_minutes: data.duration_minutes || 60,
           capacity: data.default_capacity || data.max_participants || 20,
           location: data.metadata?.location || "", // Load location from metadata
           instructor_types: data.metadata?.instructor_types || [], // Load from metadata
@@ -177,7 +175,6 @@ export default function ClassDetailPage() {
         name: formData.name,
         description: formData.description,
         price_pennies: formData.price_pennies,
-        duration_minutes: formData.duration_minutes,
         max_participants: formData.capacity, // Use max_participants as that's the actual column name in programs table
         default_capacity: formData.capacity, // Keep for backward compatibility if column exists
         color: formData.color,
@@ -458,47 +455,24 @@ export default function ClassDetailPage() {
                 </h2>
 
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-2">
-                        <Clock className="w-4 h-4 inline mr-1" />
-                        Duration (minutes)
-                      </label>
-                      <input
-                        type="number"
-                        value={formData.duration_minutes}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            duration_minutes: parseInt(e.target.value),
-                          })
-                        }
-                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
-                        min="15"
-                        max="240"
-                        step="15"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-2">
-                        <Users className="w-4 h-4 inline mr-1" />
-                        Default Capacity
-                      </label>
-                      <input
-                        type="number"
-                        value={formData.capacity}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            capacity: parseInt(e.target.value),
-                          })
-                        }
-                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
-                        min="1"
-                        max="100"
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
+                      <Users className="w-4 h-4 inline mr-1" />
+                      Default Capacity
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.capacity}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          capacity: parseInt(e.target.value),
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      min="1"
+                      max="100"
+                    />
                   </div>
 
                   {/* Capacity Update Options */}
@@ -820,7 +794,7 @@ export default function ClassDetailPage() {
                         </div>
 
                         <div className="flex items-center gap-2">
-                          {session.is_recurring && (
+                          {session.parent_session_id && (
                             <span className="bg-blue-900/30 text-blue-400 px-2 py-1 rounded text-xs">
                               Recurring
                             </span>
