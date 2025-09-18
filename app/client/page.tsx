@@ -259,6 +259,8 @@ export default function ClientDashboard() {
     // Filter for upcoming classes in memory
     console.log("All confirmed bookings:", allConfirmedBookings);
     console.log("Current time (nowISO):", nowISO);
+    console.log("Client ID:", client?.id);
+    console.log("Lead ID:", leadRecord?.id);
 
     let directUpcoming =
       allConfirmedBookings
@@ -266,7 +268,7 @@ export default function ClientDashboard() {
           const sessionTime = booking.class_sessions?.start_time;
           const isUpcoming = sessionTime >= nowISO;
           console.log(
-            `Session ${booking.id} - Time: ${sessionTime}, Is upcoming: ${isUpcoming}`,
+            `Session ${booking.id} - Time: ${sessionTime}, Is upcoming: ${isUpcoming}, Status: ${booking.status}`,
           );
           return isUpcoming;
         })
@@ -681,10 +683,11 @@ export default function ClientDashboard() {
                         {stats.nextClass
                           ? new Date(
                               stats.nextClass.class_sessions?.start_time,
-                            ).toLocaleDateString("en-GB", {
+                            ).toLocaleString("en-GB", {
                               weekday: "short",
                               hour: "2-digit",
                               minute: "2-digit",
+                              timeZone: "Europe/London",
                             })
                           : "No upcoming classes"}
                       </dd>
@@ -815,12 +818,13 @@ export default function ClientDashboard() {
                           {booking.class_sessions?.start_time &&
                             new Date(
                               booking.class_sessions.start_time,
-                            ).toLocaleDateString("en-GB", {
+                            ).toLocaleString("en-GB", {
                               weekday: "long",
                               day: "numeric",
                               month: "short",
                               hour: "2-digit",
                               minute: "2-digit",
+                              timeZone: "Europe/London",
                             })}
                         </p>
                         <p className="text-sm text-gray-500">
