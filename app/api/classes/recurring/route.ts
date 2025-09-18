@@ -111,6 +111,7 @@ export async function POST(request: NextRequest) {
 
     let originalSession: any = null;
     let organizationId: string;
+    let programData: any = null;
 
     // If we have a classSessionId, get the original session to clone
     if (classSessionId) {
@@ -143,6 +144,7 @@ export async function POST(request: NextRequest) {
         );
       }
       organizationId = program.organization_id;
+      programData = program;
     } else {
       return NextResponse.json(
         { error: "Either classSessionId or programId is required" },
@@ -231,12 +233,17 @@ export async function POST(request: NextRequest) {
           sessions.push({
             program_id: programId,
             organization_id: organizationId,
+            name: programData?.name || "Class Session",
             start_time: sessionStart.toISOString(),
             end_time: sessionEnd.toISOString(),
             occurrence_date: sessionStart.toISOString().split("T")[0],
             is_recurring: true,
             status: "scheduled",
-            current_capacity: 0,
+            current_bookings: 0,
+            max_capacity:
+              programData?.max_participants ||
+              programData?.default_capacity ||
+              20,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           });
