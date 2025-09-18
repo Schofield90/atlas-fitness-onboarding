@@ -242,6 +242,7 @@ export default function BookingPage() {
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "Europe/London",
     });
   };
 
@@ -596,7 +597,11 @@ export default function BookingPage() {
                             {formatDateTime(booking.start_time)} -{" "}
                             {new Date(booking.end_time).toLocaleTimeString(
                               "en-GB",
-                              { hour: "2-digit", minute: "2-digit" },
+                              {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                timeZone: "Europe/London",
+                              },
                             )}
                             {booking.duration_minutes &&
                               ` (${booking.duration_minutes} min)`}
