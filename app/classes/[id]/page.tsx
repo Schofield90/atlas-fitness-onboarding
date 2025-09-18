@@ -14,6 +14,7 @@ import {
   Trash2,
   Repeat,
   List,
+  X,
 } from "lucide-react";
 import DashboardLayout from "@/app/components/DashboardLayout";
 import { createClient } from "@/app/lib/supabase/client";
@@ -49,6 +50,11 @@ export default function ClassDetailPage() {
     metadata: {},
   });
 
+  const [selectedSessions, setSelectedSessions] = useState<{
+    [key: string]: boolean;
+  }>({});
+  const [showRecurrenceModal, setShowRecurrenceModal] = useState(false);
+  const [selectedSession, setSelectedSession] = useState<any>(null);
   const [updateOptions, setUpdateOptions] = useState({
     updateFutureSessions: false,
     updateAllSessions: false,
@@ -164,6 +170,64 @@ export default function ClassDetailPage() {
     } catch (error) {
       console.error("Error creating recurring classes:", error);
       alert("Failed to create recurring classes");
+    }
+  };
+
+  const handleCancelSession = async (sessionId: string) => {
+    if (!confirm("Are you sure you want to cancel this class session?")) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("class_sessions")
+        .update({ session_status: "cancelled" })
+        .eq("id", sessionId)
+        .eq("organization_id", organizationId);
+
+      if (error) throw error;
+
+      alert("Session cancelled successfully");
+      await loadClassSessions();
+    } catch (error) {
+      console.error("Error cancelling session:", error);
+      alert("Failed to cancel session");
+    }
+  };
+
+  const handleBulkCancel = async () => {
+    const selectedIds = Object.keys(selectedSessions).filter(
+      (id) => selectedSessions[id],
+    );
+
+    if (selectedIds.length === 0) {
+      alert("Please select sessions to cancel");
+      return;
+    }
+
+    if (
+      !confirm(
+        `Are you sure you want to cancel ${selectedIds.length} session(s)?`,
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("class_sessions")
+        .update({ session_status: "cancelled" })
+        .in("id", selectedIds)
+        .eq("organization_id", organizationId);
+
+      if (error) throw error;
+
+      alert(`${selectedIds.length} session(s) cancelled successfully`);
+      setSelectedSessions({});
+      await loadClassSessions();
+    } catch (error) {
+      console.error("Error cancelling sessions:", error);
+      alert("Failed to cancel sessions");
     }
   };
 
@@ -758,16 +822,54 @@ export default function ClassDetailPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
+                    {/* Bulk Actions Bar */}
+                    {Object.keys(selectedSessions).some(
+                      (id) => selectedSessions[id],
+                    ) && (
+                      <div className="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-600">
+                        <span className="text-sm text-gray-300">
+                          {
+                            Object.keys(selectedSessions).filter(
+                              (id) => selectedSessions[id],
+                            ).length
+                          }{" "}
+                          session(s) selected
+                        </span>
+                        <button
+                          onClick={handleBulkCancel}
+                          className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded-md transition-colors"
+                        >
+                          Cancel Selected
+                        </button>
+                      </div>
+                    )}
+
                     {classSessions.map((session) => (
                       <div
                         key={session.id}
                         className="flex items-center justify-between p-4 bg-gray-700 rounded-lg border border-gray-600"
                       >
                         <div className="flex items-center gap-4">
+                          <input
+                            type="checkbox"
+                            checked={selectedSessions[session.id] || false}
+                            onChange={(e) =>
+                              setSelectedSessions({
+                                ...selectedSessions,
+                                [session.id]: e.target.checked,
+                              })
+                            }
+                            className="w-4 h-4 text-orange-600 bg-gray-700 border-gray-600 rounded focus:ring-orange-500"
+                          />
                           <div className="flex flex-col">
                             <span className="text-white font-medium">
                               {session.name || classType?.name}
                             </span>
+                            {session.session_status === "cancelled" && (
+                              <span className="text-red-400 text-xs">
+                                CANCELLED
+                              </span>
+                            )}
                             <div className="flex items-center gap-4 text-sm text-gray-400">
                               <div className="flex items-center gap-1">
                                 <Calendar className="w-3 h-3" />
@@ -809,6 +911,15 @@ export default function ClassDetailPage() {
                           >
                             <Repeat className="w-4 h-4" />
                           </button>
+                          {session.session_status !== "cancelled" && (
+                            <button
+                              onClick={() => handleCancelSession(session.id)}
+                              className="p-2 text-red-400 hover:bg-red-900/20 rounded transition-colors"
+                              title="Cancel this session"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}

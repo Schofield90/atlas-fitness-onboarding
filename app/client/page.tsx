@@ -167,6 +167,13 @@ export default function ClientDashboard() {
       endDate.toISOString(),
     );
 
+    // First check if there's a lead record for this client
+    const { data: leadRecord } = await supabase
+      .from("leads")
+      .select("id")
+      .eq("client_id", client.id)
+      .single();
+
     // Try direct client bookings first (preferred for multi-tenant)
     let { data: directBookings } = await supabase
       .from("bookings")
@@ -184,6 +191,28 @@ export default function ClientDashboard() {
       .eq("client_id", client.id)
       .gte("created_at", startDate.toISOString())
       .lte("created_at", endDate.toISOString());
+
+    // If no bookings found with client_id, try with lead ID (customer_id)
+    if ((!directBookings || directBookings.length === 0) && leadRecord) {
+      const { data: leadPeriodBookings } = await supabase
+        .from("bookings")
+        .select(
+          `
+          *,
+          class_sessions (
+            *,
+            programs (name),
+            organization_locations (name),
+            organization_staff (name)
+          )
+        `,
+        )
+        .eq("customer_id", leadRecord.id)
+        .gte("created_at", startDate.toISOString())
+        .lte("created_at", endDate.toISOString());
+
+      directBookings = leadPeriodBookings;
+    }
 
     // Get all confirmed bookings and filter in memory
     // (PostgREST doesn't support filtering on nested relations)
@@ -203,16 +232,52 @@ export default function ClientDashboard() {
       .eq("client_id", client.id)
       .eq("status", "confirmed");
 
+    // If no bookings found with client_id, try with lead ID (customer_id)
+    if (
+      (!allConfirmedBookings || allConfirmedBookings.length === 0) &&
+      leadRecord
+    ) {
+      const { data: leadBookings } = await supabase
+        .from("bookings")
+        .select(
+          `
+          *,
+          class_sessions (
+            *,
+            programs (name),
+            organization_locations (name),
+            organization_staff (name)
+          )
+        `,
+        )
+        .eq("customer_id", leadRecord.id)
+        .eq("status", "confirmed");
+
+      allConfirmedBookings = leadBookings;
+    }
+
     // Filter for upcoming classes in memory
+    console.log("All confirmed bookings:", allConfirmedBookings);
+    console.log("Current time (nowISO):", nowISO);
+
     let directUpcoming =
       allConfirmedBookings
-        ?.filter((booking: any) => booking.class_sessions?.start_time >= nowISO)
+        ?.filter((booking: any) => {
+          const sessionTime = booking.class_sessions?.start_time;
+          const isUpcoming = sessionTime >= nowISO;
+          console.log(
+            `Session ${booking.id} - Time: ${sessionTime}, Is upcoming: ${isUpcoming}`,
+          );
+          return isUpcoming;
+        })
         .sort((a: any, b: any) => {
           const aTime = new Date(a.class_sessions?.start_time || 0).getTime();
           const bTime = new Date(b.class_sessions?.start_time || 0).getTime();
           return aTime - bTime;
         })
         .slice(0, 3) || [];
+
+    console.log("Direct upcoming bookings:", directUpcoming);
 
     let classesAttended =
       directBookings?.filter((b) => b.status === "attended").length || 0;

@@ -410,39 +410,39 @@ export default function SessionDetailModal({
   );
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black bg-opacity-75 z-[9999] flex items-center justify-center p-4">
+      <div className="bg-gray-800 rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden border border-gray-700">
         {/* Header */}
-        <div className="bg-gray-50 border-b border-gray-200 px-6 py-4">
+        <div className="bg-gray-900 border-b border-gray-700 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <button
                 onClick={onClose}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-400 hover:text-gray-200"
               >
                 <X className="w-5 h-5" />
               </button>
               <div>
-                <nav className="flex items-center text-sm text-gray-500">
-                  <a href="#" className="hover:text-blue-600">
+                <nav className="flex items-center text-sm text-gray-400">
+                  <a href="#" className="hover:text-blue-400">
                     Calendar
                   </a>
                   <span className="mx-2">/</span>
-                  <span className="text-gray-900">{session.title}</span>
+                  <span className="text-gray-200">{session.title}</span>
                 </nav>
-                <h2 className="text-xl font-semibold text-gray-900 mt-1">
+                <h2 className="text-xl font-semibold text-white mt-1">
                   {session.title}
                 </h2>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              <button className="p-2 hover:bg-gray-200 rounded">
-                <ChevronLeft className="w-5 h-5" />
+              <button className="p-2 hover:bg-gray-700 rounded">
+                <ChevronLeft className="w-5 h-5 text-gray-400" />
               </button>
-              <span className="text-sm text-gray-600">Jump to</span>
-              <button className="p-2 hover:bg-gray-200 rounded">
-                <ChevronRight className="w-5 h-5" />
+              <span className="text-sm text-gray-400">Jump to</span>
+              <button className="p-2 hover:bg-gray-700 rounded">
+                <ChevronRight className="w-5 h-5 text-gray-400" />
               </button>
 
               <div className="relative ml-4 main-options-menu">
@@ -460,17 +460,17 @@ export default function SessionDetailModal({
                 </button>
 
                 {showOptionsMenu === "main" && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
-                    <button className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700">
+                  <div className="absolute right-0 mt-2 w-48 bg-gray-700 rounded-md shadow-lg z-10 border border-gray-600">
+                    <button className="w-full text-left px-4 py-2 hover:bg-gray-600 text-gray-200">
                       Edit Session
                     </button>
-                    <button className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700">
+                    <button className="w-full text-left px-4 py-2 hover:bg-gray-600 text-gray-200">
                       Duplicate
                     </button>
-                    <button className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700">
+                    <button className="w-full text-left px-4 py-2 hover:bg-gray-600 text-gray-200">
                       Cancel Session
                     </button>
-                    <button className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600">
+                    <button className="w-full text-left px-4 py-2 hover:bg-gray-600 text-red-400">
                       Delete
                     </button>
                   </div>
@@ -481,11 +481,11 @@ export default function SessionDetailModal({
         </div>
 
         {/* Session Info */}
-        <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+        <div className="px-6 py-4 bg-gray-900 border-b border-gray-700">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-gray-400" />
-              <span className="text-gray-900">
+              <Calendar className="w-4 h-4 text-gray-500" />
+              <span className="text-gray-200">
                 {startTime.toLocaleDateString("en-GB", {
                   weekday: "long",
                   day: "numeric",
@@ -495,8 +495,8 @@ export default function SessionDetailModal({
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-gray-400" />
-              <span className="text-gray-900">
+              <Clock className="w-4 h-4 text-gray-500" />
+              <span className="text-gray-200">
                 {startTime.toLocaleTimeString("en-GB", {
                   hour: "2-digit",
                   minute: "2-digit",
@@ -509,78 +509,78 @@ export default function SessionDetailModal({
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-gray-400" />
-              <span className="text-gray-900">
+              <MapPin className="w-4 h-4 text-gray-500" />
+              <span className="text-gray-200">
                 {session.room || "Harrogate"}
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <User className="w-4 h-4 text-gray-400" />
-              <span className="text-gray-900">{session.instructor}</span>
+              <User className="w-4 h-4 text-gray-500" />
+              <span className="text-gray-200">{session.instructor}</span>
             </div>
           </div>
 
           <div className="mt-3 flex flex-wrap gap-2 text-sm">
             <div className="flex items-center gap-1">
-              <Users className="w-4 h-4 text-gray-400" />
-              <span className="text-gray-900">
+              <Users className="w-4 h-4 text-gray-500" />
+              <span className="text-gray-200">
                 {attendees.length} / {session.capacity}
               </span>
-              <Edit2 className="w-3 h-3 text-gray-400 cursor-pointer hover:text-gray-600" />
+              <Edit2 className="w-3 h-3 text-gray-500 cursor-pointer hover:text-gray-400" />
             </div>
-            <span className="text-gray-400">•</span>
-            <span className="text-gray-600">Visible to: everyone</span>
-            <span className="text-gray-400">•</span>
-            <span className="text-gray-600">Registrations closed</span>
-            <span className="text-gray-400">•</span>
-            <span className="text-gray-600">
+            <span className="text-gray-500">•</span>
+            <span className="text-gray-400">Visible to: everyone</span>
+            <span className="text-gray-500">•</span>
+            <span className="text-gray-400">Registrations closed</span>
+            <span className="text-gray-500">•</span>
+            <span className="text-gray-400">
               58 Memberships • Drop-ins not allowed
             </span>
           </div>
 
-          <button className="mt-3 text-blue-600 text-sm hover:text-blue-700 flex items-center gap-1">
+          <button className="mt-3 text-blue-400 text-sm hover:text-blue-300 flex items-center gap-1">
             <Edit2 className="w-3 h-3" />
             Add a note
           </button>
         </div>
 
         {/* Stats */}
-        <div className="px-6 py-4 bg-white border-b border-gray-200">
+        <div className="px-6 py-4 bg-gray-800 border-b border-gray-700">
           <div className="grid grid-cols-5 gap-4 text-center">
             <div>
-              <div className="text-2xl font-semibold text-gray-900">
+              <div className="text-2xl font-semibold text-white">
                 {attendees.filter((a) => a.status === "registered").length}
               </div>
-              <div className="text-sm text-gray-600">Registered</div>
+              <div className="text-sm text-gray-400">Registered</div>
             </div>
             <div>
-              <div className="text-2xl font-semibold text-gray-900">
+              <div className="text-2xl font-semibold text-white">
                 {attendees.filter((a) => a.status === "attended").length}/
                 {attendees.length}
               </div>
-              <div className="text-sm text-gray-600">Attended</div>
+              <div className="text-sm text-gray-400">Attended</div>
             </div>
             <div>
-              <div className="text-2xl font-semibold text-gray-900">
+              <div className="text-2xl font-semibold text-white">
                 {attendees.filter((a) => a.status === "no-show").length}/
                 {attendees.length}
               </div>
-              <div className="text-sm text-gray-600">No-Shows</div>
+              <div className="text-sm text-gray-400">No-Shows</div>
             </div>
             <div>
-              <div className="text-2xl font-semibold text-gray-900">0</div>
-              <div className="text-sm text-gray-600">Late Cancels</div>
+              <div className="text-2xl font-semibold text-white">0</div>
+              <div className="text-sm text-gray-400">Late Cancels</div>
             </div>
             <div>
-              <div className="text-2xl font-semibold text-gray-900">0</div>
-              <div className="text-sm text-gray-600">On Waitlist</div>
+              <div className="text-2xl font-semibold text-white">0</div>
+              <div className="text-sm text-gray-400">On Waitlist</div>
             </div>
           </div>
         </div>
 
         {/* Add Customer */}
-        <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-          <h3 className="text-sm font-medium text-gray-900 mb-3">
+        <div className="px-6 py-4 bg-gray-900 border-b border-gray-700">
+          <h3 className="text-sm font-medium text-gray-200 mb-3">
             Add a customer
           </h3>
           <div className="relative">
@@ -588,7 +588,7 @@ export default function SessionDetailModal({
               <input
                 type="text"
                 placeholder="Find an existing customer (type at least 2 characters)"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 placeholder-gray-400"
+                className="flex-1 px-3 py-2 border border-gray-600 bg-gray-800 rounded-md text-sm text-gray-200 placeholder-gray-500"
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
@@ -603,18 +603,18 @@ export default function SessionDetailModal({
 
             {/* Search Results Dropdown */}
             {searchResults.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-10 max-h-60 overflow-y-auto">
+              <div className="absolute top-full left-0 right-0 mt-1 bg-gray-700 border border-gray-600 rounded-md shadow-lg z-10 max-h-60 overflow-y-auto">
                 {searchResults.map((customer) => (
                   <button
                     key={customer.id}
                     onClick={() => openRegistrationModal(customer)}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-100 border-b border-gray-100 last:border-0"
+                    className="w-full text-left px-4 py-2 hover:bg-gray-600 border-b border-gray-600 last:border-0"
                   >
-                    <div className="font-medium text-sm text-gray-900">
+                    <div className="font-medium text-sm text-gray-200">
                       {customer.name ||
                         `${customer.first_name || ""} ${customer.last_name || ""}`.trim()}
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-gray-400">
                       {customer.email}
                     </div>
                   </button>
@@ -623,7 +623,7 @@ export default function SessionDetailModal({
             )}
 
             {searching && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-10 p-4 text-center text-sm text-gray-500">
+              <div className="absolute top-full left-0 right-0 mt-1 bg-gray-700 border border-gray-600 rounded-md shadow-lg z-10 p-4 text-center text-sm text-gray-400">
                 Searching...
               </div>
             )}
@@ -631,14 +631,14 @@ export default function SessionDetailModal({
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-gray-200">
+        <div className="border-b border-gray-700 bg-gray-800">
           <div className="flex">
             <button
               onClick={() => setActiveTab("attendees")}
               className={`px-6 py-3 text-sm font-medium border-b-2 ${
                 activeTab === "attendees"
-                  ? "text-blue-600 border-blue-600"
-                  : "text-gray-500 border-transparent hover:text-gray-700"
+                  ? "text-blue-400 border-blue-400"
+                  : "text-gray-400 border-transparent hover:text-gray-300"
               }`}
             >
               Attendees
@@ -647,8 +647,8 @@ export default function SessionDetailModal({
               onClick={() => setActiveTab("activity")}
               className={`px-6 py-3 text-sm font-medium border-b-2 ${
                 activeTab === "activity"
-                  ? "text-blue-600 border-blue-600"
-                  : "text-gray-500 border-transparent hover:text-gray-700"
+                  ? "text-blue-400 border-blue-400"
+                  : "text-gray-400 border-transparent hover:text-gray-300"
               }`}
             >
               Activity Feed
@@ -657,17 +657,17 @@ export default function SessionDetailModal({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto max-h-96 bg-white">
+        <div className="flex-1 overflow-y-auto max-h-96 bg-gray-800">
           {activeTab === "attendees" && (
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
-                <span className="text-sm text-gray-600">Sort by</span>
+                <span className="text-sm text-gray-400">Sort by</span>
                 <div className="flex gap-2">
-                  <button className="p-2 hover:bg-gray-100 rounded">
-                    <Mail className="w-4 h-4 text-gray-600" />
+                  <button className="p-2 hover:bg-gray-700 rounded">
+                    <Mail className="w-4 h-4 text-gray-400" />
                   </button>
-                  <button className="p-2 hover:bg-gray-100 rounded">
-                    <Download className="w-4 h-4 text-gray-600" />
+                  <button className="p-2 hover:bg-gray-700 rounded">
+                    <Download className="w-4 h-4 text-gray-400" />
                   </button>
                 </div>
               </div>
@@ -676,19 +676,19 @@ export default function SessionDetailModal({
                 {attendees.map((attendee) => (
                   <div
                     key={attendee.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    className="flex items-center justify-between p-3 bg-gray-700 rounded-lg"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-white font-medium">
+                      <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center text-white font-medium">
                         {attendee.name && attendee.name.length > 0
                           ? attendee.name.charAt(0).toUpperCase()
                           : "?"}
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900">
+                        <div className="font-medium text-gray-200">
                           {attendee.name}
                         </div>
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-gray-400">
                           {attendee.membershipType}
                         </div>
                       </div>
@@ -719,24 +719,24 @@ export default function SessionDetailModal({
                                 : attendee.id,
                             );
                           }}
-                          className="p-2 hover:bg-gray-200 rounded"
+                          className="p-2 hover:bg-gray-600 rounded"
                         >
-                          <MoreVertical className="w-4 h-4 text-gray-600" />
+                          <MoreVertical className="w-4 h-4 text-gray-400" />
                         </button>
 
                         {/* Dropdown Menu */}
                         {showOptionsMenu === attendee.id && (
-                          <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-20 py-1 min-w-[200px]">
+                          <div className="absolute right-0 top-full mt-1 bg-gray-700 border border-gray-600 rounded-md shadow-lg z-20 py-1 min-w-[200px]">
                             <button
                               onClick={() => sendMagicLink(attendee)}
-                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                              className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 flex items-center gap-2"
                             >
                               <Mail className="w-4 h-4" />
                               Send Login Link
                             </button>
                             <button
                               onClick={() => removeAttendee(attendee.id)}
-                              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                              className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-900 hover:bg-opacity-50 flex items-center gap-2"
                             >
                               <X className="w-4 h-4" />
                               Remove from session
@@ -753,7 +753,7 @@ export default function SessionDetailModal({
 
           {activeTab === "activity" && (
             <div className="p-6">
-              <p className="text-gray-500">No activity yet</p>
+              <p className="text-gray-400">No activity yet</p>
             </div>
           )}
         </div>
