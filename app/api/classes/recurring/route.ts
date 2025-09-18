@@ -67,11 +67,15 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
 
-    // Get recurring sessions
-    let query = supabase.from("class_sessions").select("*");
+    // Get recurring sessions - sessions with parent_session_id are recurring
+    let query = supabase
+      .from("class_sessions")
+      .select("*")
+      .not("parent_session_id", "is", null);
 
-    // Note: Without parent_session_id, we get all sessions
-    // This is a temporary fix until the schema is properly updated
+    if (sessionId) {
+      query = query.eq("parent_session_id", sessionId);
+    }
 
     if (startDate && endDate) {
       query = query.gte("start_time", startDate).lte("start_time", endDate);
@@ -203,14 +207,19 @@ export async function POST(request: NextRequest) {
 
     if (originalSession) {
       // Clone existing session for each occurrence (skip first as it's the original)
-      sessions = occurrences.slice(1).map((date) => ({
-        ...originalSession,
-        id: undefined, // Let DB generate new ID
-        start_time: date.toISOString(),
-        end_time: new Date(date.getTime() + duration).toISOString(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }));
+      sessions = occurrences.slice(1).map((date) => {
+        // Destructure to exclude id field
+        const { id, ...sessionWithoutId } = originalSession;
+        return {
+          ...sessionWithoutId,
+          parent_session_id: classSessionId,
+          occurrence_date: date.toISOString().split("T")[0],
+          start_time: date.toISOString(),
+          end_time: new Date(date.getTime() + duration).toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+      });
     } else if (programId && timeSlots.length > 0) {
       // Create new sessions from time slots
       sessions = [];
@@ -227,6 +236,7 @@ export async function POST(request: NextRequest) {
             program_id: programId,
             organization_id: organizationId,
             name: programData?.name || "Class Session",
+            occurrence_date: sessionStart.toISOString().split("T")[0],
             start_time: sessionStart.toISOString(),
             end_time: sessionEnd.toISOString(),
             status: "scheduled",
@@ -260,8 +270,18 @@ export async function POST(request: NextRequest) {
 
     if (insertError) throw insertError;
 
-    // Note: Not updating original session with recurrence info
-    // since recurrence_rule and recurrence_end_date columns might not exist
+    // Update original session if we cloned from one
+    if (classSessionId) {
+      await supabase
+        .from("class_sessions")
+        .update({
+          recurrence_rule:
+            recurrenceRule ||
+            `${actualFrequency.toUpperCase()};INTERVAL=${interval}`,
+          recurrence_end_date: endDateTime.toISOString(),
+        })
+        .eq("id", classSessionId);
+    }
 
     return NextResponse.json({
       message: "Recurring classes created successfully",
