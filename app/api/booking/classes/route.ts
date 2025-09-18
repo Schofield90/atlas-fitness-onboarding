@@ -57,6 +57,7 @@ export async function GET(request: NextRequest) {
       `,
       )
       .eq("organization_id", organizationId)
+      .eq("is_active", true)
       .gte("start_time", start.toISOString())
       .lte("start_time", end.toISOString())
       .order("start_time", { ascending: true });
