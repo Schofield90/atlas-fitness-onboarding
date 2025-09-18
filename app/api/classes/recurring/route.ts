@@ -23,56 +23,82 @@ function generateRecurrences(
   daysOfWeek?: number[],
 ): Date[] {
   const occurrences: Date[] = [];
-  let currentDate = new Date(startDate);
   let count = 0;
 
-  while (currentDate <= endDate && count < maxOccurrences) {
-    if (frequency === "daily") {
+  console.log("generateRecurrences called with:", {
+    startDate: startDate.toISOString(),
+    frequency,
+    interval,
+    endDate: endDate.toISOString(),
+    maxOccurrences,
+    daysOfWeek,
+  });
+
+  if (frequency === "daily") {
+    let currentDate = new Date(startDate);
+    while (currentDate <= endDate && count < maxOccurrences) {
       occurrences.push(new Date(currentDate));
       currentDate.setDate(currentDate.getDate() + interval);
       count++;
-    } else if (frequency === "weekly") {
-      if (daysOfWeek && daysOfWeek.length > 0) {
-        // Generate for specific days of week
-        let weeksProcessed = 0;
-        while (
-          weeksProcessed < 52 &&
-          currentDate <= endDate &&
-          count < maxOccurrences
-        ) {
-          // Check each day of the current week
-          const weekStart = new Date(currentDate);
-          for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
-            const checkDate = new Date(weekStart);
-            checkDate.setDate(weekStart.getDate() + dayOffset);
+    }
+  } else if (frequency === "weekly") {
+    if (daysOfWeek && daysOfWeek.length > 0) {
+      // Start from the beginning of the week containing startDate
+      const currentDate = new Date(startDate);
+      const startDay = currentDate.getDay();
+      const daysUntilSunday = startDay === 0 ? 0 : 7 - startDay;
+      // Move to the Sunday of the current week
+      const weekStart = new Date(currentDate);
+      weekStart.setDate(currentDate.getDate() - startDay);
 
-            if (checkDate > endDate || count >= maxOccurrences) break;
+      let weeksProcessed = 0;
+      while (
+        weeksProcessed < 52 &&
+        weekStart <= endDate &&
+        count < maxOccurrences
+      ) {
+        // Check each requested day of the week
+        for (const dayOfWeek of daysOfWeek) {
+          const occurrenceDate = new Date(weekStart);
+          occurrenceDate.setDate(weekStart.getDate() + dayOfWeek);
 
-            if (
-              daysOfWeek.includes(checkDate.getDay()) &&
-              checkDate >= startDate
-            ) {
-              occurrences.push(new Date(checkDate));
-              count++;
-            }
+          // Only add if it's on or after start date and before end date
+          if (
+            occurrenceDate >= startDate &&
+            occurrenceDate <= endDate &&
+            count < maxOccurrences
+          ) {
+            occurrences.push(new Date(occurrenceDate));
+            count++;
+            console.log(
+              `Added occurrence: ${occurrenceDate.toLocaleDateString()} (${occurrenceDate.toLocaleDateString("en-US", { weekday: "long" })})`,
+            );
           }
-          // Move to next week based on interval
-          currentDate.setDate(currentDate.getDate() + 7 * interval);
-          weeksProcessed++;
         }
-      } else {
-        // Simple weekly recurrence
+
+        // Move to next week based on interval
+        weekStart.setDate(weekStart.getDate() + 7 * interval);
+        weeksProcessed++;
+      }
+    } else {
+      // Simple weekly recurrence
+      let currentDate = new Date(startDate);
+      while (currentDate <= endDate && count < maxOccurrences) {
         occurrences.push(new Date(currentDate));
         currentDate.setDate(currentDate.getDate() + 7 * interval);
         count++;
       }
-    } else if (frequency === "monthly") {
+    }
+  } else if (frequency === "monthly") {
+    let currentDate = new Date(startDate);
+    while (currentDate <= endDate && count < maxOccurrences) {
       occurrences.push(new Date(currentDate));
       currentDate.setMonth(currentDate.getMonth() + interval);
       count++;
     }
   }
 
+  console.log(`Generated ${occurrences.length} occurrences`);
   return occurrences;
 }
 
@@ -182,6 +208,7 @@ export async function POST(request: NextRequest) {
     let actualDaysOfWeek = daysOfWeek;
 
     if (recurrenceRule) {
+      console.log("Received RRULE:", recurrenceRule);
       // Remove "RRULE:" prefix if present
       const cleanRule = recurrenceRule.replace("RRULE:", "");
       const parts = cleanRule.split(";");
@@ -202,6 +229,7 @@ export async function POST(request: NextRequest) {
           actualDaysOfWeek = days
             .map((d) => dayMap[d])
             .filter((d) => d !== undefined);
+          console.log("Parsed days of week:", actualDaysOfWeek);
         }
       });
     }
@@ -254,15 +282,26 @@ export async function POST(request: NextRequest) {
     } else if (programId && timeSlots.length > 0) {
       // Create new sessions from time slots
       sessions = [];
+      console.log("Creating sessions for occurrences:", occurrences.length);
+      console.log("Time slots:", timeSlots);
+
       occurrences.forEach((date) => {
         timeSlots.forEach((slot) => {
           const [hours, minutes] = slot.time.split(":").map(Number);
-          // Create date in local timezone, preserving the time
-          const sessionStart = new Date(date);
-          // Set time in local timezone
-          sessionStart.setHours(hours, minutes, 0, 0);
+          // Create session start time by combining the date with the time
+          // This keeps the time in local timezone
+          const year = date.getFullYear();
+          const month = date.getMonth();
+          const day = date.getDate();
+
+          // Create a new date with the specific time in local timezone
+          const sessionStart = new Date(year, month, day, hours, minutes, 0, 0);
           const sessionEnd = new Date(
             sessionStart.getTime() + slot.duration * 60 * 1000,
+          );
+
+          console.log(
+            `Creating session on ${sessionStart.toLocaleDateString()} at ${sessionStart.toLocaleTimeString()}`,
           );
 
           sessions.push({
