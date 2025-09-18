@@ -46,7 +46,6 @@ function generateRecurrences(
       // Start from the beginning of the week containing startDate
       const currentDate = new Date(startDate);
       const startDay = currentDate.getDay();
-      const daysUntilSunday = startDay === 0 ? 0 : 7 - startDay;
       // Move to the Sunday of the current week
       const weekStart = new Date(currentDate);
       weekStart.setDate(currentDate.getDate() - startDay);
@@ -57,8 +56,11 @@ function generateRecurrences(
         weekStart <= endDate &&
         count < maxOccurrences
       ) {
+        // Sort days to ensure consistent ordering
+        const sortedDays = [...daysOfWeek].sort((a, b) => a - b);
+
         // Check each requested day of the week
-        for (const dayOfWeek of daysOfWeek) {
+        for (const dayOfWeek of sortedDays) {
           const occurrenceDate = new Date(weekStart);
           occurrenceDate.setDate(weekStart.getDate() + dayOfWeek);
 
@@ -229,7 +231,11 @@ export async function POST(request: NextRequest) {
           actualDaysOfWeek = days
             .map((d) => dayMap[d])
             .filter((d) => d !== undefined);
-          console.log("Parsed days of week:", actualDaysOfWeek);
+          console.log("Parsed days of week from RRULE:", {
+            original: days,
+            mapped: actualDaysOfWeek,
+            dayNames: actualDaysOfWeek.map((d) => Object.keys(dayMap)[d]),
+          });
         }
       });
     }
@@ -289,13 +295,9 @@ export async function POST(request: NextRequest) {
         timeSlots.forEach((slot) => {
           const [hours, minutes] = slot.time.split(":").map(Number);
           // Create session start time by combining the date with the time
-          // This keeps the time in local timezone
-          const year = date.getFullYear();
-          const month = date.getMonth();
-          const day = date.getDate();
-
-          // Create a new date with the specific time in local timezone
-          const sessionStart = new Date(year, month, day, hours, minutes, 0, 0);
+          // Use UTC to avoid timezone conversion issues
+          const sessionStart = new Date(date);
+          sessionStart.setUTCHours(hours, minutes, 0, 0);
           const sessionEnd = new Date(
             sessionStart.getTime() + slot.duration * 60 * 1000,
           );
