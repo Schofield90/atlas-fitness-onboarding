@@ -794,11 +794,6 @@ export default function ClassDetailPage() {
                         </div>
 
                         <div className="flex items-center gap-2">
-                          {session.parent_session_id && (
-                            <span className="bg-blue-900/30 text-blue-400 px-2 py-1 rounded text-xs">
-                              Recurring
-                            </span>
-                          )}
                           <button
                             onClick={() => {
                               setSelectedSession(session);
