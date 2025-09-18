@@ -58,10 +58,11 @@ export default function RecurrenceModal({
   onSave,
   classSession,
 }: RecurrenceModalProps) {
-  // Get initial time from classSession if available
+  // Get initial time from classSession if available (convert from UTC to local)
   const getInitialTime = () => {
     if (classSession?.start_time) {
       const date = new Date(classSession.start_time);
+      // Get local time components
       const hours = date.getHours().toString().padStart(2, "0");
       const minutes = date.getMinutes().toString().padStart(2, "0");
       return `${hours}:${minutes}`;
@@ -70,7 +71,13 @@ export default function RecurrenceModal({
   };
 
   const getInitialDuration = () => {
-    return classSession?.duration_minutes || 60;
+    if (classSession?.start_time && classSession?.end_time) {
+      const start = new Date(classSession.start_time);
+      const end = new Date(classSession.end_time);
+      const durationMs = end.getTime() - start.getTime();
+      return Math.round(durationMs / 60000); // Convert to minutes
+    }
+    return 60;
   };
 
   const [formData, setFormData] = useState<RecurrenceData>({

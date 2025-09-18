@@ -34,14 +34,31 @@ function generateRecurrences(
     } else if (frequency === "weekly") {
       if (daysOfWeek && daysOfWeek.length > 0) {
         // Generate for specific days of week
-        for (let i = 0; i < 7 * interval; i++) {
-          if (daysOfWeek.includes(currentDate.getDay())) {
-            occurrences.push(new Date(currentDate));
-            count++;
-            if (count >= maxOccurrences) break;
+        let weeksProcessed = 0;
+        while (
+          weeksProcessed < 52 &&
+          currentDate <= endDate &&
+          count < maxOccurrences
+        ) {
+          // Check each day of the current week
+          const weekStart = new Date(currentDate);
+          for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+            const checkDate = new Date(weekStart);
+            checkDate.setDate(weekStart.getDate() + dayOffset);
+
+            if (checkDate > endDate || count >= maxOccurrences) break;
+
+            if (
+              daysOfWeek.includes(checkDate.getDay()) &&
+              checkDate >= startDate
+            ) {
+              occurrences.push(new Date(checkDate));
+              count++;
+            }
           }
-          currentDate.setDate(currentDate.getDate() + 1);
-          if (currentDate > endDate) break;
+          // Move to next week based on interval
+          currentDate.setDate(currentDate.getDate() + 7 * interval);
+          weeksProcessed++;
         }
       } else {
         // Simple weekly recurrence
@@ -164,8 +181,10 @@ export async function POST(request: NextRequest) {
     let actualFrequency = frequency;
     let actualDaysOfWeek = daysOfWeek;
 
-    if (recurrenceRule && recurrenceRule.startsWith("FREQ=")) {
-      const parts = recurrenceRule.split(";");
+    if (recurrenceRule) {
+      // Remove "RRULE:" prefix if present
+      const cleanRule = recurrenceRule.replace("RRULE:", "");
+      const parts = cleanRule.split(";");
       parts.forEach((part) => {
         if (part.startsWith("FREQ=")) {
           actualFrequency = part.replace("FREQ=", "").toLowerCase() as any;
@@ -210,12 +229,24 @@ export async function POST(request: NextRequest) {
       sessions = occurrences.slice(1).map((date) => {
         // Destructure to exclude id field
         const { id, ...sessionWithoutId } = originalSession;
+        // Preserve the original time from the session
+        const originalDate = new Date(originalSession.start_time);
+        const newStart = new Date(date);
+        // Set the time to match the original session time
+        newStart.setHours(
+          originalDate.getHours(),
+          originalDate.getMinutes(),
+          originalDate.getSeconds(),
+          originalDate.getMilliseconds(),
+        );
+        const newEnd = new Date(newStart.getTime() + duration);
+
         return {
           ...sessionWithoutId,
           parent_session_id: classSessionId,
-          occurrence_date: date.toISOString().split("T")[0],
-          start_time: date.toISOString(),
-          end_time: new Date(date.getTime() + duration).toISOString(),
+          occurrence_date: newStart.toISOString().split("T")[0],
+          start_time: newStart.toISOString(),
+          end_time: newEnd.toISOString(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
@@ -226,7 +257,9 @@ export async function POST(request: NextRequest) {
       occurrences.forEach((date) => {
         timeSlots.forEach((slot) => {
           const [hours, minutes] = slot.time.split(":").map(Number);
+          // Create date in local timezone, preserving the time
           const sessionStart = new Date(date);
+          // Set time in local timezone
           sessionStart.setHours(hours, minutes, 0, 0);
           const sessionEnd = new Date(
             sessionStart.getTime() + slot.duration * 60 * 1000,
