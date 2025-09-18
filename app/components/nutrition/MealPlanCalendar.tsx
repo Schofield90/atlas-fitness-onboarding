@@ -175,9 +175,9 @@ export default function MealPlanCalendar({
             )}
           </div>
 
-          {/* Quick Navigation */}
-          <div className="flex gap-2">
-            {[0, 1].map((offset) => {
+          {/* Quick Navigation - 7 Days */}
+          <div className="flex gap-1">
+            {[0, 1, 2, 3, 4, 5, 6].map((offset) => {
               const date = new Date();
               date.setDate(date.getDate() + offset);
               const isSelected =
@@ -189,7 +189,7 @@ export default function MealPlanCalendar({
                   key={offset}
                   onClick={() => onDateSelect(date)}
                   className={`
-                    px-3 py-1.5 rounded-lg text-sm transition-colors
+                    px-2.5 py-1.5 rounded-lg text-xs transition-colors flex flex-col items-center min-w-[50px]
                     ${
                       isSelected
                         ? "bg-orange-600 text-white"
@@ -198,12 +198,25 @@ export default function MealPlanCalendar({
                           : "bg-gray-700 text-gray-400 hover:bg-gray-600"
                     }
                   `}
+                  title={date.toLocaleDateString("en-GB", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                  })}
                 >
-                  {offset === 0
-                    ? "Today"
-                    : offset === 1
-                      ? "Tomorrow"
-                      : date.toLocaleDateString("en-GB", { weekday: "short" })}
+                  <span className="font-medium">
+                    {offset === 0
+                      ? "Today"
+                      : offset === 1
+                        ? "Tomorrow"
+                        : date.toLocaleDateString("en-GB", {
+                            weekday: "short",
+                          })}
+                  </span>
+                  <span className="text-[10px] mt-0.5">
+                    {date.getDate()}{" "}
+                    {date.toLocaleDateString("en-GB", { month: "short" })}
+                  </span>
                 </button>
               );
             })}

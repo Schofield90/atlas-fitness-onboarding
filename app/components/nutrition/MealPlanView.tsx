@@ -302,6 +302,82 @@ export default function MealPlanView({
     // TODO: Send feedback to API
   };
 
+  const handleRegenerateMeal = async (mealIndex: number, mealType: string) => {
+    if (!nutritionProfile) {
+      alert("Please set up your nutrition profile first");
+      return;
+    }
+
+    setGenerating(true);
+
+    try {
+      const response = await fetch("/api/nutrition/regenerate-meal", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nutritionProfile,
+          mealType,
+          mealIndex,
+          date: selectedDate.toISOString(),
+          preferences: nutritionProfile.preferences || {},
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        const dateKey = formatDateKey(selectedDate);
+        const updatedPlan = { ...mealPlans[dateKey] };
+
+        if (updatedPlan && updatedPlan.meals) {
+          // Update the specific meal
+          updatedPlan.meals[mealIndex] = result.data;
+
+          // Recalculate totals
+          updatedPlan.totals = {
+            calories: 0,
+            protein: 0,
+            carbs: 0,
+            fat: 0,
+          };
+
+          updatedPlan.meals.forEach((meal: any) => {
+            updatedPlan.totals.calories += meal.calories || 0;
+            updatedPlan.totals.protein += meal.protein || 0;
+            updatedPlan.totals.carbs += meal.carbs || 0;
+            updatedPlan.totals.fat += meal.fat || 0;
+          });
+
+          setMealPlans((prev) => ({
+            ...prev,
+            [dateKey]: updatedPlan,
+          }));
+
+          // Save to localStorage
+          if (nutritionProfile?.id) {
+            localStorage.setItem(
+              `meal_plans_${nutritionProfile.id}`,
+              JSON.stringify({
+                plans: { ...mealPlans, [dateKey]: updatedPlan },
+                dates: generatedDates.map((d) => d.toISOString()),
+                lastUpdated: new Date().toISOString(),
+              }),
+            );
+          }
+        }
+      } else {
+        alert(result.error || "Failed to regenerate meal. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error regenerating meal:", error);
+      alert("Failed to regenerate meal. Please try again.");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const downloadShoppingList = () => {
     const list = generateShoppingList();
     const text = list
@@ -415,9 +491,19 @@ export default function MealPlanView({
       {/* Meal Display */}
       {selectedDayMeals && !generating && (
         <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-          <h3 className="text-xl font-bold text-white mb-4">
-            {formatDate(selectedDate)}
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold text-white">
+              {formatDate(selectedDate)}
+            </h3>
+            <button
+              onClick={() => handleGenerateSingleDay(selectedDate)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-gray-700 text-white rounded-lg hover:bg-orange-600 transition-colors"
+              title="Regenerate entire day's meal plan"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Regenerate Day
+            </button>
+          </div>
 
           <div className="space-y-4">
             {selectedDayMeals.meals?.map((meal: any, index: number) => (
@@ -435,6 +521,21 @@ export default function MealPlanView({
                     </h4>
                   </div>
                   <div className="flex gap-2">
+                    <button
+                      onClick={() =>
+                        handleRegenerateMeal(
+                          index,
+                          mealTypes[index] || `Meal ${index + 1}`,
+                        )
+                      }
+                      className="p-2 rounded-lg bg-gray-600 hover:bg-green-600 transition-colors"
+                      title="Regenerate this meal"
+                      disabled={generating}
+                    >
+                      <RefreshCw
+                        className={`h-4 w-4 text-white ${generating ? "animate-spin" : ""}`}
+                      />
+                    </button>
                     <button
                       onClick={() =>
                         setFeedbackMeal({ meal, date: selectedDate, index })
