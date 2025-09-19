@@ -176,11 +176,11 @@ export default function ClassCalendarPage() {
           .map((cls: any) => {
             const startDate = new Date(cls.start_time);
 
-            // Use local time components for display
-            // The times stored in the database are already in the correct timezone
-            const dayOfWeek = startDate.getDay();
-            const hour = startDate.getHours();
-            const minutes = startDate.getMinutes();
+            // Use UTC time components since the database stores times in UTC
+            // This prevents timezone offset issues (e.g., BST causing 1-hour shift)
+            const dayOfWeek = startDate.getUTCDay();
+            const hour = startDate.getUTCHours();
+            const minutes = startDate.getUTCMinutes();
 
             // Convert to match weekDays array in PremiumCalendarGrid: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
             // JavaScript: Sunday = 0, Monday = 1, etc.
@@ -217,6 +217,7 @@ export default function ClassCalendarPage() {
                 hour: "numeric",
                 minute: "2-digit",
                 hour12: true,
+                timeZone: "UTC",
               }),
               duration: cls.duration_minutes,
               bookings: Array.isArray(cls.bookings)

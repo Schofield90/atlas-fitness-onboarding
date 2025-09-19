@@ -500,11 +500,13 @@ export default function SessionDetailModal({
                 {startTime.toLocaleTimeString("en-GB", {
                   hour: "2-digit",
                   minute: "2-digit",
+                  timeZone: "UTC",
                 })}{" "}
                 -
                 {endTime.toLocaleTimeString("en-GB", {
                   hour: "2-digit",
                   minute: "2-digit",
+                  timeZone: "UTC",
                 })}
               </span>
             </div>
