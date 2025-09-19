@@ -148,9 +148,28 @@ if (typeof (global as any).Response === 'undefined') {
     async text() {
       return this._bodyText
     }
+    static json(data: any, init?: { status?: number; headers?: Record<string, string> }) {
+      return new SimpleResponse(JSON.stringify(data), init)
+    }
   }
   ;(global as any).Response = SimpleResponse as any
 }
+
+// Mock NextResponse for API route testing
+jest.mock('next/server', () => {
+  const originalModule = jest.requireActual('next/server')
+
+  class MockNextResponse extends (global as any).Response {
+    static json(data: any, init?: { status?: number; headers?: Record<string, string> }) {
+      return new MockNextResponse(JSON.stringify(data), init)
+    }
+  }
+
+  return {
+    ...originalModule,
+    NextResponse: MockNextResponse
+  }
+})
 
 // Provide a minimal global fetch mock for client components that call fetch
 if (typeof (global as any).fetch === 'undefined') {

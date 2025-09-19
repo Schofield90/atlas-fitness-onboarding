@@ -84,7 +84,7 @@ export default function ClassDetailPage() {
           name: data.name || "",
           description: data.description || "",
           price_pennies: data.price_pennies || 0,
-          capacity: data.default_capacity || data.max_participants || 20,
+          capacity: data.max_participants || data.default_capacity || 20,
           location: data.metadata?.location || "", // Load location from metadata
           instructor_types: data.metadata?.instructor_types || [], // Load from metadata
           category: data.metadata?.category || "",
@@ -237,7 +237,7 @@ export default function ClassDetailPage() {
         name: formData.name,
         description: formData.description,
         price_pennies: formData.price_pennies,
-        max_participants: formData.capacity, // Use max_participants as that's the actual column name in programs table
+        max_participants: formData.capacity, // Use max_participants as the primary capacity field
         default_capacity: formData.capacity, // Keep for backward compatibility if column exists
         color: formData.color,
         updated_at: new Date().toISOString(),
