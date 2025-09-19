@@ -62,18 +62,18 @@ export function CustomerBookings({ memberId }: CustomerBookingsProps = {}) {
         const data = await response.json();
         
         // Transform API response to match our Booking interface
-        const transformedBookings: Booking[] = (data.bookings || []).map((booking: any) => ({
-          id: booking.id,
-          session_title: booking.session_slot?.title || 'Unknown Session',
-          session_type: booking.session_slot?.slot_type || 'gym_class',
-          start_time: booking.session_start_time,
-          end_time: booking.session_end_time,
-          trainer_name: booking.session_slot?.trainer?.name || booking.session_slot?.coach?.name,
-          location: booking.session_slot?.location,
-          status: booking.status,
-          cost: booking.cost,
-          booked_at: booking.created_at,
-          cancellation_deadline: booking.cancellation_deadline,
+        const transformedBookings: Booking[] = (data.bookings || []).map((session: any) => ({
+          id: session.id,
+          session_title: session.title || 'Unknown Session',
+          session_type: session.session_type || 'gym_class',
+          start_time: session.start_time,
+          end_time: session.end_time,
+          trainer_name: session.trainer?.name || session.coach?.name,
+          location: session.room_or_location,
+          status: session.status,
+          cost: session.cost,
+          booked_at: session.created_at,
+          cancellation_deadline: session.start_time // Use start_time as cancellation deadline fallback since we don't have this field
         }));
         
         setBookings(transformedBookings);
@@ -132,22 +132,24 @@ export function CustomerBookings({ memberId }: CustomerBookingsProps = {}) {
   };
 
   const { upcomingBookings, pastBookings } = useMemo(() => {
-    const now = moment();
-    const upcoming = bookings.filter(b => 
-      moment(b.start_time).isAfter(now) && 
+    const now = moment.utc();
+    const upcoming = bookings.filter(b =>
+      moment.utc(b.start_time).isAfter(now) &&
       b.status !== 'cancelled'
-    ).sort((a, b) => moment(a.start_time).diff(moment(b.start_time)));
-    
-    const past = bookings.filter(b => 
-      moment(b.start_time).isBefore(now) || 
+    ).sort((a, b) => moment.utc(a.start_time).diff(moment.utc(b.start_time)));
+
+    const past = bookings.filter(b =>
+      moment.utc(b.start_time).isBefore(now) ||
       b.status === 'cancelled'
-    ).sort((a, b) => moment(b.start_time).diff(moment(a.start_time)));
-    
+    ).sort((a, b) => moment.utc(b.start_time).diff(moment.utc(a.start_time)));
+
     return { upcomingBookings: upcoming, pastBookings: past };
-  }, []);
+  }, [bookings]);
 
   const canCancelBooking = (booking: Booking) => {
-    return moment().isBefore(moment(booking.cancellation_deadline)) && 
+    // Allow cancellation up to 24 hours before session start time
+    const cancellationDeadline = moment.utc(booking.start_time).subtract(24, 'hours');
+    return moment.utc().isBefore(cancellationDeadline) &&
            booking.status !== 'cancelled' &&
            booking.status !== 'completed';
   };
@@ -191,10 +193,10 @@ export function CustomerBookings({ memberId }: CustomerBookingsProps = {}) {
   };
 
   const BookingCard = ({ booking }: { booking: Booking }) => {
-    const sessionDate = moment(booking.start_time);
-    const duration = moment(booking.end_time).diff(sessionDate, 'minutes');
+    const sessionDate = moment.utc(booking.start_time);
+    const duration = moment.utc(booking.end_time).diff(sessionDate, 'minutes');
     const canCancel = canCancelBooking(booking);
-    const hoursUntilSession = sessionDate.diff(moment(), 'hours');
+    const hoursUntilSession = sessionDate.diff(moment.utc(), 'hours');
     
     return (
       <Card className="overflow-hidden">
@@ -209,13 +211,13 @@ export function CustomerBookings({ memberId }: CustomerBookingsProps = {}) {
               <div className="space-y-2 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4" />
-                  <span>{sessionDate.format('dddd, DD MMMM YYYY')}</span>
+                  <span>{sessionDate.local().format('dddd, DD MMMM YYYY')}</span>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4" />
                   <span>
-                    {sessionDate.format('h:mm A')} - {moment(booking.end_time).format('h:mm A')} ({duration} mins)
+                    {sessionDate.local().format('h:mm A')} - {moment.utc(booking.end_time).local().format('h:mm A')} ({duration} mins)
                   </span>
                 </div>
                 
@@ -357,7 +359,7 @@ export function CustomerBookings({ memberId }: CustomerBookingsProps = {}) {
             <AlertDialogDescription>
               Are you sure you want to cancel your booking for{' '}
               <span className="font-medium">{cancellingBooking?.session_title}</span> on{' '}
-              {cancellingBooking && moment(cancellingBooking.start_time).format('DD MMMM YYYY [at] h:mm A')}?
+              {cancellingBooking && moment.utc(cancellingBooking.start_time).format('DD MMMM YYYY [at] h:mm A')}?
               <br /><br />
               This action cannot be undone. You will receive a full refund as you are cancelling 
               more than 24 hours before the session.

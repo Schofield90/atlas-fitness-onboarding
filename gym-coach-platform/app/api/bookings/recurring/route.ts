@@ -134,15 +134,15 @@ function generateRecurringDates(
   // Get the duration of the session
   const sessionDuration = sessionEndTime.getTime() - sessionStartTime.getTime();
   
-  // Get the time of day from the session slot
-  const sessionHour = sessionStartTime.getHours();
-  const sessionMinute = sessionStartTime.getMinutes();
+  // Get the time of day from the session slot using UTC
+  const sessionHour = sessionStartTime.getUTCHours();
+  const sessionMinute = sessionStartTime.getUTCMinutes();
   
   let currentDate = new Date(startDate);
   let occurrenceCount = 0;
 
-  // Set the time to match the session slot
-  currentDate.setHours(sessionHour, sessionMinute, 0, 0);
+  // Set the time to match the session slot using UTC
+  currentDate.setUTCHours(sessionHour, sessionMinute, 0, 0);
 
   while (occurrenceCount < maxOccurrences && (!endDate || currentDate <= endDate)) {
     if (frequency === 'weekly') {

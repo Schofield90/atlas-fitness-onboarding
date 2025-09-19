@@ -107,7 +107,7 @@ function PaymentFormContent({ session, onSuccess }: MobilePaymentFormProps) {
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Date & Time</span>
             <span className="font-medium">
-              {moment(session.start_time).format('DD MMM YYYY [at] h:mm A')}
+              {moment.utc(session.start_time).format('DD MMM YYYY [at] h:mm A')}
             </span>
           </div>
           <div className="flex items-center justify-between">

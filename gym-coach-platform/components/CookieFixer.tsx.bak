@@ -72,31 +72,32 @@ export function CookieFixer() {
       if (supabaseCookies.length > 0) {
         supabaseCookies.forEach(cookieName => {
           if (cookieName.includes('.')) { // Chunked cookie pattern
-            document.cookie = `${cookieName}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`
-            console.log(`Cleared corrupted Supabase cookie: ${cookieName}`)
+            document.cookie = `${cookieName}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+            console.log(`Cleared corrupted Supabase cookie: ${cookieName}`);
           }
-        })
-      } catch (error) {
-        console.error('Error during cookie cleanup:', error)
+        });
       }
+    } catch (error) {
+      console.error('Error during cookie cleanup:', error);
     }
+  };
 
     // Run cleanup immediately
-    cleanCorruptedCookies()
+    cleanCorruptedCookies();
 
     // Also run cleanup when the page becomes visible (in case cookies were corrupted in another tab)
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        cleanCorruptedCookies()
+        cleanCorruptedCookies();
       }
-    }
+    };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange)
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [])
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
-  return null // This component renders nothing
+  return null; // This component renders nothing
 }

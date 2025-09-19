@@ -72,12 +72,12 @@ export async function POST(request: NextRequest) {
       const slotStartTime = new Date(sessionSlot.start_time);
       const slotEndTime = new Date(sessionSlot.end_time);
       
-      // Create start and end times for the specific date
+      // Create start and end times for the specific date using UTC
       const sessionStartTime = new Date(sessionDate);
-      sessionStartTime.setHours(slotStartTime.getHours(), slotStartTime.getMinutes(), 0, 0);
-      
+      sessionStartTime.setUTCHours(slotStartTime.getUTCHours(), slotStartTime.getUTCMinutes(), 0, 0);
+
       const sessionEndTime = new Date(sessionDate);
-      sessionEndTime.setHours(slotEndTime.getHours(), slotEndTime.getMinutes(), 0, 0);
+      sessionEndTime.setUTCHours(slotEndTime.getUTCHours(), slotEndTime.getUTCMinutes(), 0, 0);
 
       return {
         client_id,
