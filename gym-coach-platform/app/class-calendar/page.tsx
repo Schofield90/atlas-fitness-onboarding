@@ -75,7 +75,8 @@ export default function ClassCalendarPage() {
           ...(sessionType !== 'all' && { sessionType })
         });
 
-        const response = await fetch(`/api/admin/sessions?${params}`);
+        // Use the new class-sessions endpoint that connects to the database
+        const response = await fetch(`/api/class-sessions?${params}`);
 
         if (!response.ok) {
           throw new Error('Failed to fetch sessions');
@@ -90,14 +91,17 @@ export default function ClassCalendarPage() {
         }
       } catch (error) {
         console.error('Error fetching sessions:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load sessions. Please try again.",
-          variant: "destructive",
-        });
 
-        // Fallback to mock data for development
-        const mockSessions: ClassSession[] = [
+        // Don't show error toast if we're just loading empty data
+        if (sessions.length === 0) {
+          toast({
+            title: "No Sessions Found",
+            description: "No class sessions found. Create some sessions to see them here.",
+          });
+        }
+
+        // Remove mock data fallback - use real data only
+        /*const mockSessions: ClassSession[] = [
           {
             id: '1',
             title: 'Morning HIIT',
@@ -190,7 +194,7 @@ export default function ClassCalendarPage() {
             is_available: true,
           },
         ];
-        setSessions(mockSessions);
+        setSessions(mockSessions);*/
       } finally {
         setLoading(false);
       }
@@ -224,19 +228,25 @@ export default function ClassCalendarPage() {
   };
 
   const handleSelectEvent = (event: Event) => {
+    console.log('Calendar event clicked:', event);
     const session = event.resource as ClassSession;
     setSelectedSession(session);
     setShowEditModal(true);
   };
 
   const handleEditSession = (session: ClassSession) => {
+    console.log('Edit session clicked from list:', session);
     setSelectedSession(session);
     setShowEditModal(true);
   };
 
   const handleDeleteSession = async (sessionId: string) => {
+    if (!confirm('Are you sure you want to delete this session?')) {
+      return;
+    }
+
     try {
-      const response = await fetch(`/api/admin/sessions/${sessionId}`, {
+      const response = await fetch(`/api/class-sessions?sessionId=${sessionId}`, {
         method: 'DELETE',
       });
 
@@ -262,14 +272,20 @@ export default function ClassCalendarPage() {
   };
 
   const handleCancelSession = async (sessionId: string) => {
+    if (!confirm('Are you sure you want to cancel this session? Participants will be notified.')) {
+      return;
+    }
+
     try {
-      const response = await fetch(`/api/admin/sessions/${sessionId}`, {
+      const response = await fetch(`/api/class-sessions`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          is_cancelled: true
+          sessionId,
+          is_cancelled: true,
+          session_status: 'cancelled'
         }),
       });
 
@@ -298,19 +314,20 @@ export default function ClassCalendarPage() {
 
   const handleUpdateSession = async (updatedSession: ClassSession) => {
     try {
-      const response = await fetch(`/api/admin/sessions/${updatedSession.id}`, {
+      const response = await fetch(`/api/class-sessions`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          sessionId: updatedSession.id,
           title: updatedSession.title,
           start_time: updatedSession.start_time,
           end_time: updatedSession.end_time,
           session_type: updatedSession.session_type,
           trainer_id: updatedSession.trainer_id,
-          trainer_name: updatedSession.trainer_name,
-          location: updatedSession.location,
+          instructor_name: updatedSession.trainer_name,
+          room_name: updatedSession.location,
           max_capacity: updatedSession.max_capacity,
           base_cost: updatedSession.base_cost,
           member_cost: updatedSession.member_cost,
@@ -453,16 +470,17 @@ function EventComponent({ event }: { event: Event }) {
   const isFull = spotsLeft === 0;
 
   return (
-    <div className="p-1 h-full relative">
+    <div className="p-1 h-full relative cursor-pointer hover:opacity-90">
       <div className="font-medium text-xs truncate">{event.title}</div>
-      <div className="text-xs opacity-75">{session.trainer_name}</div>
+      <div className="text-xs opacity-75">{session.trainer_name || 'No instructor'}</div>
       <div className="text-xs mt-1">
+        <span className="font-semibold">{session.max_capacity}</span> capacity
         {session.is_cancelled ? (
-          <span className="text-red-500">Cancelled</span>
+          <span className="text-red-500 ml-1">(Cancelled)</span>
         ) : isFull ? (
-          <span className="text-red-500">Full</span>
+          <span className="text-red-500 ml-1">(Full)</span>
         ) : (
-          <span>{spotsLeft}/{session.max_capacity} spots</span>
+          <span className="ml-1">({session.current_bookings} booked)</span>
         )}
       </div>
     </div>
