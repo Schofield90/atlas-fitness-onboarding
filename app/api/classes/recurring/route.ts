@@ -193,7 +193,7 @@ export async function POST(request: NextRequest) {
         max_participants: program.max_participants,
         default_capacity: program.default_capacity,
         capacity_used:
-          programData?.max_participants || programData?.default_capacity || 20,
+          program.default_capacity || program.max_participants || 20,
       });
     } else {
       return NextResponse.json(
@@ -291,12 +291,12 @@ export async function POST(request: NextRequest) {
         // Preserve the original time from the session
         const originalDate = new Date(originalSession.start_time);
         const newStart = new Date(date);
-        // Set the time to match the original session time (use local time)
-        newStart.setHours(
-          originalDate.getHours(),
-          originalDate.getMinutes(),
-          originalDate.getSeconds(),
-          originalDate.getMilliseconds(),
+        // Set the time to match the original session time (use UTC to match database storage)
+        newStart.setUTCHours(
+          originalDate.getUTCHours(),
+          originalDate.getUTCMinutes(),
+          originalDate.getUTCSeconds(),
+          originalDate.getUTCMilliseconds(),
         );
         const newEnd = new Date(newStart.getTime() + duration);
 
@@ -308,6 +308,9 @@ export async function POST(request: NextRequest) {
           ...sessionWithoutId,
           start_time: newStart.toISOString(),
           end_time: newEnd.toISOString(),
+          duration_minutes: Math.round(duration / 60000), // Ensure duration_minutes is included
+          session_status: "scheduled", // Ensure status is set
+          status: "scheduled", // Add both field names for compatibility
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
@@ -321,27 +324,19 @@ export async function POST(request: NextRequest) {
       occurrences.forEach((date) => {
         timeSlots.forEach((slot) => {
           const [hours, minutes] = slot.time.split(":").map(Number);
+
           // Create session start time by combining the date with the time
-          // Create the date string in the format expected by the database
-          // The time from the form is the user's local time, so we need to create
-          // an ISO string that represents that exact time
+          // The time from the form is already the time the user wants (in their timezone)
+          // We'll create it as UTC directly since the database stores UTC
           const year = date.getFullYear();
           const month = (date.getMonth() + 1).toString().padStart(2, "0");
           const day = date.getDate().toString().padStart(2, "0");
           const hoursStr = hours.toString().padStart(2, "0");
           const minutesStr = minutes.toString().padStart(2, "0");
 
-          // Create ISO string directly to avoid timezone conversion
-          // This assumes the user's input time is in UK timezone
+          // Create ISO string directly as UTC
           const sessionStartStr = `${year}-${month}-${day}T${hoursStr}:${minutesStr}:00.000Z`;
           const sessionStart = new Date(sessionStartStr);
-
-          // Adjust for BST if needed (UK is UTC+1 during BST)
-          // Since we're creating a UTC time directly, we need to subtract 1 hour during BST
-          const isBST = date.getMonth() >= 2 && date.getMonth() <= 9; // Rough BST period (Mar-Oct)
-          if (isBST) {
-            sessionStart.setHours(sessionStart.getHours() - 1);
-          }
 
           const sessionEnd = new Date(
             sessionStart.getTime() + slot.duration * 60 * 1000,
@@ -351,21 +346,36 @@ export async function POST(request: NextRequest) {
             `Creating session on ${sessionStart.toLocaleDateString()} at ${sessionStart.toLocaleTimeString()}`,
           );
 
-          sessions.push({
+          const sessionData = {
             program_id: programId,
             organization_id: organizationId,
-            name: programData?.name || "Class Session",
+            trainer_id: programData?.trainer_id || null,
+            instructor_name: programData?.instructor_name || "TBD",
+            location: programData?.location || "Main Studio",
+            room_location: programData?.location || "Main Studio", // Add both field names
             start_time: sessionStart.toISOString(),
             end_time: sessionEnd.toISOString(),
+            duration_minutes: slot.duration,
             session_status: "scheduled",
+            status: "scheduled", // Add both field names
             current_bookings: 0,
-            max_capacity:
-              programData?.max_participants ||
+            capacity:
               programData?.default_capacity ||
+              programData?.max_participants ||
+              20,
+            max_capacity:
+              programData?.default_capacity ||
+              programData?.max_participants ||
               20,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-          });
+          };
+
+          console.log(
+            `Creating session: ${sessionStart.toISOString()} with data:`,
+            sessionData,
+          );
+          sessions.push(sessionData);
         });
       });
     }
@@ -380,13 +390,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Log sessions before insertion for debugging
+    console.log("About to insert sessions:", {
+      count: sessions.length,
+      firstSession: sessions[0],
+      organizationId: organizationId,
+    });
+
     // Insert all sessions
     const { data: createdSessions, error: insertError } = await supabase
       .from("class_sessions")
       .insert(sessions)
       .select();
 
-    if (insertError) throw insertError;
+    if (insertError) {
+      console.error("Error inserting sessions:", insertError);
+      throw insertError;
+    }
+
+    console.log("Successfully created sessions:", {
+      count: createdSessions?.length || 0,
+      firstCreatedSession: createdSessions?.[0],
+    });
 
     // Note: We can't update recurrence_rule and recurrence_end_date as these columns don't exist
     // TODO: Consider adding these columns to the database schema if recurrence tracking is needed

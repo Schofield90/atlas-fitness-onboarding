@@ -330,8 +330,23 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({
                 // For day view, we need to filter classes by the exact date
                 const dayClasses = classes.filter((cls) => {
                   const classDate = new Date(cls.startTime);
+                  // Compare dates using UTC to avoid timezone issues
+                  const classDateUTC = new Date(
+                    Date.UTC(
+                      classDate.getUTCFullYear(),
+                      classDate.getUTCMonth(),
+                      classDate.getUTCDate(),
+                    ),
+                  );
+                  const currentDateUTC = new Date(
+                    Date.UTC(
+                      currentDate.getFullYear(),
+                      currentDate.getMonth(),
+                      currentDate.getDate(),
+                    ),
+                  );
                   return (
-                    classDate.toDateString() === currentDate.toDateString() &&
+                    classDateUTC.getTime() === currentDateUTC.getTime() &&
                     cls.timeSlot === timeIndex
                   );
                 });
