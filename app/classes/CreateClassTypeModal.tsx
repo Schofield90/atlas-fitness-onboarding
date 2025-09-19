@@ -74,6 +74,9 @@ export default function CreateClassTypeModal({
           max_participants: formData.default_capacity
             ? parseInt(formData.default_capacity)
             : null,
+          default_capacity: formData.default_capacity
+            ? parseInt(formData.default_capacity)
+            : null,
           allow_drop_ins: formData.allow_drop_ins === "yes",
           age_restriction: formData.age_restriction === "yes",
           is_active: true,

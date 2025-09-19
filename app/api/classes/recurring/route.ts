@@ -193,9 +193,9 @@ export async function POST(request: NextRequest) {
         max_participants: program.max_participants,
         default_capacity: program.default_capacity,
         capacity_used:
-          program.max_participants || program.default_capacity || 20,
+          program.default_capacity || program.max_participants || 20,
         session_will_use:
-          program.max_participants || program.default_capacity || 20,
+          program.default_capacity || program.max_participants || 20,
       });
     } else {
       return NextResponse.json(
@@ -359,8 +359,8 @@ export async function POST(request: NextRequest) {
             session_status: "scheduled",
             current_bookings: 0,
             max_capacity:
-              programData?.max_participants ||
               programData?.default_capacity ||
+              programData?.max_participants ||
               20,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
