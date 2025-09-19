@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { generateMealPlan } from "@/app/lib/openai";
+import { generatePersonalizedMealPlan } from "@/app/lib/nutrition/personalized-ai";
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,16 +23,17 @@ export async function POST(request: NextRequest) {
       profileId,
       preferences,
       daysToGenerate = 7,
+      usePersonalizedAI = true, // Default to using personalized AI
     } = await request.json();
 
     // Support both nutritionProfile object or profileId
     let profile = nutritionProfile;
 
     if (!profile && profileId) {
-      // Fetch the profile if only ID was provided
+      // Fetch the profile with preferences if only ID was provided
       const { data: fetchedProfile, error: profileError } = await supabase
         .from("nutrition_profiles")
-        .select("*")
+        .select("*, preferences, dietary_preferences")
         .eq("id", profileId)
         .single();
 
@@ -44,6 +46,29 @@ export async function POST(request: NextRequest) {
       profile = fetchedProfile;
     }
 
+    // Always fetch stored preferences for the client
+    let storedPreferences = {};
+    if (profile?.client_id) {
+      const { data: prefData } = await supabase
+        .from("nutrition_profiles")
+        .select("preferences, dietary_preferences")
+        .eq("client_id", profile.client_id)
+        .single();
+
+      if (prefData) {
+        storedPreferences = {
+          ...prefData.preferences,
+          ...prefData.dietary_preferences,
+        };
+      }
+    }
+
+    // Merge stored preferences with any passed preferences
+    const mergedPreferences = {
+      ...storedPreferences,
+      ...preferences,
+    };
+
     if (!profile) {
       return NextResponse.json(
         { success: false, error: "Nutrition profile is required" },
@@ -51,8 +76,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate meal plan using OpenAI with timeout
-    console.log("Generating AI meal plan for:", profile);
+    // Generate meal plan using personalized AI if preferences exist
+    console.log("Generating AI meal plan with preferences:", {
+      hasStoredPreferences: Object.keys(storedPreferences).length > 0,
+      usePersonalizedAI,
+    });
 
     // Generate meal plan with longer timeout for Vercel (max 60s for Pro)
     let mealPlanData;
@@ -65,11 +93,39 @@ export async function POST(request: NextRequest) {
         ),
       );
 
-      // Race between the actual API call and timeout
-      mealPlanData = await Promise.race([
-        generateMealPlan(profile, preferences, daysToGenerate),
-        timeoutPromise,
-      ]);
+      // Use personalized AI if preferences exist
+      if (usePersonalizedAI && Object.keys(mergedPreferences).length > 0) {
+        // Generate personalized meals for each day
+        const mealTypes = ["breakfast", "lunch", "dinner"];
+        const weekPlan: any = {};
+
+        for (let day = 1; day <= daysToGenerate; day++) {
+          const dayKey = `day_${day}`;
+          weekPlan[dayKey] = {};
+
+          for (const mealType of mealTypes) {
+            const meal = await generatePersonalizedMealPlan(
+              mergedPreferences,
+              profile,
+              mealType as any,
+              `Day ${day}`,
+            );
+            weekPlan[dayKey][mealType] = meal;
+          }
+        }
+
+        mealPlanData = {
+          meal_plan: weekPlan,
+          shopping_list: "Generated based on personalized meals",
+          meal_prep_tips: ["Meals are personalized to your preferences"],
+        };
+      } else {
+        // Fall back to standard generation
+        mealPlanData = await Promise.race([
+          generateMealPlan(profile, mergedPreferences, daysToGenerate),
+          timeoutPromise,
+        ]);
+      }
 
       if (!mealPlanData || !mealPlanData.meal_plan) {
         throw new Error("Invalid meal plan data generated");
@@ -126,7 +182,9 @@ export async function POST(request: NextRequest) {
       ai_model: "gpt-3.5-turbo",
       generation_params: {
         daysToGenerate,
-        preferences,
+        preferences: mergedPreferences,
+        usePersonalizedAI,
+        hasStoredPreferences: Object.keys(storedPreferences).length > 0,
       },
       // Meal data - support both formats
       meal_data: {

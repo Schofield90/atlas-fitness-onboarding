@@ -37,6 +37,7 @@ interface PreferenceData {
   specific_goals: string;
 }
 
+// Static question definitions for reference
 const PREFERENCE_QUESTIONS = [
   {
     id: "dietary",
@@ -139,6 +140,8 @@ export default function PreferenceCollectorModal({
     specific_goals: "",
   });
   const [completionPercentage, setCompletionPercentage] = useState(0);
+  const [personalizedQuestions, setPersonalizedQuestions] = useState<any[]>([]);
+  const [conversationHistory, setConversationHistory] = useState<any[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
@@ -172,48 +175,115 @@ export default function PreferenceCollectorModal({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const initializeChat = () => {
+  const initializeChat = async () => {
+    // Load existing preferences first
+    const existing = await loadExistingPreferences();
+
+    // Get AI-generated personalized questions based on existing preferences
+    try {
+      const response = await fetch("/api/nutrition/ai-questions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          existingPreferences: existing,
+          conversationHistory: conversationHistory,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.questions) {
+          setPersonalizedQuestions(data.questions);
+          setCompletionPercentage(data.completeness || 0);
+        }
+      }
+    } catch (error) {
+      console.error("Error getting personalized questions:", error);
+      // Fall back to standard questions
+      setPersonalizedQuestions(PREFERENCE_QUESTIONS);
+    }
+
+    // Count how many preferences are already filled
+    const filledCategories = Object.entries(existing || {}).filter(
+      ([key, value]) => {
+        if (Array.isArray(value)) return value.length > 0;
+        if (typeof value === "object") return Object.keys(value).length > 0;
+        return value !== "";
+      },
+    ).length;
+
     const initialMessage: ChatMessage = {
       id: "1",
       type: "assistant",
       content:
-        "Hi! I'm here to help personalize your meal plans. The more I know about your preferences, the better I can tailor your nutrition to your lifestyle. Let's start with a few questions. You can skip any question by typing 'skip'.",
+        filledCategories > 0
+          ? `Welcome back! I've been thinking about your meal preferences. Based on what I know about you, I have some specific questions that will help me create even better meal plans for you.`
+          : "Hi! I'm your personal nutrition assistant. I'll learn about your unique preferences and dietary needs to create meal plans that you'll actually enjoy. Let's start with getting to know you better.",
       timestamp: new Date(),
     };
     setMessages([initialMessage]);
+    setConversationHistory([
+      { type: "assistant", content: initialMessage.content },
+    ]);
 
     // Ask first question after a delay
     setTimeout(() => {
       askNextQuestion(0);
-    }, 1500);
+    }, 2000);
   };
 
   const loadExistingPreferences = async () => {
     try {
-      const { data: profile } = await supabase
-        .from("nutrition_profiles")
-        .select("preferences")
-        .eq("client_id", clientId)
-        .single();
+      // Use the new preferences-advanced endpoint
+      const response = await fetch("/api/nutrition/preferences-advanced");
 
-      if (profile?.preferences) {
-        setPreferences(profile.preferences);
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
+          const mergedPreferences = {
+            ...preferences,
+            ...result.data,
+          };
+          setPreferences(mergedPreferences);
+          setCompletionPercentage(result.data.completeness || 0);
+
+          // Load conversation history if available
+          if (result.history && result.history.length > 0) {
+            const recentHistory = result.history.slice(0, 5).map((h: any) => ({
+              type: h.change_type === "user" ? "user" : "assistant",
+              content: JSON.stringify(h.preferences),
+            }));
+            setConversationHistory(recentHistory);
+          }
+
+          return mergedPreferences;
+        }
       }
     } catch (error) {
       console.error("Error loading preferences:", error);
     }
+    return preferences;
   };
 
   const askNextQuestion = (index: number) => {
-    if (index < PREFERENCE_QUESTIONS.length) {
-      const question = PREFERENCE_QUESTIONS[index];
+    const questions =
+      personalizedQuestions.length > 0
+        ? personalizedQuestions
+        : PREFERENCE_QUESTIONS;
+
+    if (index < questions.length) {
+      const question = questions[index];
       const assistantMessage: ChatMessage = {
         id: `q-${index}`,
         type: "assistant",
-        content: question.question,
+        content: question.question || question.content,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, assistantMessage]);
+      setConversationHistory((prev) => [
+        ...prev,
+        { type: "assistant", content: question.question || question.content },
+      ]);
       setCurrentQuestionIndex(index);
     } else {
       // All questions asked, save preferences
@@ -232,12 +302,41 @@ export default function PreferenceCollectorModal({
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    setConversationHistory((prev) => [
+      ...prev,
+      { type: "user", content: inputValue },
+    ]);
     setInputValue("");
     setIsLoading(true);
 
     // Process the answer
     if (inputValue.toLowerCase() !== "skip") {
       await processAnswer(inputValue, currentQuestionIndex);
+    }
+
+    // Get next personalized question based on the answer
+    if (currentQuestionIndex % 3 === 2) {
+      // Every 3rd question, get new personalized ones
+      try {
+        const response = await fetch("/api/nutrition/ai-questions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            existingPreferences: preferences,
+            conversationHistory: conversationHistory.slice(-10), // Last 10 messages
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.questions && data.questions.length > 0) {
+            // Add new personalized questions to the queue
+            setPersonalizedQuestions((prev) => [...prev, ...data.questions]);
+          }
+        }
+      } catch (error) {
+        console.error("Error getting next questions:", error);
+      }
     }
 
     // Ask next question
@@ -248,7 +347,11 @@ export default function PreferenceCollectorModal({
   };
 
   const processAnswer = async (answer: string, questionIndex: number) => {
-    const question = PREFERENCE_QUESTIONS[questionIndex];
+    const questions =
+      personalizedQuestions.length > 0
+        ? personalizedQuestions
+        : PREFERENCE_QUESTIONS;
+    const question = questions[questionIndex];
     const updatedPreferences = { ...preferences };
 
     switch (question.category) {
@@ -327,17 +430,24 @@ export default function PreferenceCollectorModal({
     setIsLoading(true);
 
     try {
-      // Save preferences to nutrition profile
-      const { error } = await supabase
-        .from("nutrition_profiles")
-        .update({
+      // Use the new preferences-advanced endpoint
+      const response = await fetch("/api/nutrition/preferences-advanced", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           preferences: preferences,
-          preference_completeness: completionPercentage,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("client_id", clientId);
+          change_type: "update",
+        }),
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error("Failed to save preferences");
+      }
+
+      const result = await response.json();
+      if (result.completeness) {
+        setCompletionPercentage(result.completeness);
+      }
 
       // Show success message
       const successMessage: ChatMessage = {
@@ -406,7 +516,10 @@ export default function PreferenceCollectorModal({
             />
           </div>
           <div className="flex items-center gap-4 mt-3">
-            {PREFERENCE_QUESTIONS.map((q, index) => (
+            {(personalizedQuestions.length > 0
+              ? personalizedQuestions
+              : PREFERENCE_QUESTIONS
+            ).map((q, index) => (
               <div
                 key={q.id}
                 className="flex items-center gap-1"
@@ -478,7 +591,10 @@ export default function PreferenceCollectorModal({
               placeholder="Type your answer or 'skip' to move on..."
               className="flex-1 px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               disabled={
-                isLoading || currentQuestionIndex >= PREFERENCE_QUESTIONS.length
+                isLoading ||
+                (personalizedQuestions.length > 0
+                  ? currentQuestionIndex >= personalizedQuestions.length
+                  : currentQuestionIndex >= PREFERENCE_QUESTIONS.length)
               }
             />
             <button
@@ -486,7 +602,9 @@ export default function PreferenceCollectorModal({
               disabled={
                 !inputValue.trim() ||
                 isLoading ||
-                currentQuestionIndex >= PREFERENCE_QUESTIONS.length
+                (personalizedQuestions.length > 0
+                  ? currentQuestionIndex >= personalizedQuestions.length
+                  : currentQuestionIndex >= PREFERENCE_QUESTIONS.length)
               }
               className="px-6 py-3 bg-orange-600 text-white rounded-xl font-medium hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
