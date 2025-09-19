@@ -14,8 +14,6 @@ import AddClassModal from "@/app/components/booking/AddClassModal";
 import DashboardLayout from "@/app/components/DashboardLayout";
 import { getCurrentUserOrganization } from "@/app/lib/organization-service";
 
-export const dynamic = "force-dynamic";
-
 export default function ClassCalendarPage() {
   const [error, setError] = useState<string | null>(null);
   const [showAddClass, setShowAddClass] = useState(false);
