@@ -102,6 +102,7 @@ export default function ClientNutritionCoach({ clientId, onBack }: ClientNutriti
   const [isGenerating, setIsGenerating] = useState(false)
   const [isCalculating, setIsCalculating] = useState(false)
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null)
+  const [regeneratingMeals, setRegeneratingMeals] = useState<Record<string, boolean>>({})
   
   const supabase = createClientComponentClient()
 
@@ -419,6 +420,72 @@ export default function ClientNutritionCoach({ clientId, onBack }: ClientNutriti
       console.error('Meal plan generation error:', error)
     } finally {
       setIsGenerating(false)
+    }
+  }
+
+  const regenerateMeal = async (mealType: 'breakfast' | 'lunch' | 'dinner' | 'snacks') => {
+    if (!mealPlan || !client) {
+      toast.error('No meal plan available to regenerate')
+      return
+    }
+
+    setRegeneratingMeals(prev => ({ ...prev, [mealType]: true }))
+
+    try {
+      const response = await fetch('/api/nutrition-plans/regenerate-meal', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          client_id: clientId,
+          meal_type: mealType,
+          macro_targets: macroTargets,
+          profile_data: profileData,
+          existing_meal_plan: mealPlan
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to regenerate meal')
+      }
+
+      const { data } = await response.json()
+
+      // Update the meal plan with the new meal
+      setMealPlan(prev => {
+        if (!prev) return prev
+
+        const updatedMeals = {
+          ...prev.meals,
+          [mealType]: [data.meal]
+        }
+
+        // Recalculate total macros
+        const totalMacros = Object.values(updatedMeals).flat().reduce(
+          (totals, meal) => ({
+            calories: totals.calories + meal.calories,
+            protein: totals.protein + meal.protein,
+            carbs: totals.carbs + meal.carbs,
+            fats: totals.fats + meal.fats
+          }),
+          { calories: 0, protein: 0, carbs: 0, fats: 0 }
+        )
+
+        return {
+          ...prev,
+          meals: updatedMeals,
+          totalMacros
+        }
+      })
+
+      toast.success(`${mealType.charAt(0).toUpperCase() + mealType.slice(1)} regenerated successfully!`)
+    } catch (error) {
+      console.error('Meal regeneration error:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to regenerate meal')
+    } finally {
+      setRegeneratingMeals(prev => ({ ...prev, [mealType]: false }))
     }
   }
 
@@ -800,8 +867,20 @@ export default function ClientNutritionCoach({ clientId, onBack }: ClientNutriti
               {Object.entries(mealPlan.meals).map(([mealType, meals]) => (
                 <Card key={mealType}>
                   <CardHeader>
-                    <CardTitle className="capitalize">
-                      {mealType === 'snacks' ? 'Snacks' : mealType}
+                    <CardTitle className="flex items-center justify-between">
+                      <span className="capitalize">
+                        {mealType === 'snacks' ? 'Snacks' : mealType}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => regenerateMeal(mealType as 'breakfast' | 'lunch' | 'dinner' | 'snacks')}
+                        disabled={regeneratingMeals[mealType]}
+                        className="h-8 w-8 p-0"
+                        title={`Regenerate ${mealType}`}
+                      >
+                        <RefreshCw className={`h-4 w-4 ${regeneratingMeals[mealType] ? 'animate-spin' : ''}`} />
+                      </Button>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>

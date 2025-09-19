@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Calendar, User, Gift, CreditCard, Menu, X, LogOut } from 'lucide-react';
+import { Home, Calendar, User, Gift, CreditCard, CookingPot, Menu, X, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -11,6 +11,7 @@ const navigation = [
   { name: 'Dashboard', href: '/client/dashboard', icon: Home },
   { name: 'Book Sessions', href: '/client/booking', icon: Calendar },
   { name: 'My Profile', href: '/client/profile', icon: User },
+  { name: 'Recipe Library', href: '/client/recipes', icon: CookingPot },
   { name: 'Payments', href: '/client/payments', icon: CreditCard },
   { name: 'Referrals', href: '/client/referrals', icon: Gift },
 ];

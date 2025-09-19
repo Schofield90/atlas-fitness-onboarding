@@ -48,8 +48,8 @@ export function BookingCalendar({ onSessionSelect }: BookingCalendarProps) {
       slot_type: 'gym_class',
       trainer_name: 'Sarah Johnson',
       location: 'Studio A',
-      max_bookings: 20,
-      current_bookings: 12,
+      max_bookings: 8,
+      current_bookings: 5,
       base_cost: 15,
       member_cost: 10,
       is_available: true,
@@ -62,8 +62,8 @@ export function BookingCalendar({ onSessionSelect }: BookingCalendarProps) {
       slot_type: 'gym_class',
       trainer_name: 'Emma Wilson',
       location: 'Studio B',
-      max_bookings: 15,
-      current_bookings: 8,
+      max_bookings: 8,
+      current_bookings: 6,
       base_cost: 12,
       member_cost: 8,
       is_available: true,
@@ -220,7 +220,7 @@ function SessionsList({
     const groups: Record<string, SessionSlot[]> = {};
     
     slots.forEach(slot => {
-      const date = moment(slot.start_time).format('YYYY-MM-DD');
+      const date = moment.utc(slot.start_time).format('YYYY-MM-DD');
       if (!groups[date]) {
         groups[date] = [];
       }
@@ -236,7 +236,7 @@ function SessionsList({
         <Card key={date}>
           <CardHeader>
             <CardTitle className="text-lg">
-              {moment(date).format('dddd, DD MMMM YYYY')}
+              {moment.utc(date).format('dddd, DD MMMM YYYY')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -261,7 +261,7 @@ function SessionsList({
                     <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        {moment(slot.start_time).format('h:mm A')} - {moment(slot.end_time).format('h:mm A')}
+                        {moment.utc(slot.start_time).format('h:mm A')} - {moment.utc(slot.end_time).format('h:mm A')}
                       </div>
                       
                       {slot.trainer_name && (

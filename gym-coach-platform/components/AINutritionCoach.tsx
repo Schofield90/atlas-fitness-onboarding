@@ -97,6 +97,7 @@ export default function AINutritionCoach() {
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [isCalculating, setIsCalculating] = useState(false)
+  const [regeneratingMeals, setRegeneratingMeals] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     calculateMacros()
@@ -274,6 +275,130 @@ export default function AINutritionCoach() {
       console.error('Meal plan generation error:', error)
     } finally {
       setIsGenerating(false)
+    }
+  }
+
+  const regenerateMeal = async (mealType: 'breakfast' | 'lunch' | 'dinner' | 'snacks') => {
+    if (!mealPlan) {
+      toast.error('No meal plan available to regenerate')
+      return
+    }
+
+    setRegeneratingMeals(prev => ({ ...prev, [mealType]: true }))
+
+    try {
+      // Simulate API call for regenerating individual meal
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      // Mock meal regeneration based on meal type
+      const mealOptions = {
+        breakfast: [
+          {
+            name: 'Protein Pancakes',
+            ingredients: ['2 eggs', '1 banana', '1 scoop protein powder', 'Oats', 'Berries'],
+            instructions: ['Blend eggs, banana, and protein', 'Cook like pancakes', 'Top with berries']
+          },
+          {
+            name: 'Avocado Toast',
+            ingredients: ['2 slices whole grain bread', '1 avocado', '2 eggs', 'Tomato', 'Hemp seeds'],
+            instructions: ['Toast bread', 'Mash avocado', 'Top with poached eggs and tomato']
+          }
+        ],
+        lunch: [
+          {
+            name: 'Tuna Quinoa Bowl',
+            ingredients: ['150g tuna', 'Quinoa', 'Cucumber', 'Bell peppers', 'Olive oil', 'Lemon'],
+            instructions: ['Cook quinoa', 'Mix tuna with vegetables', 'Dress with olive oil and lemon']
+          },
+          {
+            name: 'Chicken Buddha Bowl',
+            ingredients: ['150g chicken', 'Sweet potato', 'Kale', 'Chickpeas', 'Tahini'],
+            instructions: ['Roast chicken and sweet potato', 'Massage kale', 'Assemble with tahini dressing']
+          }
+        ],
+        dinner: [
+          {
+            name: 'Turkey Meatballs with Zucchini Noodles',
+            ingredients: ['150g ground turkey', 'Zucchini', 'Marinara sauce', 'Herbs', 'Parmesan'],
+            instructions: ['Form and bake meatballs', 'Spiralize zucchini', 'Serve with sauce and cheese']
+          },
+          {
+            name: 'Shrimp and Vegetable Stir-fry',
+            ingredients: ['150g shrimp', 'Mixed vegetables', 'Brown rice', 'Coconut oil', 'Asian spices'],
+            instructions: ['Cook rice', 'Stir-fry shrimp and vegetables', 'Season with spices']
+          }
+        ],
+        snacks: [
+          {
+            name: 'Protein Energy Balls',
+            ingredients: ['Dates', 'Almonds', 'Protein powder', 'Coconut', 'Chia seeds'],
+            instructions: ['Blend all ingredients', 'Form into balls', 'Refrigerate until firm']
+          },
+          {
+            name: 'Veggie Sticks with Hummus',
+            ingredients: ['Carrots', 'Celery', 'Bell peppers', 'Hummus'],
+            instructions: ['Cut vegetables into sticks', 'Serve with hummus for dipping']
+          }
+        ]
+      }
+
+      const options = mealOptions[mealType]
+      const selectedMeal = options[Math.floor(Math.random() * options.length)]
+
+      // Meal-specific calorie and macro distributions
+      const mealDistributions = {
+        breakfast: { calories: 0.25, protein: 0.25, carbs: 0.35, fats: 0.20 },
+        lunch: { calories: 0.35, protein: 0.40, carbs: 0.25, fats: 0.35 },
+        dinner: { calories: 0.30, protein: 0.30, carbs: 0.30, fats: 0.35 },
+        snacks: { calories: 0.10, protein: 0.15, carbs: 0.10, fats: 0.10 }
+      }
+
+      const distribution = mealDistributions[mealType]
+      const newMeal: MealItem = {
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+        name: selectedMeal.name,
+        quantity: mealType === 'snacks' ? '1 portion' : '1 serving',
+        calories: Math.round(macroTargets.calories * distribution.calories),
+        protein: Math.round(macroTargets.protein * distribution.protein),
+        carbs: Math.round(macroTargets.carbs * distribution.carbs),
+        fats: Math.round(macroTargets.fats * distribution.fats),
+        ingredients: selectedMeal.ingredients,
+        instructions: selectedMeal.instructions
+      }
+
+      // Update the meal plan with the new meal
+      setMealPlan(prev => {
+        if (!prev) return prev
+
+        const updatedMeals = {
+          ...prev.meals,
+          [mealType]: [newMeal]
+        }
+
+        // Recalculate total macros
+        const totalMacros = Object.values(updatedMeals).flat().reduce(
+          (totals, meal) => ({
+            calories: totals.calories + meal.calories,
+            protein: totals.protein + meal.protein,
+            carbs: totals.carbs + meal.carbs,
+            fats: totals.fats + meal.fats
+          }),
+          { calories: 0, protein: 0, carbs: 0, fats: 0 }
+        )
+
+        return {
+          ...prev,
+          meals: updatedMeals,
+          totalMacros
+        }
+      })
+
+      toast.success(`${mealType.charAt(0).toUpperCase() + mealType.slice(1)} regenerated successfully!`)
+    } catch (error) {
+      console.error('Meal regeneration error:', error)
+      toast.error('Failed to regenerate meal')
+    } finally {
+      setRegeneratingMeals(prev => ({ ...prev, [mealType]: false }))
     }
   }
 
@@ -617,8 +742,20 @@ export default function AINutritionCoach() {
               {Object.entries(mealPlan.meals).map(([mealType, meals]) => (
                 <Card key={mealType}>
                   <CardHeader>
-                    <CardTitle className="capitalize">
-                      {mealType === 'snacks' ? 'Snacks' : mealType}
+                    <CardTitle className="flex items-center justify-between">
+                      <span className="capitalize">
+                        {mealType === 'snacks' ? 'Snacks' : mealType}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => regenerateMeal(mealType as 'breakfast' | 'lunch' | 'dinner' | 'snacks')}
+                        disabled={regeneratingMeals[mealType]}
+                        className="h-8 w-8 p-0"
+                        title={`Regenerate ${mealType}`}
+                      >
+                        <RefreshCw className={`h-4 w-4 ${regeneratingMeals[mealType] ? 'animate-spin' : ''}`} />
+                      </Button>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>

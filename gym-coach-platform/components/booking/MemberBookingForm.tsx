@@ -138,8 +138,8 @@ export function MemberBookingForm({
           slot_type: 'gym_class',
           trainer_name: 'Sarah Johnson',
           location: 'Studio A',
-          max_bookings: 20,
-          current_bookings: 12,
+          max_bookings: 8,
+          current_bookings: 5,
           base_cost: 15,
           member_cost: 10,
           is_available: true,
@@ -152,8 +152,8 @@ export function MemberBookingForm({
           slot_type: 'gym_class',
           trainer_name: 'Emma Wilson',
           location: 'Studio B',
-          max_bookings: 15,
-          current_bookings: 8,
+          max_bookings: 8,
+          current_bookings: 6,
           base_cost: 12,
           member_cost: 8,
           is_available: true,
@@ -192,12 +192,12 @@ export function MemberBookingForm({
       const sessionStartTime = new Date(selectedSession.start_time);
       const sessionEndTime = new Date(selectedSession.end_time);
       
-      // Set the date but keep the time from the session slot
+      // Set the date but keep the time from the session slot using UTC
       const bookingStartTime = new Date(sessionDate);
-      bookingStartTime.setHours(sessionStartTime.getHours(), sessionStartTime.getMinutes(), 0, 0);
-      
+      bookingStartTime.setUTCHours(sessionStartTime.getUTCHours(), sessionStartTime.getUTCMinutes(), 0, 0);
+
       const bookingEndTime = new Date(sessionDate);
-      bookingEndTime.setHours(sessionEndTime.getHours(), sessionEndTime.getMinutes(), 0, 0);
+      bookingEndTime.setUTCHours(sessionEndTime.getUTCHours(), sessionEndTime.getUTCMinutes(), 0, 0);
 
       const bookingData = {
         client_id: member.id,
@@ -432,7 +432,7 @@ export function MemberBookingForm({
                       <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4 text-muted-foreground" />
                         <span className="text-sm">
-                          {moment(selectedSession.start_time).format('h:mm A')} - {moment(selectedSession.end_time).format('h:mm A')}
+                          {moment.utc(selectedSession.start_time).format('h:mm A')} - {moment.utc(selectedSession.end_time).format('h:mm A')}
                         </span>
                       </div>
                       

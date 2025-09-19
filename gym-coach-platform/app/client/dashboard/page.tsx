@@ -1,35 +1,100 @@
 "use client";
 
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Clock, TrendingUp, Users, User, CreditCard, Gift, ArrowRight, Bell } from 'lucide-react';
 import Link from 'next/link';
+import { toast } from 'react-hot-toast';
+import { useAuth } from '@/components/providers/AuthProvider';
+
+interface UpcomingSession {
+  id: string;
+  title: string;
+  session_type: 'gym_class' | 'personal_training' | 'coaching_call';
+  start_time: string;
+  end_time: string;
+  trainer_name?: string;
+  location?: string;
+  status: string;
+  cost: number;
+}
 
 export default function ClientDashboard() {
-  // Mock data - replace with actual data from your API
-  const upcomingSessions = [
-    {
-      id: '1',
-      title: 'HIIT Class',
-      type: 'gym_class',
-      date: new Date(Date.now() + 86400000), // Tomorrow
-      time: '09:00 AM',
-      duration: 45,
-      trainer: 'Sarah Johnson',
-      location: 'Studio A',
-    },
-    {
-      id: '2',
-      title: 'Personal Training',
-      type: 'personal_training',
-      date: new Date(Date.now() + 172800000), // Day after tomorrow
-      time: '06:00 PM',
-      duration: 60,
-      trainer: 'Mike Wilson',
-      location: 'Main Floor',
-    },
-  ];
+  const { user, loading: authLoading } = useAuth();
+  const [upcomingSessions, setUpcomingSessions] = useState<UpcomingSession[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(true);
+
+  useEffect(() => {
+    if (!authLoading) {
+      if (user) {
+        loadUpcomingSessions();
+      } else {
+        // User not authenticated, clear sessions
+        setUpcomingSessions([]);
+        setLoadingSessions(false);
+      }
+    }
+  }, [authLoading, user]);
+
+  const loadUpcomingSessions = async () => {
+    if (!user) return;
+
+    try {
+      setLoadingSessions(true);
+      // Get upcoming sessions for the current user
+      const now = new Date().toISOString();
+      const response = await fetch(`/api/bookings?startDate=${now}&memberId=${user.id}`);
+
+      if (response.ok) {
+        const data = await response.json();
+
+        // Transform and filter for upcoming sessions only
+        const now = new Date();
+        const sessions: UpcomingSession[] = (data.bookings || [])
+          .filter((session: any) =>
+            new Date(session.start_time) > now &&
+            session.status !== 'cancelled' &&
+            session.status !== 'completed'
+          )
+          .slice(0, 3) // Only show next 3 sessions on dashboard
+          .map((session: any) => ({
+            id: session.id,
+            title: session.title || 'Unknown Session',
+            session_type: session.session_type || 'gym_class',
+            start_time: session.start_time,
+            end_time: session.end_time,
+            trainer_name: session.trainer?.name || session.coach?.name,
+            location: session.room_or_location,
+            status: session.status,
+            cost: session.cost || 0
+          }));
+
+        setUpcomingSessions(sessions);
+      } else if (response.status === 401) {
+        toast.error('Please sign in to view your sessions');
+        setUpcomingSessions([]);
+      } else {
+        throw new Error('Failed to fetch sessions');
+      }
+    } catch (error) {
+      console.error('Error loading upcoming sessions:', error);
+
+      // Show user-friendly error message
+      if (error instanceof Error && error.message.includes('Failed to fetch')) {
+        toast.error('Unable to load sessions. Please check your connection.');
+      } else {
+        toast.error('Failed to load upcoming sessions');
+      }
+
+      // Fallback to empty array instead of mock data
+      setUpcomingSessions([]);
+    } finally {
+      setLoadingSessions(false);
+    }
+  };
+
 
   const stats = {
     sessionsThisMonth: 12,
@@ -130,33 +195,56 @@ export default function ClientDashboard() {
             </Link>
           </CardHeader>
           <CardContent className="space-y-4">
-            {upcomingSessions.map((session) => (
-              <div key={session.id} className="flex items-start justify-between p-4 border rounded-lg">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-medium">{session.title}</h4>
-                    <Badge variant="outline" className="text-xs">
-                      {session.type.replace('_', ' ')}
-                    </Badge>
+            {loadingSessions || authLoading ? (
+              <div className="space-y-4">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <div key={i} className="p-4 border rounded-lg">
+                    <div className="animate-pulse space-y-3">
+                      <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                      <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                    </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    {session.date.toLocaleDateString('en-GB', { 
-                      weekday: 'short', 
-                      day: 'numeric', 
-                      month: 'short' 
-                    })} at {session.time}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {session.trainer} • {session.location} • {session.duration} mins
-                  </p>
-                </div>
-                <Button variant="outline" size="sm">
-                  Manage
-                </Button>
+                ))}
               </div>
-            ))}
-            
-            {upcomingSessions.length === 0 && (
+            ) : upcomingSessions.length > 0 ? (
+              upcomingSessions.map((session) => {
+                const sessionDate = new Date(session.start_time);
+                const sessionEndDate = new Date(session.end_time);
+                const duration = Math.round((sessionEndDate.getTime() - sessionDate.getTime()) / (1000 * 60));
+
+                return (
+                  <div key={session.id} className="flex items-start justify-between p-4 border rounded-lg">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-medium">{session.title}</h4>
+                        <Badge variant="outline" className="text-xs">
+                          {session.session_type.replace('_', ' ')}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {sessionDate.toLocaleDateString('en-GB', {
+                          weekday: 'short',
+                          day: 'numeric',
+                          month: 'short'
+                        })} at {sessionDate.toLocaleTimeString('en-GB', {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {session.trainer_name ? `${session.trainer_name} • ` : ''}
+                        {session.location ? `${session.location} • ` : ''}
+                        {duration} mins
+                      </p>
+                    </div>
+                    <Button variant="outline" size="sm">
+                      Manage
+                    </Button>
+                  </div>
+                );
+              })
+            ) : (
               <div className="text-center py-8 text-muted-foreground">
                 <Calendar className="w-12 h-12 mx-auto mb-3 opacity-20" />
                 <p>No upcoming sessions</p>

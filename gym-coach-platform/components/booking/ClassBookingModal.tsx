@@ -43,8 +43,8 @@ export function ClassBookingModal({
 
   const spotsLeft = session.max_bookings - session.current_bookings;
   const isFull = spotsLeft === 0;
-  const sessionDate = moment(session.start_time);
-  const sessionDuration = moment(session.end_time).diff(moment(session.start_time), 'minutes');
+  const sessionDate = moment.utc(session.start_time);
+  const sessionDuration = moment.utc(session.end_time).diff(moment.utc(session.start_time), 'minutes');
 
   const handleBooking = async () => {
     setLoading(true);
@@ -103,7 +103,7 @@ export function ClassBookingModal({
             <div className="flex items-center gap-3 text-sm">
               <Clock className="w-4 h-4 text-muted-foreground" />
               <span>
-                {sessionDate.format('h:mm A')} - {moment(session.end_time).format('h:mm A')} 
+                {sessionDate.format('h:mm A')} - {moment.utc(session.end_time).format('h:mm A')}
                 ({sessionDuration} minutes)
               </span>
             </div>

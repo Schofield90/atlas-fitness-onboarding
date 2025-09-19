@@ -30,47 +30,47 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
-    // Build query for bookings
+    // Build query for client sessions
     let query = supabase
-      .from('bookings')
+      .from('client_sessions')
       .select(`
         *,
         client:client_id(id, name, email),
-        session_slot:session_slot_id(
-          id,
-          title,
-          start_time,
-          end_time,
-          slot_type,
-          location,
-          trainer:trainer_id(name),
-          coach:coach_id(name)
-        )
+        trainer:trainer_id(name),
+        coach:coach_id(name)
       `)
       .order('created_at', { ascending: false });
 
-    // Apply filters
+    // Apply filters - if memberId is provided, it should be the auth user ID
+    // We need to find the client record for this user
     if (memberId) {
+      // For now, assume the memberId is the client_id directly
+      // In a production system, you'd want to join through a user_clients table
+      // or have a client record that references the auth user ID
       query = query.eq('client_id', memberId);
+    } else {
+      // If no memberId provided, filter by current user's client records
+      // This assumes the client_id matches the auth user ID
+      query = query.eq('client_id', user.id);
     }
     if (status) {
       query = query.eq('status', status);
     }
     if (startDate) {
-      query = query.gte('session_start_time', startDate);
+      query = query.gte('start_time', startDate);
     }
     if (endDate) {
-      query = query.lte('session_start_time', endDate);
+      query = query.lte('start_time', endDate);
     }
 
-    const { data: bookings, error } = await query;
+    const { data: sessions, error } = await query;
 
     if (error) {
-      console.error('Error fetching bookings:', error);
-      return NextResponse.json({ error: 'Failed to fetch bookings' }, { status: 500 });
+      console.error('Error fetching sessions:', error);
+      return NextResponse.json({ error: 'Failed to fetch sessions' }, { status: 500 });
     }
 
-    return NextResponse.json({ bookings: bookings || [] });
+    return NextResponse.json({ bookings: sessions || [] });
 
   } catch (error) {
     console.error('Error in bookings API:', error);
@@ -100,75 +100,74 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { 
-      client_id, 
-      session_slot_id, 
-      session_start_time,
-      session_end_time,
+    const {
+      client_id,
+      session_type,
+      title,
+      start_time,
+      end_time,
+      trainer_id,
+      coach_id,
+      room_or_location,
       cost,
       payment_status = 'pending',
-      notes,
-      booking_type = 'single' // single, multiple, recurring
+      session_notes,
+      client_notes
     } = body;
 
     // Validate required fields
-    if (!client_id || !session_slot_id || !session_start_time || !session_end_time) {
-      return NextResponse.json({ 
-        error: 'Missing required fields: client_id, session_slot_id, session_start_time, session_end_time' 
+    if (!client_id || !session_type || !title || !start_time || !end_time) {
+      return NextResponse.json({
+        error: 'Missing required fields: client_id, session_type, title, start_time, end_time'
       }, { status: 400 });
     }
 
-    // Create the booking
-    const { data: booking, error: bookingError } = await supabase
-      .from('bookings')
+    // Get user's organization ID
+    const { data: userOrg } = await supabase
+      .from('users')
+      .select('organization_id')
+      .eq('id', user.id)
+      .single();
+
+    if (!userOrg?.organization_id) {
+      return NextResponse.json({ error: 'User organization not found' }, { status: 400 });
+    }
+
+    // Create the session
+    const { data: session, error: sessionError } = await supabase
+      .from('client_sessions')
       .insert({
         client_id,
-        session_slot_id,
-        session_start_time,
-        session_end_time,
+        organization_id: userOrg.organization_id,
+        session_type,
+        title,
+        start_time,
+        end_time,
+        trainer_id,
+        coach_id,
+        room_or_location,
         cost: cost || 0,
         payment_status,
-        notes,
-        booking_type,
-        status: 'scheduled',
-        cancellation_deadline: new Date(new Date(session_start_time).getTime() - 24 * 60 * 60 * 1000).toISOString(), // 24 hours before
-        created_by: user.id
+        session_notes,
+        client_notes,
+        status: 'scheduled'
       })
       .select(`
         *,
         client:client_id(id, name, email),
-        session_slot:session_slot_id(
-          id,
-          title,
-          start_time,
-          end_time,
-          slot_type,
-          location,
-          trainer:trainer_id(name),
-          coach:coach_id(name)
-        )
+        trainer:trainer_id(name),
+        coach:coach_id(name)
       `)
       .single();
 
-    if (bookingError) {
-      console.error('Error creating booking:', bookingError);
-      return NextResponse.json({ error: 'Failed to create booking' }, { status: 500 });
+    if (sessionError) {
+      console.error('Error creating session:', sessionError);
+      return NextResponse.json({ error: 'Failed to create session' }, { status: 500 });
     }
 
-    // Update session slot booking count (if applicable)
-    if (session_slot_id) {
-      const { error: updateError } = await supabase
-        .rpc('increment_session_bookings', { slot_id: session_slot_id });
-      
-      if (updateError) {
-        console.error('Error updating session booking count:', updateError);
-        // Don't fail the request, just log the error
-      }
-    }
-
-    return NextResponse.json({ 
-      message: 'Booking created successfully',
-      booking 
+    return NextResponse.json({
+      message: 'Session created successfully',
+      session
     }, { status: 201 });
 
   } catch (error) {
