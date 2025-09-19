@@ -194,7 +194,7 @@ export default function PreferenceCollectorModal({
         const data = await response.json();
         if (data.questions) {
           setPersonalizedQuestions(data.questions);
-          setCompletionPercentage(data.completeness || 0);
+          setCompletionPercentage(Math.min(100, data.completeness || 0));
         }
       }
     } catch (error) {
@@ -245,7 +245,7 @@ export default function PreferenceCollectorModal({
             ...result.data,
           };
           setPreferences(mergedPreferences);
-          setCompletionPercentage(result.data.completeness || 0);
+          setCompletionPercentage(Math.min(100, result.data.completeness || 0));
 
           // Load conversation history if available
           if (result.history && result.history.length > 0) {
@@ -446,14 +446,14 @@ export default function PreferenceCollectorModal({
 
       const result = await response.json();
       if (result.completeness) {
-        setCompletionPercentage(result.completeness);
+        setCompletionPercentage(Math.min(100, result.completeness));
       }
 
       // Show success message
       const successMessage: ChatMessage = {
         id: "success",
         type: "assistant",
-        content: `Great! I've saved your preferences. Your meal plans will now be personalized based on your needs. I understand your preferences at ${completionPercentage}% - you can always come back to add more details!`,
+        content: `Great! I've saved your preferences. Your meal plans will now be personalized based on your needs. I understand your preferences at ${Math.min(100, completionPercentage)}% - you can always come back to add more details!`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, successMessage]);
@@ -506,13 +506,13 @@ export default function PreferenceCollectorModal({
               AI Understanding Level
             </span>
             <span className="text-sm font-medium text-orange-500">
-              {completionPercentage}%
+              {Math.min(100, completionPercentage)}%
             </span>
           </div>
           <div className="w-full bg-gray-700 rounded-full h-2">
             <div
               className="bg-gradient-to-r from-orange-500 to-orange-400 h-2 rounded-full transition-all duration-500"
-              style={{ width: `${completionPercentage}%` }}
+              style={{ width: `${Math.min(100, completionPercentage)}%` }}
             />
           </div>
           <div className="flex items-center gap-4 mt-3">

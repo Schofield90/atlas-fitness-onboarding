@@ -201,5 +201,9 @@ function calculateCompleteness(preferences: any): number {
     }
   });
 
-  return Math.round((filledFields / requiredFields.length) * 100);
+  // Cap at 100% to prevent going over
+  return Math.min(
+    100,
+    Math.round((filledFields / requiredFields.length) * 100),
+  );
 }
