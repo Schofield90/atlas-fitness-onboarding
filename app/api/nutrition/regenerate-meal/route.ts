@@ -163,7 +163,7 @@ Return a JSON object with:
     const mealData = JSON.parse(aiResponse.choices[0].message.content);
 
     // Save the regenerated meal to database if needed
-    const supabase = await createAdminClient();
+    const adminSupabase = await createAdminClient();
 
     // Update meal plan in database if date is provided
     if (date && nutritionProfile.id) {
@@ -171,7 +171,7 @@ Return a JSON object with:
       mealDate.setHours(0, 0, 0, 0);
 
       // Get existing meal plan for this date
-      const { data: existingPlan } = await supabase
+      const { data: existingPlan } = await adminSupabase
         .from("meal_plans")
         .select("*")
         .eq("nutrition_profile_id", nutritionProfile.id)
@@ -200,7 +200,7 @@ Return a JSON object with:
           });
 
           // Update in database
-          await supabase
+          await adminSupabase
             .from("meal_plans")
             .update({
               meal_data: updatedMealData,
