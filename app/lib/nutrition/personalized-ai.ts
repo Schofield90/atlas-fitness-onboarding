@@ -64,14 +64,12 @@ CRITICAL REQUIREMENTS (ABSOLUTELY MANDATORY - DO NOT VIOLATE):
 - MUST COMPLETELY AVOID (allergies/intolerances): ${preferences.allergies?.length ? preferences.allergies.join(", ").toUpperCase() : "no allergies"}
 - MUST respect dietary restrictions: ${preferences.dietary_restrictions?.length ? preferences.dietary_restrictions.join(", ") : "none"}
 - NEVER INCLUDE these disliked foods: ${preferences.disliked_foods?.length ? preferences.disliked_foods.join(", ").toUpperCase() : "no specific dislikes"}
-${preferences.allergies?.includes("eggs") || preferences.disliked_foods?.includes("eggs") ? "\n⚠️ EGGS ARE STRICTLY PROHIBITED - USE EGG SUBSTITUTES ONLY" : ""}
 
 PERSONALIZATION (STRONGLY PREFERRED):
 - PRIORITIZE their favorite foods: ${preferences.favorite_foods?.length ? preferences.favorite_foods.join(", ").toUpperCase() : "no specific favorites mentioned"}
 - Match their cultural preferences: ${preferences.cultural_preferences ? `${preferences.cultural_preferences} cuisine STRONGLY PREFERRED` : "no specific preference"}
 - Align with their goals: ${preferences.specific_goals || profile.goals || "general health"}
 - Typical ${mealType} time: ${preferences.meal_timings?.[mealType] || "flexible"}
-${preferences.cultural_preferences?.toLowerCase().includes("mexican") ? "\n🌮 MEXICAN CUISINE REQUESTED - Include Mexican dishes, spices, and ingredients" : ""}
 
 COOKING CONSTRAINTS:
 - Skill level: ${preferences.cooking_skill || "intermediate"}
