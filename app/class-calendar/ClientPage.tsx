@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { FileDown, Plus } from "lucide-react";
+import Link from "next/link";
 import Button from "@/app/components/ui/Button";
 import QuickStat from "@/app/components/booking/QuickStat";
 import ClassTypeFilter from "@/app/components/booking/ClassTypeFilter";
@@ -24,6 +25,7 @@ export default function ClassCalendarClient() {
   const [classes, setClasses] = useState([]);
   const [selectedClass, setSelectedClass] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [calendarView, setCalendarView] = useState<"day" | "week" | "month">(
     "week",
@@ -37,23 +39,31 @@ export default function ClassCalendarClient() {
     if (organizationId) {
       fetchClasses();
     }
-  }, [organizationId]);
+  }, [organizationId, fetchClasses]);
 
   const fetchOrganization = async () => {
+    setCheckingAuth(true);
     try {
-      const org = await getCurrentUserOrganization();
-      if (org?.id) {
-        setOrganizationId(org.id);
+      const result = await getCurrentUserOrganization();
+      if (result?.organizationId) {
+        setOrganizationId(result.organizationId);
+        setError(null);
       } else {
-        setError("Organization not found");
+        console.error("Organization not found:", result?.error);
+        setError(
+          result?.error ||
+            "Organization not found. Please ensure you're logged in.",
+        );
       }
     } catch (err) {
       console.error("Error fetching organization:", err);
-      setError("Failed to fetch organization");
+      setError("Failed to fetch organization. Please refresh the page.");
+    } finally {
+      setCheckingAuth(false);
     }
   };
 
-  const fetchClasses = async () => {
+  const fetchClasses = useCallback(async () => {
     if (!organizationId) return;
     setLoading(true);
     try {
@@ -69,18 +79,50 @@ export default function ClassCalendarClient() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [organizationId]);
 
   const exportData = (format: string) => {
     console.log(`Exporting in ${format} format`);
     setShowExportMenu(false);
   };
 
+  if (checkingAuth) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="space-y-4 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
+            <p className="text-gray-600">Loading class calendar...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   if (error) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-full">
-          <div className="text-red-500">Error: {error}</div>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center space-y-4">
+            <div className="text-red-500 text-lg font-medium">{error}</div>
+            <div className="text-gray-600 text-sm">
+              If you're not logged in, please{" "}
+              <Link href="/signin" className="text-blue-600 hover:underline">
+                sign in
+              </Link>{" "}
+              to access the class calendar.
+            </div>
+            <Button
+              onClick={() => {
+                setError(null);
+                setLoading(true);
+                fetchOrganization();
+              }}
+              variant="primary"
+            >
+              Retry
+            </Button>
+          </div>
         </div>
       </DashboardLayout>
     );
