@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
+import { createClient } from "@/app/lib/supabase/server";
+import { generatePersonalizedMealPlan } from "@/app/lib/nutrition/personalized-ai";
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,7 +13,10 @@ export async function POST(request: NextRequest) {
       date,
       preferences = {},
       conversationHistory = [],
+      usePersonalizedAI = true,
     } = body;
+
+    const supabase = createClient();
 
     if (!nutritionProfile) {
       return NextResponse.json(
@@ -20,17 +25,60 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Fetch stored preferences if available
+    let storedPreferences = {};
+    if (nutritionProfile.client_id) {
+      const { data: prefData } = await supabase
+        .from("nutrition_profiles")
+        .select("preferences, dietary_preferences")
+        .eq("client_id", nutritionProfile.client_id)
+        .single();
+
+      if (prefData) {
+        storedPreferences = {
+          ...prefData.preferences,
+          ...prefData.dietary_preferences,
+        };
+      }
+    }
+
+    // Merge stored preferences with any passed preferences
+    const mergedPreferences = {
+      ...storedPreferences,
+      ...preferences,
+    };
+
+    // Use personalized AI if preferences exist
+    if (usePersonalizedAI && Object.keys(mergedPreferences).length > 0) {
+      try {
+        const personalizedMeal = await generatePersonalizedMealPlan(
+          mergedPreferences,
+          nutritionProfile,
+          mealType as any,
+          date || new Date().toLocaleDateString(),
+        );
+
+        return NextResponse.json({
+          success: true,
+          meal: personalizedMeal,
+        });
+      } catch (error) {
+        console.error("Personalized meal generation failed:", error);
+        // Fall back to standard generation
+      }
+    }
+
     // Create a prompt that includes user preferences
-    const preferencesSummary = preferences
+    const preferencesSummary = mergedPreferences
       ? `
 User Preferences:
-- Dietary restrictions: ${preferences.dietary_restrictions?.join(", ") || "None"}
-- Allergies: ${preferences.allergies?.join(", ") || "None"}
-- Favorite foods: ${preferences.favorite_foods?.join(", ") || "None specified"}
-- Disliked foods: ${preferences.disliked_foods?.join(", ") || "None specified"}
-- Cooking skill: ${preferences.cooking_skill || "intermediate"}
-- Time availability: ${preferences.time_availability || "moderate"}
-- Cultural preferences: ${preferences.cultural_preferences || "None specified"}
+- Dietary restrictions: ${mergedPreferences.dietary_restrictions?.join(", ") || "None"}
+- Allergies: ${mergedPreferences.allergies?.join(", ") || "None"}
+- Favorite foods: ${mergedPreferences.favorite_foods?.join(", ") || "None specified"}
+- Disliked foods: ${mergedPreferences.disliked_foods?.join(", ") || "None specified"}
+- Cooking skill: ${mergedPreferences.cooking_skill || "intermediate"}
+- Time availability: ${mergedPreferences.time_availability || "moderate"}
+- Cultural preferences: ${mergedPreferences.cultural_preferences || "None specified"}
 `
       : "";
 
