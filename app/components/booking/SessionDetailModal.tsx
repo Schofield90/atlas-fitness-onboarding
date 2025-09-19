@@ -15,8 +15,12 @@ import {
   Mail,
   ChevronLeft,
   ChevronRight,
+  Copy,
+  AlertTriangle,
+  Trash2,
 } from "lucide-react";
 import { createClient } from "@/app/lib/supabase/client";
+import toast from "react-hot-toast";
 // Removed admin client import - not needed for client components
 import RegistrationOptionsModal from "./RegistrationOptionsModal";
 
@@ -53,6 +57,8 @@ export default function SessionDetailModal({
   const [searching, setSearching] = useState(false);
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
     if (session) {
@@ -397,6 +403,158 @@ export default function SessionDetailModal({
     }
   };
 
+  const handleEditSession = () => {
+    setShowOptionsMenu(null);
+    // For now, show a toast - could be expanded to open edit modal
+    toast.success("Edit functionality will be implemented soon");
+    setShowEditModal(true);
+  };
+
+  const handleDuplicateSession = async () => {
+    if (actionLoading) return;
+
+    try {
+      setActionLoading("duplicate");
+      setShowOptionsMenu(null);
+
+      // Create a new session with same details but different time
+      const duplicateTime = new Date(session.startTime);
+      duplicateTime.setDate(duplicateTime.getDate() + 7); // Next week by default
+
+      const response = await fetch("/api/booking/classes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          programId: session.program_id,
+          title: session.title,
+          instructor: session.instructor || session.instructor_name,
+          startTime: duplicateTime.toISOString(),
+          duration: session.duration || session.duration_minutes || 60,
+          capacity: session.capacity || session.max_capacity || 20,
+          room: session.room || session.location,
+          description: "Duplicated session",
+          type: "fitness",
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to duplicate session");
+      }
+
+      toast.success("Session duplicated successfully for next week!");
+
+      // Refresh the calendar
+      if (onUpdate) {
+        await onUpdate();
+      }
+    } catch (error: any) {
+      console.error("Error duplicating session:", error);
+      toast.error(`Failed to duplicate session: ${error.message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleCancelSession = async () => {
+    if (actionLoading) return;
+
+    const reason = prompt(
+      "Please provide a reason for cancelling this session (optional):",
+    );
+    if (reason === null) return; // User cancelled the prompt
+
+    if (
+      !confirm(
+        "Are you sure you want to cancel this session? This action cannot be undone.",
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setActionLoading("cancel");
+      setShowOptionsMenu(null);
+
+      const response = await fetch("/api/booking/classes", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          classId: session.id,
+          session_status: "cancelled",
+          cancellation_reason: reason,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to cancel session");
+      }
+
+      toast.success("Session cancelled successfully!");
+
+      // Close modal and refresh calendar
+      onClose();
+      if (onUpdate) {
+        await onUpdate();
+      }
+    } catch (error: any) {
+      console.error("Error cancelling session:", error);
+      toast.error(`Failed to cancel session: ${error.message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeleteSession = async () => {
+    if (actionLoading) return;
+
+    if (
+      !confirm(
+        "Are you sure you want to permanently delete this session? This action cannot be undone and will remove all attendee bookings.",
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setActionLoading("delete");
+      setShowOptionsMenu(null);
+
+      const response = await fetch(
+        `/api/booking/classes?classId=${session.id}`,
+        {
+          method: "DELETE",
+        },
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to delete session");
+      }
+
+      toast.success("Session deleted successfully!");
+
+      // Close modal and refresh calendar
+      onClose();
+      if (onUpdate) {
+        await onUpdate();
+      }
+    } catch (error: any) {
+      console.error("Error deleting session:", error);
+      toast.error(`Failed to delete session: ${error.message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   if (!isOpen || !session) return null;
 
   const startTime = new Date(session.startTime);
@@ -461,17 +619,41 @@ export default function SessionDetailModal({
 
                 {showOptionsMenu === "main" && (
                   <div className="absolute right-0 mt-2 w-48 bg-gray-700 rounded-md shadow-lg z-10 border border-gray-600">
-                    <button className="w-full text-left px-4 py-2 hover:bg-gray-600 text-gray-200">
+                    <button
+                      onClick={handleEditSession}
+                      disabled={actionLoading !== null}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-600 text-gray-200 flex items-center gap-2 disabled:opacity-50"
+                    >
+                      <Edit2 className="w-4 h-4" />
                       Edit Session
                     </button>
-                    <button className="w-full text-left px-4 py-2 hover:bg-gray-600 text-gray-200">
-                      Duplicate
+                    <button
+                      onClick={handleDuplicateSession}
+                      disabled={actionLoading !== null}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-600 text-gray-200 flex items-center gap-2 disabled:opacity-50"
+                    >
+                      <Copy className="w-4 h-4" />
+                      {actionLoading === "duplicate"
+                        ? "Duplicating..."
+                        : "Duplicate"}
                     </button>
-                    <button className="w-full text-left px-4 py-2 hover:bg-gray-600 text-gray-200">
-                      Cancel Session
+                    <button
+                      onClick={handleCancelSession}
+                      disabled={actionLoading !== null}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-600 text-yellow-400 flex items-center gap-2 disabled:opacity-50"
+                    >
+                      <AlertTriangle className="w-4 h-4" />
+                      {actionLoading === "cancel"
+                        ? "Cancelling..."
+                        : "Cancel Session"}
                     </button>
-                    <button className="w-full text-left px-4 py-2 hover:bg-gray-600 text-red-400">
-                      Delete
+                    <button
+                      onClick={handleDeleteSession}
+                      disabled={actionLoading !== null}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-600 text-red-400 flex items-center gap-2 disabled:opacity-50"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      {actionLoading === "delete" ? "Deleting..." : "Delete"}
                     </button>
                   </div>
                 )}
@@ -526,7 +708,12 @@ export default function SessionDetailModal({
             <div className="flex items-center gap-1">
               <Users className="w-4 h-4 text-gray-500" />
               <span className="text-gray-200">
-                {attendees.length} / {session.capacity}
+                {attendees.length} /{" "}
+                {session.max_capacity ||
+                  session.capacity ||
+                  session.program?.max_participants ||
+                  session.program?.default_capacity ||
+                  20}
               </span>
               <Edit2 className="w-3 h-3 text-gray-500 cursor-pointer hover:text-gray-400" />
             </div>
