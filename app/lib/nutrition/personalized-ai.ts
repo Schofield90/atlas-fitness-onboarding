@@ -60,16 +60,18 @@ ${userContext}
 MEAL REQUEST:
 Create a personalized ${mealType} recipe for ${dayOfWeek || "today"}.
 
-CRITICAL REQUIREMENTS:
-- MUST avoid: ${preferences.allergies?.join(", ") || "no allergies"}
-- MUST respect dietary restrictions: ${preferences.dietary_restrictions?.join(", ") || "none"}
-- NEVER include: ${preferences.disliked_foods?.join(", ") || "no specific dislikes"}
+CRITICAL REQUIREMENTS (ABSOLUTELY MANDATORY - DO NOT VIOLATE):
+- MUST COMPLETELY AVOID (allergies/intolerances): ${preferences.allergies?.length ? preferences.allergies.join(", ").toUpperCase() : "no allergies"}
+- MUST respect dietary restrictions: ${preferences.dietary_restrictions?.length ? preferences.dietary_restrictions.join(", ") : "none"}
+- NEVER INCLUDE these disliked foods: ${preferences.disliked_foods?.length ? preferences.disliked_foods.join(", ").toUpperCase() : "no specific dislikes"}
+${preferences.allergies?.includes("eggs") || preferences.disliked_foods?.includes("eggs") ? "\n⚠️ EGGS ARE STRICTLY PROHIBITED - USE EGG SUBSTITUTES ONLY" : ""}
 
-PERSONALIZATION:
-- Incorporate their favorites when possible: ${preferences.favorite_foods?.join(", ") || "no specific favorites mentioned"}
-- Match their cultural preferences: ${preferences.cultural_preferences || "no specific preference"}
+PERSONALIZATION (STRONGLY PREFERRED):
+- PRIORITIZE their favorite foods: ${preferences.favorite_foods?.length ? preferences.favorite_foods.join(", ").toUpperCase() : "no specific favorites mentioned"}
+- Match their cultural preferences: ${preferences.cultural_preferences ? `${preferences.cultural_preferences} cuisine STRONGLY PREFERRED` : "no specific preference"}
 - Align with their goals: ${preferences.specific_goals || profile.goals || "general health"}
 - Typical ${mealType} time: ${preferences.meal_timings?.[mealType] || "flexible"}
+${preferences.cultural_preferences?.toLowerCase().includes("mexican") ? "\n🌮 MEXICAN CUISINE REQUESTED - Include Mexican dishes, spices, and ingredients" : ""}
 
 COOKING CONSTRAINTS:
 - Skill level: ${preferences.cooking_skill || "intermediate"}
@@ -83,7 +85,11 @@ NUTRITIONAL TARGETS:
 - Carbs: ~${getMealMacros(mealType, profile.target_carbs || 0)}g
 - Fat: ~${getMealMacros(mealType, profile.target_fat || 0)}g
 
-Create a recipe that feels personally crafted for this individual. Include:
+IMPORTANT: Create a recipe that STRICTLY FOLLOWS all the requirements above.
+- If allergies or dislikes were specified, DOUBLE-CHECK that none of those ingredients are included
+- If cultural preferences were specified, the recipe MUST reflect that cuisine
+
+Include:
 1. Recipe name (creative, appealing)
 2. Brief description (2-3 sentences explaining why this is perfect for them)
 3. Ingredients list with amounts
@@ -111,7 +117,7 @@ Format as JSON with structure:
       {
         role: "system",
         content:
-          "You are a personal nutrition coach who knows your client well and creates highly personalized meal plans based on their unique preferences, constraints, and goals.",
+          "You are a personal nutrition coach who MUST follow dietary restrictions and preferences EXACTLY. Never include ingredients the client is allergic to or dislikes. Always respect their cultural cuisine preferences. If they ask for Mexican food, give them Mexican food. If they say no eggs, NEVER include eggs in any form.",
       },
       {
         role: "user",

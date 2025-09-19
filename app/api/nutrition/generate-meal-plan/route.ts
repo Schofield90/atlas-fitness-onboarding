@@ -56,9 +56,22 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (prefData) {
+        // Properly merge preferences
+        const dietaryPrefs = prefData.dietary_preferences || {};
         storedPreferences = {
-          ...prefData.preferences,
-          ...prefData.dietary_preferences,
+          ...(prefData.preferences || {}),
+          // Flatten dietary preferences into main preferences structure
+          dietary_restrictions:
+            dietaryPrefs.restrictions ||
+            prefData.preferences?.dietary_restrictions ||
+            [],
+          allergies:
+            dietaryPrefs.allergies || prefData.preferences?.allergies || [],
+          cooking_skill:
+            dietaryPrefs.cooking_skill || prefData.preferences?.cooking_skill,
+          time_availability:
+            dietaryPrefs.time_availability ||
+            prefData.preferences?.time_availability,
         };
       }
     }
@@ -80,6 +93,11 @@ export async function POST(request: NextRequest) {
     console.log("Generating AI meal plan with preferences:", {
       hasStoredPreferences: Object.keys(storedPreferences).length > 0,
       usePersonalizedAI,
+      allergies: mergedPreferences.allergies,
+      dietary_restrictions: mergedPreferences.dietary_restrictions,
+      favorite_foods: mergedPreferences.favorite_foods,
+      disliked_foods: mergedPreferences.disliked_foods,
+      cultural_preferences: mergedPreferences.cultural_preferences,
     });
 
     // Generate meal plan with longer timeout for Vercel (max 60s for Pro)
@@ -104,13 +122,28 @@ export async function POST(request: NextRequest) {
           weekPlan[dayKey] = {};
 
           for (const mealType of mealTypes) {
-            const meal = await generatePersonalizedMealPlan(
-              mergedPreferences,
-              profile,
-              mealType as any,
-              `Day ${day}`,
-            );
-            weekPlan[dayKey][mealType] = meal;
+            try {
+              const meal = await generatePersonalizedMealPlan(
+                mergedPreferences,
+                profile,
+                mealType as any,
+                `Day ${day}`,
+              );
+              weekPlan[dayKey][mealType] = meal;
+            } catch (mealError) {
+              console.error(
+                `Error generating ${mealType} for Day ${day}:`,
+                mealError,
+              );
+              // Provide a fallback meal on error
+              weekPlan[dayKey][mealType] = {
+                name: `${mealType.charAt(0).toUpperCase() + mealType.slice(1)} - Day ${day}`,
+                description: "Custom meal based on your preferences",
+                ingredients: [],
+                instructions: ["Meal generation failed, please regenerate"],
+                nutrition: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+              };
+            }
           }
         }
 
