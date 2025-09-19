@@ -1,5 +1,5 @@
-import { Redis } from 'ioredis';
-import { logger } from '@/app/lib/logger/logger';
+import { Redis } from "ioredis";
+import { logger } from "@/app/lib/logger/logger";
 
 // Redis client configuration for both regular Redis and Upstash
 class RedisClient {
@@ -8,9 +8,10 @@ class RedisClient {
   private connected = false;
   private connectionAttempts = 0;
   private maxConnectionAttempts = 3;
+  private initialized = false;
 
   private constructor() {
-    this.initializeConnection();
+    // Don't initialize connection in constructor
   }
 
   public static getInstance(): RedisClient {
@@ -31,10 +32,16 @@ class RedisClient {
           enableReadyCheck: false,
           lazyConnect: true,
         });
-      } else if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+      } else if (
+        process.env.UPSTASH_REDIS_REST_URL &&
+        process.env.UPSTASH_REDIS_REST_TOKEN
+      ) {
         // Upstash Redis REST API connection
         this.redis = new Redis({
-          host: process.env.UPSTASH_REDIS_REST_URL.replace('https://', '').replace('http://', ''),
+          host: process.env.UPSTASH_REDIS_REST_URL.replace(
+            "https://",
+            "",
+          ).replace("http://", ""),
           port: 6379,
           password: process.env.UPSTASH_REDIS_REST_TOKEN,
           tls: {},
@@ -44,14 +51,13 @@ class RedisClient {
           lazyConnect: true,
         });
       } else {
-        logger.warn('No Redis configuration found. Running without cache.');
+        logger.warn("No Redis configuration found. Running without cache.");
         return;
       }
 
       this.setupEventListeners();
-      
     } catch (error) {
-      logger.error('Failed to initialize Redis connection:', error);
+      logger.error("Failed to initialize Redis connection:", error);
       this.redis = null;
     }
   }
@@ -59,21 +65,21 @@ class RedisClient {
   private setupEventListeners(): void {
     if (!this.redis) return;
 
-    this.redis.on('connect', () => {
+    this.redis.on("connect", () => {
       this.connected = true;
       this.connectionAttempts = 0;
-      logger.info('Redis connected successfully');
+      logger.info("Redis connected successfully");
     });
 
-    this.redis.on('ready', () => {
+    this.redis.on("ready", () => {
       this.connected = true;
-      logger.info('Redis ready for commands');
+      logger.info("Redis ready for commands");
     });
 
-    this.redis.on('error', (error) => {
+    this.redis.on("error", (error) => {
       this.connected = false;
-      logger.error('Redis connection error:', error);
-      
+      logger.error("Redis connection error:", error);
+
       // Attempt to reconnect with exponential backoff
       if (this.connectionAttempts < this.maxConnectionAttempts) {
         this.connectionAttempts++;
@@ -82,19 +88,27 @@ class RedisClient {
       }
     });
 
-    this.redis.on('close', () => {
+    this.redis.on("close", () => {
       this.connected = false;
-      logger.warn('Redis connection closed');
+      logger.warn("Redis connection closed");
     });
 
-    this.redis.on('reconnecting', () => {
-      logger.info('Redis reconnecting...');
+    this.redis.on("reconnecting", () => {
+      logger.info("Redis reconnecting...");
     });
   }
 
+  private ensureInitialized(): void {
+    if (!this.initialized) {
+      this.initializeConnection();
+      this.initialized = true;
+    }
+  }
+
   public async isConnected(): Promise<boolean> {
+    this.ensureInitialized();
     if (!this.redis) return false;
-    
+
     try {
       await this.redis.ping();
       return true;
@@ -104,6 +118,7 @@ class RedisClient {
   }
 
   public getClient(): Redis | null {
+    this.ensureInitialized();
     return this.redis;
   }
 
@@ -121,6 +136,7 @@ class RedisClient {
     latency: number | null;
     memory?: any;
   }> {
+    this.ensureInitialized();
     if (!this.redis) {
       return { connected: false, latency: null };
     }
@@ -133,7 +149,7 @@ class RedisClient {
       // Get memory info if available
       let memory;
       try {
-        const info = await this.redis.info('memory');
+        const info = await this.redis.info("memory");
         memory = this.parseRedisInfo(info);
       } catch {
         // Ignore memory info errors (might not be available in some Redis setups)
@@ -142,40 +158,48 @@ class RedisClient {
       return {
         connected: true,
         latency,
-        memory
+        memory,
       };
     } catch (error) {
-      logger.error('Redis health check failed:', error);
+      logger.error("Redis health check failed:", error);
       return { connected: false, latency: null };
     }
   }
 
   private parseRedisInfo(info: string): any {
-    const lines = info.split('\r\n');
+    const lines = info.split("\r\n");
     const memory: any = {};
-    
-    lines.forEach(line => {
-      if (line.includes(':')) {
-        const [key, value] = line.split(':');
-        if (key.startsWith('used_memory')) {
+
+    lines.forEach((line) => {
+      if (line.includes(":")) {
+        const [key, value] = line.split(":");
+        if (key.startsWith("used_memory")) {
           memory[key] = parseInt(value) || value;
         }
       }
     });
-    
+
     return memory;
   }
 }
 
-// Export singleton instance
-export const redisClient = RedisClient.getInstance();
+// Export singleton getter to avoid immediate initialization
+const getRedisClientInstance = () => RedisClient.getInstance();
 
 // Export Redis instance for backward compatibility
 export const getRedisClient = (): Redis | null => {
-  return redisClient.getClient();
+  return getRedisClientInstance().getClient();
 };
 
 // Connection health check function
 export const checkRedisHealth = async () => {
-  return await redisClient.healthCheck();
+  return await getRedisClientInstance().healthCheck();
+};
+
+// For compatibility with existing code that uses redisClient
+export const redisClient = {
+  getClient: () => getRedisClientInstance().getClient(),
+  isConnected: () => getRedisClientInstance().isConnected(),
+  disconnect: () => getRedisClientInstance().disconnect(),
+  healthCheck: () => getRedisClientInstance().healthCheck(),
 };
