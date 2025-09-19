@@ -38,6 +38,15 @@ export async function generatePersonalizedMealPlan(
   mealType: "breakfast" | "lunch" | "dinner" | "snack",
   dayOfWeek?: string,
 ) {
+  // Log preferences to debug
+  console.log("[PersonalizedAI] Generating meal with preferences:", {
+    allergies: preferences.allergies,
+    dietary_restrictions: preferences.dietary_restrictions,
+    disliked_foods: preferences.disliked_foods,
+    favorite_foods: preferences.favorite_foods,
+    cultural_preferences: preferences.cultural_preferences,
+  });
+
   // Build a comprehensive context about the user
   const userContext = buildUserContext(preferences, profile);
 
@@ -83,9 +92,13 @@ NUTRITIONAL TARGETS:
 - Carbs: ~${getMealMacros(mealType, profile.target_carbs || 0)}g
 - Fat: ~${getMealMacros(mealType, profile.target_fat || 0)}g
 
-IMPORTANT: Create a recipe that STRICTLY FOLLOWS all the requirements above.
-- If allergies or dislikes were specified, DOUBLE-CHECK that none of those ingredients are included
-- If cultural preferences were specified, the recipe MUST reflect that cuisine
+VALIDATION CHECKLIST (The AI MUST verify before generating):
+- ✅ Recipe contains NO ingredients from allergies list: ${preferences.allergies?.length ? preferences.allergies.join(", ") : "none"}
+- ✅ Recipe contains NO ingredients from dislikes list: ${preferences.disliked_foods?.length ? preferences.disliked_foods.join(", ") : "none"}  
+- ✅ Recipe matches cultural preference: ${preferences.cultural_preferences || "any"}
+- ✅ Recipe includes favorites when possible: ${preferences.favorite_foods?.length ? preferences.favorite_foods.join(", ") : "none"}
+
+If the recipe violates ANY of the above, regenerate it.
 
 Include:
 1. Recipe name (creative, appealing)
@@ -122,11 +135,42 @@ Format as JSON with structure:
         content: prompt,
       },
     ],
-    temperature: 0.8,
+    temperature: 0.7, // Lower temperature for more consistent adherence to instructions
     response_format: { type: "json_object" },
   });
 
-  return JSON.parse(response.choices[0].message.content || "{}");
+  const result = JSON.parse(response.choices[0].message.content || "{}");
+
+  // Validate the result doesn't include disliked or allergic ingredients
+  if (result.ingredients && Array.isArray(result.ingredients)) {
+    const allAllergens = [
+      ...(preferences.allergies || []),
+      ...(preferences.disliked_foods || []),
+    ];
+    const ingredientTexts = result.ingredients.map((i: any) =>
+      (typeof i === "string" ? i : i.item || "").toLowerCase(),
+    );
+
+    for (const allergen of allAllergens) {
+      if (
+        allergen &&
+        ingredientTexts.some((ing: string) =>
+          ing.includes(allergen.toLowerCase()),
+        )
+      ) {
+        console.error(
+          `[PersonalizedAI] Recipe contains prohibited ingredient: ${allergen}`,
+        );
+        console.error(
+          `[PersonalizedAI] Ingredients: ${ingredientTexts.join(", ")}`,
+        );
+        // Log but don't reject - let the user see what was generated
+        result.warning = `Warning: This recipe may contain ${allergen} which you asked to avoid.`;
+      }
+    }
+  }
+
+  return result;
 }
 
 export async function getPersonalizedNutritionQuestions(

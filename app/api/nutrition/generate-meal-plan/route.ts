@@ -56,23 +56,39 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (prefData) {
-        // Properly merge preferences
+        // Properly merge ALL preferences from both columns
         const dietaryPrefs = prefData.dietary_preferences || {};
+        const basePrefs = prefData.preferences || {};
+
         storedPreferences = {
-          ...(prefData.preferences || {}),
-          // Flatten dietary preferences into main preferences structure
+          // Start with all base preferences
+          ...basePrefs,
+          // Override with dietary preferences where they exist
           dietary_restrictions:
-            dietaryPrefs.restrictions ||
-            prefData.preferences?.dietary_restrictions ||
-            [],
-          allergies:
-            dietaryPrefs.allergies || prefData.preferences?.allergies || [],
+            dietaryPrefs.restrictions || basePrefs.dietary_restrictions || [],
+          allergies: dietaryPrefs.allergies || basePrefs.allergies || [],
           cooking_skill:
-            dietaryPrefs.cooking_skill || prefData.preferences?.cooking_skill,
+            dietaryPrefs.cooking_skill ||
+            basePrefs.cooking_skill ||
+            "intermediate",
           time_availability:
             dietaryPrefs.time_availability ||
-            prefData.preferences?.time_availability,
+            basePrefs.time_availability ||
+            "moderate",
+          // Ensure all other preference fields are included
+          favorite_foods: basePrefs.favorite_foods || [],
+          disliked_foods: basePrefs.disliked_foods || [],
+          cultural_preferences: basePrefs.cultural_preferences || "",
+          specific_goals: basePrefs.specific_goals || "",
+          meal_timings: basePrefs.meal_timings || {},
+          kitchen_equipment: basePrefs.kitchen_equipment || [],
+          shopping_preferences: basePrefs.shopping_preferences || "",
         };
+
+        console.log(
+          "[MealPlan] Retrieved stored preferences:",
+          storedPreferences,
+        );
       }
     }
 
