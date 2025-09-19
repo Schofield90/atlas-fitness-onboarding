@@ -1,10 +1,9 @@
-import { Redis } from "ioredis";
 import { logger } from "@/app/lib/logger/logger";
 
 // Redis client configuration for both regular Redis and Upstash
 class RedisClient {
   private static instance: RedisClient;
-  private redis: Redis | null = null;
+  private redis: any = null;
   private connected = false;
   private connectionAttempts = 0;
   private maxConnectionAttempts = 3;
@@ -21,8 +20,11 @@ class RedisClient {
     return RedisClient.instance;
   }
 
-  private initializeConnection(): void {
+  private async initializeConnection(): Promise<void> {
     try {
+      // Dynamically import ioredis only when needed
+      const { Redis } = await import("ioredis");
+
       // Support both standard Redis and Upstash Redis
       if (process.env.REDIS_URL) {
         // Standard Redis connection
@@ -76,7 +78,7 @@ class RedisClient {
       logger.info("Redis ready for commands");
     });
 
-    this.redis.on("error", (error) => {
+    this.redis.on("error", (error: any) => {
       this.connected = false;
       logger.error("Redis connection error:", error);
 
@@ -98,15 +100,15 @@ class RedisClient {
     });
   }
 
-  private ensureInitialized(): void {
+  private async ensureInitialized(): Promise<void> {
     if (!this.initialized) {
-      this.initializeConnection();
+      await this.initializeConnection();
       this.initialized = true;
     }
   }
 
   public async isConnected(): Promise<boolean> {
-    this.ensureInitialized();
+    await this.ensureInitialized();
     if (!this.redis) return false;
 
     try {
@@ -117,8 +119,8 @@ class RedisClient {
     }
   }
 
-  public getClient(): Redis | null {
-    this.ensureInitialized();
+  public async getClient(): Promise<any> {
+    await this.ensureInitialized();
     return this.redis;
   }
 
@@ -136,7 +138,7 @@ class RedisClient {
     latency: number | null;
     memory?: any;
   }> {
-    this.ensureInitialized();
+    await this.ensureInitialized();
     if (!this.redis) {
       return { connected: false, latency: null };
     }
@@ -187,8 +189,9 @@ class RedisClient {
 const getRedisClientInstance = () => RedisClient.getInstance();
 
 // Export Redis instance for backward compatibility
-export const getRedisClient = (): Redis | null => {
-  return getRedisClientInstance().getClient();
+export const getRedisClient = async (): Promise<any> => {
+  const client = await getRedisClientInstance().getClient();
+  return client;
 };
 
 // Connection health check function
@@ -198,8 +201,8 @@ export const checkRedisHealth = async () => {
 
 // For compatibility with existing code that uses redisClient
 export const redisClient = {
-  getClient: () => getRedisClientInstance().getClient(),
-  isConnected: () => getRedisClientInstance().isConnected(),
-  disconnect: () => getRedisClientInstance().disconnect(),
-  healthCheck: () => getRedisClientInstance().healthCheck(),
+  getClient: async () => await getRedisClientInstance().getClient(),
+  isConnected: async () => await getRedisClientInstance().isConnected(),
+  disconnect: async () => await getRedisClientInstance().disconnect(),
+  healthCheck: async () => await getRedisClientInstance().healthCheck(),
 };

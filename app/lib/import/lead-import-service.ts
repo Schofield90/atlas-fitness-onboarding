@@ -1,9 +1,9 @@
-import { createClient } from '@supabase/supabase-js';
-import Papa from 'papaparse';
-import * as XLSX from 'xlsx';
-import { z } from 'zod';
-import { Queue } from 'bullmq';
-import Redis from 'ioredis';
+import { createClient } from "@supabase/supabase-js";
+import Papa from "papaparse";
+import * as XLSX from "xlsx";
+import { z } from "zod";
+import { Queue } from "bullmq";
+import { createRedisClient } from "@/app/lib/cache/redis-stub";
 
 // Import types
 export interface ImportOptions {
@@ -11,9 +11,9 @@ export interface ImportOptions {
   userId: string;
   file: File | Buffer;
   fileName: string;
-  fileType: 'csv' | 'excel';
+  fileType: "csv" | "excel";
   mapping: Record<string, string>;
-  duplicateHandling: 'skip' | 'update' | 'merge';
+  duplicateHandling: "skip" | "update" | "merge";
   skipFirstRow: boolean;
   tags?: string[];
   assignTo?: string;
@@ -22,7 +22,7 @@ export interface ImportOptions {
 
 export interface ImportProgress {
   id: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  status: "pending" | "processing" | "completed" | "failed";
   totalRecords: number;
   processedRecords: number;
   successCount: number;
@@ -58,7 +58,7 @@ const LeadSchema = z.object({
   source: z.string().optional(),
   notes: z.string().optional(),
   tags: z.array(z.string()).optional(),
-  metadata: z.record(z.any()).optional()
+  metadata: z.record(z.any()).optional(),
 });
 
 export class LeadImportService {
@@ -69,27 +69,24 @@ export class LeadImportService {
   constructor() {
     this.supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
     );
 
     // Initialize Redis and Queue if available
     if (process.env.REDIS_URL || process.env.UPSTASH_REDIS_REST_URL) {
-      this.redis = new Redis(process.env.REDIS_URL || {
-        host: process.env.UPSTASH_REDIS_REST_URL,
-        token: process.env.UPSTASH_REDIS_REST_TOKEN
-      });
-      
-      this.importQueue = new Queue('lead-import', {
+      this.redis = createRedisClient();
+
+      this.importQueue = new Queue("lead-import", {
         connection: this.redis,
         defaultJobOptions: {
           removeOnComplete: true,
           removeOnFail: false,
           attempts: 3,
           backoff: {
-            type: 'exponential',
-            delay: 2000
-          }
-        }
+            type: "exponential",
+            delay: 2000,
+          },
+        },
       });
     }
   }
@@ -100,25 +97,29 @@ export class LeadImportService {
     const importId = await this.createImportRecord(options);
 
     // For large files (>1000 records), use background processing
-    const fileSize = options.file instanceof File ? options.file.size : options.file.length;
-    const estimatedRecords = this.estimateRecordCount(fileSize, options.fileType);
+    const fileSize =
+      options.file instanceof File ? options.file.size : options.file.length;
+    const estimatedRecords = this.estimateRecordCount(
+      fileSize,
+      options.fileType,
+    );
 
     if (estimatedRecords > 1000 && this.importQueue) {
       // Queue for background processing
-      await this.importQueue.add('process-import', {
+      await this.importQueue.add("process-import", {
         importId,
-        options
+        options,
       });
 
       return {
         id: importId,
-        status: 'pending',
+        status: "pending",
         totalRecords: estimatedRecords,
         processedRecords: 0,
         successCount: 0,
         failedCount: 0,
         duplicateCount: 0,
-        errors: []
+        errors: [],
       };
     } else {
       // Process immediately for smaller files
@@ -127,22 +128,25 @@ export class LeadImportService {
   }
 
   // Process the actual import
-  async processImport(importId: string, options: ImportOptions): Promise<ImportProgress> {
+  async processImport(
+    importId: string,
+    options: ImportOptions,
+  ): Promise<ImportProgress> {
     const progress: ImportProgress = {
       id: importId,
-      status: 'processing',
+      status: "processing",
       totalRecords: 0,
       processedRecords: 0,
       successCount: 0,
       failedCount: 0,
       duplicateCount: 0,
       errors: [],
-      startedAt: new Date()
+      startedAt: new Date(),
     };
 
     try {
       // Update status to processing
-      await this.updateImportStatus(importId, 'processing');
+      await this.updateImportStatus(importId, "processing");
 
       // Parse file
       const records = await this.parseFile(options);
@@ -153,7 +157,7 @@ export class LeadImportService {
       for (let i = 0; i < records.length; i += batchSize) {
         const batch = records.slice(i, i + batchSize);
         const results = await this.processBatch(batch, options, i);
-        
+
         // Update progress
         progress.processedRecords += results.processed;
         progress.successCount += results.success;
@@ -166,22 +170,24 @@ export class LeadImportService {
 
         // Emit progress event if using Redis
         if (this.redis) {
-          await this.redis.publish(`import-progress:${importId}`, JSON.stringify(progress));
+          await this.redis.publish(
+            `import-progress:${importId}`,
+            JSON.stringify(progress),
+          );
         }
       }
 
       // Mark as completed
-      progress.status = 'completed';
+      progress.status = "completed";
       progress.completedAt = new Date();
-      await this.updateImportStatus(importId, 'completed', progress);
-
+      await this.updateImportStatus(importId, "completed", progress);
     } catch (error) {
-      progress.status = 'failed';
+      progress.status = "failed";
       progress.errors.push({
         row: 0,
-        message: error instanceof Error ? error.message : 'Import failed'
+        message: error instanceof Error ? error.message : "Import failed",
       });
-      await this.updateImportStatus(importId, 'failed', progress);
+      await this.updateImportStatus(importId, "failed", progress);
     }
 
     return progress;
@@ -189,37 +195,38 @@ export class LeadImportService {
 
   // Parse CSV or Excel file
   private async parseFile(options: ImportOptions): Promise<any[]> {
-    const fileContent = options.file instanceof File 
-      ? await options.file.text()
-      : options.file.toString();
+    const fileContent =
+      options.file instanceof File
+        ? await options.file.text()
+        : options.file.toString();
 
-    if (options.fileType === 'csv') {
+    if (options.fileType === "csv") {
       return new Promise((resolve, reject) => {
         Papa.parse(fileContent, {
           header: true,
           skipEmptyLines: true,
           complete: (results) => resolve(results.data),
-          error: (error) => reject(error)
+          error: (error) => reject(error),
         });
       });
     } else {
       // Excel parsing
-      const workbook = XLSX.read(fileContent, { type: 'string' });
+      const workbook = XLSX.read(fileContent, { type: "string" });
       const sheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
-      return XLSX.utils.sheet_to_json(sheet, { 
+      return XLSX.utils.sheet_to_json(sheet, {
         header: 1,
         defval: null,
-        blankrows: false 
+        blankrows: false,
       });
     }
   }
 
   // Process a batch of records
   private async processBatch(
-    records: any[], 
-    options: ImportOptions, 
-    startIndex: number
+    records: any[],
+    options: ImportOptions,
+    startIndex: number,
   ): Promise<{
     processed: number;
     success: number;
@@ -232,7 +239,7 @@ export class LeadImportService {
       success: 0,
       failed: 0,
       duplicates: 0,
-      errors: [] as ImportError[]
+      errors: [] as ImportError[],
     };
 
     const leadsToInsert = [];
@@ -248,10 +255,10 @@ export class LeadImportService {
 
         // Add default values
         mappedData.organization_id = options.organizationId;
-        mappedData.source = mappedData.source || options.source || 'import';
+        mappedData.source = mappedData.source || options.source || "import";
         mappedData.tags = [...(mappedData.tags || []), ...(options.tags || [])];
         mappedData.assigned_to = options.assignTo || null;
-        mappedData.status = mappedData.status || 'new';
+        mappedData.status = mappedData.status || "new";
 
         // Validate
         const validated = LeadSchema.parse(mappedData);
@@ -260,24 +267,24 @@ export class LeadImportService {
         const duplicate = await this.checkDuplicate(
           options.organizationId,
           validated.email,
-          validated.phone
+          validated.phone,
         );
 
         if (duplicate) {
           results.duplicates++;
-          
-          if (options.duplicateHandling === 'skip') {
+
+          if (options.duplicateHandling === "skip") {
             continue;
-          } else if (options.duplicateHandling === 'update') {
+          } else if (options.duplicateHandling === "update") {
             leadsToUpdate.push({
               id: duplicate.id,
-              data: validated
+              data: validated,
             });
-          } else if (options.duplicateHandling === 'merge') {
+          } else if (options.duplicateHandling === "merge") {
             const merged = this.mergeLeadData(duplicate, validated);
             leadsToUpdate.push({
               id: duplicate.id,
-              data: merged
+              data: merged,
             });
           }
         } else {
@@ -285,12 +292,11 @@ export class LeadImportService {
         }
 
         results.processed++;
-
       } catch (error) {
         results.failed++;
         results.errors.push({
           row: rowNumber,
-          message: error instanceof Error ? error.message : 'Validation failed'
+          message: error instanceof Error ? error.message : "Validation failed",
         });
       }
     }
@@ -298,15 +304,15 @@ export class LeadImportService {
     // Bulk insert new leads
     if (leadsToInsert.length > 0) {
       const { data, error } = await this.supabase
-        .from('leads')
+        .from("leads")
         .insert(leadsToInsert)
-        .select('id');
+        .select("id");
 
       if (error) {
         results.failed += leadsToInsert.length;
         results.errors.push({
           row: 0,
-          message: `Bulk insert failed: ${error.message}`
+          message: `Bulk insert failed: ${error.message}`,
         });
       } else {
         results.success += leadsToInsert.length;
@@ -316,15 +322,15 @@ export class LeadImportService {
     // Bulk update existing leads
     for (const update of leadsToUpdate) {
       const { error } = await this.supabase
-        .from('leads')
+        .from("leads")
         .update(update.data)
-        .eq('id', update.id);
+        .eq("id", update.id);
 
       if (error) {
         results.failed++;
         results.errors.push({
           row: 0,
-          message: `Update failed for lead ${update.id}: ${error.message}`
+          message: `Update failed for lead ${update.id}: ${error.message}`,
         });
       } else {
         results.success++;
@@ -340,10 +346,10 @@ export class LeadImportService {
 
     for (const [sourceColumn, targetField] of Object.entries(mapping)) {
       const value = record[sourceColumn];
-      
+
       // Handle nested fields (e.g., metadata.custom_field)
-      if (targetField.includes('.')) {
-        const [parent, child] = targetField.split('.');
+      if (targetField.includes(".")) {
+        const [parent, child] = targetField.split(".");
         if (!mapped[parent]) mapped[parent] = {};
         mapped[parent][child] = value;
       } else {
@@ -358,21 +364,21 @@ export class LeadImportService {
   private async checkDuplicate(
     organizationId: string,
     email?: string | null,
-    phone?: string | null
+    phone?: string | null,
   ): Promise<any | null> {
     if (!email && !phone) return null;
 
     let query = this.supabase
-      .from('leads')
-      .select('*')
-      .eq('organization_id', organizationId);
+      .from("leads")
+      .select("*")
+      .eq("organization_id", organizationId);
 
     if (email && phone) {
       query = query.or(`email.eq.${email},phone.eq.${phone}`);
     } else if (email) {
-      query = query.eq('email', email);
+      query = query.eq("email", email);
     } else if (phone) {
-      query = query.eq('phone', phone);
+      query = query.eq("phone", phone);
     }
 
     const { data } = await query.single();
@@ -385,7 +391,7 @@ export class LeadImportService {
 
     // Merge fields, preferring non-empty incoming values
     for (const [key, value] of Object.entries(incoming)) {
-      if (value && (!merged[key] || merged[key] === '')) {
+      if (value && (!merged[key] || merged[key] === "")) {
         merged[key] = value;
       }
     }
@@ -406,27 +412,27 @@ export class LeadImportService {
   // Helper methods
   private estimateRecordCount(fileSize: number, fileType: string): number {
     // Rough estimate: CSV ~50 bytes per record, Excel ~100 bytes per record
-    const bytesPerRecord = fileType === 'csv' ? 50 : 100;
+    const bytesPerRecord = fileType === "csv" ? 50 : 100;
     return Math.ceil(fileSize / bytesPerRecord);
   }
 
   private async createImportRecord(options: ImportOptions): Promise<string> {
     const { data, error } = await this.supabase
-      .from('import_logs')
+      .from("import_logs")
       .insert({
         organization_id: options.organizationId,
         user_id: options.userId,
-        type: 'leads',
+        type: "leads",
         file_name: options.fileName,
-        status: 'pending',
+        status: "pending",
         options: {
           mapping: options.mapping,
           duplicateHandling: options.duplicateHandling,
           tags: options.tags,
-          source: options.source
-        }
+          source: options.source,
+        },
       })
-      .select('id')
+      .select("id")
       .single();
 
     if (error) throw error;
@@ -434,45 +440,45 @@ export class LeadImportService {
   }
 
   private async updateImportStatus(
-    importId: string, 
-    status: string, 
-    progress?: Partial<ImportProgress>
+    importId: string,
+    status: string,
+    progress?: Partial<ImportProgress>,
   ): Promise<void> {
     await this.supabase
-      .from('import_logs')
+      .from("import_logs")
       .update({
         status,
         progress,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
-      .eq('id', importId);
+      .eq("id", importId);
   }
 
   private async updateImportProgress(
     importId: string,
-    progress: ImportProgress
+    progress: ImportProgress,
   ): Promise<void> {
     await this.supabase
-      .from('import_logs')
+      .from("import_logs")
       .update({
         progress: {
           processedRecords: progress.processedRecords,
           successCount: progress.successCount,
           failedCount: progress.failedCount,
           duplicateCount: progress.duplicateCount,
-          errors: progress.errors.slice(-100) // Keep last 100 errors
+          errors: progress.errors.slice(-100), // Keep last 100 errors
         },
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
-      .eq('id', importId);
+      .eq("id", importId);
   }
 
   // Get import status
   async getImportStatus(importId: string): Promise<ImportProgress | null> {
     const { data, error } = await this.supabase
-      .from('import_logs')
-      .select('*')
-      .eq('id', importId)
+      .from("import_logs")
+      .select("*")
+      .eq("id", importId)
       .single();
 
     if (error || !data) return null;
@@ -487,7 +493,7 @@ export class LeadImportService {
       duplicateCount: data.progress?.duplicateCount || 0,
       errors: data.progress?.errors || [],
       startedAt: data.created_at ? new Date(data.created_at) : undefined,
-      completedAt: data.completed_at ? new Date(data.completed_at) : undefined
+      completedAt: data.completed_at ? new Date(data.completed_at) : undefined,
     };
   }
 
@@ -495,23 +501,23 @@ export class LeadImportService {
   async getColumnSuggestions(file: File): Promise<string[]> {
     try {
       const fileContent = await file.text();
-      const fileType = file.name.endsWith('.csv') ? 'csv' : 'excel';
-      
-      if (fileType === 'csv') {
+      const fileType = file.name.endsWith(".csv") ? "csv" : "excel";
+
+      if (fileType === "csv") {
         const parsed = Papa.parse(fileContent, {
           header: true,
-          preview: 1
+          preview: 1,
         });
         return Object.keys(parsed.data[0] || {});
       } else {
-        const workbook = XLSX.read(fileContent, { type: 'string' });
+        const workbook = XLSX.read(fileContent, { type: "string" });
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
         const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
         return (json[0] as any[]) || [];
       }
     } catch (error) {
-      console.error('Error getting column suggestions:', error);
+      console.error("Error getting column suggestions:", error);
       return [];
     }
   }
