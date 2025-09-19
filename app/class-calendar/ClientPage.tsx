@@ -31,15 +31,24 @@ export default function ClassCalendarClient() {
     "week",
   );
 
-  useEffect(() => {
-    fetchOrganization();
-  }, []);
-
-  useEffect(() => {
-    if (organizationId) {
-      fetchClasses();
+  // Define fetchClasses first using useCallback
+  const fetchClasses = useCallback(async () => {
+    if (!organizationId) return;
+    setLoading(true);
+    try {
+      const response = await fetch(
+        `/api/class-sessions?organizationId=${organizationId}`,
+      );
+      if (!response.ok) throw new Error("Failed to fetch classes");
+      const data = await response.json();
+      setClasses(data.sessions || []);
+    } catch (err) {
+      console.error("Error fetching classes:", err);
+      setError("Failed to load classes");
+    } finally {
+      setLoading(false);
     }
-  }, [organizationId, fetchClasses]);
+  }, [organizationId]);
 
   const fetchOrganization = async () => {
     setCheckingAuth(true);
@@ -63,23 +72,16 @@ export default function ClassCalendarClient() {
     }
   };
 
-  const fetchClasses = useCallback(async () => {
-    if (!organizationId) return;
-    setLoading(true);
-    try {
-      const response = await fetch(
-        `/api/class-sessions?organizationId=${organizationId}`,
-      );
-      if (!response.ok) throw new Error("Failed to fetch classes");
-      const data = await response.json();
-      setClasses(data.sessions || []);
-    } catch (err) {
-      console.error("Error fetching classes:", err);
-      setError("Failed to load classes");
-    } finally {
-      setLoading(false);
+  // Now useEffect hooks can safely reference fetchClasses
+  useEffect(() => {
+    fetchOrganization();
+  }, []);
+
+  useEffect(() => {
+    if (organizationId) {
+      fetchClasses();
     }
-  }, [organizationId]);
+  }, [organizationId, fetchClasses]);
 
   const exportData = (format: string) => {
     console.log(`Exporting in ${format} format`);
@@ -104,7 +106,10 @@ export default function ClassCalendarClient() {
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center space-y-4">
-            <div className="text-red-500 text-lg font-medium">{error}</div>
+            <div className="text-red-500 text-lg font-medium">
+              Unable to Load Class Calendar
+            </div>
+            <div className="text-gray-600 text-sm">{error}</div>
             <div className="text-gray-600 text-sm">
               If you're not logged in, please{" "}
               <Link href="/signin" className="text-blue-600 hover:underline">
@@ -115,7 +120,7 @@ export default function ClassCalendarClient() {
             <Button
               onClick={() => {
                 setError(null);
-                setLoading(true);
+                setCheckingAuth(true);
                 fetchOrganization();
               }}
               variant="primary"
