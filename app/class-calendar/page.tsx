@@ -226,8 +226,9 @@ export default function ClassCalendarPage() {
                 : 0,
               capacity:
                 cls.max_capacity ||
-                cls.capacity ||
+                cls.program?.max_participants ||
                 cls.program?.default_capacity ||
+                cls.capacity ||
                 20,
               color: "orange" as const,
               earnings: `£${((cls.program?.price_pennies || 0) / 100).toFixed(0)}`,

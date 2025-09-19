@@ -130,9 +130,9 @@ export async function GET(request: NextRequest) {
 
       const finalCapacity =
         cls.max_capacity ||
-        cls.capacity ||
         cls.program?.max_participants ||
         cls.program?.default_capacity ||
+        cls.capacity ||
         20;
 
       // Deduplicate bookings based on client_id or customer_id

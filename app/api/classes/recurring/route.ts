@@ -193,7 +193,9 @@ export async function POST(request: NextRequest) {
         max_participants: program.max_participants,
         default_capacity: program.default_capacity,
         capacity_used:
-          program.default_capacity || program.max_participants || 20,
+          program.max_participants || program.default_capacity || 20,
+        session_will_use:
+          program.max_participants || program.default_capacity || 20,
       });
     } else {
       return NextResponse.json(
@@ -309,8 +311,7 @@ export async function POST(request: NextRequest) {
           start_time: newStart.toISOString(),
           end_time: newEnd.toISOString(),
           duration_minutes: Math.round(duration / 60000), // Ensure duration_minutes is included
-          session_status: "scheduled", // Ensure status is set
-          status: "scheduled", // Add both field names for compatibility
+          session_status: "scheduled", // Ensure session_status is set
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
@@ -352,28 +353,28 @@ export async function POST(request: NextRequest) {
             trainer_id: programData?.trainer_id || null,
             instructor_name: programData?.instructor_name || "TBD",
             location: programData?.location || "Main Studio",
-            room_location: programData?.location || "Main Studio", // Add both field names
             start_time: sessionStart.toISOString(),
             end_time: sessionEnd.toISOString(),
             duration_minutes: slot.duration,
             session_status: "scheduled",
-            status: "scheduled", // Add both field names
             current_bookings: 0,
-            capacity:
-              programData?.default_capacity ||
-              programData?.max_participants ||
-              20,
             max_capacity:
-              programData?.default_capacity ||
               programData?.max_participants ||
+              programData?.default_capacity ||
               20,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           };
 
           console.log(
-            `Creating session: ${sessionStart.toISOString()} with data:`,
-            sessionData,
+            `Creating session: ${sessionStart.toISOString()} with capacity: ${sessionData.max_capacity}`,
+            {
+              session_id: sessionData.program_id,
+              start_time: sessionData.start_time,
+              max_capacity: sessionData.max_capacity,
+              program_max_participants: programData?.max_participants,
+              program_default_capacity: programData?.default_capacity,
+            },
           );
           sessions.push(sessionData);
         });
