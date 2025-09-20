@@ -119,10 +119,12 @@ const nextConfig = {
     };
     
     // Alias the problematic stylesheet to a placeholder
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      '.next/browser/default-stylesheet.css': require.resolve('./public/default-stylesheet.css'),
-    };
+    if (!isServer) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        '.next/browser/default-stylesheet.css': false,
+      };
+    }
     
     // Ignore CSS imports in server bundles
     if (isServer) {
