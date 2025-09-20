@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       return redirect("/billing?error=Invalid callback parameters");
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Verify state parameter
     const { data: oauthState } = await supabase

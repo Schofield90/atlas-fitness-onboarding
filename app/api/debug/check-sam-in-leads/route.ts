@@ -3,7 +3,7 @@ import { createClient } from "@/app/lib/supabase/server";
 
 export async function GET() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Check for Sam in leads table
     const { data: samInLeads, error: leadsError } = await supabase

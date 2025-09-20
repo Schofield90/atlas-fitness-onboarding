@@ -20,7 +20,7 @@ const updateCustomerWaiverSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get current user
     const {
@@ -134,7 +134,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get current user
     const {
@@ -260,20 +260,26 @@ export async function POST(request: NextRequest) {
           const signingUrl = `${process.env.NEXT_PUBLIC_APP_URL}/waivers/sign/${customerWaiver.id}`;
 
           // Send waiver assignment email
-          const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/waivers/send-email`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": request.headers.get("Authorization") || "",
+          const emailResponse = await fetch(
+            `${process.env.NEXT_PUBLIC_APP_URL}/api/waivers/send-email`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: request.headers.get("Authorization") || "",
+              },
+              body: JSON.stringify({
+                customer_waiver_id: customerWaiver.id,
+                email_type: "initial",
+              }),
             },
-            body: JSON.stringify({
-              customer_waiver_id: customerWaiver.id,
-              email_type: "initial",
-            }),
-          });
+          );
 
           if (!emailResponse.ok) {
-            console.warn("Failed to send waiver email:", await emailResponse.text());
+            console.warn(
+              "Failed to send waiver email:",
+              await emailResponse.text(),
+            );
           }
         }
       } catch (emailError) {

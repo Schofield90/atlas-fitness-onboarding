@@ -5,7 +5,7 @@ import { requireAuth } from "@/app/lib/api/auth-check";
 export async function GET(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Check if messages table exists
     const { data: tableCheck, error: tableError } = await supabase

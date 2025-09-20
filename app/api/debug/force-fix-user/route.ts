@@ -5,7 +5,7 @@ import { clearUserCache } from "@/app/lib/api/auth-check";
 
 export async function POST() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Create admin client to bypass RLS
     const supabaseAdmin = createAdminClient(

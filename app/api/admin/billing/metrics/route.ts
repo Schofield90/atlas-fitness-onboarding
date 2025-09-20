@@ -5,7 +5,7 @@ import { getBillingMetrics } from "@/app/lib/stripe/admin";
 export async function GET(request: NextRequest) {
   try {
     // Check admin authentication
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();

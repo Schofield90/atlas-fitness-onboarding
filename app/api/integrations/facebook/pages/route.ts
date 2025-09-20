@@ -4,7 +4,7 @@ import { getCurrentUserOrganization } from "@/app/lib/organization-server";
 
 export async function GET() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
       error: userError,
@@ -144,7 +144,7 @@ export async function GET() {
 // Create or update Facebook pages
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { organizationId, error: orgError } =
       await getCurrentUserOrganization();
 

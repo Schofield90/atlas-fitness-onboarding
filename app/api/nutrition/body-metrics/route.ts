@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     const userWithOrg = await requireAuth();
 
     // Create Supabase client
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get("start_date");
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     const userWithOrg = await requireAuth();
 
     // Create Supabase client
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const body = await request.json();
 

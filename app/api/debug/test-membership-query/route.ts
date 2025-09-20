@@ -6,7 +6,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const customerId = searchParams.get("customerId");
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const results: any = {};
 

@@ -13,7 +13,7 @@ export async function GET(request: Request) {
       supabase = await createAdminClient();
       console.log("Using admin client");
     } catch {
-      supabase = createClient();
+      supabase = await createClient();
       console.log("Using regular client");
     }
 

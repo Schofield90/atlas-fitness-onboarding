@@ -3,7 +3,7 @@ import { createClient } from "@/app/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Test different search methods
     const email = "samschofield90@hotmail.co.uk";

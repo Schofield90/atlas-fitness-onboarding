@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     const validatedData = aiBookingActionSchema.parse(body);
 
     // Get authentication context
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
       error: authError,

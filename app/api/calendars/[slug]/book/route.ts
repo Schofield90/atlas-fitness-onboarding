@@ -23,7 +23,7 @@ export async function POST(
   { params }: { params: { slug: string } },
 ) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const body: BookingRequest = await request.json();
 
     // Validate required fields

@@ -25,7 +25,7 @@ const defaultSettings: CalendarSettings = {
 // Get available time slots for a specific date
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { searchParams } = new URL(request.url);
     const date = searchParams.get("date");
     const userId = searchParams.get("userId"); // For public booking links

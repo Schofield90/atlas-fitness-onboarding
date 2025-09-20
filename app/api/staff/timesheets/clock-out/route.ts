@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     // Check authentication and get organization
     const userWithOrg = await requireAuth();
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const body: ClockOutRequest = await request.json();
 
     // Validate required fields

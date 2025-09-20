@@ -226,7 +226,7 @@ function generateSuggestions(prompt: string): string[] {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { organizationId } = await getCurrentUserOrganization();
 
     if (!organizationId) {

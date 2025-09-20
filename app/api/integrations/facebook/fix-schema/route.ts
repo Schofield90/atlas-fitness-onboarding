@@ -1,10 +1,10 @@
-import { NextResponse } from 'next/server'
-import { createClient } from '@/app/lib/supabase/server'
+import { NextResponse } from "next/server";
+import { createClient } from "@/app/lib/supabase/server";
 
 export async function GET() {
   try {
-    const supabase = createClient()
-    
+    const supabase = await createClient();
+
     // Run the migration SQL directly
     const migrationSQL = `
       -- Fix Facebook Integration Schema
@@ -74,70 +74,74 @@ export async function GET() {
               RAISE NOTICE 'Created facebook_integrations table with facebook_user_email column';
           END IF;
       END $$;
-    `
+    `;
 
     // Execute the migration
-    const { error: migrationError } = await supabase.rpc('exec_sql', {
-      sql: migrationSQL
-    }).single()
+    const { error: migrationError } = await supabase
+      .rpc("exec_sql", {
+        sql: migrationSQL,
+      })
+      .single();
 
     // If exec_sql doesn't exist, try direct query (admin only)
     if (migrationError) {
       // Check current schema
       const { data: columns, error: checkError } = await supabase
-        .from('facebook_integrations')
-        .select('*')
-        .limit(0)
+        .from("facebook_integrations")
+        .select("*")
+        .limit(0);
 
       if (checkError) {
         // Table might not exist, let's check
         return NextResponse.json({
-          status: 'error',
-          message: 'Table might not exist or needs manual migration',
+          status: "error",
+          message: "Table might not exist or needs manual migration",
           error: checkError.message,
           migration_sql: migrationSQL,
-          instruction: 'Please run the migration SQL in Supabase SQL Editor'
-        })
+          instruction: "Please run the migration SQL in Supabase SQL Editor",
+        });
       }
 
       return NextResponse.json({
-        status: 'needs_manual_migration',
-        message: 'Schema check completed, manual migration needed',
+        status: "needs_manual_migration",
+        message: "Schema check completed, manual migration needed",
         current_columns: columns,
         migration_sql: migrationSQL,
-        instruction: 'Please run the migration SQL in Supabase SQL Editor'
-      })
+        instruction: "Please run the migration SQL in Supabase SQL Editor",
+      });
     }
 
     // Check if the column now exists
     const { data: testData, error: testError } = await supabase
-      .from('facebook_integrations')
-      .select('id, facebook_user_email')
-      .limit(1)
+      .from("facebook_integrations")
+      .select("id, facebook_user_email")
+      .limit(1);
 
     if (testError) {
       return NextResponse.json({
-        status: 'partial_success',
-        message: 'Migration may have partially succeeded',
+        status: "partial_success",
+        message: "Migration may have partially succeeded",
         test_error: testError.message,
         migration_sql: migrationSQL,
-        instruction: 'Please verify in Supabase SQL Editor'
-      })
+        instruction: "Please verify in Supabase SQL Editor",
+      });
     }
 
     return NextResponse.json({
-      status: 'success',
-      message: 'Facebook integration schema fixed successfully',
+      status: "success",
+      message: "Facebook integration schema fixed successfully",
       schema_ready: true,
-      test_passed: true
-    })
-
+      test_passed: true,
+    });
   } catch (error) {
-    console.error('Schema fix error:', error)
-    return NextResponse.json({
-      status: 'error',
-      message: 'Failed to fix schema',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 })
+    console.error("Schema fix error:", error);
+    return NextResponse.json(
+      {
+        status: "error",
+        message: "Failed to fix schema",
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
+    );
   }
 }

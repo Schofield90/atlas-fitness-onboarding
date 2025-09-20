@@ -114,7 +114,7 @@ export async function OPTIONS(request: NextRequest) {
 // GET: Return user's saved column preferences
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
       error: authError,
@@ -169,7 +169,7 @@ export async function GET(request: NextRequest) {
 // POST: Save user's column preferences
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
       error: authError,

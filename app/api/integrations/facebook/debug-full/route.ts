@@ -5,7 +5,7 @@ import { checkFacebookStatus } from "@/app/lib/facebook/status-checker";
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Step 1: Get current user
     const {

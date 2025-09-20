@@ -11,7 +11,7 @@ export async function GET(
   { params }: { params: { slug: string } },
 ) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { searchParams } = new URL(request.url);
 
     const from = searchParams.get("from");

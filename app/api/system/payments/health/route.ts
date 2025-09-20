@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check database
-    const supabase = createClient();
+    const supabase = await createClient();
     try {
       // Test table access
       const tables = [

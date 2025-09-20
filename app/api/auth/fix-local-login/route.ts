@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 
 export async function GET(req: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get current user
     const {

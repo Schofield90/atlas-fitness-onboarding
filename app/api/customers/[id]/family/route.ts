@@ -9,7 +9,7 @@ export async function GET(
 ) {
   try {
     const user = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { id: customerId } = await params;
 
@@ -100,7 +100,7 @@ export async function POST(
 ) {
   try {
     const user = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { id: customerId } = await params;
     const familyData = await request.json();
@@ -168,7 +168,7 @@ export async function PUT(
 ) {
   try {
     const user = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { id: customerId } = await params;
     const { family_member_id, ...familyData } = await request.json();
@@ -251,7 +251,7 @@ export async function DELETE(
 ) {
   try {
     const user = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { id: customerId } = await params;
     const { searchParams } = new URL(request.url);

@@ -5,7 +5,7 @@ import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
 export async function GET(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { searchParams } = new URL(request.url);
     const leadId = searchParams.get("leadId");
@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
     const body = await request.json();
 
     const { action, leadId, leadIds } = body;

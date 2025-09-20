@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   }
 
   const { organizationId } = user;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("landing_pages")
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
   const { id: user, organizationId } = authUser;
   const body = await request.json();
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const landingPage = {
     organization_id: organizationId,

@@ -11,7 +11,7 @@ export async function GET(
     const userWithOrg = await requireAuth();
 
     // Create Supabase client
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const mealId = params.id;
 
@@ -73,7 +73,7 @@ export async function PUT(
     const userWithOrg = await requireAuth();
 
     // Create Supabase client
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const mealId = params.id;
     const body = await request.json();

@@ -32,7 +32,7 @@ const LOCATIONS = ["Main Studio", "Studio A", "Studio B", "Outdoor Area"];
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get organization ID
     const { organizationId, error: orgError } =

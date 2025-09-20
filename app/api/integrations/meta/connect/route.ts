@@ -3,7 +3,7 @@ import { createClient } from "@/app/lib/supabase/server";
 import crypto from "crypto";
 
 export async function GET(request: NextRequest) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Check authentication
   const {

@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get all conversation states for the organization
     const { data: conversationStates, error } = await supabase

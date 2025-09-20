@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get access token from database instead of cookies
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
       error: userError,

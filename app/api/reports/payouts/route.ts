@@ -5,7 +5,7 @@ import { createClient } from "@/app/lib/supabase/server";
 export async function GET(request: NextRequest) {
   try {
     const { organizationId } = await requireOrgAccess();
-    const supabase = createClient();
+    const supabase = await createClient();
     const { searchParams } = new URL(request.url);
 
     // Parse query parameters

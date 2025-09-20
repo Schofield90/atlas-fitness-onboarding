@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const userWithOrg = await requireAuth();
 
     // Create Supabase client
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get user's nutrition profile
     const { data: profile, error } = await supabase

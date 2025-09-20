@@ -9,7 +9,7 @@ export async function GET(request: Request) {
 
     // Use admin client to bypass RLS
     const adminSupabase = await createAdminClient();
-    const regularSupabase = createClient();
+    const regularSupabase = await createClient();
 
     // Test 1: Direct booking count
     const { data: directCount, error: countError } = await adminSupabase

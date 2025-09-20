@@ -4,7 +4,7 @@ import { requireOrgAccess } from "@/app/lib/auth/organization";
 
 export async function GET() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get organization ID - no fallback, must have valid org
     let organizationId: string;

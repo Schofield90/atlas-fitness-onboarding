@@ -4,7 +4,7 @@ import { createClient } from "@/app/lib/supabase/server";
 // Simplified migration endpoint - runs for ALL membership plans in the database
 export async function POST(request: Request) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get current user (for basic auth check)
     const {
@@ -152,7 +152,7 @@ export async function POST(request: Request) {
 // GET endpoint to check current status of ALL plans
 export async function GET(request: Request) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get current user (for basic auth check)
     const {

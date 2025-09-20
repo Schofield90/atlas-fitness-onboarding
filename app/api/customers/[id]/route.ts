@@ -9,7 +9,7 @@ export async function GET(
   try {
     // SECURITY: Get authenticated user's organization
     const user = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { id: customerId } = await params;
 
@@ -124,7 +124,7 @@ export async function PATCH(
   try {
     // SECURITY: Get authenticated user's organization
     const user = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { id: customerId } = await params;
     const updates = await request.json();

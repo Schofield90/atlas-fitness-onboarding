@@ -8,7 +8,7 @@ export async function GET(request: Request) {
       searchParams.get("organizationId") ||
       "63589490-8f55-4157-bd3a-e141594b740e";
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get classes with different query approaches
     console.log("Fetching classes for organization:", organizationId);

@@ -5,9 +5,9 @@ import type { Database } from "./database.types";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-// IMPORTANT: This is a synchronous function - do NOT make it async
-export function createClient() {
-  const cookieStore = cookies();
+// Next.js 15 requires awaiting cookies()
+export async function createClient() {
+  const cookieStore = await cookies();
 
   return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {
@@ -32,7 +32,7 @@ export { createClient as createServerClient };
 
 // Helper to get authenticated client and user
 export async function getAuthenticatedClient() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
     error,

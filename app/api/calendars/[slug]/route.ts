@@ -6,7 +6,7 @@ export async function GET(
   { params }: { params: { slug: string } },
 ) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Normalize slug
     const normalizedSlug = params.slug.replace(/\//g, "-");

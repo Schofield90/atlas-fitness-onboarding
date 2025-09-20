@@ -20,7 +20,7 @@ export async function GET(
   { params }: { params: { id: string } },
 ) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Fetch customer waiver with public access (no auth required for signing page)
     const { data: customerWaiver, error } = await supabase
@@ -140,7 +140,7 @@ export async function POST(
   { params }: { params: { id: string } },
 ) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Parse and validate request body
     const body = await request.json();

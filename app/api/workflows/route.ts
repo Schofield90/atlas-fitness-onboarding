@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // For now, use hardcoded organization ID due to auth issues
     const organizationId = "63589490-8f55-4157-bd3a-e141594b748e";
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // For now, use hardcoded organization ID due to auth issues
     const organizationId = "63589490-8f55-4157-bd3a-e141594b748e";

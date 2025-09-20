@@ -4,7 +4,7 @@ import { createClient } from "@/app/lib/supabase/server";
 export async function POST(request: Request) {
   try {
     const { email, name, organizationName } = await request.json();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get the current user
     const {

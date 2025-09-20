@@ -5,7 +5,7 @@ import { requireAuth } from "@/app/lib/api/auth-check";
 export async function GET(request: NextRequest) {
   try {
     await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get the lead email from query params
     const { searchParams } = new URL(request.url);

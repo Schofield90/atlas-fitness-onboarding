@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   };
 
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const adminSupabase = createAdminClient();
 
     // 1. Check Authentication

@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get current user and organization
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
       error: authError,

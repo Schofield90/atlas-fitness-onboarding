@@ -15,7 +15,7 @@ export async function GET(
   }
 
   const { organizationId } = user;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("landing_pages")
@@ -45,7 +45,7 @@ export async function PUT(
 
   const { id: userId, organizationId } = authUser;
   const body = await request.json();
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const updates = {
     name: body.name,
@@ -89,7 +89,7 @@ export async function DELETE(
   }
 
   const { organizationId } = user;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { error } = await supabase
     .from("landing_pages")

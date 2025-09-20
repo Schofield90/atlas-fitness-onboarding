@@ -133,7 +133,7 @@ const findMatchingSchedules = async (
 // GET - List recurring bookings
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { searchParams } = new URL(request.url);
 
     const clientId = searchParams.get("client_id");
@@ -218,7 +218,7 @@ export async function GET(request: NextRequest) {
 // POST - Create new recurring booking
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const body = await request.json();
     const validated = createRecurringBookingSchema.parse(body);
 
@@ -389,7 +389,7 @@ export async function POST(request: NextRequest) {
 // PUT - Update recurring booking
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const body = await request.json();
     const validated = updateRecurringBookingSchema.parse(body);
 
@@ -484,7 +484,7 @@ export async function PUT(request: NextRequest) {
 // DELETE - Cancel recurring booking
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { searchParams } = new URL(request.url);
     const recurringBookingId = searchParams.get("recurring_booking_id");
     const cancelFutureBookings =

@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const pageSize = parseInt(searchParams.get("page_size") || "25");
     const status = searchParams.get("status");
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Calculate range for pagination
     const from = (page - 1) * pageSize;
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Prepare workflow data
     const workflowData = {

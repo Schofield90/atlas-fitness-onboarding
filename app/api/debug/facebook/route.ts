@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     };
 
     // 2. Check Supabase connection
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // 3. Check if table exists
     const { data: tableCheck, error: tableError } = await supabase

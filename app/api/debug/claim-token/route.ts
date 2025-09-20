@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Create both regular and admin clients
-    const supabase = createClient();
+    const supabase = await createClient();
     const supabaseAdmin = createAdminClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,

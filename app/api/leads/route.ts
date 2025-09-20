@@ -39,7 +39,7 @@ async function getLeads(request: NextRequest) {
   }
 
   // Create Supabase client
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Calculate range for pagination
   const from = (page - 1) * pageSize;
@@ -146,7 +146,7 @@ async function createLead(request: NextRequest) {
   // Check authentication and get organization
   const userWithOrg = await requireAuth();
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const body = await request.json();
 
   // Validate required fields
@@ -369,7 +369,7 @@ export async function PATCH(request: NextRequest) {
     // Check authentication and get organization
     const userWithOrg = await requireAuth();
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const body = await request.json();
 
     if (!body.id) {
@@ -423,7 +423,7 @@ export async function DELETE(request: NextRequest) {
     // Check authentication and get organization
     const userWithOrg = await requireAuth();
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const { searchParams } = new URL(request.url);
     const leadId = searchParams.get("id");
 

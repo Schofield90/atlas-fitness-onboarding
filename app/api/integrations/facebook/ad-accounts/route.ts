@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     const timeFilter = searchParams.get("time_filter") || "last_30_days";
 
     // Get access token from database instead of cookies
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
       error: userError,

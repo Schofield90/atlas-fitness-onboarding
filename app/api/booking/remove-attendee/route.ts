@@ -20,7 +20,7 @@ export async function DELETE(request: Request) {
       console.log("Using admin client for removing attendee");
     } catch (adminError) {
       console.log("Admin client not available, using regular server client");
-      supabase = createClient();
+      supabase = await createClient();
     }
 
     // Delete the booking from class_bookings table

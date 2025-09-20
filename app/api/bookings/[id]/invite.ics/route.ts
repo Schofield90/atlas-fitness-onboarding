@@ -51,7 +51,7 @@ export async function GET(
   { params }: { params: { id: string } },
 ) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Fetch booking with calendar and staff details
     const { data: booking, error } = await supabase

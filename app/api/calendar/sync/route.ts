@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
   const supabase = createOrgScopedClient(auth.organizationId);
 
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get tokens and settings
     const { data: tokenData } = await supabase

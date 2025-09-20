@@ -3,7 +3,7 @@ import { createClient } from "@/app/lib/supabase/server";
 
 export async function GET() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Try to get column info for bookings table
     const { data: columns, error: columnsError } = await supabase

@@ -101,7 +101,7 @@ const checkInstructorConflicts = async (
 // GET - List class schedules
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { searchParams } = new URL(request.url);
 
     const params = getSchedulesSchema.parse(
@@ -203,7 +203,7 @@ export async function GET(request: NextRequest) {
 // POST - Create new class schedule
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const body = await request.json();
     const validated = createScheduleSchema.parse(body);
 
@@ -316,7 +316,7 @@ export async function POST(request: NextRequest) {
 // PUT - Update class schedule
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const body = await request.json();
     const validated = updateScheduleSchema.parse(body);
 
@@ -469,7 +469,7 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete/Cancel class schedule
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { searchParams } = new URL(request.url);
     const scheduleId = searchParams.get("schedule_id");
 

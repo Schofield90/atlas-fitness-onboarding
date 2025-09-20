@@ -11,7 +11,7 @@ export async function PUT(
     const userWithOrg = await requireAuth();
 
     // Create Supabase client
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const itemId = params.id;
     const body = await request.json();
@@ -86,7 +86,7 @@ export async function DELETE(
     const userWithOrg = await requireAuth();
 
     // Create Supabase client
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const itemId = params.id;
 

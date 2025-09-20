@@ -5,7 +5,7 @@ import { sendWhatsAppMessage } from "@/app/lib/services/twilio";
 // This endpoint should be called by a cron job every hour
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get classes starting in the next 2 hours
     const now = new Date();
@@ -112,7 +112,7 @@ Atlas Fitness`;
 // Get reminder status
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const searchParams = request.nextUrl.searchParams;
     const organizationId = searchParams.get("organizationId");
 

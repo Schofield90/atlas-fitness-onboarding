@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     const user = await requireAuthWithOrg();
 
     // Create Supabase client
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
     // Check authentication and get organization
     const user = await requireAuthWithOrg();
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const body = await request.json();
 
     // Validate input
@@ -154,7 +154,7 @@ export async function PATCH(request: NextRequest) {
     // Check authentication and get organization
     const user = await requireAuthWithOrg();
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const body = await request.json();
 
     // Validate input
@@ -190,7 +190,7 @@ export async function DELETE(request: NextRequest) {
     // Check authentication and get organization
     const user = await requireAuthWithOrg();
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const { searchParams } = new URL(request.url);
     const leadId = searchParams.get("id");
 

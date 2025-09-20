@@ -5,7 +5,7 @@ import { listCalendarEvents } from "@/app/lib/google/calendar";
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const adminSupabase = createAdminClient();
     const { searchParams } = new URL(request.url);
 

@@ -14,7 +14,7 @@ const isStripeConfigured = !!stripeKey;
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get current user and organization
     const {
@@ -156,7 +156,7 @@ export async function GET(request: NextRequest) {
 // Create or update subscription
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const body = await request.json();
     const { planId, paymentMethodId } = body;
 
@@ -324,7 +324,7 @@ export async function POST(request: NextRequest) {
 // Cancel subscription
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Verify user permissions
     const {

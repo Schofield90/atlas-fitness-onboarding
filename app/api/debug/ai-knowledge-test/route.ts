@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       searchParams.get("message") || "where is the gym located";
 
     // Step 1: Check if Supabase is connected
-    const supabase = createClient();
+    const supabase = await createClient();
     const { count: knowledgeCount } = await supabase
       .from("knowledge")
       .select("*", { count: "exact", head: true });

@@ -18,7 +18,7 @@ export async function GET(
       );
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { data, error } = await supabase
       .from("workflows")
@@ -61,7 +61,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Update workflow data
     const updateData = {
@@ -119,7 +119,7 @@ export async function DELETE(
       );
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { error } = await supabase
       .from("workflows")

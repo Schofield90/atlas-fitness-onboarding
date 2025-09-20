@@ -8,7 +8,7 @@ export async function GET() {
     const user = await requireAuth();
     const organizationId = user.organizationId;
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get all unique tags from leads
     const { data: leads, error } = await supabase

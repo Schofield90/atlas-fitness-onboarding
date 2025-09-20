@@ -9,7 +9,7 @@ export async function GET() {
     try {
       supabase = await createAdminClient();
     } catch {
-      supabase = createClient();
+      supabase = await createClient();
     }
 
     const membershipCustomerId = "65bca601-ae69-41da-88dd-fe2c08ac6859";

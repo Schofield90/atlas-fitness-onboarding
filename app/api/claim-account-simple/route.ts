@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Create admin client to bypass email confirmation
     const supabaseAdmin = createAdminClient(

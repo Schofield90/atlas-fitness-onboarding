@@ -32,7 +32,7 @@ export async function GET(
     // Check authentication and get organization
     const user = await requireAuthWithOrg();
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const { id } = await params;
 
     // Validate UUID format to prevent injection
@@ -72,7 +72,7 @@ export async function PATCH(
     // Check authentication and get organization
     const user = await requireAuthWithOrg();
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const { id } = await params;
     const body = await request.json();
 
@@ -124,7 +124,7 @@ export async function DELETE(
     // Check authentication and get organization
     const user = await requireAuthWithOrg();
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const { id } = await params;
 
     // Validate UUID format

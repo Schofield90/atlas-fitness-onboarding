@@ -8,7 +8,7 @@ export async function GET(
 ) {
   try {
     const { organizationId } = await requireOrgAccess();
-    const supabase = createClient();
+    const supabase = await createClient();
     const payoutId = params.id;
 
     // Fetch payout header information

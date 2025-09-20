@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
   }
 
   const payload: WebhookPayload = JSON.parse(body);
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Process each event
   for (const event of payload.events) {
@@ -185,7 +185,7 @@ async function handleMandateSubmitted(event: GoCardlessEvent) {
 
 async function handleMandateActive(event: GoCardlessEvent) {
   const mandateId = event.links.mandate;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Update payment method status
   await supabase
@@ -201,7 +201,7 @@ async function handleMandateActive(event: GoCardlessEvent) {
 
 async function handleMandateCancelled(event: GoCardlessEvent) {
   const mandateId = event.links.mandate;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Update payment method status
   await supabase
@@ -227,7 +227,7 @@ async function handleMandateCancelled(event: GoCardlessEvent) {
 
 async function handleMandateFailed(event: GoCardlessEvent) {
   const mandateId = event.links.mandate;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   await supabase
     .from("client_payment_methods")
@@ -242,7 +242,7 @@ async function handleMandateFailed(event: GoCardlessEvent) {
 
 async function handleMandateExpired(event: GoCardlessEvent) {
   const mandateId = event.links.mandate;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   await supabase
     .from("client_payment_methods")
@@ -265,7 +265,7 @@ async function handlePaymentCreated(event: GoCardlessEvent) {
 
 async function handlePaymentSubmitted(event: GoCardlessEvent) {
   const paymentId = event.links.payment;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   await supabase
     .from("gym_charges")
@@ -278,7 +278,7 @@ async function handlePaymentSubmitted(event: GoCardlessEvent) {
 
 async function handlePaymentConfirmed(event: GoCardlessEvent) {
   const paymentId = event.links.payment;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   await supabase
     .from("gym_charges")
@@ -318,7 +318,7 @@ async function handlePaymentPaidOut(event: GoCardlessEvent) {
 
 async function handlePaymentFailed(event: GoCardlessEvent) {
   const paymentId = event.links.payment;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   await supabase
     .from("gym_charges")
@@ -353,7 +353,7 @@ async function handlePaymentFailed(event: GoCardlessEvent) {
 
 async function handlePaymentChargedBack(event: GoCardlessEvent) {
   const paymentId = event.links.payment;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   await supabase
     .from("gym_charges")
@@ -371,7 +371,7 @@ async function handlePaymentChargedBack(event: GoCardlessEvent) {
 
 async function handlePaymentCancelled(event: GoCardlessEvent) {
   const paymentId = event.links.payment;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   await supabase
     .from("gym_charges")
@@ -395,7 +395,7 @@ async function handleSubscriptionCreated(event: GoCardlessEvent) {
 async function handleSubscriptionPaymentCreated(event: GoCardlessEvent) {
   const subscriptionId = event.links.subscription;
   const paymentId = event.links.payment;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Update last payment info
   await supabase
@@ -411,7 +411,7 @@ async function handleSubscriptionPaymentCreated(event: GoCardlessEvent) {
 
 async function handleSubscriptionCancelled(event: GoCardlessEvent) {
   const subscriptionId = event.links.subscription;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   await supabase
     .from("gym_subscriptions")
@@ -436,7 +436,7 @@ async function handleRefundCreated(event: GoCardlessEvent) {
 async function handleRefundPaid(event: GoCardlessEvent) {
   const refundId = event.links.refund;
   const paymentId = event.links.payment;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Get refund details from GoCardless API if needed
   // For now, mark as refunded

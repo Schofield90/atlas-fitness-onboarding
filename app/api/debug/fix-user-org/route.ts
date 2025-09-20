@@ -4,7 +4,7 @@ import { createClient as createAdminClient } from "@supabase/supabase-js";
 
 export async function POST() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Create admin client to bypass RLS
     const supabaseAdmin = createAdminClient(

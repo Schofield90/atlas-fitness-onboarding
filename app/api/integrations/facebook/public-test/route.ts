@@ -4,7 +4,7 @@ import { createClient } from "@/app/lib/supabase/server";
 export async function GET(request: NextRequest) {
   try {
     // This is a public endpoint - no auth required
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Check environment variables
     const fbAppId =

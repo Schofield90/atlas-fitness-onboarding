@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 
 export async function GET() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get the organization ID (using hardcoded for now due to auth issues)
     const organizationId = "63589490-8f55-4157-bd3a-e141594b748e";

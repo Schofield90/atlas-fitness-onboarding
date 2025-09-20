@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Check if lead already exists
     const { data: existingLead } = await supabase

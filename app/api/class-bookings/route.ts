@@ -120,7 +120,7 @@ const processPackagePayment = async (
 // GET - List bookings for a client/organization
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { searchParams } = new URL(request.url);
 
     const clientId = searchParams.get("client_id");
@@ -193,7 +193,7 @@ export async function GET(request: NextRequest) {
 // POST - Create new booking(s)
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const body = await request.json();
 
     // Check if this is a multiple booking request
@@ -400,7 +400,7 @@ export async function POST(request: NextRequest) {
 // DELETE - Cancel booking
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const body = await request.json();
     const validated = cancelBookingSchema.parse(body);
 

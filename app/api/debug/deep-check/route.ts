@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 
 export async function GET() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // 1. Get auth session
     const {

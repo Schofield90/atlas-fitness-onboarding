@@ -6,7 +6,7 @@ import { getAppUrl } from "@/lib/env-config";
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get current user
     const {
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
 // Stop watching a calendar
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get current user
     const {

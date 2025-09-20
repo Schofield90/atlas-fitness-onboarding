@@ -15,7 +15,7 @@ export async function GET(
     const userWithOrg = await requireAuth();
 
     // Create Supabase client
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { data: timeOffRequest, error } = await supabase
       .from("staff_time_off_requests")
@@ -71,7 +71,7 @@ export async function PUT(
     // Check authentication and get organization
     const userWithOrg = await requireAuth();
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const body: UpdateTimeOffRequest & { approved_by?: string } =
       await request.json();
 
@@ -281,7 +281,7 @@ export async function DELETE(
     // Check authentication and get organization
     const userWithOrg = await requireAuth();
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // First check if time off request exists and belongs to organization
     const { data: existingRequest, error: checkError } = await supabase

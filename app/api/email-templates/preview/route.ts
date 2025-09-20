@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
   try {
     // Check authentication and get organization
     const userWithOrg = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const body = await request.json();
     const validated = previewSchema.parse(body);

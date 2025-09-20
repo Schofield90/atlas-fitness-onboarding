@@ -6,7 +6,7 @@ import twilio from "twilio";
 export async function POST(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
     const body = await request.json();
 
     const { leadId, duration, callSid } = body;

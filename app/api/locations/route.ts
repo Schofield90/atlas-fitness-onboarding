@@ -42,7 +42,7 @@ const locationSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { searchParams } = new URL(request.url);
     const includeInactive = searchParams.get("include_inactive") === "true";
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const body = await request.json();
     const validated = locationSchema.parse(body);
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const body = await request.json();
     const { id, ...updateData } = body;
@@ -239,7 +239,7 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { searchParams } = new URL(request.url);
     const locationId = searchParams.get("id");

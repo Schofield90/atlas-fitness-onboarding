@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     const user = await requireAuth();
     const organizationId = user.organizationId;
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Calculate key metrics
     const now = new Date();

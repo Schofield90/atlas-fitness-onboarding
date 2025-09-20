@@ -13,7 +13,7 @@ const isStripeConfigured = !!stripeKey;
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get current user and organization
     const {

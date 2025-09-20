@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     // Get existing knowledge from database
     const { createClient } = await import("@/app/lib/supabase/server");
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { data: existingKnowledge } = await supabase
       .from("knowledge")

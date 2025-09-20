@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     console.log("🔄 Starting Facebook refresh and sync...");
 
     // Get authenticated user and organization
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
       error: userError,
