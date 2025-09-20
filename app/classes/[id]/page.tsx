@@ -232,13 +232,13 @@ export default function ClassDetailPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Build update object - only include metadata if the column exists
+      // Build update object - always save capacity to both fields for consistency
       const updateData: any = {
         name: formData.name,
         description: formData.description,
         price_pennies: formData.price_pennies,
-        max_participants: formData.capacity, // Use max_participants as the primary capacity field
-        default_capacity: formData.capacity, // Keep for backward compatibility if column exists
+        max_participants: formData.capacity, // Primary capacity field
+        default_capacity: formData.capacity, // Ensure consistency between both fields
         color: formData.color,
         updated_at: new Date().toISOString(),
       };
