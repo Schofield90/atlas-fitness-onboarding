@@ -1,4 +1,4 @@
-import { test as setup } from "@playwright/test";
+import { test } from "@playwright/test";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -30,8 +30,8 @@ if (!fs.existsSync(stateDir)) {
   fs.mkdirSync(stateDir, { recursive: true });
 }
 
-setup.describe("Authentication Setup", () => {
-  setup("authenticate as admin", async ({ request, context }) => {
+test.describe("Authentication Setup", () => {
+  test("authenticate as admin", async ({ request, context }) => {
     console.log("Setting up admin authentication...");
 
     // Call test login API
@@ -63,7 +63,7 @@ setup.describe("Authentication Setup", () => {
     console.log("Admin authentication state saved");
   });
 
-  setup("authenticate as owner", async ({ request, context }) => {
+  test("authenticate as owner", async ({ request, context }) => {
     console.log("Setting up owner authentication...");
 
     const response = await request.post(
@@ -90,7 +90,7 @@ setup.describe("Authentication Setup", () => {
     console.log("Owner authentication state saved");
   });
 
-  setup("authenticate as member", async ({ request, context }) => {
+  test("authenticate as member", async ({ request, context }) => {
     console.log("Setting up member authentication...");
 
     const response = await request.post(

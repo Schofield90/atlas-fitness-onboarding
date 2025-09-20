@@ -87,6 +87,7 @@ const publicRoutes = [
   '/api/check-database',
   '/api/test-nutrition-access',
   '/api/admin/fix-organization-staff',
+  '/api/test/login', // E2E test login endpoint (protected by env checks)
   '/api/admin/fix-nutrition-schema',
   '/api/admin/create-meal-plans-table',
   '/api/fix-messaging-view',
