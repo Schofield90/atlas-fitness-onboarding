@@ -112,7 +112,10 @@ export default function ClassCalendarClient() {
             <div className="text-gray-600 text-sm">{error}</div>
             <div className="text-gray-600 text-sm">
               If you're not logged in, please{" "}
-              <Link href="/signin" className="text-blue-600 hover:underline">
+              <Link
+                href="/owner-login"
+                className="text-blue-600 hover:underline"
+              >
                 sign in
               </Link>{" "}
               to access the class calendar.

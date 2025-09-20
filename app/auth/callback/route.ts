@@ -14,11 +14,39 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error && data?.user) {
-      // For Google OAuth, check if user has an existing client account
+      // For Google OAuth, determine if this is an owner or client login
       if (data.user.app_metadata?.provider === "google") {
         const adminSupabase = createAdminClient();
 
-        // Check if this user exists in our clients table
+        // First check if user is an owner/admin
+        const { data: userOrg } = await adminSupabase
+          .from("user_organizations")
+          .select("organization_id, role")
+          .eq("user_id", data.user.id)
+          .single();
+
+        if (userOrg && (userOrg.role === "owner" || userOrg.role === "admin")) {
+          // Owner/admin user - redirect to dashboard
+          return NextResponse.redirect(
+            new URL(redirect || "/dashboard", request.url),
+          );
+        }
+
+        // Check if they own an organization directly
+        const { data: ownedOrg } = await adminSupabase
+          .from("organizations")
+          .select("id")
+          .eq("owner_id", data.user.id)
+          .single();
+
+        if (ownedOrg) {
+          // They own an org, redirect to dashboard
+          return NextResponse.redirect(
+            new URL(redirect || "/dashboard", request.url),
+          );
+        }
+
+        // Not an owner, check if they're a client
         const { data: existingClient } = await adminSupabase
           .from("clients")
           .select("id, user_id, email")
@@ -29,7 +57,7 @@ export async function GET(request: NextRequest) {
           // User doesn't exist in our system, sign them out and redirect with error
           await supabase.auth.signOut();
           return NextResponse.redirect(
-            new URL("/simple-login?error=account_not_found", request.url),
+            new URL("/owner-login?error=account_not_found", request.url),
           );
         }
 
@@ -41,7 +69,7 @@ export async function GET(request: NextRequest) {
             .eq("id", existingClient.id);
         }
 
-        // Redirect to client portal for Google OAuth users
+        // Redirect to client portal for client users
         return NextResponse.redirect(new URL("/client", request.url));
       }
 
