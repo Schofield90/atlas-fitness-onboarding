@@ -103,6 +103,22 @@ const nextConfig = {
   // TODO: Fix ESLint errors in components
   eslint: {
     ignoreDuringBuilds: true
+  },
+  
+  // Webpack configuration to handle React Flow SSR issues
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // Don't bundle React Flow on the server
+      config.externals.push('@xyflow/react', 'reactflow');
+    }
+    
+    // Ignore missing CSS files in server builds
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+    };
+    
+    return config;
   }
 };
 
