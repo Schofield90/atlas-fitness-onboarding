@@ -36,7 +36,7 @@ test.describe("Authentication Setup", () => {
 
     // Call test login API
     const response = await request.post(
-      "http://admin.localhost:3000/api/test/login",
+      "http://localhost:3000/api/test/login",
       {
         data: TEST_USERS.admin,
       },
@@ -67,7 +67,7 @@ test.describe("Authentication Setup", () => {
     console.log("Setting up owner authentication...");
 
     const response = await request.post(
-      "http://login.localhost:3000/api/test/login",
+      "http://localhost:3000/api/test/login",
       {
         data: TEST_USERS.owner,
       },
@@ -94,7 +94,7 @@ test.describe("Authentication Setup", () => {
     console.log("Setting up member authentication...");
 
     const response = await request.post(
-      "http://members.localhost:3000/api/test/login",
+      "http://localhost:3000/api/test/login",
       {
         data: TEST_USERS.member,
       },

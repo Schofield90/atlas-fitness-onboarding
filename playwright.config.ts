@@ -36,7 +36,8 @@ export default defineConfig({
     {
       name: 'setup',
       testMatch: '**/auth-setup.spec.ts',
-      testDir: './e2e',
+      testDir: '.',
+      testIgnore: [], // Override global testIgnore for setup project
     },
     
     // Admin portal tests
