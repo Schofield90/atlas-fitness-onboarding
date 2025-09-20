@@ -22,6 +22,7 @@ import { createClient } from "@/app/lib/supabase/client";
 import toast from "react-hot-toast";
 // Removed admin client import - not needed for client components
 import RegistrationOptionsModal from "./RegistrationOptionsModal";
+import EditSessionModal from "./EditSessionModal";
 
 interface Attendee {
   id: string;
@@ -404,8 +405,6 @@ export default function SessionDetailModal({
 
   const handleEditSession = () => {
     setShowOptionsMenu(null);
-    // For now, show a toast - could be expanded to open edit modal
-    toast.success("Edit functionality will be implemented soon");
     setShowEditModal(true);
   };
 
@@ -901,6 +900,17 @@ export default function SessionDetailModal({
           onRegister={handleCustomerRegistration}
         />
       )}
+
+      {/* Edit Session Modal */}
+      <EditSessionModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        session={session}
+        onUpdate={async () => {
+          await fetchAttendees();
+          if (onUpdate) onUpdate();
+        }}
+      />
     </div>
   );
 }
