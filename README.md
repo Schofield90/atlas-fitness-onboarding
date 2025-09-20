@@ -283,3 +283,74 @@ This project is configured for deployment on Vercel. The main branch auto-deploy
 - **Current Status**: Production ready SaaS platform
 - **Architecture**: Multi-tenant with complete organization isolation
 - **Features**: 150+ API endpoints, 40+ database tables, full automation system
+
+## E2E Authentication
+
+Our E2E tests support automatic authentication for different user roles across multiple subdomains.
+
+### Setup
+
+1. Copy the test environment file:
+
+   ```bash
+   cp .env.test.example .env.test
+   ```
+
+2. Update `.env.test` with your Supabase credentials
+
+3. Set up authentication states:
+   ```bash
+   npm run e2e:prepare-auth
+   ```
+
+### Running E2E Tests
+
+```bash
+# Run all E2E tests with auth
+npm run e2e
+
+# Run tests for specific portals
+npm run e2e:admin   # Admin portal tests
+npm run e2e:owner   # Owner/Coach portal tests
+npm run e2e:member  # Member portal tests
+
+# Interactive UI mode
+npm run test:e2e:ui
+```
+
+### Writing Authenticated Tests
+
+Tests automatically use the correct authentication based on the project:
+
+```typescript
+// This test runs as an authenticated owner
+test.describe("Owner Features", () => {
+  test.use({ project: "owner" });
+
+  test("can access protected route", async ({ page }) => {
+    await page.goto("/dashboard");
+    // Already authenticated - no login needed
+  });
+});
+```
+
+### Supported Portals
+
+- **admin.localhost:3000** - Super admin role
+- **login.localhost:3000** - Owner/Coach roles
+- **members.localhost:3000** - Member role
+
+### Security
+
+The test login route (`/api/test/login`) is ONLY available when:
+
+- `NODE_ENV !== 'production'` OR
+- `ALLOW_TEST_LOGIN=true` is explicitly set
+
+Never deploy with `ALLOW_TEST_LOGIN=true` in production.
+
+### Troubleshooting
+
+1. **Cookie issues**: Ensure `.localhost` domain is used for local development
+2. **Auth state not persisting**: Check that cookies are set with correct domain
+3. **Service role key**: Ensure `SUPABASE_SERVICE_ROLE_KEY` is set in environment
