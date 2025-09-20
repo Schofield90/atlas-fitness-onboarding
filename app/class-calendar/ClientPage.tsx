@@ -14,6 +14,7 @@ import SelectedClassDetails from "@/app/components/booking/SelectedClassDetails"
 import AddClassModal from "@/app/components/booking/AddClassModal";
 import DashboardLayout from "@/app/components/DashboardLayout";
 import { getCurrentUserOrganization } from "@/app/lib/organization-service";
+import { transformClassesForCalendar } from "@/app/lib/calendar/class-transformer";
 
 export default function ClassCalendarClient() {
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +42,13 @@ export default function ClassCalendarClient() {
       );
       if (!response.ok) throw new Error("Failed to fetch classes");
       const data = await response.json();
-      setClasses(data.sessions || []);
+
+      // Transform the classes for calendar display
+      const transformedClasses = transformClassesForCalendar(
+        data.sessions || [],
+      );
+      console.log("Fetched and transformed classes:", transformedClasses);
+      setClasses(transformedClasses);
     } catch (err) {
       console.error("Error fetching classes:", err);
       setError("Failed to load classes");
@@ -86,6 +93,34 @@ export default function ClassCalendarClient() {
   const exportData = (format: string) => {
     console.log(`Exporting in ${format} format`);
     setShowExportMenu(false);
+  };
+
+  const createSampleClasses = async () => {
+    if (!organizationId) return;
+
+    try {
+      const response = await fetch("/api/class-sessions/seed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ organizationId }),
+      });
+
+      const data = await response.json();
+
+      if (data.exists) {
+        alert("Sample classes already exist. Check the calendar!");
+      } else if (data.success) {
+        alert(`Created ${data.classes?.length || 0} sample classes!`);
+        fetchClasses(); // Refresh the calendar
+      } else {
+        alert(
+          "Failed to create sample classes: " + (data.error || "Unknown error"),
+        );
+      }
+    } catch (err) {
+      console.error("Error creating sample classes:", err);
+      alert("Failed to create sample classes");
+    }
   };
 
   if (checkingAuth) {
@@ -238,16 +273,37 @@ export default function ClassCalendarClient() {
         {/* Calendar */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <div className="lg:col-span-3">
-            <PremiumCalendarGrid
-              classes={classes}
-              loading={loading}
-              view={calendarView}
-              onViewChange={setCalendarView}
-              onClassSelect={setSelectedClass}
-              selectedClass={selectedClass}
-              onRefresh={fetchClasses}
-              organizationId={organizationId}
-            />
+            {!loading && classes.length === 0 ? (
+              <div className="bg-white rounded-lg shadow-md p-8 text-center">
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  No Classes Scheduled
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  Get started by adding classes to your calendar or create
+                  sample data for testing.
+                </p>
+                <div className="flex gap-4 justify-center">
+                  <Button onClick={() => setShowAddClass(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Class
+                  </Button>
+                  <Button variant="ghost" onClick={createSampleClasses}>
+                    Generate Sample Classes
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <PremiumCalendarGrid
+                classes={classes}
+                loading={loading}
+                view={calendarView}
+                onViewChange={setCalendarView}
+                onClassSelect={setSelectedClass}
+                selectedClass={selectedClass}
+                onRefresh={fetchClasses}
+                organizationId={organizationId}
+              />
+            )}
           </div>
           <div className="lg:col-span-1">
             <SelectedClassDetails
