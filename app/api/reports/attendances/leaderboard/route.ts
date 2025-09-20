@@ -71,14 +71,66 @@ export async function GET(request: NextRequest) {
         startDate.setMonth(startDate.getMonth() - 1);
     }
 
-    // Query to get customer attendance counts
+    // Query current attendance data from all_attendances view
     const { data: attendanceData, error } = await supabase
       .from("all_attendances")
-      .select("customer_id, first_name, last_name, customer_email")
+      .select(
+        "customer_id, first_name, last_name, customer_email, attendance_status, class_start_at",
+      )
       .eq("organization_id", organizationId)
-      .eq("attendance_status", "attended")
+      .not("customer_id", "is", null)
       .gte("class_start_at", startDate.toISOString())
       .lte("class_start_at", endDate.toISOString());
+
+    console.log(
+      `Found ${attendanceData?.length || 0} current attendance records for date range`,
+    );
+
+    // If no current attendance data found, create a leaderboard showing imported clients
+    // with a message that they haven't booked classes yet in the new system
+    if (!attendanceData || attendanceData.length === 0) {
+      console.log(
+        "No current attendance data found, checking for imported clients",
+      );
+
+      const { data: importedClients, error: clientError } = await supabase
+        .from("clients")
+        .select("id, first_name, last_name, email, created_at")
+        .eq("organization_id", organizationId)
+        .order("created_at", { ascending: false })
+        .limit(limit);
+
+      if (importedClients && importedClients.length > 0) {
+        console.log(`Found ${importedClients.length} imported clients`);
+
+        // Return imported clients with 0 attendance for now
+        const clientLeaderboard = importedClients.map((client, index) => ({
+          rank: index + 1,
+          customer_id: client.id,
+          customer_name: `${client.first_name} ${client.last_name}`.trim(),
+          customer_email: client.email,
+          attendance_count: 0,
+        }));
+
+        return NextResponse.json({
+          success: true,
+          data: {
+            leaderboard: clientLeaderboard,
+            stats: {
+              total_attendances: 0,
+              unique_customers: importedClients.length,
+              avg_attendance_per_customer: 0,
+              timeframe,
+              date_range: {
+                start: startDate.toISOString(),
+                end: endDate.toISOString(),
+              },
+              note: "Showing imported customers. Historical GoTeamUp attendance data not yet integrated with new booking system.",
+            },
+          },
+        });
+      }
+    }
 
     if (error) {
       console.error("Leaderboard query error:", error);
@@ -98,6 +150,7 @@ export async function GET(request: NextRequest) {
     >();
 
     if (attendanceData) {
+      console.log(`Processing ${attendanceData.length} attendance records`);
       attendanceData.forEach((record) => {
         const customerId = record.customer_id;
         if (!customerId) return;

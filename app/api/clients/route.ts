@@ -47,7 +47,7 @@ async function createClientMember(request: NextRequest) {
     .from("clients")
     .select("id")
     .ilike("email", normalizedEmail)
-    .eq("org_id", orgId)
+    .eq("organization_id", orgId)
     .limit(1);
 
   if (dupByEmail && dupByEmail.length > 0) {
@@ -63,7 +63,7 @@ async function createClientMember(request: NextRequest) {
     .select("id, email, phone")
     .ilike("first_name", normalizedFirstName)
     .ilike("last_name", normalizedLastName)
-    .eq("org_id", orgId)
+    .eq("organization_id", orgId)
     .limit(1);
 
   if (dupByName && dupByName.length > 0) {
@@ -93,7 +93,7 @@ async function createClientMember(request: NextRequest) {
     const { data: clientsInOrg } = await supabase
       .from("clients")
       .select("id, phone")
-      .eq("org_id", orgId)
+      .eq("organization_id", orgId)
       .not("phone", "is", null);
 
     // Check if any of the returned clients have a matching phone
@@ -113,7 +113,7 @@ async function createClientMember(request: NextRequest) {
     last_name: body.last_name.trim(),
     email: normalizedEmail,
     phone: body.phone,
-    org_id: userWithOrg.organizationId,
+    organization_id: userWithOrg.organizationId,
     status: "active",
   };
 
@@ -169,7 +169,7 @@ async function createClientMember(request: NextRequest) {
       last_name: body.last_name,
       email: body.email,
       phone: body.phone,
-      org_id: userWithOrg.organizationId,
+      organization_id: userWithOrg.organizationId,
       status: "active",
     };
 
@@ -251,11 +251,11 @@ async function getClients(request: NextRequest) {
       userWithOrg.organizationId,
     );
 
-    // Build base query - filter by org_id (only this column exists)
+    // Build base query - filter by organization_id
     let query = supabase
       .from("clients")
       .select("*", { count: "exact" })
-      .eq("org_id", userWithOrg.organizationId)
+      .eq("organization_id", userWithOrg.organizationId)
       .order("created_at", { ascending: false })
       .range(from, to);
 
