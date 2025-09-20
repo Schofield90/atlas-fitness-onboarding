@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { FileDown, Plus } from "lucide-react";
+import { FileDown, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import Button from "@/app/components/ui/Button";
 import QuickStat from "@/app/components/booking/QuickStat";
@@ -124,6 +124,39 @@ export default function ClassCalendarClient() {
     }
   };
 
+  const deleteTestClasses = async () => {
+    if (!organizationId) return;
+
+    const confirmed = window.confirm(
+      "This will delete all test/sample classes. Are you sure?",
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch("/api/class-sessions/cleanup", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert(
+          `Deleted ${data.deleted} test classes. ${data.remaining} sessions remaining.`,
+        );
+        fetchClasses(); // Refresh the calendar
+      } else {
+        alert(
+          "Failed to delete test classes: " + (data.error || "Unknown error"),
+        );
+      }
+    } catch (err) {
+      console.error("Error deleting test classes:", err);
+      alert("Failed to delete test classes");
+    }
+  };
+
   if (checkingAuth) {
     return (
       <DashboardLayout>
@@ -178,6 +211,16 @@ export default function ClassCalendarClient() {
         <header className="flex justify-between items-center">
           <h1 className="text-2xl font-bold">Class Calendar</h1>
           <div className="flex gap-3">
+            {classes.length > 0 && (
+              <Button
+                variant="ghost"
+                onClick={deleteTestClasses}
+                title="Delete all test/sample classes"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Clear Test Data
+              </Button>
+            )}
             <div className="relative">
               <Button
                 variant="ghost"
@@ -292,6 +335,9 @@ export default function ClassCalendarClient() {
                   </Button>
                   <Button variant="ghost" onClick={createSampleClasses}>
                     Generate Sample Classes
+                  </Button>
+                  <Button variant="ghost" onClick={deleteTestClasses}>
+                    Delete Test Classes
                   </Button>
                 </div>
               </div>
