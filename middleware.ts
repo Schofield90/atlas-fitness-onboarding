@@ -72,6 +72,8 @@ const publicRoutes = [
   '/join',
   '/book',
   '/meta-review',
+  '/class-calendar', // Temporarily allow public access for testing
+  '/test-calendar', // Test calendar page
   // Public API endpoints
   '/api/auth',
   '/api/client-portal',
@@ -88,11 +90,13 @@ const publicRoutes = [
   '/api/test-nutrition-access',
   '/api/admin/fix-organization-staff',
   '/api/test/login', // E2E test login endpoint (protected by env checks)
+  '/api/test/create-test-owner', // Test owner creation endpoint
   '/api/admin/fix-nutrition-schema',
   '/api/admin/create-meal-plans-table',
   '/api/fix-messaging-view',
   '/api/migration',
-  '/api/import/goteamup'
+  '/api/import/goteamup',
+  '/api/class-sessions' // Allow API access for class sessions
 ]
 
 // Client-only routes

@@ -212,11 +212,11 @@ export default function AddClassTypeModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-gray-300 mb-3">
               Visibility:
             </label>
             <div className="space-y-2">
-              <label className="flex items-center text-gray-900">
+              <label className="flex items-center text-white">
                 <input
                   type="radio"
                   name="visibility"
@@ -229,7 +229,7 @@ export default function AddClassTypeModal({
                 />
                 <span>Everyone</span>
               </label>
-              <label className="flex items-center text-gray-900">
+              <label className="flex items-center text-white">
                 <input
                   type="radio"
                   name="visibility"
@@ -242,7 +242,7 @@ export default function AddClassTypeModal({
                 />
                 <span>Membership Holders</span>
               </label>
-              <label className="flex items-center text-gray-900">
+              <label className="flex items-center text-white">
                 <input
                   type="radio"
                   name="visibility"
@@ -256,7 +256,7 @@ export default function AddClassTypeModal({
                 <span>Business Only</span>
               </label>
             </div>
-            <p className="text-sm text-gray-900 mt-2">
+            <p className="text-sm text-gray-300 mt-2">
               Which customers are able to view this class. "Membership holders"
               are customers who hold a membership valid for classes of this
               type. "Business Only" class types are only viewable by you and
@@ -265,11 +265,11 @@ export default function AddClassTypeModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-gray-300 mb-3">
               Registration settings:
             </label>
             <div className="space-y-2">
-              <label className="flex items-start text-gray-300">
+              <label className="flex items-start text-white">
                 <input
                   type="radio"
                   name="registrationSetting"
@@ -288,14 +288,14 @@ export default function AddClassTypeModal({
                     Default Timeline - Calendar opens to everyone 180 days
                     before event.
                   </span>
-                  <span className="text-gray-900">
+                  <span className="text-gray-300">
                     {" "}
                     Registrations between 365 days before event starts and when
                     event starts. Cancels up to 1 minute before event starts.
                   </span>
                 </div>
               </label>
-              <label className="flex items-start text-gray-300">
+              <label className="flex items-start text-white">
                 <input
                   type="radio"
                   name="registrationSetting"

@@ -3,6 +3,7 @@ import { createClient } from "@/app/lib/supabase/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 import { getCurrentUserOrganization } from "@/app/lib/organization-server";
 import { WorkflowExecutor } from "@/app/lib/automation/execution/executor";
+import { AutomationInputValidator } from "@/app/lib/automation/security/input-validator";
 
 export async function POST(
   request: NextRequest,
@@ -21,6 +22,30 @@ export async function POST(
     }
 
     const body = await request.json();
+
+    // Validate and sanitize input data
+    const validationResult = AutomationInputValidator.validateTriggerData(
+      body,
+      organizationId,
+    );
+
+    if (!validationResult.isValid) {
+      console.error("Input validation failed:", validationResult.errors);
+      return NextResponse.json(
+        {
+          error: "Invalid input data",
+          details: validationResult.errors,
+        },
+        { status: 400 },
+      );
+    }
+
+    // Log warnings for monitoring
+    if (validationResult.warnings.length > 0) {
+      console.warn("Input validation warnings:", validationResult.warnings);
+    }
+
+    const sanitizedBody = validationResult.sanitizedData;
     const supabase = await createClient();
 
     // Get workflow
@@ -53,9 +78,9 @@ export async function POST(
         workflow_id: workflow.id,
         organization_id: organizationId,
         status: "running",
-        input_data: body.inputData || {},
+        input_data: sanitizedBody.inputData || {},
         triggered_by: "manual",
-        trigger_data: body.triggerData || {},
+        trigger_data: sanitizedBody.triggerData || {},
       })
       .select()
       .single();
@@ -71,7 +96,7 @@ export async function POST(
     // Execute workflow asynchronously
     const executor = new WorkflowExecutor(workflow, execution.id);
     executor
-      .execute(body.inputData || {})
+      .execute(sanitizedBody.inputData || {})
       .then(async (result) => {
         // Update execution with results
         await adminSupabase

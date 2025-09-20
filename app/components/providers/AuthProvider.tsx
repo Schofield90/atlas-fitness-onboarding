@@ -28,6 +28,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
+    // Only run in browser
+    if (typeof window === "undefined") {
+      setLoading(false);
+      return;
+    }
+
     const client = createClient();
 
     if (!client) {

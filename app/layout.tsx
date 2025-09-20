@@ -27,17 +27,18 @@ export default function RootLayout({
     <html lang="en-GB">
       <body className={inter.className}>
         <ErrorBoundaryProvider>
-          <AuthProvider>
+          {/* Temporarily disable all providers to isolate issue */}
+          {/* <AuthProvider>
             <AnalyticsProvider>
               <OrganizationProvider>
-                <TeamChatNotificationProvider>
-                  {/* <ToastProvider /> */}
-                  {children}
-                  {/* <FloatingChatWidget /> */}
-                </TeamChatNotificationProvider>
+                <TeamChatNotificationProvider> */}
+          {/* <ToastProvider /> */}
+          {children}
+          {/* <FloatingChatWidget /> */}
+          {/* </TeamChatNotificationProvider>
               </OrganizationProvider>
             </AnalyticsProvider>
-          </AuthProvider>
+          </AuthProvider> */}
         </ErrorBoundaryProvider>
       </body>
     </html>

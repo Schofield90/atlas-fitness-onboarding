@@ -7,15 +7,16 @@ export const dynamic = "force-dynamic";
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: { code?: string };
+  searchParams: Promise<{ code?: string }>;
 }) {
   try {
     const supabase = await createClient();
+    const params = await searchParams;
 
     // Handle OAuth callback if code is present
-    if (searchParams.code) {
+    if (params.code) {
       const { error: sessionError } =
-        await supabase.auth.exchangeCodeForSession(searchParams.code);
+        await supabase.auth.exchangeCodeForSession(params.code);
       if (!sessionError) {
         redirect("/dashboard");
       }

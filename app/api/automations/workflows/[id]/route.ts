@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { getCurrentUserOrganization } from "@/app/lib/organization-server";
+import { AutomationInputValidator } from "@/app/lib/automation/security/input-validator";
 
 export async function GET(
   request: NextRequest,
@@ -61,19 +62,56 @@ export async function PUT(
     }
 
     const body = await request.json();
+
+    // Add current workflow ID and organizationId for validation
+    const workflowToValidate = {
+      ...body,
+      id: id,
+      organizationId: organizationId,
+    };
+
+    // Validate and sanitize workflow data
+    const validationResult = AutomationInputValidator.validateWorkflowData(
+      workflowToValidate,
+      organizationId,
+    );
+
+    if (!validationResult.isValid) {
+      console.error(
+        "Workflow update validation failed:",
+        validationResult.errors,
+      );
+      return NextResponse.json(
+        {
+          error: "Invalid workflow data",
+          details: validationResult.errors,
+        },
+        { status: 400 },
+      );
+    }
+
+    // Log warnings for monitoring
+    if (validationResult.warnings.length > 0) {
+      console.warn(
+        "Workflow update validation warnings:",
+        validationResult.warnings,
+      );
+    }
+
+    const sanitizedWorkflow = validationResult.sanitizedData;
     const supabase = await createClient();
 
     // Update workflow data
     const updateData = {
-      name: body.name,
-      description: body.description,
-      status: body.status,
-      nodes: body.nodes,
-      edges: body.edges,
-      variables: body.variables,
-      trigger_type: body.trigger_type,
-      trigger_config: body.trigger_config,
-      settings: body.settings,
+      name: sanitizedWorkflow.name,
+      description: sanitizedWorkflow.description,
+      status: sanitizedWorkflow.status,
+      nodes: sanitizedWorkflow.workflowData?.nodes,
+      edges: sanitizedWorkflow.workflowData?.edges,
+      variables: sanitizedWorkflow.workflowData?.variables,
+      trigger_type: sanitizedWorkflow.triggerType,
+      trigger_config: sanitizedWorkflow.triggerConfig,
+      settings: sanitizedWorkflow.settings,
       updated_at: new Date().toISOString(),
     };
 

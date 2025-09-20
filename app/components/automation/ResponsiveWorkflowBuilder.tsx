@@ -2,14 +2,14 @@
  * @deprecated This component is deprecated and no longer maintained.
  * Please use the main WorkflowBuilder component at ./WorkflowBuilder.tsx instead.
  * This file is kept for backward compatibility but will be removed in future versions.
- * 
+ *
  * Migration: Replace all imports of ResponsiveWorkflowBuilder with WorkflowBuilder
  */
 
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { 
+import { useState, useEffect } from "react";
+import {
   Menu,
   X,
   Maximize2,
@@ -21,50 +21,50 @@ import {
   ChevronUp,
   Eye,
   EyeOff,
-  MoreHorizontal
-} from 'lucide-react'
-import EnhancedWorkflowBuilderV2 from './EnhancedWorkflowBuilderV2'
-import { useMediaQuery } from '@/app/hooks/useMediaQuery'
+  MoreHorizontal,
+} from "lucide-react";
+import EnhancedWorkflowBuilderV2 from "./EnhancedWorkflowBuilderV2";
+import { useMediaQuery } from "@/app/hooks/useMediaQuery";
 
 interface ResponsiveWorkflowBuilderProps {
-  organizationId: string
-  workflowId?: string
-  onSave?: (workflow: any) => void
-  initialWorkflow?: any
-  className?: string
+  organizationId: string;
+  workflowId?: string;
+  onSave?: (workflow: any) => void;
+  initialWorkflow?: any;
+  className?: string;
 }
 
 // Custom hook for media queries
 const useBreakpoint = () => {
-  const isMobile = useMediaQuery('(max-width: 768px)')
-  const isTablet = useMediaQuery('(max-width: 1024px)')
-  const isDesktop = useMediaQuery('(min-width: 1025px)')
+  const isMobile = useMediaQuery("(max-width: 768px)");
+  const isTablet = useMediaQuery("(max-width: 1024px)");
+  const isDesktop = useMediaQuery("(min-width: 1025px)");
 
   return {
     isMobile,
     isTablet,
     isDesktop,
-    breakpoint: isMobile ? 'mobile' : isTablet ? 'tablet' : 'desktop'
-  }
-}
+    breakpoint: isMobile ? "mobile" : isTablet ? "tablet" : "desktop",
+  };
+};
 
 // Mobile-optimized toolbar
-const MobileToolbar = ({ 
-  onMenuToggle, 
-  onSave, 
-  onTemplates, 
-  workflowName, 
+const MobileToolbar = ({
+  onMenuToggle,
+  onSave,
+  onTemplates,
+  workflowName,
   onNameChange,
-  isValid 
+  isValid,
 }: {
-  onMenuToggle: () => void
-  onSave: () => void
-  onTemplates: () => void
-  workflowName: string
-  onNameChange: (name: string) => void
-  isValid: boolean
+  onMenuToggle: () => void;
+  onSave: () => void;
+  onTemplates: () => void;
+  workflowName: string;
+  onNameChange: (name: string) => void;
+  isValid: boolean;
 }) => {
-  const [showActions, setShowActions] = useState(false)
+  const [showActions, setShowActions] = useState(false);
 
   return (
     <div className="bg-white border-b border-gray-200 p-3 sticky top-0 z-20">
@@ -86,7 +86,9 @@ const MobileToolbar = ({
         </div>
 
         <div className="flex items-center space-x-2">
-          <div className={`w-2 h-2 rounded-full ${isValid ? 'bg-green-500' : 'bg-red-500'}`}></div>
+          <div
+            className={`w-2 h-2 rounded-full ${isValid ? "bg-green-500" : "bg-red-500"}`}
+          ></div>
           <button
             onClick={() => setShowActions(!showActions)}
             className="p-2 text-gray-600 hover:text-gray-800 rounded-lg hover:bg-gray-100"
@@ -110,38 +112,38 @@ const MobileToolbar = ({
           >
             Browse Templates
           </button>
-          <button
-            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center"
-          >
+          <button className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center">
             Export
           </button>
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
 // Mobile-optimized side drawer
-const MobileSideDrawer = ({ 
-  isOpen, 
-  onClose, 
-  children 
-}: { 
-  isOpen: boolean
-  onClose: () => void
-  children: React.ReactNode
+const MobileSideDrawer = ({
+  isOpen,
+  onClose,
+  children,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
 }) => {
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = 'unset'
-    }
+    if (typeof document !== "undefined") {
+      if (isOpen) {
+        document.body.style.overflow = "hidden";
+      } else {
+        document.body.style.overflow = "unset";
+      }
 
-    return () => {
-      document.body.style.overflow = 'unset'
+      return () => {
+        document.body.style.overflow = "unset";
+      };
     }
-  }, [isOpen])
+  }, [isOpen]);
 
   return (
     <>
@@ -156,7 +158,7 @@ const MobileSideDrawer = ({
       {/* Drawer */}
       <div
         className={`fixed left-0 top-0 h-full w-80 max-w-[90vw] bg-white transform transition-transform duration-300 z-50 ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
+          isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
@@ -168,30 +170,28 @@ const MobileSideDrawer = ({
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="h-full overflow-y-auto pb-20">
-          {children}
-        </div>
+        <div className="h-full overflow-y-auto pb-20">{children}</div>
       </div>
     </>
-  )
-}
+  );
+};
 
 // Tablet-optimized bottom panel
 const TabletBottomPanel = ({
   isOpen,
   onToggle,
-  children
+  children,
 }: {
-  isOpen: boolean
-  onToggle: () => void
-  children: React.ReactNode
+  isOpen: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
 }) => {
   return (
     <div
       className={`fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 transform transition-transform duration-300 z-30 ${
-        isOpen ? 'translate-y-0' : 'translate-y-full'
+        isOpen ? "translate-y-0" : "translate-y-full"
       }`}
-      style={{ height: isOpen ? '40vh' : 'auto' }}
+      style={{ height: isOpen ? "40vh" : "auto" }}
     >
       <div className="p-3 border-b border-gray-200">
         <button
@@ -199,35 +199,38 @@ const TabletBottomPanel = ({
           className="w-full flex items-center justify-center space-x-2 text-sm font-medium text-gray-700"
         >
           <span>Workflow Tools</span>
-          {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+          {isOpen ? (
+            <ChevronDown className="w-4 h-4" />
+          ) : (
+            <ChevronUp className="w-4 h-4" />
+          )}
         </button>
       </div>
-      {isOpen && (
-        <div className="h-full overflow-y-auto pb-16">
-          {children}
-        </div>
-      )}
+      {isOpen && <div className="h-full overflow-y-auto pb-16">{children}</div>}
     </div>
-  )
-}
+  );
+};
 
 // Responsive viewport indicator
 const ViewportIndicator = ({ breakpoint }: { breakpoint: string }) => {
   const getIcon = () => {
     switch (breakpoint) {
-      case 'mobile': return <Smartphone className="w-4 h-4" />
-      case 'tablet': return <Tablet className="w-4 h-4" />
-      default: return <Monitor className="w-4 h-4" />
+      case "mobile":
+        return <Smartphone className="w-4 h-4" />;
+      case "tablet":
+        return <Tablet className="w-4 h-4" />;
+      default:
+        return <Monitor className="w-4 h-4" />;
     }
-  }
+  };
 
   return (
     <div className="fixed bottom-4 right-4 bg-black bg-opacity-75 text-white px-3 py-2 rounded-lg flex items-center space-x-2 text-xs z-50 lg:hidden">
       {getIcon()}
       <span className="capitalize">{breakpoint}</span>
     </div>
-  )
-}
+  );
+};
 
 // Mobile-friendly canvas controls
 const MobileCanvasControls = ({
@@ -235,13 +238,13 @@ const MobileCanvasControls = ({
   onZoomIn,
   onZoomOut,
   showMinimap,
-  onToggleMinimap
+  onToggleMinimap,
 }: {
-  onFitView: () => void
-  onZoomIn: () => void
-  onZoomOut: () => void
-  showMinimap: boolean
-  onToggleMinimap: () => void
+  onFitView: () => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  showMinimap: boolean;
+  onToggleMinimap: () => void;
 }) => {
   return (
     <div className="fixed bottom-4 left-4 flex flex-col space-y-2 z-20">
@@ -269,27 +272,37 @@ const MobileCanvasControls = ({
       <button
         onClick={onToggleMinimap}
         className={`p-3 border border-gray-200 rounded-lg shadow-lg ${
-          showMinimap ? 'bg-blue-100 text-blue-600' : 'bg-white hover:bg-gray-50'
+          showMinimap
+            ? "bg-blue-100 text-blue-600"
+            : "bg-white hover:bg-gray-50"
         }`}
-        title={showMinimap ? 'Hide minimap' : 'Show minimap'}
+        title={showMinimap ? "Hide minimap" : "Show minimap"}
       >
-        {showMinimap ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+        {showMinimap ? (
+          <EyeOff className="w-5 h-5" />
+        ) : (
+          <Eye className="w-5 h-5" />
+        )}
       </button>
     </div>
-  )
-}
+  );
+};
 
-export default function ResponsiveWorkflowBuilder(props: ResponsiveWorkflowBuilderProps) {
-  const { isMobile, isTablet, isDesktop, breakpoint } = useBreakpoint()
-  const [showMobileSidebar, setShowMobileSidebar] = useState(false)
-  const [showTabletPanel, setShowTabletPanel] = useState(false)
-  const [workflowName, setWorkflowName] = useState(props.initialWorkflow?.name || 'New Workflow')
-  const [showMinimap, setShowMinimap] = useState(!isMobile)
+export default function ResponsiveWorkflowBuilder(
+  props: ResponsiveWorkflowBuilderProps,
+) {
+  const { isMobile, isTablet, isDesktop, breakpoint } = useBreakpoint();
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  const [showTabletPanel, setShowTabletPanel] = useState(false);
+  const [workflowName, setWorkflowName] = useState(
+    props.initialWorkflow?.name || "New Workflow",
+  );
+  const [showMinimap, setShowMinimap] = useState(!isMobile);
 
   // Auto-hide minimap on mobile
   useEffect(() => {
-    setShowMinimap(!isMobile)
-  }, [isMobile])
+    setShowMinimap(!isMobile);
+  }, [isMobile]);
 
   // Desktop version - use the full builder
   if (isDesktop) {
@@ -298,7 +311,7 @@ export default function ResponsiveWorkflowBuilder(props: ResponsiveWorkflowBuild
         <EnhancedWorkflowBuilderV2 {...props} />
         <ViewportIndicator breakpoint={breakpoint} />
       </div>
-    )
+    );
   }
 
   // Mobile version
@@ -307,8 +320,8 @@ export default function ResponsiveWorkflowBuilder(props: ResponsiveWorkflowBuild
       <div className="h-full flex flex-col">
         <MobileToolbar
           onMenuToggle={() => setShowMobileSidebar(true)}
-          onSave={() => console.log('Save workflow')}
-          onTemplates={() => console.log('Show templates')}
+          onSave={() => console.log("Save workflow")}
+          onTemplates={() => console.log("Show templates")}
           workflowName={workflowName}
           onNameChange={setWorkflowName}
           isValid={true}
@@ -317,17 +330,14 @@ export default function ResponsiveWorkflowBuilder(props: ResponsiveWorkflowBuild
         <div className="flex-1 relative">
           {/* Main canvas - simplified for mobile */}
           <div className="h-full bg-gray-50 relative overflow-hidden">
-            <EnhancedWorkflowBuilderV2 
-              {...props}
-              className="h-full"
-            />
+            <EnhancedWorkflowBuilderV2 {...props} className="h-full" />
           </div>
 
           {/* Mobile canvas controls */}
           <MobileCanvasControls
-            onFitView={() => console.log('Fit view')}
-            onZoomIn={() => console.log('Zoom in')}
-            onZoomOut={() => console.log('Zoom out')}
+            onFitView={() => console.log("Fit view")}
+            onZoomIn={() => console.log("Zoom in")}
+            onZoomOut={() => console.log("Zoom out")}
             showMinimap={showMinimap}
             onToggleMinimap={() => setShowMinimap(!showMinimap)}
           />
@@ -347,18 +357,28 @@ export default function ResponsiveWorkflowBuilder(props: ResponsiveWorkflowBuild
               {/* Simplified node palette for mobile */}
               <div className="space-y-3">
                 {[
-                  { name: 'New Lead Trigger', type: 'trigger', color: 'orange' },
-                  { name: 'Send Email', type: 'action', color: 'blue' },
-                  { name: 'Send SMS', type: 'action', color: 'green' },
-                  { name: 'Wait/Delay', type: 'wait', color: 'purple' },
-                  { name: 'If/Then Condition', type: 'condition', color: 'indigo' }
+                  {
+                    name: "New Lead Trigger",
+                    type: "trigger",
+                    color: "orange",
+                  },
+                  { name: "Send Email", type: "action", color: "blue" },
+                  { name: "Send SMS", type: "action", color: "green" },
+                  { name: "Wait/Delay", type: "wait", color: "purple" },
+                  {
+                    name: "If/Then Condition",
+                    type: "condition",
+                    color: "indigo",
+                  },
                 ].map((node) => (
                   <div
                     key={node.name}
                     className={`p-3 border rounded-lg bg-${node.color}-50 border-${node.color}-200 cursor-pointer active:scale-95 transition-transform`}
                   >
                     <div className="font-medium text-gray-900">{node.name}</div>
-                    <div className="text-xs text-gray-600 capitalize">{node.type} node</div>
+                    <div className="text-xs text-gray-600 capitalize">
+                      {node.type} node
+                    </div>
                   </div>
                 ))}
               </div>
@@ -384,7 +404,9 @@ export default function ResponsiveWorkflowBuilder(props: ResponsiveWorkflowBuild
               <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
                 <div className="flex items-center">
                   <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                  <span className="text-sm text-green-700">Workflow is valid</span>
+                  <span className="text-sm text-green-700">
+                    Workflow is valid
+                  </span>
                 </div>
               </div>
             </div>
@@ -393,7 +415,7 @@ export default function ResponsiveWorkflowBuilder(props: ResponsiveWorkflowBuild
 
         <ViewportIndicator breakpoint={breakpoint} />
       </div>
-    )
+    );
   }
 
   // Tablet version
@@ -428,10 +450,7 @@ export default function ResponsiveWorkflowBuilder(props: ResponsiveWorkflowBuild
       </div>
 
       <div className="flex-1 relative">
-        <EnhancedWorkflowBuilderV2 
-          {...props}
-          className="h-full"
-        />
+        <EnhancedWorkflowBuilderV2 {...props} className="h-full" />
 
         {/* Tablet bottom panel */}
         <TabletBottomPanel
@@ -440,15 +459,17 @@ export default function ResponsiveWorkflowBuilder(props: ResponsiveWorkflowBuild
         >
           <div className="p-4 grid grid-cols-2 gap-6">
             <div>
-              <h4 className="font-medium text-gray-900 mb-3">Quick Add Nodes</h4>
+              <h4 className="font-medium text-gray-900 mb-3">
+                Quick Add Nodes
+              </h4>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { name: 'Trigger', color: 'orange' },
-                  { name: 'Email', color: 'blue' },
-                  { name: 'SMS', color: 'green' },
-                  { name: 'Wait', color: 'purple' },
-                  { name: 'Condition', color: 'indigo' },
-                  { name: 'WhatsApp', color: 'teal' }
+                  { name: "Trigger", color: "orange" },
+                  { name: "Email", color: "blue" },
+                  { name: "SMS", color: "green" },
+                  { name: "Wait", color: "purple" },
+                  { name: "Condition", color: "indigo" },
+                  { name: "WhatsApp", color: "teal" },
                 ].map((node) => (
                   <button
                     key={node.name}
@@ -480,5 +501,5 @@ export default function ResponsiveWorkflowBuilder(props: ResponsiveWorkflowBuild
 
       <ViewportIndicator breakpoint={breakpoint} />
     </div>
-  )
+  );
 }

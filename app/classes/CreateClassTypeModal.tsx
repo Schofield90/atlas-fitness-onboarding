@@ -271,14 +271,20 @@ export default function CreateClassTypeModal({
                 />
                 <span className="text-white">
                   Default Timeline - Calendar opens to{" "}
-                  <strong>
+                  <strong className="text-white">
                     everyone {formData.registration_window_days} days before
                     event
                   </strong>
                   . Registrations between{" "}
-                  <strong>365 days before event starts</strong> and{" "}
-                  <strong>when event starts</strong>. Cancels up to{" "}
-                  <strong>1 minute before event starts</strong>.
+                  <strong className="text-white">
+                    365 days before event starts
+                  </strong>{" "}
+                  and <strong className="text-white">when event starts</strong>.
+                  Cancels up to{" "}
+                  <strong className="text-white">
+                    1 minute before event starts
+                  </strong>
+                  .
                 </span>
               </label>
             </div>

@@ -5,16 +5,14 @@ import { FileDown, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import Button from "@/app/components/ui/Button";
 import QuickStat from "@/app/components/booking/QuickStat";
-import ClassTypeFilter from "@/app/components/booking/ClassTypeFilter";
-import InstructorFilter from "@/app/components/booking/InstructorFilter";
-import TimeRangeFilter from "@/app/components/booking/TimeRangeFilter";
-import CalendarViewToggle from "@/app/components/booking/CalendarViewToggle";
+import CompactFilters from "@/app/components/booking/CompactFilters";
 import PremiumCalendarGrid from "@/app/components/booking/PremiumCalendarGrid";
 import SelectedClassDetails from "@/app/components/booking/SelectedClassDetails";
-import AddClassModal from "@/app/components/booking/AddClassModal";
+import AddClassModal from "@/app/classes/AddClassModal";
 import DashboardLayout from "@/app/components/DashboardLayout";
 import { getCurrentUserOrganization } from "@/app/lib/organization-service";
 import { transformClassesForCalendar } from "@/app/lib/calendar/class-transformer";
+import { CalendarView } from "@/app/lib/utils/calendar-navigation";
 
 export default function ClassCalendarClient() {
   const [error, setError] = useState<string | null>(null);
@@ -28,10 +26,13 @@ export default function ClassCalendarClient() {
   const [loading, setLoading] = useState(true);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
-  const [calendarView, setCalendarView] = useState<"day" | "week" | "month">(
-    "week",
-  );
+  const [calendarView, setCalendarView] = useState<CalendarView>("week");
   const [currentDate, setCurrentDate] = useState(new Date());
+
+  // Wrap setCurrentDate in useCallback to prevent function recreation
+  const handleDateChange = useCallback((date: Date) => {
+    setCurrentDate(date);
+  }, []);
 
   // Define fetchClasses first using useCallback
   const fetchClasses = useCallback(async () => {
@@ -124,17 +125,17 @@ export default function ClassCalendarClient() {
     }
   };
 
-  const deleteTestClasses = async () => {
+  const clearAllCalendarData = async () => {
     if (!organizationId) return;
 
     const confirmed = window.confirm(
-      "This will delete all test/sample classes. Are you sure?",
+      "This will permanently delete ALL class types and sessions from your calendar. This action cannot be undone. Are you sure?",
     );
 
     if (!confirmed) return;
 
     try {
-      const response = await fetch("/api/class-sessions/cleanup", {
+      const response = await fetch("/api/clear-calendar", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
       });
@@ -143,17 +144,15 @@ export default function ClassCalendarClient() {
 
       if (data.success) {
         alert(
-          `Deleted ${data.deleted} test classes. ${data.remaining} sessions remaining.`,
+          `Calendar cleared successfully! Deleted ${data.data.sessionsDeleted} sessions and ${data.data.programsDeleted} class types.`,
         );
         fetchClasses(); // Refresh the calendar
       } else {
-        alert(
-          "Failed to delete test classes: " + (data.error || "Unknown error"),
-        );
+        alert("Failed to clear calendar: " + (data.error || "Unknown error"));
       }
     } catch (err) {
-      console.error("Error deleting test classes:", err);
-      alert("Failed to delete test classes");
+      console.error("Error clearing calendar:", err);
+      alert("Failed to clear calendar");
     }
   };
 
@@ -211,16 +210,14 @@ export default function ClassCalendarClient() {
         <header className="flex justify-between items-center">
           <h1 className="text-2xl font-bold">Class Calendar</h1>
           <div className="flex gap-3">
-            {classes.length > 0 && (
-              <Button
-                variant="ghost"
-                onClick={deleteTestClasses}
-                title="Delete all test/sample classes"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Clear Test Data
-              </Button>
-            )}
+            <Button
+              variant="ghost"
+              onClick={clearAllCalendarData}
+              title="Delete all class types and sessions"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Clear All Data
+            </Button>
             <div className="relative">
               <Button
                 variant="ghost"
@@ -255,66 +252,68 @@ export default function ClassCalendarClient() {
           </div>
         </header>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <QuickStat
-            label="Total Classes"
-            value={classes.length}
-            trend="+12%"
-            isPositive={true}
-          />
-          <QuickStat
-            label="Today's Classes"
-            value={
-              classes.filter((c: any) => {
-                const classDate = new Date(c.startTime);
-                const today = new Date();
-                return classDate.toDateString() === today.toDateString();
-              }).length
-            }
-            trend="+5%"
-            isPositive={true}
-          />
-          <QuickStat
-            label="This Week"
-            value={
-              classes.filter((c: any) => {
-                const classDate = new Date(c.startTime);
-                const now = new Date();
-                const weekStart = new Date(
-                  now.setDate(now.getDate() - now.getDay()),
-                );
-                const weekEnd = new Date(
-                  now.setDate(now.getDate() - now.getDay() + 6),
-                );
-                return classDate >= weekStart && classDate <= weekEnd;
-              }).length
-            }
-            trend="-2%"
-            isPositive={false}
-          />
-          <QuickStat
-            label="Avg Attendance"
-            value="75%"
-            trend="+8%"
-            isPositive={true}
-          />
-        </div>
-
-        {/* Filters */}
-        <div className="space-y-4">
-          <div className="flex flex-wrap gap-4">
-            <ClassTypeFilter classes={classes} onFilter={setClasses} />
-            <InstructorFilter classes={classes} onFilter={setClasses} />
-            <TimeRangeFilter classes={classes} onFilter={setClasses} />
-            <CalendarViewToggle
-              view={calendarView}
-              currentDate={currentDate}
-              onViewChange={setCalendarView}
-              onDateChange={setCurrentDate}
-            />
+        {/* Compact Stats */}
+        <div className="grid grid-cols-4 gap-4 mb-4">
+          <div className="bg-gray-800 rounded-lg p-3 text-center">
+            <div
+              className="text-lg font-bold text-white"
+              data-testid="total-classes"
+            >
+              {classes.length}
+            </div>
+            <div className="text-xs text-gray-400">Total Classes</div>
+          </div>
+          <div className="bg-gray-800 rounded-lg p-3 text-center">
+            <div
+              className="text-lg font-bold text-white"
+              data-testid="today-classes"
+            >
+              {
+                classes.filter((c: any) => {
+                  const classDate = new Date(c.startTime);
+                  const today = new Date();
+                  return classDate.toDateString() === today.toDateString();
+                }).length
+              }
+            </div>
+            <div className="text-xs text-gray-400">Today</div>
+          </div>
+          <div className="bg-gray-800 rounded-lg p-3 text-center">
+            <div
+              className="text-lg font-bold text-white"
+              data-testid="week-classes"
+            >
+              {
+                classes.filter((c: any) => {
+                  const classDate = new Date(c.startTime);
+                  const now = new Date();
+                  const weekStart = new Date(
+                    now.setDate(now.getDate() - now.getDay()),
+                  );
+                  const weekEnd = new Date(
+                    now.setDate(now.getDate() - now.getDay() + 6),
+                  );
+                  return classDate >= weekStart && classDate <= weekEnd;
+                }).length
+              }
+            </div>
+            <div className="text-xs text-gray-400">This Week</div>
+          </div>
+          <div className="bg-gray-800 rounded-lg p-3 text-center">
+            <div className="text-lg font-bold text-white">75%</div>
+            <div className="text-xs text-gray-400">Attendance</div>
           </div>
         </div>
+
+        {/* Compact Filters */}
+        <CompactFilters
+          classes={classes}
+          onFilter={setClasses}
+          view={calendarView}
+          currentDate={currentDate}
+          onViewChange={setCalendarView}
+          onDateChange={handleDateChange}
+        />
 
         {/* Calendar */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -336,8 +335,8 @@ export default function ClassCalendarClient() {
                   <Button variant="ghost" onClick={createSampleClasses}>
                     Generate Sample Classes
                   </Button>
-                  <Button variant="ghost" onClick={deleteTestClasses}>
-                    Delete Test Classes
+                  <Button variant="ghost" onClick={clearAllCalendarData}>
+                    Clear All Data
                   </Button>
                 </div>
               </div>
@@ -372,7 +371,6 @@ export default function ClassCalendarClient() {
             setShowAddClass(false);
             fetchClasses();
           }}
-          organizationId={organizationId}
         />
       )}
     </DashboardLayout>

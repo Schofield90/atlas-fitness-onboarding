@@ -71,13 +71,25 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({
   // Calculate dynamic time range based on actual classes
   const { timeSlots, earliestHour, latestHour } = useMemo(() => {
     if (!classes || classes.length === 0) {
-      // Default range if no classes
+      // No time slots when no classes - will show empty state instead
       return {
-        timeSlots: generateTimeSlots(6, 20), // 6 AM to 8 PM default
-        earliestHour: 6,
-        latestHour: 20,
+        timeSlots: [],
+        earliestHour: 0,
+        latestHour: 0,
       };
     }
+
+    // Debug: Log class information to help diagnose visibility issues
+    console.log(
+      `PremiumCalendarGrid: Processing ${classes.length} classes:`,
+      classes.map((cls) => ({
+        name: cls.name,
+        startTime: cls.startTime,
+        parsedDate: new Date(cls.startTime),
+        hour: new Date(cls.startTime).getHours(),
+        day: new Date(cls.startTime).toDateString(),
+      })),
+    );
 
     let earliest = 24;
     let latest = 0;
@@ -111,7 +123,11 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({
     };
   }, [classes]);
 
-  const getClassesForSlot = (dayIndex: number, timeIndex: number) => {
+  const getClassesForSlot = (
+    dayIndex: number,
+    timeIndex: number,
+    weekStartDate?: Date,
+  ) => {
     const timeString = timeSlots[timeIndex];
     const [time, period] = timeString.split(" ");
     const [hours, minutes] = time.split(":").map(Number);
@@ -119,20 +135,47 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({
     if (period === "PM" && hours !== 12) hour24 += 12;
     if (period === "AM" && hours === 12) hour24 = 0;
 
+    const slotMinutes = minutes; // The minutes of this time slot (0 or 30)
+
     const filtered = classes.filter((cls: any) => {
       const classDate = new Date(cls.startTime);
       const classHour = classDate.getHours();
       const classMinutes = classDate.getMinutes();
       const classDayIndex = (classDate.getDay() + 6) % 7; // Convert to Mon=0 indexing
 
-      // Check if class matches the time slot (within 30-minute window)
-      const timeMatch =
-        classHour === hour24 &&
-        classMinutes >= parseInt(minutes || "0") &&
-        classMinutes < parseInt(minutes || "0") + 30;
+      // Enhanced time matching logic for 30-minute slots
+      let timeMatch = false;
 
-      // For week view, check if the day matches
-      if (view === "week") {
+      if (slotMinutes === 0) {
+        // For :00 slots, show classes from hour:00 to hour:29
+        timeMatch =
+          classHour === hour24 && classMinutes >= 0 && classMinutes < 30;
+      } else if (slotMinutes === 30) {
+        // For :30 slots, show classes from hour:30 to hour:59
+        timeMatch =
+          classHour === hour24 && classMinutes >= 30 && classMinutes < 60;
+      } else {
+        // Fallback for other minute values (shouldn't happen with current generateTimeSlots)
+        timeMatch = classHour === hour24;
+      }
+
+      // For week view, check if the class falls within the current week
+      if (view === "week" && weekStartDate) {
+        // Calculate the actual date for this day of the week
+        const startOfWeek = new Date(weekStartDate);
+        const dayOfWeek = startOfWeek.getDay();
+        const diff =
+          startOfWeek.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Monday start
+        const monday = new Date(startOfWeek.setDate(diff));
+        const targetDate = new Date(monday);
+        targetDate.setDate(monday.getDate() + dayIndex);
+
+        // Check if class is on the same date
+        const isSameDate =
+          classDate.toDateString() === targetDate.toDateString();
+        return isSameDate && timeMatch;
+      } else if (view === "week") {
+        // Fallback to day index matching if weekStartDate not provided
         return classDayIndex === dayIndex && timeMatch;
       }
 
@@ -169,7 +212,10 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({
 
   if (!classes || classes.length === 0) {
     return (
-      <div className="bg-gray-800 rounded-xl border border-gray-700 p-8">
+      <div
+        className="bg-gray-800 rounded-xl border border-gray-700 p-8"
+        data-testid="calendar-grid"
+      >
         <div className="flex items-center justify-center h-96">
           <div className="text-center">
             <svg
@@ -200,7 +246,10 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({
   // Render different layouts based on view type
   if (view === "day") {
     return (
-      <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-2xl">
+      <div
+        className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-2xl"
+        data-testid="calendar-grid"
+      >
         <div className="grid grid-cols-2 h-full">
           {/* Time column - responsive width */}
           <div className="border-r border-gray-700 bg-gray-800/50 w-16 sm:w-20 md:w-24">
@@ -254,10 +303,8 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({
                   if (period === "PM" && hours !== 12) hour24 += 12;
                   if (period === "AM" && hours === 12) hour24 = 0;
 
-                  const timeMatch =
-                    classHour === hour24 &&
-                    classMinutes >= parseInt(minutes || "0") &&
-                    classMinutes < parseInt(minutes || "0") + 30;
+                  // Show classes that start in this hour (e.g., 9:00-9:59 for "9:00 AM" slot)
+                  const timeMatch = classHour === hour24;
 
                   // Check if it's the same day
                   const isSameDay =
@@ -375,7 +422,10 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({
       : "grid-cols-2";
 
   return (
-    <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-x-auto shadow-2xl">
+    <div
+      className="bg-gray-800 rounded-xl border border-gray-700 overflow-x-auto shadow-2xl"
+      data-testid="calendar-grid"
+    >
       <div className={`grid ${responsiveGrid} min-w-[600px] h-full`}>
         {/* Time column - responsive width */}
         <div className="border-r border-gray-700 bg-gray-800/50 w-16 sm:w-20 sticky left-0 z-10">
@@ -387,6 +437,7 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({
           {timeSlots.map((time, index) => (
             <div
               key={index}
+              data-testid="time-slot"
               className="h-14 sm:h-16 border-b border-gray-700 px-1 sm:px-2 py-1 flex items-start justify-end bg-gray-800/50"
             >
               <span className="text-xs text-gray-500 font-medium">{time}</span>
@@ -441,7 +492,11 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({
               {/* Time slots for each day */}
               <div className="relative">
                 {timeSlots.map((_, timeIndex) => {
-                  const slotClasses = getClassesForSlot(dayIndex, timeIndex);
+                  const slotClasses = getClassesForSlot(
+                    dayIndex,
+                    timeIndex,
+                    currentDate,
+                  );
 
                   return (
                     <div
