@@ -60,6 +60,7 @@ const publicRoutes = [
   '/',
   '/landing',
   '/login',
+  '/owner-login',
   '/simple-login',
   '/signin',
   '/signup',
@@ -285,7 +286,7 @@ export async function middleware(request: NextRequest) {
       if (isDebugApiRoute) {
         return NextResponse.json({ error: 'Debug API routes are disabled in production' }, { status: 403 })
       }
-      return NextResponse.redirect(new URL('/login', request.url))
+      return NextResponse.redirect(new URL('/owner-login', request.url))
     }
   }
 
@@ -333,7 +334,7 @@ export async function middleware(request: NextRequest) {
       // Redirect to appropriate login based on subdomain
       const loginUrl = subdomain === 'members'
         ? '/simple-login'
-        : '/login'
+        : '/owner-login'
       return NextResponse.redirect(new URL(loginUrl, request.url))
     }
     return NextResponse.json({ error: 'Auth service unavailable' }, { status: 503 })
@@ -361,7 +362,7 @@ export async function middleware(request: NextRequest) {
     // Redirect to appropriate login based on subdomain
     const loginUrl = subdomain === 'members'
       ? '/simple-login'
-      : '/login'
+      : '/owner-login'
     const redirectUrl = new URL(loginUrl, request.url)
     redirectUrl.searchParams.set('redirect', pathname)
     return NextResponse.redirect(redirectUrl)
@@ -378,7 +379,7 @@ export async function middleware(request: NextRequest) {
         if (pathname.startsWith('/api/')) {
           return NextResponse.json({ error: 'Unauthorized - Admin access only' }, { status: 403 })
         }
-        return NextResponse.redirect(new URL('/login', request.url))
+        return NextResponse.redirect(new URL('/owner-login', request.url))
       }
       return res
     }
