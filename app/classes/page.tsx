@@ -1,134 +1,150 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { createClient } from '@/app/lib/supabase/client'
-import { Calendar, Clock, Users, MapPin, DollarSign, Plus, Edit, Trash2, AlertTriangle, Activity } from 'lucide-react'
-import DashboardLayout from '../components/DashboardLayout'
-import AddClassTypeModal from './AddClassTypeModal'
-import { RequireOrganization } from '../components/auth/RequireOrganization'
-import { useOrganization } from '../hooks/useOrganization'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from "react";
+import { createClient } from "@/app/lib/supabase/client";
+import {
+  Calendar,
+  Clock,
+  Users,
+  MapPin,
+  DollarSign,
+  Plus,
+  Edit,
+  Trash2,
+  AlertTriangle,
+  Activity,
+} from "lucide-react";
+import DashboardLayout from "../components/DashboardLayout";
+import AddClassTypeModal from "./AddClassTypeModal";
+import { RequireOrganization } from "../components/auth/RequireOrganization";
+import { useOrganization } from "../hooks/useOrganization";
+import { useRouter } from "next/navigation";
 
 interface ClassType {
-  id: string
-  name: string
-  description?: string
-  price_pennies: number
-  is_active: boolean
+  id: string;
+  name: string;
+  description?: string;
+  price_pennies: number;
+  is_active: boolean;
   metadata?: {
-    category?: string
-    visibility?: string
-    registrationSetting?: string
-    defaultOccupancy?: string
-  }
-  sessions_count?: number
+    category?: string;
+    visibility?: string;
+    registrationSetting?: string;
+    defaultOccupancy?: string;
+  };
+  sessions_count?: number;
 }
 
 function ClassesPageContent() {
-  const { organizationId } = useOrganization()
-  const router = useRouter()
-  const [classTypes, setClassTypes] = useState<ClassType[]>([])
-  const [loading, setLoading] = useState(true)
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false)
-  const [deletingAll, setDeletingAll] = useState(false)
-  const [lastRefresh, setLastRefresh] = useState(Date.now())
-  const supabase = createClient()
+  const { organizationId } = useOrganization();
+  const router = useRouter();
+  const [classTypes, setClassTypes] = useState<ClassType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
+  const [deletingAll, setDeletingAll] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState(Date.now());
+  const supabase = createClient();
 
   useEffect(() => {
-    loadClassTypes()
-  }, [organizationId, lastRefresh])
+    loadClassTypes();
+  }, [organizationId, lastRefresh]);
 
   const forceRefresh = () => {
-    setLastRefresh(Date.now())
-    setClassTypes([]) // Clear current state
-    setLoading(true)
-  }
+    setLastRefresh(Date.now());
+    setClassTypes([]); // Clear current state
+    setLoading(true);
+  };
 
   const loadClassTypes = async () => {
     if (!organizationId) return;
-    
+
     try {
       // Get all programs (class types) for this organization
       const { data, error } = await supabase
-        .from('programs')
-        .select(`
+        .from("programs")
+        .select(
+          `
           *,
           class_sessions(count)
-        `)
-        .eq('organization_id', organizationId)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
+        `,
+        )
+        .eq("organization_id", organizationId)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
 
-      if (error) throw error
+      if (error) throw error;
 
-      // Transform the data to include session count
-      const transformedData = data?.map(program => ({
-        ...program,
-        sessions_count: program.class_sessions?.[0]?.count || 0
-      })) || []
+      // Transform the data to include session count and ensure consistent capacity field
+      const transformedData =
+        data?.map((program) => ({
+          ...program,
+          sessions_count: program.class_sessions?.[0]?.count || 0,
+          // Use max_participants as the primary capacity field, fallback to default_capacity
+          default_capacity:
+            program.max_participants || program.default_capacity || 20,
+        })) || [];
 
-      setClassTypes(transformedData)
+      setClassTypes(transformedData);
     } catch (error: any) {
-      console.error('Error loading class types:', error)
+      console.error("Error loading class types:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleDeleteClassType = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this class type? This will also delete all associated class sessions.')) return
+    if (
+      !confirm(
+        "Are you sure you want to delete this class type? This will also delete all associated class sessions.",
+      )
+    )
+      return;
 
     try {
       // First delete all class sessions for this program
-      await supabase
-        .from('class_sessions')
-        .delete()
-        .eq('program_id', id)
+      await supabase.from("class_sessions").delete().eq("program_id", id);
 
       // Then delete the program
-      const { error } = await supabase
-        .from('programs')
-        .delete()
-        .eq('id', id)
+      const { error } = await supabase.from("programs").delete().eq("id", id);
 
-      if (error) throw error
+      if (error) throw error;
 
-      forceRefresh()
+      forceRefresh();
     } catch (error: any) {
-      console.error('Error deleting class type:', error)
-      alert('Failed to delete class type: ' + error.message)
+      console.error("Error deleting class type:", error);
+      alert("Failed to delete class type: " + error.message);
     }
-  }
+  };
 
   const handleDeleteAll = async () => {
     if (!organizationId) return;
-    
-    setDeletingAll(true)
+
+    setDeletingAll(true);
     try {
       // Delete all class sessions first
       await supabase
-        .from('class_sessions')
+        .from("class_sessions")
         .delete()
-        .eq('organization_id', organizationId)
+        .eq("organization_id", organizationId);
 
       // Delete all programs
       const { error } = await supabase
-        .from('programs')
+        .from("programs")
         .delete()
-        .eq('organization_id', organizationId)
+        .eq("organization_id", organizationId);
 
-      if (error) throw error
+      if (error) throw error;
 
-      setShowDeleteAllModal(false)
-      forceRefresh()
+      setShowDeleteAllModal(false);
+      forceRefresh();
     } catch (error: any) {
-      console.error('Error deleting all:', error)
-      alert('Failed to delete all: ' + error.message)
+      console.error("Error deleting all:", error);
+      alert("Failed to delete all: " + error.message);
     } finally {
-      setDeletingAll(false)
+      setDeletingAll(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-gray-900">
@@ -136,7 +152,9 @@ function ClassesPageContent() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-white">Class Types</h1>
-            <p className="text-gray-400 mt-2">Manage your class types and schedules</p>
+            <p className="text-gray-400 mt-2">
+              Manage your class types and schedules
+            </p>
           </div>
           <div className="flex gap-4">
             <button
@@ -170,8 +188,12 @@ function ClassesPageContent() {
         ) : classTypes.length === 0 ? (
           <div className="text-center py-12 bg-gray-800 rounded-lg shadow">
             <Activity className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-lg font-medium text-white">No class types</h3>
-            <p className="mt-1 text-gray-400">Get started by creating a new class type.</p>
+            <h3 className="mt-2 text-lg font-medium text-white">
+              No class types
+            </h3>
+            <p className="mt-1 text-gray-400">
+              Get started by creating a new class type.
+            </p>
             <button
               onClick={() => setShowAddModal(true)}
               className="mt-4 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
@@ -209,20 +231,24 @@ function ClassesPageContent() {
                   <tr key={classType.id} className="hover:bg-gray-700">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <div 
+                        <div
                           className="text-sm font-medium text-white hover:text-blue-400 cursor-pointer"
-                          onClick={() => router.push(`/classes/${classType.id}`)}
+                          onClick={() =>
+                            router.push(`/classes/${classType.id}`)
+                          }
                         >
                           {classType.name}
                         </div>
                         {classType.description && (
-                          <div className="text-sm text-gray-400">{classType.description}</div>
+                          <div className="text-sm text-gray-400">
+                            {classType.description}
+                          </div>
                         )}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm text-gray-300">
-                        {classType.metadata?.category || 'No category'}
+                        {classType.metadata?.category || "No category"}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -234,10 +260,10 @@ function ClassesPageContent() {
                       {classType.sessions_count || 0} sessions
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                      {classType.default_capacity || 'Not set'}
+                      {classType.default_capacity || "Not set"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button 
+                      <button
                         onClick={(e) => {
                           e.stopPropagation();
                           router.push(`/classes/${classType.id}`);
@@ -246,7 +272,7 @@ function ClassesPageContent() {
                       >
                         <Edit className="h-4 w-4" />
                       </button>
-                      <button 
+                      <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleDeleteClassType(classType.id);
@@ -269,10 +295,13 @@ function ClassesPageContent() {
             <div className="bg-gray-800 rounded-lg p-6 max-w-md border border-gray-700">
               <div className="flex items-center gap-3 mb-4">
                 <AlertTriangle className="h-6 w-6 text-red-500" />
-                <h3 className="text-lg font-semibold text-white">Delete All Class Types?</h3>
+                <h3 className="text-lg font-semibold text-white">
+                  Delete All Class Types?
+                </h3>
               </div>
               <p className="text-gray-300 mb-6">
-                This will permanently delete all class types and their associated sessions. This action cannot be undone.
+                This will permanently delete all class types and their
+                associated sessions. This action cannot be undone.
               </p>
               <div className="flex justify-end gap-3">
                 <button
@@ -287,7 +316,7 @@ function ClassesPageContent() {
                   className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700"
                   disabled={deletingAll}
                 >
-                  {deletingAll ? 'Deleting...' : 'Delete All'}
+                  {deletingAll ? "Deleting..." : "Delete All"}
                 </button>
               </div>
             </div>
@@ -299,14 +328,14 @@ function ClassesPageContent() {
           <AddClassTypeModal
             onClose={() => setShowAddModal(false)}
             onSuccess={() => {
-              setShowAddModal(false)
-              forceRefresh()
+              setShowAddModal(false);
+              forceRefresh();
             }}
           />
         )}
       </div>
     </div>
-  )
+  );
 }
 
 export default function ClassesPage() {
@@ -316,5 +345,5 @@ export default function ClassesPage() {
         <ClassesPageContent />
       </RequireOrganization>
     </DashboardLayout>
-  )
+  );
 }
