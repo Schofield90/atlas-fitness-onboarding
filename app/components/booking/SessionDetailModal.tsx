@@ -498,7 +498,12 @@ export default function SessionDetailModal({
       }
     } catch (error: any) {
       console.error("Error deleting session:", error);
-      toast.error(`Failed to delete session: ${error.message}`);
+      const errorMessage =
+        error?.message ||
+        error?.error ||
+        JSON.stringify(error) ||
+        "Unknown error";
+      toast.error(`Failed to delete session: ${errorMessage}`);
     } finally {
       setActionLoading(null);
     }

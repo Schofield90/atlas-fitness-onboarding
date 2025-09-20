@@ -1,41 +1,17 @@
 /**
  * Transform class data from database format to calendar display format
+ * Now using timezone-aware utilities for consistent time handling
  */
 
-// Map time strings to slot indices (0-based)
-const TIME_SLOT_MAP: Record<string, number> = {
-  "6:00 AM": 0,
-  "6:30 AM": 1,
-  "7:00 AM": 2,
-  "7:30 AM": 3,
-  "8:00 AM": 4,
-  "8:30 AM": 5,
-  "9:00 AM": 6,
-  "9:30 AM": 7,
-  "10:00 AM": 8,
-  "10:30 AM": 9,
-  "11:00 AM": 10,
-  "11:30 AM": 11,
-  "12:00 PM": 12,
-  "12:30 PM": 13,
-  "1:00 PM": 14,
-  "1:30 PM": 15,
-  "2:00 PM": 16,
-  "2:30 PM": 17,
-  "3:00 PM": 18,
-  "3:30 PM": 19,
-  "4:00 PM": 20,
-  "4:30 PM": 21,
-  "5:00 PM": 22,
-  "5:30 PM": 23,
-  "6:00 PM": 24,
-  "6:30 PM": 25,
-  "7:00 PM": 26,
-  "7:30 PM": 27,
-  "8:00 PM": 28,
-  "8:30 PM": 29,
-  "9:00 PM": 30,
-};
+import {
+  parseISOToLocal,
+  formatTime,
+  formatDate,
+  normalizeTimeString,
+  utcToLocal,
+  getUserTimezone,
+  getTimeDifferenceMinutes,
+} from "@/app/lib/utils/timezone-utils";
 
 // Color palette for class types
 const CLASS_COLORS = [
@@ -64,92 +40,86 @@ function getClassColor(type: string | undefined, index: number): ClassColor {
   return CLASS_COLORS[Math.abs(hash) % CLASS_COLORS.length];
 }
 
-// Convert time string to 24-hour format time slot index
+// Convert time string to 30-minute time slot index
 function getTimeSlotIndex(timeStr: string): number {
-  // Parse different time formats
-  const date = new Date(timeStr);
-  if (isNaN(date.getTime())) {
-    console.warn("Invalid date string:", timeStr);
+  try {
+    // Convert UTC time from database to local timezone
+    const localDate = parseISOToLocal(timeStr);
+
+    // Get hours and minutes in local timezone
+    const hours = localDate.getHours();
+    const minutes = localDate.getMinutes();
+
+    // Calculate slot index based on 30-minute intervals
+    // Starting from 6:00 AM (slot 0) to 9:00 PM (slot 30)
+    const startHour = 6; // 6 AM start
+    let slotIndex = 0;
+
+    if (hours < startHour) {
+      // Before 6 AM, map to first slot
+      return 0;
+    }
+
+    // Calculate slot based on 30-minute intervals
+    slotIndex = (hours - startHour) * 2;
+
+    // Add 1 if we're in the second half of the hour (30+ minutes)
+    if (minutes >= 30) {
+      slotIndex += 1;
+    }
+
+    // Cap at maximum slot (9:30 PM would be slot 31)
+    return Math.min(slotIndex, 31);
+  } catch (error) {
+    console.warn("Invalid time string for slot calculation:", timeStr, error);
     return 0;
   }
-
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
-
-  // Convert to 12-hour format string for lookup
-  const period = hours >= 12 ? "PM" : "AM";
-  const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
-  const timeKey = `${displayHours}:${minutes.toString().padStart(2, "0")} ${period}`;
-
-  // Find closest time slot
-  if (TIME_SLOT_MAP[timeKey] !== undefined) {
-    return TIME_SLOT_MAP[timeKey];
-  }
-
-  // If exact match not found, find closest slot
-  const totalMinutes = hours * 60 + minutes;
-  let closestSlot = 0;
-  let minDiff = Infinity;
-
-  Object.entries(TIME_SLOT_MAP).forEach(([time, slot]) => {
-    const [timePart, periodPart] = time.split(" ");
-    const [hourStr, minStr] = timePart.split(":");
-    let slotHours = parseInt(hourStr);
-    const slotMinutes = parseInt(minStr);
-
-    if (periodPart === "PM" && slotHours !== 12) slotHours += 12;
-    if (periodPart === "AM" && slotHours === 12) slotHours = 0;
-
-    const slotTotalMinutes = slotHours * 60 + slotMinutes;
-    const diff = Math.abs(slotTotalMinutes - totalMinutes);
-
-    if (diff < minDiff) {
-      minDiff = diff;
-      closestSlot = slot;
-    }
-  });
-
-  return closestSlot;
 }
 
 // Get day index (0 = Monday, 6 = Sunday for calendar grid)
 function getDayIndex(dateStr: string): number {
-  const date = new Date(dateStr);
-  if (isNaN(date.getTime())) {
-    console.warn("Invalid date string:", dateStr);
+  try {
+    // Convert UTC time from database to local timezone
+    const localDate = parseISOToLocal(dateStr);
+
+    // JavaScript getDay: 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    // We want: 0 = Monday, 1 = Tuesday, ..., 6 = Sunday
+    const jsDay = localDate.getDay();
+    return jsDay === 0 ? 6 : jsDay - 1;
+  } catch (error) {
+    console.warn("Invalid date string for day calculation:", dateStr, error);
     return 0;
   }
-
-  // JavaScript getDay: 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-  // We want: 0 = Monday, 1 = Tuesday, ..., 6 = Sunday
-  const jsDay = date.getDay();
-  return jsDay === 0 ? 6 : jsDay - 1;
 }
 
-// Format time for display
-function formatTime(dateStr: string): string {
-  const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return "TBD";
-
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
-  const period = hours >= 12 ? "PM" : "AM";
-  const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
-
-  return `${displayHours}:${minutes.toString().padStart(2, "0")} ${period}`;
+// Format time for display using timezone utilities
+function formatTimeDisplay(dateStr: string): string {
+  try {
+    // Use timezone-aware formatting
+    return formatTime(parseISOToLocal(dateStr), false);
+  } catch (error) {
+    console.warn("Invalid date string for time formatting:", dateStr, error);
+    return "TBD";
+  }
 }
 
-// Calculate duration in minutes
+// Calculate duration in minutes using raw UTC timestamps
 function calculateDuration(startTime: string, endTime: string): number {
-  const start = new Date(startTime);
-  const end = new Date(endTime);
+  try {
+    // Calculate duration on raw UTC timestamps to avoid timezone conversion issues
+    const startMs = new Date(startTime).getTime();
+    const endMs = new Date(endTime).getTime();
 
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    // Return duration in minutes
+    return Math.round((endMs - startMs) / (1000 * 60));
+  } catch (error) {
+    console.warn(
+      "Invalid date strings for duration calculation:",
+      { startTime, endTime },
+      error,
+    );
     return 60; // Default to 60 minutes
   }
-
-  const diffMs = end.getTime() - start.getTime();
-  return Math.max(30, Math.min(180, Math.round(diffMs / (1000 * 60)))); // Between 30 and 180 minutes
 }
 
 export interface TransformedClass {
@@ -185,7 +155,7 @@ export function transformClassesForCalendar(
       id: cls.id,
       title: cls.name || cls.title || "Untitled Class",
       instructor: cls.instructor || "TBD",
-      time: formatTime(startTime),
+      time: formatTimeDisplay(startTime),
       startTime,
       endTime,
       duration: calculateDuration(startTime, endTime),

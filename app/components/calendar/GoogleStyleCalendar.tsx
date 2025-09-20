@@ -34,6 +34,31 @@ const EVENT_COLORS = {
   default: "#1a73e8", // Default blue
 };
 
+// Helper function to calculate adaptive time range based on events
+function getAdaptiveTimeRange(events: CalendarEvent[]) {
+  if (events.length === 0) {
+    return { startHour: 8, endHour: 18 }; // Default business hours when no events
+  }
+
+  const eventTimes = events.map((event) => {
+    const start = new Date(event.startTime);
+    const end = new Date(event.endTime);
+    return {
+      startHour: start.getHours(),
+      endHour: Math.ceil(end.getHours() + end.getMinutes() / 60),
+    };
+  });
+
+  const earliestStart = Math.min(...eventTimes.map((t) => t.startHour));
+  const latestEnd = Math.max(...eventTimes.map((t) => t.endHour));
+
+  // Add 1-hour buffer and ensure minimum 8-hour window for good UX
+  const startHour = Math.max(0, earliestStart - 1);
+  const endHour = Math.min(23, Math.max(latestEnd + 1, startHour + 8));
+
+  return { startHour, endHour };
+}
+
 export function GoogleStyleCalendar({
   selectedDate,
   onDateSelect,
@@ -135,11 +160,16 @@ export function GoogleStyleCalendar({
     onDateSelect(new Date());
   };
 
-  const getEventStyle = (event: CalendarEvent) => {
+  const getEventStyle = (event: CalendarEvent, adaptiveStartHour?: number) => {
     const start = new Date(event.startTime);
     const end = new Date(event.endTime);
-    const startHour = getLocalHour(start);
+    const eventStartHour = getLocalHour(start);
     const duration = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+
+    // Calculate position relative to the adaptive start hour
+    const baseStartHour =
+      adaptiveStartHour !== undefined ? adaptiveStartHour : 0;
+    const relativeStartHour = eventStartHour - baseStartHour;
 
     // Determine color based on event title
     let bgColor = EVENT_COLORS.default;
@@ -153,7 +183,7 @@ export function GoogleStyleCalendar({
     }
 
     return {
-      top: `${startHour * 60}px`,
+      top: `${relativeStartHour * 60}px`,
       height: `${duration * 60 - 2}px`,
       backgroundColor: bgColor,
       opacity: 0.9,
@@ -193,6 +223,20 @@ export function GoogleStyleCalendar({
   };
 
   const weekDays = getWeekDays();
+
+  // Calculate adaptive time range for current week events
+  const weekEvents = events.filter((event) => {
+    const eventDate = new Date(event.startTime);
+    return weekDays.some(
+      (day) => day.toDateString() === eventDate.toDateString(),
+    );
+  });
+  const { startHour, endHour } = getAdaptiveTimeRange(weekEvents);
+  const timeSlots = Array.from(
+    { length: endHour - startHour + 1 },
+    (_, i) => startHour + i,
+  );
+
   const monthNames = [
     "January",
     "February",
@@ -252,12 +296,12 @@ export function GoogleStyleCalendar({
               <div className="h-12 bg-gray-900 border-b border-gray-700 sticky top-0" />{" "}
               {/* Spacer for day headers */}
               <div>
-                {Array.from({ length: 24 }).map((_, hour) => (
+                {timeSlots.map((hour) => (
                   <div
                     key={hour}
                     className="h-[60px] px-2 py-1 text-xs text-gray-400 text-right border-b border-gray-700"
                   >
-                    {hour === 0 ? "" : formatTime(hour)}
+                    {hour === startHour ? "" : formatTime(hour)}
                   </div>
                 ))}
               </div>
@@ -287,7 +331,7 @@ export function GoogleStyleCalendar({
                   {/* Time slots */}
                   <div className="relative">
                     {/* Hour lines */}
-                    {Array.from({ length: 24 }).map((_, hour) => (
+                    {timeSlots.map((hour) => (
                       <div
                         key={hour}
                         className="h-[60px] border-b border-gray-700 hover:bg-gray-700/30 cursor-pointer transition-colors"
@@ -296,21 +340,34 @@ export function GoogleStyleCalendar({
                     ))}
 
                     {/* Current time indicator */}
-                    {isToday(day) && (
-                      <div
-                        className="absolute left-0 right-0 h-0.5 bg-red-500 z-20 pointer-events-none"
-                        style={{ top: `${getCurrentTimePosition()}px` }}
-                      >
-                        <div className="absolute -left-2 -top-1.5 w-3 h-3 bg-red-500 rounded-full" />
-                      </div>
-                    )}
+                    {isToday(day) &&
+                      (() => {
+                        const currentHour = getLocalHour(new Date());
+                        // Only show current time indicator if it's within our visible range
+                        if (
+                          currentHour >= startHour &&
+                          currentHour <= endHour
+                        ) {
+                          const relativePosition =
+                            (currentHour - startHour) * 60;
+                          return (
+                            <div
+                              className="absolute left-0 right-0 h-0.5 bg-red-500 z-20 pointer-events-none"
+                              style={{ top: `${relativePosition}px` }}
+                            >
+                              <div className="absolute -left-2 -top-1.5 w-3 h-3 bg-red-500 rounded-full" />
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
 
                     {/* Events */}
                     {getEventsForDay(day).map((event) => (
                       <div
                         key={event.id}
                         className="absolute left-1 right-1 rounded-md p-1 cursor-pointer hover:shadow-lg transition-shadow text-white text-xs overflow-hidden"
-                        style={getEventStyle(event)}
+                        style={getEventStyle(event, startHour)}
                         onClick={() => onEventClick?.(event)}
                       >
                         <div className="font-medium truncate">
