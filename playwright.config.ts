@@ -20,7 +20,7 @@ export default defineConfig({
     'tests/database/**',
     'tests/security/**',
     'tests/admin-hq/**',
-    'e2e/auth.setup.ts'
+    'e2e/auth-setup.spec.ts'
   ],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
@@ -35,8 +35,8 @@ export default defineConfig({
     // Setup project - runs first to create auth states
     {
       name: 'setup',
-      testMatch: /auth\.setup\.ts/,
-      testDir: 'e2e',
+      testMatch: '**/auth-setup.spec.ts',
+      testDir: './e2e',
     },
     
     // Admin portal tests
@@ -48,7 +48,7 @@ export default defineConfig({
         storageState: path.join(process.cwd(), '.playwright', 'state.admin.json'),
       },
       dependencies: ['setup'],
-      testIgnore: ['e2e/auth.setup.ts'],
+      testIgnore: ['e2e/auth-setup.spec.ts'],
     },
     
     // Owner/Coach portal tests
@@ -60,7 +60,7 @@ export default defineConfig({
         storageState: path.join(process.cwd(), '.playwright', 'state.owner.json'),
       },
       dependencies: ['setup'],
-      testIgnore: ['e2e/auth.setup.ts'],
+      testIgnore: ['e2e/auth-setup.spec.ts'],
     },
     
     // Member portal tests
@@ -72,7 +72,7 @@ export default defineConfig({
         storageState: path.join(process.cwd(), '.playwright', 'state.member.json'),
       },
       dependencies: ['setup'],
-      testIgnore: ['e2e/auth.setup.ts'],
+      testIgnore: ['e2e/auth-setup.spec.ts'],
     },
     
     // Default chromium project for non-authenticated tests
@@ -82,7 +82,7 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         baseURL: process.env.BASE_URL || 'http://localhost:3000',
       },
-      testIgnore: ['e2e/auth.setup.ts'],
+      testIgnore: ['e2e/auth-setup.spec.ts'],
     },
   ],
   
