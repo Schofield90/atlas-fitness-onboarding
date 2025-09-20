@@ -153,15 +153,18 @@ interface PremiumCalendarGridProps {
   classes?: any[];
   loading?: boolean;
   onClassUpdate?: () => void;
+  onRefresh?: () => void;
   onSelectClass?: (cls: any) => void;
   view?: "day" | "week" | "month";
   currentDate?: Date;
+  [key: string]: any; // Allow additional props
 }
 
 const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({
   classes = [],
   loading = false,
   onClassUpdate,
+  onRefresh,
   onSelectClass,
   view = "week",
   currentDate = new Date(),
@@ -395,7 +398,7 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({
             setSelectedClass(null);
           }}
           session={selectedClass}
-          onUpdate={onClassUpdate}
+          onUpdate={onClassUpdate || onRefresh}
         />
       </div>
     );
@@ -457,7 +460,7 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({
             setSelectedClass(null);
           }}
           session={selectedClass}
-          onUpdate={onClassUpdate}
+          onUpdate={onClassUpdate || onRefresh}
         />
       </div>
     );
@@ -580,7 +583,7 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({
           setSelectedClass(null);
         }}
         session={selectedClass}
-        onUpdate={onClassUpdate}
+        onUpdate={onClassUpdate || onRefresh}
       />
     </div>
   );
