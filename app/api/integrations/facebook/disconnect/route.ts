@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
   try {
     console.log("🔌 Disconnecting Facebook integration");
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
       error: authError,

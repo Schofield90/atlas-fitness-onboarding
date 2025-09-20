@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     const userWithOrg = await requireAuth();
 
     // Create Supabase client
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { searchParams } = new URL(request.url);
     const includeComplete = searchParams.get("include_complete") === "true";

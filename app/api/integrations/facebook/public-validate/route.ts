@@ -4,7 +4,7 @@ import { createClient } from "@/app/lib/supabase/server";
 export async function POST(request: NextRequest) {
   try {
     // This is a public endpoint - no auth required
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // First, let's check ALL integrations, active or not
     const { data: allIntegrations, error: allError } = await supabase

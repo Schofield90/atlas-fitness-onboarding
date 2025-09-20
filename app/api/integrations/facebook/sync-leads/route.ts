@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     const { pageId, formId, limit = 100 } = body;
 
     // Get access token from database instead of cookies
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
       error: userError,

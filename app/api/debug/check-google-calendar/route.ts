@@ -6,7 +6,7 @@ import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
 export async function GET(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
     const adminSupabase = createAdminClient();
 
     // Check tokens using regular client

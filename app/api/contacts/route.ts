@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     // Use requireAuth which has the improved organization lookup
     const userWithOrg = await requireAuth();
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const body = await request.json();
 
     // Create contact with the organization from requireAuth
@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
     // Use requireAuth which has the improved organization lookup
     const userWithOrg = await requireAuth();
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Fetch contacts for the organization
     const { data: contacts, error } = await supabase

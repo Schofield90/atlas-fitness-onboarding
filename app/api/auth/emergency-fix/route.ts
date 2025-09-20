@@ -3,7 +3,7 @@ import { createClient } from "@/app/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Force create a session without requiring login
     const defaultOrgId = "63589490-8f55-4157-bd3a-e141594b748e";

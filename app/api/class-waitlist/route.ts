@@ -156,7 +156,7 @@ const processWaitlistForSchedule = async (
 // GET - List waitlist entries
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { searchParams } = new URL(request.url);
 
     const scheduleId = searchParams.get("schedule_id");
@@ -228,7 +228,7 @@ export async function GET(request: NextRequest) {
 // POST - Add to waitlist
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const body = await request.json();
     const validated = addToWaitlistSchema.parse(body);
 
@@ -374,7 +374,7 @@ export async function POST(request: NextRequest) {
 // PUT - Update waitlist entry
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const body = await request.json();
     const validated = updateWaitlistSchema.parse(body);
 
@@ -461,7 +461,7 @@ export async function PUT(request: NextRequest) {
 // DELETE - Remove from waitlist
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { searchParams } = new URL(request.url);
     const waitlistId = searchParams.get("waitlist_id");
 
@@ -521,7 +521,7 @@ export async function DELETE(request: NextRequest) {
 // POST - Process waitlist (manual trigger)
 export async function PATCH(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const body = await request.json();
     const { schedule_id } = body;
 

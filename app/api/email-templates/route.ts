@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   try {
     // Check authentication and get organization
     const userWithOrg = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type");
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
   try {
     // Check authentication and get organization
     const userWithOrg = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const body = await request.json();
     const validated = emailTemplateSchema.parse(body);
@@ -145,7 +145,7 @@ export async function PATCH(request: NextRequest) {
   try {
     // Check authentication and get organization
     const userWithOrg = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const body = await request.json();
     const { id, ...updateData } = body;
@@ -218,7 +218,7 @@ export async function DELETE(request: NextRequest) {
   try {
     // Check authentication and get organization
     const userWithOrg = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { searchParams } = new URL(request.url);
     const templateId = searchParams.get("id");

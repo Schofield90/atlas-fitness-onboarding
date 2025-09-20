@@ -15,7 +15,7 @@ export async function GET(
     const userWithOrg = await requireAuth();
 
     // Create Supabase client
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { data: timesheet, error } = await supabase
       .from("staff_timesheet_entries")
@@ -74,7 +74,7 @@ export async function PUT(
     // Check authentication and get organization
     const userWithOrg = await requireAuth();
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const body: UpdateTimesheetRequest = await request.json();
 
     // First check if timesheet exists and belongs to organization
@@ -226,7 +226,7 @@ export async function DELETE(
     // Check authentication and get organization
     const userWithOrg = await requireAuth();
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // First check if timesheet exists and belongs to organization
     const { data: existingTimesheet, error: checkError } = await supabase

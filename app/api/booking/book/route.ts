@@ -8,7 +8,7 @@ import {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const body = await request.json();
 
     const {
@@ -158,7 +158,7 @@ Atlas Fitness Team`;
 
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const searchParams = request.nextUrl.searchParams;
     const bookingId = searchParams.get("bookingId");
     const customerPhone = searchParams.get("customerPhone");

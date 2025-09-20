@@ -4,7 +4,7 @@ import { getCurrentUserOrganization } from "@/app/lib/organization-server";
 
 export async function GET() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get current user
     const {

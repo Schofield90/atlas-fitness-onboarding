@@ -59,7 +59,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const organizationId = organization.id;
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get connected account
     const { data: account } = await supabase

@@ -6,7 +6,7 @@ import type { CalendarEvent } from "@/app/lib/types/calendar";
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const adminSupabase = createAdminClient();
 
     // Get current user

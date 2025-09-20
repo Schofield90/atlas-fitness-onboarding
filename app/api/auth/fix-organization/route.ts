@@ -6,7 +6,7 @@ const ATLAS_FITNESS_ORG_ID = "63589490-8f55-4157-bd3a-e141594b748e";
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const adminSupabase = await createAdminClient();
 
     // Get current user

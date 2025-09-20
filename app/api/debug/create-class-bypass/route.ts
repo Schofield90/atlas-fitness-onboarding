@@ -7,7 +7,7 @@ export async function POST(request: Request) {
     const body = await request.json();
 
     // Get user for organization
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();

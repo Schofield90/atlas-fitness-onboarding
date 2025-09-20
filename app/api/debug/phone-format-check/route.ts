@@ -5,7 +5,7 @@ import { createClient } from "@/app/lib/supabase/server";
 export async function GET(request: NextRequest) {
   try {
     const adminSupabase = createAdminClient();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get a lead ID from query params to test
     const searchParams = request.nextUrl.searchParams;

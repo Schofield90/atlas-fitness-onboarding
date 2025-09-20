@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     const tokens = await getTokensFromCode(code);
 
     // Get the current user
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
       error: userError,

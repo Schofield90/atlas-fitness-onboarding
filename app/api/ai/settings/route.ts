@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { data, error } = await supabase
       .from("organizations")
@@ -54,7 +54,7 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const adminSupabase = createAdminClient();
 
     const updateData: any = {};

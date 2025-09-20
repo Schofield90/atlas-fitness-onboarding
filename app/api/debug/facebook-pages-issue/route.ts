@@ -5,7 +5,7 @@ import MetaAdsClient from "@/app/lib/integrations/meta-ads-client";
 
 export async function GET() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { organizationId } = await getCurrentUserOrganization();
 
     if (!organizationId) {

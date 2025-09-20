@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 export async function POST() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // First update all clients with their actual last visit from class_bookings
     const { error: updateError } = await supabase.rpc(

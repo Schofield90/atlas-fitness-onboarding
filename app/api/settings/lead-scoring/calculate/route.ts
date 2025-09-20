@@ -12,7 +12,7 @@ interface ScoringRule {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Check authentication
     const {
@@ -262,7 +262,7 @@ export async function POST(request: NextRequest) {
 // Batch calculate scores for all leads
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Check authentication
     const {

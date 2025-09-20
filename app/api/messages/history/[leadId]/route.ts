@@ -9,7 +9,7 @@ export async function GET(
 ) {
   try {
     const userWithOrg = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
     const adminSupabase = createAdminClient(); // Use admin client for reading logs
     const { leadId } = await params;
 

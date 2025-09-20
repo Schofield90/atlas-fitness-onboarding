@@ -4,7 +4,7 @@ import { clearUserCache, requireAuth } from "@/app/lib/api/auth-check";
 
 export async function GET() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get current user
     const {

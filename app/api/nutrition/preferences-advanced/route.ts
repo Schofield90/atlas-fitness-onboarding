@@ -4,7 +4,7 @@ import { createClient } from "@/app/lib/supabase/server";
 // GET - Retrieve comprehensive preferences for a client
 export async function GET(req: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get authenticated user
     const {
@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
 // POST - Save or update comprehensive preferences
 export async function POST(req: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const body = await req.json();
 
     // Get authenticated user

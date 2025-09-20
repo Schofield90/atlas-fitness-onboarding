@@ -5,7 +5,7 @@ import MetaAdsClient from "@/app/lib/integrations/meta-ads-client";
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { organizationId } = await getCurrentUserOrganization();
 
     if (!organizationId) {
@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { organizationId } = await getCurrentUserOrganization();
 
     if (!organizationId) {

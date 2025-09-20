@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const userWithOrg = await requireAuth();
 
     // Create Supabase client
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { searchParams } = new URL(request.url);
 
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
     // Check authentication and get organization
     const userWithOrg = await requireAuth();
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const body = await request.json();
 
     // Validate required fields

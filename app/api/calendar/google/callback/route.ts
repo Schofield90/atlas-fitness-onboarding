@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
     const userInfo = await userInfoResponse.json();
 
     // Store tokens in Supabase
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get current user
     const {

@@ -4,7 +4,7 @@ import { getCurrentUserOrganization } from "@/app/lib/organization-server";
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get current user
     const {
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
 // Create a test membership plan
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get current user
     const {

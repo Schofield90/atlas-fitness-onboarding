@@ -9,7 +9,7 @@ export async function GET(
 ) {
   try {
     const user = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { id: customerId } = await params;
 
@@ -54,7 +54,7 @@ export async function POST(
 ) {
   try {
     const user = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { id: customerId } = await params;
     const contactData = await request.json();
@@ -126,7 +126,7 @@ export async function PUT(
 ) {
   try {
     const user = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { id: customerId } = await params;
     const { contact_id, ...contactData } = await request.json();
@@ -215,7 +215,7 @@ export async function DELETE(
 ) {
   try {
     const user = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { id: customerId } = await params;
     const { searchParams } = new URL(request.url);

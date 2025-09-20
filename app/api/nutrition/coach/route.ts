@@ -62,7 +62,7 @@ Keep responses concise but comprehensive. Use bullet points for clarity when lis
 
 export async function POST(request: Request) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();

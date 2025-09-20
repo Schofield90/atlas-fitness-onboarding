@@ -4,7 +4,7 @@ import { createClient } from "@/app/lib/supabase/server";
 export async function GET(request: NextRequest) {
   try {
     // Allow in production for membership testing
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get current user
     const {
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
 // Create a test membership plan
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get current user
     const {

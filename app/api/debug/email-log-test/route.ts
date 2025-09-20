@@ -5,7 +5,7 @@ import { createClient } from "@/app/lib/supabase/server";
 export async function GET(request: NextRequest) {
   try {
     const adminSupabase = createAdminClient();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Step 1: Check if email_logs table exists
     const { data: tables, error: tableError } = await adminSupabase

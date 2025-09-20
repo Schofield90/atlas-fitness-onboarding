@@ -6,7 +6,7 @@ import { backgroundProcessor } from "@/app/lib/ai/background-processor";
 export async function GET(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
     const { searchParams } = new URL(request.url);
 
     const days = parseInt(searchParams.get("days") || "7");
@@ -222,7 +222,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
     const body = await request.json();
 
     const { action, ...actionData } = body;

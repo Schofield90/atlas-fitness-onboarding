@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Approach 2: Use server client with bypassed RLS
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // First, try to fetch the token using admin client if available, otherwise regular client
     let tokenData = null;

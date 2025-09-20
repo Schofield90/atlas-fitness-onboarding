@@ -4,7 +4,7 @@ import { getCurrentUserOrganization } from "@/app/lib/organization-server";
 
 export async function DELETE() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { organizationId, error: orgError } =
       await getCurrentUserOrganization();
 
@@ -91,7 +91,7 @@ export async function DELETE() {
 
 export async function GET() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { organizationId, error: orgError } =
       await getCurrentUserOrganization();
 

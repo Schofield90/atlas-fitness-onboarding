@@ -6,7 +6,7 @@ import { getOpenAIClient } from "@/gym-coach-platform/lib/ai/openai-client";
 export async function POST(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
     const body = await request.json();
 
     const { leadId, conversations, forceRefresh = false } = body;
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { searchParams } = new URL(request.url);
     const leadId = searchParams.get("leadId");

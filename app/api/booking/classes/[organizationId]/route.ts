@@ -7,7 +7,7 @@ export async function GET(
   context: { params: Promise<{ organizationId: string }> },
 ) {
   const params = await context.params;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   try {
     // Get date range from query params or default to next 30 days

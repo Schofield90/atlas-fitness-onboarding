@@ -15,7 +15,7 @@ export async function POST(
   }
 
   const { id: userId, organizationId } = authUser;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const updates = {
     status: "published",
@@ -55,7 +55,7 @@ export async function DELETE(
   }
 
   const { id: userId, organizationId } = authUser;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const updates = {
     status: "draft",

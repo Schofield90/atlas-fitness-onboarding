@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get authenticated user and organization
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
       error: userError,
@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get authenticated user and organization
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
       error: userError,
@@ -253,7 +253,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Get authenticated user and organization
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
       error: userError,

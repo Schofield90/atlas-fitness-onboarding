@@ -10,7 +10,7 @@ export async function GET(
     // Check authentication and get organization
     const userWithOrg = await requireAuth();
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const { id } = await params;
 
     // Fetch the specific lead with organization check
@@ -41,7 +41,7 @@ export async function PATCH(
     // Check authentication and get organization
     const userWithOrg = await requireAuth();
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const { id } = await params;
     const body = await request.json();
 
@@ -86,7 +86,7 @@ export async function DELETE(
     // Check authentication and get organization
     const userWithOrg = await requireAuth();
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const { id } = await params;
 
     // First, verify the lead exists and belongs to the organization

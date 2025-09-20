@@ -52,7 +52,7 @@ function getUpcomingBirthdays(customers: any[]) {
 
 export async function GET() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { organizationId } = await getCurrentUserOrganization();
 
     console.log("Dashboard metrics - Organization ID:", organizationId);

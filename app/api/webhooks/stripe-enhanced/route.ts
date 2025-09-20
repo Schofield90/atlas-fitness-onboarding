@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   try {
     // Check for duplicate events (idempotency)
@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
 
 async function handleCheckoutCompleted(event: Stripe.Event) {
   const session = event.data.object as Stripe.Checkout.Session;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   if (session.mode === "subscription") {
     const organizationId = session.metadata?.organization_id;
@@ -177,7 +177,7 @@ async function handleCheckoutCompleted(event: Stripe.Event) {
 
 async function handleSubscriptionCreated(event: Stripe.Event) {
   const subscription = event.data.object as Stripe.Subscription;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Get organization from customer
   const { data: customer } = await supabase
@@ -244,7 +244,7 @@ async function handleSubscriptionCreated(event: Stripe.Event) {
 
 async function handleSubscriptionUpdated(event: Stripe.Event) {
   const subscription = event.data.object as Stripe.Subscription;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const priceId = subscription.items.data[0].price.id;
   const { data: plan } = await supabase
@@ -287,7 +287,7 @@ async function handleSubscriptionUpdated(event: Stripe.Event) {
 
 async function handleSubscriptionDeleted(event: Stripe.Event) {
   const subscription = event.data.object as Stripe.Subscription;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   await supabase
     .from("billing_subscriptions")
@@ -312,7 +312,7 @@ async function handleSubscriptionDeleted(event: Stripe.Event) {
 
 async function handleInvoicePaymentSucceeded(event: Stripe.Event) {
   const invoice = event.data.object as Stripe.Invoice;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Track successful payment
   const { data: customer } = await supabase
@@ -337,7 +337,7 @@ async function handleInvoicePaymentSucceeded(event: Stripe.Event) {
 
 async function handleInvoicePaymentFailed(event: Stripe.Event) {
   const invoice = event.data.object as Stripe.Invoice;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Update subscription status
   if (invoice.subscription) {
@@ -359,7 +359,7 @@ async function handleInvoicePaymentFailed(event: Stripe.Event) {
 
 async function handleAccountUpdated(event: Stripe.Event) {
   const account = event.data.object as Stripe.Account;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   await supabase
     .from("connected_accounts")
@@ -375,7 +375,7 @@ async function handleAccountUpdated(event: Stripe.Event) {
 
 async function handlePaymentIntentSucceeded(event: Stripe.Event) {
   const paymentIntent = event.data.object as Stripe.PaymentIntent;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Update gym charge
   await supabase
@@ -410,7 +410,7 @@ async function handlePaymentIntentSucceeded(event: Stripe.Event) {
 
 async function handlePaymentIntentFailed(event: Stripe.Event) {
   const paymentIntent = event.data.object as Stripe.PaymentIntent;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   await supabase
     .from("gym_charges")
@@ -425,7 +425,7 @@ async function handlePaymentIntentFailed(event: Stripe.Event) {
 
 async function handleChargeSucceeded(event: Stripe.Event) {
   const charge = event.data.object as Stripe.Charge;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Update charge with receipt URL
   await supabase
@@ -440,7 +440,7 @@ async function handleChargeSucceeded(event: Stripe.Event) {
 
 async function handleChargeRefunded(event: Stripe.Event) {
   const charge = event.data.object as Stripe.Charge;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   await supabase
     .from("gym_charges")
@@ -455,7 +455,7 @@ async function handleChargeRefunded(event: Stripe.Event) {
 
 async function handleTransferCreated(event: Stripe.Event) {
   const transfer = event.data.object as Stripe.Transfer;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Update charge with transfer ID
   if (transfer.source_transaction) {
@@ -491,7 +491,7 @@ async function updateOrganizationFeatures(
   organizationId: string,
   planKey: string,
 ) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const features = {
     free: { max_clients: 10, max_staff: 1, features: ["basic_crm"] },
@@ -586,7 +586,7 @@ async function trackPlatformRevenue(params: {
   periodStart?: string;
   periodEnd?: string;
 }) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   await supabase.from("platform_revenue").insert({
     organization_id: params.organizationId,

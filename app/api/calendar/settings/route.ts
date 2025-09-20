@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 // Get calendar settings
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get current user
     const {
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
 // Update calendar settings
 export async function PATCH(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const body = await request.json();
 
     // Get current user
@@ -147,7 +147,7 @@ export async function PATCH(request: NextRequest) {
 // Disconnect Google Calendar
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get current user
     const {

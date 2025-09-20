@@ -11,7 +11,7 @@ interface RouteParams {
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { organizationId } = await requireOrgAccess();
-    const supabase = createClient();
+    const supabase = await createClient();
     const { id } = params;
     const body = await request.json();
     const { action, reason } = body;

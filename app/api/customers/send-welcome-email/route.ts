@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("Creating Supabase client...");
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get the current user and their organization
     console.log("Getting authenticated user...");

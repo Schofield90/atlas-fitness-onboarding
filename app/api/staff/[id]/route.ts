@@ -15,7 +15,7 @@ export async function GET(
     const userWithOrg = await requireAuth();
 
     // Create Supabase client
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { data: staff, error } = await supabase
       .from("staff_profiles")
@@ -54,7 +54,7 @@ export async function PUT(
     // Check authentication and get organization
     const userWithOrg = await requireAuth();
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const body: UpdateStaffProfileRequest = await request.json();
 
     // First check if staff member exists and belongs to organization
@@ -167,7 +167,7 @@ export async function DELETE(
     // Check authentication and get organization
     const userWithOrg = await requireAuth();
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // First check if staff member exists and belongs to organization
     const { data: existingStaff, error: checkError } = await supabase

@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 // Get calendar events
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get("start");
     const endDate = searchParams.get("end");
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
 // Create a new calendar event
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const body = await request.json();
 
     console.log("=== Calendar Event Creation Debug ===");
@@ -261,7 +261,7 @@ export async function POST(request: NextRequest) {
 // Update an event
 export async function PATCH(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const body = await request.json();
 
     // Get current user
@@ -365,7 +365,7 @@ export async function PATCH(request: NextRequest) {
 // Delete an event
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { searchParams } = new URL(request.url);
     const eventId = searchParams.get("id");
 

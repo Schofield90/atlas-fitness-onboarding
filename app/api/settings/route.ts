@@ -47,7 +47,7 @@ const settingsSchema = z
 export async function GET(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get organization settings
     const { data: settings, error } = await supabase
@@ -113,7 +113,7 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const body = await request.json();
     const validated = settingsSchema.parse(body);
@@ -203,7 +203,7 @@ export async function PUT(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth();
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const body = await request.json();
     const validated = settingsSchema.parse(body);

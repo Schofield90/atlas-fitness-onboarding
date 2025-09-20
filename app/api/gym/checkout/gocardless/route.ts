@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get connected account
     const { data: connectedAccount } = await supabase

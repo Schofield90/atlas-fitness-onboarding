@@ -4,7 +4,7 @@ import { getCurrentUserOrganization } from "@/app/lib/organization-server";
 
 export async function GET() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { organizationId, error } = await getCurrentUserOrganization();
 
     if (error || !organizationId) {

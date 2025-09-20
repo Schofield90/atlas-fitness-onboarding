@@ -3,7 +3,7 @@ import { createClient } from "@/app/lib/supabase/server";
 
 export async function GET() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get current user
     const {
@@ -124,7 +124,7 @@ export async function GET() {
 // Helper function to check table structure
 export async function POST() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get current user
     const {

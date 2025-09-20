@@ -11,7 +11,7 @@ const stripe = stripeKey
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get current user and organization
     const {

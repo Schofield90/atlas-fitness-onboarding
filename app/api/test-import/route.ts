@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // Check authentication with standard server client
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const {
       data: { user },

@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       usePersonalizedAI = true,
     } = body;
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     if (!nutritionProfile) {
       return NextResponse.json(

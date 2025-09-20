@@ -5,7 +5,7 @@ import { createClient as createAdminClient } from "@supabase/supabase-js";
 export async function GET() {
   try {
     // Regular client (with RLS)
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Admin client (bypasses RLS)
     const supabaseAdmin = createAdminClient(

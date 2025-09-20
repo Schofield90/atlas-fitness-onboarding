@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
     const userWithOrg = await requireAuth();
 
     // Create Supabase client
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get request body
     const { message, conversation } = await request.json();

@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     const appStatus = statusMap[callStatus] || callStatus;
 
     // Store call status in database
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Update the message log with call status
     const { error } = await supabase

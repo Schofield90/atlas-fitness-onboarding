@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     const userWithOrg = await requireAuth();
 
     // Create Supabase client
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { searchParams } = new URL(request.url);
     const week = parseInt(searchParams.get("week") || "1");
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     const userWithOrg = await requireAuth();
 
     // Create Supabase client
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const body = await request.json();
 
@@ -149,7 +149,7 @@ export async function DELETE(request: NextRequest) {
     const userWithOrg = await requireAuth();
 
     // Create Supabase client
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { searchParams } = new URL(request.url);
     const week = parseInt(searchParams.get("week") || "1");
