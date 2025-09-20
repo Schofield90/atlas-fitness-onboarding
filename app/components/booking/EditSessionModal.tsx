@@ -41,8 +41,17 @@ export default function EditSessionModal({
         return `${year}-${month}-${day}T${hours}:${minutes}`;
       };
 
+      // Extract instructor from description if it exists
+      let instructorName = session.instructor || "";
+      if (!instructorName && session.description) {
+        const match = session.description.match(/Instructor:\s*(.+)/);
+        if (match) {
+          instructorName = match[1].trim();
+        }
+      }
+
       setFormData({
-        instructor: session.instructor || "",
+        instructor: instructorName,
         startTime: formatDateTime(startDate),
         endTime: formatDateTime(endDate),
         capacity: session.capacity || session.max_capacity || 20,
@@ -64,6 +73,7 @@ export default function EditSessionModal({
       }
 
       // Update session via API
+      // Note: We store instructor name in the name field for display purposes
       const response = await fetch(`/api/class-sessions`, {
         method: "PUT",
         headers: {
@@ -71,7 +81,8 @@ export default function EditSessionModal({
         },
         body: JSON.stringify({
           id: session.id,
-          instructor: formData.instructor,
+          name: session.name || session.title || "Class Session",
+          description: `Instructor: ${formData.instructor}`,
           start_time: startDate.toISOString(),
           end_time: endDate.toISOString(),
           max_capacity: formData.capacity,
