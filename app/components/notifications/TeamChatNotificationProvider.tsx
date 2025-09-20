@@ -58,8 +58,17 @@ export default function TeamChatNotificationProvider({
     [],
   );
   const [isEnabled, setIsEnabled] = useState(true);
-  const supabase = createClientComponentClient<Database>();
   const { organization, user } = useOrganization();
+
+  // Only create supabase client on client side
+  const [supabase, setSupabase] = useState<any>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const client = createClientComponentClient<Database>();
+      setSupabase(client);
+    }
+  }, []);
 
   // Load notifications from localStorage on mount
   useEffect(() => {
@@ -84,7 +93,7 @@ export default function TeamChatNotificationProvider({
 
   // Set up real-time subscriptions for new messages and mentions
   useEffect(() => {
-    if (!organization?.id || !user?.id || !isEnabled) return;
+    if (!organization?.id || !user?.id || !isEnabled || !supabase) return;
 
     // Subscribe to mentions
     const mentionsChannel = supabase
@@ -283,7 +292,7 @@ export default function TeamChatNotificationProvider({
 
     // Mark mention as read in database if it's a mention notification
     const notification = notifications.find((n) => n.id === notificationId);
-    if (notification?.type === "mention") {
+    if (notification?.type === "mention" && supabase) {
       supabase
         .from("team_mentions")
         .update({ read: true })
@@ -301,7 +310,7 @@ export default function TeamChatNotificationProvider({
       .filter((n) => n.type === "mention" && !n.read)
       .map((n) => n.id);
 
-    if (mentionIds.length > 0) {
+    if (mentionIds.length > 0 && supabase) {
       supabase
         .from("team_mentions")
         .update({ read: true })

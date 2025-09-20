@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 import { listCalendarEvents } from "@/app/lib/google/calendar";
+import { requireAuth } from "@/app/lib/api/auth-check";
 
 export async function GET(request: NextRequest) {
   try {
+    // SECURITY: Use organization-scoped authentication
+    const user = await requireAuth();
     const supabase = await createClient();
     const adminSupabase = createAdminClient();
     const { searchParams } = new URL(request.url);
@@ -12,35 +15,28 @@ export async function GET(request: NextRequest) {
     const start = searchParams.get("start");
     const end = searchParams.get("end");
 
-    // Get current user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Get Google Calendar tokens
+    // SECURITY: Get Google Calendar tokens with organization validation
     const { data: tokenData, error: tokenError } = await adminSupabase
       .from("google_calendar_tokens")
       .select("*")
       .eq("user_id", user.id)
+      .eq("organization_id", user.organizationId) // SECURITY: Ensure organization ownership
       .single();
 
     if (tokenError || !tokenData) {
-      console.log("No Google Calendar connection found");
+      console.log("No Google Calendar connection found for organization");
       return NextResponse.json({
         events: [],
         message: "Google Calendar not connected",
       });
     }
 
-    // Get sync settings to know which calendar to fetch from
+    // SECURITY: Get sync settings with organization validation
     const { data: settings } = await supabase
       .from("calendar_sync_settings")
       .select("google_calendar_id")
       .eq("user_id", user.id)
+      .eq("organization_id", user.organizationId) // SECURITY: Ensure organization ownership
       .single();
 
     const calendarId = settings?.google_calendar_id || "primary";

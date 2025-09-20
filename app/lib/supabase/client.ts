@@ -20,9 +20,23 @@ export function createClient() {
 
   browserClient = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey, {
     auth: {
-      autoRefreshToken: false, // Disable auto-refresh to prevent SSR issues
+      autoRefreshToken: true, // Enable auto-refresh but only in browser
       persistSession: true,
-      detectSessionInUrl: false,
+      detectSessionInUrl: true,
+      storage: {
+        getItem: (key) => {
+          if (typeof window === "undefined") return null;
+          return window.localStorage.getItem(key);
+        },
+        setItem: (key, value) => {
+          if (typeof window === "undefined") return;
+          window.localStorage.setItem(key, value);
+        },
+        removeItem: (key) => {
+          if (typeof window === "undefined") return;
+          window.localStorage.removeItem(key);
+        },
+      },
     },
   });
   return browserClient;

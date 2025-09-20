@@ -3,6 +3,10 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
+  formatTimeDisplay,
+  formatDateDisplay,
+} from "@/app/lib/utils/time-display";
+import {
   ArrowLeft,
   Save,
   Calendar,
@@ -226,6 +230,61 @@ export default function ClassDetailPage() {
     } catch (error) {
       console.error("Error cancelling sessions:", error);
       alert("Failed to cancel sessions");
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const selectedIds = Object.keys(selectedSessions).filter(
+      (id) => selectedSessions[id],
+    );
+
+    if (selectedIds.length === 0) {
+      alert("Please select sessions to delete");
+      return;
+    }
+
+    if (
+      !confirm(
+        `Are you sure you want to permanently delete ${selectedIds.length} session(s)? This action cannot be undone and will remove all attendee bookings.`,
+      )
+    ) {
+      return;
+    }
+
+    try {
+      // Use the API endpoint to properly delete sessions
+      const deletePromises = selectedIds.map(async (sessionId) => {
+        const response = await fetch(
+          `/api/booking/classes?classId=${sessionId}`,
+          {
+            method: "DELETE",
+          },
+        );
+        if (!response.ok) {
+          const error = await response.json();
+          const errorMessage =
+            error?.error ||
+            error?.message ||
+            JSON.stringify(error) ||
+            "Failed to delete session";
+          throw new Error(errorMessage);
+        }
+        return response.json();
+      });
+
+      await Promise.all(deletePromises);
+
+      alert(`${selectedIds.length} session(s) deleted successfully`);
+      setSelectedSessions({});
+      await loadClassSessions();
+    } catch (error: any) {
+      console.error("Error deleting sessions:", error);
+      const errorMessage =
+        error?.message ||
+        error?.error ||
+        JSON.stringify(error) ||
+        "Unknown error";
+      alert(`Failed to delete sessions: ${errorMessage}`);
     }
   };
 
@@ -833,12 +892,20 @@ export default function ClassDetailPage() {
                           }{" "}
                           session(s) selected
                         </span>
-                        <button
-                          onClick={handleBulkCancel}
-                          className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded-md transition-colors"
-                        >
-                          Cancel Selected
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={handleBulkCancel}
+                            className="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 text-white text-sm rounded-md transition-colors"
+                          >
+                            Cancel Selected
+                          </button>
+                          <button
+                            onClick={handleBulkDelete}
+                            className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded-md transition-colors"
+                          >
+                            Delete Selected
+                          </button>
+                        </div>
                       </div>
                     )}
 
@@ -871,18 +938,11 @@ export default function ClassDetailPage() {
                             <div className="flex items-center gap-4 text-sm text-gray-400">
                               <div className="flex items-center gap-1">
                                 <Calendar className="w-3 h-3" />
-                                {new Date(
-                                  session.start_time,
-                                ).toLocaleDateString("en-GB")}
+                                {formatDateDisplay(session.start_time)}
                               </div>
                               <div className="flex items-center gap-1">
                                 <Clock className="w-3 h-3" />
-                                {new Date(
-                                  session.start_time,
-                                ).toLocaleTimeString("en-GB", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
+                                {formatTimeDisplay(session.start_time)}
                               </div>
                               <div className="flex items-center gap-1">
                                 <Users className="w-3 h-3" />

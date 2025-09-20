@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { getCurrentUserOrganization } from "@/app/lib/organization-server";
+import { AutomationInputValidator } from "@/app/lib/automation/security/input-validator";
 
 export async function GET(request: NextRequest) {
   try {
@@ -77,20 +78,50 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+
+    // Add organizationId to body for validation
+    const workflowToValidate = {
+      ...body,
+      organizationId: organizationId,
+    };
+
+    // Validate and sanitize workflow data
+    const validationResult = AutomationInputValidator.validateWorkflowData(
+      workflowToValidate,
+      organizationId,
+    );
+
+    if (!validationResult.isValid) {
+      console.error("Workflow validation failed:", validationResult.errors);
+      return NextResponse.json(
+        {
+          error: "Invalid workflow data",
+          details: validationResult.errors,
+        },
+        { status: 400 },
+      );
+    }
+
+    // Log warnings for monitoring
+    if (validationResult.warnings.length > 0) {
+      console.warn("Workflow validation warnings:", validationResult.warnings);
+    }
+
+    const sanitizedWorkflow = validationResult.sanitizedData;
     const supabase = await createClient();
 
     // Prepare workflow data
     const workflowData = {
       organization_id: organizationId,
-      name: body.name || "New Workflow",
-      description: body.description || "",
-      status: body.status || "draft",
-      nodes: body.nodes || [],
-      edges: body.edges || [],
-      variables: body.variables || {},
-      trigger_type: body.trigger_type,
-      trigger_config: body.trigger_config || {},
-      settings: body.settings || {},
+      name: sanitizedWorkflow.name || "New Workflow",
+      description: sanitizedWorkflow.description || "",
+      status: sanitizedWorkflow.status || "draft",
+      nodes: sanitizedWorkflow.workflowData?.nodes || [],
+      edges: sanitizedWorkflow.workflowData?.edges || [],
+      variables: sanitizedWorkflow.workflowData?.variables || {},
+      trigger_type: sanitizedWorkflow.triggerType,
+      trigger_config: sanitizedWorkflow.triggerConfig || {},
+      settings: sanitizedWorkflow.settings || {},
     };
 
     const { data, error } = await supabase

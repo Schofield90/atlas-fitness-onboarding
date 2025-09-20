@@ -38,9 +38,20 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   const fetchOrganization = async () => {
+    // Only run on client side
+    if (typeof window === "undefined") {
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setError(null);
       const supabase = createClient();
+
+      if (!supabase) {
+        setIsLoading(false);
+        return;
+      }
 
       // Get current user
       const {
@@ -141,8 +152,12 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     fetchOrganization();
 
-    // Set up auth state listener
+    // Only set up auth state listener on client side
+    if (typeof window === "undefined") return;
+
     const supabase = createClient();
+    if (!supabase) return;
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {

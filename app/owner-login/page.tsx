@@ -8,7 +8,6 @@ import { Mail, Lock, Chrome, AlertCircle, Loader2 } from "lucide-react";
 
 export default function OwnerLoginPage() {
   const router = useRouter();
-  const supabase = createClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -20,6 +19,13 @@ export default function OwnerLoginPage() {
     setError("");
 
     try {
+      const supabase = createClient();
+      if (!supabase) {
+        setError("Unable to connect to authentication service");
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -64,6 +70,12 @@ export default function OwnerLoginPage() {
 
   const handleGoogleLogin = async () => {
     try {
+      const supabase = createClient();
+      if (!supabase) {
+        setError("Unable to connect to authentication service");
+        return;
+      }
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {

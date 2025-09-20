@@ -169,22 +169,56 @@ export async function POST(request: NextRequest) {
       domain:
         process.env.NODE_ENV === "production"
           ? ".gymleadhub.co.uk"
-          : "localhost",
+          : ".localhost",
       maxAge: 60 * 60 * 24 * 7, // 7 days
     };
 
-    // Set Supabase auth cookies
-    cookieStore.set(
-      `sb-${projectId}-auth-token`,
-      JSON.stringify({
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
-        expires_at: session.expires_at,
-        expires_in: session.expires_in,
-        token_type: session.token_type,
-      }),
-      cookieOptions,
+    // Use the standard Supabase SSR cookie handling
+    // Create a server client to properly set session cookies
+    const { createServerClient } = await import("@supabase/ssr");
+
+    const supabaseSSR = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+          set(name: string, value: string, options: any) {
+            cookieStore.set(name, value, {
+              ...options,
+              domain:
+                process.env.NODE_ENV === "production"
+                  ? ".gymleadhub.co.uk"
+                  : ".localhost",
+              secure: process.env.NODE_ENV === "production",
+              sameSite: "lax",
+            });
+          },
+          remove(name: string, options: any) {
+            cookieStore.set(name, "", {
+              ...options,
+              maxAge: 0,
+              domain:
+                process.env.NODE_ENV === "production"
+                  ? ".gymleadhub.co.uk"
+                  : ".localhost",
+            });
+          },
+        },
+      },
     );
+
+    // Set the session using the SSR client which will handle cookie format correctly
+    await supabaseSSR.auth.setSession({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+      expires_at: session.expires_at,
+      expires_in: session.expires_in,
+      token_type: session.token_type,
+      user: session.user,
+    });
 
     // Also set a simplified cookie for easier debugging
     cookieStore.set(
@@ -198,41 +232,60 @@ export async function POST(request: NextRequest) {
       cookieOptions,
     );
 
+    // For E2E testing, also set non-httpOnly cookies that can be read by browser
+    const testCookieOptions = {
+      ...cookieOptions,
+      httpOnly: false, // Make accessible to browser for E2E testing
+    };
+
+    cookieStore.set(
+      `e2e-test-auth`,
+      JSON.stringify({
+        user_id: user.id,
+        email: user.email,
+        role,
+        subdomain,
+        access_token: session.access_token,
+      }),
+      testCookieOptions,
+    );
+
     // Handle organization setup for owners/coaches
     if (role === "owner" || role === "coach") {
       try {
-        // Check if user has an organization
-        const { data: existingOrg } = await supabaseAdmin
-          .from("organizations")
-          .select("id, name")
-          .eq("owner_id", user.id)
+        // Use the existing test organization that has the test sessions
+        const testOrgId = "63589490-8f55-4157-bd3a-e141594b748e";
+
+        // Check if user is already associated with the test organization
+        const { data: existingStaff } = await supabaseAdmin
+          .from("organization_staff")
+          .select("id")
+          .eq("organization_id", testOrgId)
+          .eq("user_id", user.id)
           .single();
 
-        if (!existingOrg) {
-          // Create a test organization
-          const { data: newOrg, error: orgError } = await supabaseAdmin
-            .from("organizations")
-            .insert({
-              name: `Test Org for ${email}`,
-              owner_id: user.id,
-              subdomain: `test-${Date.now()}`,
-              settings: {},
-            })
-            .select()
-            .single();
-
-          if (!orgError && newOrg) {
-            console.log(`Created test organization: ${newOrg.name}`);
-
-            // Add user to organization_staff
-            await supabaseAdmin.from("organization_staff").insert({
-              organization_id: newOrg.id,
-              user_id: user.id,
-              role: "owner",
-              is_active: true,
-            });
-          }
+        if (!existingStaff) {
+          // Add user to the existing test organization
+          await supabaseAdmin.from("organization_staff").insert({
+            organization_id: testOrgId,
+            user_id: user.id,
+            role: "owner",
+            is_active: true,
+          });
+          console.log(`Added user to existing test organization: ${testOrgId}`);
+        } else {
+          console.log(
+            `User already associated with test organization: ${testOrgId}`,
+          );
         }
+
+        // Also create user_organizations entry for organization service
+        await supabaseAdmin.from("user_organizations").upsert({
+          user_id: user.id,
+          organization_id: testOrgId,
+          role: "owner",
+        });
+        console.log(`Added user_organizations entry for: ${testOrgId}`);
       } catch (orgError) {
         console.error("Organization setup error:", orgError);
         // Continue anyway - org setup is not critical for auth test
@@ -242,6 +295,9 @@ export async function POST(request: NextRequest) {
     // Handle client setup for members
     if (role === "member") {
       try {
+        // Use the same test organization
+        const testOrgId = "63589490-8f55-4157-bd3a-e141594b748e";
+
         // Check if user is already a client
         const { data: existingClient } = await supabaseAdmin
           .from("clients")
@@ -250,32 +306,33 @@ export async function POST(request: NextRequest) {
           .single();
 
         if (!existingClient) {
-          // Get Atlas Fitness organization
-          const { data: atlasOrg } = await supabaseAdmin
-            .from("organizations")
-            .select("id")
-            .eq("subdomain", "atlas-fitness")
+          // Create client record for test organization
+          const { data: newClient } = await supabaseAdmin
+            .from("clients")
+            .insert({
+              user_id: user.id,
+              organization_id: testOrgId,
+              email: user.email,
+              name: user.email?.split("@")[0] || "Test Member",
+              phone: "+447000000000",
+            })
+            .select()
             .single();
 
-          if (atlasOrg) {
-            // Create client record
-            const { data: newClient } = await supabaseAdmin
-              .from("clients")
-              .insert({
-                user_id: user.id,
-                organization_id: atlasOrg.id,
-                email: user.email,
-                name: user.email?.split("@")[0] || "Test Member",
-                phone: "+447000000000",
-              })
-              .select()
-              .single();
-
-            if (newClient) {
-              console.log(`Created test client record for member`);
-            }
+          if (newClient) {
+            console.log(
+              `Created test client record for member in org: ${testOrgId}`,
+            );
           }
         }
+
+        // Also create user_organizations entry for organization service
+        await supabaseAdmin.from("user_organizations").upsert({
+          user_id: user.id,
+          organization_id: testOrgId,
+          role: "member",
+        });
+        console.log(`Added user_organizations entry for member: ${testOrgId}`);
       } catch (clientError) {
         console.error("Client setup error:", clientError);
         // Continue anyway - client setup is not critical for auth test

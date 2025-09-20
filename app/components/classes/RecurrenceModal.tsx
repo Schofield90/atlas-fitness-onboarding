@@ -204,6 +204,12 @@ export default function RecurrenceModal({
       rrule,
     };
 
+    console.log(
+      "RecurrenceModal sending data:",
+      JSON.stringify(recurrenceData, null, 2),
+    );
+    console.log("Time slots being sent:", recurrenceData.timeSlots);
+
     onSave(recurrenceData);
   };
 

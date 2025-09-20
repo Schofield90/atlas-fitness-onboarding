@@ -285,21 +285,28 @@ export async function POST(request: NextRequest) {
     // Create sessions array
     let sessions: any[] = [];
 
-    if (originalSession) {
-      // Clone existing session for each occurrence (skip first as it's the original)
+    if (originalSession && timeSlots.length === 0) {
+      // Clone existing session for each occurrence using original time (only if no new timeSlots provided)
       sessions = occurrences.slice(1).map((date) => {
         // Destructure to exclude id field
         const { id, ...sessionWithoutId } = originalSession;
         // Preserve the original time from the session
         const originalDate = new Date(originalSession.start_time);
-        const newStart = new Date(date);
-        // Set the time to match the original session time (use UTC to match database storage)
-        newStart.setUTCHours(
-          originalDate.getUTCHours(),
-          originalDate.getUTCMinutes(),
-          originalDate.getUTCSeconds(),
-          originalDate.getUTCMilliseconds(),
-        );
+
+        // Get the time components from the original session (in UTC)
+        const hours = originalDate.getUTCHours();
+        const minutes = originalDate.getUTCMinutes();
+
+        // Create new date with the occurrence date but original time
+        const year = date.getUTCFullYear();
+        const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+        const day = String(date.getUTCDate()).padStart(2, "0");
+        const hoursStr = String(hours).padStart(2, "0");
+        const minutesStr = String(minutes).padStart(2, "0");
+
+        // Create ISO string with the original time preserved
+        const isoString = `${year}-${month}-${day}T${hoursStr}:${minutesStr}:00.000Z`;
+        const newStart = new Date(isoString);
         const newEnd = new Date(newStart.getTime() + duration);
 
         console.log(
@@ -316,10 +323,17 @@ export async function POST(request: NextRequest) {
           updated_at: new Date().toISOString(),
         };
       });
-    } else if (programId && timeSlots.length > 0) {
+    } else if (
+      (programId && timeSlots.length > 0) ||
+      (originalSession && timeSlots.length > 0)
+    ) {
       // Create new sessions from time slots
       sessions = [];
       console.log("Creating sessions for occurrences:", occurrences.length);
+      console.log(
+        "Time slots received from frontend:",
+        JSON.stringify(timeSlots, null, 2),
+      );
       console.log("Time slots:", timeSlots);
 
       occurrences.forEach((date) => {
@@ -327,17 +341,19 @@ export async function POST(request: NextRequest) {
           const [hours, minutes] = slot.time.split(":").map(Number);
 
           // Create session start time by combining the date with the time
-          // The time from the form is already the time the user wants (in their timezone)
-          // We'll create it as UTC directly since the database stores UTC
-          const year = date.getFullYear();
-          const month = (date.getMonth() + 1).toString().padStart(2, "0");
-          const day = date.getDate().toString().padStart(2, "0");
-          const hoursStr = hours.toString().padStart(2, "0");
-          const minutesStr = minutes.toString().padStart(2, "0");
+          // IMPORTANT: The time from the form (e.g., "15:30") is what the user wants to see
+          // We store this as a UTC timestamp that will display as that time when using formatTimeDisplay
+          // Since formatTimeDisplay uses getUTCHours(), we need to create a UTC date with those hours
+          const year = date.getUTCFullYear();
+          const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+          const day = String(date.getUTCDate()).padStart(2, "0");
+          const hoursStr = String(hours).padStart(2, "0");
+          const minutesStr = String(minutes).padStart(2, "0");
 
-          // Create ISO string directly as UTC
-          const sessionStartStr = `${year}-${month}-${day}T${hoursStr}:${minutesStr}:00.000Z`;
-          const sessionStart = new Date(sessionStartStr);
+          // Create an ISO string with explicit UTC time
+          // This ensures the time displays correctly with formatTimeDisplay
+          const isoString = `${year}-${month}-${day}T${hoursStr}:${minutesStr}:00.000Z`;
+          const sessionStart = new Date(isoString);
 
           const sessionEnd = new Date(
             sessionStart.getTime() + slot.duration * 60 * 1000,
@@ -347,18 +363,25 @@ export async function POST(request: NextRequest) {
             `Creating session on ${sessionStart.toLocaleDateString()} at ${sessionStart.toLocaleTimeString()}`,
           );
 
+          // Use originalSession data if cloning, otherwise use programData
+          const baseData = originalSession || {};
           const sessionData = {
-            program_id: programId,
+            program_id: programId || originalSession?.program_id,
             organization_id: organizationId,
-            trainer_id: programData?.trainer_id || null,
-            instructor_name: programData?.instructor_name || "TBD",
-            location: programData?.location || "Main Studio",
+            trainer_id: baseData.trainer_id || programData?.trainer_id || null,
+            instructor_name:
+              baseData.instructor_name || programData?.instructor_name || "TBD",
+            location:
+              baseData.location || programData?.location || "Main Studio",
+            name: baseData.name,
+            description: baseData.description,
             start_time: sessionStart.toISOString(),
             end_time: sessionEnd.toISOString(),
             duration_minutes: slot.duration,
             session_status: "scheduled",
             current_bookings: 0,
             max_capacity:
+              baseData.max_capacity ||
               programData?.default_capacity ||
               programData?.max_participants ||
               20,

@@ -23,6 +23,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // CRITICAL: Verify user belongs to the organization
+    const { data: userOrg, error: orgError } = await supabase
+      .from("user_organizations")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("organization_id", organizationId)
+      .single();
+
+    if (orgError || !userOrg) {
+      console.error("User not authorized for organization:", {
+        userId: user.id,
+        organizationId,
+      });
+      return NextResponse.json(
+        { error: "You don't have access to this organization" },
+        { status: 403 },
+      );
+    }
+
     // Fetch class sessions for the organization
     const { data: sessions, error } = await supabase
       .from("class_sessions")
