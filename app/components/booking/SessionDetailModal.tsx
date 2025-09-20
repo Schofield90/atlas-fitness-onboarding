@@ -15,7 +15,6 @@ import {
   Mail,
   ChevronLeft,
   ChevronRight,
-  Copy,
   AlertTriangle,
   Trash2,
 } from "lucide-react";
@@ -410,55 +409,6 @@ export default function SessionDetailModal({
     setShowEditModal(true);
   };
 
-  const handleDuplicateSession = async () => {
-    if (actionLoading) return;
-
-    try {
-      setActionLoading("duplicate");
-      setShowOptionsMenu(null);
-
-      // Create a new session with same details but different time
-      const duplicateTime = new Date(session.startTime);
-      duplicateTime.setDate(duplicateTime.getDate() + 7); // Next week by default
-
-      const response = await fetch("/api/booking/classes", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          programId: session.program_id,
-          title: session.title,
-          instructor: session.instructor || session.instructor_name,
-          startTime: duplicateTime.toISOString(),
-          duration: session.duration || session.duration_minutes || 60,
-          capacity: session.capacity || session.max_capacity || 20,
-          room: session.room || session.location,
-          description: "Duplicated session",
-          type: "fitness",
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to duplicate session");
-      }
-
-      toast.success("Session duplicated successfully for next week!");
-
-      // Refresh the calendar
-      if (onUpdate) {
-        await onUpdate();
-      }
-    } catch (error: any) {
-      console.error("Error duplicating session:", error);
-      toast.error(`Failed to duplicate session: ${error.message}`);
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
   const handleCancelSession = async () => {
     if (actionLoading) return;
 
@@ -626,16 +576,6 @@ export default function SessionDetailModal({
                     >
                       <Edit2 className="w-4 h-4" />
                       Edit Session
-                    </button>
-                    <button
-                      onClick={handleDuplicateSession}
-                      disabled={actionLoading !== null}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-600 text-gray-200 flex items-center gap-2 disabled:opacity-50"
-                    >
-                      <Copy className="w-4 h-4" />
-                      {actionLoading === "duplicate"
-                        ? "Duplicating..."
-                        : "Duplicate"}
                     </button>
                     <button
                       onClick={handleCancelSession}
