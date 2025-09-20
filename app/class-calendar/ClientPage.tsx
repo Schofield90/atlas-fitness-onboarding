@@ -31,6 +31,7 @@ export default function ClassCalendarClient() {
   const [calendarView, setCalendarView] = useState<"day" | "week" | "month">(
     "week",
   );
+  const [currentDate, setCurrentDate] = useState(new Date());
 
   // Define fetchClasses first using useCallback
   const fetchClasses = useCallback(async () => {
@@ -264,8 +265,10 @@ export default function ClassCalendarClient() {
             <InstructorFilter classes={classes} onFilter={setClasses} />
             <TimeRangeFilter classes={classes} onFilter={setClasses} />
             <CalendarViewToggle
-              currentView={selectedView}
-              onViewChange={setSelectedView}
+              view={calendarView}
+              currentDate={currentDate}
+              onViewChange={setCalendarView}
+              onDateChange={setCurrentDate}
             />
           </div>
         </div>
@@ -297,6 +300,7 @@ export default function ClassCalendarClient() {
                 classes={classes}
                 loading={loading}
                 view={calendarView}
+                currentDate={currentDate}
                 onViewChange={setCalendarView}
                 onClassSelect={setSelectedClass}
                 selectedClass={selectedClass}
