@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { bookingLinkService } from "@/app/lib/services/booking-link";
+import { serverBookingLinkService } from "@/app/lib/services/booking-link";
 import { createClient } from "@/app/lib/supabase/server";
 
 export async function GET(
@@ -18,7 +18,9 @@ export async function GET(
     }
 
     // Check if user has access to this booking link
-    const bookingLink = await bookingLinkService.getBookingLinkById(params.id);
+    const bookingLink = await serverBookingLinkService.getBookingLinkById(
+      params.id,
+    );
     if (!bookingLink) {
       return NextResponse.json(
         { error: "Booking link not found" },
@@ -44,10 +46,13 @@ export async function GET(
     const days = parseInt(searchParams.get("days") || "30");
 
     // Get analytics data
-    const analytics = await bookingLinkService.getAnalytics(params.id, days);
+    const analytics = await serverBookingLinkService.getAnalytics(
+      params.id,
+      days,
+    );
 
     // Get booking stats
-    const stats = await bookingLinkService.getBookingStats(params.id);
+    const stats = await serverBookingLinkService.getBookingStats(params.id);
 
     return NextResponse.json({
       analytics,

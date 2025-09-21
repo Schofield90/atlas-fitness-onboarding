@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { bookingLinkService } from "@/app/lib/services/booking-link";
+import { serverBookingLinkService } from "@/app/lib/services/booking-link-server";
 import { createClient } from "@/app/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     }
 
     const bookingLinks =
-      await bookingLinkService.listBookingLinks(organizationId);
+      await serverBookingLinkService.listBookingLinks(organizationId);
     return NextResponse.json({ booking_links: bookingLinks });
   } catch (error) {
     console.error("Error fetching booking links:", error);
@@ -101,11 +101,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     // Validate the configuration
-    const validation = await bookingLinkService.validateBookingLinkConfig({
-      ...body,
-      organization_id: organizationId,
-      user_id: user.id,
-    });
+    const validation = await serverBookingLinkService.validateBookingLinkConfig(
+      {
+        ...body,
+        organization_id: organizationId,
+        user_id: user.id,
+      },
+    );
 
     if (!validation.valid) {
       return NextResponse.json(
@@ -115,7 +117,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the booking link
-    const bookingLink = await bookingLinkService.createBookingLink({
+    const bookingLink = await serverBookingLinkService.createBookingLink({
       ...body,
       organization_id: organizationId,
       user_id: user.id,
@@ -189,7 +191,7 @@ export async function POST(request: NextRequest) {
           }
         }
         if (flatRules.length > 0) {
-          await bookingLinkService.setAvailabilityRules(
+          await serverBookingLinkService.setAvailabilityRules(
             bookingLink.id,
             staffId,
             flatRules,

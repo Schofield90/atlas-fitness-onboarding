@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { bookingLinkService } from "@/app/lib/services/booking-link";
+import { serverBookingLinkService } from "@/app/lib/services/booking-link";
 import { createClient } from "@/app/lib/supabase/server";
 
 export async function GET(
@@ -17,7 +17,9 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const bookingLink = await bookingLinkService.getBookingLinkById(params.id);
+    const bookingLink = await serverBookingLinkService.getBookingLinkById(
+      params.id,
+    );
 
     if (!bookingLink) {
       return NextResponse.json(
@@ -66,7 +68,9 @@ export async function PUT(
     }
 
     // Check if user has access to this booking link
-    const existingLink = await bookingLinkService.getBookingLinkById(params.id);
+    const existingLink = await serverBookingLinkService.getBookingLinkById(
+      params.id,
+    );
     if (!existingLink) {
       return NextResponse.json(
         { error: "Booking link not found" },
@@ -90,11 +94,13 @@ export async function PUT(
     const body = await request.json();
 
     // Validate the configuration
-    const validation = await bookingLinkService.validateBookingLinkConfig({
-      ...body,
-      id: params.id,
-      organization_id: existingLink.organization_id,
-    });
+    const validation = await serverBookingLinkService.validateBookingLinkConfig(
+      {
+        ...body,
+        id: params.id,
+        organization_id: existingLink.organization_id,
+      },
+    );
 
     if (!validation.valid) {
       return NextResponse.json(
@@ -104,7 +110,7 @@ export async function PUT(
     }
 
     // Update the booking link
-    const updatedLink = await bookingLinkService.updateBookingLink(
+    const updatedLink = await serverBookingLinkService.updateBookingLink(
       params.id,
       body,
     );
@@ -133,7 +139,7 @@ export async function PUT(
           }
         }
         // Always reset for this staff to reflect current selections
-        await bookingLinkService.setAvailabilityRules(
+        await serverBookingLinkService.setAvailabilityRules(
           updatedLink.id,
           staffId,
           flatRules,
@@ -174,7 +180,9 @@ export async function DELETE(
     }
 
     // Check if user has access to this booking link
-    const existingLink = await bookingLinkService.getBookingLinkById(params.id);
+    const existingLink = await serverBookingLinkService.getBookingLinkById(
+      params.id,
+    );
     if (!existingLink) {
       return NextResponse.json(
         { error: "Booking link not found" },
@@ -195,7 +203,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    await bookingLinkService.deleteBookingLink(params.id);
+    await serverBookingLinkService.deleteBookingLink(params.id);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting booking link:", error);

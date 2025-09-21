@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { bookingLinkService } from "@/app/lib/services/booking-link";
+import { serverBookingLinkService } from "@/app/lib/services/booking-link";
 import { createClient } from "@/app/lib/supabase/server";
 
 export async function POST(
@@ -20,7 +20,9 @@ export async function POST(
     const body = await request.json();
 
     // Get booking link to verify access
-    const bookingLink = await bookingLinkService.getBookingLinkById(params.id);
+    const bookingLink = await serverBookingLinkService.getBookingLinkById(
+      params.id,
+    );
     if (!bookingLink) {
       return NextResponse.json(
         { error: "Booking link not found" },
@@ -62,7 +64,7 @@ export async function POST(
     }
 
     // Get form fields
-    const formFields = await bookingLinkService.getFormFields(params.id);
+    const formFields = await serverBookingLinkService.getFormFields(params.id);
 
     // Generate sample availability (next 7 days)
     const sampleSlots = [
