@@ -1,7 +1,6 @@
 // Input Validation and Sanitization for Automation System
 // Prevents injection attacks and ensures data integrity
 
-import DOMPurify from "isomorphic-dompurify";
 import validator from "validator";
 
 export interface ValidationOptions {
@@ -205,10 +204,8 @@ export class AutomationInputValidator {
 
     // Sanitize HTML if enabled
     if (options.sanitizeHtml) {
-      const sanitized = DOMPurify.sanitize(value, {
-        ALLOWED_TAGS: [],
-        ALLOWED_ATTR: [],
-      });
+      // Use validator.escape for SSR compatibility instead of DOMPurify
+      const sanitized = validator.escape(value);
       if (sanitized !== value) {
         result.warnings.push("HTML content sanitized");
       }

@@ -106,7 +106,7 @@ const nextConfig = {
   },
   
   // Webpack configuration to handle React Flow SSR issues
-  webpack: (config, { isServer, dev }) => {
+  webpack: (config, { isServer }) => {
     if (isServer) {
       // Don't bundle React Flow on the server
       config.externals.push('@xyflow/react', 'reactflow');
@@ -117,22 +117,6 @@ const nextConfig = {
       ...config.resolve.fallback,
       fs: false,
     };
-    
-    // Alias the problematic stylesheet to a placeholder
-    if (!isServer) {
-      config.resolve.alias = {
-        ...config.resolve.alias,
-        '.next/browser/default-stylesheet.css': false,
-      };
-    }
-    
-    // Ignore CSS imports in server bundles
-    if (isServer) {
-      config.module.rules.push({
-        test: /\.css$/,
-        use: 'null-loader',
-      });
-    }
     
     return config;
   }
