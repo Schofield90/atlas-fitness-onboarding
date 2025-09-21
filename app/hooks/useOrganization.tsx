@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useState,
+  useCallback,
   ReactNode,
 } from "react";
 import { createClient } from "@/app/lib/supabase/client";
@@ -37,7 +38,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchOrganization = async () => {
+  const fetchOrganization = useCallback(async () => {
     // Only run on client side
     if (typeof window === "undefined") {
       setIsLoading(false);
@@ -45,21 +46,25 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     }
 
     try {
+      console.log("Starting fetchOrganization...");
       setError(null);
       const supabase = createClient();
 
       if (!supabase) {
+        console.log("No supabase client");
         setIsLoading(false);
         return;
       }
 
       // Get current user
+      console.log("Getting user from auth...");
       const {
         data: { user: currentUser },
         error: userError,
       } = await supabase.auth.getUser();
 
       if (userError || !currentUser) {
+        console.log("No user found:", userError);
         setUser(null);
         setOrganizationId(null);
         setOrganization(null);
@@ -67,18 +72,52 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      console.log("User found:", currentUser.id, currentUser.email);
+
       setUser(currentUser);
 
-      // Use the database function to get organization ID
-      const { data: orgData, error: orgError } = await supabase.rpc(
+      // Try to get organization ID - first try RPC, then fallback to direct query
+      console.log("Fetching organization for user:", currentUser.id);
+
+      let orgData = null;
+      let orgError = null;
+
+      // Try RPC function first
+      const { data: rpcData, error: rpcError } = await supabase.rpc(
         "get_user_organization_id",
         { user_uuid: currentUser.id },
       );
 
+      if (rpcError) {
+        console.log("RPC failed, trying direct query:", rpcError);
+        // Fallback to direct query if RPC doesn't exist
+        const { data: staffData, error: staffError } = await supabase
+          .from("organization_staff")
+          .select("organization_id")
+          .eq("user_id", currentUser.id)
+          .eq("is_active", true)
+          .single();
+
+        if (staffError) {
+          console.error("Direct query also failed:", staffError);
+          orgError = staffError;
+        } else {
+          orgData = staffData?.organization_id;
+        }
+      } else {
+        orgData = rpcData;
+      }
+
       if (orgError) {
         console.error("Error fetching organization:", orgError);
-        throw orgError;
+        // Don't throw for missing org, just proceed
+        if (orgError.code !== "PGRST116") {
+          // Not a "not found" error
+          throw orgError;
+        }
       }
+
+      console.log("Organization data:", orgData);
 
       if (!orgData) {
         // No organization found - redirect to onboarding
@@ -147,7 +186,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [router]);
 
   useEffect(() => {
     fetchOrganization();
@@ -174,7 +213,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [fetchOrganization]);
 
   return (
     <OrganizationContext.Provider

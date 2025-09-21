@@ -214,7 +214,7 @@ export async function middleware(request: NextRequest) {
     return res
   }
 
-  // Handle subdomain-specific routing (only in production)
+  // Handle subdomain-specific routing (in production only - skip for localhost dev)
   if (hostname.includes('gymleadhub.co.uk') && subdomain) {
     const config = SUBDOMAIN_CONFIG[subdomain as keyof typeof SUBDOMAIN_CONFIG]
 
@@ -234,15 +234,20 @@ export async function middleware(request: NextRequest) {
                           pathname.includes('.')
 
       if (!isAllowedPath && !isAuthRoute && !isStaticFile) {
+        // Determine base URL for redirects
+        const isLocalhost = hostname.includes('localhost')
+        const protocol = isLocalhost ? 'http' : 'https'
+        const baseDomain = isLocalhost ? 'localhost:3000' : 'gymleadhub.co.uk'
+        
         // Redirect to the correct subdomain if trying to access wrong area
         if (pathname.startsWith('/admin') && subdomain !== 'admin') {
-          return NextResponse.redirect(new URL(pathname, `https://admin.gymleadhub.co.uk`))
+          return NextResponse.redirect(new URL(pathname, `${protocol}://admin.${baseDomain}`))
         }
         if (pathname.startsWith('/dashboard') && subdomain !== 'login') {
-          return NextResponse.redirect(new URL(pathname, `https://login.gymleadhub.co.uk`))
+          return NextResponse.redirect(new URL(pathname, `${protocol}://login.${baseDomain}`))
         }
         if (pathname.startsWith('/client') && subdomain !== 'members') {
-          return NextResponse.redirect(new URL(pathname, `https://members.gymleadhub.co.uk`))
+          return NextResponse.redirect(new URL(pathname, `${protocol}://members.${baseDomain}`))
         }
 
         // Otherwise, redirect to the subdomain's default page
