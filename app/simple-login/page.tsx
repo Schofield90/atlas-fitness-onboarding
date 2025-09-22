@@ -71,6 +71,13 @@ function LoginPageContent() {
     setLoading(true);
     setMessage("");
 
+    // Add a timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      setLoading(false);
+      setMessage("Request timed out. Please try again.");
+      setSuccess(false);
+    }, 30000); // 30 second timeout
+
     try {
       const response = await fetch("/api/login-otp", {
         method: "POST",
@@ -90,30 +97,46 @@ function LoginPageContent() {
 
       // If we have session tokens, set them and redirect
       if (data.session) {
-        const supabase = createClient();
-        const { error: sessionError } = await supabase.auth.setSession({
-          access_token: data.session.access_token,
-          refresh_token: data.session.refresh_token,
-        });
+        try {
+          const supabase = createClient();
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: data.session.access_token,
+            refresh_token: data.session.refresh_token,
+          });
 
-        if (sessionError) {
-          throw new Error("Failed to set session");
-        }
+          if (sessionError) {
+            console.error("Failed to set session:", sessionError);
+            // Try authUrl fallback if available
+            if (data.authUrl) {
+              window.location.href = data.authUrl;
+              return;
+            }
+            throw new Error("Failed to set session. Please try again.");
+          }
 
-        // Always redirect to client dashboard for members
-        // Use full URL to ensure we stay on members subdomain
-        const hostname =
-          typeof window !== "undefined" ? window.location.hostname : "";
+          // Always redirect to client dashboard for members
+          // Use full URL to ensure we stay on members subdomain
+          const hostname =
+            typeof window !== "undefined" ? window.location.hostname : "";
 
-        if (hostname.includes("members.gymleadhub.co.uk")) {
-          router.push("/client/dashboard");
-        } else if (hostname.includes("gymleadhub.co.uk")) {
-          // Redirect to members subdomain
-          window.location.href =
-            "https://members.gymleadhub.co.uk/client/dashboard";
-        } else {
-          // Local development
-          router.push("/client/dashboard");
+          clearTimeout(timeoutId); // Clear timeout on success
+
+          if (hostname.includes("members.gymleadhub.co.uk")) {
+            router.push("/client/dashboard");
+          } else if (hostname.includes("gymleadhub.co.uk")) {
+            // Redirect to members subdomain
+            window.location.href =
+              "https://members.gymleadhub.co.uk/client/dashboard";
+          } else {
+            // Local development
+            router.push("/client/dashboard");
+          }
+        } catch (sessionErr) {
+          console.error("Session setup error:", sessionErr);
+          setMessage("Login failed. Please try again.");
+          setSuccess(false);
+          setLoading(false); // Stop the loading state
+          return; // Don't continue
         }
       } else if (data.authUrl) {
         // Fallback to auth URL if provided
@@ -146,9 +169,11 @@ function LoginPageContent() {
         }
       }
     } catch (err) {
+      clearTimeout(timeoutId); // Clear the timeout if we get here
       setMessage(err instanceof Error ? err.message : "Invalid or expired OTP");
       setSuccess(false);
     } finally {
+      clearTimeout(timeoutId); // Clear the timeout
       setLoading(false);
     }
   };

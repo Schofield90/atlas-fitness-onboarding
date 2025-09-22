@@ -183,26 +183,65 @@ export async function POST(request: NextRequest) {
       // we'll sign them in directly using the admin API
       if (client.user_id) {
         // Sign the user in directly
-        const { data: sessionData, error: sessionError } =
-          await adminSupabase.auth.admin.createSession({
-            user_id: client.user_id,
-          });
+        try {
+          const { data: sessionData, error: sessionError } =
+            await adminSupabase.auth.admin.createSession({
+              user_id: client.user_id,
+            });
 
-        if (!sessionError && sessionData?.session) {
-          // Return the session tokens for the client to set
-          return NextResponse.json({
-            success: true,
-            session: {
-              access_token: sessionData.session.access_token,
-              refresh_token: sessionData.session.refresh_token,
-            },
-            redirectTo: "/client/dashboard",
-            userRole: "member",
-          });
+          if (sessionError) {
+            console.error("Session creation error:", sessionError);
+            // Don't fail completely, try fallback approach
+
+            // Try to generate a magic link as fallback
+            const { data: linkData, error: linkError } =
+              await adminSupabase.auth.admin.generateLink({
+                type: "magiclink",
+                email: email.toLowerCase(),
+                options: {
+                  redirectTo:
+                    "https://members.gymleadhub.co.uk/client/dashboard",
+                },
+              });
+
+            if (!linkError && linkData?.properties?.action_link) {
+              return NextResponse.json({
+                success: true,
+                authUrl: linkData.properties.action_link,
+                redirectTo: "/client/dashboard",
+                userRole: "member",
+              });
+            }
+
+            // If both methods fail, return error
+            return NextResponse.json(
+              {
+                success: false,
+                error: "Unable to create session. Please try again.",
+              },
+              { status: 500 },
+            );
+          }
+
+          if (sessionData?.session) {
+            // Return the session tokens for the client to set
+            return NextResponse.json({
+              success: true,
+              session: {
+                access_token: sessionData.session.access_token,
+                refresh_token: sessionData.session.refresh_token,
+              },
+              redirectTo: "/client/dashboard",
+              userRole: "member",
+            });
+          }
+        } catch (error) {
+          console.error("Unexpected session error:", error);
         }
       }
 
       // Fallback - just return redirect URL for client-side handling
+      // This handles cases where user doesn't have a user_id yet
       return NextResponse.json({
         success: true,
         redirectTo: "/client/dashboard",
