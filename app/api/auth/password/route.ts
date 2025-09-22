@@ -3,13 +3,29 @@ import {
   createClient,
   getAuthenticatedClient,
 } from "@/app/lib/supabase/server";
-import bcrypt from "bcryptjs";
+import { createAdminClient } from "@/app/lib/supabase/admin";
+import { createHash, randomBytes, pbkdf2Sync } from "crypto";
+
+// Helper functions to replace bcrypt
+function hashPassword(password: string): string {
+  const salt = randomBytes(16).toString("hex");
+  const hash = pbkdf2Sync(password, salt, 10000, 64, "sha512").toString("hex");
+  return `${salt}:${hash}`;
+}
+
+function verifyPassword(password: string, hashedPassword: string): boolean {
+  const [salt, hash] = hashedPassword.split(":");
+  const verifyHash = pbkdf2Sync(password, salt, 10000, 64, "sha512").toString(
+    "hex",
+  );
+  return hash === verifyHash;
+}
 
 export async function POST(request: NextRequest) {
   try {
     const { action, email, password, newPassword, token } =
       await request.json();
-    const supabase = createClient();
+    const supabase = createAdminClient();
 
     if (action === "login") {
       // Password login
@@ -72,16 +88,66 @@ export async function POST(request: NextRequest) {
       }
 
       // Verify password
-      const isValidPassword = await bcrypt.compare(
-        password,
-        client.password_hash,
-      );
+      const isValidPassword = verifyPassword(password, client.password_hash);
 
       if (!isValidPassword) {
         return NextResponse.json(
           { success: false, error: "Invalid email or password" },
           { status: 401 },
         );
+      }
+
+      // For development, create a proper session
+      if (process.env.NODE_ENV === "development") {
+        // Check if client has a user_id, if not create one
+        if (!client.user_id) {
+          // Create a new Supabase user for the client
+          const { data: newUser, error: createError } =
+            await supabase.auth.admin.createUser({
+              email: client.email,
+              email_confirm: true,
+              user_metadata: {
+                first_name: client.first_name,
+                last_name: client.last_name,
+                role: "client",
+              },
+            });
+
+          if (createError || !newUser.user) {
+            return NextResponse.json(
+              { success: false, error: "Failed to create user session" },
+              { status: 500 },
+            );
+          }
+
+          // Update client with user_id
+          await supabase
+            .from("clients")
+            .update({ user_id: newUser.user.id })
+            .eq("id", client.id);
+
+          client.user_id = newUser.user.id;
+        }
+
+        // Generate a magic link to sign the user in
+        const { data: magicLink, error: magicLinkError } =
+          await supabase.auth.admin.generateLink({
+            type: "magiclink",
+            email: client.email,
+          });
+
+        if (magicLinkError || !magicLink) {
+          return NextResponse.json(
+            { success: false, error: "Failed to generate authentication link" },
+            { status: 500 },
+          );
+        }
+
+        return NextResponse.json({
+          success: true,
+          authUrl: magicLink.properties?.action_link,
+          redirectTo: "/client/dashboard",
+        });
       }
 
       // Create or get user session
@@ -192,7 +258,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Hash the new password
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      const hashedPassword = hashPassword(newPassword);
 
       // Update client's password
       const { error: updateError } = await supabase
@@ -314,7 +380,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Hash the new password
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      const hashedPassword = hashPassword(newPassword);
 
       // Update password and clear reset token
       const { error: updateError } = await supabase

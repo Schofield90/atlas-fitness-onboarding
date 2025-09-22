@@ -186,15 +186,20 @@ function LoginPageContent() {
         if (subdomain === "members") {
           router.push(data.redirectTo || "/client/dashboard");
         } else {
-          const redirectUrl = getPostAuthRedirectUrl(
-            "member",
-            hostname,
-            data.redirectTo,
-          );
-          if (redirectUrl.startsWith("http")) {
-            window.location.href = redirectUrl;
+          // For localhost development, just use router.push
+          if (hostname.includes("localhost")) {
+            router.push(data.redirectTo || "/dashboard");
           } else {
-            router.push(redirectUrl);
+            const redirectUrl = getPostAuthRedirectUrl(
+              "member",
+              hostname,
+              data.redirectTo,
+            );
+            if (redirectUrl.startsWith("http")) {
+              window.location.href = redirectUrl;
+            } else {
+              router.push(redirectUrl);
+            }
           }
         }
       }

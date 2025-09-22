@@ -1,0 +1,92 @@
+[
+  {
+    "severity": "CRITICAL",
+    "title": "Unauthenticated Admin Access",
+    "details": "Admin route /admin-direct accessible without authentication",
+    "stepsToReproduce": [
+      "1. Navigate to http://localhost:3001/admin-direct without logging in",
+      "2. Admin content is displayed"
+    ],
+    "impact": "Attackers can access admin functionality without credentials",
+    "timestamp": "2025-09-22T14:00:49.989Z"
+  },
+  {
+    "severity": "CRITICAL",
+    "title": "Unauthenticated Admin Access",
+    "details": "Admin route /admin-debug accessible without authentication",
+    "stepsToReproduce": [
+      "1. Navigate to http://localhost:3001/admin-debug without logging in",
+      "2. Admin content is displayed"
+    ],
+    "impact": "Attackers can access admin functionality without credentials",
+    "timestamp": "2025-09-22T14:00:50.773Z"
+  },
+  {
+    "severity": "CRITICAL",
+    "title": "Unauthenticated Admin Access",
+    "details": "Admin route /saas-admin accessible without authentication",
+    "stepsToReproduce": [
+      "1. Navigate to http://localhost:3001/saas-admin without logging in",
+      "2. Admin content is displayed"
+    ],
+    "impact": "Attackers can access admin functionality without credentials",
+    "timestamp": "2025-09-22T14:00:51.560Z"
+  },
+  {
+    "severity": "CRITICAL",
+    "title": "Unauthenticated Admin Access",
+    "details": "Admin route /admin/organizations accessible without authentication",
+    "stepsToReproduce": [
+      "1. Navigate to http://localhost:3001/admin/organizations without logging in",
+      "2. Admin content is displayed"
+    ],
+    "impact": "Attackers can access admin functionality without credentials",
+    "timestamp": "2025-09-22T14:00:52.351Z"
+  },
+  {
+    "severity": "CRITICAL",
+    "title": "Unauthenticated Admin Access",
+    "details": "Admin route /admin/billing accessible without authentication",
+    "stepsToReproduce": [
+      "1. Navigate to http://localhost:3001/admin/billing without logging in",
+      "2. Admin content is displayed"
+    ],
+    "impact": "Attackers can access admin functionality without credentials",
+    "timestamp": "2025-09-22T14:00:53.130Z"
+  },
+  {
+    "severity": "CRITICAL",
+    "title": "Unauthenticated Admin Access",
+    "details": "Admin route /admin/simple-dashboard accessible without authentication",
+    "stepsToReproduce": [
+      "1. Navigate to http://localhost:3001/admin/simple-dashboard without logging in",
+      "2. Admin content is displayed"
+    ],
+    "impact": "Attackers can access admin functionality without credentials",
+    "timestamp": "2025-09-22T14:00:53.914Z"
+  },
+  {
+    "severity": "HIGH",
+    "title": "Insecure Direct Object Reference",
+    "details": "Unauthorized access to /settings?org_id=1",
+    "stepsToReproduce": [
+      "1. Login as regular user",
+      "2. Access /settings?org_id=1",
+      "3. View/modify other organizations data"
+    ],
+    "impact": "Users can access data from other organizations",
+    "timestamp": "2025-09-22T14:01:00.043Z"
+  },
+  {
+    "severity": "HIGH",
+    "title": "Insecure Direct Object Reference",
+    "details": "Unauthorized access to /settings?org_id=2",
+    "stepsToReproduce": [
+      "1. Login as regular user",
+      "2. Access /settings?org_id=2",
+      "3. View/modify other organizations data"
+    ],
+    "impact": "Users can access data from other organizations",
+    "timestamp": "2025-09-22T14:01:00.093Z"
+  }
+]

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/client";
 import CoachDashboard from "@/app/components/nutrition/CoachDashboard";
+import DashboardLayout from "@/app/components/DashboardLayout";
 
 export default function CoachNutritionPage() {
   const router = useRouter();
@@ -66,45 +67,55 @@ export default function CoachNutritionPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
-      </div>
+      <DashboardLayout userData={null}>
+        <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+        </div>
+      </DashboardLayout>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4">
-        <div className="bg-gray-800 shadow-lg rounded-lg p-6 max-w-md text-center border border-gray-700">
-          <h2 className="text-lg font-semibold mb-2 text-white">
-            Access Denied
-          </h2>
-          <p className="text-gray-400">{error}</p>
-          <button
-            onClick={() => router.push("/dashboard")}
-            className="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-          >
-            Go to Dashboard
-          </button>
+      <DashboardLayout userData={coach}>
+        <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4">
+          <div className="bg-gray-800 shadow-lg rounded-lg p-6 max-w-md text-center border border-gray-700">
+            <h2 className="text-lg font-semibold mb-2 text-white">
+              Access Denied
+            </h2>
+            <p className="text-gray-400">{error}</p>
+            <button
+              onClick={() => router.push("/dashboard")}
+              className="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+            >
+              Go to Dashboard
+            </button>
+          </div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   if (!coach || !organizationId) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4">
-        <div className="bg-gray-800 shadow-lg rounded-lg p-6 max-w-md text-center border border-gray-700">
-          <h2 className="text-lg font-semibold mb-2 text-white">
-            Setup Required
-          </h2>
-          <p className="text-gray-400">
-            Please complete your organization setup first.
-          </p>
+      <DashboardLayout userData={coach}>
+        <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4">
+          <div className="bg-gray-800 shadow-lg rounded-lg p-6 max-w-md text-center border border-gray-700">
+            <h2 className="text-lg font-semibold mb-2 text-white">
+              Setup Required
+            </h2>
+            <p className="text-gray-400">
+              Please complete your organization setup first.
+            </p>
+          </div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
-  return <CoachDashboard coach={coach} organizationId={organizationId} />;
+  return (
+    <DashboardLayout userData={coach}>
+      <CoachDashboard coach={coach} organizationId={organizationId} />
+    </DashboardLayout>
+  );
 }

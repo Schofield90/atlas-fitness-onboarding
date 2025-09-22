@@ -17,6 +17,7 @@ import {
   ChevronRight,
   User,
   Bot,
+  RotateCcw,
 } from "lucide-react";
 
 interface CoachingPhase {
@@ -121,7 +122,31 @@ export default function AdvancedCoach({
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Initialize with a welcoming coach message
+    // Try to load saved state from localStorage
+    const savedState = localStorage.getItem(`nutrition-coach-${clientId}`);
+
+    if (savedState) {
+      try {
+        const parsed = JSON.parse(savedState);
+        setMessages(
+          parsed.messages.map((msg: any) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp),
+          })),
+        );
+        setUserContext(parsed.userContext);
+        setCurrentQuestionIndex(parsed.currentQuestionIndex);
+        setCurrentPhase(
+          COACHING_PHASES.find((p) => p.id === parsed.currentPhase) ||
+            COACHING_PHASES[0],
+        );
+        return; // Don't initialize fresh if we have saved state
+      } catch (error) {
+        console.error("Error loading saved coaching state:", error);
+      }
+    }
+
+    // Initialize with a welcoming coach message (only if no saved state)
     const welcomeMessage: Message = {
       id: "1",
       role: "coach",
@@ -145,14 +170,77 @@ Ready to begin your transformation journey?`,
     setTimeout(() => {
       askNextQuestion();
     }, 2000);
-  }, []);
+  }, [clientId]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
+  // Save state to localStorage whenever it changes
+  useEffect(() => {
+    if (messages.length > 0) {
+      // Only save if we have messages (not initial empty state)
+      const stateToSave = {
+        messages,
+        userContext,
+        currentQuestionIndex,
+        currentPhase: currentPhase.id,
+      };
+      localStorage.setItem(
+        `nutrition-coach-${clientId}`,
+        JSON.stringify(stateToSave),
+      );
+    }
+  }, [messages, userContext, currentQuestionIndex, currentPhase, clientId]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const resetProgress = () => {
+    // Clear localStorage
+    localStorage.removeItem(`nutrition-coach-${clientId}`);
+
+    // Reset all state
+    setMessages([]);
+    setCurrentPhase(COACHING_PHASES[0]);
+    setUserContext({
+      goals: [],
+      challenges: [],
+      preferences: [],
+      lifestyle: [],
+      progressIndicators: [],
+      currentPhase: "assessment",
+      coachingLevel: 1,
+    });
+    setCurrentQuestionIndex(0);
+    setInputValue("");
+
+    // Restart the conversation
+    setTimeout(() => {
+      const welcomeMessage: Message = {
+        id: "1",
+        role: "coach",
+        content: `Hello! I'm your advanced nutrition coach. I'm here to help you achieve your goals through personalized guidance and evidence-based strategies.
+
+Let's start by getting to know you better. I'll ask you some questions to understand your unique situation, and then we'll create a comprehensive plan together.
+
+Ready to begin your transformation journey?`,
+        timestamp: new Date(),
+        phase: "assessment",
+        insights: [
+          "Personalized coaching based on your responses",
+          "Science-backed nutrition strategies",
+          "Behavioral change techniques",
+          "Progress tracking and adjustments",
+        ],
+      };
+      setMessages([welcomeMessage]);
+
+      setTimeout(() => {
+        askNextQuestion();
+      }, 2000);
+    }, 100);
   };
 
   const askNextQuestion = () => {
@@ -402,10 +490,7 @@ Ready to start your transformation? Let's begin with Week 1! 💪`,
     const coachResponse: Message = {
       id: Date.now().toString(),
       role: "coach",
-      content: `Thank you for sharing that with me. ${generateContextualResponse(
-        userInput,
-        currentPhase.id,
-      )}`,
+      content: generateContextualResponse(userInput, currentPhase.id),
       timestamp: new Date(),
       phase: currentPhase.id,
       educational: educational,
@@ -425,8 +510,7 @@ Ready to start your transformation? Let's begin with Week 1! 💪`,
   ): string => {
     // Generate intelligent responses based on user input
     const responses: { [key: string]: string } = {
-      assessment:
-        "I can see how that impacts your daily nutrition. This insight will help me create a more effective plan for you.",
+      assessment: "Great insights! Let me help you build on this information.",
       mindset:
         "That's a common challenge, and I have specific strategies that will help you overcome it.",
       optimization:
@@ -526,6 +610,15 @@ Ready to start your transformation? Let's begin with Week 1! 💪`,
               );
             })}
           </div>
+
+          {/* Reset Button */}
+          <button
+            onClick={resetProgress}
+            className="ml-4 p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors group"
+            title="Reset Progress"
+          >
+            <RotateCcw className="h-4 w-4 text-gray-400 group-hover:text-white" />
+          </button>
         </div>
       </div>
 
