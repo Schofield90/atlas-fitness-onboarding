@@ -51,8 +51,57 @@ export async function POST(request: NextRequest) {
 
       console.log(`OTP for ${email}: ${otpCode}`);
 
-      // In production, this would send an email
-      // For now, we're logging to console and showing success message
+      // Send OTP email
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Your Login Verification Code</h2>
+          <p>Hi ${client.first_name || "there"},</p>
+          <p>Your verification code is:</p>
+          <div style="background: #f4f4f4; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px; margin: 20px 0;">
+            ${otpCode}
+          </div>
+          <p>This code will expire in 10 minutes.</p>
+          <p>If you didn't request this code, please ignore this email.</p>
+        </div>
+      `;
+
+      // Try to send email using Resend
+      if (process.env.RESEND_API_KEY) {
+        try {
+          const resendResponse = await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              from:
+                process.env.RESEND_FROM_EMAIL ||
+                "Atlas Fitness <noreply@gymleadhub.co.uk>",
+              to: email,
+              subject: `Your verification code: ${otpCode}`,
+              html: emailHtml,
+              text: `Your verification code is: ${otpCode}\n\nThis code will expire in 10 minutes.`,
+            }),
+          });
+
+          const resendData = await resendResponse.json();
+
+          if (!resendResponse.ok) {
+            console.error("Failed to send OTP email via Resend:", resendData);
+            // Don't fail the request, just log the error
+          } else {
+            console.log("Email sent successfully:", resendData);
+          }
+        } catch (emailError) {
+          console.error("Email sending error:", emailError);
+          // Don't fail the request, just log the error
+        }
+      } else {
+        console.log("RESEND_API_KEY not configured - OTP email not sent");
+      }
+
+      // Return success regardless of email status
       return NextResponse.json({
         success: true,
         message: "Verification code sent!",
