@@ -88,8 +88,35 @@ function LoginPageContent() {
         throw new Error(data.error || "Failed to verify OTP");
       }
 
-      // If we have an auth URL, use it to sign in
-      if (data.authUrl) {
+      // If we have session tokens, set them and redirect
+      if (data.session) {
+        const supabase = createClient();
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
+
+        if (sessionError) {
+          throw new Error("Failed to set session");
+        }
+
+        // Always redirect to client dashboard for members
+        // Use full URL to ensure we stay on members subdomain
+        const hostname =
+          typeof window !== "undefined" ? window.location.hostname : "";
+
+        if (hostname.includes("members.gymleadhub.co.uk")) {
+          router.push("/client/dashboard");
+        } else if (hostname.includes("gymleadhub.co.uk")) {
+          // Redirect to members subdomain
+          window.location.href =
+            "https://members.gymleadhub.co.uk/client/dashboard";
+        } else {
+          // Local development
+          router.push("/client/dashboard");
+        }
+      } else if (data.authUrl) {
+        // Fallback to auth URL if provided
         window.location.href = data.authUrl;
       } else {
         // Use domain-aware redirect for members

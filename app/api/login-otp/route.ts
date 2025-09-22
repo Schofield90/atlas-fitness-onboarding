@@ -167,43 +167,42 @@ export async function POST(request: NextRequest) {
       // Get the client record
       const { data: client } = await adminSupabase
         .from("clients")
-        .select("user_id")
+        .select("user_id, organization_id")
         .eq("email", email.toLowerCase())
         .single();
 
-      if (client?.user_id) {
-        // Generate magic link for user with explicit members subdomain redirect
-        const { data: authData, error: authError } =
-          await adminSupabase.auth.admin.generateLink({
-            type: "magiclink",
-            email: email.toLowerCase(),
-            options: {
-              // Use full URL to ensure it goes to the members subdomain
-              redirectTo: "https://members.gymleadhub.co.uk/client/dashboard",
-            },
+      if (!client) {
+        return NextResponse.json(
+          { success: false, error: "Client record not found" },
+          { status: 404 },
+        );
+      }
+
+      // For members/clients, we'll handle auth differently
+      // Instead of using magic links (which can redirect wrongly),
+      // we'll sign them in directly using the admin API
+      if (client.user_id) {
+        // Sign the user in directly
+        const { data: sessionData, error: sessionError } =
+          await adminSupabase.auth.admin.createSession({
+            user_id: client.user_id,
           });
 
-        if (!authError && authData?.properties?.action_link) {
-          // Parse the magic link and ensure it includes the correct redirect
-          const magicLink = authData.properties.action_link;
-
-          // Add the redirect parameter explicitly if not present
-          const url = new URL(magicLink);
-          if (!url.searchParams.has("redirect_to")) {
-            url.searchParams.set(
-              "redirect_to",
-              "https://members.gymleadhub.co.uk/client/dashboard",
-            );
-          }
-
+        if (!sessionError && sessionData?.session) {
+          // Return the session tokens for the client to set
           return NextResponse.json({
             success: true,
-            authUrl: url.toString(),
+            session: {
+              access_token: sessionData.session.access_token,
+              refresh_token: sessionData.session.refresh_token,
+            },
+            redirectTo: "/client/dashboard",
+            userRole: "member",
           });
         }
       }
 
-      // Fallback - don't use magic link, just return redirect URL for client-side handling
+      // Fallback - just return redirect URL for client-side handling
       return NextResponse.json({
         success: true,
         redirectTo: "/client/dashboard",
