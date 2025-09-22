@@ -19,6 +19,7 @@ export default function ClientProfilePage() {
   const [client, setClient] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [hasPassword, setHasPassword] = useState(false);
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
@@ -69,6 +70,14 @@ export default function ClientProfilePage() {
     }
 
     setClient(clientData);
+
+    // Check if user has a password set (only if password_hash column exists)
+    try {
+      setHasPassword(!!clientData.password_hash);
+    } catch (error) {
+      // If password_hash column doesn't exist yet, default to false
+      setHasPassword(false);
+    }
 
     // Try to load nutrition data from localStorage if database columns don't exist
     const savedNutrition = localStorage.getItem(`nutrition_${clientData.id}`);
@@ -604,9 +613,14 @@ export default function ClientProfilePage() {
             Account Actions
           </h3>
           <div className="space-y-3">
-            <button className="w-full text-left px-4 py-3 border border-gray-600 rounded-lg hover:bg-gray-700 transition-colors">
+            <button
+              onClick={() => router.push("/client/settings/password")}
+              className="w-full text-left px-4 py-3 border border-gray-600 rounded-lg hover:bg-gray-700 transition-colors"
+            >
               <div className="flex justify-between items-center">
-                <span className="text-gray-300">Change Password</span>
+                <span className="text-gray-300">
+                  {hasPassword ? "Change Password" : "Set Password"}
+                </span>
                 <ChevronLeft className="h-5 w-5 text-gray-400 transform rotate-180" />
               </div>
             </button>
