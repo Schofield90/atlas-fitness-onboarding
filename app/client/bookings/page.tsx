@@ -434,15 +434,31 @@ export default function ClientBookingsPage() {
                           <div className="flex items-center gap-2">
                             <Clock className="h-4 w-4" />
                             <span>
-                              {format(
-                                parseISO(booking.class_sessions.start_time),
-                                "h:mm a",
-                              )}{" "}
-                              -
-                              {format(
-                                parseISO(booking.class_sessions.end_time),
-                                "h:mm a",
-                              )}
+                              {(() => {
+                                const startDate = new Date(
+                                  booking.class_sessions.start_time,
+                                );
+                                const endDate = new Date(
+                                  booking.class_sessions.end_time,
+                                );
+                                const startHours = startDate
+                                  .getUTCHours()
+                                  .toString()
+                                  .padStart(2, "0");
+                                const startMinutes = startDate
+                                  .getUTCMinutes()
+                                  .toString()
+                                  .padStart(2, "0");
+                                const endHours = endDate
+                                  .getUTCHours()
+                                  .toString()
+                                  .padStart(2, "0");
+                                const endMinutes = endDate
+                                  .getUTCMinutes()
+                                  .toString()
+                                  .padStart(2, "0");
+                                return `${startHours}:${startMinutes} - ${endHours}:${endMinutes}`;
+                              })()}
                             </span>
                           </div>
                           {booking.class_sessions.location && (
@@ -582,10 +598,20 @@ export default function ClientBookingsPage() {
                       "EEEE, MMMM d",
                     )}{" "}
                     at{" "}
-                    {format(
-                      parseISO(selectedBooking.class_sessions.start_time),
-                      "h:mm a",
-                    )}
+                    {(() => {
+                      const date = new Date(
+                        selectedBooking.class_sessions.start_time,
+                      );
+                      const hours = date
+                        .getUTCHours()
+                        .toString()
+                        .padStart(2, "0");
+                      const minutes = date
+                        .getUTCMinutes()
+                        .toString()
+                        .padStart(2, "0");
+                      return `${hours}:${minutes}`;
+                    })()}
                   </p>
                 </div>
               </div>

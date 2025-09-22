@@ -308,8 +308,28 @@ export default function ClientSchedulePage() {
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-orange-500" />
                           <span>
-                            {format(parseISO(session.start_time), "h:mm a")} -{" "}
-                            {format(parseISO(session.end_time), "h:mm a")}
+                            {(() => {
+                              // Display time exactly as stored in UTC without timezone conversion
+                              const startDate = new Date(session.start_time);
+                              const endDate = new Date(session.end_time);
+                              const startHours = startDate
+                                .getUTCHours()
+                                .toString()
+                                .padStart(2, "0");
+                              const startMinutes = startDate
+                                .getUTCMinutes()
+                                .toString()
+                                .padStart(2, "0");
+                              const endHours = endDate
+                                .getUTCHours()
+                                .toString()
+                                .padStart(2, "0");
+                              const endMinutes = endDate
+                                .getUTCMinutes()
+                                .toString()
+                                .padStart(2, "0");
+                              return `${startHours}:${startMinutes} - ${endHours}:${endMinutes}`;
+                            })()}
                           </span>
                         </div>
                         {session.location && (
