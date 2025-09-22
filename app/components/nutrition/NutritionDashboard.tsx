@@ -5,6 +5,9 @@ import { createClient } from "@/app/lib/supabase/client";
 import NutritionSetup from "./NutritionSetup";
 import MealPlanView from "./MealPlanView";
 import MacroTracker from "./MacroTracker";
+import AdvancedCoach from "./AdvancedCoach";
+import ProgressTracker from "./ProgressTracker";
+import BehavioralCoach from "./BehavioralCoach";
 import {
   Utensils,
   TrendingUp,
@@ -15,6 +18,9 @@ import {
   Target,
   Brain,
   Sparkles,
+  MessageSquare,
+  Heart,
+  Trophy,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import PreferenceCollectorModal from "./PreferenceCollectorModal";
@@ -33,8 +39,8 @@ export default function NutritionDashboard({
   const [showSetup, setShowSetup] = useState(false);
   const [showPreferenceModal, setShowPreferenceModal] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    "meal-plan" | "macros" | "progress"
-  >("meal-plan"); // Default to meal-plan tab
+    "coach" | "meal-plan" | "progress" | "habits" | "macros"
+  >("coach"); // Default to coach tab for high-level coaching experience
   const supabase = createClient();
 
   useEffect(() => {
@@ -64,8 +70,8 @@ export default function NutritionDashboard({
         setShowSetup(false);
         console.log("Updated state: nutritionProfile set, showSetup=false");
 
-        // Always set the active tab to meal-plan when we have a profile
-        setActiveTab("meal-plan");
+        // Set the active tab to coach when we have a profile for high-level coaching
+        setActiveTab("coach");
 
         // Try to load active meal plans using API to bypass RLS
         try {
@@ -273,36 +279,61 @@ export default function NutritionDashboard({
       {/* Tab Navigation */}
       <div className="bg-gray-800 border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-8">
+          <div className="flex space-x-8 overflow-x-auto">
+            <button
+              onClick={() => setActiveTab("coach")}
+              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 whitespace-nowrap ${
+                activeTab === "coach"
+                  ? "border-orange-500 text-orange-500"
+                  : "border-transparent text-gray-400 hover:text-gray-300"
+              }`}
+            >
+              <MessageSquare className="h-4 w-4" />
+              AI Coach
+            </button>
             <button
               onClick={() => setActiveTab("meal-plan")}
-              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 whitespace-nowrap ${
                 activeTab === "meal-plan"
                   ? "border-orange-500 text-orange-500"
                   : "border-transparent text-gray-400 hover:text-gray-300"
               }`}
             >
+              <Utensils className="h-4 w-4" />
               Meal Plan
             </button>
             <button
-              onClick={() => setActiveTab("macros")}
-              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === "macros"
-                  ? "border-orange-500 text-orange-500"
-                  : "border-transparent text-gray-400 hover:text-gray-300"
-              }`}
-            >
-              Track Macros
-            </button>
-            <button
               onClick={() => setActiveTab("progress")}
-              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 whitespace-nowrap ${
                 activeTab === "progress"
                   ? "border-orange-500 text-orange-500"
                   : "border-transparent text-gray-400 hover:text-gray-300"
               }`}
             >
+              <TrendingUp className="h-4 w-4" />
               Progress
+            </button>
+            <button
+              onClick={() => setActiveTab("habits")}
+              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 whitespace-nowrap ${
+                activeTab === "habits"
+                  ? "border-orange-500 text-orange-500"
+                  : "border-transparent text-gray-400 hover:text-gray-300"
+              }`}
+            >
+              <Trophy className="h-4 w-4" />
+              Habits
+            </button>
+            <button
+              onClick={() => setActiveTab("macros")}
+              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 whitespace-nowrap ${
+                activeTab === "macros"
+                  ? "border-orange-500 text-orange-500"
+                  : "border-transparent text-gray-400 hover:text-gray-300"
+              }`}
+            >
+              <Activity className="h-4 w-4" />
+              Track Macros
             </button>
           </div>
         </div>
@@ -436,6 +467,20 @@ export default function NutritionDashboard({
 
         {/* Tab Content */}
         <div className="mt-8">
+          {activeTab === "coach" && (
+            <div
+              className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden"
+              style={{ height: "600px" }}
+            >
+              <AdvancedCoach
+                clientId={client?.id}
+                onPhaseComplete={(phase, insights) => {
+                  console.log("Coaching phase completed:", phase, insights);
+                }}
+              />
+            </div>
+          )}
+
           {activeTab === "meal-plan" && (
             <MealPlanView
               client={client}
@@ -448,6 +493,24 @@ export default function NutritionDashboard({
             />
           )}
 
+          {activeTab === "progress" && (
+            <ProgressTracker
+              clientId={client?.id}
+              onInsightGenerated={(insights) => {
+                console.log("Progress insights generated:", insights);
+              }}
+            />
+          )}
+
+          {activeTab === "habits" && (
+            <BehavioralCoach
+              clientId={client?.id}
+              onHabitComplete={(habit) => {
+                console.log("Habit completed:", habit);
+              }}
+            />
+          )}
+
           {activeTab === "macros" && (
             <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
               <h2 className="text-xl font-semibold text-white mb-4">
@@ -455,17 +518,6 @@ export default function NutritionDashboard({
               </h2>
               <p className="text-gray-400">
                 Macro tracking feature coming soon...
-              </p>
-            </div>
-          )}
-
-          {activeTab === "progress" && (
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-              <h2 className="text-xl font-semibold text-white mb-4">
-                Your Progress
-              </h2>
-              <p className="text-gray-400">
-                Progress tracking feature coming soon...
               </p>
             </div>
           )}

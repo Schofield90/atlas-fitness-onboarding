@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { createClient } from "@/app/lib/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Mail, Lock, Loader2 } from "lucide-react";
+import { ArrowLeft, Mail, Lock, Loader2, Key } from "lucide-react";
 import { Suspense } from "react";
 import {
   getPostAuthRedirectUrl,
@@ -11,11 +11,12 @@ import {
 } from "@/app/lib/auth/domain-redirects";
 
 function LoginPageContent() {
-  const [step, setStep] = useState<"options" | "otp-email" | "otp-verify">(
-    "options",
-  );
+  const [step, setStep] = useState<
+    "options" | "otp-email" | "otp-verify" | "password"
+  >("options");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState(false);
@@ -151,6 +152,60 @@ function LoginPageContent() {
     }
   };
 
+  const handlePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/auth/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "login",
+          email: email.toLowerCase().trim(),
+          password: password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to login");
+      }
+
+      // If we have an auth URL, use it to sign in
+      if (data.authUrl) {
+        window.location.href = data.authUrl;
+      } else {
+        // Use domain-aware redirect
+        const hostname =
+          typeof window !== "undefined" ? window.location.hostname : "";
+        const subdomain = extractSubdomain(hostname);
+
+        if (subdomain === "members") {
+          router.push(data.redirectTo || "/client/dashboard");
+        } else {
+          const redirectUrl = getPostAuthRedirectUrl(
+            "member",
+            hostname,
+            data.redirectTo,
+          );
+          if (redirectUrl.startsWith("http")) {
+            window.location.href = redirectUrl;
+          } else {
+            router.push(redirectUrl);
+          }
+        }
+      }
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Login failed");
+      setSuccess(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleGoogleLogin = async () => {
     setLoading(true);
     setMessage("");
@@ -214,15 +269,26 @@ function LoginPageContent() {
               </p>
             </div>
 
-            {/* OTP Login Option */}
-            <button
-              onClick={() => setStep("otp-email")}
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 text-white py-4 px-6 rounded-xl font-semibold mb-4 flex items-center justify-center gap-3 transition-all transform hover:scale-105 shadow-lg"
-            >
-              <Mail className="w-5 h-5" />
-              Sign in with Email Code
-            </button>
+            {/* Login Options */}
+            <div className="space-y-3 mb-4">
+              <button
+                onClick={() => setStep("password")}
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 text-white py-4 px-6 rounded-xl font-semibold flex items-center justify-center gap-3 transition-all transform hover:scale-105 shadow-lg"
+              >
+                <Key className="w-5 h-5" />
+                Sign in with Password
+              </button>
+
+              <button
+                onClick={() => setStep("otp-email")}
+                disabled={loading}
+                className="w-full bg-gray-800 hover:bg-gray-700 border-2 border-gray-600 hover:border-orange-500 disabled:opacity-50 text-white py-4 px-6 rounded-xl font-semibold flex items-center justify-center gap-3 transition-all"
+              >
+                <Mail className="w-5 h-5" />
+                Sign in with Email Code
+              </button>
+            </div>
 
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
@@ -439,6 +505,106 @@ function LoginPageContent() {
               >
                 Resend Code
               </button>
+            </form>
+          </>
+        )}
+
+        {/* Password Step */}
+        {step === "password" && (
+          <>
+            <button
+              onClick={() => setStep("options")}
+              className="inline-flex items-center text-gray-400 hover:text-orange-500 mb-6 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to login options
+            </button>
+
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-orange-500/20 rounded-full mb-4">
+                <Key className="w-8 h-8 text-orange-500" />
+              </div>
+              <h1 className="text-2xl font-bold text-white">
+                Sign In with Password
+              </h1>
+              <p className="text-gray-300 mt-2">
+                Enter your email and password to sign in
+              </p>
+            </div>
+
+            <form onSubmit={handlePasswordLogin} className="space-y-6">
+              <div>
+                <label
+                  htmlFor="password-email"
+                  className="block text-sm font-medium text-gray-300 mb-2"
+                >
+                  Email Address
+                </label>
+                <input
+                  id="password-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                  placeholder="your@email.com"
+                  required
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-gray-300 mb-2"
+                >
+                  Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                  placeholder="Enter your password"
+                  required
+                />
+              </div>
+
+              {message && (
+                <div
+                  className={`p-3 rounded-lg ${
+                    success
+                      ? "bg-green-900/30 border border-green-600 text-green-400"
+                      : "bg-red-900/30 border border-red-600 text-red-400"
+                  }`}
+                >
+                  {message}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-3 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transform hover:scale-105 shadow-lg"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  "Sign In"
+                )}
+              </button>
+
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => setStep("otp-email")}
+                  className="text-sm text-orange-500 hover:text-orange-400 transition-colors"
+                >
+                  Use email code instead
+                </button>
+              </div>
             </form>
           </>
         )}
