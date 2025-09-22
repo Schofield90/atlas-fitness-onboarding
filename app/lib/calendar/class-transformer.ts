@@ -43,12 +43,12 @@ function getClassColor(type: string | undefined, index: number): ClassColor {
 // Convert time string to 30-minute time slot index
 function getTimeSlotIndex(timeStr: string): number {
   try {
-    // Convert UTC time from database to local timezone
-    const localDate = parseISOToLocal(timeStr);
+    // Use UTC time directly - no timezone conversion
+    const date = new Date(timeStr);
 
-    // Get hours and minutes in local timezone
-    const hours = localDate.getHours();
-    const minutes = localDate.getMinutes();
+    // Get hours and minutes from UTC time as stored
+    const hours = date.getUTCHours();
+    const minutes = date.getUTCMinutes();
 
     // Calculate slot index based on 30-minute intervals
     // Starting from 6:00 AM (slot 0) to 9:00 PM (slot 30)
@@ -79,12 +79,12 @@ function getTimeSlotIndex(timeStr: string): number {
 // Get day index (0 = Monday, 6 = Sunday for calendar grid)
 function getDayIndex(dateStr: string): number {
   try {
-    // Convert UTC time from database to local timezone
-    const localDate = parseISOToLocal(dateStr);
+    // Use UTC date directly - no timezone conversion
+    const date = new Date(dateStr);
 
-    // JavaScript getDay: 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    // JavaScript getUTCDay: 0 = Sunday, 1 = Monday, ..., 6 = Saturday
     // We want: 0 = Monday, 1 = Tuesday, ..., 6 = Sunday
-    const jsDay = localDate.getDay();
+    const jsDay = date.getUTCDay();
     return jsDay === 0 ? 6 : jsDay - 1;
   } catch (error) {
     console.warn("Invalid date string for day calculation:", dateStr, error);
@@ -92,11 +92,14 @@ function getDayIndex(dateStr: string): number {
   }
 }
 
-// Format time for display using timezone utilities
+// Format time for display - no timezone conversion needed
 function formatTimeDisplay(dateStr: string): string {
   try {
-    // Use timezone-aware formatting
-    return formatTime(parseISOToLocal(dateStr), false);
+    // Simply display the UTC time as stored
+    const date = new Date(dateStr);
+    const hours = date.getUTCHours().toString().padStart(2, "0");
+    const minutes = date.getUTCMinutes().toString().padStart(2, "0");
+    return `${hours}:${minutes}`;
   } catch (error) {
     console.warn("Invalid date string for time formatting:", dateStr, error);
     return "TBD";

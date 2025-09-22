@@ -88,7 +88,7 @@ export default function RecurrenceModal({
       : [1],
     endType: "never",
     endDate: "",
-    occurrences: 10,
+    occurrences: 26, // Default to ~6 months for weekly recurrence
     timeSlots: [{ time: getInitialTime(), duration: getInitialDuration() }],
     rrule: "",
   });
@@ -198,9 +198,24 @@ export default function RecurrenceModal({
   const handleSave = () => {
     if (!validateForm()) return;
 
+    // Calculate occurrences for "never" option (6 months of sessions)
+    let occurrencesToSend = formData.occurrences;
+    if (formData.endType === "never") {
+      // Calculate based on frequency
+      if (formData.frequency === "daily") {
+        occurrencesToSend = 180; // ~6 months of daily sessions
+      } else if (formData.frequency === "weekly") {
+        const daysPerWeek = formData.daysOfWeek?.length || 1;
+        occurrencesToSend = Math.min(26 * daysPerWeek, 200); // 26 weeks * days per week, max 200
+      } else if (formData.frequency === "monthly") {
+        occurrencesToSend = 6; // 6 monthly sessions
+      }
+    }
+
     const rrule = generateRRule(formData);
     const recurrenceData = {
       ...formData,
+      occurrences: occurrencesToSend,
       rrule,
     };
 
@@ -510,6 +525,7 @@ export default function RecurrenceModal({
                   className="mr-3 text-orange-500 focus:ring-orange-500"
                 />
                 <span className="text-gray-300">Never</span>
+                <span className="text-xs text-gray-500 ml-2">(6 months)</span>
               </label>
 
               <label className="flex items-center">

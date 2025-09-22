@@ -6,24 +6,24 @@
 import { formatInTimeZone } from "date-fns-tz";
 
 /**
- * Format a timestamp for display in the correct timezone
- * Uses formatInTimeZone for proper timezone handling including DST
+ * Format a timestamp for display
+ * Simply shows the UTC time as stored - no timezone conversion needed
+ * What was entered is what gets displayed
  */
 export function formatTimeDisplay(timestamp: string | Date): string {
   try {
     const date =
       typeof timestamp === "string" ? new Date(timestamp) : timestamp;
 
-    // Use formatInTimeZone for proper timezone handling
-    return formatInTimeZone(date, "Europe/London", "HH:mm");
+    // Simply display the UTC hours/minutes as stored
+    // If stored as "06:00:00Z", display as "06:00"
+    const hours = date.getUTCHours().toString().padStart(2, "0");
+    const minutes = date.getUTCMinutes().toString().padStart(2, "0");
+    return `${hours}:${minutes}`;
   } catch (error) {
     console.warn("Error formatting time display:", error);
-    // Fallback to basic formatting if timezone conversion fails
-    const date =
-      typeof timestamp === "string" ? new Date(timestamp) : timestamp;
-    const hours = date.getHours().toString().padStart(2, "0");
-    const minutes = date.getMinutes().toString().padStart(2, "0");
-    return `${hours}:${minutes}`;
+    // Fallback
+    return "00:00";
   }
 }
 

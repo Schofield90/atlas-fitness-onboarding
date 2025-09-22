@@ -4,20 +4,19 @@ import SessionDetailModal from "./SessionDetailModal";
 
 const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-// Generate time slots dynamically based on classes
-const generateTimeSlots = (startHour: number, endHour: number): string[] => {
-  const slots = [];
-  for (let hour = startHour; hour <= endHour; hour++) {
-    slots.push(
-      `${hour === 0 ? 12 : hour > 12 ? hour - 12 : hour}:00 ${hour >= 12 ? "PM" : "AM"}`,
-    );
-    if (hour < endHour) {
-      slots.push(
-        `${hour === 0 ? 12 : hour > 12 ? hour - 12 : hour}:30 ${hour >= 12 ? "PM" : "AM"}`,
-      );
-    }
-  }
-  return slots;
+// Group classes by time for cleaner display
+interface TimeGroup {
+  timeLabel: string;
+  hour: number;
+  minutes: number;
+  classes: any[];
+}
+
+// Format time for display in 24-hour format
+const formatTimeLabel = (hour: number, minutes: number): string => {
+  const hourStr = String(hour).padStart(2, "0");
+  const minuteStr = String(minutes).padStart(2, "0");
+  return `${hourStr}:${minuteStr}`;
 };
 
 // Get days array based on view type
@@ -68,96 +67,55 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({
   const [showSessionDetail, setShowSessionDetail] = useState(false);
   const [selectedClass, setSelectedClass] = useState<any>(null);
 
-  // Calculate dynamic time range based on actual classes
-  const { timeSlots, earliestHour, latestHour } = useMemo(() => {
+  // Group classes by time for clean display
+  const timeGroups = useMemo(() => {
     if (!classes || classes.length === 0) {
-      // No time slots when no classes - will show empty state instead
-      return {
-        timeSlots: [],
-        earliestHour: 0,
-        latestHour: 0,
-      };
+      return [];
     }
 
-    // Debug: Log class information to help diagnose visibility issues
-    console.log(
-      `PremiumCalendarGrid: Processing ${classes.length} classes:`,
-      classes.map((cls) => ({
-        name: cls.name,
-        startTime: cls.startTime,
-        parsedDate: new Date(cls.startTime),
-        hour: new Date(cls.startTime).getHours(),
-        day: new Date(cls.startTime).toDateString(),
-      })),
-    );
+    // Create a map of time slots to classes
+    const groupMap = new Map<string, TimeGroup>();
 
-    let earliest = 24;
-    let latest = 0;
-
-    // Find the earliest and latest class times
     classes.forEach((cls) => {
       const classTime = new Date(cls.startTime);
-      const hour = classTime.getHours();
-      const minutes = classTime.getMinutes();
+      const hour = classTime.getUTCHours();
+      const minutes = classTime.getUTCMinutes();
+      const timeKey = `${hour}-${minutes}`;
+      const timeLabel = formatTimeLabel(hour, minutes);
 
-      // Round down for earliest
-      if (hour < earliest) {
-        earliest = hour;
+      if (!groupMap.has(timeKey)) {
+        groupMap.set(timeKey, {
+          timeLabel,
+          hour,
+          minutes,
+          classes: [],
+        });
       }
 
-      // Round up for latest (considering duration)
-      const endHour = hour + Math.ceil((minutes + (cls.duration || 60)) / 60);
-      if (endHour > latest) {
-        latest = endHour;
-      }
+      groupMap.get(timeKey)!.classes.push(cls);
     });
 
-    // Add some padding (1 hour before earliest, 1 hour after latest)
-    earliest = Math.max(0, earliest - 1);
-    latest = Math.min(23, latest + 1);
-
-    return {
-      timeSlots: generateTimeSlots(earliest, latest),
-      earliestHour: earliest,
-      latestHour: latest,
-    };
+    // Sort by time and return as array
+    return Array.from(groupMap.values()).sort((a, b) => {
+      if (a.hour !== b.hour) return a.hour - b.hour;
+      return a.minutes - b.minutes;
+    });
   }, [classes]);
 
-  const getClassesForSlot = (
+  const getClassesForDayAndTime = (
     dayIndex: number,
-    timeIndex: number,
+    hour: number,
+    minutes: number,
     weekStartDate?: Date,
   ) => {
-    const timeString = timeSlots[timeIndex];
-    const [time, period] = timeString.split(" ");
-    const [hours, minutes] = time.split(":").map(Number);
-    let hour24 = hours;
-    if (period === "PM" && hours !== 12) hour24 += 12;
-    if (period === "AM" && hours === 12) hour24 = 0;
-
-    const slotMinutes = minutes; // The minutes of this time slot (0 or 30)
-
-    const filtered = classes.filter((cls: any) => {
+    return classes.filter((cls: any) => {
       const classDate = new Date(cls.startTime);
-      const classHour = classDate.getHours();
-      const classMinutes = classDate.getMinutes();
-      const classDayIndex = (classDate.getDay() + 6) % 7; // Convert to Mon=0 indexing
+      const classHour = classDate.getUTCHours();
+      const classMinutes = classDate.getUTCMinutes();
+      const classDayIndex = (classDate.getUTCDay() + 6) % 7; // Convert to Mon=0 indexing
 
-      // Enhanced time matching logic for 30-minute slots
-      let timeMatch = false;
-
-      if (slotMinutes === 0) {
-        // For :00 slots, show classes from hour:00 to hour:29
-        timeMatch =
-          classHour === hour24 && classMinutes >= 0 && classMinutes < 30;
-      } else if (slotMinutes === 30) {
-        // For :30 slots, show classes from hour:30 to hour:59
-        timeMatch =
-          classHour === hour24 && classMinutes >= 30 && classMinutes < 60;
-      } else {
-        // Fallback for other minute values (shouldn't happen with current generateTimeSlots)
-        timeMatch = classHour === hour24;
-      }
+      // Check if time matches
+      const timeMatch = classHour === hour && classMinutes === minutes;
 
       // For week view, check if the class falls within the current week
       if (view === "week" && weekStartDate) {
@@ -177,12 +135,15 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({
       } else if (view === "week") {
         // Fallback to day index matching if weekStartDate not provided
         return classDayIndex === dayIndex && timeMatch;
+      } else if (view === "day") {
+        // For day view, check if it's the same date
+        return (
+          classDate.toDateString() === currentDate.toDateString() && timeMatch
+        );
       }
 
       return timeMatch;
     });
-
-    return filtered;
   };
 
   const handleClassClick = (cls: any) => {
@@ -250,91 +211,63 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({
         className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-2xl"
         data-testid="calendar-grid"
       >
-        <div className="grid grid-cols-2 h-full">
-          {/* Time column - responsive width */}
-          <div className="border-r border-gray-700 bg-gray-800/50 w-16 sm:w-20 md:w-24">
-            <div className="h-14 sm:h-16 border-b border-gray-700 flex items-center justify-center">
-              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                Time
-              </span>
-            </div>
-            {timeSlots.map((time, index) => (
-              <div
-                key={index}
-                className="h-14 sm:h-16 border-b border-gray-700 px-1 sm:px-3 py-1 flex items-start justify-end"
-              >
-                <span className="text-xs text-gray-500 font-medium">
-                  {time}
-                </span>
-              </div>
-            ))}
+        <div className="p-4">
+          {/* Day header */}
+          <div className="text-center mb-6">
+            <h2 className="text-xl font-semibold text-white">
+              {currentDate.toLocaleDateString("en-GB", { weekday: "long" })}
+            </h2>
+            <p className="text-sm text-gray-400">
+              {currentDate.toLocaleDateString("en-GB", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
+            </p>
           </div>
 
-          {/* Single day column */}
-          <div className="flex-1 border-r border-gray-700 last:border-r-0">
-            <div className="h-14 sm:h-16 border-b border-gray-700 p-2 sm:p-3 bg-gray-800/30">
-              <div className="text-center">
-                <div className="font-semibold text-white text-xs sm:text-sm">
-                  {currentDate.toLocaleDateString("en-GB", { weekday: "long" })}
-                </div>
-                <div className="text-xs text-gray-400 mt-0.5 sm:mt-1">
-                  {currentDate.toLocaleDateString("en-GB", {
-                    day: "numeric",
-                    month: "short",
-                  })}
-                </div>
+          {/* Classes grouped by time */}
+          <div className="space-y-6">
+            {timeGroups.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-400">
+                  No classes scheduled for this day
+                </p>
               </div>
-            </div>
-
-            {/* Time slots for the day */}
-            <div className="relative">
-              {timeSlots.map((_, timeIndex) => {
-                // For day view, we need to filter classes by the exact date
-                const dayClasses = classes.filter((cls) => {
-                  const classDate = new Date(cls.startTime);
-                  const classHour = classDate.getHours();
-                  const classMinutes = classDate.getMinutes();
-
-                  // Check if class is in this time slot
-                  const timeString = timeSlots[timeIndex];
-                  const [time, period] = timeString.split(" ");
-                  const [hours, minutes] = time.split(":").map(Number);
-                  let hour24 = hours;
-                  if (period === "PM" && hours !== 12) hour24 += 12;
-                  if (period === "AM" && hours === 12) hour24 = 0;
-
-                  // Show classes that start in this hour (e.g., 9:00-9:59 for "9:00 AM" slot)
-                  const timeMatch = classHour === hour24;
-
-                  // Check if it's the same day
-                  const isSameDay =
-                    classDate.toDateString() === currentDate.toDateString();
-
-                  return isSameDay && timeMatch;
-                });
+            ) : (
+              timeGroups.map((group) => {
+                const dayClasses = getClassesForDayAndTime(
+                  0,
+                  group.hour,
+                  group.minutes,
+                );
+                if (dayClasses.length === 0) return null;
 
                 return (
-                  <div
-                    key={timeIndex}
-                    className="h-14 sm:h-16 border-b border-gray-700 p-1 relative"
-                  >
-                    {dayClasses.map((cls) => (
-                      <div
-                        key={cls.id}
-                        className="absolute inset-1 cursor-pointer"
-                        onClick={() => handleClassClick(cls)}
-                      >
-                        <ClassBlock
-                          {...cls}
-                          onSelect={() => handleClassClick(cls)}
-                          compact={true}
-                        />
-                      </div>
-                    ))}
+                  <div key={`${group.hour}-${group.minutes}`}>
+                    {/* Time header */}
+                    <div className="text-sm font-medium text-gray-400 mb-3">
+                      {group.timeLabel}
+                    </div>
+                    {/* Classes for this time */}
+                    <div className="grid gap-3">
+                      {dayClasses.map((cls) => (
+                        <div
+                          key={cls.id}
+                          className="cursor-pointer"
+                          onClick={() => handleClassClick(cls)}
+                        >
+                          <ClassBlock
+                            {...cls}
+                            onSelect={() => handleClassClick(cls)}
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 );
-              })}
-            </div>
+              })
+            )}
           </div>
         </div>
 
@@ -414,114 +347,112 @@ const PremiumCalendarGrid: React.FC<PremiumCalendarGridProps> = ({
     );
   }
 
-  // Default week view - responsive grid
-  const gridCols = view === "week" ? "grid-cols-8" : "grid-cols-2";
-  const responsiveGrid =
-    view === "week"
-      ? "grid-cols-4 sm:grid-cols-6 md:grid-cols-8"
-      : "grid-cols-2";
+  // Default week view - clean grouped layout
+  const startOfWeek = new Date(currentDate);
+  const dayOfWeek = startOfWeek.getDay();
+  const diff = startOfWeek.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+  const monday = new Date(startOfWeek.setDate(diff));
 
   return (
     <div
-      className="bg-gray-800 rounded-xl border border-gray-700 overflow-x-auto shadow-2xl"
+      className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-2xl"
       data-testid="calendar-grid"
     >
-      <div className={`grid ${responsiveGrid} min-w-[600px] h-full`}>
-        {/* Time column - responsive width */}
-        <div className="border-r border-gray-700 bg-gray-800/50 w-16 sm:w-20 sticky left-0 z-10">
-          <div className="h-14 sm:h-16 border-b border-gray-700 flex items-center justify-center bg-gray-800">
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-              Time
-            </span>
-          </div>
-          {timeSlots.map((time, index) => (
-            <div
-              key={index}
-              data-testid="time-slot"
-              className="h-14 sm:h-16 border-b border-gray-700 px-1 sm:px-2 py-1 flex items-start justify-end bg-gray-800/50"
-            >
-              <span className="text-xs text-gray-500 font-medium">{time}</span>
-            </div>
-          ))}
-        </div>
+      <div className="p-4">
+        {/* Week day headers */}
+        <div className="grid grid-cols-7 gap-4 mb-6">
+          {days.map((day, dayIndex) => {
+            const actualDate = new Date(monday);
+            actualDate.setDate(monday.getDate() + dayIndex);
+            const isToday =
+              new Date().toDateString() === actualDate.toDateString();
 
-        {/* Day columns - hidden on small screens for some days */}
-        {days.map((day, dayIndex) => {
-          // Calculate the actual date for this day of the week
-          const startOfWeek = new Date(currentDate);
-          const dayOfWeek = startOfWeek.getDay();
-          const diff =
-            startOfWeek.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust for Monday start
-          const monday = new Date(startOfWeek.setDate(diff));
-          const actualDate = new Date(monday);
-          actualDate.setDate(monday.getDate() + dayIndex);
-
-          const isToday =
-            new Date().toDateString() === actualDate.toDateString();
-
-          // Hide some days on smaller screens
-          const hideOnSmall = dayIndex === 5 || dayIndex === 6; // Hide Sat/Sun on mobile
-          const hideOnMedium = dayIndex === 6; // Hide only Sun on tablets
-
-          return (
-            <div
-              key={dayIndex}
-              className={`border-r border-gray-700 last:border-r-0 min-w-[100px] ${
-                hideOnSmall ? "hidden sm:block" : ""
-              } ${hideOnMedium ? "sm:hidden md:block" : ""}`}
-            >
-              <div
-                className={`h-14 sm:h-16 border-b border-gray-700 p-1 sm:p-3 ${
-                  isToday ? "bg-orange-900/20" : "bg-gray-800/30"
-                }`}
-              >
-                <div className="text-center">
-                  <div
-                    className={`font-semibold text-xs sm:text-sm ${
-                      isToday ? "text-orange-400" : "text-white"
-                    }`}
-                  >
-                    {day}
-                  </div>
-                  <div className="text-xs text-gray-400 mt-0.5">
-                    {actualDate.getDate()}
-                  </div>
+            return (
+              <div key={dayIndex} className="text-center">
+                <div
+                  className={`font-semibold text-sm ${isToday ? "text-orange-400" : "text-white"}`}
+                >
+                  {day}
+                </div>
+                <div className="text-xs text-gray-400 mt-1">
+                  {actualDate.getDate()}
                 </div>
               </div>
+            );
+          })}
+        </div>
 
-              {/* Time slots for each day */}
-              <div className="relative">
-                {timeSlots.map((_, timeIndex) => {
-                  const slotClasses = getClassesForSlot(
-                    dayIndex,
-                    timeIndex,
-                    currentDate,
-                  );
-
-                  return (
-                    <div
-                      key={`${dayIndex}-${timeIndex}`}
-                      className="h-14 sm:h-16 border-b border-gray-700 p-0.5 sm:p-1 relative"
-                    >
-                      {slotClasses.length > 0 && (
-                        <div
-                          className="absolute inset-0.5 sm:inset-1 cursor-pointer"
-                          onClick={() => handleClassClick(slotClasses[0])}
-                        >
-                          <ClassBlock
-                            {...slotClasses[0]}
-                            onSelect={() => handleClassClick(slotClasses[0])}
-                            compact={true}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+        {/* Time groups */}
+        <div className="space-y-4">
+          {timeGroups.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-400">No classes scheduled this week</p>
             </div>
-          );
-        })}
+          ) : (
+            timeGroups.map((group) => {
+              // Check if there are any classes at this time for any day of the week
+              const hasClassesAtThisTime = days.some((_, dayIndex) => {
+                const dayClasses = getClassesForDayAndTime(
+                  dayIndex,
+                  group.hour,
+                  group.minutes,
+                  monday,
+                );
+                return dayClasses.length > 0;
+              });
+
+              if (!hasClassesAtThisTime) return null;
+
+              return (
+                <div
+                  key={`${group.hour}-${group.minutes}`}
+                  className="border-t border-gray-700 pt-4"
+                >
+                  {/* Time header */}
+                  <div className="text-sm font-medium text-gray-400 mb-3">
+                    {group.timeLabel}
+                  </div>
+
+                  {/* Classes grid for this time slot */}
+                  <div className="grid grid-cols-7 gap-2">
+                    {days.map((_, dayIndex) => {
+                      const dayClasses = getClassesForDayAndTime(
+                        dayIndex,
+                        group.hour,
+                        group.minutes,
+                        monday,
+                      );
+
+                      return (
+                        <div key={dayIndex}>
+                          {dayClasses.length > 0 ? (
+                            <div className="space-y-2">
+                              {dayClasses.map((cls) => (
+                                <div
+                                  key={cls.id}
+                                  className="cursor-pointer"
+                                  onClick={() => handleClassClick(cls)}
+                                >
+                                  <ClassBlock
+                                    {...cls}
+                                    onSelect={() => handleClassClick(cls)}
+                                    compact={true}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="h-20" /> // Empty placeholder to maintain grid alignment
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
 
       {/* Session Detail Modal */}

@@ -44,7 +44,9 @@ export function AttendanceStatsWidget() {
         .eq("user_id", user.id)
         .single();
 
-      if (!profile?.organization_id) {
+      let organizationId = profile?.organization_id;
+
+      if (!organizationId) {
         // Try alternative tables
         const { data: userOrg } = await supabase
           .from("user_organizations")
@@ -56,7 +58,7 @@ export function AttendanceStatsWidget() {
           setLoading(false);
           return;
         }
-        profile.organization_id = userOrg.organization_id;
+        organizationId = userOrg.organization_id;
       }
 
       // Fetch all attendance records
@@ -72,7 +74,7 @@ export function AttendanceStatsWidget() {
           clients!class_bookings_client_id_fkey(name)
         `,
         )
-        .eq("organization_id", profile.organization_id)
+        .eq("organization_id", organizationId)
         .not("attended_at", "is", null);
 
       if (error) {

@@ -341,19 +341,18 @@ export async function POST(request: NextRequest) {
           const [hours, minutes] = slot.time.split(":").map(Number);
 
           // Create session start time by combining the date with the time
-          // IMPORTANT: The time from the form (e.g., "15:30") is what the user wants to see
-          // We store this as a UTC timestamp that will display as that time when using formatTimeDisplay
-          // Since formatTimeDisplay uses getUTCHours(), we need to create a UTC date with those hours
+          // Simply store the time as the user entered it (e.g., "06:00" becomes "06:00:00Z")
+          // No timezone conversion needed - what they enter is what they see
           const year = date.getUTCFullYear();
           const month = String(date.getUTCMonth() + 1).padStart(2, "0");
           const day = String(date.getUTCDate()).padStart(2, "0");
           const hoursStr = String(hours).padStart(2, "0");
           const minutesStr = String(minutes).padStart(2, "0");
 
-          // Create an ISO string with explicit UTC time
-          // This ensures the time displays correctly with formatTimeDisplay
-          const isoString = `${year}-${month}-${day}T${hoursStr}:${minutesStr}:00.000Z`;
-          const sessionStart = new Date(isoString);
+          // Create a UTC timestamp with the exact time the user entered
+          const sessionStart = new Date(
+            `${year}-${month}-${day}T${hoursStr}:${minutesStr}:00.000Z`,
+          );
 
           const sessionEnd = new Date(
             sessionStart.getTime() + slot.duration * 60 * 1000,
