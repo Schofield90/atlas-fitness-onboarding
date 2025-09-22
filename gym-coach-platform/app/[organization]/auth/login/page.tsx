@@ -48,8 +48,20 @@ export default function ClientLogin() {
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
               Don't have an account?{' '}
-              <button 
-                onClick={() => router.push('/client/auth/signup')}
+              <button
+                onClick={() => {
+                  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+                  const isOnMembersSubdomain = hostname.includes('members.gymleadhub.co.uk') || hostname.includes('members.localhost');
+
+                  if (isOnMembersSubdomain) {
+                    router.push('/signup-simple');
+                  } else {
+                    const membersUrl = hostname.includes('localhost')
+                      ? 'http://members.localhost:3000/signup-simple'
+                      : 'https://members.gymleadhub.co.uk/signup-simple';
+                    window.location.href = membersUrl;
+                  }
+                }}
                 className="text-primary hover:underline font-medium"
               >
                 Sign up here
@@ -81,8 +93,19 @@ function EmailLoginForm({ loading, setLoading, error, setError }: any) {
 
       if (authError) throw authError;
 
-      // Redirect to client dashboard
-      router.push('/client/dashboard');
+      // Redirect to appropriate dashboard based on current domain
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+      const isOnMembersSubdomain = hostname.includes('members.gymleadhub.co.uk') || hostname.includes('members.localhost');
+
+      if (isOnMembersSubdomain) {
+        router.push('/client/dashboard');
+      } else {
+        // Redirect to members subdomain for client access
+        const membersUrl = hostname.includes('localhost')
+          ? 'http://members.localhost:3000/client/dashboard'
+          : 'https://members.gymleadhub.co.uk/client/dashboard';
+        window.location.href = membersUrl;
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to sign in');
     } finally {
@@ -208,7 +231,19 @@ function PhoneLoginForm({ loading, setLoading, error, setError }: any) {
 
       if (error) throw error;
 
-      router.push('/client/dashboard');
+      // Redirect to appropriate dashboard based on current domain
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+      const isOnMembersSubdomain = hostname.includes('members.gymleadhub.co.uk') || hostname.includes('members.localhost');
+
+      if (isOnMembersSubdomain) {
+        router.push('/client/dashboard');
+      } else {
+        // Redirect to members subdomain for client access
+        const membersUrl = hostname.includes('localhost')
+          ? 'http://members.localhost:3000/client/dashboard'
+          : 'https://members.gymleadhub.co.uk/client/dashboard';
+        window.location.href = membersUrl;
+      }
     } catch (err: any) {
       setError(err.message || 'Invalid verification code');
     } finally {

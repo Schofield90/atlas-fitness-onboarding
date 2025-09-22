@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
+import {
+  getPostAuthRedirectUrl,
+  extractSubdomain,
+} from "@/app/lib/auth/domain-redirects";
 
 // Generate a 6-digit OTP
 function generateOTP(): string {
@@ -345,9 +349,38 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Determine redirect based on whether user is a client
-      const isClient = true; // User came through OTP login, they are a client
-      const finalRedirect = "/client"; // Always redirect clients to client portal
+      // Determine redirect based on current domain and user type
+      const hostname = request.headers.get("host") || "";
+      const subdomain = extractSubdomain(hostname);
+
+      // User came through OTP login - determine their role based on domain
+      let userRole: "member" | "staff" | "owner" = "member"; // Default to member
+      let finalRedirect = "/client/dashboard";
+
+      if (subdomain === "admin") {
+        // Admin subdomain - check if they're an owner
+        const { data: userOrg } = await supabaseAdmin
+          .from("user_organizations")
+          .select("role")
+          .eq("user_id", authUserId)
+          .single();
+
+        if (userOrg?.role === "owner" || userOrg?.role === "admin") {
+          userRole = "owner";
+          finalRedirect = "/dashboard";
+        }
+      } else if (subdomain === "login") {
+        // Login subdomain - likely staff
+        userRole = "staff";
+        finalRedirect = "/dashboard";
+      } else if (subdomain === "members") {
+        // Members subdomain - definitely a member
+        userRole = "member";
+        finalRedirect = "/client/dashboard";
+      }
+
+      // Get domain-aware redirect URL
+      const domainRedirect = getPostAuthRedirectUrl(userRole, hostname);
 
       return NextResponse.json({
         success: true,
@@ -355,8 +388,9 @@ export async function POST(request: NextRequest) {
         email: email,
         userId: authUserId,
         authUrl: sessionData?.properties?.action_link, // Send the auth URL for automatic sign-in
-        redirectTo: finalRedirect, // Tell frontend where to redirect
-        userType: "client", // Explicitly mark as client
+        redirectTo:
+          subdomain === "members" ? "/client/dashboard" : domainRedirect, // Use appropriate redirect
+        userType: userRole, // Send the determined user role
       });
     }
 

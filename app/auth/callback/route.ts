@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
+import {
+  getPostAuthRedirectUrl,
+  UserRole,
+  extractSubdomain,
+} from "@/app/lib/auth/domain-redirects";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -17,6 +22,7 @@ export async function GET(request: NextRequest) {
       // For Google OAuth, determine if this is an owner or client login
       if (data.user.app_metadata?.provider === "google") {
         const adminSupabase = createAdminClient();
+        const hostname = request.headers.get("host") || "";
 
         // First check if user is an owner/admin
         const { data: userOrg } = await adminSupabase
@@ -26,10 +32,13 @@ export async function GET(request: NextRequest) {
           .single();
 
         if (userOrg && (userOrg.role === "owner" || userOrg.role === "admin")) {
-          // Owner/admin user - redirect to dashboard
-          return NextResponse.redirect(
-            new URL(redirect || "/dashboard", request.url),
+          // Owner/admin user - use domain-aware redirect
+          const redirectUrl = getPostAuthRedirectUrl(
+            "owner" as UserRole,
+            hostname,
+            redirect || "/dashboard",
           );
+          return NextResponse.redirect(new URL(redirectUrl, request.url));
         }
 
         // Check if they own an organization directly
@@ -40,10 +49,13 @@ export async function GET(request: NextRequest) {
           .single();
 
         if (ownedOrg) {
-          // They own an org, redirect to dashboard
-          return NextResponse.redirect(
-            new URL(redirect || "/dashboard", request.url),
+          // They own an org, redirect with domain awareness
+          const redirectUrl = getPostAuthRedirectUrl(
+            "owner" as UserRole,
+            hostname,
+            redirect || "/dashboard",
           );
+          return NextResponse.redirect(new URL(redirectUrl, request.url));
         }
 
         // Not an owner, check if they're a client
@@ -56,9 +68,12 @@ export async function GET(request: NextRequest) {
         if (!existingClient) {
           // User doesn't exist in our system, sign them out and redirect with error
           await supabase.auth.signOut();
-          return NextResponse.redirect(
-            new URL("/owner-login?error=account_not_found", request.url),
-          );
+          const subdomain = extractSubdomain(hostname);
+          const errorUrl =
+            subdomain === "members"
+              ? "/simple-login?error=account_not_found"
+              : "/owner-login?error=account_not_found";
+          return NextResponse.redirect(new URL(errorUrl, request.url));
         }
 
         // If client exists but doesn't have user_id, link them
@@ -69,8 +84,13 @@ export async function GET(request: NextRequest) {
             .eq("id", existingClient.id);
         }
 
-        // Redirect to client portal for client users
-        return NextResponse.redirect(new URL("/client", request.url));
+        // Redirect to client portal with domain awareness
+        const redirectUrl = getPostAuthRedirectUrl(
+          "client" as UserRole,
+          hostname,
+          "/client/dashboard",
+        );
+        return NextResponse.redirect(new URL(redirectUrl, request.url));
       }
 
       // If this is a signup, check if we need to create an organization
@@ -107,7 +127,11 @@ export async function GET(request: NextRequest) {
   }
 
   // return the user to an error page with instructions
-  return NextResponse.redirect(
-    new URL("/simple-login?error=auth_failed", request.url),
-  );
+  const hostname = request.headers.get("host") || "";
+  const subdomain = extractSubdomain(hostname);
+  const errorUrl =
+    subdomain === "members"
+      ? "/simple-login?error=auth_failed"
+      : "/owner-login?error=auth_failed";
+  return NextResponse.redirect(new URL(errorUrl, request.url));
 }

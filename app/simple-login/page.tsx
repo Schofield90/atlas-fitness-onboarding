@@ -5,6 +5,10 @@ import { createClient } from "@/app/lib/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Mail, Lock, Loader2 } from "lucide-react";
 import { Suspense } from "react";
+import {
+  getPostAuthRedirectUrl,
+  extractSubdomain,
+} from "@/app/lib/auth/domain-redirects";
 
 function LoginPageContent() {
   const [step, setStep] = useState<"options" | "otp-email" | "otp-verify">(
@@ -87,7 +91,27 @@ function LoginPageContent() {
       if (data.authUrl) {
         window.location.href = data.authUrl;
       } else {
-        router.push(data.redirectTo || "/client");
+        // Use domain-aware redirect for members
+        const hostname =
+          typeof window !== "undefined" ? window.location.hostname : "";
+        const subdomain = extractSubdomain(hostname);
+
+        // If we're on members subdomain, stay there
+        if (subdomain === "members") {
+          router.push(data.redirectTo || "/client/dashboard");
+        } else {
+          // Redirect to the appropriate dashboard based on user role
+          const redirectUrl = getPostAuthRedirectUrl(
+            "member",
+            hostname,
+            data.redirectTo,
+          );
+          if (redirectUrl.startsWith("http")) {
+            window.location.href = redirectUrl;
+          } else {
+            router.push(redirectUrl);
+          }
+        }
       }
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Invalid or expired OTP");
@@ -133,10 +157,18 @@ function LoginPageContent() {
 
     try {
       const supabase = createClient();
+
+      // Ensure members stay on members subdomain after OAuth
+      const hostname =
+        typeof window !== "undefined" ? window.location.hostname : "";
+      const subdomain = extractSubdomain(hostname);
+      const redirectPath =
+        subdomain === "members" ? "/client/dashboard" : "/client";
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?redirect=/client`,
+          redirectTo: `${window.location.origin}/auth/callback?redirect=${redirectPath}`,
           queryParams: {
             access_type: "offline",
             prompt: "consent",

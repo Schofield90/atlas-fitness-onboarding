@@ -341,11 +341,13 @@ export async function middleware(request: NextRequest) {
     }
     // For non-public routes, redirect to login
     if (!pathname.startsWith('/api/')) {
-      // Redirect to appropriate login based on subdomain
+      // Redirect to appropriate login based on subdomain, preserving path
       const loginUrl = subdomain === 'members'
         ? '/simple-login'
         : '/owner-login'
-      return NextResponse.redirect(new URL(loginUrl, request.url))
+      const redirectUrl = new URL(loginUrl, request.url)
+      redirectUrl.searchParams.set('redirect', pathname)
+      return NextResponse.redirect(redirectUrl)
     }
     return NextResponse.json({ error: 'Auth service unavailable' }, { status: 503 })
   }
