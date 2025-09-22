@@ -99,20 +99,53 @@ function LoginPageContent() {
       if (data.session) {
         try {
           const supabase = createClient();
-          const { error: sessionError } = await supabase.auth.setSession({
-            access_token: data.session.access_token,
-            refresh_token: data.session.refresh_token,
-          });
+
+          // Clear any existing session first to prevent conflicts
+          await supabase.auth.signOut({ scope: "local" });
+
+          // Set the new session - this supports multiple concurrent sessions
+          const { data: sessionResult, error: sessionError } =
+            await supabase.auth.setSession({
+              access_token: data.session.access_token,
+              refresh_token: data.session.refresh_token,
+            });
 
           if (sessionError) {
             console.error("Failed to set session:", sessionError);
+            console.error("Session error details:", {
+              message: sessionError.message,
+              session_method: data.sessionMethod,
+              has_authUrl: !!data.authUrl,
+            });
+
             // Try authUrl fallback if available
             if (data.authUrl) {
+              console.log("Using auth URL fallback for multi-device support");
               window.location.href = data.authUrl;
               return;
             }
             throw new Error("Failed to set session. Please try again.");
           }
+
+          // Verify session was set correctly
+          if (!sessionResult?.session) {
+            console.error("Session was not properly established");
+            if (data.authUrl) {
+              console.log(
+                "Using auth URL fallback due to session verification failure",
+              );
+              window.location.href = data.authUrl;
+              return;
+            }
+            throw new Error("Session verification failed. Please try again.");
+          }
+
+          // Log successful multi-device session setup
+          console.log("Multi-device session established successfully:", {
+            user_id: sessionResult.session.user.id,
+            session_method: data.sessionMethod,
+            expires_at: sessionResult.session.expires_at,
+          });
 
           // Always redirect to client dashboard for members
           // Use full URL to ensure we stay on members subdomain
@@ -133,6 +166,15 @@ function LoginPageContent() {
           }
         } catch (sessionErr) {
           console.error("Session setup error:", sessionErr);
+          console.error("Multi-device session setup failed:", {
+            error_message:
+              sessionErr instanceof Error
+                ? sessionErr.message
+                : "Unknown error",
+            session_method: data.sessionMethod,
+            has_fallback: !!data.authUrl,
+          });
+
           setMessage("Login failed. Please try again.");
           setSuccess(false);
           setLoading(false); // Stop the loading state

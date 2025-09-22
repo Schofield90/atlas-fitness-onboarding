@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
       // Instead of using magic links (which can redirect wrongly),
       // we'll sign them in directly using the admin API
       if (client.user_id) {
-        // Sign the user in directly
+        // Sign the user in directly - this supports multiple concurrent sessions by default
         try {
           const { data: sessionData, error: sessionError } =
             await adminSupabase.auth.admin.createSession({
@@ -191,7 +191,14 @@ export async function POST(request: NextRequest) {
 
           if (sessionError) {
             console.error("Session creation error:", sessionError);
-            // Don't fail completely, try fallback approach
+
+            // Log detailed error for debugging multi-device issues
+            console.error("Session error details:", {
+              message: sessionError.message,
+              status: sessionError.status,
+              user_id: client.user_id,
+              email: email.toLowerCase(),
+            });
 
             // Try to generate a magic link as fallback
             const { data: linkData, error: linkError } =
@@ -210,6 +217,7 @@ export async function POST(request: NextRequest) {
                 authUrl: linkData.properties.action_link,
                 redirectTo: "/client/dashboard",
                 userRole: "member",
+                sessionMethod: "magic_link_fallback",
               });
             }
 
@@ -218,25 +226,44 @@ export async function POST(request: NextRequest) {
               {
                 success: false,
                 error: "Unable to create session. Please try again.",
+                sessionError: sessionError.message,
               },
               { status: 500 },
             );
           }
 
           if (sessionData?.session) {
+            // Log successful session creation for debugging
+            console.log("Multi-device session created successfully:", {
+              user_id: client.user_id,
+              session_id:
+                sessionData.session.access_token.split(".")[1] || "unknown",
+              expires_at: sessionData.session.expires_at,
+            });
+
             // Return the session tokens for the client to set
             return NextResponse.json({
               success: true,
               session: {
                 access_token: sessionData.session.access_token,
                 refresh_token: sessionData.session.refresh_token,
+                expires_at: sessionData.session.expires_at,
               },
               redirectTo: "/client/dashboard",
               userRole: "member",
+              sessionMethod: "admin_create_session",
             });
           }
         } catch (error) {
           console.error("Unexpected session error:", error);
+
+          // Enhanced error logging for multi-device debugging
+          console.error("Multi-device session creation failed:", {
+            user_id: client.user_id,
+            error_message:
+              error instanceof Error ? error.message : "Unknown error",
+            error_stack: error instanceof Error ? error.stack : undefined,
+          });
         }
       }
 
