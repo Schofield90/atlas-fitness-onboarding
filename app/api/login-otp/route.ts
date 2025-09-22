@@ -35,12 +35,28 @@ export async function POST(request: NextRequest) {
       // Generate random 6-digit code for all users
       const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
+      // Delete any existing OTP for this email first (due to UNIQUE constraint)
+      await adminSupabase
+        .from("otp_tokens")
+        .delete()
+        .eq("email", email.toLowerCase());
+
       // Store OTP in database
-      await adminSupabase.from("otp_tokens").insert({
-        email: email.toLowerCase(),
-        token: otpCode,
-        expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-      });
+      const { error: insertError } = await adminSupabase
+        .from("otp_tokens")
+        .insert({
+          email: email.toLowerCase(),
+          token: otpCode,
+          expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+        });
+
+      if (insertError) {
+        console.error("Failed to store OTP:", insertError);
+        return NextResponse.json(
+          { success: false, error: "Failed to generate verification code" },
+          { status: 500 },
+        );
+      }
 
       console.log(`OTP for ${email}: ${otpCode}`);
 
@@ -114,11 +130,31 @@ export async function POST(request: NextRequest) {
         .from("otp_tokens")
         .select("*")
         .eq("email", email.toLowerCase())
-        .eq("token", otp)
+        .eq("token", otp.trim()) // Trim any whitespace from the OTP
         .gte("expires_at", new Date().toISOString())
         .single();
 
+      if (otpError) {
+        console.error("OTP verification error:", otpError);
+        console.error("Email:", email.toLowerCase(), "OTP:", otp.trim());
+      }
+
       if (otpError || !otpRecord) {
+        // Check if there's any OTP for this email to provide better error message
+        const { data: anyOtp } = await adminSupabase
+          .from("otp_tokens")
+          .select("*")
+          .eq("email", email.toLowerCase())
+          .single();
+
+        if (anyOtp) {
+          console.error("OTP exists but doesn't match or is expired:", {
+            provided: otp.trim(),
+            stored: anyOtp.token,
+            expired: new Date(anyOtp.expires_at) < new Date(),
+          });
+        }
+
         return NextResponse.json(
           { success: false, error: "Invalid or expired code" },
           { status: 400 },
