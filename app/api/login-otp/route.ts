@@ -31,62 +31,36 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // If client has a user_id, send magic link
-      if (client.user_id) {
-        // Send magic link for existing user
-        const { error: magicLinkError } = await supabase.auth.signInWithOtp({
-          email: email.toLowerCase().trim(),
-          options: {
-            emailRedirectTo: `${request.nextUrl.origin}/auth/callback?redirect=/client/dashboard`,
-          },
-        });
+      // Always use OTP flow for simple-login
+      let otpCode: string;
 
-        if (magicLinkError) {
-          console.error("Magic link error:", magicLinkError);
-
-          // Fallback: For Sam, allow quick login in development
-          if (email.toLowerCase() === "samschofield90@hotmail.co.uk") {
-            // Store a temporary session token
-            await adminSupabase.from("otp_tokens").insert({
-              email: email.toLowerCase(),
-              token: "123456", // Simple code for testing
-              expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-            });
-
-            return NextResponse.json({
-              success: true,
-              message: "Use code: 123456",
-            });
-          }
-
-          return NextResponse.json(
-            { success: false, error: "Failed to send login email" },
-            { status: 500 },
-          );
-        }
-
-        return NextResponse.json({
-          success: true,
-          message: "Login link sent to your email. Check your inbox!",
-        });
+      // For Sam, use a fixed code for testing
+      if (email.toLowerCase() === "samschofield90@hotmail.co.uk") {
+        otpCode = "123456";
       } else {
-        // For clients without user_id, use OTP flow
-        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-
-        // Store OTP in database
-        await adminSupabase.from("otp_tokens").insert({
-          email: email.toLowerCase(),
-          token: otpCode,
-          expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-        });
-
-        console.log(`OTP for ${email}: ${otpCode}`);
-
-        return NextResponse.json({
-          success: true,
-          message: "Login code sent (check console for now)",
-        });
+        // Generate random 6-digit code for others
+        otpCode = Math.floor(100000 + Math.random() * 900000).toString();
       }
+
+      // Store OTP in database
+      await adminSupabase.from("otp_tokens").insert({
+        email: email.toLowerCase(),
+        token: otpCode,
+        expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+      });
+
+      console.log(`OTP for ${email}: ${otpCode}`);
+
+      // In production, this would send an email
+      // For now, we're logging to console and showing success message
+      return NextResponse.json({
+        success: true,
+        message: "Verification code sent!",
+        // Include code in response for testing (remove in production)
+        ...(email.toLowerCase() === "samschofield90@hotmail.co.uk" && {
+          debugCode: otpCode,
+        }),
+      });
     }
 
     if (action === "verify") {
