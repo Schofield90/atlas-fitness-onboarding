@@ -84,7 +84,7 @@ const nextConfig = {
       },
       {
         // Block access to sensitive files
-        source: '/(.*\.(env|git|gitignore|dockerignore|md|lock|log))',
+        source: '/:path*\\.(env|git|gitignore|dockerignore|md|lock|log)',
         headers: [
           {
             key: 'X-Robots-Tag',
