@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/app/lib/supabase/server";
+import {
+  createClient,
+  getAuthenticatedClient,
+} from "@/app/lib/supabase/server";
 import bcrypt from "bcryptjs";
 
 export async function POST(request: NextRequest) {
@@ -26,7 +29,30 @@ export async function POST(request: NextRequest) {
         .eq("email", email.toLowerCase().trim())
         .single();
 
-      if (clientError || !client) {
+      if (clientError) {
+        // Check if the error is due to missing password columns
+        if (
+          clientError.message?.includes("password_hash") ||
+          clientError.message?.includes("column")
+        ) {
+          return NextResponse.json(
+            {
+              success: false,
+              error:
+                "Password authentication not yet enabled. Please use OTP login or contact support.",
+              needsMigration: true,
+            },
+            { status: 501 },
+          );
+        }
+
+        return NextResponse.json(
+          { success: false, error: "Invalid email or password" },
+          { status: 401 },
+        );
+      }
+
+      if (!client) {
         return NextResponse.json(
           { success: false, error: "Invalid email or password" },
           { status: 401 },
@@ -142,11 +168,9 @@ export async function POST(request: NextRequest) {
 
     if (action === "set") {
       // Set or update password
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { user, error: authError } = await getAuthenticatedClient();
 
-      if (!user) {
+      if (authError || !user) {
         return NextResponse.json(
           { success: false, error: "Not authenticated" },
           { status: 401 },
@@ -180,6 +204,22 @@ export async function POST(request: NextRequest) {
         .eq("id", client.id);
 
       if (updateError) {
+        // Check if the error is due to missing columns
+        if (
+          updateError.message?.includes("password_hash") ||
+          updateError.message?.includes("column")
+        ) {
+          return NextResponse.json(
+            {
+              success: false,
+              error:
+                "Password feature not yet enabled. Please contact support to enable password authentication.",
+              needsMigration: true,
+            },
+            { status: 501 },
+          );
+        }
+
         return NextResponse.json(
           { success: false, error: "Failed to update password" },
           { status: 500 },
