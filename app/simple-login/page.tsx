@@ -97,13 +97,17 @@ function LoginPageContent() {
           typeof window !== "undefined" ? window.location.hostname : "";
         const subdomain = extractSubdomain(hostname);
 
+        // Force member role for simple-login (this is ALWAYS for members/clients)
+        const userRole = data.userRole || "member";
+
         // If we're on members subdomain, stay there
         if (subdomain === "members") {
           router.push(data.redirectTo || "/client/dashboard");
         } else {
           // Redirect to the appropriate dashboard based on user role
+          // Always use "member" role for simple-login to ensure correct redirect
           const redirectUrl = getPostAuthRedirectUrl(
-            "member",
+            userRole,
             hostname,
             data.redirectTo,
           );

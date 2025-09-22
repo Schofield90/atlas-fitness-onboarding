@@ -172,28 +172,42 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (client?.user_id) {
-        // Generate magic link for user
+        // Generate magic link for user with explicit members subdomain redirect
         const { data: authData, error: authError } =
           await adminSupabase.auth.admin.generateLink({
             type: "magiclink",
             email: email.toLowerCase(),
             options: {
-              redirectTo: "/client/dashboard",
+              // Use full URL to ensure it goes to the members subdomain
+              redirectTo: "https://members.gymleadhub.co.uk/client/dashboard",
             },
           });
 
         if (!authError && authData?.properties?.action_link) {
+          // Parse the magic link and ensure it includes the correct redirect
+          const magicLink = authData.properties.action_link;
+
+          // Add the redirect parameter explicitly if not present
+          const url = new URL(magicLink);
+          if (!url.searchParams.has("redirect_to")) {
+            url.searchParams.set(
+              "redirect_to",
+              "https://members.gymleadhub.co.uk/client/dashboard",
+            );
+          }
+
           return NextResponse.json({
             success: true,
-            authUrl: authData.properties.action_link,
+            authUrl: url.toString(),
           });
         }
       }
 
-      // Fallback redirect
+      // Fallback - don't use magic link, just return redirect URL for client-side handling
       return NextResponse.json({
         success: true,
         redirectTo: "/client/dashboard",
+        userRole: "member", // Explicitly set role as member
       });
     }
 
