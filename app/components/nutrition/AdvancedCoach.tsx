@@ -268,31 +268,43 @@ Ready to begin your transformation journey?`,
     if (phaseIndex < COACHING_PHASES.length - 1) {
       const nextPhase = COACHING_PHASES[phaseIndex + 1];
 
-      // Provide phase transition message with insights
-      const transitionMessage: Message = {
-        id: Date.now().toString(),
-        role: "coach",
-        content: `Excellent! I've gained valuable insights from our ${currentPhase.name} discussion.
+      // Check if we've already sent a transition message for this phase
+      // by checking the last message
+      const lastMessage = messages[messages.length - 1];
+      const isTransitionMessage = lastMessage?.content?.includes(
+        `Let's now explore ${nextPhase.name}`,
+      );
+
+      if (!isTransitionMessage) {
+        // Provide phase transition message with insights
+        const transitionMessage: Message = {
+          id: Date.now().toString(),
+          role: "coach",
+          content: `Excellent! I've gained valuable insights from our ${currentPhase.name} discussion.
 
 Based on what you've shared, I can see that you're ready to move forward. Let's now explore ${nextPhase.name} to deepen our coaching strategy.`,
-        timestamp: new Date(),
-        phase: currentPhase.id,
-        insights: generatePhaseInsights(currentPhase.id, userContext),
-        recommendations: generateRecommendations(currentPhase.id, userContext),
-      };
+          timestamp: new Date(),
+          phase: currentPhase.id,
+          insights: generatePhaseInsights(currentPhase.id, userContext),
+          recommendations: generateRecommendations(
+            currentPhase.id,
+            userContext,
+          ),
+        };
 
-      setMessages((prev) => [...prev, transitionMessage]);
-      setCurrentPhase(nextPhase);
-      setCurrentQuestionIndex(0);
+        setMessages((prev) => [...prev, transitionMessage]);
+        setCurrentPhase(nextPhase);
+        setCurrentQuestionIndex(0);
 
-      // Ask first question of new phase after delay
-      setTimeout(() => {
-        askNextQuestion();
-      }, 3000);
+        // Ask first question of new phase after delay
+        setTimeout(() => {
+          askNextQuestion();
+        }, 3000);
 
-      // Notify parent component
-      if (onPhaseComplete) {
-        onPhaseComplete(currentPhase.id, userContext);
+        // Notify parent component
+        if (onPhaseComplete) {
+          onPhaseComplete(currentPhase.id, userContext);
+        }
       }
     } else {
       // All phases complete - provide comprehensive coaching plan
@@ -498,10 +510,16 @@ Ready to start your transformation? Let's begin with Week 1! 💪`,
 
     setMessages((prev) => [...prev, coachResponse]);
 
-    // Continue with next question or phase
-    setTimeout(() => {
-      askNextQuestion();
-    }, 2000);
+    // Only continue with next question if there are more questions in the current phase
+    // This prevents infinite loops when phases are transitioning
+    if (currentQuestionIndex < currentPhase.questions.length) {
+      setTimeout(() => {
+        askNextQuestion();
+      }, 2000);
+    } else {
+      // Phase is complete, let user respond before moving to next phase
+      // User needs to send another message to continue
+    }
   };
 
   const generateContextualResponse = (
