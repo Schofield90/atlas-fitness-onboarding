@@ -179,7 +179,8 @@ export class BookingLinkService {
       updated_at: new Date().toISOString(),
     };
 
-    let { data: result, error } = await this.getSupabaseClient()
+    const supabaseClient = await this.getSupabaseClient();
+    let { data: result, error } = await supabaseClient
       .from("booking_links")
       .insert(insertData)
       .select("*")
@@ -203,8 +204,9 @@ export class BookingLinkService {
         updated_at: new Date().toISOString(),
       };
 
+      const supabaseClient2 = await this.getSupabaseClient();
       const { data: fallbackResult, error: fallbackError } =
-        await this.getSupabaseClient()
+        await supabaseClient2
           .from("booking_links")
           .insert(insertData)
           .select("*")
@@ -251,7 +253,8 @@ export class BookingLinkService {
       updated_at: new Date().toISOString(),
     };
 
-    let { data: result, error } = await this.getSupabaseClient()
+    const supabaseClient = await this.getSupabaseClient();
+    let { data: result, error } = await supabaseClient
       .from("booking_links")
       .update(updateData)
       .eq("id", id)
@@ -275,8 +278,9 @@ export class BookingLinkService {
         updated_at: new Date().toISOString(),
       };
 
+      const supabaseClient2 = await this.getSupabaseClient();
       const { data: fallbackResult, error: fallbackError } =
-        await this.getSupabaseClient()
+        await supabaseClient2
           .from("booking_links")
           .update(updateData)
           .eq("id", id)
@@ -298,7 +302,8 @@ export class BookingLinkService {
   }
 
   async getBookingLink(slug: string): Promise<BookingLink | null> {
-    const { data, error } = await this.getSupabaseClient()
+    const supabaseClient = await this.getSupabaseClient();
+    const { data, error } = await supabaseClient
       .from("booking_links")
       .select("*")
       .eq("slug", slug)
@@ -310,7 +315,8 @@ export class BookingLinkService {
   }
 
   async getBookingLinkById(id: string): Promise<BookingLink | null> {
-    const { data, error } = await this.getSupabaseClient()
+    const supabaseClient = await this.getSupabaseClient();
+    const { data, error } = await supabaseClient
       .from("booking_links")
       .select("*")
       .eq("id", id)
@@ -321,7 +327,8 @@ export class BookingLinkService {
   }
 
   async listBookingLinks(organizationId: string): Promise<BookingLink[]> {
-    const { data, error } = await this.getSupabaseClient()
+    const supabaseClient = await this.getSupabaseClient();
+    const { data, error } = await supabaseClient
       .from("booking_links")
       .select("*")
       .eq("organization_id", organizationId)
@@ -333,7 +340,8 @@ export class BookingLinkService {
   }
 
   async deleteBookingLink(id: string): Promise<void> {
-    const { error } = await this.getSupabaseClient()
+    const supabaseClient = await this.getSupabaseClient();
+    const { error } = await supabaseClient
       .from("booking_links")
       .delete()
       .eq("id", id);
@@ -375,7 +383,8 @@ export class BookingLinkService {
     }>,
   ): Promise<void> {
     // Delete existing rules for this booking link and staff
-    await this.getSupabaseClient()
+    const supabaseClientDel = await this.getSupabaseClient();
+    await supabaseClientDel
       .from("booking_availability")
       .delete()
       .eq("booking_link_id", bookingLinkId)
@@ -433,12 +442,12 @@ export class BookingLinkService {
       if (!bookingLink) throw new Error("Booking link not found");
 
       // Get appointment types
-      const { data: appointmentTypes, error: atError } =
-        await this.getSupabaseClient()
-          .from("appointment_types")
-          .select("*")
-          .in("id", bookingLink.appointment_type_ids)
-          .eq("is_active", true);
+      const supabaseAppt = await this.getSupabaseClient();
+      const { data: appointmentTypes, error: atError } = await supabaseAppt
+        .from("appointment_types")
+        .select("*")
+        .in("id", bookingLink.appointment_type_ids)
+        .eq("is_active", true);
 
       if (atError)
         throw new Error(
@@ -449,11 +458,11 @@ export class BookingLinkService {
       const staffIds = bookingLink.assigned_staff_ids || [];
       if (staffIds.length === 0) {
         // If no specific staff assigned, get all org staff
-        const { data: orgStaff, error: staffError } =
-          await this.getSupabaseClient()
-            .from("organization_members")
-            .select("user_id, users:user_id(id, full_name)")
-            .eq("org_id", bookingLink.organization_id);
+        const supabaseStaff = await this.getSupabaseClient();
+        const { data: orgStaff, error: staffError } = await supabaseStaff
+          .from("organization_members")
+          .select("user_id, users:user_id(id, full_name)")
+          .eq("org_id", bookingLink.organization_id);
 
         if (staffError)
           throw new Error(`Failed to fetch staff: ${staffError.message}`);
@@ -461,13 +470,13 @@ export class BookingLinkService {
       }
 
       // Get availability rules
-      const { data: availabilityRules, error: arError } =
-        await this.getSupabaseClient()
-          .from("booking_availability")
-          .select("*")
-          .eq("booking_link_id", bookingLink.id)
-          .in("staff_id", staffIds)
-          .eq("is_available", true);
+      const supabaseAvail = await this.getSupabaseClient();
+      const { data: availabilityRules, error: arError } = await supabaseAvail
+        .from("booking_availability")
+        .select("*")
+        .eq("booking_link_id", bookingLink.id)
+        .in("staff_id", staffIds)
+        .eq("is_available", true);
 
       if (arError)
         throw new Error(
@@ -475,26 +484,26 @@ export class BookingLinkService {
         );
 
       // Get exceptions
-      const { data: exceptions, error: exError } =
-        await this.getSupabaseClient()
-          .from("booking_exceptions")
-          .select("*")
-          .eq("booking_link_id", bookingLink.id)
-          .gte("exception_date", format(startDate, "yyyy-MM-dd"))
-          .lte("exception_date", format(endDate, "yyyy-MM-dd"));
+      const supabaseExcept = await this.getSupabaseClient();
+      const { data: exceptions, error: exError } = await supabaseExcept
+        .from("booking_exceptions")
+        .select("*")
+        .eq("booking_link_id", bookingLink.id)
+        .gte("exception_date", format(startDate, "yyyy-MM-dd"))
+        .lte("exception_date", format(endDate, "yyyy-MM-dd"));
 
       if (exError)
         throw new Error(`Failed to fetch exceptions: ${exError.message}`);
 
       // Get existing bookings
-      const { data: existingBookings, error: ebError } =
-        await this.getSupabaseClient()
-          .from("bookings")
-          .select("*")
-          .in("assigned_to", staffIds)
-          .gte("start_time", startDate.toISOString())
-          .lte("start_time", endDate.toISOString())
-          .in("booking_status", ["confirmed", "attended"]);
+      const supabaseBookings = await this.getSupabaseClient();
+      const { data: existingBookings, error: ebError } = await supabaseBookings
+        .from("bookings")
+        .select("*")
+        .in("assigned_to", staffIds)
+        .gte("start_time", startDate.toISOString())
+        .lte("start_time", endDate.toISOString())
+        .in("booking_status", ["confirmed", "attended"]);
 
       if (ebError)
         throw new Error(
@@ -563,7 +572,8 @@ export class BookingLinkService {
 
               if (!hasConflict && !isBefore(currentSlot, new Date())) {
                 // Get staff name
-                const { data: staff } = await this.getSupabaseClient()
+                const supabaseUsers = await this.getSupabaseClient();
+                const { data: staff } = await supabaseUsers
                   .from("users")
                   .select("full_name")
                   .eq("id", rule.staff_id)
@@ -765,7 +775,8 @@ export class BookingLinkService {
   // =============================================
 
   async getFormFields(bookingLinkId: string): Promise<FormField[]> {
-    const { data, error } = await this.getSupabaseClient()
+    const supabaseClient = await this.getSupabaseClient();
+    const { data, error } = await supabaseClient
       .from("booking_form_fields")
       .select("*")
       .eq("booking_link_id", bookingLinkId)
@@ -866,7 +877,8 @@ export class BookingLinkService {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
-    const { data, error } = await this.getSupabaseClient()
+    const supabaseAnalytics = await this.getSupabaseClient();
+    const { data, error } = await supabaseAnalytics
       .from("booking_link_analytics")
       .select("*")
       .eq("booking_link_id", bookingLinkId)
@@ -919,7 +931,8 @@ export class BookingLinkService {
     startTime: Date,
     endTime: Date,
   ): Promise<boolean> {
-    const { data, error } = await this.getSupabaseClient()
+    const supabaseCheck = await this.getSupabaseClient();
+    const { data, error } = await supabaseCheck
       .from("bookings")
       .select("id")
       .eq("assigned_to", staffId)
@@ -937,7 +950,8 @@ export class BookingLinkService {
   }
 
   private async getAppointmentType(id: string) {
-    const { data, error } = await this.getSupabaseClient()
+    const supabaseApptType = await this.getSupabaseClient();
+    const { data, error } = await supabaseApptType
       .from("appointment_types")
       .select("*")
       .eq("id", id)
@@ -974,7 +988,8 @@ export class BookingLinkService {
   ): Promise<void> {
     try {
       // Get booking details
-      const { data: booking, error } = await this.getSupabaseClient()
+      const supabaseBookingDetails = await this.getSupabaseClient();
+      const { data: booking, error } = await supabaseBookingDetails
         .from("bookings")
         .select(
           `
@@ -1013,7 +1028,8 @@ export class BookingLinkService {
   private async createCalendarEvent(bookingId: string): Promise<void> {
     try {
       // Get booking details
-      const { data: booking, error } = await this.getSupabaseClient()
+      const supabaseBookingDetails = await this.getSupabaseClient();
+      const { data: booking, error } = await supabaseBookingDetails
         .from("bookings")
         .select(
           `
@@ -1057,7 +1073,8 @@ export class BookingLinkService {
   private async updateCalendarEvent(bookingId: string): Promise<void> {
     try {
       // Get booking details
-      const { data: booking, error } = await this.getSupabaseClient()
+      const supabaseBookingDetails = await this.getSupabaseClient();
+      const { data: booking, error } = await supabaseBookingDetails
         .from("bookings")
         .select(
           `
@@ -1099,7 +1116,8 @@ export class BookingLinkService {
   private async deleteCalendarEvent(bookingId: string): Promise<void> {
     try {
       // Get booking details
-      const { data: booking, error } = await this.getSupabaseClient()
+      const supabaseBookingDetails = await this.getSupabaseClient();
+      const { data: booking, error } = await supabaseBookingDetails
         .from("bookings")
         .select("assigned_to")
         .eq("id", bookingId)
@@ -1164,7 +1182,8 @@ export class BookingLinkService {
       active: boolean;
     }>
   > {
-    const { data, error } = await this.getSupabaseClient()
+    const supabaseTrainer = await this.getSupabaseClient();
+    const { data, error } = await supabaseTrainer
       .from("trainer_specializations")
       .select("*")
       .eq("staff_id", staffId)
@@ -1190,7 +1209,8 @@ export class BookingLinkService {
       alternatives: string[];
     }>
   > {
-    const { data, error } = await this.getSupabaseClient()
+    const supabaseEquipment = await this.getSupabaseClient();
+    const { data, error } = await supabaseEquipment
       .from("booking_equipment_requirements")
       .select("*")
       .eq("booking_link_id", bookingLinkId);
@@ -1221,7 +1241,8 @@ export class BookingLinkService {
     if (!appointmentType) throw new Error("Appointment type not found");
 
     // Count current bookings for this time slot
-    const { data: bookings, error } = await this.getSupabaseClient()
+    const supabaseCapacity = await this.getSupabaseClient();
+    const { data: bookings, error } = await supabaseCapacity
       .from("bookings")
       .select("id")
       .eq("appointment_type_id", appointmentTypeId)
@@ -1271,7 +1292,8 @@ export class BookingLinkService {
     this_month: number;
     last_month: number;
   }> {
-    const { data, error } = await this.getSupabaseClient()
+    const supabaseStats = await this.getSupabaseClient();
+    const { data, error } = await supabaseStats
       .from("bookings")
       .select("booking_status, start_time")
       .eq("booking_link_id", bookingLinkId);
