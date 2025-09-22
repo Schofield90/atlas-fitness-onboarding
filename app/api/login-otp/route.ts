@@ -161,10 +161,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Delete used OTP
-      await adminSupabase.from("otp_tokens").delete().eq("id", otpRecord.id);
-
-      // Get the client record
+      // Get the client record FIRST (before deleting OTP)
       const { data: client } = await adminSupabase
         .from("clients")
         .select("user_id, organization_id")
@@ -172,6 +169,8 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (!client) {
+        // Don't delete OTP if client not found
+        console.error("Client not found for email:", email.toLowerCase());
         return NextResponse.json(
           { success: false, error: "Client record not found" },
           { status: 404 },
@@ -212,6 +211,12 @@ export async function POST(request: NextRequest) {
               });
 
             if (!linkError && linkData?.properties?.action_link) {
+              // Delete OTP after successful magic link generation
+              await adminSupabase
+                .from("otp_tokens")
+                .delete()
+                .eq("id", otpRecord.id);
+
               return NextResponse.json({
                 success: true,
                 authUrl: linkData.properties.action_link,
@@ -233,6 +238,12 @@ export async function POST(request: NextRequest) {
           }
 
           if (sessionData?.session) {
+            // Delete OTP only AFTER successful session creation
+            await adminSupabase
+              .from("otp_tokens")
+              .delete()
+              .eq("id", otpRecord.id);
+
             // Log successful session creation for debugging
             console.log("Multi-device session created successfully:", {
               user_id: client.user_id,
@@ -269,6 +280,9 @@ export async function POST(request: NextRequest) {
 
       // Fallback - just return redirect URL for client-side handling
       // This handles cases where user doesn't have a user_id yet
+      // Delete OTP in this case too since we're completing the auth flow
+      await adminSupabase.from("otp_tokens").delete().eq("id", otpRecord.id);
+
       return NextResponse.json({
         success: true,
         redirectTo: "/client/dashboard",
