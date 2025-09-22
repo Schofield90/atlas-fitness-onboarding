@@ -6,12 +6,18 @@ import {
   UserRole,
   extractSubdomain,
 } from "@/app/lib/auth/domain-redirects";
+import { validateRedirectUrl } from "@/app/lib/security/redirect-validator";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get("code");
-  const redirect = searchParams.get("redirect");
-  const next = searchParams.get("next") ?? redirect ?? "/";
+  const rawRedirect = searchParams.get("redirect");
+  const rawNext = searchParams.get("next");
+  const hostname = request.headers.get("host") || "";
+
+  // Validate and sanitize redirect parameters
+  const redirect = validateRedirectUrl(rawRedirect, "/dashboard", hostname);
+  const next = validateRedirectUrl(rawNext || rawRedirect, "/", hostname);
   const isSignup = searchParams.get("signup") === "true";
 
   if (code) {
@@ -36,7 +42,7 @@ export async function GET(request: NextRequest) {
           const redirectUrl = getPostAuthRedirectUrl(
             "owner" as UserRole,
             hostname,
-            redirect || "/dashboard",
+            redirect,
           );
           return NextResponse.redirect(new URL(redirectUrl, request.url));
         }
@@ -53,7 +59,7 @@ export async function GET(request: NextRequest) {
           const redirectUrl = getPostAuthRedirectUrl(
             "owner" as UserRole,
             hostname,
-            redirect || "/dashboard",
+            redirect,
           );
           return NextResponse.redirect(new URL(redirectUrl, request.url));
         }

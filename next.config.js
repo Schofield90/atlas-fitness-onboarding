@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const { securityHeaders } = require('./app/lib/security/headers');
+
 const nextConfig = {
   output: 'standalone',
 
@@ -44,28 +46,34 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
   },
   
-  // Headers for better caching
+  // Headers for security and caching
   async headers() {
     return [
       {
-        source: '/(.*)',
-        headers: [
-          {
-            key: 'X-DNS-Prefetch-Control',
-            value: 'on'
-          }
-        ]
+        // Apply security headers to all routes
+        source: '/:path*',
+        headers: securityHeaders
       },
       {
+        // API-specific headers
         source: '/api/:path*',
         headers: [
           {
             key: 'Cache-Control',
             value: 'no-store, must-revalidate'
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff'
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY'
           }
         ]
       },
       {
+        // Static assets caching
         source: '/_next/static/:path*',
         headers: [
           {
@@ -73,19 +81,81 @@ const nextConfig = {
             value: 'public, max-age=31536000, immutable'
           }
         ]
+      },
+      {
+        // Block access to sensitive files
+        source: '/(.*\.(env|git|gitignore|dockerignore|md|lock|log))',
+        headers: [
+          {
+            key: 'X-Robots-Tag',
+            value: 'noindex, nofollow'
+          }
+        ]
       }
     ];
   },
   
-  // Redirects
+  // Redirects and rewrites to block sensitive files
   async redirects() {
     return [
       {
         source: '/home',
         destination: '/dashboard',
         permanent: true,
+      },
+      // Block access to .git directory
+      {
+        source: '/.git/:path*',
+        destination: '/404',
+        permanent: false,
+      },
+      // Block access to .env files
+      {
+        source: '/.env:path*',
+        destination: '/404',
+        permanent: false,
+      },
+      // Block access to config files
+      {
+        source: '/:path*.config.js',
+        destination: '/404',
+        permanent: false,
+      },
+      // Block access to package files
+      {
+        source: '/package:path*.json',
+        destination: '/404',
+        permanent: false,
+      },
+      // Block access to lock files
+      {
+        source: '/:path*.lock',
+        destination: '/404',
+        permanent: false,
       }
     ];
+  },
+  
+  async rewrites() {
+    return {
+      beforeFiles: [
+        // Block .git directory access
+        {
+          source: '/.git/:path*',
+          destination: '/api/forbidden',
+        },
+        // Block environment files
+        {
+          source: '/.env:path*',
+          destination: '/api/forbidden',
+        },
+        // Block other sensitive files
+        {
+          source: '/(.*\\.(gitignore|dockerignore|env\\.local|env\\.production))',
+          destination: '/api/forbidden',
+        }
+      ]
+    };
   },
   
   // Environment variables validation

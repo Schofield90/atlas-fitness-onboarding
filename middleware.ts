@@ -72,8 +72,6 @@ const publicRoutes = [
   '/join',
   '/book',
   '/meta-review',
-  '/class-calendar', // Temporarily allow public access for testing
-  '/test-calendar', // Test calendar page
   // Public API endpoints
   '/api/auth',
   '/api/client-portal',
@@ -81,22 +79,7 @@ const publicRoutes = [
   '/api/webhooks',
   '/api/public-api',
   '/api/booking-by-slug',
-  '/api/analytics',
   '/api/login-otp',
-  '/api/set-password-dev',
-  '/api/setup-otp-table',
-  '/api/debug-clients',
-  '/api/test-client-lookup',
-  '/api/check-database',
-  '/api/test-nutrition-access',
-  '/api/admin/fix-organization-staff',
-  '/api/test/login', // E2E test login endpoint (protected by env checks)
-  '/api/test/create-test-owner', // Test owner creation endpoint
-  '/api/admin/fix-nutrition-schema',
-  '/api/admin/create-meal-plans-table',
-  '/api/fix-messaging-view',
-  '/api/migration',
-  '/api/import/goteamup',
   '/api/class-sessions' // Allow API access for class sessions
 ]
 
@@ -160,9 +143,12 @@ const adminRoutes = [
   '/integrations'
 ]
 
-// Super admin routes that bypass organization checks
+// Super admin routes that require strict authentication
 const superAdminRoutes = [
-  '/admin'
+  '/admin',
+  '/admin-direct',
+  '/saas-admin',
+  '/admin-debug'
 ]
 
 function extractSubdomain(hostname: string): string {
@@ -471,8 +457,25 @@ export async function middleware(request: NextRequest) {
   )
 
   if (isSuperAdminRoute) {
-    // For super admin routes, just check if user is authenticated
-    // The page itself will handle specific email checks
+    // Super admin routes require both authentication AND super admin status
+    const { data: superAdmin } = await supabase
+      .from('super_admin_users')
+      .select('id')
+      .eq('user_id', session.user.id)
+      .eq('is_active', true)
+      .single()
+
+    if (!superAdmin) {
+      // Not a super admin - deny access
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json({ error: 'Super admin access required' }, { status: 403 })
+      }
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+
+    // Store super admin status in headers
+    res.headers.set('x-super-admin', 'true')
+    res.headers.set('x-user-id', session.user.id)
     return res
   }
 
