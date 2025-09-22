@@ -32,15 +32,8 @@ export async function POST(request: NextRequest) {
       }
 
       // Always use OTP flow for simple-login
-      let otpCode: string;
-
-      // For Sam, use a fixed code for testing
-      if (email.toLowerCase() === "samschofield90@hotmail.co.uk") {
-        otpCode = "123456";
-      } else {
-        // Generate random 6-digit code for others
-        otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-      }
+      // Generate random 6-digit code for all users
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
       // Store OTP in database
       await adminSupabase.from("otp_tokens").insert({
@@ -105,10 +98,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         message: "Verification code sent!",
-        // Include code in response for testing (remove in production)
-        ...(email.toLowerCase() === "samschofield90@hotmail.co.uk" && {
-          debugCode: otpCode,
-        }),
       });
     }
 
@@ -118,37 +107,6 @@ export async function POST(request: NextRequest) {
           { success: false, error: "Email and OTP required" },
           { status: 400 },
         );
-      }
-
-      // Special case for Sam - allow quick login
-      if (
-        email.toLowerCase() === "samschofield90@hotmail.co.uk" &&
-        otp === "123456"
-      ) {
-        // Sign in the user directly
-        const { data: authData, error: authError } =
-          await adminSupabase.auth.admin.generateLink({
-            type: "magiclink",
-            email: email.toLowerCase(),
-            options: {
-              redirectTo: "/client/dashboard",
-            },
-          });
-
-        if (authError || !authData) {
-          console.error("Auth error:", authError);
-          // Fallback - just redirect
-          return NextResponse.json({
-            success: true,
-            redirectTo: "/client/dashboard",
-            authUrl: `/auth/callback?token=temp&redirect=/client/dashboard`,
-          });
-        }
-
-        return NextResponse.json({
-          success: true,
-          authUrl: authData.properties?.action_link || "/client/dashboard",
-        });
       }
 
       // Verify OTP from database
