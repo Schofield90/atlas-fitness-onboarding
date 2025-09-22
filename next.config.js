@@ -149,9 +149,24 @@ const nextConfig = {
           source: '/.env:path*',
           destination: '/api/forbidden',
         },
-        // Block other sensitive files
+        // Block gitignore files
         {
-          source: '/(.*\\.(gitignore|dockerignore|env\\.local|env\\.production))',
+          source: '/:path*.gitignore',
+          destination: '/api/forbidden',
+        },
+        // Block dockerignore files
+        {
+          source: '/:path*.dockerignore',
+          destination: '/api/forbidden',
+        },
+        // Block env.local files
+        {
+          source: '/:path*.env.local',
+          destination: '/api/forbidden',
+        },
+        // Block env.production files
+        {
+          source: '/:path*.env.production',
           destination: '/api/forbidden',
         }
       ]

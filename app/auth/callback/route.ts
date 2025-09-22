@@ -28,7 +28,6 @@ export async function GET(request: NextRequest) {
       // For Google OAuth, determine if this is an owner or client login
       if (data.user.app_metadata?.provider === "google") {
         const adminSupabase = createAdminClient();
-        const hostname = request.headers.get("host") || "";
 
         // First check if user is an owner/admin
         const { data: userOrg } = await adminSupabase
@@ -133,7 +132,6 @@ export async function GET(request: NextRequest) {
   }
 
   // return the user to an error page with instructions
-  const hostname = request.headers.get("host") || "";
   const subdomain = extractSubdomain(hostname);
   const errorUrl =
     subdomain === "members"
