@@ -118,9 +118,18 @@ function LoginPageContent() {
         throw new Error(data.error || "Failed to verify OTP");
       }
 
+      console.log("OTP verification response:", {
+        success: data.success,
+        hasAuthUrl: !!data.authUrl,
+        hasSession: !!data.session,
+        userRole: data.userRole,
+        redirectTo: data.redirectTo,
+        sessionMethod: data.sessionMethod,
+      });
+
       // If we have an auth URL, use it directly - most reliable for mobile
       if (data.authUrl) {
-        console.log("Using magic link URL for authentication");
+        console.log("Using magic link URL for authentication:", data.authUrl);
         clearTimeout(timeoutId);
         window.location.href = data.authUrl;
         return;
@@ -250,6 +259,13 @@ function LoginPageContent() {
             session_method: data.sessionMethod,
             has_fallback: !!data.authUrl,
           });
+
+          // If we have an auth URL, use it as fallback
+          if (data.authUrl) {
+            console.log("Using fallback auth URL after session setup failed");
+            window.location.href = data.authUrl;
+            return;
+          }
 
           setMessage("Login failed. Please try again.");
           setSuccess(false);
