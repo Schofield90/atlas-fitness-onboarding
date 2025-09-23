@@ -235,12 +235,22 @@ export async function POST(request: NextRequest) {
         // For mobile compatibility, generate a magic link
         // This is the most reliable method across all devices
         try {
+          // Get the proper redirect URL for members
+          const host =
+            request.headers.get("host") || "members.gymleadhub.co.uk";
+          const protocol =
+            process.env.NODE_ENV === "production" ? "https" : "http";
+          const baseUrl = `${protocol}://${host}`;
+          const redirectUrl = `${baseUrl}/client/dashboard`;
+
+          console.log("Generating magic link with redirect to:", redirectUrl);
+
           const { data: linkData, error: linkError } =
             await adminSupabase.auth.admin.generateLink({
               type: "magiclink",
               email: email.toLowerCase(),
               options: {
-                redirectTo: "/client/dashboard",
+                redirectTo: redirectUrl,
               },
             });
 
