@@ -95,16 +95,43 @@ function LoginPageContent() {
     ); // 45 seconds for mobile, 30 for desktop
 
     try {
-      const response = await fetch("/api/login-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "verify",
-          email: email.toLowerCase().trim(),
-          otp: otp.trim(),
-        }),
-      });
+      console.log("Starting OTP verification request...");
 
+      // Create an AbortController for the fetch request
+      const controller = new AbortController();
+      const fetchTimeout = setTimeout(
+        () => {
+          console.log("Fetch timeout - aborting request");
+          controller.abort();
+        },
+        isMobile ? 40000 : 25000,
+      ); // Slightly less than the main timeout
+
+      let response;
+      try {
+        response = await fetch("/api/login-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "verify",
+            email: email.toLowerCase().trim(),
+            otp: otp.trim(),
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(fetchTimeout);
+      } catch (fetchErr) {
+        clearTimeout(fetchTimeout);
+        console.error("Fetch failed:", fetchErr);
+        if (fetchErr instanceof Error && fetchErr.name === "AbortError") {
+          throw new Error(
+            "Request timed out. Please check your connection and try again.",
+          );
+        }
+        throw new Error("Network error. Please check your connection.");
+      }
+
+      console.log("Response received, status:", response.status);
       const data = await response.json();
       console.log("OTP verification response:", {
         success: data.success,
@@ -304,7 +331,22 @@ function LoginPageContent() {
       }
     } catch (err) {
       clearTimeout(timeoutId); // Clear the timeout if we get here
-      setMessage(err instanceof Error ? err.message : "Invalid or expired OTP");
+      console.error("OTP verification error:", err);
+      console.error("Error details:", {
+        message: err instanceof Error ? err.message : "Unknown error",
+        stack: err instanceof Error ? err.stack : undefined,
+      });
+
+      // Check if it's a network error
+      if (err instanceof TypeError && err.message.includes("fetch")) {
+        setMessage(
+          "Network error. Please check your connection and try again.",
+        );
+      } else {
+        setMessage(
+          err instanceof Error ? err.message : "Invalid or expired OTP",
+        );
+      }
       setSuccess(false);
     } finally {
       clearTimeout(timeoutId); // Clear the timeout

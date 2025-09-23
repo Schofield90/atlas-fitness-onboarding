@@ -232,52 +232,90 @@ export async function POST(request: NextRequest) {
       }
 
       if (client.user_id) {
-        // For mobile compatibility, generate a magic link
-        // This is the most reliable method across all devices
+        // Instead of magic link, directly create a session
         try {
-          // Get the proper redirect URL for members
-          const host =
-            request.headers.get("host") || "members.gymleadhub.co.uk";
-          const protocol =
-            process.env.NODE_ENV === "production" ? "https" : "http";
-          const baseUrl = `${protocol}://${host}`;
-          const redirectUrl = `${baseUrl}/client/dashboard`;
-
-          console.log("Generating magic link with redirect to:", redirectUrl);
-
-          const { data: linkData, error: linkError } =
+          // Generate session for the user
+          const { data: sessionData, error: sessionError } =
             await adminSupabase.auth.admin.generateLink({
               type: "magiclink",
               email: email.toLowerCase(),
-              options: {
-                redirectTo: redirectUrl,
-              },
             });
 
-          if (linkError || !linkData?.properties?.action_link) {
-            console.error("Magic link generation error:", linkError);
+          if (sessionError || !sessionData?.properties?.action_link) {
+            console.error("Session generation error:", sessionError);
             return NextResponse.json(
               {
                 success: false,
                 error: "Unable to create session. Please try again.",
-                details: linkError?.message,
+                details: sessionError?.message,
               },
               { status: 500 },
             );
           }
 
-          // DON'T delete OTP yet - let it expire naturally
-          // This allows retry if the magic link fails on mobile
-          console.log("Keeping OTP for retry support:", otpRecord.id);
+          // Extract tokens from the magic link
+          const url = new URL(sessionData.properties.action_link);
+          const token = url.searchParams.get("token");
+          const type = url.searchParams.get("type");
 
-          // For mobile, just use the magic link URL directly
-          // Trying to extract and verify tokens doesn't work reliably on mobile browsers
+          if (!token) {
+            console.error("No token in magic link");
+            return NextResponse.json(
+              {
+                success: false,
+                error: "Failed to generate authentication token",
+              },
+              { status: 500 },
+            );
+          }
+
+          // Exchange the token for a session
+          const { data: session, error: exchangeError } =
+            await adminSupabase.auth.verifyOtp({
+              token_hash: token,
+              type: (type as any) || "magiclink",
+            });
+
+          if (exchangeError || !session?.session) {
+            console.error("Token exchange error:", exchangeError);
+
+            // Fallback: return the magic link URL for direct use
+            // But modify it to redirect to the correct domain
+            const host =
+              request.headers.get("host") || "members.gymleadhub.co.uk";
+            const protocol =
+              process.env.NODE_ENV === "production" ? "https" : "http";
+            const redirectUrl = `${protocol}://${host}/client/dashboard`;
+
+            // Modify the magic link to include our redirect
+            const modifiedUrl = new URL(sessionData.properties.action_link);
+            modifiedUrl.searchParams.set("redirect_to", redirectUrl);
+
+            return NextResponse.json({
+              success: true,
+              authUrl: modifiedUrl.toString(),
+              redirectTo: "/client/dashboard",
+              userRole: "member",
+              sessionMethod: "magic_link_url",
+            });
+          }
+
+          // Delete OTP after successful session creation
+          await adminSupabase
+            .from("otp_tokens")
+            .delete()
+            .eq("id", otpRecord.id);
+
+          // Return session tokens for client-side session setup
           return NextResponse.json({
             success: true,
-            authUrl: linkData.properties.action_link,
+            session: {
+              access_token: session.session.access_token,
+              refresh_token: session.session.refresh_token,
+            },
             redirectTo: "/client/dashboard",
             userRole: "member",
-            sessionMethod: "magic_link_url",
+            sessionMethod: "token_exchange",
           });
         } catch (error) {
           console.error("Unexpected error:", error);
