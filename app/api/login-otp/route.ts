@@ -238,11 +238,8 @@ export async function POST(request: NextRequest) {
           }
 
           if (sessionData?.session) {
-            // Delete OTP only AFTER successful session creation
-            await adminSupabase
-              .from("otp_tokens")
-              .delete()
-              .eq("id", otpRecord.id);
+            // DON'T delete OTP yet - let client confirm session is set
+            // This prevents the "invalid or expired code" error on retry
 
             // Log successful session creation for debugging
             console.log("Multi-device session created successfully:", {
@@ -253,6 +250,7 @@ export async function POST(request: NextRequest) {
             });
 
             // Return the session tokens for the client to set
+            // Include the OTP record ID so client can delete it after confirming session
             return NextResponse.json({
               success: true,
               session: {
@@ -260,6 +258,7 @@ export async function POST(request: NextRequest) {
                 refresh_token: sessionData.session.refresh_token,
                 expires_at: sessionData.session.expires_at,
               },
+              otpRecordId: otpRecord.id, // Pass this to client
               redirectTo: "/client/dashboard",
               userRole: "member",
               sessionMethod: "admin_create_session",
@@ -280,11 +279,11 @@ export async function POST(request: NextRequest) {
 
       // Fallback - just return redirect URL for client-side handling
       // This handles cases where user doesn't have a user_id yet
-      // Delete OTP in this case too since we're completing the auth flow
-      await adminSupabase.from("otp_tokens").delete().eq("id", otpRecord.id);
+      // DON'T delete OTP here - let it expire naturally or be deleted after successful login
 
       return NextResponse.json({
         success: true,
+        otpRecordId: otpRecord.id, // Pass this for later deletion
         redirectTo: "/client/dashboard",
         userRole: "member", // Explicitly set role as member
       });

@@ -68,15 +68,31 @@ function LoginPageContent() {
 
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Check if we're on mobile for better debugging
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    console.log(
+      "OTP verification attempt from:",
+      isMobile ? "Mobile" : "Desktop",
+      {
+        email: email.toLowerCase().trim(),
+        otpLength: otp.length,
+        device: navigator.userAgent,
+      },
+    );
+
     setLoading(true);
     setMessage("");
 
-    // Add a timeout to prevent infinite loading
-    const timeoutId = setTimeout(() => {
-      setLoading(false);
-      setMessage("Request timed out. Please try again.");
-      setSuccess(false);
-    }, 30000); // 30 second timeout
+    // Add a timeout to prevent infinite loading (longer for mobile)
+    const timeoutId = setTimeout(
+      () => {
+        setLoading(false);
+        setMessage("Request timed out. Please try again.");
+        setSuccess(false);
+      },
+      isMobile ? 45000 : 30000,
+    ); // 45 seconds for mobile, 30 for desktop
 
     try {
       const response = await fetch("/api/login-otp", {
@@ -146,6 +162,21 @@ function LoginPageContent() {
             session_method: data.sessionMethod,
             expires_at: sessionResult.session.expires_at,
           });
+
+          // Session set successfully, now confirm it and delete OTP
+          if (data.otpRecordId) {
+            try {
+              await fetch("/api/login-otp/confirm", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ otpRecordId: data.otpRecordId }),
+              });
+              console.log("Session confirmed and OTP cleaned up");
+            } catch (confirmErr) {
+              console.error("Failed to confirm session:", confirmErr);
+              // Don't fail the login, OTP will expire naturally
+            }
+          }
 
           // Always redirect to client dashboard for members
           // Use full URL to ensure we stay on members subdomain
