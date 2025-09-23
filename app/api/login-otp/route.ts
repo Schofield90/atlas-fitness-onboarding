@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
+import {
+  checkAuthRateLimit,
+  createRateLimitResponse,
+} from "@/app/lib/rate-limit";
+import { validateEmail, validateOTP } from "@/app/lib/input-sanitizer";
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,11 +22,31 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Validate and sanitize email
+      const emailValidation = validateEmail(email);
+      if (!emailValidation.valid) {
+        return NextResponse.json(
+          { success: false, error: "Invalid email address" },
+          { status: 400 },
+        );
+      }
+      const sanitizedEmail = emailValidation.sanitized;
+
+      // Check rate limit for OTP sending
+      const rateLimitCheck = checkAuthRateLimit(
+        request,
+        "otpSend",
+        sanitizedEmail,
+      );
+      if (!rateLimitCheck.allowed) {
+        return createRateLimitResponse(rateLimitCheck.resetIn);
+      }
+
       // Find client by email
       const { data: client, error: clientError } = await adminSupabase
         .from("clients")
         .select("id, email, first_name, last_name, organization_id, user_id")
-        .eq("email", email.toLowerCase().trim())
+        .eq("email", sanitizedEmail)
         .single();
 
       if (clientError || !client) {
@@ -39,11 +64,11 @@ export async function POST(request: NextRequest) {
       await adminSupabase
         .from("otp_tokens")
         .delete()
-        .eq("email", email.toLowerCase());
+        .eq("email", sanitizedEmail);
 
       // Store OTP in database
       const otpData = {
-        email: email.toLowerCase(),
+        email: sanitizedEmail,
         token: otpCode,
         expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
       };
@@ -102,7 +127,7 @@ export async function POST(request: NextRequest) {
               from:
                 process.env.RESEND_FROM_EMAIL ||
                 "Atlas Fitness <noreply@gymleadhub.co.uk>",
-              to: email,
+              to: sanitizedEmail,
               subject: `Your verification code: ${otpCode}`,
               html: emailHtml,
               text: `Your verification code is: ${otpCode}\n\nThis code will expire in 10 minutes.`,
@@ -140,19 +165,50 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Validate and sanitize inputs
+      const emailValidation = validateEmail(email);
+      const otpValidation = validateOTP(otp);
+
+      if (!emailValidation.valid) {
+        return NextResponse.json(
+          { success: false, error: "Invalid email address" },
+          { status: 400 },
+        );
+      }
+
+      if (!otpValidation.valid) {
+        return NextResponse.json(
+          { success: false, error: "Invalid verification code format" },
+          { status: 400 },
+        );
+      }
+
+      const sanitizedEmail = emailValidation.sanitized;
+      const sanitizedOTP = otpValidation.sanitized;
+
+      // Check rate limit for OTP verification
+      const rateLimitCheck = checkAuthRateLimit(
+        request,
+        "otpVerify",
+        sanitizedEmail,
+      );
+      if (!rateLimitCheck.allowed) {
+        return createRateLimitResponse(rateLimitCheck.resetIn);
+      }
+
       // Verify OTP from database - use maybeSingle to handle 0 or 1 rows
       const { data: otpRecords, error: otpError } = await adminSupabase
         .from("otp_tokens")
         .select("*")
-        .eq("email", email.toLowerCase())
-        .eq("token", otp.trim()) // Trim any whitespace from the OTP
+        .eq("email", sanitizedEmail)
+        .eq("token", sanitizedOTP)
         .gte("expires_at", new Date().toISOString());
 
       const otpRecord = otpRecords?.[0] || null;
 
       if (otpError) {
         console.error("OTP verification error:", otpError);
-        console.error("Email:", email.toLowerCase(), "OTP:", otp.trim());
+        console.error("Email:", sanitizedEmail, "OTP:", sanitizedOTP);
       }
 
       if (!otpRecord) {
@@ -160,21 +216,21 @@ export async function POST(request: NextRequest) {
         const { data: anyOtps } = await adminSupabase
           .from("otp_tokens")
           .select("*")
-          .eq("email", email.toLowerCase());
+          .eq("email", sanitizedEmail);
 
         const anyOtp = anyOtps?.[0];
 
         if (anyOtp) {
           console.error("OTP exists but doesn't match or is expired:", {
-            provided: otp.trim(),
+            provided: sanitizedOTP,
             stored: anyOtp.token,
             expired: new Date(anyOtp.expires_at) < new Date(),
             expires_at: anyOtp.expires_at,
             current_time: new Date().toISOString(),
           });
         } else {
-          console.error("No OTP found for email:", email.toLowerCase());
-          console.error("Attempted OTP:", otp.trim());
+          console.error("No OTP found for email:", sanitizedEmail);
+          console.error("Attempted OTP:", sanitizedOTP);
         }
 
         return NextResponse.json(
@@ -187,7 +243,7 @@ export async function POST(request: NextRequest) {
       const { data: client } = await adminSupabase
         .from("clients")
         .select("user_id, organization_id")
-        .eq("email", email.toLowerCase())
+        .eq("email", sanitizedEmail)
         .single();
 
       if (!client) {

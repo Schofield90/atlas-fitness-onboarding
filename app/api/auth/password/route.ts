@@ -5,6 +5,10 @@ import {
 } from "@/app/lib/supabase/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 import { createHash, randomBytes, pbkdf2Sync } from "crypto";
+import {
+  checkAuthRateLimit,
+  createRateLimitResponse,
+} from "@/app/lib/rate-limit";
 
 // Helper functions to replace bcrypt
 function hashPassword(password: string): string {
@@ -34,6 +38,16 @@ export async function POST(request: NextRequest) {
           { success: false, error: "Email and password required" },
           { status: 400 },
         );
+      }
+
+      // Check rate limit for password login
+      const rateLimitCheck = checkAuthRateLimit(
+        request,
+        "passwordLogin",
+        email.toLowerCase(),
+      );
+      if (!rateLimitCheck.allowed) {
+        return createRateLimitResponse(rateLimitCheck.resetIn);
       }
 
       // Find client by email
