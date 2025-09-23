@@ -113,94 +113,65 @@ export async function GET(request: NextRequest) {
       .delete()
       .eq("email", sessionToken.email.toLowerCase());
 
-    // Instead of setting cookies server-side, return a client-side redirect page
-    // that will establish the session properly
-    const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Completing login...</title>
-  <style>
-    body { 
-      font-family: system-ui; 
-      display: flex; 
-      align-items: center; 
-      justify-content: center; 
-      height: 100vh; 
-      margin: 0;
-      background: #1f2937;
-      color: white;
-    }
-    .loading { text-align: center; }
-    .spinner {
-      border: 3px solid rgba(255,255,255,0.3);
-      border-top: 3px solid #f97316;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 20px;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-  </style>
-</head>
-<body>
-  <div class="loading">
-    <div class="spinner"></div>
-    <div>Completing your login...</div>
-  </div>
-  <script>
-    (async function() {
-      try {
-        // Import Supabase client
-        const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
-        
-        // Create Supabase client
-        const supabase = createClient(
-          '${process.env.NEXT_PUBLIC_SUPABASE_URL}',
-          '${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}'
-        );
-        
-        // Set the session
-        const { data, error } = await supabase.auth.setSession({
-          access_token: '${session.session.access_token}',
-          refresh_token: '${session.session.refresh_token}'
-        });
-        
-        if (error) {
-          console.error('Failed to set session:', error);
-          window.location.href = '/simple-login?error=session_failed';
-        } else {
-          console.log('Session established successfully');
-          // Redirect to the dashboard
-          window.location.href = '${sessionToken.redirect_url}';
-        }
-      } catch (err) {
-        console.error('Error during login:', err);
-        window.location.href = '/simple-login?error=unexpected';
-      }
-    })();
-  </script>
-</body>
-</html>
-    `;
+    // Set cookies that both client and server can read
+    const response = NextResponse.redirect(new URL(sessionToken.redirect_url));
 
-    console.log("Sending client-side session establishment page:", {
+    // Set Supabase auth cookies properly
+    const cookieStore = cookies();
+
+    // The key is to set the cookies in the exact format Supabase expects
+    const cookieOptions = {
+      httpOnly: false, // Must be false so client can read it
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax" as const,
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    };
+
+    // Set the auth token in the format Supabase expects
+    // Format: sb-<project-ref>-auth-token
+    const projectRef =
+      process.env.NEXT_PUBLIC_SUPABASE_URL?.split("//")[1]?.split(".")[0] ||
+      "lzlrojoaxrqvmhempnkn";
+
+    const authTokenValue = {
+      access_token: session.session.access_token,
+      refresh_token: session.session.refresh_token,
+      expires_in: session.session.expires_in,
+      expires_at: session.session.expires_at,
+      token_type: "bearer",
+      user: session.session.user,
+    };
+
+    // Set the main auth token cookie
+    response.cookies.set(
+      `sb-${projectRef}-auth-token`,
+      JSON.stringify(authTokenValue),
+      cookieOptions,
+    );
+
+    // Also set individual token cookies for compatibility
+    response.cookies.set(
+      `sb-${projectRef}-auth-token.0`,
+      session.session.access_token,
+      { ...cookieOptions, httpOnly: true },
+    );
+
+    response.cookies.set(
+      `sb-${projectRef}-auth-token.1`,
+      session.session.refresh_token,
+      { ...cookieOptions, httpOnly: true },
+    );
+
+    console.log("Session cookies set successfully:", {
       user_id: session.session.user.id,
       email: sessionToken.email,
       organization_id: sessionToken.organization_id,
       redirect: sessionToken.redirect_url,
+      cookie_name: `sb-${projectRef}-auth-token`,
     });
 
-    return new NextResponse(html, {
-      headers: {
-        "Content-Type": "text/html",
-      },
-    });
+    return response;
   } catch (error) {
     console.error("Verification error:", error);
     return NextResponse.redirect(
