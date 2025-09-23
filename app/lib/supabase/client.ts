@@ -4,10 +4,15 @@ import type { Database } from "./database.types";
 let browserClient: ReturnType<typeof createBrowserClient<Database>> | null =
   null;
 
-export function createClient() {
+export function createClient(forceNew = false) {
   // Don't create client during SSR/build time
   if (typeof window === "undefined") {
     return null as any; // Return null during SSR, components should handle this
+  }
+
+  // Force new client if requested (useful for auth state changes)
+  if (forceNew) {
+    browserClient = null;
   }
 
   if (browserClient) return browserClient;
@@ -23,6 +28,7 @@ export function createClient() {
       autoRefreshToken: true, // Enable auto-refresh but only in browser
       persistSession: true,
       detectSessionInUrl: true,
+      flowType: "pkce", // Use PKCE flow for better mobile support
       storage: {
         getItem: (key) => {
           if (typeof window === "undefined") return null;

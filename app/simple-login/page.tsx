@@ -106,6 +106,12 @@ function LoginPageContent() {
       });
 
       const data = await response.json();
+      console.log("OTP verification response:", {
+        success: data.success,
+        hasSession: !!data.session,
+        hasAuthUrl: !!data.authUrl,
+        sessionMethod: data.sessionMethod,
+      });
 
       if (!response.ok) {
         throw new Error(data.error || "Failed to verify OTP");
@@ -114,12 +120,22 @@ function LoginPageContent() {
       // If we have session tokens, set them and redirect
       if (data.session) {
         try {
-          const supabase = createClient();
+          console.log("Attempting to set session with tokens");
+          let supabase = createClient();
 
           // Clear any existing session first to prevent conflicts
+          console.log("Clearing existing session");
           await supabase.auth.signOut({ scope: "local" });
 
+          // Create a fresh client after signing out to ensure clean state
+          console.log("Creating fresh Supabase client");
+          supabase = createClient(true); // Force new client
+
           // Set the new session - this supports multiple concurrent sessions
+          console.log("Setting new session with tokens:", {
+            hasAccessToken: !!data.session.access_token,
+            hasRefreshToken: !!data.session.refresh_token,
+          });
           const { data: sessionResult, error: sessionError } =
             await supabase.auth.setSession({
               access_token: data.session.access_token,
@@ -163,6 +179,23 @@ function LoginPageContent() {
             expires_at: sessionResult.session.expires_at,
           });
 
+          // Double check session is really set
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+          console.log("Session verification - getUser result:", {
+            hasUser: !!user,
+            userId: user?.id,
+            email: user?.email,
+          });
+
+          if (!user) {
+            console.error(
+              "Session set but getUser() returns null - session not persisted",
+            );
+            throw new Error("Session not persisted properly");
+          }
+
           // Session set successfully, now confirm it and delete OTP
           if (data.otpRecordId) {
             try {
@@ -177,6 +210,9 @@ function LoginPageContent() {
               // Don't fail the login, OTP will expire naturally
             }
           }
+
+          // Add a small delay to ensure session is fully propagated
+          await new Promise((resolve) => setTimeout(resolve, 500));
 
           // Always redirect to client dashboard for members
           // Use full URL to ensure we stay on members subdomain
@@ -286,6 +322,13 @@ function LoginPageContent() {
     setLoading(true);
     setMessage("");
 
+    // Add mobile detection for debugging
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    console.log(
+      "Password login attempt from:",
+      isMobile ? "Mobile" : "Desktop",
+    );
+
     try {
       const response = await fetch("/api/auth/password", {
         method: "POST",
@@ -303,11 +346,75 @@ function LoginPageContent() {
         throw new Error(data.error || "Failed to login");
       }
 
-      // If we have an auth URL, use it to sign in
-      if (data.authUrl) {
+      // If we have session tokens, set them directly (mobile-friendly)
+      if (data.session) {
+        try {
+          let supabase = createClient();
+
+          // Clear any existing session first
+          await supabase.auth.signOut({ scope: "local" });
+
+          // Create fresh client after signing out
+          supabase = createClient(true); // Force new client
+
+          // Set the new session
+          const { data: sessionResult, error: sessionError } =
+            await supabase.auth.setSession({
+              access_token: data.session.access_token,
+              refresh_token: data.session.refresh_token,
+            });
+
+          if (sessionError) {
+            console.error("Failed to set session:", sessionError);
+            // Try authUrl fallback if available
+            if (data.authUrl) {
+              console.log("Using auth URL fallback");
+              window.location.href = data.authUrl;
+              return;
+            }
+            throw new Error("Failed to establish session");
+          }
+
+          // Verify session was set
+          if (!sessionResult?.session) {
+            console.error("Session not established");
+            if (data.authUrl) {
+              window.location.href = data.authUrl;
+              return;
+            }
+            throw new Error("Session verification failed");
+          }
+
+          console.log("Password session established successfully");
+
+          // Add a small delay to ensure session is fully propagated
+          await new Promise((resolve) => setTimeout(resolve, 500));
+
+          // Redirect to dashboard
+          const hostname =
+            typeof window !== "undefined" ? window.location.hostname : "";
+          if (hostname.includes("members.gymleadhub.co.uk")) {
+            router.push("/client/dashboard");
+          } else if (hostname.includes("gymleadhub.co.uk")) {
+            window.location.href =
+              "https://members.gymleadhub.co.uk/client/dashboard";
+          } else {
+            router.push("/client/dashboard");
+          }
+        } catch (sessionErr) {
+          console.error("Session setup error:", sessionErr);
+          // Fallback to authUrl if available
+          if (data.authUrl) {
+            window.location.href = data.authUrl;
+          } else {
+            throw sessionErr;
+          }
+        }
+      } else if (data.authUrl) {
+        // Fallback to auth URL if no session tokens
         window.location.href = data.authUrl;
       } else {
-        // Use domain-aware redirect
+        // Legacy redirect logic
         const hostname =
           typeof window !== "undefined" ? window.location.hostname : "";
         const subdomain = extractSubdomain(hostname);

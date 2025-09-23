@@ -97,94 +97,9 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // For development, create a proper session
-      if (process.env.NODE_ENV === "development") {
-        // Check if client has a user_id, if not create one
-        if (!client.user_id) {
-          // Create a new Supabase user for the client
-          const { data: newUser, error: createError } =
-            await supabase.auth.admin.createUser({
-              email: client.email,
-              email_confirm: true,
-              user_metadata: {
-                first_name: client.first_name,
-                last_name: client.last_name,
-                role: "client",
-              },
-            });
-
-          if (createError || !newUser.user) {
-            return NextResponse.json(
-              { success: false, error: "Failed to create user session" },
-              { status: 500 },
-            );
-          }
-
-          // Update client with user_id
-          await supabase
-            .from("clients")
-            .update({ user_id: newUser.user.id })
-            .eq("id", client.id);
-
-          client.user_id = newUser.user.id;
-        }
-
-        // Generate a magic link to sign the user in
-        const { data: magicLink, error: magicLinkError } =
-          await supabase.auth.admin.generateLink({
-            type: "magiclink",
-            email: client.email,
-          });
-
-        if (magicLinkError || !magicLink) {
-          return NextResponse.json(
-            { success: false, error: "Failed to generate authentication link" },
-            { status: 500 },
-          );
-        }
-
-        return NextResponse.json({
-          success: true,
-          authUrl: magicLink.properties?.action_link,
-          redirectTo: "/client/dashboard",
-        });
-      }
-
-      // Create or get user session
-      if (client.user_id) {
-        // Client already has a Supabase user, create a session
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.admin.getUserById(client.user_id);
-
-        if (userError || !user) {
-          return NextResponse.json(
-            { success: false, error: "Authentication failed" },
-            { status: 500 },
-          );
-        }
-
-        // Generate a magic link for the user to sign in
-        const { data: magicLink, error: magicLinkError } =
-          await supabase.auth.admin.generateLink({
-            type: "magiclink",
-            email: client.email,
-          });
-
-        if (magicLinkError || !magicLink) {
-          return NextResponse.json(
-            { success: false, error: "Failed to generate authentication link" },
-            { status: 500 },
-          );
-        }
-
-        return NextResponse.json({
-          success: true,
-          authUrl: magicLink.properties?.action_link,
-          redirectTo: "/client/dashboard",
-        });
-      } else {
+      // Create session tokens directly for mobile compatibility
+      // Check if client has a user_id, if not create one
+      if (!client.user_id) {
         // Create a new Supabase user for the client
         const { data: newUser, error: createError } =
           await supabase.auth.admin.createUser({
@@ -198,6 +113,7 @@ export async function POST(request: NextRequest) {
           });
 
         if (createError || !newUser.user) {
+          console.error("Failed to create user:", createError);
           return NextResponse.json(
             { success: false, error: "Failed to create user session" },
             { status: 500 },
@@ -210,25 +126,58 @@ export async function POST(request: NextRequest) {
           .update({ user_id: newUser.user.id })
           .eq("id", client.id);
 
-        // Generate magic link for the new user
-        const { data: magicLink, error: magicLinkError } =
-          await supabase.auth.admin.generateLink({
-            type: "magiclink",
-            email: client.email,
+        client.user_id = newUser.user.id;
+      }
+
+      // Create a session directly using admin.auth.createSession
+      try {
+        const { data: sessionData, error: sessionError } =
+          await supabase.auth.admin.createSession({
+            user_id: client.user_id,
           });
 
-        if (magicLinkError || !magicLink) {
-          return NextResponse.json(
-            { success: false, error: "Failed to generate authentication link" },
-            { status: 500 },
-          );
+        if (sessionError || !sessionData?.session) {
+          console.error("Session creation failed:", sessionError);
+          // Fallback to magic link if session creation fails
+          const { data: magicLink, error: magicLinkError } =
+            await supabase.auth.admin.generateLink({
+              type: "magiclink",
+              email: client.email,
+            });
+
+          if (magicLinkError || !magicLink) {
+            return NextResponse.json(
+              { success: false, error: "Authentication failed" },
+              { status: 500 },
+            );
+          }
+
+          return NextResponse.json({
+            success: true,
+            authUrl: magicLink.properties?.action_link,
+            redirectTo: "/client/dashboard",
+            fallbackMethod: true,
+          });
         }
 
+        // Return session tokens for direct client-side session setup
         return NextResponse.json({
           success: true,
-          authUrl: magicLink.properties?.action_link,
+          session: {
+            access_token: sessionData.session.access_token,
+            refresh_token: sessionData.session.refresh_token,
+            expires_at: sessionData.session.expires_at,
+          },
           redirectTo: "/client/dashboard",
+          userRole: "member",
+          sessionMethod: "password_auth",
         });
+      } catch (error) {
+        console.error("Session creation error:", error);
+        return NextResponse.json(
+          { success: false, error: "Failed to create session" },
+          { status: 500 },
+        );
       }
     }
 
