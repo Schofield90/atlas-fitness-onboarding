@@ -145,31 +145,15 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        // Extract the token from the magic link URL for mobile support
-        const magicLinkUrl = new URL(magicLink.properties.action_link);
-        const token = magicLinkUrl.searchParams.get("token");
-        const type = magicLinkUrl.searchParams.get("type");
-
-        if (token && type === "magiclink") {
-          // Return the token for client-side verification
-          return NextResponse.json({
-            success: true,
-            authToken: token,
-            authType: "magiclink",
-            redirectTo: "/client/dashboard",
-            userRole: "member",
-            sessionMethod: "password_auth_token",
-          });
-        } else {
-          // Fallback to using the full magic link URL
-          return NextResponse.json({
-            success: true,
-            authUrl: magicLink.properties.action_link,
-            redirectTo: "/client/dashboard",
-            userRole: "member",
-            sessionMethod: "password_auth_url",
-          });
-        }
+        // For mobile compatibility, just use the magic link URL directly
+        // Token extraction and verification doesn't work reliably on mobile
+        return NextResponse.json({
+          success: true,
+          authUrl: magicLink.properties.action_link,
+          redirectTo: "/client/dashboard",
+          userRole: "member",
+          sessionMethod: "password_auth_url",
+        });
       } catch (error) {
         console.error("Authentication error:", error);
         return NextResponse.json(

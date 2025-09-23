@@ -118,54 +118,12 @@ function LoginPageContent() {
         throw new Error(data.error || "Failed to verify OTP");
       }
 
-      // If we have an auth token, use it to verify the magic link
-      if (data.authToken && data.authType === "magiclink") {
-        try {
-          console.log("Using magic link token for authentication");
-          const supabase = createClient();
-
-          // Verify the magic link token
-          const { data: sessionData, error: verifyError } =
-            await supabase.auth.verifyOtp({
-              token: data.authToken,
-              type: "magiclink",
-              email: email.toLowerCase().trim(),
-            });
-
-          if (verifyError || !sessionData?.session) {
-            console.error("Token verification failed:", verifyError);
-            // Fall back to authUrl if available
-            if (data.authUrl) {
-              window.location.href = data.authUrl;
-              return;
-            }
-            throw new Error("Failed to verify authentication token");
-          }
-
-          console.log("Session established via magic link token");
-
-          // Add a small delay to ensure session is fully propagated
-          await new Promise((resolve) => setTimeout(resolve, 500));
-
-          // Redirect to dashboard
-          const hostname =
-            typeof window !== "undefined" ? window.location.hostname : "";
-
-          clearTimeout(timeoutId); // Clear timeout on success
-
-          if (hostname.includes("members.gymleadhub.co.uk")) {
-            router.push("/client/dashboard");
-          } else if (hostname.includes("gymleadhub.co.uk")) {
-            window.location.href =
-              "https://members.gymleadhub.co.uk/client/dashboard";
-          } else {
-            router.push("/client/dashboard");
-          }
-          return;
-        } catch (tokenErr) {
-          console.error("Magic link token error:", tokenErr);
-          // Continue to other methods
-        }
+      // If we have an auth URL, use it directly - most reliable for mobile
+      if (data.authUrl) {
+        console.log("Using magic link URL for authentication");
+        clearTimeout(timeoutId);
+        window.location.href = data.authUrl;
+        return;
       }
 
       // If we have session tokens, set them and redirect
@@ -397,51 +355,11 @@ function LoginPageContent() {
         throw new Error(data.error || "Failed to login");
       }
 
-      // If we have an auth token, use it to verify the magic link
-      if (data.authToken && data.authType === "magiclink") {
-        try {
-          console.log("Using magic link token for password authentication");
-          const supabase = createClient();
-
-          // Verify the magic link token
-          const { data: sessionData, error: verifyError } =
-            await supabase.auth.verifyOtp({
-              token: data.authToken,
-              type: "magiclink",
-              email: email.toLowerCase().trim(),
-            });
-
-          if (verifyError || !sessionData?.session) {
-            console.error("Token verification failed:", verifyError);
-            // Fall back to authUrl if available
-            if (data.authUrl) {
-              window.location.href = data.authUrl;
-              return;
-            }
-            throw new Error("Failed to verify authentication token");
-          }
-
-          console.log("Password session established via magic link token");
-
-          // Add a small delay to ensure session is fully propagated
-          await new Promise((resolve) => setTimeout(resolve, 500));
-
-          // Redirect to dashboard
-          const hostname =
-            typeof window !== "undefined" ? window.location.hostname : "";
-          if (hostname.includes("members.gymleadhub.co.uk")) {
-            router.push("/client/dashboard");
-          } else if (hostname.includes("gymleadhub.co.uk")) {
-            window.location.href =
-              "https://members.gymleadhub.co.uk/client/dashboard";
-          } else {
-            router.push("/client/dashboard");
-          }
-          return;
-        } catch (tokenErr) {
-          console.error("Password magic link token error:", tokenErr);
-          // Continue to other methods
-        }
+      // If we have an auth URL, use it directly - most reliable for mobile
+      if (data.authUrl) {
+        console.log("Password authentication using magic link URL");
+        window.location.href = data.authUrl;
+        return;
       }
 
       // If we have session tokens, set them directly (mobile-friendly)

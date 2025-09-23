@@ -260,32 +260,15 @@ export async function POST(request: NextRequest) {
           // This allows retry if the magic link fails on mobile
           console.log("Keeping OTP for retry support:", otpRecord.id);
 
-          // Extract the token from the magic link URL for mobile support
-          const magicLinkUrl = new URL(linkData.properties.action_link);
-          const token = magicLinkUrl.searchParams.get("token");
-          const type = magicLinkUrl.searchParams.get("type");
-
-          if (token && type === "magiclink") {
-            // Return the token for client-side verification
-            // This allows the mobile app to verify the token directly
-            return NextResponse.json({
-              success: true,
-              authToken: token,
-              authType: "magiclink",
-              redirectTo: "/client/dashboard",
-              userRole: "member",
-              sessionMethod: "magic_link_token",
-            });
-          } else {
-            // Fallback to using the full magic link URL
-            return NextResponse.json({
-              success: true,
-              authUrl: linkData.properties.action_link,
-              redirectTo: "/client/dashboard",
-              userRole: "member",
-              sessionMethod: "magic_link_url",
-            });
-          }
+          // For mobile, just use the magic link URL directly
+          // Trying to extract and verify tokens doesn't work reliably on mobile browsers
+          return NextResponse.json({
+            success: true,
+            authUrl: linkData.properties.action_link,
+            redirectTo: "/client/dashboard",
+            userRole: "member",
+            sessionMethod: "magic_link_url",
+          });
         } catch (error) {
           console.error("Unexpected error:", error);
           return NextResponse.json(
