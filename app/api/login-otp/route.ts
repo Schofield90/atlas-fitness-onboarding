@@ -231,138 +231,76 @@ export async function POST(request: NextRequest) {
         client.user_id = newUser.user.id;
       }
 
-      if (client.user_id || true) {
-        // Always use custom token flow
-        // Use custom session token system to avoid domain redirect issues
-        try {
-          const crypto = require("crypto");
+      // Skip custom token system - use direct Supabase auth
+      // Generate magic link and exchange for session immediately
+      console.log("Generating magic link for direct authentication");
+      const { data: sessionData, error: sessionError } =
+        await adminSupabase.auth.admin.generateLink({
+          type: "magiclink",
+          email: email.toLowerCase(),
+        });
 
-          // Get the proper domain for this request
-          const host =
-            request.headers.get("host") || "members.gymleadhub.co.uk";
-          const protocol =
-            process.env.NODE_ENV === "production" ? "https" : "http";
-          const baseUrl = `${protocol}://${host}`;
-          const redirectUrl = `${baseUrl}/client/dashboard`;
+      if (sessionError || !sessionData?.properties?.action_link) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Unable to create session. Please try again.",
+            details: sessionError?.message,
+          },
+          { status: 500 },
+        );
+      }
 
-          // Generate a secure session token
-          const sessionToken = crypto.randomBytes(32).toString("hex");
-          const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+      // Try to exchange token immediately for session
+      const url = new URL(sessionData.properties.action_link);
+      const token = url.searchParams.get("token");
+      const type = url.searchParams.get("type");
 
-          console.log("Creating custom session token:", {
-            email: email.toLowerCase(),
-            organization_id: client.organization_id,
-            redirect_url: redirectUrl,
-            host: host,
+      if (token) {
+        const { data: session, error: exchangeError } =
+          await adminSupabase.auth.verifyOtp({
+            token_hash: token,
+            type: (type as any) || "magiclink",
           });
 
-          // Store session token in database
-          const { data: tokenData, error: tokenError } = await adminSupabase
-            .from("session_tokens")
-            .insert({
-              token: sessionToken,
-              user_id: client.user_id || null,
-              email: email.toLowerCase(),
-              organization_id: client.organization_id,
-              redirect_url: redirectUrl,
-              expires_at: expiresAt.toISOString(),
-            })
-            .select()
-            .single();
+        if (!exchangeError && session?.session) {
+          // Delete OTP after successful session creation
+          await adminSupabase
+            .from("otp_tokens")
+            .delete()
+            .eq("id", otpRecord.id);
 
-          if (tokenError) {
-            console.error("Failed to create session token:", tokenError);
-
-            // Fallback to direct session creation if table doesn't exist yet
-            console.log("Falling back to direct magic link generation");
-            const { data: sessionData, error: sessionError } =
-              await adminSupabase.auth.admin.generateLink({
-                type: "magiclink",
-                email: email.toLowerCase(),
-              });
-
-            if (sessionError || !sessionData?.properties?.action_link) {
-              return NextResponse.json(
-                {
-                  success: false,
-                  error: "Unable to create session. Please try again.",
-                  details: sessionError?.message,
-                },
-                { status: 500 },
-              );
-            }
-
-            // Try to exchange token immediately for session
-            const url = new URL(sessionData.properties.action_link);
-            const token = url.searchParams.get("token");
-            const type = url.searchParams.get("type");
-
-            if (token) {
-              const { data: session, error: exchangeError } =
-                await adminSupabase.auth.verifyOtp({
-                  token_hash: token,
-                  type: (type as any) || "magiclink",
-                });
-
-              if (!exchangeError && session?.session) {
-                // Delete OTP after successful session creation
-                await adminSupabase
-                  .from("otp_tokens")
-                  .delete()
-                  .eq("id", otpRecord.id);
-
-                // Return session tokens for client-side session setup
-                return NextResponse.json({
-                  success: true,
-                  session: {
-                    access_token: session.session.access_token,
-                    refresh_token: session.session.refresh_token,
-                  },
-                  redirectTo: "/client/dashboard",
-                  userRole: "member",
-                  sessionMethod: "direct_token_exchange",
-                });
-              }
-            }
-
-            // If exchange fails, return the magic link URL
-            return NextResponse.json({
-              success: true,
-              authUrl: sessionData.properties.action_link,
-              redirectTo: "/client/dashboard",
-              userRole: "member",
-              sessionMethod: "magic_link_fallback",
-            });
-          }
-
-          // Create verification URL on the same domain
-          const authUrl = `${baseUrl}/auth/verify?token=${sessionToken}`;
-
-          console.log("Custom auth URL created:", authUrl);
-
-          // DON'T delete OTP yet - let verification endpoint handle it
-          console.log("Keeping OTP for verification endpoint:", otpRecord.id);
-
-          // Return custom auth URL that stays on correct domain
+          // Return session tokens for client-side session setup
           return NextResponse.json({
             success: true,
-            authUrl: authUrl,
+            session: {
+              access_token: session.session.access_token,
+              refresh_token: session.session.refresh_token,
+            },
             redirectTo: "/client/dashboard",
             userRole: "member",
-            sessionMethod: "custom_token",
+            sessionMethod: "direct_token_exchange",
           });
-        } catch (error) {
-          console.error("Unexpected error:", error);
-          return NextResponse.json(
-            {
-              success: false,
-              error: "Authentication failed",
-              details: error instanceof Error ? error.message : "Unknown error",
-            },
-            { status: 500 },
-          );
         }
       }
+
+      // If exchange fails, return the magic link URL
+      // But modify it to stay on the correct domain
+      const host = request.headers.get("host") || "members.gymleadhub.co.uk";
+      const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
+      const baseUrl = `${protocol}://${host}`;
+
+      // Replace the Supabase domain with our domain
+      const magicLinkUrl = new URL(sessionData.properties.action_link);
+      const finalUrl = `${baseUrl}/auth/callback?token_hash=${magicLinkUrl.searchParams.get("token")}&type=${magicLinkUrl.searchParams.get("type")}`;
+
+      return NextResponse.json({
+        success: true,
+        authUrl: finalUrl,
+        redirectTo: "/client/dashboard",
+        userRole: "member",
+        sessionMethod: "magic_link_domain_fixed",
+      });
 
       // Fallback - just return redirect URL for client-side handling
       // This handles cases where user doesn't have a user_id yet

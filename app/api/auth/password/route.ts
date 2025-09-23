@@ -145,14 +145,48 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        // For mobile compatibility, just use the magic link URL directly
-        // Token extraction and verification doesn't work reliably on mobile
+        // Try to exchange token immediately for session
+        const url = new URL(magicLink.properties.action_link);
+        const token = url.searchParams.get("token");
+        const linkType = url.searchParams.get("type");
+
+        if (token) {
+          const { data: session, error: exchangeError } =
+            await supabase.auth.verifyOtp({
+              token_hash: token,
+              type: (linkType as any) || "magiclink",
+            });
+
+          if (!exchangeError && session?.session) {
+            // Return session tokens for client-side session setup
+            return NextResponse.json({
+              success: true,
+              session: {
+                access_token: session.session.access_token,
+                refresh_token: session.session.refresh_token,
+              },
+              redirectTo: "/client/dashboard",
+              userRole: "member",
+              sessionMethod: "password_direct_session",
+            });
+          }
+        }
+
+        // Fallback: Return magic link URL modified to stay on correct domain
+        const host = request.headers.get("host") || "members.gymleadhub.co.uk";
+        const protocol =
+          process.env.NODE_ENV === "production" ? "https" : "http";
+        const baseUrl = `${protocol}://${host}`;
+
+        // Replace the Supabase domain with our domain
+        const finalUrl = `${baseUrl}/auth/callback?token_hash=${url.searchParams.get("token")}&type=${url.searchParams.get("type")}`;
+
         return NextResponse.json({
           success: true,
-          authUrl: magicLink.properties.action_link,
+          authUrl: finalUrl,
           redirectTo: "/client/dashboard",
           userRole: "member",
-          sessionMethod: "password_auth_url",
+          sessionMethod: "password_auth_domain_fixed",
         });
       } catch (error) {
         console.error("Authentication error:", error);
