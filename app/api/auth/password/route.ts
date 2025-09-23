@@ -129,53 +129,51 @@ export async function POST(request: NextRequest) {
         client.user_id = newUser.user.id;
       }
 
-      // Create a session directly using admin.auth.createSession
+      // Generate a magic link for authentication
       try {
-        const { data: sessionData, error: sessionError } =
-          await supabase.auth.admin.createSession({
-            user_id: client.user_id,
+        const { data: magicLink, error: magicLinkError } =
+          await supabase.auth.admin.generateLink({
+            type: "magiclink",
+            email: client.email,
           });
 
-        if (sessionError || !sessionData?.session) {
-          console.error("Session creation failed:", sessionError);
-          // Fallback to magic link if session creation fails
-          const { data: magicLink, error: magicLinkError } =
-            await supabase.auth.admin.generateLink({
-              type: "magiclink",
-              email: client.email,
-            });
-
-          if (magicLinkError || !magicLink) {
-            return NextResponse.json(
-              { success: false, error: "Authentication failed" },
-              { status: 500 },
-            );
-          }
-
-          return NextResponse.json({
-            success: true,
-            authUrl: magicLink.properties?.action_link,
-            redirectTo: "/client/dashboard",
-            fallbackMethod: true,
-          });
+        if (magicLinkError || !magicLink?.properties?.action_link) {
+          console.error("Magic link generation failed:", magicLinkError);
+          return NextResponse.json(
+            { success: false, error: "Authentication failed" },
+            { status: 500 },
+          );
         }
 
-        // Return session tokens for direct client-side session setup
-        return NextResponse.json({
-          success: true,
-          session: {
-            access_token: sessionData.session.access_token,
-            refresh_token: sessionData.session.refresh_token,
-            expires_at: sessionData.session.expires_at,
-          },
-          redirectTo: "/client/dashboard",
-          userRole: "member",
-          sessionMethod: "password_auth",
-        });
+        // Extract the token from the magic link URL for mobile support
+        const magicLinkUrl = new URL(magicLink.properties.action_link);
+        const token = magicLinkUrl.searchParams.get("token");
+        const type = magicLinkUrl.searchParams.get("type");
+
+        if (token && type === "magiclink") {
+          // Return the token for client-side verification
+          return NextResponse.json({
+            success: true,
+            authToken: token,
+            authType: "magiclink",
+            redirectTo: "/client/dashboard",
+            userRole: "member",
+            sessionMethod: "password_auth_token",
+          });
+        } else {
+          // Fallback to using the full magic link URL
+          return NextResponse.json({
+            success: true,
+            authUrl: magicLink.properties.action_link,
+            redirectTo: "/client/dashboard",
+            userRole: "member",
+            sessionMethod: "password_auth_url",
+          });
+        }
       } catch (error) {
-        console.error("Session creation error:", error);
+        console.error("Authentication error:", error);
         return NextResponse.json(
-          { success: false, error: "Failed to create session" },
+          { success: false, error: "Failed to authenticate" },
           { status: 500 },
         );
       }

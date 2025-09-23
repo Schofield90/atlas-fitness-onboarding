@@ -178,102 +178,104 @@ export async function POST(request: NextRequest) {
       }
 
       // For members/clients, we'll handle auth differently
-      // Instead of using magic links (which can redirect wrongly),
-      // we'll sign them in directly using the admin API
+      // We'll create or ensure the user exists then generate a magic link
+      if (!client.user_id) {
+        // Create a new Supabase user for the client
+        const { data: newUser, error: createError } =
+          await adminSupabase.auth.admin.createUser({
+            email: client.email,
+            email_confirm: true,
+            user_metadata: {
+              first_name: client.first_name,
+              last_name: client.last_name,
+              role: "client",
+            },
+          });
+
+        if (createError || !newUser.user) {
+          console.error("Failed to create user:", createError);
+          return NextResponse.json(
+            { success: false, error: "Failed to create user session" },
+            { status: 500 },
+          );
+        }
+
+        // Update client with user_id
+        await adminSupabase
+          .from("clients")
+          .update({ user_id: newUser.user.id })
+          .eq("id", client.id);
+
+        client.user_id = newUser.user.id;
+      }
+
       if (client.user_id) {
-        // Sign the user in directly - this supports multiple concurrent sessions by default
+        // For mobile compatibility, generate a magic link
+        // This is the most reliable method across all devices
         try {
-          const { data: sessionData, error: sessionError } =
-            await adminSupabase.auth.admin.createSession({
-              user_id: client.user_id,
-            });
-
-          if (sessionError) {
-            console.error("Session creation error:", sessionError);
-
-            // Log detailed error for debugging multi-device issues
-            console.error("Session error details:", {
-              message: sessionError.message,
-              status: sessionError.status,
-              user_id: client.user_id,
+          const { data: linkData, error: linkError } =
+            await adminSupabase.auth.admin.generateLink({
+              type: "magiclink",
               email: email.toLowerCase(),
+              options: {
+                redirectTo: "/client/dashboard",
+              },
             });
 
-            // Try to generate a magic link as fallback
-            const { data: linkData, error: linkError } =
-              await adminSupabase.auth.admin.generateLink({
-                type: "magiclink",
-                email: email.toLowerCase(),
-                options: {
-                  redirectTo:
-                    "https://members.gymleadhub.co.uk/client/dashboard",
-                },
-              });
-
-            if (!linkError && linkData?.properties?.action_link) {
-              // Delete OTP after successful magic link generation
-              await adminSupabase
-                .from("otp_tokens")
-                .delete()
-                .eq("id", otpRecord.id);
-
-              return NextResponse.json({
-                success: true,
-                authUrl: linkData.properties.action_link,
-                redirectTo: "/client/dashboard",
-                userRole: "member",
-                sessionMethod: "magic_link_fallback",
-              });
-            }
-
-            // If both methods fail, return error
+          if (linkError || !linkData?.properties?.action_link) {
+            console.error("Magic link generation error:", linkError);
             return NextResponse.json(
               {
                 success: false,
                 error: "Unable to create session. Please try again.",
-                sessionError: sessionError.message,
+                details: linkError?.message,
               },
               { status: 500 },
             );
           }
 
-          if (sessionData?.session) {
-            // DON'T delete OTP yet - let client confirm session is set
-            // This prevents the "invalid or expired code" error on retry
+          // Delete OTP after successful magic link generation
+          await adminSupabase
+            .from("otp_tokens")
+            .delete()
+            .eq("id", otpRecord.id);
 
-            // Log successful session creation for debugging
-            console.log("Multi-device session created successfully:", {
-              user_id: client.user_id,
-              session_id:
-                sessionData.session.access_token.split(".")[1] || "unknown",
-              expires_at: sessionData.session.expires_at,
-            });
+          // Extract the token from the magic link URL for mobile support
+          const magicLinkUrl = new URL(linkData.properties.action_link);
+          const token = magicLinkUrl.searchParams.get("token");
+          const type = magicLinkUrl.searchParams.get("type");
 
-            // Return the session tokens for the client to set
-            // Include the OTP record ID so client can delete it after confirming session
+          if (token && type === "magiclink") {
+            // Return the token for client-side verification
+            // This allows the mobile app to verify the token directly
             return NextResponse.json({
               success: true,
-              session: {
-                access_token: sessionData.session.access_token,
-                refresh_token: sessionData.session.refresh_token,
-                expires_at: sessionData.session.expires_at,
-              },
-              otpRecordId: otpRecord.id, // Pass this to client
+              authToken: token,
+              authType: "magiclink",
               redirectTo: "/client/dashboard",
               userRole: "member",
-              sessionMethod: "admin_create_session",
+              sessionMethod: "magic_link_token",
+            });
+          } else {
+            // Fallback to using the full magic link URL
+            return NextResponse.json({
+              success: true,
+              authUrl: linkData.properties.action_link,
+              redirectTo: "/client/dashboard",
+              userRole: "member",
+              sessionMethod: "magic_link_url",
             });
           }
         } catch (error) {
-          console.error("Unexpected session error:", error);
-
-          // Enhanced error logging for multi-device debugging
-          console.error("Multi-device session creation failed:", {
-            user_id: client.user_id,
-            error_message:
-              error instanceof Error ? error.message : "Unknown error",
-            error_stack: error instanceof Error ? error.stack : undefined,
-          });
+          console.error("Unexpected error:", error);
+          return NextResponse.json(
+            {
+              success: false,
+              error: "Authentication failed",
+              details: error instanceof Error ? error.message : "Unknown error",
+            },
+            { status: 500 },
+          );
         }
       }
 
