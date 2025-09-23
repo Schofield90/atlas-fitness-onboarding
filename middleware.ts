@@ -66,6 +66,7 @@ const publicRoutes = [
   '/signup',
   '/signup-simple',
   '/auth/callback',
+  '/auth/verify', // Add custom verify endpoint
   '/client-portal/login',
   '/client-access',
   '/login-otp',

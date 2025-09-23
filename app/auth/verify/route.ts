@@ -113,29 +113,37 @@ export async function GET(request: NextRequest) {
       .delete()
       .eq("email", sessionToken.email.toLowerCase());
 
-    // Create response with redirect
-    const response = NextResponse.redirect(new URL(sessionToken.redirect_url));
-
-    // Set session cookies
+    // Use Supabase middleware client to set the session properly
+    const { createServerClient } = require("@supabase/ssr");
     const cookieStore = cookies();
 
-    // Set access token
-    cookieStore.set("sb-access-token", session.session.access_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      path: "/",
+    // Create a Supabase client that can properly set cookies
+    const supabaseWithCookies = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+          set(name: string, value: string, options: any) {
+            cookieStore.set(name, value, options);
+          },
+          remove(name: string, options: any) {
+            cookieStore.delete(name);
+          },
+        },
+      },
+    );
+
+    // Set the session using the Supabase client which will handle cookies correctly
+    await supabaseWithCookies.auth.setSession({
+      access_token: session.session.access_token,
+      refresh_token: session.session.refresh_token,
     });
 
-    // Set refresh token
-    cookieStore.set("sb-refresh-token", session.session.refresh_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 30, // 30 days
-      path: "/",
-    });
+    // Create response with redirect after session is set
+    const response = NextResponse.redirect(new URL(sessionToken.redirect_url));
 
     console.log("Session established successfully via custom token:", {
       user_id: session.session.user.id,
