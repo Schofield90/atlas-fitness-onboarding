@@ -42,13 +42,23 @@ export async function POST(request: NextRequest) {
         .eq("email", email.toLowerCase());
 
       // Store OTP in database
-      const { error: insertError } = await adminSupabase
+      const otpData = {
+        email: email.toLowerCase(),
+        token: otpCode,
+        expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+      };
+
+      console.log("Storing OTP:", {
+        email: otpData.email,
+        token: otpData.token,
+        expires_at: otpData.expires_at,
+      });
+
+      const { data: insertedOtp, error: insertError } = await adminSupabase
         .from("otp_tokens")
-        .insert({
-          email: email.toLowerCase(),
-          token: otpCode,
-          expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-        });
+        .insert(otpData)
+        .select()
+        .single();
 
       if (insertError) {
         console.error("Failed to store OTP:", insertError);
@@ -58,7 +68,12 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      console.log(`OTP for ${email}: ${otpCode}`);
+      console.log(`OTP stored successfully:`, {
+        id: insertedOtp?.id,
+        email: insertedOtp?.email,
+        token: insertedOtp?.token,
+        expires_at: insertedOtp?.expires_at,
+      });
 
       // Send OTP email
       const emailHtml = `
@@ -125,34 +140,41 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Verify OTP from database
-      const { data: otpRecord, error: otpError } = await adminSupabase
+      // Verify OTP from database - use maybeSingle to handle 0 or 1 rows
+      const { data: otpRecords, error: otpError } = await adminSupabase
         .from("otp_tokens")
         .select("*")
         .eq("email", email.toLowerCase())
         .eq("token", otp.trim()) // Trim any whitespace from the OTP
-        .gte("expires_at", new Date().toISOString())
-        .single();
+        .gte("expires_at", new Date().toISOString());
+
+      const otpRecord = otpRecords?.[0] || null;
 
       if (otpError) {
         console.error("OTP verification error:", otpError);
         console.error("Email:", email.toLowerCase(), "OTP:", otp.trim());
       }
 
-      if (otpError || !otpRecord) {
+      if (!otpRecord) {
         // Check if there's any OTP for this email to provide better error message
-        const { data: anyOtp } = await adminSupabase
+        const { data: anyOtps } = await adminSupabase
           .from("otp_tokens")
           .select("*")
-          .eq("email", email.toLowerCase())
-          .single();
+          .eq("email", email.toLowerCase());
+
+        const anyOtp = anyOtps?.[0];
 
         if (anyOtp) {
           console.error("OTP exists but doesn't match or is expired:", {
             provided: otp.trim(),
             stored: anyOtp.token,
             expired: new Date(anyOtp.expires_at) < new Date(),
+            expires_at: anyOtp.expires_at,
+            current_time: new Date().toISOString(),
           });
+        } else {
+          console.error("No OTP found for email:", email.toLowerCase());
+          console.error("Attempted OTP:", otp.trim());
         }
 
         return NextResponse.json(
@@ -234,11 +256,9 @@ export async function POST(request: NextRequest) {
             );
           }
 
-          // Delete OTP after successful magic link generation
-          await adminSupabase
-            .from("otp_tokens")
-            .delete()
-            .eq("id", otpRecord.id);
+          // DON'T delete OTP yet - let it expire naturally
+          // This allows retry if the magic link fails on mobile
+          console.log("Keeping OTP for retry support:", otpRecord.id);
 
           // Extract the token from the magic link URL for mobile support
           const magicLinkUrl = new URL(linkData.properties.action_link);
