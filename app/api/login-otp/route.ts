@@ -149,38 +149,28 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // If Resend failed or not configured, try Supabase Auth email
+      // If Resend failed or not configured, log for debugging
       if (!emailSent) {
-        console.log("Attempting to send OTP via Supabase Auth...");
+        console.log("Email service not configured properly.");
 
-        // Use Supabase's signInWithOtp as a fallback
-        const { error: supabaseEmailError } = await supabase.auth.signInWithOtp(
-          {
-            email: sanitizedEmail,
-            options: {
-              data: {
-                otp_code: otpCode,
-                client_id: client.id,
-                organization_id: client.organization_id,
-              },
-              emailRedirectTo: `${request.headers.get("origin")}/client/dashboard`,
+        // For testing/development, log the OTP
+        console.log("⚠️ EMAIL NOT SENT - OTP for testing:", {
+          email: sanitizedEmail,
+          code: otpCode,
+          expiresAt: otpData.expires_at,
+        });
+
+        // Store a note that email wasn't sent
+        await adminSupabase
+          .from("otp_tokens")
+          .update({
+            metadata: {
+              email_sent: false,
+              reason: "No email service configured",
             },
-          },
-        );
-
-        if (supabaseEmailError) {
-          console.error("Failed to send OTP via Supabase:", supabaseEmailError);
-
-          // As a last resort, log the OTP for testing purposes
-          console.log("⚠️ EMAIL NOT SENT - OTP for testing:", {
-            email: sanitizedEmail,
-            code: otpCode,
-            expiresAt: otpData.expires_at,
-          });
-        } else {
-          console.log("OTP email sent via Supabase Auth");
-          emailSent = true;
-        }
+          })
+          .eq("email", sanitizedEmail)
+          .eq("token", otpCode);
       }
 
       // Return success regardless of email status
