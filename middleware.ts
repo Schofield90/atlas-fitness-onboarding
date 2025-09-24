@@ -44,14 +44,16 @@ const SUBDOMAIN_CONFIG = {
     allowedPaths: [
       '/client',
       '/client-portal',
+      '/simple-login',
       '/book',
       '/[org]',
       '/api/booking',
       '/api/client',
       '/api/client-portal',
+      '/api/login-otp',
       '/api/booking-by-slug'
     ],
-    redirectPath: '/client-portal/login',
+    redirectPath: '/simple-login',
     requiresClient: false,
     allowPublicBooking: true
   }
