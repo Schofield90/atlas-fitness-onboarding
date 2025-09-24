@@ -114,7 +114,9 @@ export async function POST(request: NextRequest) {
         </div>
       `;
 
-      // Try to send email using Resend
+      // Try to send email using Resend or Supabase
+      let emailSent = false;
+
       if (process.env.RESEND_API_KEY) {
         try {
           const resendResponse = await fetch("https://api.resend.com/emails", {
@@ -138,16 +140,47 @@ export async function POST(request: NextRequest) {
 
           if (!resendResponse.ok) {
             console.error("Failed to send OTP email via Resend:", resendData);
-            // Don't fail the request, just log the error
           } else {
-            console.log("Email sent successfully:", resendData);
+            console.log("Email sent successfully via Resend:", resendData);
+            emailSent = true;
           }
         } catch (emailError) {
           console.error("Email sending error:", emailError);
-          // Don't fail the request, just log the error
         }
-      } else {
-        console.log("RESEND_API_KEY not configured - OTP email not sent");
+      }
+
+      // If Resend failed or not configured, try Supabase Auth email
+      if (!emailSent) {
+        console.log("Attempting to send OTP via Supabase Auth...");
+
+        // Use Supabase's signInWithOtp as a fallback
+        const { error: supabaseEmailError } = await supabase.auth.signInWithOtp(
+          {
+            email: sanitizedEmail,
+            options: {
+              data: {
+                otp_code: otpCode,
+                client_id: client.id,
+                organization_id: client.organization_id,
+              },
+              emailRedirectTo: `${request.headers.get("origin")}/client/dashboard`,
+            },
+          },
+        );
+
+        if (supabaseEmailError) {
+          console.error("Failed to send OTP via Supabase:", supabaseEmailError);
+
+          // As a last resort, log the OTP for testing purposes
+          console.log("⚠️ EMAIL NOT SENT - OTP for testing:", {
+            email: sanitizedEmail,
+            code: otpCode,
+            expiresAt: otpData.expires_at,
+          });
+        } else {
+          console.log("OTP email sent via Supabase Auth");
+          emailSent = true;
+        }
       }
 
       // Return success regardless of email status
