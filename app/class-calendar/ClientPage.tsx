@@ -40,7 +40,7 @@ export default function ClassCalendarClient() {
     setLoading(true);
     try {
       const response = await fetch(
-        `/api/class-sessions?organizationId=${organizationId}`,
+        `/api/class-sessions-bypass?organizationId=${organizationId}`,
       );
       if (!response.ok) throw new Error("Failed to fetch classes");
       const data = await response.json();

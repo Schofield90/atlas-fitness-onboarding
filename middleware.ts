@@ -98,7 +98,8 @@ const publicRoutes = [
   '/api/class-sessions', // Allow API access for class sessions
   '/api/programs', // Allow API access for programs
   '/api/clients-bypass', // Allow API access for clients bypass
-  '/api/membership-plans-bypass' // Allow API access for membership plans bypass
+  '/api/membership-plans-bypass', // Allow API access for membership plans bypass
+  '/api/class-sessions-bypass' // Allow API access for class sessions bypass
 ]
 
 // Client-only routes
