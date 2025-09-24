@@ -43,14 +43,16 @@ const SUBDOMAIN_CONFIG = {
     description: 'Gym members portal',
     allowedPaths: [
       '/client',
+      '/client-portal',
       '/book',
       '/[org]',
       '/api/booking',
       '/api/client',
+      '/api/client-portal',
       '/api/booking-by-slug'
     ],
-    redirectPath: '/client/dashboard',
-    requiresClient: true,
+    redirectPath: '/client-portal/login',
+    requiresClient: false,
     allowPublicBooking: true
   }
 };
