@@ -127,8 +127,10 @@ export async function POST(request: NextRequest) {
             },
             body: JSON.stringify({
               from:
-                process.env.RESEND_FROM_EMAIL ||
-                "Atlas Fitness <noreply@gymleadhub.co.uk>",
+                process.env.RESEND_FROM_EMAIL &&
+                process.env.RESEND_FROM_EMAIL.includes("@")
+                  ? process.env.RESEND_FROM_EMAIL
+                  : "Atlas Fitness <onboarding@resend.dev>", // Fallback to Resend's test domain
               to: sanitizedEmail,
               subject: `Your verification code: ${otpCode}`,
               html: emailHtml,
