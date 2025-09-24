@@ -20,7 +20,7 @@ while IFS='=' read -r key value; do
   echo "Adding $key to all projects..."
 
   # Add to Admin Portal
-  echo "$value" | vercel env add "$key" production --yes --force --cwd . --project atlas-admin 2>/dev/null || true
+  echo "$value" | vercel env add "$key" production --yes --force --cwd . --project atlas-admin-portal 2>/dev/null || true
 
   # Add to Gym Dashboard
   echo "$value" | vercel env add "$key" production --yes --force --cwd . --project atlas-gym-dashboard 2>/dev/null || true
@@ -28,12 +28,12 @@ while IFS='=' read -r key value; do
   # Add to Member Portal
   echo "$value" | vercel env add "$key" production --yes --force --cwd . --project atlas-member-portal 2>/dev/null || true
 
-done < .env.production
+done < .env.local
 
 echo "✅ Environment variables copied to all projects!"
 echo ""
 echo "Projects updated:"
-echo "  - atlas-admin"
+echo "  - atlas-admin-portal"
 echo "  - atlas-gym-dashboard"
 echo "  - atlas-member-portal"
 echo ""

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Owner Auth</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Test Owner Authentication</h1>
+    <button onclick="testAuth()">Test Login</button>
+    <div id="result"></div>
+
+    <script>
+        const { createClient } = supabase;
+        const supabaseUrl = 'https://lzlrojoaxrqvmhempnkn.supabase.co';
+        const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6bHJvam9heHJxdm1oZW1wbmtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI0OTI1MzksImV4cCI6MjA2ODA2ODUzOX0.8rGsdaYcnwFIyWEhKKqz-W-KsOAP6WRTuEv8UrzkKuc';
+        
+        const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+        
+        async function testAuth() {
+            const result = document.getElementById('result');
+            result.innerHTML = 'Testing...';
+            
+            try {
+                // Test standard Supabase auth
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email: 'sam@atlas-gyms.co.uk',
+                    password: 'Gyms2020!'
+                });
+                
+                if (error) {
+                    result.innerHTML = `<p style="color: red;">Auth Error: ${error.message}</p>`;
+                    console.error('Auth error:', error);
+                } else {
+                    result.innerHTML = `<p style="color: green;">Success! User: ${data.user.email}</p>`;
+                    console.log('Auth success:', data);
+                    
+                    // Test org fetch
+                    const { data: orgStaff, error: staffError } = await supabaseClient
+                        .from('organization_staff')
+                        .select('organization_id')
+                        .eq('user_id', data.user.id)
+                        .single();
+                    
+                    if (!staffError && orgStaff) {
+                        result.innerHTML += `<p style="color: green;">Org found: ${orgStaff.organization_id}</p>`;
+                    } else {
+                        result.innerHTML += `<p style="color: orange;">Org error: ${staffError?.message}</p>`;
+                    }
+                }
+            } catch (e) {
+                result.innerHTML = `<p style="color: red;">Error: ${e.message}</p>`;
+                console.error('Error:', e);
+            }
+        }
+    </script>
+</body>
+</html>
