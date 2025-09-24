@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
               from:
                 process.env.RESEND_FROM_EMAIL &&
                 process.env.RESEND_FROM_EMAIL.includes("@")
-                  ? process.env.RESEND_FROM_EMAIL
+                  ? `GymLeadHub <${process.env.RESEND_FROM_EMAIL}>`
                   : "Atlas Fitness <onboarding@resend.dev>", // Fallback to Resend's test domain
               to: sanitizedEmail,
               subject: `Your verification code: ${otpCode}`,
