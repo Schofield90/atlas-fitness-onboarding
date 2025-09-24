@@ -12,7 +12,7 @@
     "dev": "turbo run dev",
     "dev:turbo": "next dev --turbo",
     "dev:quick": "NODE_OPTIONS='--max-old-space-size=8192' next dev --turbo",
-    "build": "turbo run build",
+    "build": "next build",
     "build:fast": "NODE_OPTIONS='--max-old-space-size=8192' NEXT_TELEMETRY_DISABLED=1 next build",
     "build:vercel": "./scripts/build-production.sh",
     "build:analyze": "ANALYZE=true next build",
