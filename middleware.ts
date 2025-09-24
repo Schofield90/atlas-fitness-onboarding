@@ -225,51 +225,94 @@ export async function middleware(request: NextRequest) {
     return res
   }
 
-  // Handle subdomain-specific routing (in production only - skip for localhost dev)
+  // Handle subdomain-specific routing with different auth logic per portal
   if (hostname.includes('gymleadhub.co.uk') && subdomain) {
     const config = SUBDOMAIN_CONFIG[subdomain as keyof typeof SUBDOMAIN_CONFIG]
 
     if (config) {
-      // Check if the current path is allowed for this subdomain
-      const isAllowedPath = config.allowedPaths.some(path =>
-        pathname === path ||
-        pathname.startsWith(path + '/') ||
-        (path === '/[org]' && pathname.match(/^\/[^\/]+$/)) // Handle dynamic org routes
-      )
-
-      // Always allow auth routes, static files, and API routes
-      const isAuthRoute = pathname.startsWith('/signin') ||
-                         pathname.startsWith('/signup') ||
-                         pathname.startsWith('/auth')
-      const isStaticFile = pathname.startsWith('/_next') ||
-                          pathname.includes('.')
-
-      if (!isAllowedPath && !isAuthRoute && !isStaticFile) {
-        // Determine base URL for redirects
-        const isLocalhost = hostname.includes('localhost')
-        const protocol = isLocalhost ? 'http' : 'https'
-        const baseDomain = isLocalhost ? 'localhost:3000' : 'gymleadhub.co.uk'
-        
-        // Redirect to the correct subdomain if trying to access wrong area
-        if (pathname.startsWith('/admin') && subdomain !== 'admin') {
-          return NextResponse.redirect(new URL(pathname, `${protocol}://admin.${baseDomain}`))
-        }
-        if (pathname.startsWith('/dashboard') && subdomain !== 'login') {
-          return NextResponse.redirect(new URL(pathname, `${protocol}://login.${baseDomain}`))
-        }
-        if (pathname.startsWith('/client') && subdomain !== 'members') {
-          return NextResponse.redirect(new URL(pathname, `${protocol}://members.${baseDomain}`))
-        }
-
-        // Otherwise, redirect to the subdomain's default page
-        if (pathname === '/') {
-          return NextResponse.redirect(new URL(config.redirectPath, request.url))
-        }
+      // Always allow static files
+      const isStaticFile = pathname.startsWith('/_next') || pathname.includes('.')
+      if (isStaticFile) {
+        return res
       }
 
-      // Redirect root to appropriate dashboard
-      if (pathname === '/' && config.redirectPath) {
-        return NextResponse.redirect(new URL(config.redirectPath, request.url))
+      // Different auth logic based on subdomain
+      if (subdomain === 'members') {
+        // MEMBERS PORTAL - simplified auth flow
+        const isAuthRoute = pathname.startsWith('/simple-login') || 
+                           pathname.startsWith('/auth') ||
+                           pathname.startsWith('/login-otp') ||
+                           pathname.startsWith('/client-portal/login')
+        
+        if (isAuthRoute) {
+          return res
+        }
+        
+        // Check allowed paths for members
+        const isAllowedPath = config.allowedPaths.some(path =>
+          pathname === path ||
+          pathname.startsWith(path + '/') ||
+          (path === '/[org]' && pathname.match(/^\/[^\/]+$/))
+        )
+        
+        if (!isAllowedPath) {
+          return NextResponse.redirect(new URL('/simple-login', request.url))
+        }
+        
+        // Root redirect for members
+        if (pathname === '/') {
+          return NextResponse.redirect(new URL('/simple-login', request.url))
+        }
+        
+      } else if (subdomain === 'login') {
+        // GYM OWNERS PORTAL - standard auth flow
+        const isAuthRoute = pathname.startsWith('/owner-login') || 
+                           pathname.startsWith('/signin') ||
+                           pathname.startsWith('/signup') ||
+                           pathname.startsWith('/auth')
+        
+        if (isAuthRoute) {
+          return res
+        }
+        
+        // Check allowed paths for owners
+        const isAllowedPath = config.allowedPaths.some(path =>
+          pathname === path ||
+          pathname.startsWith(path + '/')
+        )
+        
+        if (!isAllowedPath) {
+          return NextResponse.redirect(new URL('/owner-login', request.url))
+        }
+        
+        // Root redirect for owners
+        if (pathname === '/') {
+          return NextResponse.redirect(new URL('/dashboard', request.url))
+        }
+        
+      } else if (subdomain === 'admin') {
+        // ADMIN PORTAL - super admin only
+        const isAuthRoute = pathname.startsWith('/signin') ||
+                           pathname.startsWith('/auth')
+        
+        if (isAuthRoute) {
+          return res
+        }
+        
+        // Check allowed paths for admin
+        const isAllowedPath = config.allowedPaths.some(path =>
+          pathname === path ||
+          pathname.startsWith(path + '/')
+        )
+        
+        if (!isAllowedPath) {
+          return NextResponse.redirect(new URL('/signin', request.url))
+        }
+        
+        // Root redirect for admin
+        if (pathname === '/') {
+          return NextResponse.redirect(new URL('/admin', request.url))
+        }
       }
     }
   }
@@ -353,9 +396,16 @@ export async function middleware(request: NextRequest) {
     // For non-public routes, redirect to login
     if (!pathname.startsWith('/api/')) {
       // Redirect to appropriate login based on subdomain, preserving path
-      const loginUrl = subdomain === 'members'
-        ? '/simple-login'
-        : '/owner-login'
+      let loginUrl = '/owner-login'  // Default
+      
+      if (subdomain === 'members') {
+        loginUrl = '/simple-login'
+      } else if (subdomain === 'login') {
+        loginUrl = '/owner-login'
+      } else if (subdomain === 'admin') {
+        loginUrl = '/signin'
+      }
+      
       const redirectUrl = new URL(loginUrl, request.url)
       redirectUrl.searchParams.set('redirect', pathname)
       return NextResponse.redirect(redirectUrl)
@@ -383,9 +433,16 @@ export async function middleware(request: NextRequest) {
     }
 
     // Redirect to appropriate login based on subdomain
-    const loginUrl = subdomain === 'members'
-      ? '/simple-login'
-      : '/owner-login'
+    let loginUrl = '/owner-login'  // Default
+    
+    if (subdomain === 'members') {
+      loginUrl = '/simple-login'
+    } else if (subdomain === 'login') {
+      loginUrl = '/owner-login'
+    } else if (subdomain === 'admin') {
+      loginUrl = '/signin'
+    }
+    
     const redirectUrl = new URL(loginUrl, request.url)
     redirectUrl.searchParams.set('redirect', pathname)
     return NextResponse.redirect(redirectUrl)
