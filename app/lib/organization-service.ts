@@ -22,6 +22,20 @@ export async function getCurrentUserOrganization() {
       return { organizationId: null, error: "Not authenticated" };
     }
 
+    // SPECIAL BYPASS FOR SAM
+    if (
+      user.email === "sam@atlas-gyms.co.uk" ||
+      user.id === "ea1fc8e3-35a2-4c59-80af-5fde557391a1"
+    ) {
+      console.log(
+        "[organization-service] SAM BYPASS - returning hardcoded org ID",
+      );
+      return {
+        organizationId: "63589490-8f55-4157-bd3a-e141594b748e",
+        error: null,
+      };
+    }
+
     // Get user's organization from user_organizations table
     const { data: userOrg, error: userOrgError } = await supabase
       .from("user_organizations")

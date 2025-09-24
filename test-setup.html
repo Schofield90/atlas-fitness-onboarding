@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Organization Setup</title>
+</head>
+<body>
+    <h1>Test Organization Setup</h1>
+    <button onclick="setupOrg()">Setup Organization</button>
+    <pre id="result"></pre>
+
+    <script>
+        async function setupOrg() {
+            const resultEl = document.getElementById('result');
+            resultEl.textContent = 'Setting up organization...';
+
+            try {
+                const response = await fetch('/api/setup-organization', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+                resultEl.textContent = JSON.stringify(data, null, 2);
+
+                if (data.success) {
+                    setTimeout(() => {
+                        window.location.href = '/dashboard';
+                    }, 2000);
+                }
+            } catch (error) {
+                resultEl.textContent = 'Error: ' + error.message;
+            }
+        }
+
+        // Auto-run on page load
+        window.onload = () => setupOrg();
+    </script>
+</body>
+</html>

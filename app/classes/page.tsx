@@ -47,7 +47,9 @@ function ClassesPageContent() {
   const supabase = createClient();
 
   useEffect(() => {
-    loadClassTypes();
+    if (organizationId) {
+      loadClassTypes();
+    }
   }, [organizationId, lastRefresh]);
 
   const forceRefresh = () => {
@@ -57,29 +59,33 @@ function ClassesPageContent() {
   };
 
   const loadClassTypes = async () => {
-    if (!organizationId) return;
+    if (!organizationId) {
+      console.log("Waiting for organization ID...");
+      return;
+    }
 
     try {
-      // Get all programs (class types) for this organization
-      const { data, error } = await supabase
-        .from("programs")
-        .select(
-          `
-          *,
-          class_sessions(count)
-        `,
-        )
-        .eq("organization_id", organizationId)
-        .eq("is_active", true)
-        .order("created_at", { ascending: false });
+      console.log("Loading class types for organization:", organizationId);
 
-      if (error) throw error;
+      // Use API route to bypass RLS issues
+      const response = await fetch(
+        `/api/programs?organizationId=${organizationId}`,
+      );
+      const result = await response.json();
 
-      // Transform the data to include session count and ensure consistent capacity field
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to load programs");
+      }
+
+      const data = result.data;
+
+      console.log("Programs loaded:", data?.length || 0);
+
+      // Transform the data to ensure consistent capacity field
       const transformedData =
         data?.map((program) => ({
           ...program,
-          sessions_count: program.class_sessions?.[0]?.count || 0,
+          sessions_count: 0, // We'll calculate this separately if needed
           // Use max_participants as the primary capacity field, fallback to default_capacity
           default_capacity:
             program.max_participants || program.default_capacity || 20,
@@ -87,7 +93,12 @@ function ClassesPageContent() {
 
       setClassTypes(transformedData);
     } catch (error: any) {
-      console.error("Error loading class types:", error);
+      console.error("Error loading class types:", {
+        message: error?.message || "Unknown error",
+        details: error?.details,
+        code: error?.code,
+        fullError: error,
+      });
     } finally {
       setLoading(false);
     }

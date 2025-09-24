@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/app/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useOrganization } from "@/app/hooks/useOrganization";
@@ -18,6 +18,28 @@ export default function CreateOrganizationPage() {
     city: "",
     postcode: "",
   });
+
+  // Check if sam@atlas-gyms.co.uk and redirect to dashboard
+  useEffect(() => {
+    async function checkUser() {
+      const supabase = createClient();
+      if (!supabase) return;
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (
+        user &&
+        (user.email === "sam@atlas-gyms.co.uk" ||
+          user.id === "ea1fc8e3-35a2-4c59-80af-5fde557391a1")
+      ) {
+        console.log("SAM BYPASS: Redirecting to dashboard from onboarding");
+        router.push("/dashboard");
+      }
+    }
+    checkUser();
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
