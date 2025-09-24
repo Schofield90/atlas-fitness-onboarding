@@ -1,0 +1,19 @@
+{
+  "name": "@atlas-fitness/member-portal",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3003",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "14.2.16",
+    "react": "^18",
+    "react-dom": "^18",
+    "@atlas-fitness/shared-ui": "file:../../packages/shared-ui",
+    "@atlas-fitness/database": "file:../../packages/database",
+    "@atlas-fitness/auth": "file:../../packages/auth"
+  }
+}

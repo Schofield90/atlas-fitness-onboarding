@@ -1,0 +1,11 @@
+{
+  "framework": "nextjs",
+  "installCommand": "cd ../.. && npm install",
+  "buildCommand": "cd ../.. && npx turbo run build --filter=@atlas-fitness/gym-dashboard",
+  "outputDirectory": ".next",
+  "ignoreCommand": "git diff HEAD^ HEAD --quiet .",
+  "env": {
+    "NEXT_PUBLIC_APP_TYPE": "gym",
+    "NEXT_PUBLIC_BASE_URL": "https://login.gymleadhub.co.uk"
+  }
+}

@@ -87,6 +87,7 @@ const publicRoutes = [
   '/api/test-client-lookup',
   '/api/check-database',
   '/api/test-nutrition-access',
+  '/api/test-redis', // Test Redis connection
   '/api/admin/fix-organization-staff',
   '/api/test/login', // E2E test login endpoint (protected by env checks)
   '/api/test/create-test-owner', // Test owner creation endpoint

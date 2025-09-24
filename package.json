@@ -9,10 +9,10 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "turbo run dev",
     "dev:turbo": "next dev --turbo",
     "dev:quick": "NODE_OPTIONS='--max-old-space-size=8192' next dev --turbo",
-    "build": "next build",
+    "build": "turbo run build",
     "build:fast": "NODE_OPTIONS='--max-old-space-size=8192' NEXT_TELEMETRY_DISABLED=1 next build",
     "build:vercel": "./scripts/build-production.sh",
     "build:analyze": "ANALYZE=true next build",
@@ -89,7 +89,13 @@
     "validate-env": "node scripts/validate-env.js",
     "analyze": "cross-env ANALYZE=true next build",
     "storybook": "storybook dev -p 6006",
-    "storybook:build": "storybook build"
+    "storybook:build": "storybook build",
+    "build:admin": "turbo run build --filter=@atlas-fitness/admin-portal",
+    "build:gym": "turbo run build --filter=@atlas-fitness/gym-dashboard",
+    "build:member": "turbo run build --filter=@atlas-fitness/member-portal",
+    "dev:admin": "turbo run dev --filter=@atlas-fitness/admin-portal",
+    "dev:gym": "turbo run dev --filter=@atlas-fitness/gym-dashboard",
+    "dev:member": "turbo run dev --filter=@atlas-fitness/member-portal"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.57.0",
@@ -130,7 +136,8 @@
     "@types/nodemailer": "^6.4.16",
     "@types/papaparse": "^5.3.16",
     "@types/validator": "^13.15.3",
-    "@upstash/redis": "^1.35.3",
+    "@upstash/ratelimit": "^2.0.6",
+    "@upstash/redis": "^1.35.4",
     "@vercel/analytics": "^1.4.0",
     "@vercel/speed-insights": "^1.0.14",
     "aws-sdk": "^2.1692.0",
@@ -150,7 +157,7 @@
     "framer-motion": "^12.0.2",
     "google-auth-library": "^9.14.2",
     "googleapis": "^144.0.0",
-    "ioredis": "^5.4.1",
+    "ioredis": "^5.8.0",
     "jose": "^5.10.0",
     "jsonwebtoken": "^9.0.2",
     "libphonenumber-js": "^1.12.15",
@@ -259,6 +266,7 @@
     "tailwindcss": "^3.4.16",
     "ts-jest": "^29.2.6",
     "tsx": "^4.20.4",
+    "turbo": "^2.5.8",
     "typescript": "^5.7.2"
   },
   "lint-staged": {
