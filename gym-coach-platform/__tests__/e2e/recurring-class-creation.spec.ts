@@ -5,7 +5,7 @@ const TEST_CONFIG = {
   baseURL: 'https://atlas-fitness-onboarding.vercel.app',
   credentials: {
     email: 'sam@atlas-gyms.co.uk',
-    password: '@Aa80236661'
+    password: process.env.TEST_USER_PASSWORD || 'test123'
   },
   timeouts: {
     navigation: 60000,

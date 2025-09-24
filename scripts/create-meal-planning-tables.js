@@ -3,7 +3,7 @@
 const { Client } = require('pg');
 
 // Database connection
-const connectionString = 'postgresql://postgres:@Aa80236661@db.lzlrojoaxrqvmhempnkn.supabase.co:5432/postgres';
+const connectionString = 'postgresql://postgres:${DB_PASSWORD}@db.lzlrojoaxrqvmhempnkn.supabase.co:5432/postgres';
 
 async function createMealPlanningTables() {
   const client = new Client({

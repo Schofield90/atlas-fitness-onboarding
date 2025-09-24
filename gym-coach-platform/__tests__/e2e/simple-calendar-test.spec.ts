@@ -19,7 +19,7 @@ test.describe('Simple Calendar Test', () => {
 
     // Step 2: Fill credentials
     await page.fill('input[type="email"]', 'sam@atlas-gyms.co.uk')
-    await page.fill('input[type="password"]', '@Aa80236661')
+    await page.fill('input[type="password"]', 'process.env.TEST_USER_PASSWORD || 'test123'')
 
     await page.screenshot({
       path: 'test-results/simple-step2-filled.png',

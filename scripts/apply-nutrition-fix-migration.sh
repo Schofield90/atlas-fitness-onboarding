@@ -25,7 +25,7 @@ fi
 DB_HOST="db.lzlrojoaxrqvmhempnkn.supabase.co"
 DB_USER="postgres"
 DB_NAME="postgres"
-DB_PASSWORD="@Aa80236661"
+DB_PASSWORD="${DB_PASSWORD}"
 
 # Migration file
 MIGRATION_FILE="/Users/samschofield/atlas-fitness-onboarding/supabase/migrations/20250910_fix_nutrition_and_related_tables.sql"

@@ -100,7 +100,7 @@ async function deployNutritionFix() {
     
     log('\nOption 3: Using psql (if available)', colors.green);
     const migrationPath = path.join(__dirname, '..', 'supabase', 'migrations', '20250910_fix_nutrition_and_related_tables.sql');
-    log(`PGPASSWORD="@Aa80236661" psql -h db.lzlrojoaxrqvmhempnkn.supabase.co -U postgres -d postgres -f "${migrationPath}"`, colors.reset);
+    log(`PGPASSWORD="${DB_PASSWORD}" psql -h db.lzlrojoaxrqvmhempnkn.supabase.co -U postgres -d postgres -f "${migrationPath}"`, colors.reset);
 
     // Step 6: Create a simple HTML file with migration SQL for easy copying
     log('\n📄 Creating migration helper file...', colors.blue);

@@ -94,11 +94,11 @@ function MembersContent() {
     try {
       setLoading(true);
 
-      // Use the API endpoint instead of direct database queries - v2
-      console.log("Fetching members from API endpoint v2...");
+      // Use the bypass API endpoint to avoid RLS issues
+      console.log("Fetching members from bypass API endpoint...");
       const timestamp = Date.now();
       const response = await fetch(
-        `/api/clients?page=1&page_size=1000&t=${timestamp}`,
+        `/api/clients-bypass?organizationId=63589490-8f55-4157-bd3a-e141594b748e&page=1&pageSize=1000&t=${timestamp}`,
       );
 
       if (!response.ok) {
@@ -127,15 +127,15 @@ function MembersContent() {
 
       const data = await response.json();
 
-      if (!data.success || !data.clients) {
+      if (!data.data) {
         console.error("Invalid API response:", data);
         toast.error("Failed to load members");
         setLoading(false);
         return;
       }
 
-      // Process the clients from the API
-      const clients = data.clients || [];
+      // Process the clients from the bypass API
+      const clients = data.data || [];
 
       // Check for duplicates based on email
       const emailToClient: Record<string, any> = {};

@@ -15,7 +15,7 @@ test.describe('Nutrition Questionnaire E2E Tests', () => {
 
     // Login with test credentials
     await page.fill('input[type="email"]', 'sam@atlas-gyms.co.uk');
-    await page.fill('input[type="password"]', '@Aa80236661');
+    await page.fill('input[type="password"]', 'process.env.TEST_USER_PASSWORD || 'test123'');
     await page.click('button[type="submit"]:has-text("Log In")');
 
     // Wait for login to complete

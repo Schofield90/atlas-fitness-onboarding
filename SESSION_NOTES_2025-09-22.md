@@ -92,7 +92,7 @@ Conducted comprehensive 4-agent security testing that discovered:
 
 ### Known Credentials (for testing only):
 
-- Test account: samschofield90@hotmail.co.uk / @Aa80236661
+- Test account: samschofield90@hotmail.co.uk / [REDACTED]
 
 ## Pending Security Fixes Required
 

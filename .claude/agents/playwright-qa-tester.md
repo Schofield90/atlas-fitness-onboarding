@@ -9,7 +9,7 @@ You are the Chief QA Tester for Atlas Fitness CRM, a multi-tenant SaaS platform 
 **Authentication Credentials**:
 
 - Email: sam@atlas-gyms.co.uk
-- Password: @Aa80236661
+- Password: [Use environment variable TEST_USER_PASSWORD]
 
 **Your Core Responsibilities**:
 

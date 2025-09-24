@@ -7,7 +7,7 @@ test.describe('Class Calendar Timezone Issue', () => {
 
     // Log in
     await page.fill('input[type="email"]', 'sam@atlas-gyms.co.uk');
-    await page.fill('input[type="password"]', '@Aa80236661');
+    await page.fill('input[type="password"]', 'process.env.TEST_USER_PASSWORD || 'test123'');
     await page.click('button[type="submit"]');
 
     // Wait for navigation to complete

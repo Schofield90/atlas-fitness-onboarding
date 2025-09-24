@@ -23,7 +23,7 @@ async function createUser() {
   // Try to create via auth admin
   const { data: authData, error: authError } = await supabase.auth.admin.createUser({
     email: 'sam@gymleadhub.co.uk',
-    password: '@Aa80236661',
+    password: '${DB_PASSWORD}',
     email_confirm: true,
     user_metadata: {
       full_name: 'Sam',
@@ -41,7 +41,7 @@ async function createUser() {
   if (authData?.user) {
     console.log('✅ User created successfully!')
     console.log('Email: sam@gymleadhub.co.uk')
-    console.log('Password: @Aa80236661')
+    console.log('Password: ${DB_PASSWORD}')
     console.log('User ID:', authData.user.id)
     
     // Create user in public.users

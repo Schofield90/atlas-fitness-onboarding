@@ -7,7 +7,7 @@ echo "=================================================="
 DB_HOST="db.lzlrojoaxrqvmhempnkn.supabase.co"
 DB_USER="postgres"
 DB_NAME="postgres"
-DB_PASSWORD="@Aa80236661"
+DB_PASSWORD="${DB_PASSWORD}"
 
 # Apply the SQL directly
 cat << 'EOF' | PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -U $DB_USER -d $DB_NAME
