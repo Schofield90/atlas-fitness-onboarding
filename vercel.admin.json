@@ -1,8 +1,8 @@
 {
   "framework": "nextjs",
   "installCommand": "npm install",
-  "buildCommand": "npx turbo run build --filter=@atlas-fitness/admin-portal",
-  "outputDirectory": "apps/admin-portal/.next",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
   "env": {
     "NEXT_PUBLIC_APP_TYPE": "admin",
     "NEXT_PUBLIC_BASE_URL": "https://admin.gymleadhub.co.uk"
