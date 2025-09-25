@@ -83,7 +83,7 @@ export default function ClientBookingPage() {
         const { data: userData } = await supabase.auth.getUser();
 
         if (!userData.user) {
-          router.push("/login-otp");
+          router.push("/simple-login");
           return;
         }
 
@@ -93,7 +93,7 @@ export default function ClientBookingPage() {
         } = await supabase.auth.refreshSession();
 
         if (!refreshedSession) {
-          router.push("/login-otp");
+          router.push("/simple-login");
           return;
         }
 
@@ -103,7 +103,7 @@ export default function ClientBookingPage() {
       }
 
       if (!user) {
-        router.push("/login-otp");
+        router.push("/simple-login");
         return;
       }
 

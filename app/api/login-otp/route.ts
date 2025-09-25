@@ -65,11 +65,14 @@ export async function POST(request: NextRequest) {
       }
 
       // Now check if they're a client
+      console.log("Checking for client with email:", sanitizedEmail);
       const { data: client, error: clientError } = await adminSupabase
         .from("clients")
         .select("id, email, first_name, last_name, organization_id, user_id")
         .eq("email", sanitizedEmail)
         .single();
+
+      console.log("Client query result:", { client, error: clientError });
 
       if (clientError || !client) {
         return NextResponse.json(

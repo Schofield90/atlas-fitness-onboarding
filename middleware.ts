@@ -50,7 +50,6 @@ const SUBDOMAIN_CONFIG = {
       '/client/bookings',
       '/client-portal',
       '/simple-login',
-      '/login-otp',
       '/auth',
       '/book',
       '/[org]',
@@ -81,7 +80,6 @@ const publicRoutes = [
   '/auth/verify', // Add custom verify endpoint
   '/client-portal/login',
   '/client-access',
-  '/login-otp',
   '/join',
   '/book',
   '/meta-review',
@@ -247,7 +245,6 @@ export async function middleware(request: NextRequest) {
         // MEMBERS PORTAL - simplified auth flow
         const isAuthRoute = pathname.startsWith('/simple-login') || 
                            pathname.startsWith('/auth') ||
-                           pathname.startsWith('/login-otp') ||
                            pathname.startsWith('/client-portal/login')
         
         if (isAuthRoute) {

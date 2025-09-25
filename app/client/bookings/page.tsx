@@ -32,7 +32,7 @@ export default function ClientBookingsPage() {
     } = await supabase.auth.getSession();
 
     if (!session) {
-      router.push("/login-otp");
+      router.push("/simple-login");
       return;
     }
 
@@ -43,7 +43,7 @@ export default function ClientBookingsPage() {
       .single();
 
     if (!clientData) {
-      router.push("/login-otp");
+      router.push("/simple-login");
       return;
     }
 

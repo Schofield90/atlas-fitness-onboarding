@@ -67,7 +67,7 @@ export default function ClientDashboardPage() {
         const { data: userData } = await supabase.auth.getUser();
 
         if (!userData.user) {
-          router.push("/login-otp");
+          router.push("/simple-login");
           return;
         }
 
@@ -77,7 +77,7 @@ export default function ClientDashboardPage() {
         } = await supabase.auth.refreshSession();
 
         if (!refreshedSession) {
-          router.push("/login-otp");
+          router.push("/simple-login");
           return;
         }
 
@@ -87,7 +87,7 @@ export default function ClientDashboardPage() {
       }
 
       if (!user) {
-        router.push("/login-otp");
+        router.push("/simple-login");
         return;
       }
 
@@ -181,7 +181,7 @@ export default function ClientDashboardPage() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.push("/login-otp");
+    router.push("/simple-login");
   };
 
   const cancelBooking = async (bookingId: string) => {

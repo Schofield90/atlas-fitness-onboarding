@@ -54,7 +54,7 @@ export default function ClientProfilePage() {
     } = await supabase.auth.getSession();
 
     if (!session) {
-      router.push("/login-otp");
+      router.push("/simple-login");
       return;
     }
 
@@ -65,7 +65,7 @@ export default function ClientProfilePage() {
       .single();
 
     if (!clientData) {
-      router.push("/login-otp");
+      router.push("/simple-login");
       return;
     }
 

@@ -46,7 +46,7 @@ export default function ClientLayout({
       } = await supabase.auth.getUser();
 
       if (!user) {
-        router.push("/login-otp");
+        router.push("/simple-login");
         return;
       }
 
@@ -56,7 +56,7 @@ export default function ClientLayout({
       } = await supabase.auth.refreshSession();
 
       if (!refreshedSession) {
-        router.push("/login-otp");
+        router.push("/simple-login");
         return;
       }
 
@@ -68,7 +68,7 @@ export default function ClientLayout({
         .single();
 
       if (!clientData) {
-        router.push("/login-otp");
+        router.push("/simple-login");
         return;
       }
 
@@ -83,7 +83,7 @@ export default function ClientLayout({
         .single();
 
       if (!clientData) {
-        router.push("/login-otp");
+        router.push("/simple-login");
         return;
       }
 
@@ -94,7 +94,7 @@ export default function ClientLayout({
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.push("/login-otp");
+    router.push("/simple-login");
   };
 
   const navigation = [

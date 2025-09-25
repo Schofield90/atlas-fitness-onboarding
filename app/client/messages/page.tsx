@@ -41,7 +41,7 @@ export default function ClientMessagesPage() {
         } = await supabase.auth.getUser();
 
         if (!user) {
-          router.push("/login-otp");
+          router.push("/simple-login");
           return;
         }
 
@@ -51,7 +51,7 @@ export default function ClientMessagesPage() {
         } = await supabase.auth.refreshSession();
 
         if (!refreshedSession) {
-          router.push("/login-otp");
+          router.push("/simple-login");
           return;
         }
 
@@ -82,11 +82,11 @@ export default function ClientMessagesPage() {
           if (clientByEmail) {
             setClient(clientByEmail);
           } else {
-            router.push("/login-otp");
+            router.push("/simple-login");
             return;
           }
         } else {
-          router.push("/login-otp");
+          router.push("/simple-login");
           return;
         }
       } else {
@@ -94,7 +94,7 @@ export default function ClientMessagesPage() {
       }
     } catch (error) {
       console.error("Error checking auth:", error);
-      router.push("/login-otp");
+      router.push("/simple-login");
     } finally {
       setLoading(false);
     }

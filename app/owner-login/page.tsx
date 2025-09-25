@@ -256,7 +256,7 @@ export default function OwnerLoginPage() {
             <p className="text-center text-sm text-gray-500">
               Client login?{" "}
               <Link
-                href="/login-otp"
+                href="/simple-login"
                 className="text-blue-400 hover:text-blue-300"
               >
                 Use client portal

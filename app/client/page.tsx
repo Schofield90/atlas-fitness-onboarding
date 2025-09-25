@@ -66,7 +66,7 @@ export default function ClientDashboard() {
 
       if (!user) {
         // Only redirect if we truly have no session
-        router.push("/login-otp");
+        router.push("/simple-login");
         return;
       }
 
@@ -77,7 +77,7 @@ export default function ClientDashboard() {
       } = await supabase.auth.refreshSession();
 
       if (!refreshedSession) {
-        router.push("/login-otp");
+        router.push("/simple-login");
         return;
       }
 
@@ -89,7 +89,7 @@ export default function ClientDashboard() {
         .single();
 
       if (!clientData) {
-        router.push("/login-otp");
+        router.push("/simple-login");
         return;
       }
 
@@ -106,7 +106,7 @@ export default function ClientDashboard() {
       .single();
 
     if (!clientData) {
-      router.push("/login-otp");
+      router.push("/simple-login");
       return;
     }
 
@@ -391,7 +391,7 @@ export default function ClientDashboard() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.push("/login-otp");
+    router.push("/simple-login");
   };
 
   const navigation = [
