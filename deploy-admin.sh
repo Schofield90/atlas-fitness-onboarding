@@ -16,9 +16,7 @@ echo "📦 Building and deploying admin portal..."
 
 # Deploy to production with admin config
 vercel --prod \
-  --project=atlas-admin-portal \
-  --scope=schofield90s-projects \
-  --local-config=vercel.admin.json \
+  --local-config vercel.admin.json \
   --yes
 
 if [ $? -eq 0 ]; then
