@@ -115,7 +115,9 @@ const publicRoutes = [
   '/api/programs', // Allow API access for programs
   '/api/clients-bypass', // Allow API access for clients bypass
   '/api/membership-plans-bypass', // Allow API access for membership plans bypass
-  '/api/class-sessions-bypass' // Allow API access for class sessions bypass
+  '/api/class-sessions-bypass', // Allow API access for class sessions bypass
+  '/emergency-admin', // Emergency admin bypass
+  '/api/admin/emergency-login' // Emergency admin login API
 ]
 
 // Client-only routes
