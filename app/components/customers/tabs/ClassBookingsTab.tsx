@@ -206,7 +206,7 @@ export default function ClassBookingsTab({
     );
 
     // Query for bookings with either client_id or customer_id
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("class_bookings")
       .select(
         `
