@@ -157,9 +157,9 @@ export async function requireAuth(): Promise<AuthenticatedUser> {
     // Verify default organization exists and is active
     const { data: orgData } = await adminClient
       .from("organizations")
-      .select("id, status")
+      .select("id, subscription_status")
       .eq("id", defaultOrgId)
-      .eq("status", "active")
+      .or("subscription_status.eq.active,subscription_status.eq.trialing")
       .single();
 
     if (orgData) {
@@ -231,11 +231,12 @@ export async function requireAuth(): Promise<AuthenticatedUser> {
     });
   }
 
-  // Allow if no organization record (for backward compatibility) or if subscription status is active
+  // Allow if no organization record (for backward compatibility) or if subscription status is active or trialing
   const isValidOrg =
     !orgError &&
     orgStatus &&
     (orgStatus.subscription_status === "active" ||
+      orgStatus.subscription_status === "trialing" ||
       !orgStatus.subscription_status);
 
   // For development, allow organizations that don't have a subscription_status column or are missing
@@ -248,7 +249,8 @@ export async function requireAuth(): Promise<AuthenticatedUser> {
     orgError ||
     (orgStatus &&
       orgStatus.subscription_status &&
-      orgStatus.subscription_status !== "active")
+      orgStatus.subscription_status !== "active" &&
+      orgStatus.subscription_status !== "trialing")
   ) {
     logSecurityEvent({
       event: "INACTIVE_ORGANIZATION_ACCESS",

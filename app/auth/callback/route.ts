@@ -57,12 +57,17 @@ export async function GET(request: NextRequest) {
           return NextResponse.redirect(new URL(redirectUrl, request.url));
         }
 
-        // Check if they own an organization directly
-        const { data: ownedOrg } = await adminSupabase
-          .from("organizations")
-          .select("id")
-          .eq("owner_id", data.user.id)
+        // Check if they own an organization through user_organizations
+        const { data: ownedOrgLink } = await adminSupabase
+          .from("user_organizations")
+          .select("organization_id")
+          .eq("user_id", data.user.id)
+          .eq("role", "owner")
           .single();
+
+        const ownedOrg = ownedOrgLink
+          ? { id: ownedOrgLink.organization_id }
+          : null;
 
         if (ownedOrg) {
           // Owner attempting to access members portal - BLOCK
@@ -120,11 +125,16 @@ export async function GET(request: NextRequest) {
       // If this is a signup, check if we need to create an organization
       if (isSignup) {
         // Check if user already has an organization
-        const { data: existingOrg } = await supabase
-          .from("organizations")
-          .select("id")
-          .eq("owner_id", data.user.id)
+        const { data: existingOrgLink } = await supabase
+          .from("user_organizations")
+          .select("organization_id")
+          .eq("user_id", data.user.id)
+          .eq("role", "owner")
           .single();
+
+        const existingOrg = existingOrgLink
+          ? { id: existingOrgLink.organization_id }
+          : null;
 
         if (!existingOrg) {
           // Try to get organization name from user metadata or session storage
@@ -133,15 +143,30 @@ export async function GET(request: NextRequest) {
 
           // Use admin client to create organization
           const adminSupabase = createAdminClient();
-          const { error: orgError } = await adminSupabase
+          const { data: org, error: orgError } = await adminSupabase
             .from("organizations")
             .insert({
               name: organizationName,
-              owner_id: data.user.id,
-            });
+              subscription_status: "trialing",
+            })
+            .select()
+            .single();
 
           if (orgError) {
             console.error("Error creating organization:", orgError);
+          } else if (org) {
+            // Link user to organization as owner
+            const { error: linkError } = await adminSupabase
+              .from("user_organizations")
+              .insert({
+                user_id: data.user.id,
+                organization_id: org.id,
+                role: "owner",
+              });
+
+            if (linkError) {
+              console.error("Error linking user to organization:", linkError);
+            }
           }
         }
       }
