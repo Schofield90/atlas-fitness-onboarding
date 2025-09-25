@@ -45,13 +45,16 @@ const SUBDOMAIN_CONFIG = {
       '/client',
       '/client-portal',
       '/simple-login',
+      '/login-otp',
+      '/auth',
       '/book',
       '/[org]',
       '/api/booking',
       '/api/client',
       '/api/client-portal',
       '/api/login-otp',
-      '/api/booking-by-slug'
+      '/api/booking-by-slug',
+      '/api/auth'
     ],
     redirectPath: '/simple-login',
     requiresClient: false,
