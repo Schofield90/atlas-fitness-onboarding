@@ -1,42 +1,42 @@
-'use client'
+"use client";
 
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic";
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { createClient } from '@/app/lib/supabase/client'
-import { TRIAL_CTA_TEXT } from '@/app/lib/constants'
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { createClient } from "@/app/lib/supabase/client";
+import { TRIAL_CTA_TEXT } from "@/app/lib/constants";
 
 export default function SignupPage() {
-  const router = useRouter()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [name, setName] = useState('')
-  const [organizationName, setOrganizationName] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
-  const supabase = createClient()
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [name, setName] = useState("");
+  const [organizationName, setOrganizationName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const supabase = createClient();
 
   const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
 
     // Validate passwords match
     if (password !== confirmPassword) {
-      setError('Passwords do not match')
-      setLoading(false)
-      return
+      setError("Passwords do not match");
+      setLoading(false);
+      return;
     }
 
     // Validate password length
     if (password.length < 6) {
-      setError('Password must be at least 6 characters')
-      setLoading(false)
-      return
+      setError("Password must be at least 6 characters");
+      setLoading(false);
+      return;
     }
 
     try {
@@ -48,129 +48,132 @@ export default function SignupPage() {
           data: {
             full_name: name,
             organization_name: organizationName,
-          }
-        }
-      })
+          },
+        },
+      });
 
       if (authError) {
-        console.error('Signup auth error:', authError)
-        
+        console.error("Signup auth error:", authError);
+
         // If Supabase auth fails with 500, try direct signup
-        if (authError.message.includes('Database error') || authError.message.includes('500')) {
-          console.log('Attempting direct signup fallback...')
-          
-          const response = await fetch('/api/auth/direct-signup', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+        if (
+          authError.message.includes("Database error") ||
+          authError.message.includes("500")
+        ) {
+          console.log("Attempting direct signup fallback...");
+
+          const response = await fetch("/api/auth/direct-signup", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               email,
               password,
               name,
-              organizationName
-            })
-          })
-          
-          const result = await response.json()
-          
+              organizationName,
+            }),
+          });
+
+          const result = await response.json();
+
           if (result.success) {
-            setSuccess(true)
-            setError(null)
-            
+            setSuccess(true);
+            setError(null);
+
             // Show success and redirect to login
             setTimeout(() => {
-              router.push('/login')
-            }, 2000)
-            return
+              router.push("/login");
+            }, 2000);
+            return;
           } else {
             // Show user-friendly error message
-            if (result.details?.message?.includes('Supabase Auth')) {
-              setError('The authentication service is temporarily unavailable. Please contact support or try again later.')
+            if (result.details?.message?.includes("Supabase Auth")) {
+              setError(
+                "The authentication service is temporarily unavailable. Please contact support or try again later.",
+              );
             } else {
-              setError(result.error || 'Failed to create account')
+              setError(result.error || "Failed to create account");
             }
-            return
+            return;
           }
         }
-        
-        setError(authError.message)
-        return
+
+        setError(authError.message);
+        return;
       }
 
       if (authData?.user) {
         // Call API to properly set up user record
-        const response = await fetch('/api/auth/fix-signup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const response = await fetch("/api/auth/fix-signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             email: authData.user.email,
             name,
-            organizationName
-          })
-        })
-        
-        const result = await response.json()
-        
+            organizationName,
+          }),
+        });
+
+        const result = await response.json();
+
         if (!response.ok) {
-          console.error('Error setting up user:', result)
+          console.error("Error setting up user:", result);
           // Try alternative approach - direct database insert
           try {
-            const { error: userError } = await supabase
-              .from('users')
-              .insert({
-                id: authData.user.id,
-                email: authData.user.email,
-                full_name: name
-              })
-            
-            if (userError && userError.code !== '23505') { // Ignore duplicate key errors
-              console.error('Direct insert error:', userError)
-              setError('Database error saving new user')
-              return
+            const { error: userError } = await supabase.from("users").insert({
+              id: authData.user.id,
+              email: authData.user.email,
+            });
+
+            if (userError && userError.code !== "23505") {
+              // Ignore duplicate key errors
+              console.error("Direct insert error:", userError);
+              setError("Database error saving new user");
+              return;
             }
           } catch (e) {
-            console.error('Fallback error:', e)
+            console.error("Fallback error:", e);
           }
         }
 
         // Show success message
-        setSuccess(true)
-        
+        setSuccess(true);
+
         // Redirect to dashboard after 2 seconds
         setTimeout(() => {
-          router.push('/dashboard')
-          router.refresh()
-        }, 2000)
+          router.push("/dashboard");
+          router.refresh();
+        }, 2000);
       }
     } catch (err: any) {
-      console.error('Signup error:', err)
-      setError(err.message || 'Failed to create account')
+      console.error("Signup error:", err);
+      setError(err.message || "Failed to create account");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleGoogleSignup = async () => {
     // Store organization name in session storage for after OAuth callback
     if (organizationName) {
-      sessionStorage.setItem('pending_organization', organizationName)
+      sessionStorage.setItem("pending_organization", organizationName);
     }
-    
+
     try {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+        provider: "google",
         options: {
-          redirectTo: `https://atlas-fitness-onboarding.vercel.app/auth/callback?signup=true`
-        }
-      })
-      
+          redirectTo: `https://atlas-fitness-onboarding.vercel.app/auth/callback?signup=true`,
+        },
+      });
+
       if (error) {
-        setError(error.message)
+        setError(error.message);
       }
     } catch (err: any) {
-      console.error('Google signup error:', err)
-      setError('Failed to sign up with Google')
+      console.error("Google signup error:", err);
+      setError("Failed to sign up with Google");
     }
-  }
+  };
 
   if (success) {
     return (
@@ -192,14 +195,14 @@ export default function SignupPage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <Link 
+          <Link
             href="/landing"
             className="flex justify-center text-2xl font-bold text-orange-500 mb-8"
           >
@@ -227,10 +230,13 @@ export default function SignupPage() {
               </div>
             </div>
           )}
-          
+
           <div className="space-y-4">
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-1">
+              <label
+                htmlFor="name"
+                className="block text-sm font-medium text-gray-300 mb-1"
+              >
                 Full Name
               </label>
               <input
@@ -246,7 +252,10 @@ export default function SignupPage() {
               />
             </div>
             <div>
-              <label htmlFor="organization" className="block text-sm font-medium text-gray-300 mb-1">
+              <label
+                htmlFor="organization"
+                className="block text-sm font-medium text-gray-300 mb-1"
+              >
                 Gym/Organization Name
               </label>
               <input
@@ -261,7 +270,10 @@ export default function SignupPage() {
               />
             </div>
             <div>
-              <label htmlFor="email-address" className="block text-sm font-medium text-gray-300 mb-1">
+              <label
+                htmlFor="email-address"
+                className="block text-sm font-medium text-gray-300 mb-1"
+              >
                 Email Address
               </label>
               <input
@@ -277,7 +289,10 @@ export default function SignupPage() {
               />
             </div>
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-1">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-300 mb-1"
+              >
                 Password
               </label>
               <input
@@ -293,7 +308,10 @@ export default function SignupPage() {
               />
             </div>
             <div>
-              <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-300 mb-1">
+              <label
+                htmlFor="confirm-password"
+                className="block text-sm font-medium text-gray-300 mb-1"
+              >
                 Confirm Password
               </label>
               <input
@@ -324,7 +342,7 @@ export default function SignupPage() {
               disabled={loading}
               className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? 'Creating your account...' : TRIAL_CTA_TEXT}
+              {loading ? "Creating your account..." : TRIAL_CTA_TEXT}
             </button>
           </div>
 
@@ -333,7 +351,9 @@ export default function SignupPage() {
               <div className="w-full border-t border-gray-600"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-gray-900 text-gray-400">Or continue with</span>
+              <span className="px-2 bg-gray-900 text-gray-400">
+                Or continue with
+              </span>
             </div>
           </div>
 
@@ -345,10 +365,22 @@ export default function SignupPage() {
               className="group relative w-full flex justify-center py-3 px-4 border border-gray-600 text-sm font-medium rounded-md text-white bg-gray-800 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                <path
+                  fill="#4285F4"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                />
               </svg>
               Sign up with Google
             </button>
@@ -361,8 +393,11 @@ export default function SignupPage() {
 
           <div className="text-center">
             <p className="text-sm text-gray-400">
-              Already have an account?{' '}
-              <Link href="/login" className="font-medium text-orange-500 hover:text-orange-400">
+              Already have an account?{" "}
+              <Link
+                href="/login"
+                className="font-medium text-orange-500 hover:text-orange-400"
+              >
                 Sign in
               </Link>
             </p>
@@ -370,5 +405,5 @@ export default function SignupPage() {
         </form>
       </div>
     </div>
-  )
+  );
 }

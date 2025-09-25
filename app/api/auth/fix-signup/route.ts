@@ -21,7 +21,6 @@ export async function POST(request: Request) {
       .upsert({
         id: user.id,
         email: user.email || email,
-        full_name: name || user.user_metadata?.full_name || email.split("@")[0],
       })
       .select()
       .single();
@@ -41,8 +40,6 @@ export async function POST(request: Request) {
         const { error: insertError } = await supabase.from("users").insert({
           id: user.id,
           email: user.email || email,
-          full_name:
-            name || user.user_metadata?.full_name || email.split("@")[0],
         });
 
         if (insertError) {
