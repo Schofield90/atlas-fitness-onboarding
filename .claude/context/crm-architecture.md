@@ -1,11 +1,13 @@
 # CRM Architecture Context
 
 ## Overview
+
 Atlas Fitness CRM is a multi-tenant SaaS platform designed for gyms and fitness coaches to manage leads, automate communications, and leverage AI for better customer engagement.
 
 ## Tech Stack
 
 ### Frontend
+
 - **Framework**: Next.js 14 (App Router)
 - **Language**: TypeScript 5.x
 - **Styling**: Tailwind CSS 3.x
@@ -14,6 +16,7 @@ Atlas Fitness CRM is a multi-tenant SaaS platform designed for gyms and fitness 
 - **Forms**: React Hook Form + Zod validation
 
 ### Backend
+
 - **API**: Next.js API Routes
 - **Type Safety**: tRPC (planned) / REST with Zod
 - **Database**: Supabase (PostgreSQL 15)
@@ -22,6 +25,7 @@ Atlas Fitness CRM is a multi-tenant SaaS platform designed for gyms and fitness 
 - **File Storage**: Supabase Storage
 
 ### Infrastructure
+
 - **Hosting**: Vercel
 - **Database**: Supabase Cloud
 - **Redis**: Upstash (planned)
@@ -31,6 +35,7 @@ Atlas Fitness CRM is a multi-tenant SaaS platform designed for gyms and fitness 
 ## Multi-Tenant Architecture
 
 ### Organization Isolation
+
 ```typescript
 // Every tenant-specific table includes:
 interface TenantTable {
@@ -42,35 +47,48 @@ interface TenantTable {
 ```
 
 ### Authentication Flow
+
+#### Organization Members (Staff/Admins)
+
 1. User signs up → Organization created
 2. User logs in → Organization context loaded
 3. All queries filtered by organization_id
 4. RLS policies enforce data isolation
 
+#### Client Authentication (GoTeamUp-Style)
+
+1. Client added to system → Unique invitation record created
+2. Client receives unique, non-expiring magic link
+3. First-time claim → Client sets password during onboarding
+4. Subsequent logins → Email + password authentication only
+5. Password-based access to client portal and services
+
 ### Data Access Patterns
+
 ```typescript
 // Client-side access
 const { data } = await supabase
-  .from('leads')
-  .select('*')
-  .eq('organization_id', currentOrg.id);
+  .from("leads")
+  .select("*")
+  .eq("organization_id", currentOrg.id);
 
 // Server-side with admin client
 const supabase = createAdminClient();
 const { data } = await supabase
-  .from('leads')
-  .select('*')
-  .eq('organization_id', organizationId);
+  .from("leads")
+  .select("*")
+  .eq("organization_id", organizationId);
 ```
 
 ## Current Implementation Status
 
 ### ✅ Completed Features
+
 1. **Authentication System**
-   - Email/password login
-   - Google OAuth
-   - Magic link authentication
+   - Staff: Email/password login with Google OAuth
+   - Clients: GoTeamUp-style unique invite links with password setup
    - Organization creation on signup
+   - Multi-tenancy with secure client portal access
 
 2. **Lead Management**
    - CRUD operations
@@ -98,6 +116,7 @@ const { data } = await supabase
    - Booking system
 
 ### 🚧 In Progress
+
 1. **Advanced Automation**
    - BullMQ integration
    - Complex conditionals
@@ -123,6 +142,7 @@ const { data } = await supabase
    - Invoice generation
 
 ### 📋 Planned Features
+
 1. **Analytics Dashboard**
    - Real-time metrics
    - Custom reports
@@ -144,24 +164,28 @@ const { data } = await supabase
 ## Key Design Decisions
 
 ### 1. Database-First Approach
+
 - All business logic via RLS policies
 - Stored procedures for complex operations
 - Triggers for audit trails
 - Real-time subscriptions
 
 ### 2. Server Components
+
 - Default to server components
 - Client components only for interactivity
 - Streaming for better performance
 - Edge runtime where applicable
 
 ### 3. Type Safety
+
 - End-to-end TypeScript
 - Zod for runtime validation
 - Generated types from database
 - Strict mode enabled
 
 ### 4. API Design
+
 ```typescript
 // Standard API response format
 interface ApiResponse<T> {
@@ -181,18 +205,21 @@ interface ApiResponse<T> {
 ## Security Considerations
 
 ### Authentication
+
 - JWT tokens with short expiry
 - Refresh token rotation
 - Session management
 - MFA support (planned)
 
 ### Authorization
+
 - Organization-level isolation
 - Role-based access control
 - Resource-level permissions
 - API key management
 
 ### Data Protection
+
 - Encryption at rest
 - TLS for all connections
 - PII handling compliance
@@ -201,12 +228,14 @@ interface ApiResponse<T> {
 ## Performance Requirements
 
 ### Response Times
+
 - API endpoints: < 200ms p95
 - Page loads: < 1s FCP
 - Database queries: < 50ms
 - Background jobs: < 30s
 
 ### Scalability Targets
+
 - 10,000 active organizations
 - 1M leads across platform
 - 10M messages/month
@@ -215,18 +244,21 @@ interface ApiResponse<T> {
 ## Development Workflow
 
 ### Branch Strategy
+
 - `main`: Production-ready code
 - `develop`: Integration branch
 - `feature/*`: New features
 - `fix/*`: Bug fixes
 
 ### Code Standards
+
 - ESLint + Prettier
 - Conventional commits
 - PR reviews required
 - Automated testing
 
 ### Deployment Pipeline
+
 1. Push to GitHub
 2. Vercel preview deployment
 3. Automated tests
@@ -235,6 +267,7 @@ interface ApiResponse<T> {
 6. Production deployment
 
 ## Directory Structure
+
 ```
 /app
   /api          # API routes
@@ -252,6 +285,7 @@ interface ApiResponse<T> {
 ```
 
 ## Environment Variables
+
 ```env
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=
