@@ -427,8 +427,28 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error("Login OTP error:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    const errorStack = error instanceof Error ? error.stack : "";
+    console.error("Error details:", {
+      message: errorMessage,
+      stack: errorStack,
+    });
+
+    // In production, return generic error but log details
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Authentication failed",
+          details: errorMessage,
+        },
+        { status: 500 },
+      );
+    }
+
     return NextResponse.json(
-      { success: false, error: "Authentication failed" },
+      { success: false, error: errorMessage },
       { status: 500 },
     );
   }
