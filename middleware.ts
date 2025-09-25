@@ -88,6 +88,7 @@ const publicRoutes = [
   '/api/public-api',
   '/api/booking-by-slug',
   '/api/login-otp',
+  '/api/health-check',
   '/api/set-password-dev',
   '/api/setup-otp-table',
   '/api/debug-clients',
