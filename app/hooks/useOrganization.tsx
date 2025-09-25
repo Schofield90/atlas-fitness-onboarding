@@ -112,42 +112,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         console.log("Client check failed, continuing...", err);
       }
 
-      // COMPLETE BYPASS FOR SAM - Check both email and ID
-      if (
-        currentUser.email === "sam@atlas-gyms.co.uk" ||
-        currentUser.id === "ea1fc8e3-35a2-4c59-80af-5fde557391a1"
-      ) {
-        console.log("SPECIAL BYPASS ACTIVATED for sam@atlas-gyms.co.uk");
-        console.log("BYPASSING ALL DATABASE QUERIES - RETURNING IMMEDIATELY");
-        const orgId = "63589490-8f55-4157-bd3a-e141594b748e";
-
-        setOrganizationId(orgId);
-        setOrganization({
-          id: orgId,
-          name: "Atlas Fitness",
-          slug: "atlas-fitness",
-          owner_id: currentUser.id,
-          settings: {
-            branding: { primaryColor: "#F97316", logo: null },
-            features: {
-              messaging: true,
-              automation: true,
-              booking: true,
-              ai_chat: true,
-            },
-          },
-          created_at: "2025-07-24T13:28:55.866",
-          updated_at: new Date().toISOString(),
-        });
-        setIsLoading(false);
-        console.log("BYPASS COMPLETE - NO DATABASE QUERIES WILL BE MADE");
-        return; // EXIT COMPLETELY - skip all other code
-      }
-
-      // Try to get organization ID - first try RPC, then fallback to direct query
-      console.log(
-        "WARNING: CODE AFTER BYPASS IS EXECUTING! This should not happen for sam@atlas-gyms.co.uk",
-      );
+      // Try to get organization ID
       console.log("Fetching organization for user:", currentUser.id);
 
       let orgData = null;
@@ -192,36 +157,6 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
 
       if (!orgData) {
         console.log("No organization found for user");
-        setIsLoading(false);
-        return;
-      }
-
-      // For sam, skip fetching organization details and use hardcoded values
-      if (
-        currentUser.email === "sam@atlas-gyms.co.uk" ||
-        currentUser.id === "ea1fc8e3-35a2-4c59-80af-5fde557391a1"
-      ) {
-        console.log(
-          "Using hardcoded organization details for sam@atlas-gyms.co.uk",
-        );
-        setOrganizationId("63589490-8f55-4157-bd3a-e141594b748e");
-        setOrganization({
-          id: "63589490-8f55-4157-bd3a-e141594b748e",
-          name: "Atlas Fitness",
-          slug: "atlas-fitness",
-          owner_id: currentUser.id,
-          settings: {
-            branding: { primaryColor: "#F97316", logo: null },
-            features: {
-              messaging: true,
-              automation: true,
-              booking: true,
-              ai_chat: true,
-            },
-          },
-          created_at: "2025-07-24T13:28:55.866",
-          updated_at: new Date().toISOString(),
-        });
         setIsLoading(false);
         return;
       }

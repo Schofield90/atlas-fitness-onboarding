@@ -43,16 +43,6 @@ export default function OwnerLoginPage() {
       if (data?.user) {
         console.log("Login successful for:", data.user.email);
 
-        // SPECIAL BYPASS FOR SAM
-        if (
-          data.user.email === "sam@atlas-gyms.co.uk" ||
-          data.user.id === "ea1fc8e3-35a2-4c59-80af-5fde557391a1"
-        ) {
-          console.log("SAM BYPASS: Redirecting directly to dashboard");
-          router.push("/dashboard");
-          return;
-        }
-
         // Check if user has an organization (with better error handling)
         try {
           const { data: orgData, error: orgError } = await supabase
