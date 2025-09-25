@@ -499,15 +499,16 @@ export async function middleware(request: NextRequest) {
     
     // Check admin subdomain - requires super admin verification from database
     if (config.requiresSuperAdmin) {
-      // Check if user is super admin
-      const { data: superAdmin } = await supabase
-        .from('super_admin_users')
-        .select('id')
+      // Check if user is super admin via staff table
+      const { data: staffUser } = await supabase
+        .from('staff')
+        .select('metadata')
         .eq('user_id', session.user.id)
-        .eq('is_active', true)
         .single()
       
-      if (!superAdmin) {
+      const isSuperAdmin = staffUser?.metadata?.role === 'superadmin' && staffUser?.metadata?.is_active === true
+      
+      if (!isSuperAdmin) {
         if (pathname.startsWith('/api/')) {
           return NextResponse.json({ error: 'Unauthorized - Admin access only' }, { status: 403 })
         }
@@ -601,20 +602,21 @@ export async function middleware(request: NextRequest) {
   )
 
   if (isSuperAdminRoute) {
-    // Super admin routes require both authentication AND super admin status
-    const { data: superAdmin } = await supabase
-      .from('super_admin_users')
-      .select('id')
+    // Super admin routes require both authentication AND super admin status via staff table
+    const { data: staffUser } = await supabase
+      .from('staff')
+      .select('metadata')
       .eq('user_id', session.user.id)
-      .eq('is_active', true)
       .single()
 
-    if (!superAdmin) {
+    const isSuperAdmin = staffUser?.metadata?.role === 'superadmin' && staffUser?.metadata?.is_active === true
+
+    if (!isSuperAdmin) {
       // Not a super admin - deny access
       if (pathname.startsWith('/api/')) {
         return NextResponse.json({ error: 'Super admin access required' }, { status: 403 })
       }
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      return NextResponse.redirect(new URL('/signin', request.url))
     }
 
     // Store super admin status in headers

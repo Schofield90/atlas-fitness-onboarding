@@ -48,15 +48,25 @@ export default function AdminSignIn() {
       }
 
       if (data?.user) {
-        // Verify user is a platform admin
-        const { data: adminData, error: adminError } = await supabase
-          .from("super_admin_users")
-          .select("*")
+        // Verify user is a platform admin (check staff table)
+        const { data: staffData, error: staffError } = await supabase
+          .from("staff")
+          .select("metadata")
           .eq("user_id", data.user.id)
-          .eq("is_active", true)
           .single();
 
-        if (adminError || !adminData) {
+        if (staffError || !staffData) {
+          setError("You do not have admin access to this platform");
+          await supabase.auth.signOut();
+          setLoading(false);
+          return;
+        }
+
+        // Check if user has superadmin role in metadata
+        const role = staffData.metadata?.role;
+        const isActive = staffData.metadata?.is_active;
+
+        if (role !== "superadmin" || !isActive) {
           setError("You do not have admin access to this platform");
           await supabase.auth.signOut();
           setLoading(false);

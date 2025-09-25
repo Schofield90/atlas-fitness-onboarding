@@ -76,6 +76,15 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
 
       setUser(currentUser);
 
+      // Check if this is a superadmin user - they don't need organizations
+      if (currentUser.email?.endsWith("@gymleadhub.co.uk")) {
+        console.log("User is a platform admin - skipping organization check");
+        setOrganizationId(null);
+        setOrganization(null);
+        setIsLoading(false);
+        return;
+      }
+
       // Check if this is a client user (member) - they don't need organizations
       // Use email-based check as a fallback since user_id query is failing
       if (
