@@ -75,32 +75,43 @@ export async function POST(request: Request) {
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-|-$/g, "");
 
-      const { data: newOrg, error: orgError } = await serviceClient
+      // Check if organization with this email already exists
+      const { data: existingOrgByEmail } = await serviceClient
         .from("organizations")
-        .insert([
-          {
-            name: orgName,
-            slug: slug,
-            email: user.email || email,
-            phone: "",
-            subscription_status: "trialing",
-          },
-        ])
         .select("id")
-        .single();
+        .eq("email", user.email || email)
+        .maybeSingle();
 
-      if (orgError) {
-        console.error("Org creation error:", orgError);
-        return NextResponse.json(
-          {
-            error: "Failed to create organization",
-            details: orgError.message,
-          },
-          { status: 500 },
-        );
+      if (existingOrgByEmail) {
+        orgId = existingOrgByEmail.id;
+      } else {
+        const { data: newOrg, error: orgError } = await serviceClient
+          .from("organizations")
+          .insert([
+            {
+              name: orgName,
+              slug: slug,
+              email: user.email || email,
+              phone: "",
+              subscription_status: "trialing",
+            },
+          ])
+          .select("id")
+          .single();
+
+        if (orgError) {
+          console.error("Org creation error:", orgError);
+          return NextResponse.json(
+            {
+              error: "Failed to create organization",
+              details: orgError.message,
+            },
+            { status: 500 },
+          );
+        }
+
+        orgId = newOrg.id;
       }
-
-      orgId = newOrg.id;
 
       // Link user to organization
       const { error: linkError } = await serviceClient
