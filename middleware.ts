@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createMiddlewareClient } from '@/app/lib/supabase/middleware'
+import { 
+  validateUserPortalAccess, 
+  getPortalLoginPage,
+  Portal 
+} from '@/app/lib/auth/portal-validator'
+import { getUserRole } from '@/app/lib/auth/role-checker'
 
 // Subdomain configuration
 const SUBDOMAIN_CONFIG = {
@@ -223,10 +229,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Emergency bypass - if middleware is causing issues
-  if (process.env.BYPASS_MIDDLEWARE === 'true') {
-    return res
-  }
+  // NO BYPASSES - Security is mandatory
 
   // Handle subdomain-specific routing with different auth logic per portal
   if (hostname.includes('gymleadhub.co.uk') && subdomain) {
@@ -451,19 +454,46 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
-  // Subdomain-specific authentication checks
+  // Subdomain-specific authentication checks with proper portal validation
   if (subdomain && SUBDOMAIN_CONFIG[subdomain as keyof typeof SUBDOMAIN_CONFIG]) {
     const config = SUBDOMAIN_CONFIG[subdomain as keyof typeof SUBDOMAIN_CONFIG]
-
-    // Check admin subdomain - requires super admin (sam@gymleadhub.co.uk only)
-    if (config.requiresSuperAdmin) {
-      // Only allow sam@gymleadhub.co.uk for admin portal
-      if (session.user.email !== 'sam@gymleadhub.co.uk') {
-        if (pathname.startsWith('/api/')) {
-          return NextResponse.json({ error: 'Unauthorized - Admin access only' }, { status: 403 })
-        }
-        return NextResponse.redirect(new URL('/owner-login', request.url))
+    
+    // Use our new portal validation system
+    const portalValidation = await validateUserPortalAccess(
+      subdomain as Portal,
+      session.user.id,
+      supabase
+    )
+    
+    if (!portalValidation.allowed) {
+      // User is not allowed to access this portal
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json({ 
+          error: portalValidation.reason || 'Access denied',
+          userType: portalValidation.userType 
+        }, { status: 403 })
       }
+      
+      // Redirect to appropriate portal based on user type
+      const redirectUrl = portalValidation.suggestedRedirect || getPortalLoginPage(subdomain as Portal)
+      return NextResponse.redirect(new URL(redirectUrl, request.url))
+    }
+    
+    // User is allowed - set appropriate headers
+    const userRole = await getUserRole(session.user.id, supabase)
+    if (userRole) {
+      if (userRole.organizationId) {
+        res.headers.set('x-organization-id', userRole.organizationId)
+      }
+      if (userRole.role) {
+        res.headers.set('x-user-role', userRole.role)
+      }
+      res.headers.set('x-user-type', portalValidation.userType)
+    }
+
+    // Check admin subdomain - requires super admin verification from database
+    if (config.requiresSuperAdmin) {
+      // Already validated by portal validator above
       return res
     }
 
@@ -486,61 +516,60 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // Check login subdomain - requires organization (for gym owners like sam@atlas-gyms.co.uk)
+    // Check login subdomain - requires organization for gym owners
     if (config.requiresOrganization && !pathname.startsWith('/api/')) {
-      console.log('[Middleware] Checking organization requirement for user:', session.user?.email);
-      // SPECIAL BYPASS FOR SAM
-      if (session.user?.email === 'sam@atlas-gyms.co.uk' ||
-          session.user?.id === 'ea1fc8e3-35a2-4c59-80af-5fde557391a1') {
-        console.log('[Middleware] SAM BYPASS ACTIVATED - Skipping organization check');
-        // Set organization header for sam
-        res.headers.set('x-user-organization-id', '63589490-8f55-4157-bd3a-e141594b748e');
-        res.headers.set('x-user-organization-role', 'owner');
-        // Continue without organization check - no redirect needed
-      } else {
-        // Check if user has an organization
-        let userOrg = null;
+      // Check if user has an organization - NO SPECIAL BYPASSES
+      let userOrg = null;
 
-        // First check organization_staff table (new structure)
-        const { data: staffOrg } = await supabase
-          .from('organization_staff')
+      // First check organization_staff table (new structure)
+      const { data: staffOrg } = await supabase
+        .from('organization_staff')
+        .select('organization_id, role')
+        .eq('user_id', session.user.id)
+        .eq('is_active', true)
+        .single()
+
+      if (staffOrg) {
+        userOrg = staffOrg;
+      } else {
+        // Check user_organizations table
+        const { data: userOrgData } = await supabase
+          .from('user_organizations')
           .select('organization_id, role')
           .eq('user_id', session.user.id)
-          .eq('is_active', true)
           .single()
-
-        if (staffOrg) {
-          userOrg = staffOrg;
+          
+        if (userOrgData) {
+          userOrg = userOrgData;
         } else {
-          // Fallback to organization_members table (old structure)
-          const { data: memberOrg } = await supabase
-            .from('organization_members')
-            .select('organization_id, role')
-            .eq('user_id', session.user.id)
-            .eq('is_active', true)
+          // Check if user owns an organization
+          const { data: ownedOrg } = await supabase
+            .from('organizations')
+            .select('id')
+            .eq('owner_id', session.user.id)
             .single()
-
-          if (memberOrg) {
-            userOrg = memberOrg;
+            
+          if (ownedOrg) {
+            userOrg = { organization_id: ownedOrg.id, role: 'owner' };
           }
         }
+      }
 
-        if (!userOrg && !pathname.startsWith('/onboarding')) {
-          // User doesn't belong to any organization
-          if (pathname.startsWith('/api/')) {
-            return NextResponse.json({ error: 'Organization required' }, { status: 403 })
-          }
-          const redirectUrl = new URL('/onboarding/create-organization', request.url)
-          redirectUrl.searchParams.set('redirect', pathname)
-          return NextResponse.redirect(redirectUrl)
+      if (!userOrg && !pathname.startsWith('/onboarding')) {
+        // User doesn't belong to any organization
+        if (pathname.startsWith('/api/')) {
+          return NextResponse.json({ error: 'Organization required' }, { status: 403 })
         }
+        const redirectUrl = new URL('/onboarding/create-organization', request.url)
+        redirectUrl.searchParams.set('redirect', pathname)
+        return NextResponse.redirect(redirectUrl)
+      }
 
-        // Store organization ID in headers for API routes
-        if (userOrg) {
-          res.headers.set('x-organization-id', userOrg.organization_id)
-          res.headers.set('x-user-role', userOrg.role)
-        }
-      } // End of else block for SAM bypass
+      // Store organization ID in headers for API routes
+      if (userOrg) {
+        res.headers.set('x-organization-id', userOrg.organization_id)
+        res.headers.set('x-user-role', userOrg.role)
+      }
     }
 
     return res
@@ -606,56 +635,57 @@ export async function middleware(request: NextRequest) {
   )
 
   if (isAdminRoute) {
-    // SPECIAL BYPASS FOR SAM - Check again for admin routes
-    if (session.user?.email === 'sam@atlas-gyms.co.uk' ||
-        session.user?.id === 'ea1fc8e3-35a2-4c59-80af-5fde557391a1') {
-      console.log('[Middleware] SAM BYPASS for admin route:', pathname);
-      res.headers.set('x-organization-id', '63589490-8f55-4157-bd3a-e141594b748e');
-      res.headers.set('x-user-role', 'owner');
-      // Continue without further checks
-    } else {
-      // Check if user has an organization - check both tables
-      let userOrg = null;
+    // Check if user has an organization - NO SPECIAL BYPASSES
+    let userOrg = null;
 
-      // First check organization_staff table (new structure)
-      const { data: staffOrg } = await supabase
-        .from('organization_staff')
+    // First check organization_staff table (new structure)
+    const { data: staffOrg } = await supabase
+      .from('organization_staff')
+      .select('organization_id, role')
+      .eq('user_id', session.user.id)
+      .eq('is_active', true)
+      .single()
+
+    if (staffOrg) {
+      userOrg = staffOrg;
+    } else {
+      // Check user_organizations table
+      const { data: userOrgData } = await supabase
+        .from('user_organizations')
         .select('organization_id, role')
         .eq('user_id', session.user.id)
-        .eq('is_active', true)
         .single()
-
-      if (staffOrg) {
-        userOrg = staffOrg;
+        
+      if (userOrgData) {
+        userOrg = userOrgData;
       } else {
-        // Fallback to organization_members table (old structure)
-        const { data: memberOrg } = await supabase
-          .from('organization_members')
-          .select('organization_id, role')
-          .eq('user_id', session.user.id)
-          .eq('is_active', true)
+        // Check if user owns an organization
+        const { data: ownedOrg } = await supabase
+          .from('organizations')
+          .select('id')
+          .eq('owner_id', session.user.id)
           .single()
-
-        if (memberOrg) {
-          userOrg = memberOrg;
+          
+        if (ownedOrg) {
+          userOrg = { organization_id: ownedOrg.id, role: 'owner' };
         }
       }
+    }
 
-      if (!userOrg) {
-        // User doesn't belong to any organization; require onboarding and do NOT auto-associate
-        if (pathname.startsWith('/api/')) {
-          return NextResponse.json({ error: 'Organization required' }, { status: 403 })
-        }
-        const redirectUrl = new URL('/onboarding/create-organization', request.url)
-        redirectUrl.searchParams.set('redirect', pathname)
-        return NextResponse.redirect(redirectUrl)
+    if (!userOrg) {
+      // User doesn't belong to any organization; require onboarding
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json({ error: 'Organization required' }, { status: 403 })
       }
+      const redirectUrl = new URL('/onboarding/create-organization', request.url)
+      redirectUrl.searchParams.set('redirect', pathname)
+      return NextResponse.redirect(redirectUrl)
+    }
 
-      // Store organization ID in headers for API routes
-      if (userOrg) {
-        res.headers.set('x-organization-id', userOrg.organization_id)
-        res.headers.set('x-user-role', userOrg.role)
-      }
+    // Store organization ID in headers for API routes
+    if (userOrg) {
+      res.headers.set('x-organization-id', userOrg.organization_id)
+      res.headers.set('x-user-role', userOrg.role)
     }
   }
 
