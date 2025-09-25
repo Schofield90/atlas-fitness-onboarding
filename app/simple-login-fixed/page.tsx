@@ -74,8 +74,18 @@ export default function SimpleLoginFixedPage() {
         throw new Error(data.error || "Invalid code");
       }
 
-      // Set session if we have tokens
-      if (data.session) {
+      // Handle different response types
+      if (data.authUrl) {
+        // Magic link URL - redirect to it
+        console.log("Redirecting to magic link:", data.authUrl);
+        setMessage("Login successful! Redirecting...");
+        setSuccess(true);
+
+        setTimeout(() => {
+          window.location.href = data.authUrl;
+        }, 500);
+      } else if (data.session) {
+        // Session tokens - set session client-side
         try {
           const supabase = createClient();
 
@@ -106,6 +116,7 @@ export default function SimpleLoginFixedPage() {
           throw sessionErr;
         }
       } else {
+        // Fallback - assume success
         setMessage("Login successful! Redirecting...");
         setSuccess(true);
         setTimeout(() => {
