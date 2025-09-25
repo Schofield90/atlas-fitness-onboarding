@@ -43,6 +43,11 @@ const SUBDOMAIN_CONFIG = {
     description: 'Gym members portal',
     allowedPaths: [
       '/client',
+      '/client/dashboard',
+      '/client/profile',
+      '/client/workouts',
+      '/client/nutrition',
+      '/client/bookings',
       '/client-portal',
       '/simple-login',
       '/login-otp',
@@ -250,11 +255,17 @@ export async function middleware(request: NextRequest) {
         }
         
         // Check allowed paths for members
-        const isAllowedPath = config.allowedPaths.some(path =>
-          pathname === path ||
-          pathname.startsWith(path + '/') ||
-          (path === '/[org]' && pathname.match(/^\/[^\/]+$/))
-        )
+        const isAllowedPath = config.allowedPaths.some(path => {
+          // Exact match
+          if (pathname === path) return true
+          // Path prefix match (e.g., /client matches /client/dashboard)
+          if (pathname.startsWith(path + '/')) return true
+          // Special case for /client - allow all subpaths
+          if (path === '/client' && pathname.startsWith('/client')) return true
+          // Dynamic org path
+          if (path === '/[org]' && pathname.match(/^\/[^\/]+$/)) return true
+          return false
+        })
         
         if (!isAllowedPath) {
           return NextResponse.redirect(new URL('/simple-login', request.url))
