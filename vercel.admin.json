@@ -1,10 +1,91 @@
 {
+  "name": "atlas-admin-portal",
   "framework": "nextjs",
   "installCommand": "npm install",
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
+  "regions": ["lhr1"],
   "env": {
     "NEXT_PUBLIC_APP_TYPE": "admin",
-    "NEXT_PUBLIC_BASE_URL": "https://admin.gymleadhub.co.uk"
+    "NEXT_PUBLIC_BASE_URL": "https://admin.gymleadhub.co.uk",
+    "NEXT_PUBLIC_APP_MODE": "admin"
+  },
+  "build": {
+    "env": {
+      "NEXT_PUBLIC_APP_TYPE": "admin",
+      "NEXT_PUBLIC_BASE_URL": "https://admin.gymleadhub.co.uk",
+      "NEXT_PUBLIC_APP_MODE": "admin"
+    }
+  },
+  "functions": {
+    "app/api/admin/**/*.ts": {
+      "maxDuration": 60
+    },
+    "app/(admin)/**/*.tsx": {
+      "maxDuration": 30
+    },
+    "app/signin/page.tsx": {
+      "maxDuration": 10
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/admin"
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/login",
+      "destination": "/signin",
+      "permanent": false
+    },
+    {
+      "source": "/dashboard",
+      "destination": "/admin/dashboard",
+      "permanent": false
+    },
+    {
+      "source": "/owner-login",
+      "destination": "https://login.gymleadhub.co.uk/owner-login",
+      "permanent": false
+    },
+    {
+      "source": "/simple-login",
+      "destination": "https://login.gymleadhub.co.uk/simple-login",
+      "permanent": false
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "geolocation=(), microphone=(), camera=()"
+        }
+      ]
+    }
+  ],
+  "git": {
+    "deploymentEnabled": {
+      "main": true
+    }
   }
 }
