@@ -267,7 +267,7 @@ export async function POST(request: NextRequest) {
       // Get the client record FIRST (before deleting OTP)
       const { data: client } = await adminSupabase
         .from("clients")
-        .select("user_id, organization_id")
+        .select("id, user_id, organization_id, email, first_name, last_name")
         .eq("email", sanitizedEmail)
         .single();
 
@@ -318,7 +318,7 @@ export async function POST(request: NextRequest) {
       const { data: sessionData, error: sessionError } =
         await adminSupabase.auth.admin.generateLink({
           type: "magiclink",
-          email: email.toLowerCase(),
+          email: sanitizedEmail,
         });
 
       if (sessionError || !sessionData?.properties?.action_link) {

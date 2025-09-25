@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Mail, Lock, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { createClient } from "@/app/lib/supabase/client";
 
 export default function LoginOTPPage() {
   const router = useRouter();
@@ -62,6 +63,21 @@ export default function LoginOTPPage() {
 
       if (!response.ok) {
         throw new Error(data.error || "Failed to verify OTP");
+      }
+
+      // If we have session tokens, set them and redirect
+      if (data.session?.access_token && data.session?.refresh_token) {
+        const supabase = createClient();
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
+
+        if (!sessionError) {
+          // Successfully set session, redirect to dashboard
+          router.push(data.redirectTo || "/client/dashboard");
+          return;
+        }
       }
 
       // If we have an auth URL, use it to sign in
