@@ -43,10 +43,28 @@ export async function POST(request: NextRequest) {
       }
 
       // IMPORTANT: Check if this is a gym owner trying to use members portal
-      // We need to check if the email belongs to an owner by checking clients first
-      // If they're not a client, they might be an owner trying to access the wrong portal
+      // Check organization ownership FIRST, before checking client status
+      // This ensures gym owners are properly redirected even if they have a client account
 
-      // Find client by email
+      // Check if this email belongs to an organization (gym owner)
+      const { data: ownerCheck } = await adminSupabase
+        .from("organizations")
+        .select("id, name")
+        .eq("email", sanitizedEmail)
+        .single();
+
+      if (ownerCheck) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "This email belongs to a gym owner. Please use login.gymleadhub.co.uk to sign in.",
+          },
+          { status: 403 },
+        );
+      }
+
+      // Now check if they're a client
       const { data: client, error: clientError } = await adminSupabase
         .from("clients")
         .select("id, email, first_name, last_name, organization_id, user_id")
@@ -54,24 +72,6 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (clientError || !client) {
-        // Check if this might be a gym owner trying wrong portal
-        const { data: ownerCheck } = await adminSupabase
-          .from("organizations")
-          .select("id, name")
-          .or(`owner_email.eq.${sanitizedEmail}`)
-          .single();
-
-        if (ownerCheck) {
-          return NextResponse.json(
-            {
-              success: false,
-              error:
-                "This email belongs to a gym owner. Please use login.gymleadhub.co.uk to sign in.",
-            },
-            { status: 403 },
-          );
-        }
-
         return NextResponse.json(
           {
             success: false,
