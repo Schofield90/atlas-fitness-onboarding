@@ -41,9 +41,12 @@ function LoginPageContent() {
     }
   }, [searchParams]);
 
-  const handleSendOTP = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSendOTP = async (e?: React.FormEvent | React.MouseEvent) => {
     console.log("handleSendOTP called with email:", email);
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     setLoading(true);
     setMessage("");
 
@@ -75,8 +78,11 @@ function LoginPageContent() {
     }
   };
 
-  const handleVerifyOTP = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleVerifyOTP = async (e?: React.FormEvent | React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
 
     // Check if we're on mobile for better debugging
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -404,8 +410,13 @@ function LoginPageContent() {
     }
   };
 
-  const handlePasswordLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handlePasswordLogin = async (
+    e?: React.FormEvent | React.MouseEvent,
+  ) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     setLoading(true);
     setMessage("");
 
@@ -710,7 +721,7 @@ function LoginPageContent() {
               </p>
             </div>
 
-            <form onSubmit={handleSendOTP} className="space-y-6">
+            <div className="space-y-6">
               <div>
                 <label
                   htmlFor="email"
@@ -725,7 +736,12 @@ function LoginPageContent() {
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
                   placeholder="your@email.com"
-                  required
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && email) {
+                      e.preventDefault();
+                      handleSendOTP();
+                    }
+                  }}
                 />
               </div>
 
@@ -742,8 +758,9 @@ function LoginPageContent() {
               )}
 
               <button
-                type="submit"
-                disabled={loading}
+                type="button"
+                onClick={() => handleSendOTP()}
+                disabled={loading || !email}
                 className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-3 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transform hover:scale-105 shadow-lg"
               >
                 {loading ? (
@@ -755,7 +772,7 @@ function LoginPageContent() {
                   "Send Verification Code"
                 )}
               </button>
-            </form>
+            </div>
           </>
         )}
 
@@ -782,7 +799,7 @@ function LoginPageContent() {
               </p>
             </div>
 
-            <form onSubmit={handleVerifyOTP} className="space-y-6">
+            <div className="space-y-6">
               <div>
                 <label
                   htmlFor="otp"
@@ -800,8 +817,12 @@ function LoginPageContent() {
                   className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent text-center text-2xl font-mono tracking-widest transition-all"
                   placeholder="000000"
                   maxLength={6}
-                  pattern="[0-9]{6}"
-                  required
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && otp.length === 6) {
+                      e.preventDefault();
+                      handleVerifyOTP();
+                    }
+                  }}
                 />
               </div>
 
@@ -818,7 +839,8 @@ function LoginPageContent() {
               )}
 
               <button
-                type="submit"
+                type="button"
+                onClick={() => handleVerifyOTP()}
                 disabled={loading || otp.length !== 6}
                 className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transform hover:scale-105 shadow-lg"
               >
@@ -840,7 +862,7 @@ function LoginPageContent() {
               >
                 Resend Code
               </button>
-            </form>
+            </div>
           </>
         )}
 
@@ -867,7 +889,7 @@ function LoginPageContent() {
               </p>
             </div>
 
-            <form onSubmit={handlePasswordLogin} className="space-y-6">
+            <div className="space-y-6">
               <div>
                 <label
                   htmlFor="password-email"
@@ -882,7 +904,6 @@ function LoginPageContent() {
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
                   placeholder="your@email.com"
-                  required
                 />
               </div>
 
@@ -900,7 +921,12 @@ function LoginPageContent() {
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
                   placeholder="Enter your password"
-                  required
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && email && password) {
+                      e.preventDefault();
+                      handlePasswordLogin();
+                    }
+                  }}
                 />
               </div>
 
@@ -917,8 +943,9 @@ function LoginPageContent() {
               )}
 
               <button
-                type="submit"
-                disabled={loading}
+                type="button"
+                onClick={() => handlePasswordLogin()}
+                disabled={loading || !email || !password}
                 className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-3 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transform hover:scale-105 shadow-lg"
               >
                 {loading ? (
@@ -940,7 +967,7 @@ function LoginPageContent() {
                   Use email code instead
                 </button>
               </div>
-            </form>
+            </div>
           </>
         )}
       </div>

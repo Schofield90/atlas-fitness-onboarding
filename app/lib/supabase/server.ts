@@ -5,9 +5,19 @@ import type { Database } from "./database.types";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
+// Helper to determine if we're in production
+function isProduction() {
+  return (
+    process.env.NODE_ENV === "production" ||
+    process.env.VERCEL_ENV === "production" ||
+    process.env.NEXT_PUBLIC_SITE_URL?.includes("gymleadhub.co.uk")
+  );
+}
+
 // Next.js 15 requires awaiting cookies()
 export async function createClient() {
   const cookieStore = await cookies();
+  const isProd = isProduction();
 
   return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {
@@ -15,11 +25,32 @@ export async function createClient() {
         return cookieStore.get(name)?.value;
       },
       set(name: string, value: string, options: CookieOptions) {
+        // Enhanced cookie options for production
+        const enhancedOptions: CookieOptions = {
+          ...options,
+          // Set domain for cross-subdomain support in production
+          domain: isProd ? ".gymleadhub.co.uk" : undefined,
+          // Use lax for subdomain navigation
+          sameSite: "lax",
+          // Secure in production
+          secure: isProd,
+          // httpOnly for security
+          httpOnly: true,
+          // Root path for all pages
+          path: "/",
+        };
+
         // Important: allow SSR to persist/refresh auth cookies
-        cookieStore.set({ name, value, ...options });
+        cookieStore.set({ name, value, ...enhancedOptions });
       },
       remove(name: string, options: CookieOptions) {
-        cookieStore.set({ name, value: "", ...options, maxAge: 0 });
+        const enhancedOptions: CookieOptions = {
+          ...options,
+          domain: isProd ? ".gymleadhub.co.uk" : undefined,
+          path: "/",
+        };
+
+        cookieStore.set({ name, value: "", ...enhancedOptions, maxAge: 0 });
       },
     },
     // Don't override auth settings - let SSR helper handle it

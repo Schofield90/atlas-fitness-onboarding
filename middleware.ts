@@ -98,6 +98,9 @@ const publicRoutes = [
   '/api/test-client-lookup',
   '/api/check-database',
   '/api/debug-env',
+  '/otp-test',
+  '/js-test',
+  '/simple-test',
   '/api/test-nutrition-access',
   '/api/test-redis', // Test Redis connection
   '/api/admin/fix-organization-staff',
@@ -398,6 +401,21 @@ export async function middleware(request: NextRequest) {
     const result = await Promise.race([sessionPromise, timeoutPromise])
 
     session = (result as any).data?.session
+    
+    // For members subdomain, try to recover session if not found
+    if (!session && subdomain === 'members') {
+      // Try to get user from cookies
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (user) {
+        // Try to refresh the session
+        const { data: { session: refreshedSession } } = await supabase.auth.refreshSession()
+        if (refreshedSession) {
+          session = refreshedSession
+          console.log('Members portal: Session recovered via refresh')
+        }
+      }
+    }
   } catch (error) {
     console.error('Middleware auth error:', error)
     // If auth times out or fails, treat as no session for public routes
@@ -437,33 +455,37 @@ export async function middleware(request: NextRequest) {
       const { data: { session: refreshedSession } } = await supabase.auth.refreshSession()
 
       if (refreshedSession) {
+        session = refreshedSession
         // Successfully refreshed, continue with the request
-        return res
+        console.log('Session refreshed successfully in middleware')
       }
     }
 
-    // No session and couldn't refresh - return 401 for API, redirect to login for pages
-    if (pathname.startsWith('/api/')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // Check if we have a session after refresh attempts
+    if (!session) {
+      // No session and couldn't refresh - return 401 for API, redirect to login for pages
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
 
-    // Redirect to appropriate login based on subdomain AND path
-    let loginUrl = '/owner-login'  // Default
-    
-    // Check if this is a client route FIRST
-    if (pathname.startsWith('/client')) {
-      loginUrl = '/simple-login'  // Client routes always use simple-login
-    } else if (subdomain === 'members') {
-      loginUrl = '/simple-login'
-    } else if (subdomain === 'login') {
-      loginUrl = '/owner-login'
-    } else if (subdomain === 'admin') {
-      loginUrl = '/signin'
+      // Redirect to appropriate login based on subdomain AND path
+      let loginUrl = '/owner-login'  // Default
+      
+      // Check if this is a client route FIRST
+      if (pathname.startsWith('/client')) {
+        loginUrl = '/simple-login'  // Client routes always use simple-login
+      } else if (subdomain === 'members') {
+        loginUrl = '/simple-login'
+      } else if (subdomain === 'login') {
+        loginUrl = '/owner-login'
+      } else if (subdomain === 'admin') {
+        loginUrl = '/signin'
+      }
+      
+      const redirectUrl = new URL(loginUrl, request.url)
+      redirectUrl.searchParams.set('redirect', pathname)
+      return NextResponse.redirect(redirectUrl)
     }
-    
-    const redirectUrl = new URL(loginUrl, request.url)
-    redirectUrl.searchParams.set('redirect', pathname)
-    return NextResponse.redirect(redirectUrl)
   }
 
   // Subdomain-specific authentication checks - simplified for now
