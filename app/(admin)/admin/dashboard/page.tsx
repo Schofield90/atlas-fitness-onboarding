@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/app/lib/supabase/client";
-import InterfaceSwitcher from "@/app/components/InterfaceSwitcher";
 import {
   Building2,
   Users,
@@ -116,7 +115,6 @@ export default function AdminDashboard() {
             </p>
           </div>
           <div className="flex items-center gap-4">
-            <InterfaceSwitcher currentInterface="admin" />
             <div className="text-sm text-gray-400">{user?.email}</div>
           </div>
         </div>

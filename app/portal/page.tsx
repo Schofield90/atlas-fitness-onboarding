@@ -1,118 +1,128 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { createClient } from '@/app/lib/supabase/client'
-import { Home, Calendar, MessageSquare, User, Activity, Dumbbell } from 'lucide-react'
-import toast from '@/app/lib/toast'
-import InterfaceSwitcher from '@/app/components/InterfaceSwitcher'
-import AINutritionCoach from '@/app/components/AINutritionCoach'
-import { format, parseISO } from 'date-fns'
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/app/lib/supabase/client";
+import {
+  Home,
+  Calendar,
+  MessageSquare,
+  User,
+  Activity,
+  Dumbbell,
+} from "lucide-react";
+import toast from "@/app/lib/toast";
+import AINutritionCoach from "@/app/components/AINutritionCoach";
+import { format, parseISO } from "date-fns";
 
 export default function MemberPortal() {
-  const [activeTab, setActiveTab] = useState('home')
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [memberData, setMemberData] = useState<any>(null)
-  const router = useRouter()
-  const supabase = createClient()
+  const [activeTab, setActiveTab] = useState("home");
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [memberData, setMemberData] = useState<any>(null);
+  const router = useRouter();
+  const supabase = createClient();
 
   useEffect(() => {
-    checkAuth()
-  }, [])
+    checkAuth();
+  }, []);
 
   const checkAuth = async () => {
     try {
-      const { data: { user: authUser } } = await supabase.auth.getUser()
-      
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser();
+
       if (!authUser) {
-        router.push('/portal/login')
-        return
+        router.push("/portal/login");
+        return;
       }
 
-      setUser(authUser)
+      setUser(authUser);
 
       // Fetch member data with robust fallbacks
       // 1) Prefer linking by user_id
       // 2) Fallback to auth user id in clients.id (common in older seeds)
       // 3) Fallback to email
       // 4) Fallback to phone (normalized)
-      let client: any = null
+      let client: any = null;
 
       // Helper to select client with relationships
       const selectClientBy = async (column: string, value: any) => {
         const { data } = await supabase
-          .from('clients')
-          .select(`
+          .from("clients")
+          .select(
+            `
             *,
             organization:organizations(name, logo_url),
             membership:memberships(*)
-          `)
+          `,
+          )
           .eq(column as any, value)
-          .maybeSingle()
-        return data
-      }
+          .maybeSingle();
+        return data;
+      };
 
       // Try user_id
-      client = await selectClientBy('user_id', authUser.id)
+      client = await selectClientBy("user_id", authUser.id);
 
       // Try id equals auth user id
       if (!client) {
-        client = await selectClientBy('id', authUser.id)
+        client = await selectClientBy("id", authUser.id);
       }
 
       // Try email
       if (!client && authUser.email) {
-        client = await selectClientBy('email', authUser.email)
+        client = await selectClientBy("email", authUser.email);
       }
 
       // Try phone
       if (!client && authUser.phone) {
-        const normalized = String(authUser.phone).replace(/\D/g, '')
+        const normalized = String(authUser.phone).replace(/\D/g, "");
         // Try exact phone first
-        client = await selectClientBy('phone', normalized)
+        client = await selectClientBy("phone", normalized);
         // If still not found, try unnormalized
         if (!client) {
-          client = await selectClientBy('phone', authUser.phone)
+          client = await selectClientBy("phone", authUser.phone);
         }
       }
 
       if (client) {
-        setMemberData(client)
+        setMemberData(client);
       } else {
-        console.warn('No client record found for authenticated user')
+        console.warn("No client record found for authenticated user");
       }
     } catch (error) {
-      console.error('Auth error:', error)
-      router.push('/portal/login')
+      console.error("Auth error:", error);
+      router.push("/portal/login");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'home':
-        return <HomeTab memberData={memberData} />
-      case 'bookings':
-        return <BookingsTab memberData={memberData} router={router} />
-      case 'nutrition':
-        return <NutritionTab memberData={memberData} />
-      case 'messages':
-        return <MessagesTab memberData={memberData} />
-      case 'profile':
-        return <ProfileTab memberData={memberData} user={user} />
+      case "home":
+        return <HomeTab memberData={memberData} />;
+      case "bookings":
+        return <BookingsTab memberData={memberData} router={router} />;
+      case "nutrition":
+        return <NutritionTab memberData={memberData} />;
+      case "messages":
+        return <MessagesTab memberData={memberData} />;
+      case "profile":
+        return <ProfileTab memberData={memberData} user={user} />;
       default:
-        return <HomeTab memberData={memberData} />
+        return <HomeTab memberData={memberData} />;
     }
-  }
+  };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
       </div>
-    )
+    );
   }
 
   return (
@@ -122,25 +132,24 @@ export default function MemberPortal() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {memberData?.organization?.logo_url && (
-              <img 
-                src={memberData.organization.logo_url} 
-                alt="Logo" 
+              <img
+                src={memberData.organization.logo_url}
+                alt="Logo"
                 className="h-8 w-8 rounded"
               />
             )}
             <div>
               <h1 className="text-lg font-bold">
-                {memberData?.organization?.name || 'Gym Portal'}
+                {memberData?.organization?.name || "Gym Portal"}
               </h1>
               <p className="text-xs text-gray-400">Member Portal</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <InterfaceSwitcher currentInterface="member" />
             <button
               onClick={() => {
-                supabase.auth.signOut()
-                router.push('/portal/login')
+                supabase.auth.signOut();
+                router.push("/portal/login");
               }}
               className="text-sm text-gray-400 hover:text-white"
             >
@@ -151,9 +160,7 @@ export default function MemberPortal() {
       </header>
 
       {/* Main Content */}
-      <main className="pb-20">
-        {renderContent()}
-      </main>
+      <main className="pb-20">{renderContent()}</main>
 
       {/* Mobile Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700">
@@ -161,37 +168,37 @@ export default function MemberPortal() {
           <TabButton
             icon={<Home className="w-5 h-5" />}
             label="Home"
-            active={activeTab === 'home'}
-            onClick={() => setActiveTab('home')}
+            active={activeTab === "home"}
+            onClick={() => setActiveTab("home")}
           />
           <TabButton
             icon={<Calendar className="w-5 h-5" />}
             label="Bookings"
-            active={activeTab === 'bookings'}
-            onClick={() => setActiveTab('bookings')}
+            active={activeTab === "bookings"}
+            onClick={() => setActiveTab("bookings")}
           />
           <TabButton
             icon={<Dumbbell className="w-5 h-5" />}
             label="Nutrition"
-            active={activeTab === 'nutrition'}
-            onClick={() => setActiveTab('nutrition')}
+            active={activeTab === "nutrition"}
+            onClick={() => setActiveTab("nutrition")}
           />
           <TabButton
             icon={<MessageSquare className="w-5 h-5" />}
             label="Messages"
-            active={activeTab === 'messages'}
-            onClick={() => setActiveTab('messages')}
+            active={activeTab === "messages"}
+            onClick={() => setActiveTab("messages")}
           />
           <TabButton
             icon={<User className="w-5 h-5" />}
             label="Profile"
-            active={activeTab === 'profile'}
-            onClick={() => setActiveTab('profile')}
+            active={activeTab === "profile"}
+            onClick={() => setActiveTab("profile")}
           />
         </div>
       </nav>
     </div>
-  )
+  );
 }
 
 function TabButton({ icon, label, active, onClick }: any) {
@@ -199,15 +206,13 @@ function TabButton({ icon, label, active, onClick }: any) {
     <button
       onClick={onClick}
       className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors ${
-        active 
-          ? 'text-orange-500' 
-          : 'text-gray-400 hover:text-white'
+        active ? "text-orange-500" : "text-gray-400 hover:text-white"
       }`}
     >
       {icon}
       <span className="text-xs">{label}</span>
     </button>
-  )
+  );
 }
 
 // Home Tab Component
@@ -217,16 +222,18 @@ function HomeTab({ memberData }: any) {
       {/* Welcome Section */}
       <div className="bg-gray-800 rounded-lg p-6">
         <h2 className="text-2xl font-bold mb-2">
-          Welcome back, {memberData?.first_name || 'Member'}!
+          Welcome back, {memberData?.first_name || "Member"}!
         </h2>
         <p className="text-gray-400">
-          Your membership status: {' '}
-          <span className={`font-medium ${
-            memberData?.membership_status === 'active' 
-              ? 'text-green-500' 
-              : 'text-yellow-500'
-          }`}>
-            {memberData?.membership_status || 'Pending'}
+          Your membership status:{" "}
+          <span
+            className={`font-medium ${
+              memberData?.membership_status === "active"
+                ? "text-green-500"
+                : "text-yellow-500"
+            }`}
+          >
+            {memberData?.membership_status || "Pending"}
           </span>
         </p>
       </div>
@@ -259,90 +266,96 @@ function HomeTab({ memberData }: any) {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 // Bookings Tab Component
 function BookingsTab({ memberData, router }: any) {
-  const [bookings, setBookings] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [showCalendar, setShowCalendar] = useState(false)
-  const [classes, setClasses] = useState<any[]>([])
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [classes, setClasses] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchBookings()
-    fetchAvailableClasses()
-  }, [])
+    fetchBookings();
+    fetchAvailableClasses();
+  }, []);
 
   const fetchBookings = async () => {
     try {
-      const supabase = createClient()
+      const supabase = createClient();
       const { data } = await supabase
-        .from('bookings')
-        .select('*')
-        .eq('attendee_email', memberData?.email)
-        .order('start_time', { ascending: false })
+        .from("bookings")
+        .select("*")
+        .eq("attendee_email", memberData?.email)
+        .order("start_time", { ascending: false });
 
-      setBookings(data || [])
+      setBookings(data || []);
     } catch (error) {
-      console.error('Error fetching bookings:', error)
+      console.error("Error fetching bookings:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const fetchAvailableClasses = async () => {
     try {
-      const supabase = createClient()
+      const supabase = createClient();
       const { data, error } = await supabase
-        .from('class_sessions')
-        .select(`
+        .from("class_sessions")
+        .select(
+          `
           id,
           start_time,
           end_time,
           max_capacity,
           current_capacity,
           programs ( name )
-        `)
-        .gte('start_time', new Date().toISOString())
-        .eq('organization_id', memberData?.organization_id)
-        .order('start_time', { ascending: true })
-        .limit(20)
+        `,
+        )
+        .gte("start_time", new Date().toISOString())
+        .eq("organization_id", memberData?.organization_id)
+        .order("start_time", { ascending: true })
+        .limit(20);
 
       if (error) {
-        console.error('Error fetching classes:', error)
+        console.error("Error fetching classes:", error);
       }
 
-      setClasses(data || [])
+      setClasses(data || []);
     } catch (error) {
-      console.error('Error fetching classes:', error)
+      console.error("Error fetching classes:", error);
     }
-  }
+  };
 
   const handleBookClass = (classId: string) => {
     // Navigate to booking page with class ID
     if (memberData?.organization_id) {
-      router.push(`/book/public/${memberData.organization_id}?class=${classId}`)
+      router.push(
+        `/book/public/${memberData.organization_id}?class=${classId}`,
+      );
     } else {
-      toast.error('Unable to book class. Please contact support.')
+      toast.error("Unable to book class. Please contact support.");
     }
-  }
+  };
 
   return (
     <div className="p-4">
       <h2 className="text-xl font-bold mb-4">Your Bookings</h2>
-      
+
       <div className="mb-4 space-y-2">
-        <button 
+        <button
           onClick={() => setShowCalendar(!showCalendar)}
           className="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 px-4 rounded-lg font-medium"
         >
-          {showCalendar ? 'Hide Timetable' : 'View Full Timetable'}
+          {showCalendar ? "Hide Timetable" : "View Full Timetable"}
         </button>
-        
+
         {memberData?.organization_id && (
-          <button 
-            onClick={() => router.push(`/book/public/${memberData.organization_id}`)}
+          <button
+            onClick={() =>
+              router.push(`/book/public/${memberData.organization_id}`)
+            }
             className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-medium"
           >
             Book a New Class
@@ -357,26 +370,40 @@ function BookingsTab({ memberData, router }: any) {
           {classes.length > 0 ? (
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {classes.map((cls) => (
-                <div key={cls.id} className="flex justify-between items-center p-3 bg-gray-700 rounded-lg">
+                <div
+                  key={cls.id}
+                  className="flex justify-between items-center p-3 bg-gray-700 rounded-lg"
+                >
                   <div>
-                    <div className="font-medium">{cls.programs?.name || 'Class'}</div>
+                    <div className="font-medium">
+                      {cls.programs?.name || "Class"}
+                    </div>
                     <div className="text-sm text-gray-400">
-                      {format(parseISO(cls.start_time), 'EEE, MMM d, HH:mm')} - {format(parseISO(cls.end_time), 'HH:mm')}
+                      {format(parseISO(cls.start_time), "EEE, MMM d, HH:mm")} -{" "}
+                      {format(parseISO(cls.end_time), "HH:mm")}
                     </div>
                     <div className="text-xs text-gray-500">
-                      {Math.min(cls.current_capacity ?? 0, cls.max_capacity ?? 0)}/{cls.max_capacity ?? 0} spots filled
+                      {Math.min(
+                        cls.current_capacity ?? 0,
+                        cls.max_capacity ?? 0,
+                      )}
+                      /{cls.max_capacity ?? 0} spots filled
                     </div>
                   </div>
-                  <button 
+                  <button
                     onClick={() => handleBookClass(cls.id)}
-                    disabled={(cls.current_capacity ?? 0) >= (cls.max_capacity ?? 0)}
+                    disabled={
+                      (cls.current_capacity ?? 0) >= (cls.max_capacity ?? 0)
+                    }
                     className={`px-3 py-1 rounded text-sm ${
                       (cls.current_capacity ?? 0) >= (cls.max_capacity ?? 0)
-                        ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                        : 'bg-orange-600 hover:bg-orange-700 text-white'
+                        ? "bg-gray-600 text-gray-400 cursor-not-allowed"
+                        : "bg-orange-600 hover:bg-orange-700 text-white"
                     }`}
                   >
-                    {(cls.current_capacity ?? 0) >= (cls.max_capacity ?? 0) ? 'Full' : 'Book'}
+                    {(cls.current_capacity ?? 0) >= (cls.max_capacity ?? 0)
+                      ? "Full"
+                      : "Book"}
                   </button>
                 </div>
               ))}
@@ -412,7 +439,7 @@ function BookingsTab({ memberData, router }: any) {
         </div>
       )}
     </div>
-  )
+  );
 }
 
 // Nutrition Tab Component
@@ -424,49 +451,52 @@ function NutritionTab({ memberData }: any) {
           Loading your nutrition data…
         </div>
       </div>
-    )
+    );
   }
 
   return (
     <div className="p-4">
       <AINutritionCoach memberData={memberData} />
     </div>
-  )
+  );
 }
 
 function MacroBar({ label, current, target, color }: any) {
-  const percentage = (current / target) * 100
-  const colorClass = {
-    blue: 'bg-blue-500',
-    green: 'bg-green-500',
-    yellow: 'bg-yellow-500'
-  }[color] || 'bg-gray-500'
+  const percentage = (current / target) * 100;
+  const colorClass =
+    {
+      blue: "bg-blue-500",
+      green: "bg-green-500",
+      yellow: "bg-yellow-500",
+    }[color] || "bg-gray-500";
 
   return (
     <div>
       <div className="flex justify-between text-sm mb-1">
         <span>{label}</span>
-        <span>{current}g / {target}g</span>
+        <span>
+          {current}g / {target}g
+        </span>
       </div>
       <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-        <div 
+        <div
           className={`h-full ${colorClass} transition-all`}
           style={{ width: `${Math.min(percentage, 100)}%` }}
         />
       </div>
     </div>
-  )
+  );
 }
 
 // Messages Tab Component
 function MessagesTab({ memberData }: any) {
-  const [messages, setMessages] = useState<any[]>([])
-  const [newMessage, setNewMessage] = useState('')
+  const [messages, setMessages] = useState<any[]>([]);
+  const [newMessage, setNewMessage] = useState("");
 
   return (
     <div className="p-4 h-[calc(100vh-200px)]">
       <h2 className="text-xl font-bold mb-4">Messages</h2>
-      
+
       <div className="bg-gray-800 rounded-lg h-full flex flex-col">
         <div className="flex-1 p-4 overflow-y-auto space-y-3">
           <div className="flex justify-start">
@@ -481,7 +511,7 @@ function MessagesTab({ memberData }: any) {
             </div>
           </div>
         </div>
-        
+
         <div className="border-t border-gray-700 p-4">
           <div className="flex gap-2">
             <input
@@ -491,57 +521,55 @@ function MessagesTab({ memberData }: any) {
               placeholder="Type a message..."
               className="flex-1 bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
-            <button className="px-4 py-2 bg-orange-600 rounded-lg">
-              Send
-            </button>
+            <button className="px-4 py-2 bg-orange-600 rounded-lg">Send</button>
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 // Profile Tab Component
 function ProfileTab({ memberData, user }: any) {
-  const [isEditing, setIsEditing] = useState(false)
+  const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    first_name: memberData?.first_name || '',
-    last_name: memberData?.last_name || '',
-    phone: memberData?.phone || '',
-    emergency_contact: memberData?.emergency_contact || '',
-    emergency_phone: memberData?.emergency_phone || ''
-  })
-  const [saving, setSaving] = useState(false)
+    first_name: memberData?.first_name || "",
+    last_name: memberData?.last_name || "",
+    phone: memberData?.phone || "",
+    emergency_contact: memberData?.emergency_contact || "",
+    emergency_phone: memberData?.emergency_phone || "",
+  });
+  const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
-    setSaving(true)
+    setSaving(true);
     try {
-      const supabase = createClient()
+      const supabase = createClient();
       // Only update columns that exist on clients
       const updatePayload: any = {
         first_name: formData.first_name?.trim() || null,
         last_name: formData.last_name?.trim() || null,
-        phone: formData.phone?.trim() || null
-      }
+        phone: formData.phone?.trim() || null,
+      };
 
       const { error } = await supabase
-        .from('clients')
+        .from("clients")
         .update(updatePayload)
-        .eq('id', memberData?.id)
-      
-      if (error) throw error
-      
-      toast.success('Profile updated successfully!')
-      setIsEditing(false)
+        .eq("id", memberData?.id);
+
+      if (error) throw error;
+
+      toast.success("Profile updated successfully!");
+      setIsEditing(false);
       // Refresh the page to show updated data
-      window.location.reload()
+      window.location.reload();
     } catch (error) {
-      console.error('Error updating profile:', error)
-      toast.error('Failed to update profile')
+      console.error("Error updating profile:", error);
+      toast.error("Failed to update profile");
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   if (isEditing) {
     return (
@@ -555,23 +583,31 @@ function ProfileTab({ memberData, user }: any) {
             Cancel
           </button>
         </div>
-        
+
         <div className="bg-gray-800 rounded-lg p-4 space-y-4">
           <div>
-            <label className="block text-sm text-gray-400 mb-1">First Name</label>
+            <label className="block text-sm text-gray-400 mb-1">
+              First Name
+            </label>
             <input
               type="text"
               value={formData.first_name}
-              onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, first_name: e.target.value })
+              }
               className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
           </div>
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Last Name</label>
+            <label className="block text-sm text-gray-400 mb-1">
+              Last Name
+            </label>
             <input
               type="text"
               value={formData.last_name}
-              onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, last_name: e.target.value })
+              }
               className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
           </div>
@@ -580,26 +616,36 @@ function ProfileTab({ memberData, user }: any) {
             <input
               type="tel"
               value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, phone: e.target.value })
+              }
               className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
           </div>
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Emergency Contact</label>
+            <label className="block text-sm text-gray-400 mb-1">
+              Emergency Contact
+            </label>
             <input
               type="text"
               value={formData.emergency_contact}
-              onChange={(e) => setFormData({ ...formData, emergency_contact: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, emergency_contact: e.target.value })
+              }
               className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
               placeholder="Contact name"
             />
           </div>
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Emergency Phone</label>
+            <label className="block text-sm text-gray-400 mb-1">
+              Emergency Phone
+            </label>
             <input
               type="tel"
               value={formData.emergency_phone}
-              onChange={(e) => setFormData({ ...formData, emergency_phone: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, emergency_phone: e.target.value })
+              }
               className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
               placeholder="Emergency contact phone"
             />
@@ -611,16 +657,16 @@ function ProfileTab({ memberData, user }: any) {
           disabled={saving}
           className="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 px-4 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {saving ? 'Saving...' : 'Save Changes'}
+          {saving ? "Saving..." : "Save Changes"}
         </button>
       </div>
-    )
+    );
   }
 
   return (
     <div className="p-4 space-y-4">
       <h2 className="text-xl font-bold mb-4">Profile</h2>
-      
+
       <div className="bg-gray-800 rounded-lg p-4">
         <h3 className="font-bold mb-3">Personal Information</h3>
         <div className="space-y-3">
@@ -636,7 +682,7 @@ function ProfileTab({ memberData, user }: any) {
           </div>
           <div>
             <label className="text-sm text-gray-400">Phone</label>
-            <div className="font-medium">{memberData?.phone || 'Not set'}</div>
+            <div className="font-medium">{memberData?.phone || "Not set"}</div>
           </div>
           {memberData?.emergency_contact && (
             <div>
@@ -663,20 +709,20 @@ function ProfileTab({ memberData, user }: any) {
           <div>
             <label className="text-sm text-gray-400">Member Since</label>
             <div className="font-medium">
-              {memberData?.created_at 
+              {memberData?.created_at
                 ? new Date(memberData.created_at).toLocaleDateString()
-                : 'N/A'}
+                : "N/A"}
             </div>
           </div>
         </div>
       </div>
 
-      <button 
+      <button
         onClick={() => setIsEditing(true)}
         className="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 px-4 rounded-lg font-medium transition-colors"
       >
         Edit Profile
       </button>
     </div>
-  )
+  );
 }

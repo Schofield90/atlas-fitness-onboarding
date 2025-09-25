@@ -8,7 +8,6 @@ import { isFeatureEnabled } from "@/app/lib/feature-flags";
 import { ComingSoonBadge } from "@/app/components/ComingSoon";
 import LocationSwitcher from "./LocationSwitcher";
 import OrganizationSwitcher from "./OrganizationSwitcher";
-import InterfaceSwitcher from "./InterfaceSwitcher";
 import { Mail } from "lucide-react";
 import toast from "@/app/lib/toast";
 
@@ -1184,7 +1183,6 @@ export default function DashboardLayout({
             <div className="flex items-center space-x-4">
               <OrganizationSwitcher />
               <LocationSwitcher />
-              <InterfaceSwitcher currentInterface="gym" />
               <button
                 type="button"
                 aria-label="Messages"
