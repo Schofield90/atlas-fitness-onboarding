@@ -71,71 +71,7 @@ export default function SessionDebugPage() {
     setLoading(false);
   };
 
-  const handleTestOTP = async () => {
-    const email = prompt("Enter email for OTP test:");
-    if (!email) return;
-
-    setLoading(true);
-    try {
-      // Send OTP
-      const sendResponse = await fetch("/api/login-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "send",
-          email: email.toLowerCase().trim(),
-        }),
-      });
-
-      const sendData = await sendResponse.json();
-      if (!sendResponse.ok) {
-        throw new Error(sendData.error || "Failed to send OTP");
-      }
-
-      const otp = prompt("Enter the OTP code:");
-      if (!otp) return;
-
-      // Verify OTP
-      const verifyResponse = await fetch("/api/login-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "verify",
-          email: email.toLowerCase().trim(),
-          otp: otp.trim(),
-        }),
-      });
-
-      const verifyData = await verifyResponse.json();
-      if (!verifyResponse.ok) {
-        throw new Error(verifyData.error || "Failed to verify OTP");
-      }
-
-      // If we have session tokens, set them
-      if (verifyData.session) {
-        const supabase = createClient();
-        const { error: sessionError } = await supabase.auth.setSession({
-          access_token: verifyData.session.access_token,
-          refresh_token: verifyData.session.refresh_token,
-        });
-
-        if (sessionError) {
-          throw new Error("Failed to set session: " + sessionError.message);
-        }
-
-        // Update session info
-        const info = await getCurrentSessionInfo();
-        setSessionInfo(info);
-        alert("OTP login successful!");
-      }
-    } catch (error) {
-      alert(
-        "OTP test failed: " +
-          (error instanceof Error ? error.message : "Unknown error"),
-      );
-    }
-    setLoading(false);
-  };
+  // OTP system has been removed - use password-based authentication
 
   const handleSignOut = async () => {
     const supabase = createClient();
@@ -245,14 +181,6 @@ export default function SessionDebugPage() {
             </button>
 
             <button
-              onClick={handleTestOTP}
-              disabled={loading}
-              className="bg-purple-500 hover:bg-purple-600 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg"
-            >
-              Test OTP Login
-            </button>
-
-            <button
               onClick={handleSignOut}
               disabled={loading}
               className="bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg"
@@ -325,8 +253,8 @@ export default function SessionDebugPage() {
               devices
             </p>
             <p>
-              <strong>2.</strong> Use "Test OTP Login" to authenticate on each
-              device
+              <strong>2.</strong> Login using the member portal at
+              members.gymleadhub.co.uk
             </p>
             <p>
               <strong>3.</strong> Verify that sessions remain active on all

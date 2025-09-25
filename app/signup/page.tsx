@@ -138,10 +138,9 @@ export default function SignupPage() {
         // Show success message
         setSuccess(true);
 
-        // Redirect to dashboard after 2 seconds
+        // Force a full page reload to ensure all data is fresh
         setTimeout(() => {
-          router.push("/dashboard");
-          router.refresh();
+          window.location.href = "/dashboard";
         }, 2000);
       }
     } catch (err: any) {

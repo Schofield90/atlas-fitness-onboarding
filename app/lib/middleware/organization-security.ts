@@ -314,7 +314,6 @@ export class OrganizationSecurityMiddleware {
       "/api/health",
       "/api/client-portal",
       "/api/client-access",
-      "/api/login-otp",
       "/api/test/login", // E2E test endpoint
     ];
 

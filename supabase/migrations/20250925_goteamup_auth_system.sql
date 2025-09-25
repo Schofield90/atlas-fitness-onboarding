@@ -33,7 +33,7 @@ CREATE POLICY "Organization owners can view their invitations" ON client_invitat
   FOR SELECT USING (
     organization_id IN (
       SELECT id FROM organizations 
-      WHERE owner_user_id = auth.uid()
+      WHERE owner_id = auth.uid()
     )
   );
 
