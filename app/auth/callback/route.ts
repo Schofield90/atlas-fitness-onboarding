@@ -29,6 +29,9 @@ export async function GET(request: NextRequest) {
       if (data.user.app_metadata?.provider === "google") {
         const adminSupabase = createAdminClient();
 
+        // IMPORTANT: Check subdomain to enforce portal separation
+        const subdomain = extractSubdomain(hostname);
+
         // First check if user is an owner/admin
         const { data: userOrg } = await adminSupabase
           .from("user_organizations")
@@ -37,6 +40,14 @@ export async function GET(request: NextRequest) {
           .single();
 
         if (userOrg && (userOrg.role === "owner" || userOrg.role === "admin")) {
+          // Owner/admin user attempting to access members portal - BLOCK
+          if (subdomain === "members") {
+            await supabase.auth.signOut();
+            return NextResponse.redirect(
+              new URL("/simple-login?error=owners_not_allowed", request.url),
+            );
+          }
+
           // Owner/admin user - use domain-aware redirect
           const redirectUrl = getPostAuthRedirectUrl(
             "owner" as UserRole,
@@ -54,6 +65,14 @@ export async function GET(request: NextRequest) {
           .single();
 
         if (ownedOrg) {
+          // Owner attempting to access members portal - BLOCK
+          if (subdomain === "members") {
+            await supabase.auth.signOut();
+            return NextResponse.redirect(
+              new URL("/simple-login?error=owners_not_allowed", request.url),
+            );
+          }
+
           // They own an org, redirect with domain awareness
           const redirectUrl = getPostAuthRedirectUrl(
             "owner" as UserRole,

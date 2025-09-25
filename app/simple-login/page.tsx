@@ -33,6 +33,11 @@ function LoginPageContent() {
     } else if (error === "auth_failed") {
       setMessage("Authentication failed. Please try again.");
       setSuccess(false);
+    } else if (error === "owners_not_allowed") {
+      setMessage(
+        "This portal is for gym members only. Gym owners should use login.gymleadhub.co.uk",
+      );
+      setSuccess(false);
     }
   }, [searchParams]);
 

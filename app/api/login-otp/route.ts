@@ -42,6 +42,44 @@ export async function POST(request: NextRequest) {
         return createRateLimitResponse(rateLimitCheck.resetIn);
       }
 
+      // IMPORTANT: Check if this is a gym owner trying to use members portal
+      // First check if user exists in auth system
+      const { data: authUser } =
+        await adminSupabase.auth.admin.getUserByEmail(sanitizedEmail);
+
+      if (authUser?.user) {
+        // Check if this user is a gym owner
+        const { data: gymOwner } = await adminSupabase
+          .from("user_organizations")
+          .select("user_id, role")
+          .eq("user_id", authUser.user.id)
+          .in("role", ["owner", "admin"])
+          .single();
+
+        // Also check if they own an organization directly
+        const { data: ownerCheck } = await adminSupabase
+          .from("organizations")
+          .select("owner_id")
+          .eq("owner_id", authUser.user.id)
+          .single();
+
+        // If this email belongs to a gym owner, block them from members portal
+        if (gymOwner || ownerCheck) {
+          console.log(
+            "Gym owner attempted to use members portal:",
+            sanitizedEmail,
+          );
+          return NextResponse.json(
+            {
+              success: false,
+              error:
+                "This login is for gym members only. Gym owners should use login.gymleadhub.co.uk",
+            },
+            { status: 403 },
+          );
+        }
+      }
+
       // Find client by email
       const { data: client, error: clientError } = await adminSupabase
         .from("clients")
@@ -51,7 +89,11 @@ export async function POST(request: NextRequest) {
 
       if (clientError || !client) {
         return NextResponse.json(
-          { success: false, error: "No account found with this email address" },
+          {
+            success: false,
+            error:
+              "No member account found with this email address. Please contact your gym to be added as a member.",
+          },
           { status: 404 },
         );
       }
