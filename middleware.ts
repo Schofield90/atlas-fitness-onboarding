@@ -97,6 +97,7 @@ const publicRoutes = [
   '/api/debug-clients',
   '/api/test-client-lookup',
   '/api/check-database',
+  '/api/debug-env',
   '/api/test-nutrition-access',
   '/api/test-redis', // Test Redis connection
   '/api/admin/fix-organization-staff',
@@ -359,7 +360,9 @@ export async function middleware(request: NextRequest) {
       if (isDebugApiRoute) {
         return NextResponse.json({ error: 'Debug API routes are disabled in production' }, { status: 403 })
       }
-      return NextResponse.redirect(new URL('/owner-login', request.url))
+      // Redirect debug routes to appropriate login based on path
+      const debugLoginUrl = pathname.startsWith('/client') ? '/simple-login' : '/owner-login'
+      return NextResponse.redirect(new URL(debugLoginUrl, request.url))
     }
   }
 
@@ -404,10 +407,13 @@ export async function middleware(request: NextRequest) {
     }
     // For non-public routes, redirect to login
     if (!pathname.startsWith('/api/')) {
-      // Redirect to appropriate login based on subdomain, preserving path
+      // Redirect to appropriate login based on subdomain AND path
       let loginUrl = '/owner-login'  // Default
       
-      if (subdomain === 'members') {
+      // Check if this is a client route FIRST
+      if (pathname.startsWith('/client')) {
+        loginUrl = '/simple-login'  // Client routes always use simple-login
+      } else if (subdomain === 'members') {
         loginUrl = '/simple-login'
       } else if (subdomain === 'login') {
         loginUrl = '/owner-login'
@@ -441,10 +447,13 @@ export async function middleware(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Redirect to appropriate login based on subdomain
+    // Redirect to appropriate login based on subdomain AND path
     let loginUrl = '/owner-login'  // Default
     
-    if (subdomain === 'members') {
+    // Check if this is a client route FIRST
+    if (pathname.startsWith('/client')) {
+      loginUrl = '/simple-login'  // Client routes always use simple-login
+    } else if (subdomain === 'members') {
       loginUrl = '/simple-login'
     } else if (subdomain === 'login') {
       loginUrl = '/owner-login'
@@ -503,7 +512,8 @@ export async function middleware(request: NextRequest) {
     }
 
     // Check login subdomain - requires organization for gym owners
-    if (config.requiresOrganization && !pathname.startsWith('/api/')) {
+    // SKIP organization check for client routes - clients don't need organizations!
+    if (config.requiresOrganization && !pathname.startsWith('/api/') && !pathname.startsWith('/client')) {
       // Check if user has an organization - NO SPECIAL BYPASSES
       let userOrg = null;
 
@@ -603,8 +613,8 @@ export async function middleware(request: NextRequest) {
       .single()
 
     if (!client) {
-      // Not a client, redirect to main dashboard
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      // Not a client, redirect to SIMPLE LOGIN for members, not dashboard!
+      return NextResponse.redirect(new URL('/simple-login', request.url))
     }
 
     return res

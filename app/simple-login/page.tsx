@@ -43,10 +43,12 @@ function LoginPageContent() {
 
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("handleSendOTP called with email:", email);
     setLoading(true);
     setMessage("");
 
     try {
+      console.log("Sending OTP request...");
       const response = await fetch("/api/login-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -62,8 +64,10 @@ function LoginPageContent() {
         throw new Error(data.error || "Failed to send OTP");
       }
 
+      console.log("OTP sent successfully, switching to verify step");
       setStep("otp-verify");
     } catch (err) {
+      console.error("Error sending OTP:", err);
       setMessage(err instanceof Error ? err.message : "Failed to send OTP");
       setSuccess(false);
     } finally {
@@ -192,6 +196,12 @@ function LoginPageContent() {
               refresh_token: data.session.refresh_token,
             });
 
+          console.log("Session set result:", {
+            hasSession: !!sessionResult?.session,
+            hasUser: !!sessionResult?.user,
+            error: sessionError,
+          });
+
           if (sessionError) {
             console.error("Failed to set session:", sessionError);
             console.error("Session error details:", {
@@ -271,14 +281,19 @@ function LoginPageContent() {
 
           clearTimeout(timeoutId); // Clear timeout on success
 
+          console.log("Redirecting to dashboard, hostname:", hostname);
+
           if (hostname.includes("members.gymleadhub.co.uk")) {
+            console.log("Redirecting via router to /client/dashboard");
             router.push("/client/dashboard");
           } else if (hostname.includes("gymleadhub.co.uk")) {
             // Redirect to members subdomain
+            console.log("Redirecting to members subdomain");
             window.location.href =
               "https://members.gymleadhub.co.uk/client/dashboard";
           } else {
             // Local development
+            console.log("Local dev: Redirecting to /client/dashboard");
             router.push("/client/dashboard");
           }
         } catch (sessionErr) {
