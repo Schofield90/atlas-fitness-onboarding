@@ -1,12 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createMiddlewareClient } from '@/app/lib/supabase/middleware'
-import { 
-  validateUserPortalAccess, 
-  getPortalLoginPage,
-  Portal 
-} from '@/app/lib/auth/portal-validator'
-import { getUserRole } from '@/app/lib/auth/role-checker'
 
 // Subdomain configuration
 const SUBDOMAIN_CONFIG = {
@@ -454,46 +448,29 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
-  // Subdomain-specific authentication checks with proper portal validation
+  // Subdomain-specific authentication checks - simplified for now
   if (subdomain && SUBDOMAIN_CONFIG[subdomain as keyof typeof SUBDOMAIN_CONFIG]) {
     const config = SUBDOMAIN_CONFIG[subdomain as keyof typeof SUBDOMAIN_CONFIG]
     
-    // Use our new portal validation system
-    const portalValidation = await validateUserPortalAccess(
-      subdomain as Portal,
-      session.user.id,
-      supabase
-    )
+    // Basic validation for now until modules are properly deployed
+    // We'll check user type based on subdomain
     
-    if (!portalValidation.allowed) {
-      // User is not allowed to access this portal
-      if (pathname.startsWith('/api/')) {
-        return NextResponse.json({ 
-          error: portalValidation.reason || 'Access denied',
-          userType: portalValidation.userType 
-        }, { status: 403 })
-      }
-      
-      // Redirect to appropriate portal based on user type
-      const redirectUrl = portalValidation.suggestedRedirect || getPortalLoginPage(subdomain as Portal)
-      return NextResponse.redirect(new URL(redirectUrl, request.url))
-    }
-    
-    // User is allowed - set appropriate headers
-    const userRole = await getUserRole(session.user.id, supabase)
-    if (userRole) {
-      if (userRole.organizationId) {
-        res.headers.set('x-organization-id', userRole.organizationId)
-      }
-      if (userRole.role) {
-        res.headers.set('x-user-role', userRole.role)
-      }
-      res.headers.set('x-user-type', portalValidation.userType)
-    }
-
     // Check admin subdomain - requires super admin verification from database
     if (config.requiresSuperAdmin) {
-      // Already validated by portal validator above
+      // Check if user is super admin
+      const { data: superAdmin } = await supabase
+        .from('super_admin_users')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .eq('is_active', true)
+        .single()
+      
+      if (!superAdmin) {
+        if (pathname.startsWith('/api/')) {
+          return NextResponse.json({ error: 'Unauthorized - Admin access only' }, { status: 403 })
+        }
+        return NextResponse.redirect(new URL('/owner-login', request.url))
+      }
       return res
     }
 

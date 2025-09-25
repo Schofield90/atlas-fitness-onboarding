@@ -44,15 +44,19 @@ export async function POST(request: NextRequest) {
 
       // IMPORTANT: Check if this is a gym owner trying to use members portal
       // First check if user exists in auth system
-      const { data: authUser } =
-        await adminSupabase.auth.admin.getUserByEmail(sanitizedEmail);
+      const { data: authUsers } = await adminSupabase
+        .from("auth.users")
+        .select("id, email")
+        .eq("email", sanitizedEmail);
 
-      if (authUser?.user) {
+      if (authUsers && authUsers.length > 0) {
+        const authUser = authUsers[0];
+
         // Check if this user is a gym owner
         const { data: gymOwner } = await adminSupabase
           .from("user_organizations")
           .select("user_id, role")
-          .eq("user_id", authUser.user.id)
+          .eq("user_id", authUser.id)
           .in("role", ["owner", "admin"])
           .single();
 
@@ -60,7 +64,7 @@ export async function POST(request: NextRequest) {
         const { data: ownerCheck } = await adminSupabase
           .from("organizations")
           .select("owner_id")
-          .eq("owner_id", authUser.user.id)
+          .eq("owner_id", authUser.id)
           .single();
 
         // If this email belongs to a gym owner, block them from members portal
