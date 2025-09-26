@@ -88,7 +88,7 @@ export default defineConfig({
   ],
   
   webServer: {
-    command: 'npm run dev',
+    command: 'npm run dev:quick',
     port: 3000,
     reuseExistingServer: !process.env.CI,
     env: {

@@ -21,6 +21,7 @@
     "lint:fix": "next lint --fix",
     "type-check": "tsc --noEmit",
     "typecheck": "tsc --noEmit --incremental --tsBuildInfoFile .tsbuildinfo",
+    "typecheck:web": "tsc -p tsconfig.web.json --noEmit",
     "fix-prices": "tsx scripts/fix-membership-prices.ts",
     "fix-prices:confirm": "tsx scripts/fix-membership-prices.ts --confirm",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,md,json}\"",
