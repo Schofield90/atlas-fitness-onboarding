@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("clients")
       .select(`*`, { count: "exact" })
-      .eq("organization_id", organizationId)
+      .eq("org_id", organizationId)
       .order("created_at", { ascending: false });
 
     // Add search filter

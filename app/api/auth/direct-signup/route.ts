@@ -51,45 +51,32 @@ export async function POST(request: Request) {
     if (authData?.user) {
       const userId = authData.user.id;
 
-      // Ensure user exists in public.users (trigger should handle this)
-      await supabase.from("users").upsert({
-        id: userId,
-        email: authData.user.email,
-        full_name: name || email.split("@")[0],
-      });
+      // Use the database function to create user and organization atomically
+      const { data: result, error: createError } = await supabase.rpc(
+        "create_user_and_org",
+        {
+          p_user_id: userId,
+          p_email: authData.user.email || email,
+          p_name: name || email.split("@")[0],
+          p_org_name: organizationName || "My Gym",
+        },
+      );
 
-      // Create organization if provided
-      if (organizationName) {
-        const orgSlug = organizationName
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/^-|-$/g, "");
-
-        const { data: org, error: orgError } = await supabase
-          .from("organizations")
-          .insert({
-            name: organizationName,
-            slug: orgSlug + "-" + crypto.randomBytes(4).toString("hex"),
-            subscription_status: "trialing",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .select()
-          .single();
-
-        if (org && !orgError) {
-          // Link user to organization
-          await supabase.from("user_organizations").insert({
-            user_id: userId,
-            organization_id: org.id,
-            role: "owner",
-          });
-        }
+      if (createError) {
+        console.error("Error creating user and organization:", createError);
+        return NextResponse.json(
+          {
+            error: "Failed to create user and organization",
+            details: createError.message,
+          },
+          { status: 500 },
+        );
       }
 
       return NextResponse.json({
         success: true,
         userId: userId,
+        organizationId: result?.organization_id,
         message: "Account created successfully",
       });
     }

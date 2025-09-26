@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { useState, useEffect } from "react";
 import { createClient } from "@/app/lib/supabase/client";
 import DashboardLayout from "../components/DashboardLayout";
+import { useOrganization } from "@/app/hooks/useOrganization";
 import {
   Users,
   Mail,
@@ -51,6 +52,7 @@ interface Member {
 }
 
 function MembersContent() {
+  const { organizationId } = useOrganization();
   const [members, setMembers] = useState<Member[]>([]);
   const [filteredMembers, setFilteredMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,8 +85,11 @@ function MembersContent() {
     const page = parseInt(searchParams.get("page") || "1");
     setCurrentPage(page);
 
-    fetchMembers();
-  }, [searchParams]);
+    // Only fetch if we have an organizationId
+    if (organizationId) {
+      fetchMembers();
+    }
+  }, [searchParams, organizationId]);
 
   useEffect(() => {
     filterMembers();
@@ -95,10 +100,21 @@ function MembersContent() {
       setLoading(true);
 
       // Use the bypass API endpoint to avoid RLS issues
-      console.log("Fetching members from bypass API endpoint...");
+      console.log(
+        "Fetching members from bypass API endpoint with org:",
+        organizationId,
+      );
+
+      // If no organizationId, just return without fetching
+      if (!organizationId) {
+        console.log("No organizationId available yet, skipping fetch");
+        setLoading(false);
+        return;
+      }
+
       const timestamp = Date.now();
       const response = await fetch(
-        `/api/clients-bypass?organizationId=63589490-8f55-4157-bd3a-e141594b748e&page=1&pageSize=1000&t=${timestamp}`,
+        `/api/clients-bypass?organizationId=${organizationId}&page=1&pageSize=1000&t=${timestamp}`,
       );
 
       if (!response.ok) {
@@ -329,13 +345,34 @@ function MembersContent() {
 
     setSelectedMemberForClaim(member);
     setShowClaimLinkModal(true);
-    setLoadingClaimLink(false); // No need to load since we're using a static link
+    setLoadingClaimLink(true);
     setCopied(false);
 
-    // For OTP system, we just provide the static claim-otp page URL
-    // Users will enter their email there to receive the OTP
-    const appUrl = window.location.origin;
-    setClaimLink(`${appUrl}/claim-otp`);
+    try {
+      // Generate a unique claim link for this member
+      const response = await fetch("/api/members/generate-claim-link", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          memberId: member.id,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate claim link");
+      }
+
+      const data = await response.json();
+      setClaimLink(data.claimUrl);
+      setLoadingClaimLink(false);
+    } catch (error) {
+      console.error("Error generating claim link:", error);
+      toast.error("Failed to generate claim link");
+      setLoadingClaimLink(false);
+      setShowClaimLinkModal(false);
+    }
   };
 
   const handleCopyClaimLink = () => {

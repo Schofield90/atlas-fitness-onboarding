@@ -113,7 +113,7 @@ async function createClientMember(request: NextRequest) {
     last_name: body.last_name.trim(),
     email: normalizedEmail,
     phone: body.phone,
-    organization_id: userWithOrg.organizationId,
+    org_id: userWithOrg.organizationId,
     status: "active",
   };
 
@@ -169,7 +169,7 @@ async function createClientMember(request: NextRequest) {
       last_name: body.last_name,
       email: body.email,
       phone: body.phone,
-      organization_id: userWithOrg.organizationId,
+      org_id: userWithOrg.organizationId,
       status: "active",
     };
 

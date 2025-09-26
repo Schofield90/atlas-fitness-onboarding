@@ -1,61 +1,92 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import DashboardLayout from '@/app/components/DashboardLayout'
-import { ArrowLeft, User, Mail, Phone, Calendar, MapPin, Save } from 'lucide-react'
-import Link from 'next/link'
-import toast from '@/app/lib/toast'
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import DashboardLayout from "@/app/components/DashboardLayout";
+import {
+  ArrowLeft,
+  User,
+  Mail,
+  Phone,
+  Calendar,
+  MapPin,
+  Save,
+} from "lucide-react";
+import Link from "next/link";
+import toast from "@/app/lib/toast";
 
 export default function NewMemberPage() {
-  const router = useRouter()
-  const [loading, setLoading] = useState(false)
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    first_name: '',
-    last_name: '',
-    email: '',
-    phone: '',
-    date_of_birth: '',
-    address: '',
-    emergency_contact_name: '',
-    emergency_contact_phone: '',
-    goals: '',
-    medical_conditions: '',
-    source: 'manual'
-  })
+    first_name: "",
+    last_name: "",
+    email: "",
+    phone: "",
+    date_of_birth: "",
+    address: "",
+    emergency_contact_name: "",
+    emergency_contact_phone: "",
+    goals: "",
+    medical_conditions: "",
+    source: "manual",
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault();
+    setLoading(true);
 
     try {
-      const response = await fetch('/api/clients', {
-        method: 'POST',
+      const response = await fetch("/api/clients", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(formData),
-      })
+      });
 
       if (!response.ok) {
-        const errorData = await response.json()
-        // Handle the structured error response from the error handler
-        const errorMessage = errorData.error?.userMessage || errorData.error?.message || errorData.message || 'Failed to create member'
-        throw new Error(errorMessage)
+        let errorMessage = "Failed to create member";
+        try {
+          const errorData = await response.json();
+          console.error("API Error Response:", errorData);
+          errorMessage =
+            errorData.error?.userMessage ||
+            errorData.error?.message ||
+            errorData.error ||
+            errorData.message ||
+            `API Error: ${response.status}`;
+        } catch (parseError) {
+          console.error("Failed to parse error response:", parseError);
+          errorMessage = `Server Error: ${response.status} ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
-      const data = await response.json()
-      toast.success('Member created successfully!')
-      
+      const data = await response.json();
+      toast.success("Member created successfully!");
+
       // Redirect to members page
-      router.push('/members')
+      router.push("/members");
     } catch (error) {
-      console.error('Error creating member:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to create member')
+      console.error("Full error object:", error);
+      console.error("Error type:", typeof error);
+      console.error("Error stringified:", JSON.stringify(error, null, 2));
+
+      let errorMessage = "Failed to create member";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === "string") {
+        errorMessage = error;
+      } else if (error && typeof error === "object") {
+        errorMessage = JSON.stringify(error);
+      }
+
+      toast.error(errorMessage);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <DashboardLayout>
@@ -71,8 +102,12 @@ export default function NewMemberPage() {
                 <ArrowLeft className="h-5 w-5 text-gray-400" />
               </Link>
               <div>
-                <h2 className="text-2xl font-bold text-white">Add New Member</h2>
-                <p className="text-gray-400 mt-1">Create a new gym member profile</p>
+                <h2 className="text-2xl font-bold text-white">
+                  Add New Member
+                </h2>
+                <p className="text-gray-400 mt-1">
+                  Create a new gym member profile
+                </p>
               </div>
             </div>
           </div>
@@ -95,7 +130,9 @@ export default function NewMemberPage() {
                       type="text"
                       required
                       value={formData.first_name}
-                      onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, first_name: e.target.value })
+                      }
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
                       placeholder="John"
                     />
@@ -108,7 +145,9 @@ export default function NewMemberPage() {
                       type="text"
                       required
                       value={formData.last_name}
-                      onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, last_name: e.target.value })
+                      }
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
                       placeholder="Smith"
                     />
@@ -131,7 +170,9 @@ export default function NewMemberPage() {
                       type="email"
                       required
                       value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, email: e.target.value })
+                      }
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
                       placeholder="john@example.com"
                     />
@@ -144,7 +185,9 @@ export default function NewMemberPage() {
                       type="tel"
                       required
                       value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, phone: e.target.value })
+                      }
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
                       placeholder="+1 (555) 123-4567"
                     />
@@ -157,7 +200,9 @@ export default function NewMemberPage() {
                   <input
                     type="text"
                     value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, address: e.target.value })
+                    }
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
                     placeholder="123 Main St, City, State, ZIP"
                   />
@@ -178,7 +223,12 @@ export default function NewMemberPage() {
                     <input
                       type="date"
                       value={formData.date_of_birth}
-                      onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          date_of_birth: e.target.value,
+                        })
+                      }
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
                     />
                   </div>
@@ -188,7 +238,9 @@ export default function NewMemberPage() {
                     </label>
                     <select
                       value={formData.source}
-                      onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, source: e.target.value })
+                      }
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
                     >
                       <option value="manual">Manual Entry</option>
@@ -215,7 +267,12 @@ export default function NewMemberPage() {
                     <input
                       type="text"
                       value={formData.emergency_contact_name}
-                      onChange={(e) => setFormData({ ...formData, emergency_contact_name: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          emergency_contact_name: e.target.value,
+                        })
+                      }
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
                       placeholder="Emergency contact full name"
                     />
@@ -227,7 +284,12 @@ export default function NewMemberPage() {
                     <input
                       type="tel"
                       value={formData.emergency_contact_phone}
-                      onChange={(e) => setFormData({ ...formData, emergency_contact_phone: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          emergency_contact_phone: e.target.value,
+                        })
+                      }
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
                       placeholder="+1 (555) 987-6543"
                     />
@@ -237,7 +299,9 @@ export default function NewMemberPage() {
 
               {/* Additional Information */}
               <div>
-                <h3 className="text-lg font-semibold text-white mb-4">Additional Information</h3>
+                <h3 className="text-lg font-semibold text-white mb-4">
+                  Additional Information
+                </h3>
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -245,7 +309,9 @@ export default function NewMemberPage() {
                     </label>
                     <textarea
                       value={formData.goals}
-                      onChange={(e) => setFormData({ ...formData, goals: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, goals: e.target.value })
+                      }
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
                       rows={3}
                       placeholder="What are their fitness goals?"
@@ -257,7 +323,12 @@ export default function NewMemberPage() {
                     </label>
                     <textarea
                       value={formData.medical_conditions}
-                      onChange={(e) => setFormData({ ...formData, medical_conditions: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          medical_conditions: e.target.value,
+                        })
+                      }
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
                       rows={3}
                       placeholder="Any medical conditions, injuries, or special considerations?"
@@ -280,7 +351,7 @@ export default function NewMemberPage() {
                   className="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {loading ? (
-                    'Creating...'
+                    "Creating..."
                   ) : (
                     <>
                       <Save className="h-4 w-4" />
@@ -294,5 +365,5 @@ export default function NewMemberPage() {
         </div>
       </div>
     </DashboardLayout>
-  )
+  );
 }

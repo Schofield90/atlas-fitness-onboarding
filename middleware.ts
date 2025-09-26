@@ -72,6 +72,7 @@ const publicRoutes = [
   '/landing',
   '/login',
   '/owner-login',
+  '/member-login',
   '/simple-login',
   '/signin',
   '/signup',
@@ -83,10 +84,14 @@ const publicRoutes = [
   '/join',
   '/book',
   '/meta-review',
+  '/claim', // Member claim pages
   // Public API endpoints
   '/api/auth',
   '/api/client-portal',
   '/api/client-access',
+  '/api/members/generate-claim-link',
+  '/api/members/validate-claim-token',
+  '/api/members/claim-account',
   '/api/webhooks',
   '/api/public-api',
   '/api/booking-by-slug',

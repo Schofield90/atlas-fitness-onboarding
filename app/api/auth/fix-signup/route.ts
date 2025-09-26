@@ -28,119 +28,116 @@ export async function POST(request: Request) {
       },
     );
 
-    // Create user record using service role to bypass RLS
-    const { data: existingUser } = await serviceClient
-      .from("users")
-      .select("id")
-      .eq("id", user.id)
-      .maybeSingle();
+    // Step 1: Create or update user record
+    const { error: userError } = await serviceClient.from("users").upsert(
+      {
+        id: user.id,
+        email: user.email || email,
+        name: name || "Gym Owner",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: "id",
+      },
+    );
 
-    if (!existingUser) {
-      const { error: userInsertError } = await serviceClient
-        .from("users")
-        .insert([
-          {
-            id: user.id,
-            email: user.email || email,
-            name: name || "Gym Owner",
-          },
-        ]);
-
-      if (userInsertError && userInsertError.code !== "23505") {
-        console.error("User insert error:", userInsertError);
-        return NextResponse.json(
-          {
-            error: "Failed to create user record",
-            details: userInsertError.message,
-          },
-          { status: 500 },
-        );
-      }
+    if (userError) {
+      console.error("Error creating user record:", userError);
+      return NextResponse.json(
+        {
+          error: "Failed to create user record",
+          details: userError.message,
+        },
+        { status: 500 },
+      );
     }
 
-    // Check if user already has an organization
-    const { data: existingOrg } = await serviceClient
-      .from("user_organizations")
-      .select("organization_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    let orgId = existingOrg?.organization_id;
-
-    if (!orgId) {
-      // Create organization
-      const orgName = organizationName || "My Gym";
-      const slug = orgName
+    // Step 2: Generate a unique slug for the organization
+    const orgSlug =
+      organizationName
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "");
+        .replace(/^-+|-+$/g, "") +
+      "-" +
+      Math.random().toString(36).substring(2, 8);
 
-      // Check if organization with this email already exists
-      const { data: existingOrgByEmail } = await serviceClient
-        .from("organizations")
-        .select("id")
-        .eq("email", user.email || email)
-        .maybeSingle();
+    // Step 3: Create organization
+    const { data: orgData, error: orgError } = await serviceClient
+      .from("organizations")
+      .insert({
+        name: organizationName || "My Gym",
+        slug: orgSlug,
+        email: user.email || email,
+        owner_id: user.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
 
-      if (existingOrgByEmail) {
-        orgId = existingOrgByEmail.id;
-      } else {
-        const { data: newOrg, error: orgError } = await serviceClient
-          .from("organizations")
-          .insert([
-            {
-              name: orgName,
-              slug: slug,
-              email: user.email || email,
-              phone: "",
-              subscription_status: "trialing",
-            },
-          ])
-          .select("id")
-          .single();
-
-        if (orgError) {
-          console.error("Org creation error:", orgError);
-          return NextResponse.json(
-            {
-              error: "Failed to create organization",
-              details: orgError.message,
-            },
-            { status: 500 },
-          );
-        }
-
-        orgId = newOrg.id;
-      }
-
-      // Link user to organization
-      const { error: linkError } = await serviceClient
-        .from("user_organizations")
-        .insert([
-          {
-            user_id: user.id,
-            organization_id: orgId,
-            role: "owner",
-          },
-        ]);
-
-      if (linkError) {
-        console.error("Link error:", linkError);
-        return NextResponse.json(
-          {
-            error: "Failed to link user to organization",
-            details: linkError.message,
-          },
-          { status: 500 },
-        );
-      }
+    if (orgError) {
+      console.error("Error creating organization:", orgError);
+      return NextResponse.json(
+        {
+          error: "Failed to create organization",
+          details: orgError.message,
+        },
+        { status: 500 },
+      );
     }
+
+    // Step 4: Create organization_members link
+    const { error: memberError } = await serviceClient
+      .from("organization_members")
+      .insert({
+        user_id: user.id,
+        organization_id: orgData.id,
+        role: "owner",
+        is_active: true,
+      });
+
+    if (memberError) {
+      console.error("Error creating organization membership:", memberError);
+      // Try to clean up the organization if membership fails
+      await serviceClient.from("organizations").delete().eq("id", orgData.id);
+
+      return NextResponse.json(
+        {
+          error: "Failed to create organization membership",
+          details: memberError.message,
+        },
+        { status: 500 },
+      );
+    }
+
+    // Step 5: Also create user_organizations link (some parts of app use this table)
+    const { error: userOrgError } = await serviceClient
+      .from("user_organizations")
+      .insert({
+        user_id: user.id,
+        organization_id: orgData.id,
+        role: "owner",
+      });
+
+    if (userOrgError) {
+      console.error(
+        "Warning: Could not create user_organizations link:",
+        userOrgError,
+      );
+      // Don't fail the signup, this is a secondary table
+    }
+
+    console.log(
+      `Successfully created organization ${orgData.id} for user ${user.id}`,
+    );
 
     return NextResponse.json({
       success: true,
       userId: user.id,
-      organizationId: orgId,
-      message: "User setup completed",
+      organizationId: orgData.id,
+      organizationSlug: orgData.slug,
+      message: "User and organization setup completed",
     });
   } catch (error: any) {
     console.error("Fix signup error:", error);

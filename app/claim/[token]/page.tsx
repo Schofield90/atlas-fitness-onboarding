@@ -27,7 +27,7 @@ export default function ClaimInvitationPage() {
 
   const verifyToken = async () => {
     try {
-      const response = await fetch("/api/auth/claim/verify", {
+      const response = await fetch("/api/members/validate-claim-token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
@@ -35,13 +35,16 @@ export default function ClaimInvitationPage() {
 
       const data = await response.json();
 
-      if (data.valid) {
+      if (response.ok && data.success) {
         setValid(true);
-        setClaimed(data.claimed);
-        setClientInfo(data.client);
+        setClaimed(false);
+        setClientInfo(data.member);
       } else {
         setValid(false);
-        setError(data.error || "Invalid invitation link");
+        setError(data.message || "Invalid invitation link");
+        if (data.message?.includes("already been claimed")) {
+          setClaimed(true);
+        }
       }
     } catch (err) {
       setError("Failed to verify invitation");
@@ -79,7 +82,7 @@ export default function ClaimInvitationPage() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/auth/claim", {
+      const response = await fetch("/api/members/claim-account", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -93,18 +96,14 @@ export default function ClaimInvitationPage() {
       if (response.ok && data.success) {
         setSuccess(true);
 
-        // Auto-login after password set
-        if (data.session) {
-          setTimeout(() => {
-            router.push("/client/dashboard");
-          }, 2000);
-        } else {
-          setTimeout(() => {
-            router.push("/simple-login");
-          }, 3000);
-        }
+        // Redirect to member login page with email pre-filled
+        const redirectUrl = `/member-login?email=${encodeURIComponent(data.email)}`;
+        console.log("Redirecting to:", redirectUrl);
+        setTimeout(() => {
+          window.location.href = redirectUrl;
+        }, 2000);
       } else {
-        setError(data.error || "Failed to set password");
+        setError(data.message || "Failed to set password");
       }
     } catch (err) {
       setError("An error occurred. Please try again.");
@@ -158,10 +157,10 @@ export default function ClaimInvitationPage() {
             Your account has already been activated.
           </p>
           <button
-            onClick={() => router.push("/simple-login")}
+            onClick={() => router.push("/member-login")}
             className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-3 rounded-lg font-medium transition-all"
           >
-            Go to Login
+            Go to Member Login
           </button>
         </div>
       </div>

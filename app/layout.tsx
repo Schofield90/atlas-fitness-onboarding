@@ -2,14 +2,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import "@/app/lib/polyfills";
-// Temporarily comment out all providers to fix webpack error
-// import { AnalyticsProvider } from "@/app/components/analytics/provider";
 import { OrganizationProvider } from "@/app/hooks/useOrganization";
 import { ErrorBoundaryProvider } from "@/app/components/errors";
-// import TeamChatNotificationProvider from "@/app/components/notifications/TeamChatNotificationProvider";
-import { AuthProvider } from "@/app/components/providers/AuthProvider";
-// import FloatingChatWidget from "@/app/components/team-chat/FloatingChatWidget";
-// import { ToastProvider } from '@/app/components/providers/toast-provider'
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -28,17 +22,7 @@ export default function RootLayout({
     <html lang="en-GB">
       <body className={inter.className}>
         <ErrorBoundaryProvider>
-          <AuthProvider>
-            {/* <AnalyticsProvider> */}
-            <OrganizationProvider>
-              {/* <TeamChatNotificationProvider> */}
-              {/* <ToastProvider /> */}
-              {children}
-              {/* <FloatingChatWidget /> */}
-              {/* </TeamChatNotificationProvider> */}
-            </OrganizationProvider>
-            {/* </AnalyticsProvider> */}
-          </AuthProvider>
+          <OrganizationProvider>{children}</OrganizationProvider>
         </ErrorBoundaryProvider>
       </body>
     </html>

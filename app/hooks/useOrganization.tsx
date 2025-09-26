@@ -85,24 +85,8 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Check if this is a client user (member) - they don't need organizations
-      // Use email-based check as a fallback since user_id query is failing
-      if (
-        currentUser.email?.includes("@hotmail") ||
-        currentUser.email?.includes("@gmail") ||
-        currentUser.email?.includes("@yahoo") ||
-        currentUser.email === "samschofield90@hotmail.co.uk"
-      ) {
-        console.log(
-          "User appears to be a client/member based on email - skipping organization check",
-        );
-        setOrganizationId(null);
-        setOrganization(null);
-        setIsLoading(false);
-        return;
-      }
-
-      // Also try to check the clients table but don't fail if it errors
+      // Check if user is a client (not an organization owner)
+      // Only check the clients table, don't make assumptions based on email
       try {
         const { data: clientCheck, error: clientError } = await supabase
           .from("clients")
