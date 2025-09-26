@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/app/lib/supabase/server";
+import { createServiceRoleClient } from "@/app/lib/supabase/server";
 import { sendWhatsAppMessage } from "@/app/lib/services/twilio";
 import {
   formatBritishDate,
@@ -8,7 +8,7 @@ import {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = createServiceRoleClient();
     const body = await request.json();
 
     const {
@@ -158,7 +158,7 @@ Atlas Fitness Team`;
 
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = createServiceRoleClient();
     const searchParams = request.nextUrl.searchParams;
     const bookingId = searchParams.get("bookingId");
     const customerPhone = searchParams.get("customerPhone");

@@ -75,13 +75,13 @@ export default function ClientSchedulePage() {
   };
 
   const loadSessions = async () => {
-    if (!client || !client.organization_id) {
-      console.log("Client not loaded or missing organization_id:", client);
+    if (!client || !client.org_id) {
+      console.log("Client not loaded or missing org_id:", client);
       return;
     }
 
     const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
-    console.log("Loading sessions for org:", client.organization_id);
+    console.log("Loading sessions for org:", client.org_id);
     console.log(
       "Week range:",
       weekStart.toISOString(),
@@ -102,7 +102,7 @@ export default function ClientSchedulePage() {
       )
       .gte("start_time", weekStart.toISOString())
       .lte("start_time", weekEnd.toISOString())
-      .eq("organization_id", client.organization_id)
+      .eq("organization_id", client.org_id)
       .order("start_time");
 
     if (error) {

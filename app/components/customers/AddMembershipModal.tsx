@@ -183,11 +183,14 @@ export default function AddMembershipModal({
         .insert(membershipData);
 
       if (insertError) {
+        console.error("Detailed insert error:", insertError);
         // Handle specific error cases
         if (insertError.code === "23505") {
           setError(
             "This customer already has this membership. Please check the existing memberships.",
           );
+        } else if (insertError.code === "42501") {
+          setError("Permission denied. Please check your access rights.");
         } else if (
           insertError.message?.includes("violates foreign key constraint")
         ) {
@@ -195,7 +198,12 @@ export default function AddMembershipModal({
             "Invalid customer or membership plan. Please refresh and try again.",
           );
         } else {
-          setError(insertError.message || "Failed to add membership");
+          setError(
+            insertError.message ||
+              insertError.details ||
+              JSON.stringify(insertError) ||
+              "Failed to add membership",
+          );
         }
         throw insertError;
       }
@@ -204,10 +212,15 @@ export default function AddMembershipModal({
       onClose();
       resetForm();
     } catch (error: any) {
-      console.error("Error adding membership:", error);
+      console.error("Error adding membership:", {
+        error,
+        message: error?.message,
+        code: error?.code,
+        details: error?.details,
+      });
       // Error is already set in the if block above
-      if (!error.code) {
-        setError(error.message || "Failed to add membership");
+      if (!error.code && !error) {
+        setError(error?.message || "Failed to add membership");
       }
     } finally {
       setLoading(false);
@@ -252,8 +265,12 @@ export default function AddMembershipModal({
               <option value="">Select a plan</option>
               {membershipPlans.map((plan) => (
                 <option key={plan.id} value={plan.id}>
-                  {plan.name} - {formatBritishCurrency(plan.price, true)}/
-                  {plan.billing_period}
+                  {plan.name} -{" "}
+                  {formatBritishCurrency(
+                    plan.price || plan.price_pennies || 0,
+                    true,
+                  )}
+                  /{plan.billing_period}
                 </option>
               ))}
             </select>

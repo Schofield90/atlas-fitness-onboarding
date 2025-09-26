@@ -4,6 +4,7 @@ import type { Database } from "./database.types";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 // Helper to determine if we're in production
 function isProduction() {
@@ -75,4 +76,17 @@ export async function getAuthenticatedClient() {
   }
 
   return { supabase, user, error: null };
+}
+
+// Service role client for administrative operations
+export function createServiceRoleClient() {
+  return createServerClient<Database>(supabaseUrl, supabaseServiceRoleKey, {
+    cookies: {
+      get() {
+        return undefined;
+      },
+      set() {},
+      remove() {},
+    },
+  });
 }

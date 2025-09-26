@@ -1,7 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
+import { getMembershipPlans } from "@/app/lib/services/membership-service";
 
 export async function GET(request: NextRequest) {
+  const testMapping = request.nextUrl.searchParams.get("testMapping");
+
+  if (testMapping) {
+    // Test the getMembershipPlans service function mapping
+    const { plans, error } = await getMembershipPlans();
+
+    if (error) {
+      return NextResponse.json({
+        success: false,
+        error,
+      });
+    }
+
+    // Debug the actual values after mapping
+    const debug = plans.map((plan) => ({
+      name: plan.name,
+      price_pennies_after_mapping: plan.price_pennies,
+      formatted_with_true: new Intl.NumberFormat("en-GB", {
+        style: "currency",
+        currency: "GBP",
+      }).format(plan.price_pennies / 100),
+      formatted_with_false: new Intl.NumberFormat("en-GB", {
+        style: "currency",
+        currency: "GBP",
+      }).format(plan.price_pennies),
+    }));
+
+    return NextResponse.json({
+      success: true,
+      plans_count: plans.length,
+      debug,
+      raw_plans: plans,
+    });
+  }
+
   try {
     // Allow in production for membership testing
     const supabase = await createClient();

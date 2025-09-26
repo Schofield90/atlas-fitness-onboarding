@@ -1,149 +1,174 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { X, Save } from 'lucide-react';
-import { createClient } from '@/app/lib/supabase/client';
-import { getCurrentUserOrganization } from '@/app/lib/organization-service';
-import toast from '@/app/lib/toast';
+import React, { useState } from "react";
+import { X, Save } from "lucide-react";
+import { createClient } from "@/app/lib/supabase/client";
+import { getCurrentUserOrganization } from "@/app/lib/organization-service";
+import toast from "@/app/lib/toast";
 
 interface NewMembershipPlanModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const NewMembershipPlanModal: React.FC<NewMembershipPlanModalProps> = ({ isOpen, onClose }) => {
+const NewMembershipPlanModal: React.FC<NewMembershipPlanModalProps> = ({
+  isOpen,
+  onClose,
+}) => {
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    price: '',
-    duration: '1',
-    durationType: 'month',
-    features: [''],
-    maxMembers: '',
-    trialDays: '0'
+    name: "",
+    description: "",
+    price: "",
+    duration: "1",
+    durationType: "month",
+    features: [""],
+    maxMembers: "",
+    trialDays: "0",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   if (!isOpen) return null;
-  
+
   const handleAddFeature = () => {
     setFormData({
       ...formData,
-      features: [...formData.features, '']
+      features: [...formData.features, ""],
     });
   };
-  
+
   const handleRemoveFeature = (index: number) => {
     setFormData({
       ...formData,
-      features: formData.features.filter((_, i) => i !== index)
+      features: formData.features.filter((_, i) => i !== index),
     });
   };
-  
+
   const handleFeatureChange = (index: number, value: string) => {
     const newFeatures = [...formData.features];
     newFeatures[index] = value;
     setFormData({
       ...formData,
-      features: newFeatures
+      features: newFeatures,
     });
   };
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (isSubmitting) return;
     setIsSubmitting(true);
-    
+
     try {
       const supabase = createClient();
-      
+
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
-        toast.error('You must be logged in to create a membership plan');
+        toast.error("You must be logged in to create a membership plan");
         setIsSubmitting(false);
         return;
       }
-      
+
       // Get user's organization
-      const { organizationId, error: orgError } = await getCurrentUserOrganization();
-        
+      const { organizationId, error: orgError } =
+        await getCurrentUserOrganization();
+
       if (orgError || !organizationId) {
-        toast.error(orgError || 'No organization found. Please contact support.');
+        toast.error(
+          orgError || "No organization found. Please contact support.",
+        );
         setIsSubmitting(false);
         return;
       }
-      
+
       // Validate price
-      if (!formData.price || isNaN(parseFloat(formData.price)) || parseFloat(formData.price) <= 0) {
-        toast.error('Please enter a valid price');
+      if (
+        !formData.price ||
+        isNaN(parseFloat(formData.price)) ||
+        parseFloat(formData.price) <= 0
+      ) {
+        toast.error("Please enter a valid price");
         setIsSubmitting(false);
         return;
       }
-      
+
       // Convert price to pence (database expects price_pennies as integer)
       const pricePennies = Math.round(parseFloat(formData.price) * 100);
-      
+
       // Determine billing period
-      let billingPeriod = 'monthly';
-      if (formData.durationType === 'year') {
-        billingPeriod = 'yearly';
-      } else if (formData.durationType === 'day' && formData.duration === '1') {
-        billingPeriod = 'one-time';
+      let billingPeriod = "monthly";
+      if (formData.durationType === "year") {
+        billingPeriod = "yearly";
+      } else if (formData.durationType === "day" && formData.duration === "1") {
+        billingPeriod = "one-time";
       }
-      
+
       // Save membership plan
+      const insertData = {
+        name: formData.name,
+        description: formData.description,
+        price: pricePennies, // Changed from price_pennies to price
+        billing_period: billingPeriod,
+        features: formData.features.filter((f) => f.trim() !== ""),
+        is_active: true,
+        organization_id: organizationId,
+        trial_days: parseInt(formData.trialDays) || 0,
+        class_limit: formData.maxMembers ? parseInt(formData.maxMembers) : null,
+      };
+
+      console.log(
+        "Attempting to insert membership plan with data:",
+        insertData,
+      );
+      console.log("Organization ID:", organizationId);
+
       const { data, error } = await supabase
-        .from('membership_plans')
-        .insert({
-          name: formData.name,
-          description: formData.description,
-          price_pennies: pricePennies,
-          billing_period: billingPeriod,
-          features: formData.features.filter(f => f.trim() !== ''),
-          is_active: true,
-          organization_id: organizationId,
-          trial_days: parseInt(formData.trialDays) || 0,
-          class_limit: formData.maxMembers ? parseInt(formData.maxMembers) : null
-        })
+        .from("membership_plans")
+        .insert(insertData)
         .select();
-      
+
       if (error) {
-        console.error('Error creating membership plan:', error);
-        toast.error(`Failed to create membership plan: ${error.message}`);
+        console.error("Error creating membership plan:", error);
+        console.error("Error details:", JSON.stringify(error, null, 2));
+        const errorMessage =
+          error.message || error.details || "Unknown error occurred";
+        toast.error(`Failed to create membership plan: ${errorMessage}`);
         setIsSubmitting(false);
         return;
       }
-      
-      toast.success('Membership plan created successfully!');
-      
+
+      toast.success("Membership plan created successfully!");
+
       // Reset form
       setFormData({
-        name: '',
-        description: '',
-        price: '',
-        duration: '1',
-        durationType: 'month',
-        features: [''],
-        maxMembers: '',
-        trialDays: '0'
+        name: "",
+        description: "",
+        price: "",
+        duration: "1",
+        durationType: "month",
+        features: [""],
+        maxMembers: "",
+        trialDays: "0",
       });
-      
+
       onClose();
     } catch (error: any) {
-      console.error('Error:', error);
-      toast.error(`An error occurred: ${error.message || 'Please try again'}`);
+      console.error("Error:", error);
+      toast.error(`An error occurred: ${error.message || "Please try again"}`);
     } finally {
       setIsSubmitting(false);
     }
   };
-  
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-gray-800 flex items-center justify-between px-6 py-4 border-b border-gray-700">
-          <h3 className="text-lg font-semibold text-white">Create New Membership Plan</h3>
+          <h3 className="text-lg font-semibold text-white">
+            Create New Membership Plan
+          </h3>
           <button
             onClick={onClose}
             className="p-1 hover:bg-gray-700 rounded-lg transition-colors"
@@ -151,7 +176,7 @@ const NewMembershipPlanModal: React.FC<NewMembershipPlanModalProps> = ({ isOpen,
             <X className="h-5 w-5 text-gray-400" />
           </button>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
@@ -161,23 +186,29 @@ const NewMembershipPlanModal: React.FC<NewMembershipPlanModalProps> = ({ isOpen,
               <input
                 type="text"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
                 placeholder="e.g., Premium Monthly"
                 required
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
                 Price
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">£</span>
+                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                  £
+                </span>
                 <input
                   type="number"
                   value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, price: e.target.value })
+                  }
                   className="w-full pl-8 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
                   placeholder="99.99"
                   step="0.01"
@@ -186,20 +217,22 @@ const NewMembershipPlanModal: React.FC<NewMembershipPlanModalProps> = ({ isOpen,
               </div>
             </div>
           </div>
-          
+
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Description
             </label>
             <textarea
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
               rows={3}
               placeholder="Brief description of this membership plan"
             />
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -209,14 +242,18 @@ const NewMembershipPlanModal: React.FC<NewMembershipPlanModalProps> = ({ isOpen,
                 <input
                   type="number"
                   value={formData.duration}
-                  onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, duration: e.target.value })
+                  }
                   className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
                   min="1"
                   required
                 />
                 <select
                   value={formData.durationType}
-                  onChange={(e) => setFormData({ ...formData, durationType: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, durationType: e.target.value })
+                  }
                   className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
                 >
                   <option value="day">Day(s)</option>
@@ -226,7 +263,7 @@ const NewMembershipPlanModal: React.FC<NewMembershipPlanModalProps> = ({ isOpen,
                 </select>
               </div>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
                 Trial Days
@@ -234,13 +271,15 @@ const NewMembershipPlanModal: React.FC<NewMembershipPlanModalProps> = ({ isOpen,
               <input
                 type="number"
                 value={formData.trialDays}
-                onChange={(e) => setFormData({ ...formData, trialDays: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, trialDays: e.target.value })
+                }
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
                 min="0"
               />
             </div>
           </div>
-          
+
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Features
@@ -275,7 +314,7 @@ const NewMembershipPlanModal: React.FC<NewMembershipPlanModalProps> = ({ isOpen,
               </button>
             </div>
           </div>
-          
+
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Maximum Members (Optional)
@@ -283,13 +322,15 @@ const NewMembershipPlanModal: React.FC<NewMembershipPlanModalProps> = ({ isOpen,
             <input
               type="number"
               value={formData.maxMembers}
-              onChange={(e) => setFormData({ ...formData, maxMembers: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, maxMembers: e.target.value })
+              }
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-orange-500"
               placeholder="Leave empty for unlimited"
               min="1"
             />
           </div>
-          
+
           <div className="flex items-center justify-end gap-3">
             <button
               type="button"

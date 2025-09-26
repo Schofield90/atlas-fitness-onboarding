@@ -49,10 +49,10 @@ export async function getMembershipPlans(): Promise<{
         };
       }
 
-      // Normalize the data (price_pennies is already stored as INTEGER)
+      // Normalize the data (map 'price' field to 'price_pennies' for frontend)
       const normalizedPlans = (result.data || []).map((plan: any) => ({
         ...plan,
-        price_pennies: plan.price_pennies || 0,
+        price_pennies: plan.price || plan.price_pennies || 0, // Map price to price_pennies
         features: Array.isArray(plan.features)
           ? plan.features
           : plan.features
@@ -91,11 +91,12 @@ export async function createMembershipPlan(
       return { plan: null, error: orgError || "No organization found" };
     }
 
-    // Prepare plan data (price_pennies is already in correct format - INTEGER)
+    // Prepare plan data (map price_pennies to price column)
+    const { price_pennies, ...restPlan } = plan;
     const planData = {
-      ...plan,
+      ...restPlan,
       organization_id: organizationId,
-      price_pennies: plan.price_pennies || 0,
+      price: price_pennies || 0, // Map to 'price' column
     };
 
     // Create the plan
@@ -135,10 +136,17 @@ export async function updateMembershipPlan(
       return { plan: null, error: orgError || "No organization found" };
     }
 
+    // Map price_pennies to price if it exists in updates
+    const updateData = { ...updates };
+    if ("price_pennies" in updateData) {
+      updateData.price = updateData.price_pennies;
+      delete updateData.price_pennies;
+    }
+
     // Update the plan
     const { data, error } = await supabase
       .from("membership_plans")
-      .update(updates)
+      .update(updateData)
       .eq("id", id)
       .eq("organization_id", organizationId) // Security: ensure we only update our own plans
       .select()

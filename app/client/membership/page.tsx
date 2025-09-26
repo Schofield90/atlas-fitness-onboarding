@@ -42,18 +42,24 @@ export default function ClientMembershipPage() {
       data: { session },
     } = await supabase.auth.getSession();
 
+    console.log("Session user:", session?.user?.id, session?.user?.email);
+
     if (!session) {
       router.push("/simple-login");
       return;
     }
 
-    const { data: clientData } = await supabase
+    console.log("Looking for client with user_id:", session.user.id);
+    const { data: clientData, error: clientError } = await supabase
       .from("clients")
       .select("*")
       .eq("user_id", session.user.id)
       .single();
 
+    console.log("Client query result:", clientData, "Error:", clientError);
+
     if (!clientData) {
+      console.log("No client found for user_id:", session.user.id);
       router.push("/simple-login");
       return;
     }
@@ -63,9 +69,17 @@ export default function ClientMembershipPage() {
   };
 
   const loadMembership = async () => {
-    console.log("Loading membership for client:", client.id, client.email);
+    console.log("Loading membership for client:", {
+      id: client.id,
+      email: client.email,
+      user_id: client.user_id,
+      org_id: client.org_id,
+      organization_id: client.organization_id,
+    });
 
     // Try to get membership from customer_memberships table (the correct table)
+    console.log("Querying customer_memberships with client_id:", client.id);
+
     let { data: directMembership, error: directError } = await supabase
       .from("customer_memberships")
       .select(
@@ -85,6 +99,11 @@ export default function ClientMembershipPage() {
       .eq("client_id", client.id)
       .eq("status", "active")
       .single();
+
+    console.log("Direct membership query - SQL would be:");
+    console.log(
+      `SELECT * FROM customer_memberships WHERE client_id = '${client.id}' AND status = 'active'`,
+    );
 
     console.log(
       "Direct membership query result:",
@@ -177,7 +196,7 @@ export default function ClientMembershipPage() {
           .from("leads")
           .select("id")
           .eq("email", client.email)
-          .eq("organization_id", client.organization_id)
+          .eq("organization_id", client.org_id || client.organization_id)
           .single();
 
         console.log("Lead by email:", leadByEmail, "Error:", emailError);
