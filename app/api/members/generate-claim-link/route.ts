@@ -66,11 +66,20 @@ export async function POST(request: NextRequest) {
       // Continue anyway - we can still validate using the member ID
     }
 
-    // Generate the claim URL
-    const baseUrl =
-      process.env.NEXT_PUBLIC_APP_URL ||
-      request.headers.get("origin") ||
-      "http://localhost:3000";
+    // Generate the claim URL - always use the main domain for claim pages
+    const hostname = request.headers.get("host") || "";
+    const isProduction =
+      hostname.includes("gymleadhub.co.uk") || hostname.includes("vercel.app");
+
+    // In production, always use the main Vercel deployment URL for claim links
+    // This ensures the claim page is accessible regardless of which subdomain generated the link
+    const baseUrl = isProduction
+      ? process.env.NEXT_PUBLIC_SITE_URL ||
+        "https://atlas-fitness-onboarding.vercel.app"
+      : process.env.NEXT_PUBLIC_APP_URL ||
+        `http://${hostname}` ||
+        "http://localhost:3000";
+
     const claimUrl = `${baseUrl}/claim/${token}`;
 
     return NextResponse.json({
