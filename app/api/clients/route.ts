@@ -25,9 +25,7 @@ async function createClientMember(request: NextRequest) {
   if (!body.email) {
     throw ValidationError.required("email", { body });
   }
-  if (!body.phone) {
-    throw ValidationError.required("phone", { body });
-  }
+  // Phone is now optional
 
   // Validate email format
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -72,11 +70,15 @@ async function createClientMember(request: NextRequest) {
     const existingPhone = String(existing.phone || "").replace(/\D/g, "");
     const newPhone = String(body.phone || "").replace(/\D/g, "");
 
-    // If phone matches or email domain matches, likely same person
+    // If phone matches (and both have phones) or email domain matches, likely same person
     const existingEmailDomain = existing.email?.split("@")[1];
     const newEmailDomain = normalizedEmail.split("@")[1];
 
-    if (existingPhone === newPhone || existingEmailDomain === newEmailDomain) {
+    // Only check phone match if both have phone numbers
+    const phoneMatches =
+      existingPhone && newPhone && existingPhone === newPhone;
+
+    if (phoneMatches || existingEmailDomain === newEmailDomain) {
       throw new ValidationError(
         `A member named ${body.first_name} ${body.last_name} already exists. If this is a different person, please add a middle initial or other distinguishing information.`,
         "duplicate_person",

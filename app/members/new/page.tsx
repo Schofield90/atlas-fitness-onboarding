@@ -179,11 +179,11 @@ export default function NewMemberPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Phone *
+                      Phone{" "}
+                      <span className="text-gray-500 text-xs">(optional)</span>
                     </label>
                     <input
                       type="tel"
-                      required
                       value={formData.phone}
                       onChange={(e) =>
                         setFormData({ ...formData, phone: e.target.value })
