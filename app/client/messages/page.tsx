@@ -240,7 +240,7 @@ export default function ClientMessagesPage() {
       conversation_id: currentConversationId,
       client_id: client.id,
       customer_id: client.id, // Compatibility alias
-      organization_id: client.organization_id,
+      org_id: client.org_id || client.organization_id, // Use org_id as that's what the DB expects
       channel: "in_app",
       sender_type: "client",
       sender_name: client.name || client.first_name || client.email || "Client",
