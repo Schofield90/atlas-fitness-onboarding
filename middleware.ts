@@ -18,6 +18,7 @@ const SUBDOMAIN_CONFIG = {
       '/dashboard',
       '/booking',
       '/classes',
+      '/class-calendar',  // Add class-calendar to allowed paths
       '/leads',
       '/analytics',
       '/settings',
@@ -85,6 +86,7 @@ const publicRoutes = [
   '/book',
   '/meta-review',
   '/claim', // Member claim pages
+  '/class-calendar', // Allow public access to class calendar
   // Public API endpoints
   '/api/auth',
   '/api/client-portal',
