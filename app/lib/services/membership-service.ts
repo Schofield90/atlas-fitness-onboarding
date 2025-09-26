@@ -50,15 +50,21 @@ export async function getMembershipPlans(): Promise<{
       }
 
       // Normalize the data (map 'price' field to 'price_pennies' for frontend)
-      const normalizedPlans = (result.data || []).map((plan: any) => ({
-        ...plan,
-        price_pennies: plan.price || plan.price_pennies || 0, // Map price to price_pennies
-        features: Array.isArray(plan.features)
-          ? plan.features
-          : plan.features
-            ? [plan.features]
-            : [],
-      }));
+      const normalizedPlans = (result.data || []).map((plan: any) => {
+        const mappedPrice = plan.price || plan.price_pennies || 0;
+        console.log(
+          `Plan ${plan.name}: raw price=${plan.price}, raw price_pennies=${plan.price_pennies}, mapped price_pennies=${mappedPrice}`,
+        );
+        return {
+          ...plan,
+          price_pennies: mappedPrice, // Map price to price_pennies
+          features: Array.isArray(plan.features)
+            ? plan.features
+            : plan.features
+              ? [plan.features]
+              : [],
+        };
+      });
 
       return { plans: normalizedPlans, error: null };
     } catch (error: any) {

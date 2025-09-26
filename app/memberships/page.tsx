@@ -40,6 +40,14 @@ export default function MembershipsPage() {
       if (error) {
         console.error("Error fetching membership plans:", error);
       } else {
+        console.log(
+          "Received plans:",
+          plans.map((p) => ({
+            name: p.name,
+            price_pennies: p.price_pennies,
+            price: (p as any).price, // Check if price field exists
+          })),
+        );
         setMembershipPlans(plans);
         console.log("Set membership plans:", plans.length, "plans");
       }
