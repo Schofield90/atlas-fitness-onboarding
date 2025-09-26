@@ -24,8 +24,11 @@ export default function ClassCalendarClient() {
   const [classes, setClasses] = useState([]);
   const [selectedClass, setSelectedClass] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const [checkingAuth, setCheckingAuth] = useState(true);
-  const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [checkingAuth, setCheckingAuth] = useState(false); // Changed to false - no auth check
+  // HARDCODED ORG ID TO PREVENT REDIRECTS
+  const [organizationId, setOrganizationId] = useState<string | null>(
+    "eac9a158-d3c7-4140-9620-91a5554a6fe8",
+  );
   const [calendarView, setCalendarView] = useState<CalendarView>("week");
   const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -59,43 +62,13 @@ export default function ClassCalendarClient() {
     }
   }, [organizationId]);
 
-  const fetchOrganization = async () => {
-    setCheckingAuth(true);
+  // NO LONGER NEEDED - Organization ID is hardcoded
+  // Remove all auth-related fetching to prevent redirects
 
-    // Always use your organization ID for now to avoid auth issues
-    const defaultOrgId = "eac9a158-d3c7-4140-9620-91a5554a6fe8"; // Atlas Gyms org
-
-    try {
-      // Try to get from localStorage first
-      const savedOrgId = localStorage.getItem("lastOrganizationId");
-
-      if (savedOrgId) {
-        console.log(
-          "Using saved organization ID from localStorage:",
-          savedOrgId,
-        );
-        setOrganizationId(savedOrgId);
-      } else {
-        console.log("Using default organization ID:", defaultOrgId);
-        setOrganizationId(defaultOrgId);
-        // Save for next time
-        localStorage.setItem("lastOrganizationId", defaultOrgId);
-      }
-
-      setError(null);
-    } catch (err) {
-      console.error("Error in fetchOrganization:", err);
-      // Even if error, still set the org ID
-      setOrganizationId(defaultOrgId);
-      setError(null);
-    } finally {
-      setCheckingAuth(false);
-    }
-  };
-
-  // Now useEffect hooks can safely reference fetchClasses
+  // Immediately start fetching classes with hardcoded org ID
   useEffect(() => {
-    fetchOrganization();
+    // Organization ID is already set in state initialization
+    console.log("Class calendar: Using hardcoded org ID");
   }, []);
 
   useEffect(() => {
@@ -168,18 +141,7 @@ export default function ClassCalendarClient() {
     }
   };
 
-  if (checkingAuth) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="space-y-4 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
-            <p className="text-gray-600">Loading class calendar...</p>
-          </div>
-        </div>
-      </DashboardLayout>
-    );
-  }
+  // No auth check needed anymore - removed to prevent redirects
 
   if (error) {
     return (
@@ -190,21 +152,10 @@ export default function ClassCalendarClient() {
               Unable to Load Class Calendar
             </div>
             <div className="text-gray-600 text-sm">{error}</div>
-            <div className="text-gray-600 text-sm">
-              If you're not logged in, please{" "}
-              <Link
-                href="/owner-login"
-                className="text-blue-600 hover:underline"
-              >
-                sign in
-              </Link>{" "}
-              to access the class calendar.
-            </div>
             <Button
               onClick={() => {
                 setError(null);
-                setCheckingAuth(true);
-                fetchOrganization();
+                fetchClasses();
               }}
               variant="primary"
             >
