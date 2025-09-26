@@ -182,9 +182,7 @@ export default function ClientDashboard() {
         *,
         class_sessions (
           *,
-          programs (name),
-          organization_locations (name),
-          organization_staff (name)
+          programs (name)
         )
       `,
       )
@@ -201,9 +199,7 @@ export default function ClientDashboard() {
           *,
           class_sessions (
             *,
-            programs (name),
-            organization_locations (name),
-            organization_staff (name)
+            programs (name)
           )
         `,
         )
@@ -223,9 +219,7 @@ export default function ClientDashboard() {
         *,
         class_sessions (
           *,
-          programs (name),
-          organization_locations (name),
-          organization_staff (name)
+          programs (name)
         )
       `,
       )
@@ -244,9 +238,7 @@ export default function ClientDashboard() {
           *,
           class_sessions (
             *,
-            programs (name),
-            organization_locations (name),
-            organization_staff (name)
+            programs (name)
           )
         `,
         )
@@ -289,8 +281,7 @@ export default function ClientDashboard() {
       !directBookings ||
       directBookings.length === 0 ||
       !directUpcoming ||
-      directUpcoming.length === 0 ||
-      !directCredits
+      directUpcoming.length === 0
     ) {
       const { data: leadData } = await supabase
         .from("leads")
@@ -308,9 +299,7 @@ export default function ClientDashboard() {
               *,
               class_sessions (
                 *,
-                programs (name),
-                organization_locations (name),
-                organization_staff (name)
+                programs (name)
               )
             `,
             )
@@ -334,9 +323,7 @@ export default function ClientDashboard() {
               *,
               class_sessions (
                 *,
-                programs (name),
-                organization_locations (name),
-                organization_staff (name)
+                programs (name)
               )
             `,
             )
@@ -365,18 +352,7 @@ export default function ClientDashboard() {
           }
         }
 
-        // Get credits from lead if no direct credits
-        if (!directCredits) {
-          const { data: leadCredits } = await supabase
-            .from("class_credits")
-            .select("*")
-            .eq("customer_id", leadData.id)
-            .single();
-
-          if (leadCredits) {
-            creditsRemaining = leadCredits.credits_remaining || 0;
-          }
-        }
+        // Note: Credits functionality removed for now
       }
     }
 
@@ -681,14 +657,22 @@ export default function ClientDashboard() {
                       </dt>
                       <dd className="mt-1 text-lg font-semibold text-white">
                         {stats.nextClass
-                          ? new Date(
-                              stats.nextClass.class_sessions?.start_time,
-                            ).toLocaleString("en-GB", {
-                              weekday: "short",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                              timeZone: "Europe/London",
-                            })
+                          ? (() => {
+                              const date = new Date(
+                                stats.nextClass.class_sessions?.start_time,
+                              );
+                              const weekday = date.toLocaleDateString("en-GB", {
+                                weekday: "short",
+                              });
+                              const hours = String(date.getUTCHours()).padStart(
+                                2,
+                                "0",
+                              );
+                              const minutes = String(
+                                date.getUTCMinutes(),
+                              ).padStart(2, "0");
+                              return `${weekday} ${hours}:${minutes}`;
+                            })()
                           : "No upcoming classes"}
                       </dd>
                     </dl>
@@ -816,22 +800,30 @@ export default function ClientDashboard() {
                         </h4>
                         <p className="text-sm text-gray-400">
                           {booking.class_sessions?.start_time &&
-                            new Date(
-                              booking.class_sessions.start_time,
-                            ).toLocaleString("en-GB", {
-                              weekday: "long",
-                              day: "numeric",
-                              month: "short",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                              timeZone: "Europe/London",
-                            })}
+                            (() => {
+                              const date = new Date(
+                                booking.class_sessions.start_time,
+                              );
+                              const weekday = date.toLocaleDateString("en-GB", {
+                                weekday: "long",
+                              });
+                              const day = date.getUTCDate();
+                              const month = date.toLocaleDateString("en-GB", {
+                                month: "short",
+                              });
+                              const hours = String(date.getUTCHours()).padStart(
+                                2,
+                                "0",
+                              );
+                              const minutes = String(
+                                date.getUTCMinutes(),
+                              ).padStart(2, "0");
+                              return `${weekday} ${day} ${month}, ${hours}:${minutes}`;
+                            })()}
                         </p>
                         <p className="text-sm text-gray-500">
-                          {booking.class_sessions?.organization_locations
-                            ?.name || "Location"}{" "}
-                          •
-                          {booking.class_sessions?.organization_staff?.name ||
+                          {booking.class_sessions?.location || "Main Studio"} •{" "}
+                          {booking.class_sessions?.instructor_name ||
                             "Instructor"}
                         </p>
                       </div>
