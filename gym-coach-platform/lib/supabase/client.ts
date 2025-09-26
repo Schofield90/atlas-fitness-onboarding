@@ -119,7 +119,7 @@ function createSupabaseClient(): SupabaseClient | null {
     },
     auth: {
       persistSession: true,
-      autoRefreshToken: false, // CRITICAL: Disable to prevent SSR crashes
+      autoRefreshToken: true, // Enable to prevent session expiration issues
       detectSessionInUrl: false, // Disable to prevent SSR issues
       storageKey: 'atlas-fitness-auth',
       storage: typeof window !== 'undefined' ? {

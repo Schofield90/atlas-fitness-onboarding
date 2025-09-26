@@ -91,8 +91,8 @@ export async function middleware(request: NextRequest) {
   // Check if this is a client portal route
   const isClientPortal = organizationSlug || request.nextUrl.pathname.includes('/client');
   const isAuthPage = request.nextUrl.pathname.includes('/auth');
-  const isDashboard = request.nextUrl.pathname.includes('/dashboard');
-  const isProtectedAPI = request.nextUrl.pathname.startsWith('/api/') && 
+  const isDashboard = request.nextUrl.pathname.includes('/dashboard') || request.nextUrl.pathname.includes('/class-calendar');
+  const isProtectedAPI = request.nextUrl.pathname.startsWith('/api/') &&
     !request.nextUrl.pathname.startsWith('/api/auth/') &&
     !request.nextUrl.pathname.startsWith('/api/facebook/webhook') &&
     !request.nextUrl.pathname.startsWith('/api/public/')
