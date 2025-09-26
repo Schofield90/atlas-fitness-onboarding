@@ -96,8 +96,13 @@ export default function ClaimInvitationPage() {
       if (response.ok && data.success) {
         setSuccess(true);
 
-        // Redirect to member login page with email pre-filled
-        const redirectUrl = `/member-login?email=${encodeURIComponent(data.email)}`;
+        // Redirect to member portal login page with email pre-filled
+        // In production, this should go to the members subdomain
+        const isProduction =
+          window.location.hostname.includes("gymleadhub.co.uk");
+        const redirectUrl = isProduction
+          ? `https://members.gymleadhub.co.uk/simple-login?email=${encodeURIComponent(data.email)}`
+          : `/simple-login?email=${encodeURIComponent(data.email)}`;
         console.log("Redirecting to:", redirectUrl);
         setTimeout(() => {
           window.location.href = redirectUrl;
@@ -157,7 +162,14 @@ export default function ClaimInvitationPage() {
             Your account has already been activated.
           </p>
           <button
-            onClick={() => router.push("/member-login")}
+            onClick={() => {
+              const isProduction =
+                window.location.hostname.includes("gymleadhub.co.uk");
+              const loginUrl = isProduction
+                ? "https://members.gymleadhub.co.uk/simple-login"
+                : "/simple-login";
+              window.location.href = loginUrl;
+            }}
             className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-3 rounded-lg font-medium transition-all"
           >
             Go to Member Login

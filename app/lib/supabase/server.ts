@@ -11,7 +11,8 @@ function isProduction() {
   return (
     process.env.NODE_ENV === "production" ||
     process.env.VERCEL_ENV === "production" ||
-    process.env.NEXT_PUBLIC_SITE_URL?.includes("gymleadhub.co.uk")
+    process.env.NEXT_PUBLIC_SITE_URL?.includes("gymleadhub.co.uk") ||
+    process.env.NEXT_PUBLIC_VERCEL_URL?.includes("gymleadhub.co.uk")
   );
 }
 
