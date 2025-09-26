@@ -641,7 +641,7 @@ export default function DashboardLayout({
     },
     {
       name: "Class Calendar",
-      href: "/class-calendar",
+      href: "/dashboard/class-calendar",
       icon: (
         <svg
           className="w-5 h-5"

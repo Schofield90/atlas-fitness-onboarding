@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import ClassCalendarPage from '@/app/class-calendar/page';
+import ClassCalendarPage from '@/app/dashboard/class-calendar/page';
 
 // Mock supabase organization lookup to avoid redirects
 jest.mock('@/app/lib/organization-service', () => ({

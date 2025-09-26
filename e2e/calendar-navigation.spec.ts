@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test.describe("Calendar Navigation", () => {
   test("should navigate between weeks without errors", async ({ page }) => {
     // Navigate to class calendar
-    await page.goto("/class-calendar");
+    await page.goto("/dashboard/class-calendar");
 
     // Wait for page to load - look for the calendar header or grid
     await page.waitForLoadState("networkidle");
@@ -47,7 +47,7 @@ test.describe("Calendar Navigation", () => {
 
   test("should switch between calendar views", async ({ page }) => {
     // Navigate to class calendar
-    await page.goto("/class-calendar");
+    await page.goto("/dashboard/class-calendar");
 
     // Wait for page to load
     await page.waitForLoadState("networkidle");
