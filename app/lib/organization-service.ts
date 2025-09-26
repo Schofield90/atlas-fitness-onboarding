@@ -12,25 +12,34 @@ export async function getCurrentUserOrganization() {
   }
 
   try {
-    // Get current user - use getSession instead of getUser to avoid auth refresh issues
+    // First try to get the session
     const {
       data: { session },
       error: sessionError,
     } = await supabase.auth.getSession();
 
-    if (sessionError || !session?.user) {
-      // Don't return error immediately - check if we have a cached session
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        return { organizationId: null, error: "Not authenticated" };
-      }
-    }
+    let user = session?.user;
 
-    const user = session?.user || (await supabase.auth.getUser()).data.user;
+    // If no session, try to get the user directly (may still be authenticated)
     if (!user) {
-      return { organizationId: null, error: "Not authenticated" };
+      const {
+        data: { user: directUser },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (!directUser) {
+        // Try one more time with a refresh
+        const {
+          data: { session: refreshedSession },
+        } = await supabase.auth.refreshSession();
+        user = refreshedSession?.user;
+
+        if (!user) {
+          return { organizationId: null, error: "Not authenticated" };
+        }
+      } else {
+        user = directUser;
+      }
     }
 
     // Get user's organization from user_organizations table
