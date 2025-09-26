@@ -190,14 +190,17 @@ function MembersContent() {
           user_id: samClient.user_id,
           first_name: samClient.first_name,
           last_name: samClient.last_name,
+          customer_memberships: samClient.customer_memberships,
+          memberships: samClient.memberships,
         });
       }
 
       // Transform to member format
       const transformedMembers: Member[] = clients.map((client: any) => {
-        // Get membership info from the nested memberships
+        // Get membership info from the nested customer_memberships (API returns this name)
         // Prioritize active memberships over cancelled/inactive ones
-        const memberships = client.memberships || [];
+        const memberships =
+          client.customer_memberships || client.memberships || [];
 
         // Find the best membership to display (prioritize active > pending > cancelled/inactive)
         const activeMembership = memberships.find(
@@ -209,7 +212,9 @@ function MembersContent() {
         const membership =
           activeMembership || pendingMembership || memberships[0];
 
-        const membershipPlan = membership?.membership_plan;
+        // Get the plan from nested structure - it's inside membership_plans
+        const membershipPlan =
+          membership?.membership_plans || membership?.membership_plan;
 
         return {
           id: client.id,

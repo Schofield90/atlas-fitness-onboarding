@@ -12,13 +12,24 @@ export async function getCurrentUserOrganization() {
   }
 
   try {
-    // Get current user
+    // Get current user - use getSession instead of getUser to avoid auth refresh issues
     const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
 
-    if (userError || !user) {
+    if (sessionError || !session?.user) {
+      // Don't return error immediately - check if we have a cached session
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        return { organizationId: null, error: "Not authenticated" };
+      }
+    }
+
+    const user = session?.user || (await supabase.auth.getUser()).data.user;
+    if (!user) {
       return { organizationId: null, error: "Not authenticated" };
     }
 

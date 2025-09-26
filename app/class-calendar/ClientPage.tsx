@@ -68,6 +68,11 @@ export default function ClassCalendarClient() {
         setError(null);
       } else {
         console.error("Organization not found:", result?.error);
+        // If not authenticated, redirect to login instead of showing error
+        if (result?.error === "Not authenticated") {
+          window.location.href = "/owner-login";
+          return;
+        }
         setError(
           result?.error ||
             "Organization not found. Please ensure you're logged in.",

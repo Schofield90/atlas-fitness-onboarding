@@ -31,7 +31,25 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("clients")
-      .select(`*`, { count: "exact" })
+      .select(
+        `
+        *,
+        customer_memberships (
+          membership_plan_id,
+          status,
+          start_date,
+          end_date,
+          membership_plans (
+            id,
+            name,
+            price,
+            price_pennies,
+            billing_period
+          )
+        )
+      `,
+        { count: "exact" },
+      )
       .eq("org_id", organizationId)
       .order("created_at", { ascending: false });
 
