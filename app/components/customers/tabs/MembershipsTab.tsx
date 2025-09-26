@@ -252,7 +252,6 @@ export default function MembershipsTab({ customerId }: MembershipsTabProps) {
                     <span className="text-lg font-semibold text-white">
                       {formatBritishCurrency(
                         membership.membership_plan?.price || 0,
-                        false,
                       )}
                     </span>
                     <span className="text-sm text-gray-400 ml-1">
@@ -281,7 +280,6 @@ export default function MembershipsTab({ customerId }: MembershipsTabProps) {
                       <p className="text-white">
                         {formatBritishCurrency(
                           membership.membership_plan?.price || 0,
-                          false,
                         )}{" "}
                         /{" "}
                         {membership.membership_plan?.billing_period || "month"}
@@ -616,7 +614,7 @@ function UpgradeMembershipModal({
               <option value="">Select a plan</option>
               {plans.map((plan) => (
                 <option key={plan.id} value={plan.id}>
-                  {plan.name} - {formatBritishCurrency(plan.price || 0, false)}/
+                  {plan.name} - {formatBritishCurrency(plan.price || 0)}/
                   {plan.billing_period || "month"}
                 </option>
               ))}
