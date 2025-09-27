@@ -71,11 +71,10 @@ export async function POST(request: NextRequest) {
     const isProduction =
       hostname.includes("gymleadhub.co.uk") || hostname.includes("vercel.app");
 
-    // In production, always use the main Vercel deployment URL for claim links
+    // In production, always use the main members portal URL for claim links
     // This ensures the claim page is accessible regardless of which subdomain generated the link
     const baseUrl = isProduction
-      ? process.env.NEXT_PUBLIC_SITE_URL ||
-        "https://atlas-fitness-onboarding.vercel.app"
+      ? process.env.NEXT_PUBLIC_SITE_URL || "https://members.gymleadhub.co.uk"
       : process.env.NEXT_PUBLIC_APP_URL ||
         `http://${hostname}` ||
         "http://localhost:3000";
