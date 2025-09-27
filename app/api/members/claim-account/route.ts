@@ -60,25 +60,61 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create auth user for this member
-    const { data: authData, error: authError } =
-      await supabase.auth.admin.createUser({
-        email: member.email,
-        password: password,
-        email_confirm: true,
-        user_metadata: {
-          first_name: member.first_name,
-          last_name: member.last_name,
-          role: "member",
-        },
-      });
+    // First check if a user already exists with this email
+    const { data: existingUsers } = await supabase.auth.admin.listUsers();
+    const existingUser = existingUsers?.users?.find(
+      (u) => u.email === member.email,
+    );
 
-    if (authError) {
-      console.error("Error creating auth user:", authError);
-      return NextResponse.json(
-        { message: "Failed to create user account" },
-        { status: 500 },
-      );
+    let authUserId: string;
+
+    if (existingUser) {
+      // User already exists, update their password
+      console.log("User already exists, updating password for:", member.email);
+
+      const { data: updatedUser, error: updateAuthError } =
+        await supabase.auth.admin.updateUserById(existingUser.id, {
+          password: password,
+          email_confirm: true,
+          user_metadata: {
+            first_name: member.first_name,
+            last_name: member.last_name,
+            role: "member",
+          },
+        });
+
+      if (updateAuthError) {
+        console.error("Error updating auth user:", updateAuthError);
+        return NextResponse.json(
+          { message: "Failed to update user account" },
+          { status: 500 },
+        );
+      }
+
+      authUserId = existingUser.id;
+    } else {
+      // Create new auth user
+      const { data: authData, error: authError } =
+        await supabase.auth.admin.createUser({
+          email: member.email,
+          password: password,
+          email_confirm: true,
+          user_metadata: {
+            first_name: member.first_name,
+            last_name: member.last_name,
+            role: "member",
+          },
+        });
+
+      if (authError) {
+        console.error("Error creating auth user:", authError);
+        return NextResponse.json(
+          { message: "Failed to create user account" },
+          { status: 500 },
+        );
+      }
+
+      authUserId = authData.user.id;
     }
 
     // Update the client record to link it to the auth user and clear the token from metadata
@@ -90,7 +126,7 @@ export async function POST(request: NextRequest) {
     const { error: updateError } = await supabase
       .from("clients")
       .update({
-        user_id: authData.user.id,
+        user_id: authUserId,
         metadata: updatedMetadata,
         status: "active",
       })
@@ -98,8 +134,10 @@ export async function POST(request: NextRequest) {
 
     if (updateError) {
       console.error("Error updating client:", updateError);
-      // Try to clean up the auth user if linking fails
-      await supabase.auth.admin.deleteUser(authData.user.id);
+      // Only try to clean up if we created a new user (not if we updated an existing one)
+      if (!existingUser) {
+        await supabase.auth.admin.deleteUser(authUserId);
+      }
       return NextResponse.json(
         { message: "Failed to link account" },
         { status: 500 },
@@ -109,7 +147,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: "Account claimed successfully",
-      userId: authData.user.id,
+      userId: authUserId,
       email: member.email,
     });
   } catch (error: any) {
