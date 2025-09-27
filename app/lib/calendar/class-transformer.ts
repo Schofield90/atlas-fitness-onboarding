@@ -154,23 +154,40 @@ export function transformClassesForCalendar(
     const startTime = cls.startTime || cls.start_time;
     const endTime = cls.endTime || cls.end_time;
 
+    // Get the class name from either the session itself or the associated program
+    const className =
+      cls.name || cls.program?.name || cls.title || "Untitled Class";
+
+    // Get capacity from session first, then program, with all possible field names
+    const maxCapacity =
+      cls.max_capacity ||
+      cls.capacity ||
+      cls.program?.max_capacity ||
+      cls.program?.default_capacity ||
+      cls.program?.capacity ||
+      20;
+
     return {
       id: cls.id,
-      title: cls.name || cls.title || "Untitled Class",
-      instructor: cls.instructor || "TBD",
+      title: className,
+      instructor: cls.instructor || cls.instructor_name || "TBD",
       time: formatTimeDisplay(startTime),
       startTime,
       endTime,
       duration: calculateDuration(startTime, endTime),
       bookings: cls.enrolled || cls.current_bookings || 0,
-      capacity: cls.capacity || cls.max_capacity || 20,
-      color: getClassColor(cls.type || cls.class_type, index),
-      earnings: `£${(cls.enrolled || 0) * 20}`, // Estimate based on bookings
+      capacity: maxCapacity,
+      color: getClassColor(
+        cls.type || cls.class_type || cls.program?.program_type,
+        index,
+      ),
+      earnings: `£${(cls.enrolled || cls.current_bookings || 0) * 20}`, // Estimate based on bookings
       room: cls.location || cls.room || "Main Studio",
       day: getDayIndex(startTime),
       timeSlot: getTimeSlotIndex(startTime),
-      description: cls.description,
-      type: cls.type || cls.class_type || "General",
+      description: cls.description || cls.program?.description,
+      type:
+        cls.type || cls.class_type || cls.program?.program_type || "General",
     };
   });
 }
