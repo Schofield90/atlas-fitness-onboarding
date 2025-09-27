@@ -36,7 +36,9 @@ export class GlobalErrorBoundary extends Component<
       error: null,
       errorId: null,
     };
+  }
 
+  componentDidMount() {
     // Handle global unhandled promise rejections
     if (typeof window !== "undefined") {
       window.addEventListener(
