@@ -108,9 +108,86 @@ export async function DELETE(
     // Delete body composition records
     await supabase.from("body_composition").delete().eq("client_id", params.id);
 
-    // Delete bookings - check both customer_id and client_id
-    await supabase.from("bookings").delete().eq("customer_id", params.id);
+    // Get all bookings for this client to update class session counts
+    const { data: clientBookings } = await supabase
+      .from("bookings")
+      .select("class_session_id")
+      .eq("client_id", params.id)
+      .eq("status", "confirmed");
+
+    const { data: classBookings } = await supabase
+      .from("class_bookings")
+      .select("class_session_id")
+      .or(`client_id.eq.${params.id},customer_id.eq.${params.id}`)
+      .eq("booking_status", "confirmed");
+
+    // Delete bookings from the bookings table (uses client_id)
     await supabase.from("bookings").delete().eq("client_id", params.id);
+
+    // Delete bookings from class_bookings table (uses either client_id or customer_id)
+    await supabase.from("class_bookings").delete().eq("client_id", params.id);
+    await supabase.from("class_bookings").delete().eq("customer_id", params.id);
+
+    // Delete recurring bookings if they exist
+    await supabase
+      .from("recurring_bookings")
+      .delete()
+      .eq("client_id", params.id);
+    await supabase
+      .from("recurring_bookings")
+      .delete()
+      .eq("customer_id", params.id);
+
+    // Delete class attendance records if they exist
+    await supabase.from("class_attendance").delete().eq("client_id", params.id);
+    await supabase
+      .from("class_attendance")
+      .delete()
+      .eq("customer_id", params.id);
+
+    // Update class session booking counts for any sessions this client was booked in
+    const sessionIds = new Set<string>();
+
+    // Collect all affected session IDs
+    if (clientBookings) {
+      clientBookings.forEach((booking) => {
+        if (booking.class_session_id) {
+          sessionIds.add(booking.class_session_id);
+        }
+      });
+    }
+
+    if (classBookings) {
+      classBookings.forEach((booking) => {
+        if (booking.class_session_id) {
+          sessionIds.add(booking.class_session_id);
+        }
+      });
+    }
+
+    // Update the booking counts for affected sessions
+    for (const sessionId of sessionIds) {
+      // Count remaining bookings for this session
+      const { count: bookingCount } = await supabase
+        .from("bookings")
+        .select("*", { count: "exact", head: true })
+        .eq("class_session_id", sessionId)
+        .eq("status", "confirmed");
+
+      const { count: classBookingCount } = await supabase
+        .from("class_bookings")
+        .select("*", { count: "exact", head: true })
+        .eq("class_session_id", sessionId)
+        .eq("booking_status", "confirmed");
+
+      const totalBookings = (bookingCount || 0) + (classBookingCount || 0);
+
+      // Update the session with the new count
+      await supabase
+        .from("class_sessions")
+        .update({ current_bookings: totalBookings })
+        .eq("id", sessionId);
+    }
 
     // Delete activity logs
     await supabase.from("activity_logs").delete().eq("lead_id", params.id);
