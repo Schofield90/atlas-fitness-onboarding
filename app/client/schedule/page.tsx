@@ -169,7 +169,8 @@ export default function ClientSchedulePage() {
       router.push("/client/bookings");
     } else {
       const error = await response.json();
-      alert(error.error || "Failed to book class");
+      // Show the detailed message if available, otherwise the error
+      alert(error.message || error.error || "Failed to book class");
     }
   };
 
