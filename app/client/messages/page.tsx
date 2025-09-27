@@ -240,7 +240,7 @@ export default function ClientMessagesPage() {
       conversation_id: currentConversationId,
       client_id: client.id,
       customer_id: client.id, // Compatibility alias
-      org_id: client.org_id || client.organization_id, // Use org_id as that's what the DB expects
+      organization_id: client.org_id || client.organization_id, // Use organization_id (correct column name)
       channel: "in_app",
       sender_type: "client",
       sender_name: client.name || client.first_name || client.email || "Client",
@@ -250,7 +250,7 @@ export default function ClientMessagesPage() {
       content: newMessage.trim(),
       body: newMessage.trim(), // Legacy compatibility
       status: "sent",
-      sender_id: null, // Clients don't have user records
+      sender_id: client.id, // Use client.id as sender_id for clients
       metadata: {},
     };
 
