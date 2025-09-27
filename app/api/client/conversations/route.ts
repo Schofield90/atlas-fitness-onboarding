@@ -99,59 +99,16 @@ export async function POST(_request: NextRequest) {
       );
     }
 
-    // Determine coach to assign: prefer clients.assigned_to; otherwise pick any staff in org
+    // Determine coach to assign: prefer clients.assigned_to
+    // After the migration, coach_id can be null for client-initiated conversations
     let coachId: string | null = clientRow.assigned_to || null;
 
+    // It's okay if coachId is null - the conversation can be created without a coach
+    // A coach will be auto-assigned when they respond to the conversation
     if (!coachId) {
-      try {
-        // Try to find any user in the organization (owner or staff)
-        const { data: fallbackCoach } = await admin
-          .from("user_organizations")
-          .select("user_id")
-          .eq("organization_id", organizationId)
-          .limit(1)
-          .single();
-        coachId = fallbackCoach?.user_id || null;
-      } catch (coachError) {
-        console.warn(
-          "Could not find fallback coach from user_organizations:",
-          coachError,
-        );
-
-        // Try to find the organization owner as a last resort
-        try {
-          const { data: orgData } = await admin
-            .from("organizations")
-            .select("owner_id")
-            .eq("id", organizationId)
-            .single();
-          coachId = orgData?.owner_id || null;
-        } catch (ownerError) {
-          console.warn("Could not find organization owner:", ownerError);
-        }
-      }
-    }
-
-    // If still no coach, use a system user ID or create a placeholder
-    if (!coachId) {
-      // Use the organization owner as a fallback by querying the organizations table
-      console.warn("No coach found, using organization ID as placeholder");
-      // Since coach_id is required, we need to provide a valid user ID
-      // Let's use the first admin user we can find
-      const { data: adminUser } = await admin
-        .from("users")
-        .select("id")
-        .limit(1)
-        .single();
-
-      if (adminUser) {
-        coachId = adminUser.id;
-      } else {
-        return NextResponse.json(
-          { error: "Unable to assign a coach to the conversation" },
-          { status: 400 },
-        );
-      }
+      console.log(
+        "No coach assigned yet - conversation will be created without a coach",
+      );
     }
 
     // Get or create the conversation
@@ -193,15 +150,21 @@ export async function POST(_request: NextRequest) {
           conversationId = existingConvs[0].id;
           console.log("Found existing conversation:", conversationId);
         } else {
-          // Try to create a new conversation
+          // Try to create a new conversation (coach_id can be null)
+          const conversationData: any = {
+            organization_id: organizationId,
+            client_id: clientRow.id,
+            status: "active",
+          };
+
+          // Only add coach_id if we have one
+          if (coachId) {
+            conversationData.coach_id = coachId;
+          }
+
           const { data: newConv, error: createErr } = await admin
             .from("conversations")
-            .insert({
-              organization_id: organizationId,
-              client_id: clientRow.id,
-              coach_id: coachId,
-              status: "active",
-            })
+            .insert(conversationData)
             .select("id")
             .single();
 
@@ -231,13 +194,19 @@ export async function POST(_request: NextRequest) {
 
       // Try to save this fallback ID to the database in the background
       try {
-        await admin.from("conversations").insert({
+        const fallbackData: any = {
           id: conversationId,
           organization_id: organizationId,
           client_id: clientRow.id,
-          coach_id: coachId,
           status: "active",
-        });
+        };
+
+        // Only add coach_id if we have one
+        if (coachId) {
+          fallbackData.coach_id = coachId;
+        }
+
+        await admin.from("conversations").insert(fallbackData);
         console.log("Successfully saved fallback conversation ID to database");
       } catch (saveErr) {
         console.warn("Could not save fallback conversation ID:", saveErr);
