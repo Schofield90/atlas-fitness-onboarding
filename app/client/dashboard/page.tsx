@@ -189,8 +189,8 @@ export default function ClientDashboardPage() {
 
     try {
       const { error } = await supabase
-        .from("bookings")
-        .update({ status: "cancelled" })
+        .from("class_bookings")
+        .update({ booking_status: "cancelled" })
         .eq("id", bookingId);
 
       if (error) throw error;

@@ -55,9 +55,9 @@ export default function ClientBookingsPage() {
     console.log("Loading bookings for client:", client.id, client.email);
 
     // Get bookings from BOTH tables (bookings and class_bookings)
-    // First, get from the bookings table
+    // First, get from the class_bookings table
     let { data: directBookings, error: directError } = await supabase
-      .from("bookings")
+      .from("class_bookings")
       .select(
         `
         *,
@@ -123,7 +123,7 @@ export default function ClientBookingsPage() {
       if (leadData) {
         // Get bookings using the lead ID from BOTH tables
         const { data: leadBookings } = await supabase
-          .from("bookings")
+          .from("class_bookings")
           .select(
             `
             *,
@@ -194,7 +194,7 @@ export default function ClientBookingsPage() {
 
         if (leadByEmail) {
           const { data: emailBookings } = await supabase
-            .from("bookings")
+            .from("class_bookings")
             .select(
               `
               *,
@@ -303,7 +303,7 @@ export default function ClientBookingsPage() {
   const cancelBooking = async () => {
     if (!selectedBooking) return;
 
-    const response = await fetch(`/api/booking/${selectedBooking.id}`, {
+    const response = await fetch(`/api/v2/bookings/${selectedBooking.id}`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

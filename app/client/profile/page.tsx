@@ -120,8 +120,8 @@ export default function ClientProfilePage() {
     setSaving(true);
 
     try {
-      // Try the full update first
-      const response = await fetch("/api/clients/update", {
+      // Use the client-specific profile update endpoint
+      const response = await fetch("/api/client/profile/update", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -134,44 +134,12 @@ export default function ClientProfilePage() {
 
       const result = await response.json();
 
-      if (!result.success && response.status === 500) {
-        // If it fails with 500, try the safe endpoint
-        console.log("Using safe update endpoint...");
-        const safeResponse = await fetch("/api/clients/update-safe", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            clientId: client.id,
-            ...formData,
-          }),
-        });
-
-        const safeResult = await safeResponse.json();
-
-        if (safeResult.success) {
-          setClient({ ...client, ...formData });
-
-          // Save nutrition data to localStorage
-          if (safeResult.nutritionData) {
-            localStorage.setItem(
-              `nutrition_${client.id}`,
-              JSON.stringify(safeResult.nutritionData),
-            );
-          }
-
-          alert("Profile updated successfully! (Nutrition data saved locally)");
-        } else {
-          console.error("Error updating profile:", safeResult.error);
-          alert("Failed to update profile");
-        }
-      } else if (result.success) {
+      if (result.success) {
         setClient({ ...client, ...formData });
         alert("Profile updated successfully!");
       } else {
         console.error("Error updating profile:", result.error);
-        alert("Failed to update profile");
+        alert(result.error || "Failed to update profile");
       }
     } catch (error) {
       console.error("Error updating profile:", error);
