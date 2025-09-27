@@ -499,11 +499,11 @@ export default function UnifiedMessaging({
             conversation_id: selectedConversation.id,
             organization_id: userData.organization_id,
             client_id: selectedConversation.contact_id,
-            user_id: userData.id,
+            sender_id: userData.id, // Changed from user_id to sender_id
+            sender_type: "coach", // Changed from "gym" to "coach" to match RLS policy
+            sender_name: userData.full_name || userData.email || "Gym",
             channel: "in_app",
             type: "in_app",
-            sender_type: "gym",
-            sender_name: userData.full_name || userData.email || "Gym",
             direction: "outbound",
             body: messageContent,
             content: messageContent,
