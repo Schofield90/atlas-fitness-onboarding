@@ -206,6 +206,7 @@ export default function ClassBookingsTab({
     );
 
     // Query for bookings with either client_id or customer_id
+    // Remove the organization_id filter as it might be preventing bookings from showing
     let { data, error } = await supabase
       .from("class_bookings")
       .select(
@@ -229,8 +230,6 @@ export default function ClassBookingsTab({
       `,
       )
       .or(`client_id.eq.${customerId},customer_id.eq.${customerId}`)
-      .eq("organization_id", organizationId)
-      .in("booking_status", ["confirmed", "attended", "completed"])
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -362,12 +361,20 @@ export default function ClassBookingsTab({
   const getUpcomingBookings = () => {
     const now = new Date();
     console.log("Current time for comparison:", now.toISOString());
+    console.log("Total bookings to filter:", bookings.length);
 
     return bookings
       .filter((booking) => {
         // Check if booking has valid session data
-        if (!booking.class_session || !booking.class_session.start_time) {
+        if (!booking.class_session) {
           console.log("Booking missing session data:", booking);
+          // For bookings without session data, check booking_date
+          if (booking.booking_date) {
+            const bookingDate = new Date(booking.booking_date);
+            const status = booking.booking_status || booking.status;
+            const isConfirmed = status === "confirmed" || status === "attended";
+            return isConfirmed && bookingDate >= now;
+          }
           return false;
         }
 
@@ -375,36 +382,44 @@ export default function ClassBookingsTab({
         const status = booking.booking_status || booking.status;
         const isConfirmed = status === "confirmed" || status === "attended";
 
-        // Check if session is in the future
-        const sessionTime = new Date(booking.class_session.start_time);
-        const isUpcoming = sessionTime > now;
+        // For bookings with session data
+        if (booking.class_session.start_time) {
+          const sessionTime = new Date(booking.class_session.start_time);
+          const isUpcoming = sessionTime >= now; // Changed to >= to include today's classes
 
-        console.log("Booking date check:", {
-          id: booking.id,
-          startTime: booking.class_session.start_time,
-          sessionTime: sessionTime.toISOString(),
-          now: now.toISOString(),
-          isUpcoming,
-          status,
-          isConfirmed,
-        });
+          console.log("Booking filter check:", {
+            id: booking.id,
+            status,
+            isConfirmed,
+            startTime: booking.class_session.start_time,
+            sessionTime: sessionTime.toISOString(),
+            isUpcoming,
+            passes: isConfirmed && isUpcoming,
+          });
 
-        console.log("Booking filter check:", {
-          id: booking.id,
-          status,
-          isConfirmed,
-          sessionTime,
-          isUpcoming,
-          passes: isConfirmed && isUpcoming,
-        });
+          return isConfirmed && isUpcoming;
+        } else {
+          // If no start_time but has booking_date
+          if (booking.booking_date) {
+            const bookingDate = new Date(booking.booking_date);
+            return isConfirmed && bookingDate >= now;
+          }
+        }
 
-        return isConfirmed && isUpcoming;
+        return isConfirmed; // Show confirmed bookings even without dates
       })
       .sort((a, b) => {
         // Sort chronologically - nearest session first
-        const timeA = new Date(a.class_session.start_time).getTime();
-        const timeB = new Date(b.class_session.start_time).getTime();
-        return timeA - timeB;
+        const getTime = (booking) => {
+          if (booking.class_session?.start_time) {
+            return new Date(booking.class_session.start_time).getTime();
+          } else if (booking.booking_date) {
+            return new Date(booking.booking_date).getTime();
+          }
+          return 0;
+        };
+
+        return getTime(a) - getTime(b);
       });
   };
 
@@ -617,22 +632,40 @@ export default function ClassBookingsTab({
               <h4 className="text-lg font-medium text-white mb-4">
                 Upcoming Sessions
               </h4>
-              {getUpcomingBookings().length === 0 ? (
-                <div className="bg-gray-700 rounded-lg p-8 text-center">
-                  <Calendar className="h-12 w-12 text-gray-500 mx-auto mb-4" />
-                  <p className="text-gray-300 mb-2">
-                    No upcoming sessions booked
-                  </p>
-                  <p className="text-gray-400 text-sm">
-                    Use the "Book Class" button above to book this client into
-                    classes.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {getUpcomingBookings()
-                    .slice(0, 6)
-                    .map((booking) => (
+              {(() => {
+                const upcomingBookings = getUpcomingBookings();
+                console.log(
+                  "Upcoming bookings to display:",
+                  upcomingBookings.length,
+                );
+
+                // Also show ALL confirmed bookings for debugging
+                const allConfirmedBookings = bookings.filter((b) => {
+                  const status = b.booking_status || b.status;
+                  return status === "confirmed" || status === "attended";
+                });
+                console.log("All confirmed bookings:", allConfirmedBookings);
+
+                // Use all confirmed bookings if no upcoming ones
+                const bookingsToShow =
+                  upcomingBookings.length > 0
+                    ? upcomingBookings
+                    : allConfirmedBookings;
+
+                return bookingsToShow.length === 0 ? (
+                  <div className="bg-gray-700 rounded-lg p-8 text-center">
+                    <Calendar className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+                    <p className="text-gray-300 mb-2">
+                      No upcoming sessions booked
+                    </p>
+                    <p className="text-gray-400 text-sm">
+                      Use the "Book Class" button above to book this client into
+                      classes.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {bookingsToShow.slice(0, 6).map((booking) => (
                       <div
                         key={booking.id}
                         className="bg-gray-700 rounded-lg p-4"
@@ -707,8 +740,9 @@ export default function ClassBookingsTab({
                         )}
                       </div>
                     ))}
-                </div>
-              )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
