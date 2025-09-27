@@ -35,7 +35,10 @@ export async function GET(
       return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
     }
 
-    // Check if user has access to this organization
+    // Check if user has access (either as coach/owner or as the client)
+    let hasAccess = false;
+    
+    // Check if user is a coach/owner in the organization
     const { data: userOrg } = await supabase
       .from('user_organizations')
       .select('organization_id')
@@ -43,7 +46,23 @@ export async function GET(
       .eq('organization_id', conversation.organization_id)
       .single();
 
-    if (!userOrg) {
+    if (userOrg) {
+      hasAccess = true;
+    } else {
+      // Check if user is the client in the conversation
+      const { data: client } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .eq('id', conversation.client_id)
+        .single();
+
+      if (client) {
+        hasAccess = true;
+      }
+    }
+
+    if (!hasAccess) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
@@ -133,7 +152,12 @@ export async function POST(
       return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
     }
 
-    // Check if user has access to this organization
+    // Check if user is either a coach/owner or a client
+    let hasAccess = false;
+    let senderType: 'coach' | 'client' = 'coach';
+    let senderId = session.user.id;
+
+    // First check if user is a coach/owner in the organization
     const { data: userOrg } = await supabase
       .from('user_organizations')
       .select('organization_id')
@@ -141,22 +165,41 @@ export async function POST(
       .eq('organization_id', conversation.organization_id)
       .single();
 
-    if (!userOrg) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    if (userOrg) {
+      hasAccess = true;
+      senderType = 'coach';
+      senderId = session.user.id;
+    } else {
+      // Check if user is the client in the conversation
+      const { data: client } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .eq('id', conversation.client_id)
+        .single();
+
+      if (client) {
+        hasAccess = true;
+        senderType = 'client';
+        senderId = client.id; // Use client.id as sender_id for clients
+      }
     }
 
-    // Determine sender type based on user's role in the conversation
-    const senderType = conversation.coach_id === session.user.id ? 'coach' : 'client';
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
 
     // Create the message
     const { data: message, error } = await supabase
       .from('messages')
       .insert({
         conversation_id: conversationId,
-        sender_id: session.user.id,
+        sender_id: senderId, // Use the correct sender_id (client.id for clients, user.id for coaches)
         sender_type: senderType,
         content: content.trim(),
-        message_type
+        message_type,
+        organization_id: conversation.organization_id,
+        client_id: conversation.client_id
       })
       .select(`
         id,
