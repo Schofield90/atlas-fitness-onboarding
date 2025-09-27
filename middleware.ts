@@ -53,13 +53,16 @@ const SUBDOMAIN_CONFIG = {
       '/simple-login',
       '/auth',
       '/book',
+      '/claim',  // Add claim pages for member account activation
       '/[org]',
       '/api/booking',
       '/api/client',
       '/api/client-portal',
       '/api/login-otp',
       '/api/booking-by-slug',
-      '/api/auth'
+      '/api/auth',
+      '/api/members/validate-claim-token',
+      '/api/members/claim-account'
     ],
     redirectPath: '/simple-login',
     requiresClient: false,
