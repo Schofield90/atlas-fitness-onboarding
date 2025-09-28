@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { serverBookingLinkService } from "@/app/lib/services/booking-link";
+import { serverBookingLinkService } from "@/app/lib/services/booking-link-server";
 import { createClient } from "@/app/lib/supabase/server";
 
 export async function GET(
