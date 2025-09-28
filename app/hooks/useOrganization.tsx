@@ -8,7 +8,7 @@ import {
   useCallback,
   ReactNode,
 } from "react";
-import { createClient } from "@/app/lib/supabase/client";
+import { createSessionClient } from "@/app/lib/supabase/client-with-session";
 import { useRouter } from "next/navigation";
 import { User } from "@supabase/supabase-js";
 
@@ -45,142 +45,90 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Skip organization fetching on login/auth pages to prevent 406 errors
+    if (typeof window !== "undefined") {
+      const currentPath = window.location.pathname;
+      const isAuthPage = [
+        "/owner-login",
+        "/signin",
+        "/signup",
+        "/login",
+        "/auth",
+      ].some((path) => currentPath.startsWith(path));
+
+      if (isAuthPage) {
+        setIsLoading(false);
+        return;
+      }
+    }
+
     try {
-      console.log("Starting fetchOrganization...");
       setError(null);
-      const supabase = createClient();
 
-      if (!supabase) {
-        console.log("No supabase client");
-        setIsLoading(false);
-        return;
-      }
+      // Use the API endpoint that bypasses RLS issues
+      const response = await fetch("/api/auth/get-organization", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include", // Include cookies for authentication
+      });
 
-      // Get current user
-      console.log("Getting user from auth...");
-      const {
-        data: { user: currentUser },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError || !currentUser) {
-        console.log("No user found:", userError);
-        setUser(null);
-        setOrganizationId(null);
-        setOrganization(null);
-        setIsLoading(false);
-        return;
-      }
-
-      console.log("User found:", currentUser.id, currentUser.email);
-
-      setUser(currentUser);
-
-      // Check if this is a superadmin user - they don't need organizations
-      if (currentUser.email?.endsWith("@gymleadhub.co.uk")) {
-        console.log("User is a platform admin - skipping organization check");
-        setOrganizationId(null);
-        setOrganization(null);
-        setIsLoading(false);
-        return;
-      }
-
-      // Check if user is a client (not an organization owner)
-      // Only check the clients table, don't make assumptions based on email
-      try {
-        const { data: clientCheck, error: clientError } = await supabase
-          .from("clients")
-          .select("id")
-          .eq("user_id", currentUser.id)
-          .maybeSingle();
-
-        if (!clientError && clientCheck) {
-          console.log("User is a client/member - skipping organization check");
+      if (!response.ok) {
+        if (response.status === 401) {
+          console.log("Not authenticated - clearing organization state");
+          setUser(null);
           setOrganizationId(null);
           setOrganization(null);
           setIsLoading(false);
           return;
         }
-      } catch (err) {
-        console.log("Client check failed, continuing...", err);
+        throw new Error(`API request failed: ${response.status}`);
       }
 
-      // Try to get organization ID
-      console.log("Fetching organization for user:", currentUser.id);
+      const result = await response.json();
 
-      let orgData = null;
-      let orgError = null;
+      if (!result.success) {
+        throw new Error(result.error || "Failed to fetch organization");
+      }
 
-      // Regular flow for other users
-      if (false) {
-        // Never reach this for sam
-        // This won't execute
+      const {
+        organizationId,
+        organization,
+        user: currentUser,
+        role,
+      } = result.data;
+
+      // Set user data
+      setUser(currentUser);
+
+      // Set organization data
+      console.log(
+        "[useOrganization] API returned - orgId:",
+        organizationId,
+        "org:",
+        organization?.name,
+      );
+      if (organizationId && organization) {
+        console.log(
+          "[useOrganization] Setting organizationId:",
+          organizationId,
+        );
+        setOrganizationId(organizationId);
+        setOrganization(organization);
       } else {
-        // Try user_organizations table first (for owners)
-        const { data: userOrgData, error: userOrgError } = await supabase
-          .from("user_organizations")
-          .select("organization_id, role")
-          .eq("user_id", currentUser.id)
-          .single();
-
-        if (userOrgData && !userOrgError) {
-          console.log(
-            "Found organization via user_organizations:",
-            userOrgData,
-          );
-          orgData = userOrgData.organization_id;
-        } else {
-          console.log("user_organizations query failed:", userOrgError);
-
-          // Try to find any organization where this user is the owner
-          const { data: ownedOrg } = await supabase
-            .from("organizations")
-            .select("id")
-            .eq("owner_id", currentUser.id)
-            .single();
-
-          if (ownedOrg) {
-            orgData = ownedOrg.id;
-            console.log("Found organization by owner_id:", orgData);
-          }
-        }
+        console.log("[useOrganization] No organization found, clearing state");
+        setOrganizationId(null);
+        setOrganization(null);
       }
-
-      console.log("Organization data:", orgData);
-
-      if (!orgData) {
-        console.log("No organization found for user");
-        setIsLoading(false);
-        return;
-      }
-
-      // Fetch organization details - just the basic data, no joins
-      const { data: orgDetails, error: detailsError } = await supabase
-        .from("organizations")
-        .select("*")
-        .eq("id", orgData)
-        .single();
-
-      if (detailsError) {
-        console.error("Error fetching organization details:", detailsError);
-        // Don't throw, just continue with the org ID we have
-        setOrganizationId(orgData);
-        setOrganization({ id: orgData, name: "Organization" });
-        setIsLoading(false);
-        return;
-      }
-
-      setOrganizationId(orgData);
-      setOrganization(orgDetails);
     } catch (err: any) {
       console.error("Organization fetch error:", err);
       setError(err.message);
 
-      // If it's a genuine error (not just missing org), show it
-      if (err.code && err.code !== "PGRST116") {
-        // Not found error
-        setError("Failed to load organization");
-      }
+      // Clear state on error
+      setUser(null);
+      setOrganizationId(null);
+      setOrganization(null);
     } finally {
       setIsLoading(false);
     }
@@ -192,7 +140,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     // Only set up auth state listener on client side
     if (typeof window === "undefined") return;
 
-    const supabase = createClient();
+    const supabase = createSessionClient();
     if (!supabase) return;
 
     const {

@@ -9,7 +9,14 @@ export async function GET(request: NextRequest) {
     request.nextUrl.searchParams.get("pageSize") || "10",
   );
 
+  console.log("========== CLIENTS-BYPASS API DEBUG ==========");
+  console.log("📍 organizationId requested:", organizationId);
+  console.log("📍 search:", search);
+  console.log("📍 page:", page);
+  console.log("📍 pageSize:", pageSize);
+
   if (!organizationId) {
+    console.log("❌ No organizationId provided");
     return NextResponse.json(
       { error: "Organization ID required" },
       { status: 400 },
@@ -67,10 +74,28 @@ export async function GET(request: NextRequest) {
 
     const { data, error, count } = await query;
 
+    console.log("📊 Query results:");
+    console.log("  - Total count:", count);
+    console.log("  - Data length:", data?.length);
+    console.log(
+      "  - First few clients:",
+      data?.slice(0, 3).map((c) => ({
+        id: c.id,
+        email: c.email,
+        first_name: c.first_name,
+        last_name: c.last_name,
+        org_id: c.org_id,
+        created_at: c.created_at,
+      })),
+    );
+
     if (error) {
-      console.error("Error fetching clients:", error);
+      console.error("❌ Error fetching clients:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    console.log("✅ Returning", data?.length, "clients to frontend");
+    console.log("==============================================");
 
     return NextResponse.json({ data, count });
   } catch (error: any) {

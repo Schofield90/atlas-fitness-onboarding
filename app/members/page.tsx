@@ -34,28 +34,54 @@ import {
 
 interface Member {
   id: string;
-  first_name: string;
-  last_name: string;
+  name: string;
+  first_name?: string;
+  last_name?: string;
   email: string;
   phone?: string;
-  created_at: string;
-  membership_status?: string;
-  membership_plan_id?: string;
-  membership_plan_name?: string;
-  last_visit?: string;
-  total_visits?: number;
   status: "active" | "inactive" | "pending";
   tags?: string[];
-  notes?: string;
-  user_id?: string;
+  lastContact?: string | null;
+  totalSpent?: number;
+  joinDate?: string;
+  leadSource?: string | null;
+  assignedTo?: string | null;
+  notes?: string | null;
+  user_id?: string | null;
+  address?: string | null;
+  city?: string | null;
+  date_of_birth?: string | null;
+  emergency_contact_name?: string | null;
+  emergency_contact_phone?: string | null;
+  medical_conditions?: string | null;
+  fitness_goals?: string | null;
+  avatar_url?: string | null;
+  membership_type?: string | null;
+  membership_status?: string | null;
+  membership_plan_id?: string;
+  membership_plan_name?: string;
+  last_visit_date?: string | null;
+  last_visit?: string;
+  total_visits?: number;
+  credits_remaining?: number;
+  created_at?: string;
   is_claimed?: boolean;
 }
 
 function MembersContent() {
-  const { organizationId } = useOrganization();
+  const { organizationId, isLoading: orgLoading } = useOrganization();
   const [members, setMembers] = useState<Member[]>([]);
   const [filteredMembers, setFilteredMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Critical debug logs
+  console.log("========== MEMBERS PAGE DEBUG ==========");
+  console.log("📊 organizationId:", organizationId);
+  console.log("📊 orgLoading:", orgLoading);
+  console.log("📊 members state length:", members.length);
+  console.log("📊 filteredMembers state length:", filteredMembers.length);
+  console.log("📊 loading state:", loading);
+  console.log("=========================================");
   const [duplicateEmails, setDuplicateEmails] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<
@@ -85,11 +111,36 @@ function MembersContent() {
     const page = parseInt(searchParams.get("page") || "1");
     setCurrentPage(page);
 
-    // Only fetch if we have an organizationId
-    if (organizationId) {
+    console.log("========== USEEFFECT TRIGGER ==========");
+    console.log("Members useEffect - organizationId:", organizationId);
+    console.log("Members useEffect - orgLoading:", orgLoading);
+    console.log("Members useEffect - conditions check:");
+    console.log("  - Has organizationId?", !!organizationId);
+    console.log("  - Not orgLoading?", !orgLoading);
+    console.log("  - Should fetch?", organizationId && !orgLoading);
+    console.log("=========================================");
+
+    // Only fetch if we have an organizationId and not still loading org
+    if (organizationId && !orgLoading) {
+      console.log(
+        "✅ Calling fetchMembers with organizationId:",
+        organizationId,
+      );
       fetchMembers();
+    } else if (!orgLoading && !organizationId) {
+      console.log(
+        "⚠️ Organization loading complete but no organizationId found",
+      );
+      setLoading(false);
+    } else {
+      console.log(
+        "⏳ Still waiting - orgLoading:",
+        orgLoading,
+        "organizationId:",
+        organizationId,
+      );
     }
-  }, [searchParams, organizationId]);
+  }, [searchParams, organizationId, orgLoading]);
 
   useEffect(() => {
     filterMembers();
@@ -142,9 +193,15 @@ function MembersContent() {
       }
 
       const data = await response.json();
+      console.log("========== API RESPONSE DEBUG ==========");
+      console.log("Full API response:", JSON.stringify(data, null, 2));
+      console.log("data.data exists:", !!data.data);
+      console.log("data.data length:", data.data?.length);
+      console.log("data.data is array:", Array.isArray(data.data));
+      console.log("=========================================");
 
       if (!data.data) {
-        console.error("Invalid API response:", data);
+        console.error("Invalid API response - data.data is missing:", data);
         toast.error("Failed to load members");
         setLoading(false);
         return;
@@ -152,6 +209,11 @@ function MembersContent() {
 
       // Process the clients from the bypass API
       const clients = data.data || [];
+      console.log("Number of clients from API:", clients.length);
+      console.log("First 2 clients:", clients.slice(0, 2));
+      if (clients.length > 0) {
+        console.log("First client:", clients[0]);
+      }
 
       // Check for duplicates based on email
       const emailToClient: Record<string, any> = {};
@@ -218,31 +280,63 @@ function MembersContent() {
 
         return {
           id: client.id,
+          name:
+            `${client.first_name || ""} ${client.last_name || ""}`.trim() ||
+            "Unknown",
           first_name: client.first_name || "",
           last_name: client.last_name || "",
           email: client.email || "",
           phone: client.phone || "",
           created_at: client.created_at,
+          joinDate: client.created_at,
           membership_status: membership?.status || "No Membership",
           membership_plan_id: membership?.membership_plan_id,
           membership_plan_name: membershipPlan?.name || "No Plan",
           last_visit: client.last_visit,
+          last_visit_date: client.last_visit_date,
           total_visits: client.total_visits || 0,
           status: determineStatusFromAllMemberships(client, memberships),
           tags: client.tags || [],
           notes: client.notes,
           user_id: client.user_id,
           is_claimed: !!client.user_id,
+          totalSpent: client.total_spent || 0,
+          lastContact: client.last_contact_date || null,
+          leadSource: client.lead_source || null,
+          assignedTo: client.assigned_to || null,
+          address: client.address || null,
+          city: client.city || null,
+          date_of_birth: client.date_of_birth || null,
+          emergency_contact_name: client.emergency_contact_name || null,
+          emergency_contact_phone: client.emergency_contact_phone || null,
+          medical_conditions: client.medical_conditions || null,
+          fitness_goals: client.fitness_goals || null,
+          avatar_url: client.avatar_url || null,
+          membership_type: client.membership_type || null,
+          credits_remaining: client.credits_remaining || 0,
         };
       });
 
+      console.log("========== STATE UPDATE DEBUG ==========");
+      console.log("Transformed members count:", transformedMembers.length);
+      console.log("First transformed member:", transformedMembers[0]);
+      console.log(
+        "About to call setMembers with",
+        transformedMembers.length,
+        "members",
+      );
       setMembers(transformedMembers);
+      console.log("Called setMembers");
+      console.log("Setting duplicate emails:", Array.from(dupEmails));
       setDuplicateEmails(Array.from(dupEmails));
+      console.log("fetchMembers complete, about to set loading to false");
+      console.log("=========================================");
     } catch (error) {
       console.error("Error:", error);
       toast.error("Failed to load members");
     } finally {
       setLoading(false);
+      console.log("Loading state set to false in finally block");
     }
   };
 
@@ -276,6 +370,7 @@ function MembersContent() {
   };
 
   const filterMembers = () => {
+    console.log("filterMembers called, members count:", members.length);
     let filtered = [...members];
 
     // Search filter
@@ -299,6 +394,7 @@ function MembersContent() {
       filtered = filtered.filter((m) => m.membership_plan_id === planFilter);
     }
 
+    console.log("Setting filtered members, count:", filtered.length);
     setFilteredMembers(filtered);
   };
 
@@ -334,6 +430,19 @@ function MembersContent() {
   const paginatedMembers = filteredMembers.slice(
     startIndex,
     startIndex + itemsPerPage,
+  );
+
+  console.log(
+    "Render - members:",
+    members.length,
+    "filtered:",
+    filteredMembers.length,
+    "paginated:",
+    paginatedMembers.length,
+    "loading:",
+    loading,
+    "orgLoading:",
+    orgLoading,
   );
 
   const handlePageChange = (page: number) => {
@@ -544,10 +653,12 @@ function MembersContent() {
 
         {/* Members Table */}
         <div className="bg-gray-800 rounded-lg overflow-hidden">
-          {loading ? (
+          {loading || orgLoading ? (
             <div className="p-8 text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
-              <p className="text-gray-400 mt-4">Loading members...</p>
+              <p className="text-gray-400 mt-4">
+                {orgLoading ? "Loading organization..." : "Loading members..."}
+              </p>
             </div>
           ) : paginatedMembers.length === 0 ? (
             <div className="p-8 text-center">
@@ -607,15 +718,15 @@ function MembersContent() {
                             <div className="flex-shrink-0 h-10 w-10">
                               <div className="h-10 w-10 rounded-full bg-orange-600 flex items-center justify-center">
                                 <span className="text-white font-medium">
-                                  {member.first_name[0]}
-                                  {member.last_name[0]}
+                                  {member.first_name?.[0] || member.name[0]}
+                                  {member.last_name?.[0] || ""}
                                 </span>
                               </div>
                             </div>
                             <div className="ml-4">
                               <div className="flex items-center gap-2">
                                 <span className="text-sm font-medium text-white">
-                                  {member.first_name} {member.last_name}
+                                  {member.name}
                                 </span>
                                 {!member.is_claimed && (
                                   <button
@@ -761,9 +872,7 @@ function MembersContent() {
             <div className="bg-gray-800 rounded-lg max-w-2xl w-full p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium text-white">
-                  Account Claim Instructions for{" "}
-                  {selectedMemberForClaim?.first_name}{" "}
-                  {selectedMemberForClaim?.last_name}
+                  Account Claim Instructions for {selectedMemberForClaim?.name}
                 </h3>
                 <button
                   onClick={() => {
