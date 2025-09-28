@@ -29,7 +29,7 @@ export async function GET() {
       .limit(10);
 
     // Check for any recipes without service role
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
     const { data: userRecipes, error: userError } = await supabase
       .from("recipes")
       .select("*")

@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/app/lib/supabase/client";
+import { createSessionClient, getSessionWithRetry } from "@/app/lib/supabase/client-with-session";
 import { Send, ChevronLeft, MessageCircle, User, Clock } from "lucide-react";
 
 export default function ClientMessagesPage() {
-  const supabase = createClient();
+  const supabase = createSessionClient();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [client, setClient] = useState<any>(null);
@@ -27,69 +27,53 @@ export default function ClientMessagesPage() {
 
   const checkAuth = async () => {
     try {
-      // First try to get the session from storage
+      // Get the current user
       const {
-        data: { session },
-      } = await supabase.auth.getSession();
+        data: { user },
+      } = await supabase.auth.getUser();
 
-      let userId: string | null = null;
+      if (!user) {
+        console.log("No user found, redirecting to login");
+        router.push("/simple-login");
+        return;
+      }
 
-      // If no session in memory, try to restore from storage/cookies
-      if (!session) {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
-        if (!user) {
-          router.push("/simple-login");
-          return;
-        }
-
-        // If we have a user but no session, refresh the session
-        const {
-          data: { session: refreshedSession },
-        } = await supabase.auth.refreshSession();
-
-        if (!refreshedSession) {
-          router.push("/simple-login");
-          return;
-        }
-
-        userId = user.id;
-      } else {
-        userId = session.user.id;
+      console.log("Authenticated as:", user.email);
+      
+      // Check if this is a client account
+      if (user.email === "sam@atlas-gyms.co.uk") {
+        // This is the owner account, not a client
+        alert("You are logged in as the gym owner. Please switch to the client account to test messaging.");
+        router.push("/switch-account");
+        return;
       }
 
       // Get client info
       const { data: clientData, error: clientError } = await supabase
         .from("clients")
         .select("*, organizations(*)")
-        .eq("user_id", userId)
+        .eq("user_id", user.id)
         .single();
 
       if (clientError || !clientData) {
-        // Try by email
-        const userEmail =
-          session?.user?.email ||
-          (await supabase.auth.getUser()).data.user?.email;
-        if (userEmail) {
-          const { data: clientByEmail } = await supabase
-            .from("clients")
-            .select("*, organizations(*)")
-            .eq("email", userEmail)
-            .single();
+        // Try by email as fallback
+        const { data: clientByEmail } = await supabase
+          .from("clients")
+          .select("*, organizations(*)")
+          .eq("email", user.email)
+          .single();
 
-          if (clientByEmail) {
-            setClient(clientByEmail);
-          } else {
-            router.push("/simple-login");
-            return;
-          }
+        if (clientByEmail) {
+          console.log("Found client by email:", clientByEmail);
+          setClient(clientByEmail);
         } else {
-          router.push("/simple-login");
+          console.error("No client profile found for user:", user.email);
+          alert("No client profile found. Please ensure you are logged in as a client member.");
+          router.push("/switch-account");
           return;
         }
       } else {
+        console.log("Found client by user_id:", clientData);
         setClient(clientData);
       }
     } catch (error) {
@@ -102,25 +86,34 @@ export default function ClientMessagesPage() {
 
   const initConversation = async () => {
     try {
-      // Get current session to ensure we're authenticated
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      // Get current session with retry logic
+      const session = await getSessionWithRetry(supabase);
 
       if (!session) {
-        console.error("No session found");
+        console.error("No session found after retry");
         alert("Please sign in to use the messaging feature.");
+        router.push("/simple-login");
         return;
       }
 
+      const accessToken = session.access_token;
+      if (!accessToken) {
+        console.error("No access token available");
+        alert("Authentication error. Please login again.");
+        router.push("/simple-login");
+        return;
+      }
+
+      console.log("Using access token for API call");
+      
       // Create or get the conversation for this client
       const resp = await fetch("/api/client/conversations", {
         method: "POST",
-        credentials: "include", // Include cookies for authentication
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`, // Add auth header as backup
+          Authorization: `Bearer ${accessToken}`, // PRIMARY: Use auth header
         },
+        credentials: "include", // BACKUP: Also include cookies
       });
       const data = await resp.json();
 

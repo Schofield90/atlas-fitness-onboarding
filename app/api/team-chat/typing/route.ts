@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
+import { createClient } from "@supabase/supabase-js";
 import type { Database } from "../../../lib/supabase/database.types";
 
 // POST /api/team-chat/typing - Set typing indicator
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies });
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
     // Get current user
     const {
@@ -109,7 +108,7 @@ export async function POST(request: NextRequest) {
 // GET /api/team-chat/typing - Get current typing indicators for a channel
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies });
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
     const { searchParams } = new URL(request.url);
     const channelId = searchParams.get("channel_id");
 
@@ -187,7 +186,7 @@ export async function GET(request: NextRequest) {
 // DELETE /api/team-chat/typing - Cleanup expired typing indicators
 export async function DELETE() {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies });
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
     // Clean up expired typing indicators
     const { error } = await supabase.rpc("cleanup_expired_typing_indicators");

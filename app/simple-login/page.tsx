@@ -42,6 +42,27 @@ function LoginPageContent() {
     setMessage("");
 
     try {
+      // Try direct Supabase auth first
+      const supabase = createClient();
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.toLowerCase().trim(),
+        password: password,
+      });
+
+      if (authData?.session) {
+        // Direct auth successful!
+        console.log("Direct auth successful");
+        setSuccess(true);
+        setMessage("Login successful! Redirecting...");
+        
+        // Redirect immediately
+        setTimeout(() => {
+          window.location.href = "/client/dashboard";
+        }, 500);
+        return;
+      }
+
+      // Fallback to API if direct auth fails
       const response = await fetch("/api/auth/simple-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -73,45 +94,50 @@ function LoginPageContent() {
       // Handle successful login
       setSuccess(true);
       setMessage("Login successful! Redirecting...");
+      
+      console.log("Login response:", data);
 
       // If we have an auth URL, use it
       if (data.authUrl) {
+        console.log("Using authUrl redirect:", data.authUrl);
         window.location.href = data.authUrl;
         return;
       }
 
       // If we have session tokens, set them
       if (data.session) {
+        console.log("Setting session with tokens");
         const supabase = createClient();
 
-        // Clear existing session
-        await supabase.auth.signOut({ scope: "local" });
-
-        // Set new session
-        const { error: sessionError } = await supabase.auth.setSession({
+        // Set new session (don't clear existing first, as it might remove server cookies)
+        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
           access_token: data.session.access_token,
           refresh_token: data.session.refresh_token,
         });
 
         if (sessionError) {
           console.error("Failed to set session:", sessionError);
-          // Try authUrl fallback if available
-          if (data.authUrl) {
-            window.location.href = data.authUrl;
-            return;
-          }
-          throw new Error("Failed to establish session");
+          // Still try to redirect - the server might have set the session
+          window.location.href = "/client/dashboard";
+          return;
         }
 
-        // Redirect to dashboard
+        // Verify the session was set
+        const { data: { user } } = await supabase.auth.getUser();
+        console.log("Session user after setting:", user?.email);
+
+        console.log("Session set successfully, redirecting to:", data.redirectTo || "/client/dashboard");
+        // Small delay to ensure cookies are set
         setTimeout(() => {
-          router.push("/client/dashboard");
-        }, 500);
+          window.location.href = data.redirectTo || "/client/dashboard";
+        }, 100);
       } else {
-        // Fallback redirect
+        // Fallback redirect - trust the server set the session
+        console.log("No session data returned, but login was successful - redirecting");
+        // Small delay to ensure server cookies are set
         setTimeout(() => {
-          router.push("/client/dashboard");
-        }, 500);
+          window.location.href = "/client/dashboard";
+        }, 100);
       }
     } catch (err) {
       console.error("Login error:", err);

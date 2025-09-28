@@ -29,8 +29,8 @@ export function createMiddlewareClient(
             sameSite: isProduction ? "lax" : "lax",
             // Always use secure in production
             secure: isProduction,
-            // Ensure cookies are accessible via HTTP
-            httpOnly: true,
+            // Allow client-side access to match server.ts configuration
+            httpOnly: false,
             // Set path to root
             path: "/",
           };

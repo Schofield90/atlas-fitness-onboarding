@@ -3,36 +3,61 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 
-export async function POST(_request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
     // Use server client to read the authenticated user (client)
-    const cookieStore = cookies();
+    const cookieStore = await cookies(); // Next.js 15 requires await
     let supabaseUser = null;
 
-    try {
-      const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-          cookies: {
-            get(name: string) {
-              const cookie = cookieStore.get(name);
-              return cookie?.value;
+    // Check for Authorization header first (for direct API calls)
+    const authHeader = request.headers.get('authorization');
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      // Use the token from the header
+      const token = authHeader.substring(7);
+      
+      // Verify the token using admin client
+      const admin = createAdminClient();
+      const { data: { user }, error } = await admin.auth.getUser(token);
+      
+      if (!error && user) {
+        supabaseUser = user;
+        console.log("Authenticated via Bearer token:", { id: user.id, email: user.email });
+      }
+    }
+    
+    // If no header auth, try cookies
+    if (!supabaseUser) {
+      try {
+        const supabase = createServerClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          {
+            cookies: {
+              getAll() {
+                return cookieStore.getAll();
+              },
+              setAll(cookiesToSet) {
+                try {
+                  cookiesToSet.forEach(({ name, value, options }) => {
+                    cookieStore.set(name, value, options);
+                  });
+                } catch (error) {
+                  // Silent fail for read-only cookie operations
+                }
+              },
             },
           },
-        },
-      );
+        );
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      supabaseUser = user;
-    } catch (authError) {
-      console.error("Auth error:", authError);
-      return NextResponse.json(
-        { error: "Authentication failed" },
-        { status: 401 },
-      );
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        supabaseUser = user;
+        console.log("Authenticated via cookies:", { id: user?.id, email: user?.email });
+      } catch (authError) {
+        console.error("Cookie auth error:", authError);
+      }
     }
 
     if (!supabaseUser) {
@@ -46,30 +71,44 @@ export async function POST(_request: NextRequest) {
     let clientRow = null;
 
     // Try 1: Find by user_id
+    console.log("Looking for client with user_id:", supabaseUser.id);
     try {
-      const { data } = await admin
+      const { data, error } = await admin
         .from("clients")
         .select("*")
         .eq("user_id", supabaseUser.id)
         .limit(1)
         .single();
-      clientRow = data;
+      
+      if (error) {
+        console.log("Error finding client by user_id:", error);
+      } else {
+        clientRow = data;
+        console.log("Found client by user_id:", data?.id);
+      }
     } catch (e) {
-      console.log("Client not found by user_id, trying email...");
+      console.log("Exception finding client by user_id:", e);
     }
 
     // Try 2: Find by email if user_id lookup failed
     if (!clientRow && supabaseUser.email) {
+      console.log("Looking for client with email:", supabaseUser.email);
       try {
-        const { data } = await admin
+        const { data, error } = await admin
           .from("clients")
           .select("*")
           .eq("email", supabaseUser.email)
           .limit(1)
           .single();
-        clientRow = data;
+        
+        if (error) {
+          console.log("Error finding client by email:", error);
+        } else {
+          clientRow = data;
+          console.log("Found client by email:", data?.id);
+        }
       } catch (e) {
-        console.log("Client not found by email either");
+        console.log("Exception finding client by email:", e);
       }
     }
 
@@ -100,11 +139,30 @@ export async function POST(_request: NextRequest) {
     }
 
     // Determine coach to assign: prefer clients.assigned_to
-    // After the migration, coach_id can be null for client-initiated conversations
+    // If no assigned coach, try to find the organization owner
     let coachId: string | null = clientRow.assigned_to || null;
 
-    // It's okay if coachId is null - the conversation can be created without a coach
-    // A coach will be auto-assigned when they respond to the conversation
+    // If no assigned coach, get the organization owner as default coach
+    if (!coachId) {
+      console.log("No assigned coach, finding organization owner...");
+      
+      try {
+        const { data: org } = await admin
+          .from("organizations")
+          .select("owner_id")
+          .eq("id", organizationId)
+          .single();
+          
+        if (org?.owner_id) {
+          coachId = org.owner_id;
+          console.log("Using organization owner as coach:", coachId);
+        }
+      } catch (err) {
+        console.log("Could not find organization owner:", err);
+      }
+    }
+
+    // It's okay if coachId is still null - the conversation can be created without a coach
     if (!coachId) {
       console.log(
         "No coach assigned yet - conversation will be created without a coach",

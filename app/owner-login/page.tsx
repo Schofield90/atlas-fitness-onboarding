@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/app/lib/supabase/client";
+import { createSessionClient } from "@/app/lib/supabase/client-with-session";
 import { Mail, Lock, Chrome, AlertCircle, Loader2 } from "lucide-react";
 
 export default function OwnerLoginPage() {
@@ -15,79 +15,69 @@ export default function OwnerLoginPage() {
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("🔐 Starting owner login attempt for:", email);
     setLoading(true);
     setError("");
 
     try {
-      const supabase = createClient();
-      if (!supabase) {
-        console.error("Supabase client not initialized - likely SSR issue");
-        setError(
-          "Unable to connect to authentication service. Please refresh the page.",
-        );
-        setLoading(false);
-        return;
-      }
-
-      console.log("Attempting login for:", email);
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      // Use the API endpoint that we know works correctly
+      console.log("📡 Using API-based login to avoid RLS issues...");
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
       });
 
-      if (error) {
-        console.error("Login error:", error);
-        throw error;
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        console.error("❌ Login API error:", result);
+        throw new Error(result.error || 'Login failed');
       }
 
-      if (data?.user) {
-        console.log("Login successful for:", data.user.email);
+      console.log("✅ API login successful:", {
+        user: result.data.user,
+        organization: result.data.organization?.name
+      });
 
-        // Check if user has an organization (with better error handling)
-        try {
-          const { data: orgData, error: orgError } = await supabase
-            .from("user_organizations")
-            .select("organization_id, role")
-            .eq("user_id", data.user.id)
-            .single();
-
-          if (
-            !orgError &&
-            orgData &&
-            (orgData.role === "owner" || orgData.role === "admin")
-          ) {
-            console.log("User has organization with role:", orgData.role);
-            router.push("/dashboard");
-            return;
-          }
-        } catch (err) {
-          console.log("Error checking user_organizations, continuing...");
+      // Clear any existing sessions first
+      const supabase = createSessionClient();
+      if (supabase) {
+        await supabase.auth.signOut();
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Set the session from the API response
+        if (result.data.session) {
+          await supabase.auth.setSession({
+            access_token: result.data.session.access_token,
+            refresh_token: result.data.session.refresh_token,
+          });
+          
+          console.log("✅ Session set from API response");
         }
-
-        // Check if they own an organization directly
-        try {
-          const { data: ownedOrg, error: ownedOrgError } = await supabase
-            .from("organizations")
-            .select("id")
-            .eq("owner_id", data.user.id)
-            .single();
-
-          if (!ownedOrgError && ownedOrg) {
-            console.log("User owns organization, redirecting to dashboard");
-            router.push("/dashboard");
-            return;
-          }
-        } catch (err) {
-          console.log("Error checking owned organizations");
-        }
-
-        // If no organization found, still redirect to dashboard
-        // The organization provider will handle the bypass
-        console.log(
-          "No organization found in login, but redirecting to dashboard anyway",
-        );
-        router.push("/dashboard");
       }
+
+      // Store session info in localStorage as backup
+      if (result.data.session) {
+        localStorage.setItem('owner-auth-backup', JSON.stringify({
+          access_token: result.data.session.access_token,
+          refresh_token: result.data.session.refresh_token,
+          expires_at: result.data.session.expires_at,
+          user: result.data.user,
+          organization: result.data.organization
+        }));
+      }
+
+      console.log("🚀 Login successful, redirecting to dashboard...");
+      
+      // Use window.location for a hard redirect to ensure session is properly set
+      window.location.href = "/dashboard";
+      
     } catch (error: any) {
       console.error("Login error:", error);
       setError(error.message || "Invalid email or password");
@@ -98,7 +88,7 @@ export default function OwnerLoginPage() {
 
   const handleGoogleLogin = async () => {
     try {
-      const supabase = createClient();
+      const supabase = createSessionClient();
       if (!supabase) {
         setError("Unable to connect to authentication service");
         return;

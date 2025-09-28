@@ -102,34 +102,32 @@ export default function DashboardPage() {
           setIsAdmin(true);
         }
 
-        // Get user's organization dynamically using client-side query
+        // Get user's organization using API endpoint to avoid RLS issues
         try {
-          // Try to get user's organization from user_organizations table
-          const { data: userOrg } = await supabase
-            .from("user_organizations")
-            .select("organization_id")
-            .eq("user_id", currentUser.id)
-            .single();
+          console.log("Dashboard: Fetching organization via API...");
+          const response = await fetch('/api/auth/get-organization', {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+          });
 
-          if (userOrg?.organization_id) {
-            setOrganizationId(userOrg.organization_id);
-            localStorage.setItem("organizationId", userOrg.organization_id);
-          } else {
-            // Try organization_members table as fallback
-            const { data: memberOrg } = await supabase
-              .from("organization_members")
-              .select("organization_id")
-              .eq("user_id", currentUser.id)
-              .eq("is_active", true)
-              .single();
-
-            if (memberOrg?.organization_id) {
-              setOrganizationId(memberOrg.organization_id);
-              localStorage.setItem("organizationId", memberOrg.organization_id);
+          if (response.ok) {
+            const result = await response.json();
+            if (result.success && result.data.organizationId) {
+              console.log("Dashboard: Organization found:", result.data.organizationId);
+              setOrganizationId(result.data.organizationId);
+              localStorage.setItem("organizationId", result.data.organizationId);
+            } else {
+              console.log("Dashboard: No organization for user (role:", result.data?.role, ")");
+              // User might not have an organization yet or is admin
             }
+          } else {
+            console.error("Dashboard: Failed to fetch organization:", response.status);
           }
         } catch (error) {
-          console.error("Failed to get organization:", error);
+          console.error("Dashboard: Failed to get organization:", error);
           // User might not have an organization yet
         }
 

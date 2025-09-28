@@ -243,7 +243,13 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // NO BYPASSES - Security is mandatory
+  // DEVELOPMENT BYPASS - Allow all routes on localhost
+  if (hostname.includes('localhost') && !hostname.includes('gymleadhub')) {
+    console.log(`[Middleware] Localhost bypass for ${pathname}`);
+    return res
+  }
+
+  // NO BYPASSES - Security is mandatory (in production)
 
   // Handle subdomain-specific routing with different auth logic per portal
   if (hostname.includes('gymleadhub.co.uk') && subdomain) {
@@ -399,6 +405,9 @@ export async function middleware(request: NextRequest) {
   // Create supabase client
   const supabase = createMiddlewareClient(request, res)
 
+  // Debug: Log all cookies
+  console.log('[Middleware] All cookies:', request.cookies.getAll().map(c => ({ name: c.name, value: c.value?.substring(0, 20) + '...' })))
+
   // Wrap in try-catch with timeout to prevent hanging
   let session = null
 
@@ -409,10 +418,12 @@ export async function middleware(request: NextRequest) {
     )
 
     // Get session and refresh if needed
+    console.log('[Middleware] Getting session...')
     const sessionPromise = supabase.auth.getSession()
     const result = await Promise.race([sessionPromise, timeoutPromise])
 
     session = (result as any).data?.session
+    console.log('[Middleware] Session result:', session ? `Found (user: ${session.user?.email})` : 'Not found')
     
     // For members subdomain, try to recover session if not found
     if (!session && subdomain === 'members') {

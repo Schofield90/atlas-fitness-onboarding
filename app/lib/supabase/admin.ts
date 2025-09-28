@@ -95,6 +95,12 @@ export function createAdminClient() {
     // Use node fetch to avoid any browser-specific fetch implementations
     global: {
       fetch: typeof window === "undefined" ? fetch : undefined,
+      // Add proper headers to avoid 406 errors
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      }
     },
   });
 

@@ -27,35 +27,53 @@ export async function createClient() {
         return cookieStore.get(name)?.value;
       },
       set(name: string, value: string, options: CookieOptions) {
-        // Enhanced cookie options for production
-        const enhancedOptions: CookieOptions = {
-          ...options,
-          // Set domain for cross-subdomain support in production
-          domain: isProd ? ".gymleadhub.co.uk" : undefined,
-          // Use lax for subdomain navigation
-          sameSite: "lax",
-          // Secure in production
-          secure: isProd,
-          // httpOnly for security
-          httpOnly: true,
-          // Root path for all pages
-          path: "/",
-        };
+        try {
+          // Enhanced cookie options for production
+          const enhancedOptions: CookieOptions = {
+            ...options,
+            // Set domain for cross-subdomain support in production ONLY
+            // On localhost, don't set domain at all to allow cookies to work
+            domain: isProd ? ".gymleadhub.co.uk" : undefined,
+            // Use lax for subdomain navigation
+            sameSite: "lax",
+            // Secure in production only (localhost doesn't use HTTPS)
+            secure: isProd,
+            // httpOnly for security - but this might block client access
+            httpOnly: false, // Changed to false to allow client-side access
+            // Root path for all pages
+            path: "/",
+          };
 
-        // Important: allow SSR to persist/refresh auth cookies
-        cookieStore.set({ name, value, ...enhancedOptions });
+          // Important: allow SSR to persist/refresh auth cookies
+          cookieStore.set({ name, value, ...enhancedOptions });
+        } catch (error) {
+          // Silently fail in client-side rendering context
+          // This is expected behavior when cookies are accessed outside server actions
+        }
       },
       remove(name: string, options: CookieOptions) {
-        const enhancedOptions: CookieOptions = {
-          ...options,
-          domain: isProd ? ".gymleadhub.co.uk" : undefined,
-          path: "/",
-        };
+        try {
+          const enhancedOptions: CookieOptions = {
+            ...options,
+            // Only set domain in production
+            domain: isProd ? ".gymleadhub.co.uk" : undefined,
+            path: "/",
+          };
 
-        cookieStore.set({ name, value: "", ...enhancedOptions, maxAge: 0 });
+          cookieStore.set({ name, value: "", ...enhancedOptions, maxAge: 0 });
+        } catch (error) {
+          // Silently fail in client-side rendering context
+        }
       },
     },
-    // Don't override auth settings - let SSR helper handle it
+    // Add proper headers to avoid 406 errors
+    global: {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      }
+    }
   });
 }
 

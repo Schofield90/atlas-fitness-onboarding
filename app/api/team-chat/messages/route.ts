@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
+import { createClient } from "@supabase/supabase-js";
 import type { Database } from "../../../lib/supabase/database.types";
 
 // GET /api/team-chat/messages - Get messages for a channel
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies });
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
     const { searchParams } = new URL(request.url);
     const channelId = searchParams.get("channel_id");
     const limit = parseInt(searchParams.get("limit") || "50");
@@ -98,7 +97,7 @@ export async function GET(request: NextRequest) {
 // POST /api/team-chat/messages - Send a new message
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies });
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
     // Get current user
     const {
@@ -269,7 +268,7 @@ export async function POST(request: NextRequest) {
 // PUT /api/team-chat/messages - Update a message
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies });
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
     const { searchParams } = new URL(request.url);
     const messageId = searchParams.get("id");
 
@@ -373,7 +372,7 @@ export async function PUT(request: NextRequest) {
 // DELETE /api/team-chat/messages - Delete a message
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies });
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
     const { searchParams } = new URL(request.url);
     const messageId = searchParams.get("id");
 

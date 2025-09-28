@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
+import { createClient } from "@supabase/supabase-js";
 import type { Database } from "../../../lib/supabase/database.types";
 
 // GET /api/team-chat/search - Search messages
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies });
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
     const { searchParams } = new URL(request.url);
 
     const query = searchParams.get("q");
@@ -134,7 +133,7 @@ export async function GET(request: NextRequest) {
 // POST /api/team-chat/search - Advanced search with filters
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies });
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
     // Get current user
     const {

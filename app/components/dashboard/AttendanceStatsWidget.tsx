@@ -30,36 +30,30 @@ export function AttendanceStatsWidget() {
 
   const fetchAttendanceStats = async () => {
     try {
-      const supabase = createClient();
+      // Get organization via API to avoid RLS issues
+      const response = await fetch('/api/auth/get-organization', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
 
-      // Get user's organization
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: profile } = await supabase
-        .from("user_profiles")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .single();
-
-      let organizationId = profile?.organization_id;
-
-      if (!organizationId) {
-        // Try alternative tables
-        const { data: userOrg } = await supabase
-          .from("user_organizations")
-          .select("organization_id")
-          .eq("user_id", user.id)
-          .single();
-
-        if (!userOrg?.organization_id) {
-          setLoading(false);
-          return;
-        }
-        organizationId = userOrg.organization_id;
+      if (!response.ok) {
+        console.log("AttendanceStats: Not authenticated or failed to get organization");
+        setLoading(false);
+        return;
       }
+
+      const result = await response.json();
+      if (!result.success || !result.data.organizationId) {
+        console.log("AttendanceStats: No organization for user");
+        setLoading(false);
+        return;
+      }
+
+      const organizationId = result.data.organizationId;
+      const supabase = createClient();
 
       // Fetch all attendance records
       const { data: bookings, error } = await supabase

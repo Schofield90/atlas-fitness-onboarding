@@ -123,58 +123,85 @@ export default function ClientDashboardPage() {
 
   const fetchBookings = async (clientId: string) => {
     try {
-      // First try with client_id (if table supports it)
-      let { data, error } = await supabase
+      // First try to get bookings with simplified query
+      const { data, error } = await supabase
         .from("bookings")
-        .select(
-          `
-          *,
+        .select(`
+          id,
+          status,
+          created_at,
+          class_session_id,
           class_sessions (
-            date,
+            id,
             start_time,
             end_time,
             location,
-            class_types (name),
-            instructors (name)
+            name,
+            instructor_name
           )
-        `,
-        )
+        `)
         .eq("client_id", clientId)
         .order("created_at", { ascending: false });
 
-      // If client_id doesn't work, try customer_id
-      if (error && error.message?.includes("client_id")) {
-        const result = await supabase
-          .from("bookings")
-          .select(
-            `
-            *,
+      if (error) {
+        console.error("Error fetching bookings:", error.message, error.details);
+        
+        // Try alternate query structure
+        const { data: altData, error: altError } = await supabase
+          .from("class_bookings")
+          .select(`
+            id,
+            booking_status,
+            created_at,
+            class_session_id,
             class_sessions (
-              date,
+              id,
               start_time,
               end_time,
               location,
-              class_types (name),
-              instructors (name)
+              name,
+              instructor_name
             )
-          `,
-          )
-          .eq("customer_id", clientId)
+          `)
+          .eq("client_id", clientId)
           .order("created_at", { ascending: false });
 
-        data = result.data;
-        error = result.error;
-      }
-
-      if (error) {
-        console.error("Error fetching bookings:", error);
-        // Continue without bookings rather than crashing
-        setBookings([]);
+        if (!altError && altData) {
+          // Map to expected format
+          const mappedBookings = altData.map(b => ({
+            id: b.id,
+            class_session_id: b.class_session_id,
+            status: b.booking_status,
+            booked_at: b.created_at,
+            class_sessions: b.class_sessions || {
+              date: '',
+              start_time: '',
+              end_time: '',
+              location: 'Main Studio',
+              class_types: { name: 'Class' },
+              instructors: { name: 'TBD' }
+            }
+          }));
+          setBookings(mappedBookings);
+        } else {
+          console.error("Alternative query also failed:", altError);
+          setBookings([]);
+        }
       } else {
-        setBookings(data || []);
+        // Map the simplified structure to expected format
+        const mappedBookings = (data || []).map(booking => ({
+          ...booking,
+          booked_at: booking.created_at,
+          class_sessions: {
+            ...booking.class_sessions,
+            class_types: { name: booking.class_sessions?.name || 'Class' },
+            instructors: { name: booking.class_sessions?.instructor_name || 'TBD' }
+          }
+        }));
+        setBookings(mappedBookings);
       }
     } catch (error) {
-      console.error("Error fetching bookings:", error);
+      console.error("Error in fetchBookings:", error);
       setBookings([]);
     }
   };
@@ -188,12 +215,21 @@ export default function ClientDashboardPage() {
     if (!confirm("Are you sure you want to cancel this booking?")) return;
 
     try {
+      // Try both table names
       const { error } = await supabase
-        .from("class_bookings")
-        .update({ booking_status: "cancelled" })
+        .from("bookings")
+        .update({ status: "cancelled" })
         .eq("id", bookingId);
 
-      if (error) throw error;
+      if (error) {
+        // Try alternate table name
+        const { error: altError } = await supabase
+          .from("class_bookings")
+          .update({ booking_status: "cancelled" })
+          .eq("id", bookingId);
+        
+        if (altError) throw altError;
+      }
 
       // Refresh bookings
       if (client) {
@@ -325,8 +361,10 @@ export default function ClientDashboardPage() {
             {bookings.length > 0 ? (
               <div className="space-y-4">
                 {bookings.map((booking) => {
-                  const isUpcoming =
-                    new Date(booking.class_sessions.date) >= new Date();
+                  // Use start_time for date comparison since date field doesn't exist
+                  const sessionDate = booking.class_sessions?.start_time ? 
+                    new Date(booking.class_sessions.start_time) : new Date();
+                  const isUpcoming = sessionDate >= new Date();
                   const isCancelled = booking.status === "cancelled";
 
                   return (
@@ -341,26 +379,30 @@ export default function ClientDashboardPage() {
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <h3 className="font-semibold text-white">
-                            {booking.class_sessions.class_types.name}
+                            {booking.class_sessions?.class_types?.name || 
+                             booking.class_sessions?.name || 'Class'}
                           </h3>
                           <div className="mt-2 space-y-1">
                             <p className="text-sm text-gray-600 flex items-center">
                               <Calendar className="h-4 w-4 mr-2" />
-                              {formatDate(booking.class_sessions.date)}
+                              {booking.class_sessions?.start_time ? 
+                                formatDate(booking.class_sessions.start_time.split('T')[0]) :
+                                'TBD'}
                             </p>
                             <p className="text-sm text-gray-600 flex items-center">
                               <Clock className="h-4 w-4 mr-2" />
-                              {formatTime(
-                                booking.class_sessions.start_time,
-                              )} - {formatTime(booking.class_sessions.end_time)}
+                              {booking.class_sessions?.start_time ? 
+                                `${formatTime(booking.class_sessions.start_time)} - ${formatTime(booking.class_sessions.end_time || '')}` :
+                                'Time TBD'}
                             </p>
                             <p className="text-sm text-gray-600 flex items-center">
                               <MapPin className="h-4 w-4 mr-2" />
-                              {booking.class_sessions.location || "Main Studio"}
+                              {booking.class_sessions?.location || "Main Studio"}
                             </p>
                             <p className="text-sm text-gray-600">
                               Instructor:{" "}
-                              {booking.class_sessions.instructors.name}
+                              {booking.class_sessions?.instructors?.name || 
+                               booking.class_sessions?.instructor_name || 'TBD'}
                             </p>
                           </div>
                         </div>
