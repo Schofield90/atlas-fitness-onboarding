@@ -2,7 +2,7 @@ import { Job } from "bullmq";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 import { WorkflowExecutionEngine } from "@/app/lib/workflow/execution-engine";
 import { getQueueManager } from "../queue-manager";
-import { QUEUE_NAMES, JOB_TYPES, JOB_PRIORITIES } from "../config";
+import { QUEUE_NAMES, JOB_TYPES, JOB_PRIORITIES } from "../enhanced-config";
 
 interface TriggerJobData {
   triggerType: string;
@@ -54,7 +54,7 @@ export async function processWorkflowTrigger(job: Job<TriggerJobData>) {
         },
       },
       opts: {
-        priority: this.calculatePriority(workflow),
+        priority: calculatePriority(workflow),
         attempts: 5,
         backoff: {
           type: "exponential",

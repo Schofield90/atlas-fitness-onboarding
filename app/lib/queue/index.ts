@@ -281,7 +281,9 @@ export async function emergencyRecovery(): Promise<void> {
 }
 
 // Export the legacy queue manager for backward compatibility
-export { queueManager } from "./queue-manager";
+export { getQueueManager } from "./queue-manager";
+// For backward compatibility with old name
+export { getQueueManager as queueManager } from "./queue-manager";
 
 // Default export for convenience
 export default {
