@@ -16,9 +16,9 @@ function isProduction() {
   );
 }
 
-// Next.js 15 requires awaiting cookies()
+// Next.js 14 - cookies() is synchronous
 export async function createClient() {
-  const cookieStore = await cookies();
+  const cookieStore = cookies();
   const isProd = isProduction();
 
   return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
@@ -38,8 +38,8 @@ export async function createClient() {
             sameSite: "lax",
             // Secure in production only (localhost doesn't use HTTPS)
             secure: isProd,
-            // httpOnly for security - but this might block client access
-            httpOnly: false, // Changed to false to allow client-side access
+            // httpOnly for security
+            httpOnly: true,
             // Root path for all pages
             path: "/",
           };
@@ -69,11 +69,11 @@ export async function createClient() {
     // Add proper headers to avoid 406 errors
     global: {
       headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation'
-      }
-    }
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Prefer: "return=representation",
+      },
+    },
   });
 }
 

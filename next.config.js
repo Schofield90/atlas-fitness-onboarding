@@ -22,14 +22,6 @@ const nextConfig = {
     ]
   },
   
-  // External packages for server components
-  serverExternalPackages: [
-    'twilio',
-    'openai',
-    '@anthropic-ai/sdk',
-    'bullmq',
-    'ioredis'
-  ],
   
   // Image optimization
   images: {

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase/client'
+import { getSupabaseClient } from '@/lib/supabase/client'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -18,6 +18,10 @@ export default function LoginPage() {
     setError(null)
 
     try {
+      const supabase = getSupabaseClient()
+      if (!supabase) {
+        throw new Error('Failed to initialize authentication')
+      }
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -31,8 +35,12 @@ export default function LoginPage() {
         throw new Error('Failed to sign in')
       }
 
+      // Force refresh the session to ensure it's properly established
+      await supabase.auth.refreshSession()
+
       // Redirect to dashboard
       router.push('/dashboard')
+      router.refresh() // Force router refresh to update middleware auth state
     } catch (err: any) {
       console.error('Login error:', err)
       setError(err.message || 'Failed to sign in')

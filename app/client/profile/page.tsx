@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   Save,
   Camera,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -19,6 +20,10 @@ export default function ClientProfilePage() {
   const [client, setClient] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
   const [hasPassword, setHasPassword] = useState(false);
   const [formData, setFormData] = useState({
     first_name: "",
@@ -136,14 +141,23 @@ export default function ClientProfilePage() {
 
       if (result.success) {
         setClient({ ...client, ...formData });
-        alert("Profile updated successfully!");
+        setToast({ type: "success", message: "Profile updated successfully!" });
+        setTimeout(() => setToast(null), 5000);
       } else {
         console.error("Error updating profile:", result.error);
-        alert(result.error || "Failed to update profile");
+        setToast({
+          type: "error",
+          message: result.error || "Failed to update profile",
+        });
+        setTimeout(() => setToast(null), 10000);
       }
     } catch (error) {
       console.error("Error updating profile:", error);
-      alert("Failed to update profile");
+      setToast({
+        type: "error",
+        message: "Failed to update profile. Please try again.",
+      });
+      setTimeout(() => setToast(null), 10000);
     }
 
     setSaving(false);
@@ -159,6 +173,31 @@ export default function ClientProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-900">
+      {/* Toast Notification */}
+      {toast && (
+        <div
+          className={`fixed top-4 right-4 z-50 max-w-md p-4 rounded-lg shadow-lg border ${
+            toast.type === "success"
+              ? "bg-green-900 border-green-600 text-green-100"
+              : "bg-red-900 border-red-600 text-red-100"
+          }`}
+        >
+          <div className="flex items-start">
+            <div className="flex-1">
+              <p className="text-sm font-medium">
+                {toast.type === "success" ? "Success" : "Error"}
+              </p>
+              <p className="text-sm opacity-90 mt-1">{toast.message}</p>
+            </div>
+            <button
+              onClick={() => setToast(null)}
+              className="ml-2 text-current opacity-60 hover:opacity-100"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <header className="bg-gray-800 shadow-sm border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

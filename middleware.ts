@@ -243,11 +243,12 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // DEVELOPMENT BYPASS - Allow all routes on localhost
-  if (hostname.includes('localhost') && !hostname.includes('gymleadhub')) {
-    console.log(`[Middleware] Localhost bypass for ${pathname}`);
-    return res
-  }
+  // DEVELOPMENT BYPASS - Disabled now that we're using Next.js 14
+  // Next.js 14 has better cookie handling compatibility with Supabase SSR
+  // if (hostname.includes('localhost') && !hostname.includes('gymleadhub')) {
+  //   console.log(`[Middleware] Localhost bypass for ${pathname}`);
+  //   return res
+  // }
 
   // NO BYPASSES - Security is mandatory (in production)
 

@@ -106,23 +106,52 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create admin client to bypass RLS for reading and updating
-    const adminClient = createAdminClient();
+    // Clean up date fields - remove empty strings entirely
+    const dateFields = ["date_of_birth"];
+    for (const field of dateFields) {
+      if (
+        updateData[field] === "" ||
+        updateData[field] === null ||
+        updateData[field] === undefined
+      ) {
+        delete updateData[field];
+      }
+    }
 
-    // Verify the client belongs to the authenticated user
-    const { data: clientCheck, error: clientCheckError } = await adminClient
+    // Debug log
+    console.log("Profile update data after cleanup:", {
+      hasDateOfBirth: "date_of_birth" in updateData,
+      dateOfBirthValue: updateData.date_of_birth,
+      allFields: Object.keys(updateData),
+    });
+
+    // Use RLS-protected client to verify ownership
+    const { data: clientCheck, error: clientCheckError } = await supabase
       .from("clients")
       .select(
-        "id, org_id, user_id, date_of_birth, height_cm, weight_kg, gender, activity_level, fitness_goal",
+        "id, organization_id, org_id, user_id, date_of_birth, height_cm, weight_kg, gender, activity_level, fitness_goal",
       )
       .eq("id", clientId)
       .eq("user_id", user.id)
       .single();
 
     if (clientCheckError || !clientCheck) {
-      console.error("Client verification failed:", clientCheckError);
+      console.error("Client verification failed:", {
+        error: clientCheckError,
+        clientId,
+        userId: user.id,
+        message: clientCheckError?.message,
+        code: clientCheckError?.code,
+      });
       return NextResponse.json(
-        { success: false, error: "Client not found or access denied" },
+        {
+          success: false,
+          error: "Client not found or access denied",
+          details:
+            process.env.NODE_ENV === "development"
+              ? clientCheckError?.message
+              : undefined,
+        },
         { status: 403 },
       );
     }
@@ -184,7 +213,11 @@ export async function POST(request: NextRequest) {
     // Add updated_at timestamp
     updateData.updated_at = new Date().toISOString();
 
-    // Update the client record
+    // For security, we need to use admin client for calculated fields
+    // but ONLY after verifying ownership via RLS-protected query above
+    const adminClient = createAdminClient();
+
+    // Update the client record - double-check user_id for security
     const { data: updatedClient, error: updateError } = await adminClient
       .from("clients")
       .update(updateData)
@@ -194,9 +227,39 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (updateError) {
-      console.error("Error updating client profile:", updateError);
+      console.error("Error updating client profile:", {
+        error: updateError,
+        clientId,
+        userId: user.id,
+        updateData: Object.keys(updateData),
+        message: updateError?.message,
+        code: updateError?.code,
+        hint: updateError?.hint,
+      });
+
+      // Provide more specific error messages based on error type
+      let errorMessage = "Failed to update profile";
+      if (updateError?.code === "23505") {
+        errorMessage = "A conflict occurred while updating your profile";
+      } else if (updateError?.code === "42501") {
+        errorMessage = "You don't have permission to update this profile";
+      } else if (
+        updateError?.message?.includes("column") &&
+        updateError?.message?.includes("does not exist")
+      ) {
+        errorMessage =
+          "Profile update temporarily unavailable. Please try again later";
+      }
+
       return NextResponse.json(
-        { success: false, error: "Failed to update profile" },
+        {
+          success: false,
+          error: errorMessage,
+          details:
+            process.env.NODE_ENV === "development"
+              ? updateError?.message
+              : undefined,
+        },
         { status: 500 },
       );
     }
@@ -220,13 +283,14 @@ export async function POST(request: NextRequest) {
       (field) => field in updateData,
     );
 
-    if (hasNutritionUpdates && clientCheck.org_id) {
+    const orgId = clientCheck.organization_id || clientCheck.org_id;
+    if (hasNutritionUpdates && orgId) {
       // Check if nutrition profile exists
       const { data: nutritionProfile } = await adminClient
         .from("nutrition_profiles")
         .select("id")
         .eq("client_id", clientId)
-        .eq("organization_id", clientCheck.org_id)
+        .eq("organization_id", orgId)
         .single();
 
       if (nutritionProfile) {
@@ -263,10 +327,13 @@ export async function POST(request: NextRequest) {
           .eq("id", nutritionProfile.id);
 
         if (nutritionUpdateError) {
-          console.error(
-            "Error syncing nutrition profile:",
-            nutritionUpdateError,
-          );
+          console.error("Error syncing nutrition profile:", {
+            error: nutritionUpdateError,
+            clientId,
+            nutritionProfileId: nutritionProfile.id,
+            message: nutritionUpdateError?.message,
+            code: nutritionUpdateError?.code,
+          });
         } else {
           console.log("Successfully synced nutrition profile with client data");
         }
@@ -284,7 +351,7 @@ export async function POST(request: NextRequest) {
           .from("nutrition_profiles")
           .insert({
             client_id: clientId,
-            organization_id: clientCheck.org_id,
+            organization_id: orgId,
             height: height,
             height_cm: height,
             current_weight: weight,
@@ -301,7 +368,13 @@ export async function POST(request: NextRequest) {
           });
 
         if (createError) {
-          console.error("Error creating nutrition profile:", createError);
+          console.error("Error creating nutrition profile:", {
+            error: createError,
+            clientId,
+            orgId,
+            message: createError?.message,
+            code: createError?.code,
+          });
         } else {
           console.log("Successfully created nutrition profile");
         }

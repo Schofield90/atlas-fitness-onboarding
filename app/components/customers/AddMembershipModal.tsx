@@ -38,32 +38,81 @@ export default function AddMembershipModal({
 
   const fetchMembershipPlans = async () => {
     try {
-      // Get user's organization
+      // Get user's organization - try multiple approaches
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        console.error("No authenticated user found");
+        return;
+      }
 
-      const { data: userOrg } = await supabase
+      // First try user_organizations table
+      let organizationId = null;
+      const { data: userOrg, error: userOrgError } = await supabase
         .from("user_organizations")
         .select("organization_id")
         .eq("user_id", user.id)
         .single();
 
-      if (!userOrg) return;
+      if (userOrg?.organization_id) {
+        organizationId = userOrg.organization_id;
+      } else {
+        // Fallback: try to get organization from organization_staff table
+        const { data: staffOrg, error: staffError } = await supabase
+          .from("organization_staff")
+          .select("organization_id")
+          .eq("user_id", user.id)
+          .eq("is_active", true)
+          .single();
+
+        if (staffOrg?.organization_id) {
+          organizationId = staffOrg.organization_id;
+        } else {
+          console.error("No organization found for user:", {
+            userId: user.id,
+            userOrgError,
+            staffError,
+          });
+          setError("Unable to load membership plans. Please contact support.");
+          return;
+        }
+      }
+
+      console.log(
+        "Fetching membership plans for organization:",
+        organizationId,
+      );
 
       // Get active membership plans
       const { data, error } = await supabase
         .from("membership_plans")
         .select("*")
-        .eq("organization_id", userOrg.organization_id)
+        .eq("organization_id", organizationId)
         .eq("is_active", true)
-        .order("price", { ascending: true });
+        .order("price_pennies", { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching membership plans:", {
+          error,
+          organizationId,
+          message: error?.message,
+          code: error?.code,
+        });
+        throw error;
+      }
+
+      console.log("Fetched membership plans:", data?.length || 0);
       setMembershipPlans(data || []);
-    } catch (error) {
+
+      if (!data || data.length === 0) {
+        setError(
+          "No active membership plans found. Please create membership plans first.",
+        );
+      }
+    } catch (error: any) {
       console.error("Error fetching membership plans:", error);
+      setError("Failed to load membership plans. Please try again.");
     }
   };
 
@@ -83,13 +132,30 @@ export default function AddMembershipModal({
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Get organization ID using the same logic as fetchMembershipPlans
+      let organizationId = null;
       const { data: userOrg } = await supabase
         .from("user_organizations")
         .select("organization_id")
         .eq("user_id", user.id)
         .single();
 
-      if (!userOrg) throw new Error("No organization found");
+      if (userOrg?.organization_id) {
+        organizationId = userOrg.organization_id;
+      } else {
+        const { data: staffOrg } = await supabase
+          .from("organization_staff")
+          .select("organization_id")
+          .eq("user_id", user.id)
+          .eq("is_active", true)
+          .single();
+
+        if (staffOrg?.organization_id) {
+          organizationId = staffOrg.organization_id;
+        }
+      }
+
+      if (!organizationId) throw new Error("No organization found");
 
       // Determine if this is a lead (customer_id) or client (client_id)
       let isClient = false;
@@ -100,7 +166,7 @@ export default function AddMembershipModal({
         .from("clients")
         .select("id")
         .eq("id", customerId)
-        .eq("org_id", userOrg.organization_id)
+        .or(`organization_id.eq.${organizationId},org_id.eq.${organizationId}`)
         .single();
 
       if (clientCheck) {
@@ -111,7 +177,7 @@ export default function AddMembershipModal({
           .from("leads")
           .select("id")
           .eq("id", customerId)
-          .eq("organization_id", userOrg.organization_id)
+          .eq("organization_id", organizationId)
           .single();
 
         if (leadCheck) {
@@ -161,7 +227,7 @@ export default function AddMembershipModal({
 
       // Create membership record with appropriate customer field
       const membershipData: any = {
-        organization_id: userOrg.organization_id,
+        organization_id: organizationId,
         membership_plan_id: selectedPlanId,
         status: "active",
         start_date: startDate,

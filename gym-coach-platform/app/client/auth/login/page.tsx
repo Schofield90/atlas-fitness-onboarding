@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Eye, EyeOff, Mail, Phone, ArrowRight } from 'lucide-react';
-import { supabase } from '@/lib/supabase/client';
+import { getSupabaseClient } from '@/lib/supabase/client';
 
 export default function ClientLogin() {
   const [showPassword, setShowPassword] = useState(false);
@@ -74,12 +74,19 @@ function EmailLoginForm({ loading, setLoading, error, setError }: any) {
     setError(null);
 
     try {
+      const supabase = getSupabaseClient()
+      if (!supabase) {
+        throw new Error('Failed to initialize authentication')
+      }
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (authError) throw authError;
+
+      // Force refresh the session to ensure it's properly established
+      await supabase.auth.refreshSession()
 
       // Redirect to client dashboard
       router.push('/client/dashboard');
@@ -174,6 +181,10 @@ function PhoneLoginForm({ loading, setLoading, error, setError }: any) {
         ? phone 
         : `+44${phone}`;
 
+      const supabase = getSupabaseClient()
+      if (!supabase) {
+        throw new Error('Failed to initialize authentication')
+      }
       const { error } = await supabase.auth.signInWithOtp({
         phone: formattedPhone,
       });
@@ -200,6 +211,10 @@ function PhoneLoginForm({ loading, setLoading, error, setError }: any) {
         ? phone 
         : `+44${phone}`;
 
+      const supabase = getSupabaseClient()
+      if (!supabase) {
+        throw new Error('Failed to initialize authentication')
+      }
       const { error } = await supabase.auth.verifyOtp({
         phone: formattedPhone,
         token: verificationCode,
