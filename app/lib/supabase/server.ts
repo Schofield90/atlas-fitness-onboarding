@@ -11,8 +11,9 @@ function isProduction() {
   return (
     process.env.NODE_ENV === "production" ||
     process.env.VERCEL_ENV === "production" ||
-    process.env.NEXT_PUBLIC_SITE_URL?.includes("gymleadhub.co.uk") ||
-    process.env.NEXT_PUBLIC_VERCEL_URL?.includes("gymleadhub.co.uk")
+    process.env.NEXT_PUBLIC_SITE_URL?.includes("vercel.app") ||
+    process.env.NEXT_PUBLIC_VERCEL_URL?.includes("vercel.app") ||
+    process.env.VERCEL_URL?.includes("vercel.app")
   );
 }
 
@@ -31,10 +32,10 @@ export async function createClient() {
           // Enhanced cookie options for production
           const enhancedOptions: CookieOptions = {
             ...options,
-            // Set domain for cross-subdomain support in production ONLY
-            // On localhost, don't set domain at all to allow cookies to work
-            domain: isProd ? ".gymleadhub.co.uk" : undefined,
-            // Use lax for subdomain navigation
+            // Don't set domain for Vercel apps - let browser handle it
+            // Setting domain incorrectly can break cookies entirely
+            domain: undefined,
+            // Use lax for subdomain navigation - critical for preserving auth across pages
             sameSite: "lax",
             // Secure in production only (localhost doesn't use HTTPS)
             secure: isProd,
@@ -42,21 +43,23 @@ export async function createClient() {
             httpOnly: true,
             // Root path for all pages
             path: "/",
+            // Extend max age to prevent session loss on navigation
+            maxAge: options.maxAge || 86400 * 7, // 7 days default
           };
 
           // Important: allow SSR to persist/refresh auth cookies
           cookieStore.set({ name, value, ...enhancedOptions });
         } catch (error) {
-          // Silently fail in client-side rendering context
-          // This is expected behavior when cookies are accessed outside server actions
+          // Log cookie setting errors for debugging auth issues
+          console.warn(`Failed to set cookie ${name}:`, error);
         }
       },
       remove(name: string, options: CookieOptions) {
         try {
           const enhancedOptions: CookieOptions = {
             ...options,
-            // Only set domain in production
-            domain: isProd ? ".gymleadhub.co.uk" : undefined,
+            // Don't set domain - let browser handle it
+            domain: undefined,
             path: "/",
           };
 

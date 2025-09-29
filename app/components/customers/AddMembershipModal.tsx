@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/app/lib/supabase/client";
 import { X } from "lucide-react";
 import { formatBritishCurrency } from "@/app/lib/utils/british-format";
+import { useOrganization } from "@/app/hooks/useOrganization";
 
 interface AddMembershipModalProps {
   isOpen: boolean;
@@ -29,54 +30,20 @@ export default function AddMembershipModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const supabase = createClient();
+  const { organizationId } = useOrganization();
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && organizationId) {
       fetchMembershipPlans();
     }
-  }, [isOpen]);
+  }, [isOpen, organizationId]);
 
   const fetchMembershipPlans = async () => {
     try {
-      // Get user's organization - try multiple approaches
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        console.error("No authenticated user found");
+      // Wait for organization context to be available
+      if (!organizationId) {
+        setError("Organization not found. Please try refreshing the page.");
         return;
-      }
-
-      // First try user_organizations table
-      let organizationId = null;
-      const { data: userOrg, error: userOrgError } = await supabase
-        .from("user_organizations")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .single();
-
-      if (userOrg?.organization_id) {
-        organizationId = userOrg.organization_id;
-      } else {
-        // Fallback: try to get organization from organization_staff table
-        const { data: staffOrg, error: staffError } = await supabase
-          .from("organization_staff")
-          .select("organization_id")
-          .eq("user_id", user.id)
-          .eq("is_active", true)
-          .single();
-
-        if (staffOrg?.organization_id) {
-          organizationId = staffOrg.organization_id;
-        } else {
-          console.error("No organization found for user:", {
-            userId: user.id,
-            userOrgError,
-            staffError,
-          });
-          setError("Unable to load membership plans. Please contact support.");
-          return;
-        }
       }
 
       console.log(
@@ -84,23 +51,21 @@ export default function AddMembershipModal({
         organizationId,
       );
 
-      // Get active membership plans
-      const { data, error } = await supabase
-        .from("membership_plans")
-        .select("*")
-        .eq("organization_id", organizationId)
-        .eq("is_active", true)
-        .order("price_pennies", { ascending: true });
+      // Use API endpoint instead of direct database query to ensure proper authentication
+      const response = await fetch("/api/membership-plans?active_only=true");
 
-      if (error) {
+      if (!response.ok) {
+        const errorData = await response.json();
         console.error("Error fetching membership plans:", {
-          error,
+          status: response.status,
+          error: errorData,
           organizationId,
-          message: error?.message,
-          code: error?.code,
         });
-        throw error;
+        throw new Error(errorData.error || "Failed to fetch membership plans");
       }
+
+      const result = await response.json();
+      const data = result.membershipPlans || result.plans || [];
 
       console.log("Fetched membership plans:", data?.length || 0);
       setMembershipPlans(data || []);
@@ -131,29 +96,6 @@ export default function AddMembershipModal({
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
-
-      // Get organization ID using the same logic as fetchMembershipPlans
-      let organizationId = null;
-      const { data: userOrg } = await supabase
-        .from("user_organizations")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .single();
-
-      if (userOrg?.organization_id) {
-        organizationId = userOrg.organization_id;
-      } else {
-        const { data: staffOrg } = await supabase
-          .from("organization_staff")
-          .select("organization_id")
-          .eq("user_id", user.id)
-          .eq("is_active", true)
-          .single();
-
-        if (staffOrg?.organization_id) {
-          organizationId = staffOrg.organization_id;
-        }
-      }
 
       if (!organizationId) throw new Error("No organization found");
 
@@ -333,8 +275,8 @@ export default function AddMembershipModal({
                 <option key={plan.id} value={plan.id}>
                   {plan.name} -{" "}
                   {formatBritishCurrency(
-                    plan.price || plan.price_pennies || 0,
-                    true,
+                    plan.price_pennies || plan.price || 0,
+                    plan.price_pennies ? true : false,
                   )}
                   /{plan.billing_period}
                 </option>

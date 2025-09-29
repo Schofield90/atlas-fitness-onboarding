@@ -1,31 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
+import { createServerSupabaseClient } from "@/app/lib/supabase/server";
+import { getUserAndOrganization } from "@/app/lib/auth-utils";
 
 export async function GET(request: NextRequest) {
-  const organizationId = request.nextUrl.searchParams.get("organizationId");
-
-  if (!organizationId) {
-    return NextResponse.json(
-      { error: "Organization ID required" },
-      { status: 400 },
-    );
-  }
-
   try {
-    // Create service role client to bypass RLS
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-        },
-      },
-    );
+    // First verify authentication
+    const supabase = await createServerSupabaseClient();
+    const { user, organization } = await getUserAndOrganization(supabase);
 
-    // Get all programs for this organization
+    if (!user || !organization) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Use the authenticated user's organization
+    const organizationId = organization.id;
+
+    // Get all programs for this organization using authenticated supabase client
     const { data, error } = await supabase
       .from("programs")
       .select(`*`)
