@@ -1,0 +1,28 @@
+1:"$Sreact.fragment"
+2:I[65788,["44134","static/chunks/44134-a9cf763f43b6d292.js?dpl=dpl_7pgvBwZxBizFMHGrHLoCrjq3Kfm6","72354","static/chunks/72354-b63b6af229257299.js?dpl=dpl_7pgvBwZxBizFMHGrHLoCrjq3Kfm6","99535","static/chunks/99535-7c6caf93fd77cc9f.js?dpl=dpl_7pgvBwZxBizFMHGrHLoCrjq3Kfm6","7177","static/chunks/app/layout-7a9bc20871313a7f.js?dpl=dpl_7pgvBwZxBizFMHGrHLoCrjq3Kfm6"],"ErrorBoundaryProvider"]
+3:I[20737,["44134","static/chunks/44134-a9cf763f43b6d292.js?dpl=dpl_7pgvBwZxBizFMHGrHLoCrjq3Kfm6","72354","static/chunks/72354-b63b6af229257299.js?dpl=dpl_7pgvBwZxBizFMHGrHLoCrjq3Kfm6","99535","static/chunks/99535-7c6caf93fd77cc9f.js?dpl=dpl_7pgvBwZxBizFMHGrHLoCrjq3Kfm6","7177","static/chunks/app/layout-7a9bc20871313a7f.js?dpl=dpl_7pgvBwZxBizFMHGrHLoCrjq3Kfm6"],"OrganizationProvider"]
+4:I[87555,[],""]
+5:I[96678,["18039","static/chunks/app/error-285d123c6d537898.js?dpl=dpl_7pgvBwZxBizFMHGrHLoCrjq3Kfm6"],"default"]
+6:I[31295,[],""]
+7:I[6874,["6874","static/chunks/6874-632ad17cdc005699.js?dpl=dpl_7pgvBwZxBizFMHGrHLoCrjq3Kfm6","24345","static/chunks/app/not-found-12615f0c833a3bf7.js?dpl=dpl_7pgvBwZxBizFMHGrHLoCrjq3Kfm6"],""]
+8:I[90894,[],"ClientPageRoot"]
+9:I[43657,["44134","static/chunks/44134-a9cf763f43b6d292.js?dpl=dpl_7pgvBwZxBizFMHGrHLoCrjq3Kfm6","72354","static/chunks/72354-b63b6af229257299.js?dpl=dpl_7pgvBwZxBizFMHGrHLoCrjq3Kfm6","99535","static/chunks/99535-7c6caf93fd77cc9f.js?dpl=dpl_7pgvBwZxBizFMHGrHLoCrjq3Kfm6","6874","static/chunks/6874-632ad17cdc005699.js?dpl=dpl_7pgvBwZxBizFMHGrHLoCrjq3Kfm6","10879","static/chunks/app/signup/page-657e8b45b5c72dc6.js?dpl=dpl_7pgvBwZxBizFMHGrHLoCrjq3Kfm6"],"default"]
+c:I[59665,[],"OutletBoundary"]
+f:I[74911,[],"AsyncMetadataOutlet"]
+11:I[59665,[],"ViewportBoundary"]
+13:I[59665,[],"MetadataBoundary"]
+15:I[26614,[],""]
+:HL["/_next/static/media/e4af272ccee01ff0-s.p.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
+:HL["/_next/static/css/a2d1eb5360b8a855.css?dpl=dpl_7pgvBwZxBizFMHGrHLoCrjq3Kfm6","style"]
+:HL["/_next/static/css/7484ff4495ec7768.css?dpl=dpl_7pgvBwZxBizFMHGrHLoCrjq3Kfm6","style"]
+0:{"P":null,"b":"n0_HrqmtAR5unfwQ9lNb4","p":"","c":["","signup"],"i":false,"f":[[["",{"children":["signup",{"children":["__PAGE__",{}]}]},"$undefined","$undefined",true],["",["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/_next/static/css/a2d1eb5360b8a855.css?dpl=dpl_7pgvBwZxBizFMHGrHLoCrjq3Kfm6","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}],["$","link","1",{"rel":"stylesheet","href":"/_next/static/css/7484ff4495ec7768.css?dpl=dpl_7pgvBwZxBizFMHGrHLoCrjq3Kfm6","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}]],["$","html",null,{"lang":"en-GB","children":["$","body",null,{"className":"__className_f367f3","children":["$","$L2",null,{"children":["$","$L3",null,{"children":["$","$L4",null,{"parallelRouterKey":"children","error":"$5","errorStyles":[],"errorScripts":[],"template":["$","$L6",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":[["$","div",null,{"className":"min-h-screen flex items-center justify-center bg-gray-100","children":["$","div",null,{"className":"text-center","children":[["$","h1",null,{"className":"text-6xl font-bold text-gray-900","children":"404"}],["$","p",null,{"className":"text-xl text-gray-600 mt-4","children":"Page not found"}],["$","$L7",null,{"href":"/","className":"mt-6 inline-block px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700","children":"Go to Homepage"}]]}]}],[]],"forbidden":"$undefined","unauthorized":"$undefined"}]}]}]}]}]]}],{"children":["signup",["$","$1","c",{"children":[null,["$","$L4",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L6",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$undefined","forbidden":"$undefined","unauthorized":"$undefined"}]]}],{"children":["__PAGE__",["$","$1","c",{"children":[["$","$L8",null,{"Component":"$9","searchParams":{},"params":{},"promises":["$@a","$@b"]}],null,["$","$Lc",null,{"children":["$Ld","$Le",["$","$Lf",null,{"promise":"$@10"}]]}]]}],{},null,false]},null,false]},null,false],["$","$1","h",{"children":[null,["$","$1","L4zBlf-Mv9Nv-D_NIUl_Uv",{"children":[["$","$L11",null,{"children":"$L12"}],["$","meta",null,{"name":"next-size-adjust","content":""}]]}],["$","$L13",null,{"children":"$L14"}]]}],false]],"m":"$undefined","G":["$15","$undefined"],"s":false,"S":true}
+16:"$Sreact.suspense"
+17:I[74911,[],"AsyncMetadata"]
+a:{}
+b:{}
+14:["$","div",null,{"hidden":true,"children":["$","$16",null,{"fallback":null,"children":["$","$L17",null,{"promise":"$@18"}]}]}]
+e:null
+12:[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]
+d:null
+10:{"metadata":[["$","title","0",{"children":"Gymleadhub - AI-Powered Gym Lead Management"}],["$","meta","1",{"name":"description","content":"Stop losing gym leads to competitors. Our AI system captures, qualifies, and nurtures leads 24/7."}]],"error":null,"digest":"$undefined"}
+18:{"metadata":"$10:metadata","error":null,"digest":"$undefined"}

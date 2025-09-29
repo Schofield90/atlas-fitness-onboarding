@@ -5,20 +5,46 @@ import { User, Session, AuthChangeEvent } from '@supabase/supabase-js'
 import { getSupabaseClient } from '../../lib/supabase/client'
 import toast from 'react-hot-toast'
 
+interface UserProfile {
+  id: string
+  email: string
+  organization_id: string
+  role: 'owner' | 'admin' | 'staff' | 'viewer'
+  organizations?: {
+    id: string
+    name: string
+    email?: string
+    subscription_plan?: string
+    subscription_status?: string
+  }
+}
+
 interface AuthContextType {
   user: User | null
   session: Session | null
+  userProfile: UserProfile | null
+  organizationId: string | null
   loading: boolean
+  error: string | null
   signOut: () => Promise<void>
   refreshSession: () => Promise<void>
+  refreshProfile: () => Promise<void>
+  isAuthenticated: boolean
+  hasOrganization: boolean
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
+  userProfile: null,
+  organizationId: null,
   loading: true,
+  error: null,
   signOut: async () => {},
-  refreshSession: async () => {}
+  refreshSession: async () => {},
+  refreshProfile: async () => {},
+  isAuthenticated: false,
+  hasOrganization: false
 })
 
 export const useAuth = () => {
@@ -36,7 +62,30 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Fetch user profile with organization details
+  const fetchUserProfile = async (user: User, accessToken?: string): Promise<UserProfile | null> => {
+    try {
+      const response = await fetch('/api/auth/me', {
+        headers: {
+          'Authorization': `Bearer ${accessToken || session?.access_token || ''}`
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch user profile: ${response.status}`)
+      }
+
+      const data = await response.json()
+      return data.data || data
+    } catch (error) {
+      console.error('Error fetching user profile:', error)
+      return null
+    }
+  }
 
   useEffect(() => {
     const supabase = getSupabaseClient()
@@ -61,6 +110,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
         } else {
           setSession(session)
           setUser(session?.user ?? null)
+
+          // Fetch user profile if session exists
+          if (session?.user && session?.access_token) {
+            const profile = await fetchUserProfile(session.user, session.access_token)
+            setUserProfile(profile)
+            if (!profile) {
+              setError('Failed to load user profile')
+            }
+          }
         }
       } catch (err) {
         console.error('Failed to get initial session:', err)
@@ -78,7 +136,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
         
         setSession(session)
         setUser(session?.user ?? null)
-        
+
+        // Fetch user profile for authenticated sessions
+        if (session?.user && session?.access_token) {
+          fetchUserProfile(session.user, session.access_token).then(profile => {
+            setUserProfile(profile)
+            if (!profile) {
+              setError('Failed to load user profile')
+            } else {
+              setError(null)
+            }
+          })
+        } else {
+          setUserProfile(null)
+          setError(null)
+        }
+
         // Handle different auth events
         switch (event) {
           case 'SIGNED_IN':
@@ -179,12 +252,35 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }
 
+  const refreshProfile = async () => {
+    if (!user || !session?.access_token) return
+
+    try {
+      const profile = await fetchUserProfile(user, session.access_token)
+      setUserProfile(profile)
+      if (!profile) {
+        setError('Failed to refresh user profile')
+      } else {
+        setError(null)
+      }
+    } catch (error) {
+      console.error('Profile refresh error:', error)
+      setError('Failed to refresh profile')
+    }
+  }
+
   const value = {
     user,
     session,
+    userProfile,
+    organizationId: userProfile?.organization_id || null,
     loading,
+    error,
     signOut,
-    refreshSession
+    refreshSession,
+    refreshProfile,
+    isAuthenticated: !!user,
+    hasOrganization: !!userProfile?.organization_id
   }
 
   return (

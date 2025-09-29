@@ -109,7 +109,7 @@ export async function GET(request: Request) {
 
     if (customerIds.length > 0) {
       // Use RPC or direct query for better reliability
-      const { data: memberships, error: membershipError } = await supabase
+      let { data: memberships, error: membershipError } = await supabase
         .from("customer_memberships")
         .select(
           `

@@ -120,25 +120,24 @@ function MembersContent() {
     console.log("  - Should fetch?", organizationId && !orgLoading);
     console.log("=========================================");
 
+    // Wait for organization context to be fully loaded
+    if (orgLoading) {
+      console.log("⏳ Organization still loading, waiting...");
+      return;
+    }
+
     // Only fetch if we have an organizationId and not still loading org
-    if (organizationId && !orgLoading) {
+    if (organizationId) {
       console.log(
         "✅ Calling fetchMembers with organizationId:",
         organizationId,
       );
       fetchMembers();
-    } else if (!orgLoading && !organizationId) {
+    } else {
       console.log(
         "⚠️ Organization loading complete but no organizationId found",
       );
       setLoading(false);
-    } else {
-      console.log(
-        "⏳ Still waiting - orgLoading:",
-        orgLoading,
-        "organizationId:",
-        organizationId,
-      );
     }
   }, [searchParams, organizationId, orgLoading]);
 

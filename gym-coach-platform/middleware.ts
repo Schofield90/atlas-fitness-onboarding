@@ -8,32 +8,32 @@ export async function middleware(request: NextRequest) {
       headers: request.headers,
     },
   })
-  
+
   // Extract organization from subdomain or path
   const hostname = request.headers.get('host') || '';
   const subdomain = hostname.split('.')[0];
   const pathSegments = request.nextUrl.pathname.split('/').filter(Boolean);
-  
+
   let organizationSlug: string | null = null;
-  
+
   // Determine organization from URL structure
   // Option 1: Subdomain routing (e.g., atlas-fitness.yourdomain.com)
   if (subdomain && !['app', 'www', 'localhost', '127'].includes(subdomain)) {
     organizationSlug = subdomain;
     response.headers.set('x-organization-slug', subdomain);
-  } 
+  }
   // Option 2: Path-based routing (e.g., app.yourdomain.com/atlas-fitness/...)
   else if (pathSegments[0] && !['api', 'auth', 'dashboard', '_next', 'public'].includes(pathSegments[0])) {
     organizationSlug = pathSegments[0];
     response.headers.set('x-organization-slug', pathSegments[0]);
   }
-  
+
   // Add CORS headers for API routes
   if (request.nextUrl.pathname.startsWith('/api/')) {
     response.headers.set('Access-Control-Allow-Origin', '*')
     response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
     response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-    
+
     // Handle preflight requests
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 200, headers: response.headers })
@@ -42,7 +42,29 @@ export async function middleware(request: NextRequest) {
 
   const supabase = createMiddlewareClient(request, response)
 
-  const { data: { session } } = await supabase.auth.getSession()
+  // Try to get session and refresh if needed
+  let session = null;
+  try {
+    const { data: { session: currentSession }, error } = await supabase.auth.getSession()
+
+    if (error) {
+      console.error('Session error:', error.message);
+    }
+
+    session = currentSession;
+
+    // If no session but we have user cookies, try to refresh
+    if (!session) {
+      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession()
+
+      if (!refreshError && refreshedSession) {
+        session = refreshedSession;
+        console.log('Session refreshed in middleware');
+      }
+    }
+  } catch (error) {
+    console.error('Middleware auth error:', error);
+  }
 
   // Check if this is a client portal route
   const isClientPortal = organizationSlug || request.nextUrl.pathname.includes('/client');

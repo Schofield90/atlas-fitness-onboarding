@@ -38,55 +38,56 @@ export default function DashboardPage() {
       }
 
       try {
-        // First try to get the session from storage
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+        // Try multiple approaches to get the authenticated user
+        let currentUser = null;
 
-        console.log(
-          "Dashboard: Session status:",
-          session ? "Found" : "Not found",
-        );
-        let currentUser = session?.user;
+        // 1. First try getting user directly (works with server-side cookies)
+        const { data: { user: directUser }, error: userError } = await supabase.auth.getUser();
 
-        // If no session in memory, try to restore from storage/cookies
-        if (!session) {
-          console.log("Dashboard: No session, trying to restore...");
-          const {
-            data: { user: restoredUser },
-          } = await supabase.auth.getUser();
+        if (directUser && !userError) {
+          currentUser = directUser;
+          console.log("Dashboard: User found via direct auth check");
+        } else {
+          // 2. Try to get session and refresh if needed
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-          if (!restoredUser) {
-            console.log("Dashboard: No user found, redirecting to login");
-            // Only redirect if we're not already on the login page
-            const currentPath = window.location.pathname;
-            if (currentPath !== "/login") {
-              window.location.href = "/login";
+          if (session?.user) {
+            currentUser = session.user;
+            console.log("Dashboard: User found via session");
+          } else {
+            // 3. Try to refresh session
+            const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+
+            if (refreshedSession?.user) {
+              currentUser = refreshedSession.user;
+              console.log("Dashboard: User found via session refresh");
             }
-            return;
           }
-
-          console.log("Dashboard: User found, refreshing session...");
-          // If we have a user but no session, refresh the session
-          const {
-            data: { session: refreshedSession },
-          } = await supabase.auth.refreshSession();
-
-          if (!refreshedSession) {
-            console.log(
-              "Dashboard: Failed to refresh session, redirecting to login",
-            );
-            window.location.href = "/login";
-            return;
-          }
-
-          currentUser = refreshedSession.user;
-          console.log("Dashboard: Session refreshed successfully");
         }
 
         if (!currentUser) {
-          console.log("Dashboard: No current user, redirecting to login");
-          window.location.href = "/login";
+          console.log("Dashboard: No authenticated user found, redirecting to login");
+          // Check localStorage backup before redirecting
+          const backup = localStorage.getItem('owner-auth-backup');
+          if (backup) {
+            try {
+              const parsed = JSON.parse(backup);
+              if (parsed.access_token && parsed.user) {
+                console.log("Dashboard: Using backup auth");
+                setUser(parsed.user);
+                setLoading(false);
+                return;
+              }
+            } catch (e) {
+              console.error("Failed to parse backup auth:", e);
+            }
+          }
+
+          // Only redirect if we're not already on an auth page
+          const currentPath = window.location.pathname;
+          if (!currentPath.includes("/login") && !currentPath.includes("/owner-login")) {
+            window.location.href = "/owner-login";
+          }
           return;
         }
 
@@ -125,6 +126,16 @@ export default function DashboardPage() {
             }
           } else {
             console.error("Dashboard: Failed to fetch organization:", response.status);
+
+            // Handle authentication errors from organization API
+            if (response.status === 401) {
+              const errorResult = await response.json().catch(() => ({}));
+              if (errorResult.requiresReauth) {
+                console.log("Dashboard: Session expired, redirecting to login");
+                window.location.href = "/owner-login";
+                return;
+              }
+            }
           }
         } catch (error) {
           console.error("Dashboard: Failed to get organization:", error);

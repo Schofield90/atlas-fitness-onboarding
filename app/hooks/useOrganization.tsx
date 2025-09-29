@@ -38,7 +38,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchOrganization = useCallback(async () => {
+  const fetchOrganization = useCallback(async (retryCount = 0) => {
     // Only run on client side
     if (typeof window === "undefined") {
       setIsLoading(false);
@@ -72,11 +72,18 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
           "Content-Type": "application/json",
         },
         credentials: "include", // Include cookies for authentication
+        cache: "no-cache", // Prevent stale auth responses
       });
 
       if (!response.ok) {
         if (response.status === 401) {
-          console.log("Not authenticated - clearing organization state");
+          // Retry 401 errors once in case of temporary auth issues
+          if (retryCount < 1) {
+            console.log("Auth failed, retrying in 1 second...");
+            setTimeout(() => fetchOrganization(retryCount + 1), 1000);
+            return;
+          }
+          console.log("Not authenticated after retry - clearing organization state");
           setUser(null);
           setOrganizationId(null);
           setOrganization(null);

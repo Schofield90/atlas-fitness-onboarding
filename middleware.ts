@@ -210,7 +210,7 @@ function extractSubdomain(hostname: string): string {
   }
 
   // Handle production domains
-  if (hostname.includes('gymleadhub.co.uk')) {
+  if (hostname.includes('gymleadhub.co.uk') || hostname.includes('vercel.app')) {
     const parts = hostname.split('.')
     if (parts.length > 2 && parts[0] !== 'www') {
       return parts[0]
@@ -253,7 +253,7 @@ export async function middleware(request: NextRequest) {
   // NO BYPASSES - Security is mandatory (in production)
 
   // Handle subdomain-specific routing with different auth logic per portal
-  if (hostname.includes('gymleadhub.co.uk') && subdomain) {
+  if ((hostname.includes('gymleadhub.co.uk') || hostname.includes('vercel.app')) && subdomain) {
     const config = SUBDOMAIN_CONFIG[subdomain as keyof typeof SUBDOMAIN_CONFIG]
 
     if (config) {
@@ -406,8 +406,10 @@ export async function middleware(request: NextRequest) {
   // Create supabase client
   const supabase = createMiddlewareClient(request, res)
 
-  // Debug: Log all cookies
-  console.log('[Middleware] All cookies:', request.cookies.getAll().map(c => ({ name: c.name, value: c.value?.substring(0, 20) + '...' })))
+  // Debug: Log cookies in development only
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Middleware] All cookies:', request.cookies.getAll().map(c => ({ name: c.name, value: c.value?.substring(0, 20) + '...' })))
+  }
 
   // Wrap in try-catch with timeout to prevent hanging
   let session = null

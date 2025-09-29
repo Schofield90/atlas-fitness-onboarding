@@ -22,6 +22,7 @@ export default function LoginPage() {
       if (!supabase) {
         throw new Error('Failed to initialize authentication')
       }
+
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -31,16 +32,27 @@ export default function LoginPage() {
         throw authError
       }
 
-      if (!data.user) {
+      if (!data.user || !data.session) {
         throw new Error('Failed to sign in')
       }
 
-      // Force refresh the session to ensure it's properly established
-      await supabase.auth.refreshSession()
+      console.log('Login successful for user:', data.user.email)
 
-      // Redirect to dashboard
-      router.push('/dashboard')
-      router.refresh() // Force router refresh to update middleware auth state
+      // Wait for session to be fully established before redirecting
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      // Verify session is properly established
+      const { data: { session: verifySession }, error: verifyError } = await supabase.auth.getSession()
+
+      if (verifyError || !verifySession) {
+        console.error('Session verification failed:', verifyError)
+        throw new Error('Session not properly established')
+      }
+
+      console.log('Session verified, redirecting to dashboard')
+
+      // Use window.location for hard navigation to ensure middleware runs
+      window.location.href = '/dashboard'
     } catch (err: any) {
       console.error('Login error:', err)
       setError(err.message || 'Failed to sign in')

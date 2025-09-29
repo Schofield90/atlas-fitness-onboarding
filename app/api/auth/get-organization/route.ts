@@ -8,17 +8,28 @@ export async function GET(request: NextRequest) {
 
     // Get the authenticated user from the session client
     const supabase = await createClient();
-    const {
+    let {
       data: { user },
       error: userError,
     } = await supabase.auth.getUser();
 
     if (userError || !user) {
       console.log("❌ No authenticated user found:", userError?.message);
-      return NextResponse.json(
-        { success: false, error: "Not authenticated" },
-        { status: 401 },
-      );
+
+      // Try to get session as fallback before failing
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      if (!session || !session.user) {
+        console.log("❌ No session found either, user needs to re-login");
+        return NextResponse.json(
+          { success: false, error: "Session expired", requiresReauth: true },
+          { status: 401 },
+        );
+      }
+
+      // Use session user if direct getUser failed
+      user = session.user;
+      console.log("✅ Recovered user from session:", user.id);
     }
 
     console.log("✅ Authenticated user found:", user.id, user.email);

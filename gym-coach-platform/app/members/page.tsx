@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRequireAuth } from '@/hooks/useAuthSession'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -57,6 +58,7 @@ interface MembershipPlan {
 }
 
 export default function MembersPage() {
+  const { session, loading: authLoading, isAuthenticated } = useRequireAuth()
   const [members, setMembers] = useState<Member[]>([])
   const [membershipPlans, setMembershipPlans] = useState<MembershipPlan[]>([])
   const [loading, setLoading] = useState(true)
@@ -68,12 +70,34 @@ export default function MembersPage() {
   const [sortBy, setSortBy] = useState('created_at')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 
+  // Don't render page content until auth is checked
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return null // useRequireAuth will handle redirect
+  }
+
   useEffect(() => {
     loadMembers()
     loadMembershipPlans()
   }, [page, search, statusFilter, sortBy, sortOrder])
 
   const loadMembers = async () => {
+    if (!session?.access_token) {
+      console.error('No access token available')
+      setLoading(false)
+      return
+    }
+
     try {
       const params = new URLSearchParams({
         page: page.toString(),
@@ -85,11 +109,21 @@ export default function MembersPage() {
       if (search) params.append('search', search)
       if (statusFilter && statusFilter !== '') params.append('membership_status', statusFilter)
 
-      const response = await fetch(`/api/clients?${params}`)
+      const response = await fetch(`/api/clients?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      })
+
       if (response.ok) {
         const data = await response.json()
         console.log('Members data:', data) // Debug logging
         setMembers(data.clients || [])
+      } else if (response.status === 401) {
+        console.error('Unauthorized access - session may have expired')
+        toast.error('Session expired. Please log in again.')
+        // The useRequireAuth hook will handle the redirect
       } else {
         console.error('Failed to load members:', response.status, response.statusText)
         toast.error('Failed to load members')
@@ -103,8 +137,17 @@ export default function MembersPage() {
   }
 
   const loadMembershipPlans = async () => {
+    if (!session?.access_token) {
+      return
+    }
+
     try {
-      const response = await fetch('/api/membership-plans')
+      const response = await fetch('/api/membership-plans', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      })
       if (response.ok) {
         const data = await response.json()
         setMembershipPlans(data.plans || [])

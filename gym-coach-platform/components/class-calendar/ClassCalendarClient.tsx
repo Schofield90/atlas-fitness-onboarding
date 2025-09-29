@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
+import { useRequireAuth } from '@/hooks/useAuthSession';
 import { Calendar, momentLocalizer, Event } from 'react-big-calendar';
 import moment from 'moment';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -51,6 +52,7 @@ interface ClassSession {
 }
 
 export function ClassCalendarClient() {
+  const { session, loading: authLoading, isAuthenticated } = useRequireAuth()
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewType, setViewType] = useState<'calendar' | 'list'>('calendar');
@@ -61,9 +63,30 @@ export function ClassCalendarClient() {
   const [selectedSession, setSelectedSession] = useState<ClassSession | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
+  // Don't render page content until auth is checked
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return null // useRequireAuth will handle redirect
+  }
+
   // Fetch sessions from API
   useEffect(() => {
     const fetchSessions = async () => {
+      if (!session?.access_token) {
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       try {
         const startDate = moment(selectedDate).startOf('month').toISOString();
@@ -76,7 +99,12 @@ export function ClassCalendarClient() {
         });
 
         // Use the new class-sessions endpoint that connects to the database
-        const response = await fetch(`/api/class-sessions?${params}`);
+        const response = await fetch(`/api/class-sessions?${params}`, {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        });
 
         if (!response.ok) {
           throw new Error('Failed to fetch sessions');

@@ -20,67 +20,56 @@ export default function OwnerLoginPage() {
     setError("");
 
     try {
-      // Use the API endpoint that we know works correctly
-      console.log("📡 Using API-based login to avoid RLS issues...");
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        console.error("❌ Login API error:", result);
-        throw new Error(result.error || 'Login failed');
-      }
-
-      console.log("✅ API login successful:", {
-        user: result.data.user,
-        organization: result.data.organization?.name
-      });
-
-      // Clear any existing sessions first
+      // Use direct Supabase client for login to avoid cookie conflicts
       const supabase = createSessionClient();
-      if (supabase) {
-        await supabase.auth.signOut();
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
-        // Set the session from the API response
-        if (result.data.session) {
-          await supabase.auth.setSession({
-            access_token: result.data.session.access_token,
-            refresh_token: result.data.session.refresh_token,
-          });
-          
-          console.log("✅ Session set from API response");
-        }
+      if (!supabase) {
+        throw new Error("Unable to connect to authentication service");
       }
 
-      // Store session info in localStorage as backup
-      if (result.data.session) {
-        localStorage.setItem('owner-auth-backup', JSON.stringify({
-          access_token: result.data.session.access_token,
-          refresh_token: result.data.session.refresh_token,
-          expires_at: result.data.session.expires_at,
-          user: result.data.user,
-          organization: result.data.organization
-        }));
+      console.log("🔑 Attempting direct Supabase login...");
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.toLowerCase().trim(),
+        password: password,
+      });
+
+      if (authError) {
+        console.error("❌ Authentication error:", authError);
+        throw new Error(authError.message || "Invalid login credentials");
       }
 
-      console.log("🚀 Login successful, redirecting to dashboard...");
-      
-      // Use window.location for a hard redirect to ensure session is properly set
-      window.location.href = "/dashboard";
-      
+      if (!authData.user || !authData.session) {
+        throw new Error("Authentication failed - no user or session returned");
+      }
+
+      console.log("✅ Login successful:", {
+        user: authData.user.email,
+        sessionExpires: authData.session.expires_at
+      });
+
+      // Wait a moment for session to be set in cookies
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      console.log("🚀 Redirecting to dashboard...");
+
+      // Use router.push for proper Next.js navigation
+      router.push("/dashboard");
+
     } catch (error: any) {
       console.error("Login error:", error);
-      setError(error.message || "Invalid email or password");
+      // Provide more specific error messages
+      let errorMessage = "Invalid email or password";
+
+      if (error.message?.includes("Invalid login credentials")) {
+        errorMessage = "Invalid email or password. Please check your credentials.";
+      } else if (error.message?.includes("Email not confirmed")) {
+        errorMessage = "Please check your email and click the confirmation link before logging in.";
+      } else if (error.message?.includes("Too many requests")) {
+        errorMessage = "Too many login attempts. Please wait a moment and try again.";
+      } else if (error.message?.includes("authentication service")) {
+        errorMessage = "Authentication service unavailable. Please try again later.";
+      }
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

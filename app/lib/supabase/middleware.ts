@@ -9,7 +9,9 @@ export function createMiddlewareClient(
 ) {
   // Determine if we're in production based on hostname
   const hostname = request.headers.get("host") || "";
-  const isProduction = hostname.includes("gymleadhub.co.uk");
+  const isProduction = hostname.includes("vercel.app") ||
+                      process.env.NODE_ENV === "production" ||
+                      process.env.VERCEL_ENV === "production";
 
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,9 +25,9 @@ export function createMiddlewareClient(
           // Enhanced cookie options for cross-subdomain support
           const enhancedOptions: CookieOptions = {
             ...options,
-            // Set domain to parent domain for cross-subdomain cookies in production only
-            // For localhost, omit domain to allow cookies to work properly
-            domain: isProduction ? ".gymleadhub.co.uk" : undefined,
+            // Don't set domain - causes issues on Vercel
+            // Browser will automatically set appropriate domain
+            domain: undefined,
             // Use 'lax' for better subdomain support while maintaining security
             sameSite: "lax",
             // Always use secure in production, false for localhost
@@ -51,7 +53,7 @@ export function createMiddlewareClient(
         remove(name: string, options: CookieOptions) {
           const enhancedOptions: CookieOptions = {
             ...options,
-            domain: isProduction ? ".gymleadhub.co.uk" : undefined,
+            domain: undefined,
             path: "/",
             sameSite: "lax",
             secure: isProduction,

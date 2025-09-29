@@ -20,36 +20,43 @@ export function createMiddlewareClient(
           return request.cookies.get(name)?.value;
         },
         set(name: string, value: string, options: CookieOptions) {
-          // Cookie options that work for both localhost and production
+          // Enhanced cookie options for session persistence
           const enhancedOptions: CookieOptions = {
             ...options,
-            // Only set domain for production (cross-subdomain support)
-            // Omit for localhost to allow cookies to work properly
+            // Set domain for production cross-subdomain support
             domain: isProduction ? ".gymleadhub.co.uk" : undefined,
-            // Use 'lax' for better compatibility
-            sameSite: isLocalhost ? "lax" : (options.sameSite || "lax"),
-            // Secure only in production (localhost doesn't use HTTPS)
+            // Use 'lax' for better compatibility and session persistence
+            sameSite: isLocalhost ? "lax" : "lax",
+            // Secure in production
             secure: isProduction && !isLocalhost,
-            // CRITICAL: Keep httpOnly from Supabase's default for security
-            // This prevents JavaScript access to auth cookies (multi-tenant security)
+            // Maintain httpOnly for security but allow session persistence
             httpOnly: options.httpOnly !== undefined ? options.httpOnly : true,
             // Set path to root for all cookies
             path: options.path || "/",
-            // Preserve maxAge if provided
-            maxAge: options.maxAge,
+            // Extend maxAge for better session persistence (default: 1 hour)
+            maxAge: options.maxAge || (isProduction ? 3600 : 7200), // 2 hours for dev
           };
 
+          // Log cookie operations in development for debugging
+          if (!isProduction) {
+            console.log(`Setting cookie: ${name} with options:`, enhancedOptions);
+          }
+
           // Set cookie on both request and response
-          request.cookies.set({
-            name,
-            value,
-            ...enhancedOptions,
-          });
-          response.cookies.set({
-            name,
-            value,
-            ...enhancedOptions,
-          });
+          try {
+            request.cookies.set({
+              name,
+              value,
+              ...enhancedOptions,
+            });
+            response.cookies.set({
+              name,
+              value,
+              ...enhancedOptions,
+            });
+          } catch (error) {
+            console.error(`Failed to set cookie ${name}:`, error);
+          }
         },
         remove(name: string, options: CookieOptions) {
           const enhancedOptions: CookieOptions = {
@@ -60,19 +67,27 @@ export function createMiddlewareClient(
             secure: isProduction && !isLocalhost,
           };
 
+          if (!isProduction) {
+            console.log(`Removing cookie: ${name}`);
+          }
+
           // Remove cookie from both request and response
-          request.cookies.set({
-            name,
-            value: "",
-            ...enhancedOptions,
-            maxAge: 0,
-          });
-          response.cookies.set({
-            name,
-            value: "",
-            ...enhancedOptions,
-            maxAge: 0,
-          });
+          try {
+            request.cookies.set({
+              name,
+              value: "",
+              ...enhancedOptions,
+              maxAge: 0,
+            });
+            response.cookies.set({
+              name,
+              value: "",
+              ...enhancedOptions,
+              maxAge: 0,
+            });
+          } catch (error) {
+            console.error(`Failed to remove cookie ${name}:`, error);
+          }
         },
       },
     },
