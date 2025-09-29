@@ -106,8 +106,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Clean up date fields - remove empty strings entirely
+    // Clean up fields - remove empty strings and invalid values
     const dateFields = ["date_of_birth"];
+    const numericFields = [
+      "height_cm",
+      "weight_kg",
+      "target_calories",
+      "protein_grams",
+      "carbs_grams",
+      "fat_grams",
+      "meals_per_day",
+      "bmr",
+      "tdee",
+      "bmi",
+    ];
+
+    // Clean date fields
     for (const field of dateFields) {
       if (
         updateData[field] === "" ||
@@ -118,10 +132,27 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Clean numeric fields - convert empty strings to null or remove them
+    for (const field of numericFields) {
+      if (updateData[field] === "" || updateData[field] === undefined) {
+        delete updateData[field];
+      } else if (updateData[field] === null) {
+        delete updateData[field];
+      } else if (typeof updateData[field] === "string") {
+        const parsed = parseFloat(updateData[field]);
+        if (!isNaN(parsed)) {
+          updateData[field] = parsed;
+        } else {
+          delete updateData[field];
+        }
+      }
+    }
+
     // Debug log
     console.log("Profile update data after cleanup:", {
       hasDateOfBirth: "date_of_birth" in updateData,
       dateOfBirthValue: updateData.date_of_birth,
+      numericFieldsCleaned: numericFields.filter((f) => f in updateData),
       allFields: Object.keys(updateData),
     });
 
