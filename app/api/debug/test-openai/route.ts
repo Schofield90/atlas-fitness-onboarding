@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
+import { getOpenAI } from "@/app/lib/openai";
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,10 +9,6 @@ export async function GET(request: NextRequest) {
         hasKey: false,
       });
     }
-
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
 
     // Test with a simple completion
     const response = await openai.chat.completions.create({

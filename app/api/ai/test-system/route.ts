@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getOpenAI } from "@/app/lib/openai";
 import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
 import { enhancedLeadProcessor } from "@/app/lib/ai/enhanced-lead-processor";
 import { realTimeProcessor } from "@/app/lib/ai/real-time-processor";
 import { backgroundProcessor } from "@/app/lib/ai/background-processor";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 import { getAnthropic } from "@/app/lib/ai/anthropic-server";
-import { getOpenAIClient } from "@/gym-coach-platform/lib/ai/openai-client";
-
 // Force dynamic rendering for this route
 export const dynamic = "force-dynamic";
-
 interface TestResult {
   testName: string;
   passed: boolean;
@@ -17,36 +15,29 @@ interface TestResult {
   details?: any;
   error?: string;
 }
-
 export async function POST(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth();
     const body = await request.json();
-
     const {
       testType = "comprehensive",
       createTestData = true,
       skipApiTests = false,
     } = body;
-
     console.log("Starting AI system validation tests:", {
       testType,
       organizationId: userWithOrg.organizationId,
       createTestData,
       skipApiTests,
     });
-
     const testResults: TestResult[] = [];
     const startTime = Date.now();
-
     // Test 1: AI Service Connectivity
     if (!skipApiTests) {
       testResults.push(await testAIServiceConnectivity());
     }
-
     // Test 2: Database Schema Validation
     testResults.push(await testDatabaseSchema());
-
     // Test 3: Create Test Data
     let testLeadId = null;
     if (createTestData) {
@@ -54,51 +45,41 @@ export async function POST(request: NextRequest) {
       testResults.push(createDataResult);
       testLeadId = createDataResult.details?.leadId;
     }
-
     // Test 4: Enhanced Lead Processing
     if (testLeadId) {
       testResults.push(await testEnhancedLeadProcessing(testLeadId));
     }
-
     // Test 5: Real-time Message Processing
     if (testLeadId) {
       testResults.push(
         await testRealTimeProcessing(userWithOrg.organizationId, testLeadId),
       );
     }
-
     // Test 6: Background Job Processing
     if (testLeadId) {
       testResults.push(
         await testBackgroundProcessing(userWithOrg.organizationId, testLeadId),
       );
     }
-
     // Test 7: API Endpoints
     testResults.push(await testAPIEndpoints(testLeadId));
-
     // Test 8: Performance Benchmarks
     if (testType === "comprehensive" && testLeadId) {
       testResults.push(await testPerformanceBenchmarks(testLeadId));
     }
-
     // Test 9: Error Handling
     testResults.push(await testErrorHandling());
-
     // Test 10: Caching and Optimization
     if (testLeadId) {
       testResults.push(await testCachingBehavior(testLeadId));
     }
-
     const totalTime = Date.now() - startTime;
     const passedTests = testResults.filter((t) => t.passed).length;
     const failedTests = testResults.filter((t) => !t.passed).length;
-
     // Clean up test data if requested
     if (createTestData && testLeadId) {
       await cleanupTestData(testLeadId);
     }
-
     const summary = {
       success: true,
       organizationId: userWithOrg.organizationId,
@@ -115,23 +96,19 @@ export async function POST(request: NextRequest) {
       recommendations: generateTestRecommendations(testResults),
       systemHealth: assessSystemHealth(testResults),
     };
-
     return NextResponse.json(summary);
   } catch (error) {
     console.error("Error in AI system test:", error);
     return createErrorResponse(error);
   }
 }
-
 async function testAIServiceConnectivity(): Promise<TestResult> {
   const startTime = Date.now();
-
   try {
     const results = {
       claude: { available: false, error: null },
       openai: { available: false, error: null },
     };
-
     // Test Claude
     try {
       const anthropic = getAnthropic();
@@ -148,7 +125,6 @@ async function testAIServiceConnectivity(): Promise<TestResult> {
     } catch (error) {
       results.claude.error = error.message;
     }
-
     // Test OpenAI
     try {
       const openai = getOpenAIClient();
@@ -161,9 +137,7 @@ async function testAIServiceConnectivity(): Promise<TestResult> {
     } catch (error) {
       results.openai.error = error.message;
     }
-
     const passed = results.claude.available || results.openai.available;
-
     return {
       testName: "AI Service Connectivity",
       passed,
@@ -179,11 +153,9 @@ async function testAIServiceConnectivity(): Promise<TestResult> {
     };
   }
 }
-
 async function testDatabaseSchema(): Promise<TestResult> {
   const startTime = Date.now();
   const supabase = createAdminClient();
-
   try {
     const requiredTables = [
       "lead_ai_insights",
@@ -193,7 +165,6 @@ async function testDatabaseSchema(): Promise<TestResult> {
       "staff_notifications",
       "tasks",
     ];
-
     const tableChecks = await Promise.all(
       requiredTables.map(async (tableName) => {
         try {
@@ -201,17 +172,14 @@ async function testDatabaseSchema(): Promise<TestResult> {
             .from(tableName)
             .select("id")
             .limit(1);
-
           return { table: tableName, exists: !error, error: error?.message };
         } catch (err) {
           return { table: tableName, exists: false, error: err.message };
         }
       }),
     );
-
     const missingTables = tableChecks.filter((check) => !check.exists);
     const passed = missingTables.length === 0;
-
     return {
       testName: "Database Schema Validation",
       passed,
@@ -234,11 +202,9 @@ async function testDatabaseSchema(): Promise<TestResult> {
     };
   }
 }
-
 async function createTestData(organizationId: string): Promise<TestResult> {
   const startTime = Date.now();
   const supabase = createAdminClient();
-
   try {
     // Create a test lead
     const { data: testLead, error: leadError } = await supabase
@@ -254,11 +220,9 @@ async function createTestData(organizationId: string): Promise<TestResult> {
       })
       .select("id")
       .single();
-
     if (leadError) {
       throw new Error(`Failed to create test lead: ${leadError.message}`);
     }
-
     // Create test interactions
     const testInteractions = [
       {
@@ -289,15 +253,12 @@ async function createTestData(organizationId: string): Promise<TestResult> {
         created_at: new Date(Date.now() + 10000).toISOString(),
       },
     ];
-
     const { error: interactionError } = await supabase
       .from("interactions")
       .insert(testInteractions);
-
     if (interactionError) {
       console.error("Failed to create test interactions:", interactionError);
     }
-
     return {
       testName: "Create Test Data",
       passed: true,
@@ -316,16 +277,13 @@ async function createTestData(organizationId: string): Promise<TestResult> {
     };
   }
 }
-
 async function testEnhancedLeadProcessing(leadId: string): Promise<TestResult> {
   const startTime = Date.now();
-
   try {
     const analysis = await enhancedLeadProcessor.processLead(leadId, {
       forceRefresh: true,
       useClaudeForAnalysis: true,
     });
-
     const passed = !!(
       analysis &&
       analysis.leadId === leadId &&
@@ -334,7 +292,6 @@ async function testEnhancedLeadProcessing(leadId: string): Promise<TestResult> {
       analysis.conversionLikelihood &&
       typeof analysis.conversionLikelihood.percentage === "number"
     );
-
     return {
       testName: "Enhanced Lead Processing",
       passed,
@@ -361,13 +318,11 @@ async function testEnhancedLeadProcessing(leadId: string): Promise<TestResult> {
     };
   }
 }
-
 async function testRealTimeProcessing(
   organizationId: string,
   leadId: string,
 ): Promise<TestResult> {
   const startTime = Date.now();
-
   try {
     const result = await realTimeProcessor.processMessage({
       leadId,
@@ -379,13 +334,11 @@ async function testRealTimeProcessing(
       direction: "inbound",
       timestamp: new Date().toISOString(),
     });
-
     const passed = !!(
       result &&
       typeof result.processingTimeMs === "number" &&
       result.processingTimeMs > 0
     );
-
     return {
       testName: "Real-time Processing",
       passed,
@@ -408,13 +361,11 @@ async function testRealTimeProcessing(
     };
   }
 }
-
 async function testBackgroundProcessing(
   organizationId: string,
   leadId: string,
 ): Promise<TestResult> {
   const startTime = Date.now();
-
   try {
     // Queue a background job
     const jobId = await backgroundProcessor.queueLeadProcessing(
@@ -422,12 +373,9 @@ async function testBackgroundProcessing(
       leadId,
       { priority: "high", maxRetries: 1 },
     );
-
     // Get job statistics
     const stats = await backgroundProcessor.getJobStatistics(organizationId);
-
     const passed = !!(jobId && stats && typeof stats.totalJobs === "number");
-
     return {
       testName: "Background Processing",
       passed,
@@ -447,10 +395,8 @@ async function testBackgroundProcessing(
     };
   }
 }
-
 async function testAPIEndpoints(leadId: string): Promise<TestResult> {
   const startTime = Date.now();
-
   try {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const results = {
@@ -459,10 +405,8 @@ async function testAPIEndpoints(leadId: string): Promise<TestResult> {
       bulkProcess: false,
       monitoring: false,
     };
-
     // Note: In a real test environment, you'd make actual HTTP requests
     // For now, we'll simulate the test since we can't easily make authenticated requests
-
     // Simulate API endpoint availability checks
     const endpointsExist = [
       "/api/ai/process-lead",
@@ -470,15 +414,12 @@ async function testAPIEndpoints(leadId: string): Promise<TestResult> {
       "/api/ai/bulk-process",
       "/api/ai/monitoring",
     ];
-
     // In a real implementation, you'd verify these endpoints respond correctly
     results.processLead = true; // Simulate success
     results.getInsights = true; // Simulate success
     results.bulkProcess = true; // Simulate success
     results.monitoring = true; // Simulate success
-
     const passed = Object.values(results).every(Boolean);
-
     return {
       testName: "API Endpoints",
       passed,
@@ -497,13 +438,10 @@ async function testAPIEndpoints(leadId: string): Promise<TestResult> {
     };
   }
 }
-
 async function testPerformanceBenchmarks(leadId: string): Promise<TestResult> {
   const startTime = Date.now();
-
   try {
     const benchmarks = [];
-
     // Benchmark 1: Single lead processing time
     const singleProcessStart = Date.now();
     await enhancedLeadProcessor.processLead(leadId, { forceRefresh: false });
@@ -512,7 +450,6 @@ async function testPerformanceBenchmarks(leadId: string): Promise<TestResult> {
       test: "single_lead_processing",
       timeMs: singleProcessTime,
     });
-
     // Benchmark 2: Real-time processing time
     const realTimeStart = Date.now();
     await realTimeProcessor.processMessage({
@@ -529,10 +466,8 @@ async function testPerformanceBenchmarks(leadId: string): Promise<TestResult> {
       test: "real_time_processing",
       timeMs: realTimeProcessTime,
     });
-
     // Performance criteria
     const passed = singleProcessTime < 10000 && realTimeProcessTime < 5000; // 10s and 5s limits
-
     return {
       testName: "Performance Benchmarks",
       passed,
@@ -558,13 +493,10 @@ async function testPerformanceBenchmarks(leadId: string): Promise<TestResult> {
     };
   }
 }
-
 async function testErrorHandling(): Promise<TestResult> {
   const startTime = Date.now();
-
   try {
     const errorTests = [];
-
     // Test 1: Invalid lead ID
     try {
       await enhancedLeadProcessor.processLead("invalid-lead-id");
@@ -576,7 +508,6 @@ async function testErrorHandling(): Promise<TestResult> {
         error: error.message,
       });
     }
-
     // Test 2: Real-time processing with missing data
     try {
       await realTimeProcessor.processMessage({
@@ -595,9 +526,7 @@ async function testErrorHandling(): Promise<TestResult> {
         error: error.message,
       });
     }
-
     const passed = errorTests.every((t) => t.handled);
-
     return {
       testName: "Error Handling",
       passed,
@@ -613,24 +542,19 @@ async function testErrorHandling(): Promise<TestResult> {
     };
   }
 }
-
 async function testCachingBehavior(leadId: string): Promise<TestResult> {
   const startTime = Date.now();
-
   try {
     // First call - should hit AI services
     const firstCallStart = Date.now();
     await enhancedLeadProcessor.processLead(leadId, { forceRefresh: true });
     const firstCallTime = Date.now() - firstCallStart;
-
     // Second call - should use cache
     const secondCallStart = Date.now();
     await enhancedLeadProcessor.processLead(leadId, { forceRefresh: false });
     const secondCallTime = Date.now() - secondCallStart;
-
     // Cached call should be significantly faster
     const cacheWorking = secondCallTime < firstCallTime * 0.5;
-
     return {
       testName: "Caching Behavior",
       passed: cacheWorking,
@@ -651,10 +575,8 @@ async function testCachingBehavior(leadId: string): Promise<TestResult> {
     };
   }
 }
-
 async function cleanupTestData(leadId: string): Promise<void> {
   const supabase = createAdminClient();
-
   try {
     // Delete in order to respect foreign key constraints
     await supabase.from("lead_ai_insights").delete().eq("lead_id", leadId);
@@ -662,24 +584,20 @@ async function cleanupTestData(leadId: string): Promise<void> {
     await supabase.from("interactions").delete().eq("lead_id", leadId);
     await supabase.from("lead_scoring_factors").delete().eq("lead_id", leadId);
     await supabase.from("leads").delete().eq("id", leadId);
-
     console.log("Test data cleaned up for lead:", leadId);
   } catch (error) {
     console.error("Failed to cleanup test data:", error);
   }
 }
-
 function generateTestRecommendations(testResults: TestResult[]): string[] {
   const recommendations = [];
   const failedTests = testResults.filter((t) => !t.passed);
-
   if (failedTests.length === 0) {
     recommendations.push(
       "✅ All tests passed! Your AI system is functioning correctly.",
     );
     return recommendations;
   }
-
   failedTests.forEach((test) => {
     switch (test.testName) {
       case "AI Service Connectivity":
@@ -711,15 +629,12 @@ function generateTestRecommendations(testResults: TestResult[]): string[] {
         recommendations.push(`❌ Fix failed test: ${test.testName}`);
     }
   });
-
   return recommendations;
 }
-
 function assessSystemHealth(testResults: TestResult[]): string {
   const totalTests = testResults.length;
   const passedTests = testResults.filter((t) => t.passed).length;
   const successRate = (passedTests / totalTests) * 100;
-
   if (successRate >= 90) return "healthy";
   if (successRate >= 70) return "warning";
   return "critical";

@@ -1,26 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getOpenAI } from "@/app/lib/openai";
 import { createClient } from "@/app/lib/supabase/server";
 import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
-import { getOpenAIClient } from "@/gym-coach-platform/lib/ai/openai-client";
-
 // Force dynamic rendering to handle cookies and request properties
 export const dynamic = "force-dynamic";
-
 export async function POST(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth();
     const supabase = await createClient();
     const body = await request.json();
-
     const { leadId, conversations, forceRefresh = false } = body;
-
     if (!leadId) {
       return NextResponse.json(
         { error: "Lead ID is required" },
         { status: 400 },
       );
     }
-
     // Get lead data
     const { data: lead, error: leadError } = await supabase
       .from("leads")
@@ -28,11 +23,9 @@ export async function POST(request: NextRequest) {
       .eq("id", leadId)
       .eq("organization_id", userWithOrg.organizationId)
       .single();
-
     if (leadError || !lead) {
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
-
     // Get recent conversations if not provided
     let conversationData = conversations;
     if (!conversationData) {
@@ -43,10 +36,8 @@ export async function POST(request: NextRequest) {
         .eq("organization_id", userWithOrg.organizationId)
         .order("created_at", { ascending: false })
         .limit(20);
-
       conversationData = interactions || [];
     }
-
     // Check if we have recent AI analysis (less than 24 hours old) and not forcing refresh
     if (!forceRefresh) {
       const { data: existingInsight } = await supabase
@@ -61,7 +52,6 @@ export async function POST(request: NextRequest) {
         .order("created_at", { ascending: false })
         .limit(1)
         .single();
-
       if (existingInsight) {
         return NextResponse.json({
           success: true,
@@ -72,10 +62,8 @@ export async function POST(request: NextRequest) {
         });
       }
     }
-
     // Perform AI analysis using OpenAI
     const aiAnalysis = await analyzeLeadWithAI(lead, conversationData);
-
     // Save AI insights to database
     const insights = [
       {
@@ -100,19 +88,15 @@ export async function POST(request: NextRequest) {
         insight_data: aiAnalysis.conversionLikelihood,
       },
     ];
-
     // Insert AI insights
     const { error: insightError } = await supabase
       .from("lead_ai_insights")
       .insert(insights);
-
     if (insightError) {
       console.error("Error saving AI insights:", insightError);
     }
-
     // Calculate and update AI analysis score
     const aiScore = calculateAIScore(aiAnalysis);
-
     // Update lead scoring factors with AI analysis
     const { error: scoringError } = await supabase
       .from("lead_scoring_factors")
@@ -130,18 +114,15 @@ export async function POST(request: NextRequest) {
           onConflict: "organization_id,lead_id",
         },
       );
-
     if (scoringError) {
       console.error("Error updating scoring factors:", scoringError);
     }
-
     // Trigger lead score recalculation
     await supabase.rpc("update_lead_score_with_history", {
       lead_id: leadId,
       triggered_by: "ai_analysis",
       change_reason: "AI analysis completed",
     });
-
     return NextResponse.json({
       success: true,
       leadId,
@@ -154,23 +135,19 @@ export async function POST(request: NextRequest) {
     return createErrorResponse(error);
   }
 }
-
 export async function GET(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth();
     const supabase = await createClient();
-
     const { searchParams } = new URL(request.url);
     const leadId = searchParams.get("leadId");
     const insightType = searchParams.get("type");
-
     if (!leadId) {
       return NextResponse.json(
         { error: "Lead ID is required" },
         { status: 400 },
       );
     }
-
     // Build query for AI insights
     let query = supabase
       .from("lead_ai_insights")
@@ -178,20 +155,16 @@ export async function GET(request: NextRequest) {
       .eq("lead_id", leadId)
       .eq("organization_id", userWithOrg.organizationId)
       .order("created_at", { ascending: false });
-
     if (insightType) {
       query = query.eq("insight_type", insightType);
     }
-
     const { data: insights, error } = await query;
-
     if (error) {
       return NextResponse.json(
         { error: "Failed to fetch insights" },
         { status: 500 },
       );
     }
-
     // Get lead scoring factors
     const { data: scoringFactors } = await supabase
       .from("lead_scoring_factors")
@@ -199,13 +172,11 @@ export async function GET(request: NextRequest) {
       .eq("lead_id", leadId)
       .eq("organization_id", userWithOrg.organizationId)
       .single();
-
     // Get scoring breakdown
     const { data: breakdown } = await supabase.rpc(
       "get_lead_scoring_breakdown",
       { lead_id: leadId },
     );
-
     return NextResponse.json({
       success: true,
       leadId,
@@ -217,10 +188,8 @@ export async function GET(request: NextRequest) {
     return createErrorResponse(error);
   }
 }
-
 async function analyzeLeadWithAI(lead: any, conversations: any[]) {
   const openai = getOpenAIClient();
-
   // Prepare conversation context
   const conversationContext = conversations
     .map(
@@ -228,7 +197,6 @@ async function analyzeLeadWithAI(lead: any, conversations: any[]) {
         `${conv.direction === "inbound" ? "Lead" : "Staff"}: ${conv.content}`,
     )
     .join("\n");
-
   const leadContext = `
 Lead Information:
 - Name: ${lead.name}
@@ -237,14 +205,11 @@ Lead Information:
 - Source: ${lead.source}
 - Current Status: ${lead.status}
 - Created: ${new Date(lead.created_at).toLocaleDateString()}
-
 Recent Conversations:
 ${conversationContext || "No conversations yet"}
-
 Additional Data:
 ${JSON.stringify(lead.metadata || {}, null, 2)}
   `;
-
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4",
@@ -252,7 +217,6 @@ ${JSON.stringify(lead.metadata || {}, null, 2)}
         {
           role: "system",
           content: `You are an expert sales AI analyzing leads for a fitness business. Analyze the lead's information and conversations to provide insights about their buying intent, sentiment, and conversion likelihood. 
-
 Return your analysis as a JSON object with the following structure:
 {
   "buyingSignals": {
@@ -289,12 +253,10 @@ Return your analysis as a JSON object with the following structure:
       temperature: 0.3,
       max_tokens: 1500,
     });
-
     const analysis = JSON.parse(completion.choices[0].message.content || "{}");
     return analysis;
   } catch (error) {
     console.error("Error in AI analysis:", error);
-
     // Return fallback analysis
     return {
       buyingSignals: {
@@ -322,10 +284,8 @@ Return your analysis as a JSON object with the following structure:
     };
   }
 }
-
 function calculateAIScore(analysis: any): number {
   let score = 0;
-
   // Buying signals contribution (0-8 points)
   switch (analysis.buyingSignals.strength) {
     case "high":
@@ -338,7 +298,6 @@ function calculateAIScore(analysis: any): number {
       score += 2;
       break;
   }
-
   // Sentiment contribution (0-6 points)
   switch (analysis.sentiment.overall) {
     case "positive":
@@ -351,21 +310,17 @@ function calculateAIScore(analysis: any): number {
       score += 0;
       break;
   }
-
   // Conversion likelihood contribution (0-6 points)
   const conversionScore = Math.round(
     (analysis.conversionLikelihood.percentage / 100) * 6,
   );
   score += conversionScore;
-
   // Confidence modifier
   const avgConfidence =
     (analysis.buyingSignals.confidence +
       analysis.sentiment.confidence +
       analysis.conversionLikelihood.confidence) /
     3;
-
   score = Math.round(score * avgConfidence);
-
   return Math.min(20, Math.max(0, score));
 }

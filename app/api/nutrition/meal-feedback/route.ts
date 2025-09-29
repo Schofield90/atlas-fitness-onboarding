@@ -1,18 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/app/lib/api/auth-check";
-import OpenAI from "openai";
-
-// Lazy load OpenAI client to avoid browser environment errors during build
-let openai: OpenAI | null = null;
-
-function getOpenAI(): OpenAI {
-  if (!openai) {
-    openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-  }
-  return openai;
-}
+import { getOpenAI } from "@/app/lib/openai";
 
 // Force dynamic rendering for this route
 export const dynamic = "force-dynamic";
@@ -29,10 +17,6 @@ export async function POST(request: NextRequest) {
       mealIndex,
       conversationHistory,
     } = await request.json();
-
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
 
     // Build conversation context
     const messages: any[] = [
@@ -74,7 +58,7 @@ export async function POST(request: NextRequest) {
       },
     ];
 
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: "gpt-3.5-turbo",
       messages,
       temperature: 0.7,
@@ -91,7 +75,7 @@ export async function POST(request: NextRequest) {
       response.toLowerCase().includes("how about")
     ) {
       // Generate a new meal based on the feedback
-      const mealGeneration = await openai.chat.completions.create({
+      const mealGeneration = await getOpenAI().chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [
           {

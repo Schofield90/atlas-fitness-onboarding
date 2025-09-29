@@ -1,17 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getOpenAI } from "@/app/lib/openai";
 import { createClient } from "@/app/lib/supabase/server";
 import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
-import { getOpenAIClient } from "@/gym-coach-platform/lib/ai/openai-client";
-
 // Force dynamic rendering to handle cookies and request properties
 export const dynamic = "force-dynamic";
-
 export async function POST(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth();
     const supabase = await createClient();
     const body = await request.json();
-
     const {
       leadId,
       insightTypes = [
@@ -20,31 +17,26 @@ export async function POST(request: NextRequest) {
         "optimization_tips",
       ],
     } = body;
-
     if (!leadId) {
       return NextResponse.json(
         { error: "Lead ID is required" },
         { status: 400 },
       );
     }
-
     // Get comprehensive lead data
     const leadData = await getLeadDataForRecommendations(
       supabase,
       leadId,
       userWithOrg.organizationId,
     );
-
     if (!leadData) {
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
-
     // Generate AI-powered recommendations
     const recommendations = await generateRecommendations(
       leadData,
       insightTypes,
     );
-
     // Save recommendations as insights
     const insights = insightTypes.map((type) => ({
       organization_id: userWithOrg.organizationId,
@@ -54,15 +46,12 @@ export async function POST(request: NextRequest) {
       insight_data: recommendations[type],
       expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
     }));
-
     const { error: insertError } = await supabase
       .from("lead_ai_insights")
       .insert(insights);
-
     if (insertError) {
       console.error("Error saving recommendations:", insertError);
     }
-
     return NextResponse.json({
       success: true,
       leadId,
@@ -74,16 +63,13 @@ export async function POST(request: NextRequest) {
     return createErrorResponse(error);
   }
 }
-
 export async function GET(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth();
     const supabase = await createClient();
-
     const { searchParams } = new URL(request.url);
     const leadId = searchParams.get("leadId");
     const type = searchParams.get("type");
-
     if (leadId) {
       // Get recommendations for specific lead
       let query = supabase
@@ -97,20 +83,16 @@ export async function GET(request: NextRequest) {
           "optimization_tips",
         ])
         .order("created_at", { ascending: false });
-
       if (type) {
         query = query.eq("insight_type", type);
       }
-
       const { data: insights, error } = await query;
-
       if (error) {
         return NextResponse.json(
           { error: "Failed to fetch recommendations" },
           { status: 500 },
         );
       }
-
       return NextResponse.json({
         success: true,
         leadId,
@@ -122,7 +104,6 @@ export async function GET(request: NextRequest) {
         supabase,
         userWithOrg.organizationId,
       );
-
       return NextResponse.json({
         success: true,
         dashboard: dashboardData,
@@ -132,7 +113,6 @@ export async function GET(request: NextRequest) {
     return createErrorResponse(error);
   }
 }
-
 async function getLeadDataForRecommendations(
   supabase: any,
   leadId: string,
@@ -151,9 +131,7 @@ async function getLeadDataForRecommendations(
       .eq("id", leadId)
       .eq("organization_id", organizationId)
       .single();
-
     if (!lead) return null;
-
     // Get recent interactions
     const { data: interactions } = await supabase
       .from("interactions")
@@ -161,7 +139,6 @@ async function getLeadDataForRecommendations(
       .eq("lead_id", leadId)
       .order("created_at", { ascending: false })
       .limit(10);
-
     // Get recent activities
     const { data: activities } = await supabase
       .from("lead_activities")
@@ -169,7 +146,6 @@ async function getLeadDataForRecommendations(
       .eq("lead_id", leadId)
       .order("created_at", { ascending: false })
       .limit(20);
-
     // Get existing AI insights
     const { data: existingInsights } = await supabase
       .from("lead_ai_insights")
@@ -177,7 +153,6 @@ async function getLeadDataForRecommendations(
       .eq("lead_id", leadId)
       .order("created_at", { ascending: false })
       .limit(5);
-
     // Get score history
     const { data: scoreHistory } = await supabase
       .from("lead_score_history")
@@ -185,7 +160,6 @@ async function getLeadDataForRecommendations(
       .eq("lead_id", leadId)
       .order("created_at", { ascending: false })
       .limit(10);
-
     return {
       lead,
       interactions: interactions || [],
@@ -198,12 +172,10 @@ async function getLeadDataForRecommendations(
     return null;
   }
 }
-
 async function generateRecommendations(leadData: any, insightTypes: string[]) {
   const openai = getOpenAIClient();
   const { lead, interactions, activities, existingInsights, scoreHistory } =
     leadData;
-
   // Prepare context for AI
   const context = `
 Lead Profile:
@@ -214,7 +186,6 @@ Lead Profile:
 - Status: ${lead.status}
 - Current Score: ${lead.lead_score || 0}/100
 - Created: ${new Date(lead.created_at).toLocaleDateString()}
-
 Scoring Breakdown:
 ${
   lead.lead_scoring_factors
@@ -229,7 +200,6 @@ ${
 `
     : "No detailed scoring available"
 }
-
 Recent Interactions (${interactions.length}):
 ${interactions
   .slice(0, 5)
@@ -238,13 +208,11 @@ ${interactions
       `- ${int.direction}: ${int.type} - ${int.content?.substring(0, 100)}...`,
   )
   .join("\n")}
-
 Recent Activities (${activities.length}):
 ${activities
   .slice(0, 10)
   .map((act) => `- ${act.activity_type} (value: ${act.activity_value})`)
   .join("\n")}
-
 Score History:
 ${scoreHistory
   .slice(0, 5)
@@ -253,17 +221,13 @@ ${scoreHistory
       `- ${new Date(hist.created_at).toLocaleDateString()}: ${hist.previous_score} → ${hist.new_score} (${hist.change_reason})`,
   )
   .join("\n")}
-
 Existing AI Insights:
 ${existingInsights.map((insight) => `- ${insight.insight_type}: ${JSON.stringify(insight.insight_data).substring(0, 200)}...`).join("\n")}
   `;
-
   const recommendations: Record<string, any> = {};
-
   try {
     for (const insightType of insightTypes) {
       const systemPrompt = getSystemPromptForInsightType(insightType);
-
       const completion = await openai.chat.completions.create({
         model: "gpt-4",
         messages: [
@@ -273,7 +237,6 @@ ${existingInsights.map((insight) => `- ${insight.insight_type}: ${JSON.stringify
         temperature: 0.3,
         max_tokens: 1000,
       });
-
       try {
         const response = JSON.parse(
           completion.choices[0].message.content || "{}",
@@ -293,21 +256,17 @@ ${existingInsights.map((insight) => `- ${insight.insight_type}: ${JSON.stringify
     }
   } catch (error) {
     console.error("Error generating recommendations with AI:", error);
-
     // Provide fallback recommendations
     insightTypes.forEach((type) => {
       recommendations[type] = getFallbackRecommendation(type, leadData);
     });
   }
-
   return recommendations;
 }
-
 function getSystemPromptForInsightType(insightType: string): string {
   switch (insightType) {
     case "action_recommendations":
       return `You are a sales expert for a fitness business. Based on the lead data provided, generate specific, actionable recommendations for the sales team.
-
 Return your response as JSON with this structure:
 {
   "priority": "high|medium|low",
@@ -323,10 +282,8 @@ Return your response as JSON with this structure:
   "warning_signs": ["potential issue1", "potential issue2"],
   "opportunities": ["opportunity1", "opportunity2"]
 }`;
-
     case "next_steps":
       return `You are a fitness business CRM specialist. Based on the lead data, recommend the next logical steps in the sales process.
-
 Return your response as JSON with this structure:
 {
   "immediate_next_steps": [
@@ -351,10 +308,8 @@ Return your response as JSON with this structure:
     "long_term": "ultimate conversion goal"
   }
 }`;
-
     case "optimization_tips":
       return `You are a lead nurturing expert for fitness businesses. Analyze the lead data and provide optimization tips to improve conversion chances.
-
 Return your response as JSON with this structure:
 {
   "score_improvement_tips": [
@@ -379,36 +334,28 @@ Return your response as JSON with this structure:
   ],
   "risk_mitigation": ["how to prevent lead from going cold"]
 }`;
-
     default:
       return `You are a fitness business sales expert. Provide insights and recommendations for this lead based on the data provided. Return your response as JSON.`;
   }
 }
-
 function calculateConfidence(response: any, leadData: any): number {
   const { lead, interactions, activities } = leadData;
-
   let confidence = 0.7; // Base confidence
-
   // Increase confidence based on data quality
   if (interactions.length > 3) confidence += 0.1;
   if (activities.length > 5) confidence += 0.1;
   if (lead.lead_score && lead.lead_score > 0) confidence += 0.1;
   if (lead.phone && lead.email) confidence += 0.05;
-
   // Decrease confidence for stale data
   const daysSinceCreated =
     (Date.now() - new Date(lead.created_at).getTime()) / (1000 * 60 * 60 * 24);
   if (daysSinceCreated > 30) confidence -= 0.1;
   if (daysSinceCreated > 60) confidence -= 0.1;
-
   // Ensure confidence is between 0.1 and 1.0
   return Math.max(0.1, Math.min(1.0, confidence));
 }
-
 function getFallbackRecommendation(type: string, leadData: any) {
   const { lead } = leadData;
-
   switch (type) {
     case "action_recommendations":
       return {
@@ -426,7 +373,6 @@ function getFallbackRecommendation(type: string, leadData: any) {
         opportunities: ["personal_outreach"],
         confidence: 0.3,
       };
-
     case "next_steps":
       return {
         immediate_next_steps: [
@@ -453,7 +399,6 @@ function getFallbackRecommendation(type: string, leadData: any) {
         },
         confidence: 0.3,
       };
-
     case "optimization_tips":
       return {
         score_improvement_tips: [
@@ -482,7 +427,6 @@ function getFallbackRecommendation(type: string, leadData: any) {
         risk_mitigation: ["Regular follow-up", "Value-added content"],
         confidence: 0.3,
       };
-
     default:
       return {
         message: "Unable to generate recommendations",
@@ -490,7 +434,6 @@ function getFallbackRecommendation(type: string, leadData: any) {
       };
   }
 }
-
 async function getRecommendationsDashboard(
   supabase: any,
   organizationId: string,
@@ -513,7 +456,6 @@ async function getRecommendationsDashboard(
       ])
       .order("created_at", { ascending: false })
       .limit(20);
-
     // Get high-priority recommendations
     const { data: highPriorityLeads } = await supabase
       .from("leads")
@@ -522,7 +464,6 @@ async function getRecommendationsDashboard(
       .or("lead_score.gte.80,status.eq.hot")
       .order("lead_score", { ascending: false })
       .limit(10);
-
     // Get leads needing attention (low scores or no recent activity)
     const { data: attentionNeeded } = await supabase
       .from("leads")
@@ -531,7 +472,6 @@ async function getRecommendationsDashboard(
       .lt("lead_score", 40)
       .order("updated_at", { ascending: true })
       .limit(10);
-
     return {
       recentRecommendations: recentRecommendations || [],
       highPriorityLeads: highPriorityLeads || [],

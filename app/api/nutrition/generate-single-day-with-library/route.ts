@@ -1,22 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
-import OpenAI from "openai";
+import { getOpenAI } from "@/app/lib/openai";
 import { createClient } from "@supabase/supabase-js";
-
-// Lazy load OpenAI client to avoid browser environment errors during build
-let openai: OpenAI | null = null;
-
-function getOpenAI(): OpenAI {
-  if (!openai) {
-    openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-  }
-  return openai;
-}
-
-// Force dynamic rendering for this route
-export const dynamic = "force-dynamic";
 
 // Set max duration for generation
 export const maxDuration = 30;
@@ -195,10 +180,6 @@ export async function POST(request: NextRequest) {
           (target, index) => !selectedMeals.find((m) => m.type === target.type),
         )
         .map((t) => t.type);
-
-      const openai = new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY,
-      });
 
       const prompt = `Generate ${5 - selectedMeals.length} meals for: ${missingMealTypes.join(", ")}.
 Targets: ${dailyCalories}cal, ${dailyProtein}g protein.

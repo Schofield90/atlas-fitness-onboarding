@@ -2,19 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
 import OpenAI from "openai";
+import { getOpenAI } from "@/app/lib/openai";
 import { NutritionProfile } from "@/app/api/nutrition/profile/route";
-
-// Lazy load OpenAI client to avoid browser environment errors during build
-let openai: OpenAI | null = null;
-
-function getOpenAI(): OpenAI {
-  if (!openai) {
-    openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-  }
-  return openai;
-}
 
 // Force dynamic rendering for this route
 export const dynamic = "force-dynamic";
@@ -29,21 +18,6 @@ interface WizardResult {
   response: string;
   isComplete: boolean;
   extractedData?: Partial<NutritionProfile>;
-}
-
-// Lazy initialization to avoid build-time errors
-let openai: OpenAI | null = null;
-
-function getOpenAI(): OpenAI {
-  if (!openai && process.env.OPENAI_API_KEY) {
-    openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-  }
-  if (!openai) {
-    throw new Error("OpenAI API key not configured");
-  }
-  return openai;
 }
 
 // System prompt for the nutrition wizard

@@ -1,21 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
-import OpenAI from "openai";
-
-// Lazy load OpenAI client to avoid browser environment errors during build
-let openai: OpenAI | null = null;
-
-function getOpenAI(): OpenAI {
-  if (!openai) {
-    openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-  }
-  return openai;
-}
-
-// Force dynamic rendering for this route
-export const dynamic = "force-dynamic";
+import { getOpenAI } from "@/app/lib/openai";
 
 // Set max duration for ultra-fast generation
 export const maxDuration = 30; // 30 seconds max
@@ -35,10 +20,6 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("Generating FAST single day meal plan for date:", date);
-
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
 
     // Calculate daily targets
     const dailyCalories = nutritionProfile.target_calories || 2000;

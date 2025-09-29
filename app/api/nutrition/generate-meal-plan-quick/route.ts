@@ -1,21 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
-import OpenAI from "openai";
-
-// Lazy load OpenAI client to avoid browser environment errors during build
-let openai: OpenAI | null = null;
-
-function getOpenAI(): OpenAI {
-  if (!openai) {
-    openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-  }
-  return openai;
-}
-
-// Force dynamic rendering for this route
-export const dynamic = "force-dynamic";
+import { getOpenAI } from "@/app/lib/openai";
 
 // Set max duration for Vercel Pro plan
 export const maxDuration = 60; // 60 seconds
@@ -71,10 +56,6 @@ export async function POST(request: NextRequest) {
     console.log("Generating quick meal plan for profile:", profile.id);
 
     try {
-      const openai = new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY,
-      });
-
       // Determine meal structure based on meals_per_day preference
       const mealsPerDay = profile.meals_per_day || 3;
       console.log("Generating meal plan for meals_per_day:", mealsPerDay);

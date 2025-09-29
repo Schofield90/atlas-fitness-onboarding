@@ -182,17 +182,41 @@ const nextConfig = {
     ignoreDuringBuilds: true
   },
   
-  // Webpack configuration to handle React Flow SSR issues
+  // Webpack configuration to handle SSR issues
   webpack: (config, { isServer }) => {
     if (isServer) {
-      // Don't bundle React Flow on the server
-      config.externals.push('@xyflow/react', 'reactflow');
+      // Don't bundle these packages on the server
+      config.externals.push(
+        '@xyflow/react',
+        'reactflow',
+        // Add OpenAI to prevent browser environment detection during build
+        'openai',
+        '@anthropic-ai/sdk',
+        // Other potentially problematic packages for SSR
+        'canvas',
+        'jsdom'
+      );
     }
     
-    // Ignore missing CSS files in server builds
+    // Ignore missing modules in server builds
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,
+      net: false,
+      tls: false,
+      dns: false,
+      child_process: false,
+      // Browser-specific APIs
+      crypto: false,
+      stream: false,
+      path: false,
+    };
+    
+    // Handle OpenAI module resolution
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      // Ensure OpenAI uses Node.js version on server
+      'openai$': require.resolve('openai'),
     };
     
     return config;
