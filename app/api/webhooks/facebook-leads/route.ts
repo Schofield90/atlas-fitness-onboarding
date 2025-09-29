@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export const runtime = "nodejs";
 export const maxDuration = 10; // 10 seconds max
 

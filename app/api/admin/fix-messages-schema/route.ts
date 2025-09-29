@@ -1,24 +1,27 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/app/lib/supabase/admin';
+import { NextRequest, NextResponse } from "next/server";
+import { createAdminClient } from "@/app/lib/supabase/admin";
+
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
     // Simple auth check - you might want to make this more secure
-    const authHeader = request.headers.get('authorization');
+    const authHeader = request.headers.get("authorization");
     if (authHeader !== `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const admin = createAdminClient();
-    
+
     // First, check if the channel column exists
     const { data: tableInfo, error: tableError } = await admin
-      .from('messages')
-      .select('*')
+      .from("messages")
+      .select("*")
       .limit(0);
 
     if (tableError) {
-      console.error('Error checking table:', tableError);
+      console.error("Error checking table:", tableError);
     }
 
     // Try to run the migration SQL directly
@@ -74,71 +77,80 @@ export async function POST(request: NextRequest) {
     // Execute via raw SQL if possible
     // Note: Supabase admin client doesn't directly support raw SQL execution
     // We'll need to use the REST API directly
-    
-    const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rpc/exec_sql`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY!,
-        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`
+
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rpc/exec_sql`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
+        },
+        body: JSON.stringify({ sql: migrationSQL }),
       },
-      body: JSON.stringify({ sql: migrationSQL })
-    });
+    );
 
     if (!response.ok) {
       // If exec_sql doesn't exist, try alternative approach
-      console.log('exec_sql not available, trying alternative...');
-      
+      console.log("exec_sql not available, trying alternative...");
+
       // Create conversations table first
       const { error: convError } = await admin
-        .from('conversations')
-        .select('*')
+        .from("conversations")
+        .select("*")
         .limit(0);
-        
-      if (convError && convError.message.includes('does not exist')) {
-        console.log('Conversations table does not exist');
+
+      if (convError && convError.message.includes("does not exist")) {
+        console.log("Conversations table does not exist");
       }
-      
+
       // Test if we can insert with the channel field
       const testMessage = {
-        organization_id: '00000000-0000-0000-0000-000000000000',
-        client_id: '00000000-0000-0000-0000-000000000000', 
-        content: 'Schema test - can be deleted',
-        channel: 'in_app',
-        sender_type: 'client',
-        message_type: 'text',
-        status: 'sent'
+        organization_id: "00000000-0000-0000-0000-000000000000",
+        client_id: "00000000-0000-0000-0000-000000000000",
+        content: "Schema test - can be deleted",
+        channel: "in_app",
+        sender_type: "client",
+        message_type: "text",
+        status: "sent",
       };
-      
+
       const { error: insertError } = await admin
-        .from('messages')
+        .from("messages")
         .insert(testMessage);
-        
+
       if (insertError) {
-        return NextResponse.json({ 
-          error: 'Schema update needed',
-          details: insertError.message,
-          suggestion: 'Please run the migration SQL directly in Supabase dashboard SQL editor'
-        }, { status: 500 });
+        return NextResponse.json(
+          {
+            error: "Schema update needed",
+            details: insertError.message,
+            suggestion:
+              "Please run the migration SQL directly in Supabase dashboard SQL editor",
+          },
+          { status: 500 },
+        );
       }
-      
+
       // Clean up test message
       await admin
-        .from('messages')
+        .from("messages")
         .delete()
-        .eq('content', 'Schema test - can be deleted');
+        .eq("content", "Schema test - can be deleted");
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
-      message: 'Schema fix attempted. Please verify in Supabase dashboard.'
+      message: "Schema fix attempted. Please verify in Supabase dashboard.",
     });
-
   } catch (error: any) {
-    console.error('Error fixing schema:', error);
-    return NextResponse.json({ 
-      error: 'Failed to fix schema',
-      details: error.message 
-    }, { status: 500 });
+    console.error("Error fixing schema:", error);
+    return NextResponse.json(
+      {
+        error: "Failed to fix schema",
+        details: error.message,
+      },
+      { status: 500 },
+    );
   }
 }

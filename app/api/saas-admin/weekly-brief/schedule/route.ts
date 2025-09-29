@@ -1,45 +1,50 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import cron from 'cron-parser';
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import cron from "cron-parser";
 
-const ADMIN_EMAILS = ['sam@atlas-gyms.co.uk', 'sam@gymleadhub.co.uk'];
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
+const ADMIN_EMAILS = ["sam@atlas-gyms.co.uk", "sam@gymleadhub.co.uk"];
 
 // Use service role key for admin operations
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 export async function GET(request: NextRequest) {
   try {
     // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Check authorization
-    if (!ADMIN_EMAILS.includes(user.email?.toLowerCase() || '')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!ADMIN_EMAILS.includes(user.email?.toLowerCase() || "")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Get all schedules
     const { data: schedules, error: schedulesError } = await supabase
-      .from('brief_schedules')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .from("brief_schedules")
+      .select("*")
+      .order("created_at", { ascending: false });
 
     if (schedulesError) {
       throw schedulesError;
     }
 
     return NextResponse.json({ schedules });
-
   } catch (error) {
-    console.error('Error fetching schedules:', error);
+    console.error("Error fetching schedules:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { error: "Internal server error" },
+      { status: 500 },
     );
   }
 }
@@ -47,14 +52,17 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Check authorization
-    if (!ADMIN_EMAILS.includes(user.email?.toLowerCase() || '')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!ADMIN_EMAILS.includes(user.email?.toLowerCase() || "")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const { name, cronSchedule, recipients, isActive } = await request.json();
@@ -66,13 +74,13 @@ export async function POST(request: NextRequest) {
 
       // Create schedule
       const { data: schedule, error: createError } = await supabase
-        .from('brief_schedules')
+        .from("brief_schedules")
         .insert({
           name,
           cron_schedule: cronSchedule,
           recipients,
           is_active: isActive !== false,
-          next_run_at: nextRun.toISOString()
+          next_run_at: nextRun.toISOString(),
         })
         .select()
         .single();
@@ -81,24 +89,22 @@ export async function POST(request: NextRequest) {
         throw createError;
       }
 
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         schedule,
-        message: 'Schedule created successfully'
+        message: "Schedule created successfully",
       });
-
     } catch (cronError) {
       return NextResponse.json(
-        { error: 'Invalid cron expression' },
-        { status: 400 }
+        { error: "Invalid cron expression" },
+        { status: 400 },
       );
     }
-
   } catch (error) {
-    console.error('Error creating schedule:', error);
+    console.error("Error creating schedule:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { error: "Internal server error" },
+      { status: 500 },
     );
   }
 }
@@ -106,17 +112,21 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Check authorization
-    if (!ADMIN_EMAILS.includes(user.email?.toLowerCase() || '')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!ADMIN_EMAILS.includes(user.email?.toLowerCase() || "")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { id, name, cronSchedule, recipients, isActive } = await request.json();
+    const { id, name, cronSchedule, recipients, isActive } =
+      await request.json();
 
     // Validate cron expression if provided
     let nextRun;
@@ -126,15 +136,15 @@ export async function PUT(request: NextRequest) {
         nextRun = interval.next().toDate();
       } catch (cronError) {
         return NextResponse.json(
-          { error: 'Invalid cron expression' },
-          { status: 400 }
+          { error: "Invalid cron expression" },
+          { status: 400 },
         );
       }
     }
 
     // Update schedule
     const updateData: any = {
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     };
 
     if (name !== undefined) updateData.name = name;
@@ -146,9 +156,9 @@ export async function PUT(request: NextRequest) {
     if (isActive !== undefined) updateData.is_active = isActive;
 
     const { data: schedule, error: updateError } = await supabase
-      .from('brief_schedules')
+      .from("brief_schedules")
       .update(updateData)
-      .eq('id', id)
+      .eq("id", id)
       .select()
       .single();
 
@@ -156,17 +166,16 @@ export async function PUT(request: NextRequest) {
       throw updateError;
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       schedule,
-      message: 'Schedule updated successfully'
+      message: "Schedule updated successfully",
     });
-
   } catch (error) {
-    console.error('Error updating schedule:', error);
+    console.error("Error updating schedule:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { error: "Internal server error" },
+      { status: 500 },
     );
   }
 }
@@ -174,42 +183,47 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Check authorization
-    if (!ADMIN_EMAILS.includes(user.email?.toLowerCase() || '')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!ADMIN_EMAILS.includes(user.email?.toLowerCase() || "")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
+    const id = searchParams.get("id");
 
     if (!id) {
-      return NextResponse.json({ error: 'Schedule ID required' }, { status: 400 });
+      return NextResponse.json(
+        { error: "Schedule ID required" },
+        { status: 400 },
+      );
     }
 
     const { error: deleteError } = await supabase
-      .from('brief_schedules')
+      .from("brief_schedules")
       .delete()
-      .eq('id', id);
+      .eq("id", id);
 
     if (deleteError) {
       throw deleteError;
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
-      message: 'Schedule deleted successfully'
+      message: "Schedule deleted successfully",
     });
-
   } catch (error) {
-    console.error('Error deleting schedule:', error);
+    console.error("Error deleting schedule:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { error: "Internal server error" },
+      { status: 500 },
     );
   }
 }

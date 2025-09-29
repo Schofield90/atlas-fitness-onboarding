@@ -10,6 +10,9 @@ import {
   createRateLimitResponse,
 } from "@/app/lib/rate-limit";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 // Helper functions to replace bcrypt
 function hashPassword(password: string): string {
   const salt = randomBytes(16).toString("hex");

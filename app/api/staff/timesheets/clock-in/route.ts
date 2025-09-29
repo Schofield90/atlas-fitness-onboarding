@@ -3,6 +3,9 @@ import { createClient } from "@/app/lib/supabase/server";
 import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
 import { ClockInRequest } from "@/app/lib/types/staff";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 /**
  * POST /api/staff/timesheets/clock-in - Clock in
  */

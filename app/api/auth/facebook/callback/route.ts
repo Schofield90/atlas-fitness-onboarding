@@ -7,6 +7,9 @@ import {
   validateFacebookEnv,
 } from "@/app/lib/facebook/callback-handler";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export const runtime = "nodejs"; // Force Node.js runtime for better env var support
 
 export async function GET(request: NextRequest) {

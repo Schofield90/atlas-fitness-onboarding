@@ -9,6 +9,9 @@ import {
 } from "@/app/lib/errors";
 import { cacheService, CACHE_TTL } from "@/app/lib/cache/cache-utils";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 async function getLeads(request: NextRequest) {
   // Check authentication and get organization
   const userWithOrg = await requireAuth();

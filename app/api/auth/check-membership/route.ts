@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 const ATLAS_FITNESS_ORG_ID = "63589490-8f55-4157-bd3a-e141594b748e";
 
 export async function GET(request: NextRequest) {

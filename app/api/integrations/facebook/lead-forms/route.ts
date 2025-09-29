@@ -3,6 +3,9 @@ import { cookies } from "next/headers";
 import { createClient } from "@/app/lib/supabase/server";
 import { getCurrentUserOrganization } from "@/app/lib/organization-server";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {

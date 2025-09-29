@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { z } from "zod";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 const updateWaiverSchema = z.object({
   title: z.string().min(1, "Title is required").optional(),
   content: z.string().min(1, "Content is required").optional(),

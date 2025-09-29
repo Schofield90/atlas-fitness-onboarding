@@ -3,6 +3,9 @@ import { createClient } from "@/app/lib/supabase/server";
 import { getCurrentUserOrganization } from "@/app/lib/organization-server";
 import { v4 as uuidv4 } from "uuid";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();

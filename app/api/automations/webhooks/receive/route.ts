@@ -6,6 +6,9 @@ import {
   WorkflowExecutor,
 } from "@/app/lib/automation/server-only";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   try {
     // Get organization and webhook ID from headers or query params

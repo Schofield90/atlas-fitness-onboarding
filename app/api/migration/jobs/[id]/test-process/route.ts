@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 /**
  * POST /api/migration/jobs/[id]/test-process
  * Test endpoint to directly process migration without queue
@@ -149,12 +152,13 @@ export async function POST(
     log("Starting to process migration records");
 
     const supabaseAdminForRecords = createAdminClient();
-    const { data: recordsToProcess, error: recordsError } = await supabaseAdminForRecords
-      .from("migration_records")
-      .select("*")
-      .eq("migration_job_id", jobId)
-      .eq("status", "pending")
-      .limit(10);
+    const { data: recordsToProcess, error: recordsError } =
+      await supabaseAdminForRecords
+        .from("migration_records")
+        .select("*")
+        .eq("migration_job_id", jobId)
+        .eq("status", "pending")
+        .limit(10);
 
     if (recordsError) {
       log(`Error fetching records: ${recordsError.message}`);
@@ -216,11 +220,12 @@ export async function POST(
 
             // Create new client
             const supabaseAdminForClient = createAdminClient();
-            const { data: newClient, error: clientError } = await supabaseAdminForClient
-              .from("clients")
-              .insert(clientData)
-              .select()
-              .single();
+            const { data: newClient, error: clientError } =
+              await supabaseAdminForClient
+                .from("clients")
+                .insert(clientData)
+                .select()
+                .single();
 
             if (clientError) {
               log(`Failed to create client: ${clientError.message}`);

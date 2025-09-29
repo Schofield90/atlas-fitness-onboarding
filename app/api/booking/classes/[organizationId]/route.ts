@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { addDays, startOfDay, endOfDay } from "date-fns";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ organizationId: string }> },

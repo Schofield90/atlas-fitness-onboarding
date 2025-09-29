@@ -6,6 +6,9 @@ import {
   formatBritishDateTime,
 } from "@/app/lib/utils/british-format";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = createServiceRoleClient();

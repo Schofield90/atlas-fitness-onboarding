@@ -1,22 +1,23 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { PayrunProcessor } from '@/app/lib/services/xero/PayrunProcessor';
-import { PayrollService } from '@/app/lib/services/xero/PayrollService';
+import { NextRequest, NextResponse } from "next/server";
+import { PayrunProcessor } from "@/app/lib/services/xero/PayrunProcessor";
+import { PayrollService } from "@/app/lib/services/xero/PayrollService";
+
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
 
 // POST /api/payroll/process - Process payroll batch
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const {
-      organizationId,
-      batchId,
-      action,
-      options = {},
-    } = body;
+    const { organizationId, batchId, action, options = {} } = body;
 
     if (!organizationId || !batchId || !action) {
       return NextResponse.json(
-        { success: false, error: 'Organization ID, batch ID, and action are required' },
-        { status: 400 }
+        {
+          success: false,
+          error: "Organization ID, batch ID, and action are required",
+        },
+        { status: 400 },
       );
     }
 
@@ -24,15 +25,17 @@ export async function POST(request: NextRequest) {
     const payrollService = new PayrollService(organizationId);
 
     switch (action) {
-      case 'validate':
+      case "validate":
         const validation = await payrunProcessor.validatePayrun(batchId);
         return NextResponse.json({
           success: true,
           data: validation,
-          message: validation.valid ? 'Payrun validation passed' : 'Payrun validation failed',
+          message: validation.valid
+            ? "Payrun validation passed"
+            : "Payrun validation failed",
         });
 
-      case 'import_timesheets':
+      case "import_timesheets":
         const timesheetResult = await payrollService.importTimesheets(batchId);
         return NextResponse.json({
           success: timesheetResult.errors.length === 0,
@@ -40,19 +43,23 @@ export async function POST(request: NextRequest) {
           message: `Imported timesheets for ${timesheetResult.imported} employees`,
         });
 
-      case 'calculate':
-        const calculationResult = await payrollService.calculatePayroll(batchId);
+      case "calculate":
+        const calculationResult =
+          await payrollService.calculatePayroll(batchId);
         return NextResponse.json({
           success: calculationResult.success,
           data: calculationResult,
-          message: calculationResult.success 
-            ? 'Payroll calculations completed successfully' 
-            : 'Payroll calculations failed',
+          message: calculationResult.success
+            ? "Payroll calculations completed successfully"
+            : "Payroll calculations failed",
         });
 
-      case 'process_full':
+      case "process_full":
         // Start full payroll processing
-        const processingJob = await payrunProcessor.processPayrollBatch(batchId, options);
+        const processingJob = await payrunProcessor.processPayrollBatch(
+          batchId,
+          options,
+        );
         return NextResponse.json({
           success: true,
           data: {
@@ -60,21 +67,21 @@ export async function POST(request: NextRequest) {
             status: processingJob.status,
             progress: processingJob.progress_percentage,
           },
-          message: 'Payroll processing started',
+          message: "Payroll processing started",
         });
 
-      case 'get_job_status':
+      case "get_job_status":
         if (!options.jobId) {
           return NextResponse.json(
-            { success: false, error: 'Job ID is required for status check' },
-            { status: 400 }
+            { success: false, error: "Job ID is required for status check" },
+            { status: 400 },
           );
         }
         const job = await payrunProcessor.getProcessingJob(options.jobId);
         if (!job) {
           return NextResponse.json(
-            { success: false, error: 'Processing job not found' },
-            { status: 404 }
+            { success: false, error: "Processing job not found" },
+            { status: 404 },
           );
         }
         return NextResponse.json({
@@ -84,16 +91,15 @@ export async function POST(request: NextRequest) {
 
       default:
         return NextResponse.json(
-          { success: false, error: 'Invalid action specified' },
-          { status: 400 }
+          { success: false, error: "Invalid action specified" },
+          { status: 400 },
         );
     }
-
   } catch (error: any) {
-    console.error('Error processing payroll:', error);
+    console.error("Error processing payroll:", error);
     return NextResponse.json(
       { success: false, error: error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -102,12 +108,15 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const organizationId = searchParams.get('organizationId');
-    const status = searchParams.get('status');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    const organizationId = searchParams.get("organizationId");
+    const status = searchParams.get("status");
+    const limit = parseInt(searchParams.get("limit") || "10");
 
     if (!organizationId) {
-      return NextResponse.json({ error: 'Organization ID is required' }, { status: 400 });
+      return NextResponse.json(
+        { error: "Organization ID is required" },
+        { status: 400 },
+      );
     }
 
     const payrunProcessor = new PayrunProcessor(organizationId);
@@ -120,12 +129,11 @@ export async function GET(request: NextRequest) {
       success: true,
       data: jobs,
     });
-
   } catch (error: any) {
-    console.error('Error fetching processing jobs:', error);
+    console.error("Error fetching processing jobs:", error);
     return NextResponse.json(
       { success: false, error: error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

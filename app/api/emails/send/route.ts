@@ -1,72 +1,82 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth, createErrorResponse } from '@/app/lib/api/auth-check'
-import { sendEmail, sendBulkEmails, EmailTemplate } from '@/app/lib/email/send-email'
-import { logger } from '@/app/lib/logger/logger'
-import { z } from 'zod'
+import { NextRequest, NextResponse } from "next/server";
+import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
+import {
+  sendEmail,
+  sendBulkEmails,
+  EmailTemplate,
+} from "@/app/lib/email/send-email";
+import { logger } from "@/app/lib/logger/logger";
+import { z } from "zod";
+
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
 
 // Validation schemas
 const sendSingleEmailSchema = z.object({
   to: z.union([z.string().email(), z.array(z.string().email())]),
   template: z.enum([
-    'welcome-lead',
-    'client-welcome',
-    'staff-task',
-    'password-reset',
-    'class-reminder',
-    'payment-receipt',
-    'membership-expiring',
+    "welcome-lead",
+    "client-welcome",
+    "staff-task",
+    "password-reset",
+    "class-reminder",
+    "payment-receipt",
+    "membership-expiring",
   ] as const),
   subject: z.string().optional(),
   variables: z.record(z.string(), z.any()),
   replyTo: z.string().email().optional(),
   entityId: z.string().uuid().optional(),
-  entityType: z.enum(['lead', 'client', 'task']).optional(),
-})
+  entityType: z.enum(["lead", "client", "task"]).optional(),
+});
 
 const sendBulkEmailSchema = z.object({
-  recipients: z.array(z.object({
-    email: z.string().email(),
-    variables: z.record(z.string(), z.any()),
-  }).strict()),
-  template: z.enum([
-    'welcome-lead',
-    'client-welcome',
-    'staff-task',
-  ] as const),
+  recipients: z.array(
+    z
+      .object({
+        email: z.string().email(),
+        variables: z.record(z.string(), z.any()),
+      })
+      .strict(),
+  ),
+  template: z.enum(["welcome-lead", "client-welcome", "staff-task"] as const),
   subject: z.string().optional(),
   replyTo: z.string().email().optional(),
   batchSize: z.number().min(1).max(50).optional(),
   delayMs: z.number().min(100).max(5000).optional(),
-})
+});
 
 export async function POST(request: NextRequest) {
   try {
     // Check authentication
-    const user = await requireAuth()
-    
-    const body = await request.json()
-    const { searchParams } = new URL(request.url)
-    const mode = searchParams.get('mode') || 'single'
-    
-    if (mode === 'bulk') {
+    const user = await requireAuth();
+
+    const body = await request.json();
+    const { searchParams } = new URL(request.url);
+    const mode = searchParams.get("mode") || "single";
+
+    if (mode === "bulk") {
       // Validate bulk email request
-      const validatedData = sendBulkEmailSchema.parse(body)
-      
+      const validatedData = sendBulkEmailSchema.parse(body);
+
       // Check if user has permission to send bulk emails
       // For now, all authenticated users can send bulk emails
       // TODO: Add role-based permissions
-      
-      logger.info('Bulk email request', {
+
+      logger.info("Bulk email request", {
         userId: user.id,
         metadata: {
           template: validatedData.template,
           recipientCount: validatedData.recipients.length,
-        }
-      })
-      
+        },
+      });
+
       // Send bulk emails - cast to ensure type compatibility
       const result = await sendBulkEmails(
-        validatedData.recipients as { email: string; variables: Record<string, any> }[],
+        validatedData.recipients as {
+          email: string;
+          variables: Record<string, any>;
+        }[],
         validatedData.template as EmailTemplate,
         {
           subject: validatedData.subject,
@@ -74,28 +84,27 @@ export async function POST(request: NextRequest) {
           batchSize: validatedData.batchSize,
           delayMs: validatedData.delayMs,
           userId: user.id,
-        }
-      )
-      
+        },
+      );
+
       return NextResponse.json({
         success: true,
         sent: result.sent,
         failed: result.failed,
         total: validatedData.recipients.length,
-      })
-      
+      });
     } else {
       // Validate single email request
-      const validatedData = sendSingleEmailSchema.parse(body)
-      
-      logger.info('Single email request', {
+      const validatedData = sendSingleEmailSchema.parse(body);
+
+      logger.info("Single email request", {
         userId: user.id,
         metadata: {
           template: validatedData.template,
           to: validatedData.to,
-        }
-      })
-      
+        },
+      });
+
       // Send single email
       const result = await sendEmail({
         to: validatedData.to,
@@ -106,31 +115,36 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         entityId: validatedData.entityId,
         entityType: validatedData.entityType,
-      })
-      
+      });
+
       if (result.success) {
         return NextResponse.json({
           success: true,
           messageId: result.messageId,
-        })
+        });
       } else {
-        return NextResponse.json({
-          success: false,
-          error: result.error,
-        }, { status: 400 })
+        return NextResponse.json(
+          {
+            success: false,
+            error: result.error,
+          },
+          { status: 400 },
+        );
       }
     }
-    
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({
-        success: false,
-        error: 'Validation error',
-        details: error.flatten().fieldErrors,
-      }, { status: 400 })
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Validation error",
+          details: error.flatten().fieldErrors,
+        },
+        { status: 400 },
+      );
     }
-    
-    return createErrorResponse(error)
+
+    return createErrorResponse(error);
   }
 }
 
@@ -138,27 +152,29 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     // Check authentication
-    const user = await requireAuth()
-    
-    const { searchParams } = new URL(request.url)
-    const messageId = searchParams.get('messageId')
-    
+    const user = await requireAuth();
+
+    const { searchParams } = new URL(request.url);
+    const messageId = searchParams.get("messageId");
+
     if (!messageId) {
-      return NextResponse.json({
-        error: 'Message ID is required',
-      }, { status: 400 })
+      return NextResponse.json(
+        {
+          error: "Message ID is required",
+        },
+        { status: 400 },
+      );
     }
-    
+
     // TODO: Implement email status checking with Resend API
     // For now, return mock data
     return NextResponse.json({
       messageId,
-      status: 'delivered',
+      status: "delivered",
       deliveredAt: new Date().toISOString(),
-    })
-    
+    });
   } catch (error) {
-    return createErrorResponse(error)
+    return createErrorResponse(error);
   }
 }
 

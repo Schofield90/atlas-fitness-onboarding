@@ -2,6 +2,9 @@ import { createClient } from "@/app/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 // EMERGENCY LOGIN ENDPOINT - REMOVE AFTER USE
 // This creates a session directly for the admin user
 

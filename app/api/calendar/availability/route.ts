@@ -3,6 +3,9 @@ import { createClient } from "@/app/lib/supabase/server";
 import { getGoogleCalendarBusyTimes } from "@/app/lib/google-calendar";
 import type { TimeSlot, CalendarSettings } from "@/app/lib/types/calendar";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export const runtime = "nodejs";
 
 // Default calendar settings

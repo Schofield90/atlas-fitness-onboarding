@@ -9,6 +9,9 @@ import { rateLimit } from "@/app/lib/redis/rate-limit";
 import { queryWithTenantIsolation } from "@/app/lib/supabase/pooled-client";
 import { createClient } from "@/app/lib/supabase/server";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 /**
  * Example API route demonstrating:
  * 1. Tenant-aware rate limiting

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 interface RecurringClassRequest {
   classSessionId?: string; // Optional - for cloning existing session
   programId?: string; // For creating new sessions for a program

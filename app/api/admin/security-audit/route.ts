@@ -2,6 +2,9 @@ import { NextRequest } from "next/server";
 import { secureRoute, SecureResponse } from "@/app/lib/api/secure-route";
 import { OrganizationSecurityMiddleware } from "@/app/lib/middleware/organization-security";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 /**
  * Security audit endpoint for monitoring access attempts and security events
  * Only accessible by organization owners and admins

@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 // Custom authentication endpoint that bypasses Supabase Auth
 // Only use this if Supabase Auth schema is completely broken
 export async function POST(request: Request) {

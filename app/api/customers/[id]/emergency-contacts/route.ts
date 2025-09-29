@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 // GET /api/customers/[id]/emergency-contacts - Get emergency contacts for customer
 export async function GET(
   request: NextRequest,

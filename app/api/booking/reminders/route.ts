@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { sendWhatsAppMessage } from "@/app/lib/services/twilio";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 // This endpoint should be called by a cron job every hour
 export async function POST(request: NextRequest) {
   try {

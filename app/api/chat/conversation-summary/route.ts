@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 interface MessageSummary {
   date: string;
   message_count: number;

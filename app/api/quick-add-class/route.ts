@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { headers } from "next/headers";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function POST() {
   try {
     const supabase = await createClient();

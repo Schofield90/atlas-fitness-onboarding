@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 import { requireOrgAccess } from "@/app/lib/auth/organization";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 type ChartType = "daily" | "weekly" | "monthly" | "hourly" | "day_of_week";
 
 interface ChartDataPoint {

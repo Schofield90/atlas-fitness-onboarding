@@ -3,6 +3,9 @@ import { createClient } from "@/app/lib/supabase/server";
 import { getCurrentUserOrganization } from "@/app/lib/organization-server";
 import { checkFacebookStatus } from "@/app/lib/facebook/status-checker";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();

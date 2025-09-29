@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { migrationService } from "@/app/lib/services/migration-service";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 /**
  * POST /api/migration/jobs/[id]/upload
  * Upload files for a migration job

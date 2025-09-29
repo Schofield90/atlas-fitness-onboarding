@@ -9,6 +9,9 @@ import {
   formatKnowledgeContext,
 } from "@/app/lib/ai/anthropic";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;

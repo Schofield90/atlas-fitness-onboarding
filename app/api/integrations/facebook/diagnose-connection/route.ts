@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { getCurrentUserOrganization } from "@/app/lib/organization-server";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   const diagnostics: any = {
     timestamp: new Date().toISOString(),

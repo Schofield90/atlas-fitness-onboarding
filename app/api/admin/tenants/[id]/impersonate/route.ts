@@ -3,6 +3,9 @@ import { createClient } from "@/app/lib/supabase/server";
 import { cookies } from "next/headers";
 import { nanoid } from "nanoid";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } },

@@ -4,6 +4,9 @@ import { createAdminClient } from "@/app/lib/supabase/admin";
 import { getTokensFromCode } from "@/app/lib/google/calendar";
 import { requireAuth } from "@/app/lib/api/auth-check";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get("code");

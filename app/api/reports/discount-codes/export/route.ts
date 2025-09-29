@@ -7,6 +7,9 @@ import {
   DiscountUsageRecord,
 } from "@/app/types/discount-codes";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createAdminClient();

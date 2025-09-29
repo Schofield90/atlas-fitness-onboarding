@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import Stripe from "stripe";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 const stripeKey = process.env.STRIPE_SECRET_KEY;
 const stripe = stripeKey
   ? new Stripe(stripeKey, {

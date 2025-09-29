@@ -3,6 +3,9 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   try {
     // Use server client to read the authenticated user (client)
@@ -10,22 +13,28 @@ export async function POST(request: NextRequest) {
     let supabaseUser = null;
 
     // Check for Authorization header first (for direct API calls)
-    const authHeader = request.headers.get('authorization');
-    
-    if (authHeader && authHeader.startsWith('Bearer ')) {
+    const authHeader = request.headers.get("authorization");
+
+    if (authHeader && authHeader.startsWith("Bearer ")) {
       // Use the token from the header
       const token = authHeader.substring(7);
-      
+
       // Verify the token using admin client
       const admin = createAdminClient();
-      const { data: { user }, error } = await admin.auth.getUser(token);
-      
+      const {
+        data: { user },
+        error,
+      } = await admin.auth.getUser(token);
+
       if (!error && user) {
         supabaseUser = user;
-        console.log("Authenticated via Bearer token:", { id: user.id, email: user.email });
+        console.log("Authenticated via Bearer token:", {
+          id: user.id,
+          email: user.email,
+        });
       }
     }
-    
+
     // If no header auth, try cookies
     if (!supabaseUser) {
       try {
@@ -54,7 +63,10 @@ export async function POST(request: NextRequest) {
           data: { user },
         } = await supabase.auth.getUser();
         supabaseUser = user;
-        console.log("Authenticated via cookies:", { id: user?.id, email: user?.email });
+        console.log("Authenticated via cookies:", {
+          id: user?.id,
+          email: user?.email,
+        });
       } catch (authError) {
         console.error("Cookie auth error:", authError);
       }
@@ -79,7 +91,7 @@ export async function POST(request: NextRequest) {
         .eq("user_id", supabaseUser.id)
         .limit(1)
         .single();
-      
+
       if (error) {
         console.log("Error finding client by user_id:", error);
       } else {
@@ -100,7 +112,7 @@ export async function POST(request: NextRequest) {
           .eq("email", supabaseUser.email)
           .limit(1)
           .single();
-        
+
         if (error) {
           console.log("Error finding client by email:", error);
         } else {
@@ -145,14 +157,14 @@ export async function POST(request: NextRequest) {
     // If no assigned coach, get the organization owner as default coach
     if (!coachId) {
       console.log("No assigned coach, finding organization owner...");
-      
+
       try {
         const { data: org } = await admin
           .from("organizations")
           .select("owner_id")
           .eq("id", organizationId)
           .single();
-          
+
         if (org?.owner_id) {
           coachId = org.owner_id;
           console.log("Using organization owner as coach:", coachId);

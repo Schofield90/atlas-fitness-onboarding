@@ -3,6 +3,9 @@ import { createClient } from "@/app/lib/supabase/server";
 import { generateMealPlan } from "@/app/lib/openai";
 import { generatePersonalizedMealPlan } from "@/app/lib/nutrition/personalized-ai";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();

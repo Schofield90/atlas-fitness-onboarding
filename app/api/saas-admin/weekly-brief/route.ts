@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 const ADMIN_EMAILS = ["sam@atlas-gyms.co.uk", "sam@gymleadhub.co.uk"];
 
 export async function GET(request: NextRequest) {

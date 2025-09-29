@@ -6,6 +6,9 @@ import {
 } from "@/packages/core/availability/generateSlots";
 import { startOfDay, endOfDay, parseISO } from "date-fns";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { slug: string } },

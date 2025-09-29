@@ -3,6 +3,9 @@ import { createClient } from "@/app/lib/supabase/server";
 import crypto from "crypto";
 import { FacebookFieldMappingService } from "@/app/lib/services/facebook-field-mapping";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 interface MetaWebhookEntry {
   id: string; // Page ID
   time: number;

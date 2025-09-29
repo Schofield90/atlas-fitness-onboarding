@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { WaiverNotificationService } from "@/app/lib/services/waiver-notification-service";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     // Verify this is a legitimate cron request

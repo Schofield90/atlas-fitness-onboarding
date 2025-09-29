@@ -8,6 +8,9 @@ import {
   withApiErrorBoundary,
 } from "@/app/lib/errors";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 async function createClientMember(request: NextRequest) {
   // Check authentication and get organization
   const userWithOrg = await requireAuth();

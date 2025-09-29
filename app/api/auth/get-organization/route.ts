@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     console.log("🔍 Starting get-organization API request...");
@@ -17,7 +20,10 @@ export async function GET(request: NextRequest) {
       console.log("❌ No authenticated user found:", userError?.message);
 
       // Try to get session as fallback before failing
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
       if (!session || !session.user) {
         console.log("❌ No session found either, user needs to re-login");

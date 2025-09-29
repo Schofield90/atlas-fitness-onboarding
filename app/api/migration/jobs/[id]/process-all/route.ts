@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 import Papa from "papaparse";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 /**
  * POST /api/migration/jobs/[id]/process-all
  * Process all uploaded files (clients, attendance, payments) in one go

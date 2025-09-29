@@ -3,6 +3,9 @@ import { createClient } from "@/app/lib/supabase/server";
 import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
 import { backgroundProcessor } from "@/app/lib/ai/background-processor";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth();

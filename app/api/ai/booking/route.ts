@@ -3,6 +3,9 @@ import { aiBookingTools } from "@/app/lib/ai-booking-tools";
 import { createClient } from "@/app/lib/supabase/server";
 import { z } from "zod";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export const runtime = "nodejs";
 
 // Validation schemas

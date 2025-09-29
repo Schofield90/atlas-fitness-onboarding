@@ -3,6 +3,9 @@ import { createClient } from "@/app/lib/supabase/server";
 import { Resend } from "resend";
 import { WelcomeEmail } from "@/emails/templates/WelcomeEmail";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;

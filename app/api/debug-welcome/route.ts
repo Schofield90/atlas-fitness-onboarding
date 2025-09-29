@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   console.log("=== DEBUG WELCOME EMAIL ENDPOINT HIT ===");
   console.log("Timestamp:", new Date().toISOString());

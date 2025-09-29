@@ -11,6 +11,9 @@ import { errorLogger } from "@/app/lib/errors/error-logger";
 import { getUser } from "@/app/lib/api/auth-check";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 // Rate limiting for error reporting
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT_MAX_REQUESTS = 50; // Max 50 error reports per hour per IP

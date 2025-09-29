@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     // Regular client (with RLS)

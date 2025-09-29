@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import twilio from "twilio";
 import { createClient } from "@/app/lib/supabase/server";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   try {
     // Verify user is authenticated

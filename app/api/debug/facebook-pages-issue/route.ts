@@ -3,6 +3,9 @@ import { createClient } from "@/app/lib/supabase/server";
 import { getCurrentUserOrganization } from "@/app/lib/organization-server";
 import MetaAdsClient from "@/app/lib/integrations/meta-ads-client";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const supabase = await createClient();

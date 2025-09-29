@@ -3,6 +3,9 @@ import { createClient } from "@/app/lib/supabase/server";
 import { getCurrentUserOrganization } from "@/app/lib/organization-server";
 import { FacebookFieldMappingService } from "@/app/lib/services/facebook-field-mapping";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export const runtime = "nodejs";
 
 // GET field mappings for a form

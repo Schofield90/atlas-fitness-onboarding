@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
 import crypto from "crypto";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 // Helper to generate cache key from inputs
 function generateCacheKey(
   profile: any,

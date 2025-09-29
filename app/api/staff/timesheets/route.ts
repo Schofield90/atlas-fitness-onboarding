@@ -7,6 +7,9 @@ import {
   TimesheetQueryParams,
 } from "@/app/lib/types/staff";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/staff/timesheets - Get timesheets with date filters
  */

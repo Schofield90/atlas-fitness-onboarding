@@ -1,41 +1,52 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/app/lib/supabase/admin'
+import { NextRequest, NextResponse } from "next/server";
+import { createAdminClient } from "@/app/lib/supabase/admin";
+
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams
-    const token = searchParams.get('token')
-    
+    const searchParams = request.nextUrl.searchParams;
+    const token = searchParams.get("token");
+
     if (!token) {
-      return NextResponse.json({ error: 'Token required' }, { status: 400 })
+      return NextResponse.json({ error: "Token required" }, { status: 400 });
     }
-    
-    const adminSupabase = createAdminClient()
-    
+
+    const adminSupabase = createAdminClient();
+
     // Get portal access
     const { data: portalAccess, error } = await adminSupabase
-      .from('client_portal_access')
-      .select(`
+      .from("client_portal_access")
+      .select(
+        `
         *,
         clients (*)
-      `)
-      .eq('magic_link_token', token)
-      .single()
-    
+      `,
+      )
+      .eq("magic_link_token", token)
+      .single();
+
     if (error || !portalAccess) {
-      return NextResponse.json({ 
-        error: 'Invalid token',
-        details: error 
-      }, { status: 400 })
+      return NextResponse.json(
+        {
+          error: "Invalid token",
+          details: error,
+        },
+        { status: 400 },
+      );
     }
-    
+
     if (portalAccess.is_claimed) {
-      return NextResponse.json({ 
-        error: 'Already claimed',
-        client: portalAccess.clients 
-      }, { status: 400 })
+      return NextResponse.json(
+        {
+          error: "Already claimed",
+          client: portalAccess.clients,
+        },
+        { status: 400 },
+      );
     }
-    
+
     // Create a simple form for password setup
     const html = `
 <!DOCTYPE html>
@@ -143,7 +154,7 @@ export async function GET(request: NextRequest) {
             clientId: '${portalAccess.client_id}',
             email: '${portalAccess.clients.email}',
             password: password,
-            clientName: '${portalAccess.clients.name || portalAccess.clients.first_name + ' ' + portalAccess.clients.last_name}'
+            clientName: '${portalAccess.clients.name || portalAccess.clients.first_name + " " + portalAccess.clients.last_name}'
           })
         });
         
@@ -175,17 +186,20 @@ export async function GET(request: NextRequest) {
   </script>
 </body>
 </html>
-    `
-    
+    `;
+
     return new Response(html, {
       headers: {
-        'Content-Type': 'text/html',
+        "Content-Type": "text/html",
       },
-    })
+    });
   } catch (error: any) {
-    return NextResponse.json({ 
-      error: 'Server error',
-      details: error.message 
-    }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: "Server error",
+        details: error.message,
+      },
+      { status: 500 },
+    );
   }
 }

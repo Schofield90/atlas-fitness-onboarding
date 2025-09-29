@@ -4,6 +4,9 @@ import { createAdminClient } from "@/app/lib/supabase/admin";
 import { google } from "googleapis";
 import type { CalendarEvent } from "@/app/lib/types/calendar";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();

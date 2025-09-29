@@ -7,6 +7,9 @@ import {
 } from "@/app/lib/google-calendar";
 import type { CalendarEvent } from "@/app/lib/types/calendar";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export const runtime = "nodejs";
 
 // Get calendar events

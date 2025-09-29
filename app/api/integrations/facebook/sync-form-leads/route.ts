@@ -4,6 +4,9 @@ import { getCurrentUserOrganization } from "@/app/lib/organization-server";
 import { FacebookFieldMappingService } from "@/app/lib/services/facebook-field-mapping";
 import { leadsDB } from "@/app/lib/leads-store";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {

@@ -3,6 +3,9 @@ import { createClient } from "@/app/lib/supabase/server";
 import { getCurrentUserOrganization } from "@/app/lib/organization-server";
 import { AutomationInputValidator } from "@/app/lib/automation/server-only";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     const { organizationId, error: orgError } =

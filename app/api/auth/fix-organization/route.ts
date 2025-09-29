@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 const ATLAS_FITNESS_ORG_ID = "63589490-8f55-4157-bd3a-e141594b748e";
 
 export async function POST(request: NextRequest) {
@@ -17,16 +20,21 @@ export async function POST(request: NextRequest) {
 
     // Allow emergency fix for sam@atlas-gyms.co.uk even without proper auth
     let targetUser = user;
-    if (!user && process.env.NODE_ENV === 'development') {
+    if (!user && process.env.NODE_ENV === "development") {
       // Emergency fix for development - directly fix sam@atlas-gyms.co.uk
       console.log("🚨 Emergency fix mode - fixing sam@atlas-gyms.co.uk");
       const { data: authUsers } = await adminSupabase.auth.admin.listUsers();
-      const samUser = authUsers.users.find(u => u.email === 'sam@atlas-gyms.co.uk');
+      const samUser = authUsers.users.find(
+        (u) => u.email === "sam@atlas-gyms.co.uk",
+      );
       if (samUser) {
         targetUser = samUser;
         console.log("Found sam user for emergency fix:", samUser.id);
       } else {
-        return NextResponse.json({ error: "User not found for emergency fix" }, { status: 404 });
+        return NextResponse.json(
+          { error: "User not found for emergency fix" },
+          { status: 404 },
+        );
       }
     }
 
@@ -120,7 +128,9 @@ export async function POST(request: NextRequest) {
         id: targetUser.id,
         email: targetUser.email,
         name:
-          targetUser.user_metadata?.full_name || targetUser.email?.split("@")[0] || "User",
+          targetUser.user_metadata?.full_name ||
+          targetUser.email?.split("@")[0] ||
+          "User",
         created_at: targetUser.created_at,
         updated_at: new Date().toISOString(),
       },

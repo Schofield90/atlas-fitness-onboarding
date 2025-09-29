@@ -7,6 +7,9 @@ import {
 } from "@/app/lib/rate-limit";
 import { validateEmail, validateOTP } from "@/app/lib/input-sanitizer";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   try {
     const { action, email, otp } = await request.json();

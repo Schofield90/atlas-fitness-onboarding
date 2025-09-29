@@ -3,6 +3,9 @@ import { createClient } from "@/app/lib/supabase/server";
 import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
 import { z } from "zod";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 // Validation schema for creating/updating email templates
 const emailTemplateSchema = z.object({
   name: z.string().min(1).max(100),

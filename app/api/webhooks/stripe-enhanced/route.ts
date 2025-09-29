@@ -8,6 +8,9 @@ import Stripe from "stripe";
 import { createClient } from "@/app/lib/supabase/server";
 import { headers } from "next/headers";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 // Initialize Stripe only when the handler is called
 let stripe: Stripe | null = null;
 

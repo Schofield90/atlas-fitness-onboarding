@@ -1,13 +1,16 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import sgMail from '@sendgrid/mail';
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import sgMail from "@sendgrid/mail";
 
-const ADMIN_EMAILS = ['sam@atlas-gyms.co.uk', 'sam@gymleadhub.co.uk'];
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
+const ADMIN_EMAILS = ["sam@atlas-gyms.co.uk", "sam@gymleadhub.co.uk"];
 
 // Use service role key for admin operations
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 // Configure SendGrid
@@ -16,95 +19,96 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
 export async function POST(request: NextRequest) {
   try {
     // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Check authorization
-    if (!ADMIN_EMAILS.includes(user.email?.toLowerCase() || '')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!ADMIN_EMAILS.includes(user.email?.toLowerCase() || "")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Get the latest weekly brief
     const { data: briefData, error: briefError } = await supabase
-      .from('weekly_briefs')
-      .select('*')
-      .order('created_at', { ascending: false })
+      .from("weekly_briefs")
+      .select("*")
+      .order("created_at", { ascending: false })
       .limit(1)
       .single();
 
     if (briefError || !briefData) {
-      return NextResponse.json({ error: 'No brief data available' }, { status: 404 });
+      return NextResponse.json(
+        { error: "No brief data available" },
+        { status: 404 },
+      );
     }
 
     // Send email
     const emailContent = generateEmailHTML(briefData.data);
-    
+
     const msg = {
       to: ADMIN_EMAILS,
-      from: 'sam@gymleadhub.co.uk',
+      from: "sam@gymleadhub.co.uk",
       subject: `Weekly Executive Brief - ${new Date().toLocaleDateString()}`,
       html: emailContent,
-      text: generateEmailText(briefData.data)
+      text: generateEmailText(briefData.data),
     };
 
     await sgMail.send(msg);
 
     // Log the email send
-    await supabase
-      .from('email_logs')
-      .insert({
-        type: 'weekly_brief',
-        recipients: ADMIN_EMAILS,
-        subject: msg.subject,
-        sent_at: new Date().toISOString(),
-        status: 'sent'
-      });
+    await supabase.from("email_logs").insert({
+      type: "weekly_brief",
+      recipients: ADMIN_EMAILS,
+      subject: msg.subject,
+      sent_at: new Date().toISOString(),
+      status: "sent",
+    });
 
     return NextResponse.json({
       success: true,
-      message: 'Weekly brief sent successfully'
+      message: "Weekly brief sent successfully",
     });
-
   } catch (error) {
-    console.error('Error sending weekly brief email:', error);
-    
+    console.error("Error sending weekly brief email:", error);
+
     // Log the error
     try {
-      await supabase
-        .from('email_logs')
-        .insert({
-          type: 'weekly_brief',
-          recipients: ADMIN_EMAILS,
-          subject: `Weekly Executive Brief - ${new Date().toLocaleDateString()}`,
-          sent_at: new Date().toISOString(),
-          status: 'failed',
-          error_message: error instanceof Error ? error.message : 'Unknown error'
-        });
+      await supabase.from("email_logs").insert({
+        type: "weekly_brief",
+        recipients: ADMIN_EMAILS,
+        subject: `Weekly Executive Brief - ${new Date().toLocaleDateString()}`,
+        sent_at: new Date().toISOString(),
+        status: "failed",
+        error_message: error instanceof Error ? error.message : "Unknown error",
+      });
     } catch (logError) {
-      console.error('Error logging email failure:', logError);
+      console.error("Error logging email failure:", logError);
     }
 
     return NextResponse.json(
-      { error: 'Failed to send email' },
-      { status: 500 }
+      { error: "Failed to send email" },
+      { status: 500 },
     );
   }
 }
 
 function generateEmailHTML(briefData: any): string {
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
   };
 
   const formatPercent = (value: number) => {
-    return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
+    return `${value > 0 ? "+" : ""}${value.toFixed(1)}%`;
   };
 
   return `
@@ -244,11 +248,11 @@ function generateEmailHTML(briefData: any): string {
   <div class="container">
     <div class="header">
       <h1>Weekly Executive Brief</h1>
-      <p>${new Date().toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
+      <p>${new Date().toLocaleDateString("en-US", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
       })}</p>
     </div>
     
@@ -259,7 +263,7 @@ function generateEmailHTML(briefData: any): string {
           <div class="kpi-card">
             <div class="kpi-value">${formatCurrency(briefData.kpis.mrr.current)}</div>
             <div class="kpi-label">Monthly Recurring Revenue</div>
-            <div class="kpi-change ${briefData.kpis.mrr.change >= 0 ? 'positive' : 'negative'}">
+            <div class="kpi-change ${briefData.kpis.mrr.change >= 0 ? "positive" : "negative"}">
               ${formatPercent(briefData.kpis.mrr.change)} from last week
             </div>
           </div>
@@ -267,7 +271,7 @@ function generateEmailHTML(briefData: any): string {
           <div class="kpi-card">
             <div class="kpi-value">${briefData.kpis.churn.current.toFixed(1)}%</div>
             <div class="kpi-label">Churn Rate</div>
-            <div class="kpi-change ${briefData.kpis.churn.change <= 0 ? 'positive' : 'negative'}">
+            <div class="kpi-change ${briefData.kpis.churn.change <= 0 ? "positive" : "negative"}">
               ${formatPercent(briefData.kpis.churn.change)} from last week
             </div>
           </div>
@@ -275,7 +279,7 @@ function generateEmailHTML(briefData: any): string {
           <div class="kpi-card">
             <div class="kpi-value">${briefData.kpis.newSignups.current}</div>
             <div class="kpi-label">New Signups</div>
-            <div class="kpi-change ${briefData.kpis.newSignups.change >= 0 ? 'positive' : 'negative'}">
+            <div class="kpi-change ${briefData.kpis.newSignups.change >= 0 ? "positive" : "negative"}">
               ${formatPercent(briefData.kpis.newSignups.change)} from last week
             </div>
           </div>
@@ -283,7 +287,7 @@ function generateEmailHTML(briefData: any): string {
           <div class="kpi-card">
             <div class="kpi-value">${briefData.kpis.activeUsers.current.toLocaleString()}</div>
             <div class="kpi-label">Active Users</div>
-            <div class="kpi-change ${briefData.kpis.activeUsers.change >= 0 ? 'positive' : 'negative'}">
+            <div class="kpi-change ${briefData.kpis.activeUsers.change >= 0 ? "positive" : "negative"}">
               ${formatPercent(briefData.kpis.activeUsers.change)} from last week
             </div>
           </div>
@@ -293,7 +297,9 @@ function generateEmailHTML(briefData: any): string {
       <div class="section">
         <h2>🏆 Top Performing Tenants</h2>
         <div class="tenant-list">
-          ${briefData.tenants.topPerforming.map((tenant: any) => `
+          ${briefData.tenants.topPerforming
+            .map(
+              (tenant: any) => `
             <div class="tenant-item">
               <div>
                 <strong>${tenant.name}</strong><br>
@@ -301,14 +307,18 @@ function generateEmailHTML(briefData: any): string {
               </div>
               <div class="positive">+${tenant.growth.toFixed(1)}%</div>
             </div>
-          `).join('')}
+          `,
+            )
+            .join("")}
         </div>
       </div>
 
       <div class="section">
         <h2>⚠️ At-Risk Tenants</h2>
         <div class="tenant-list">
-          ${briefData.tenants.atRisk.map((tenant: any) => `
+          ${briefData.tenants.atRisk
+            .map(
+              (tenant: any) => `
             <div class="tenant-item">
               <div>
                 <strong>${tenant.name}</strong><br>
@@ -316,30 +326,38 @@ function generateEmailHTML(briefData: any): string {
               </div>
               <span class="severity-badge severity-${tenant.severity}">${tenant.severity}</span>
             </div>
-          `).join('')}
+          `,
+            )
+            .join("")}
         </div>
       </div>
 
       <div class="section">
         <h2>🔧 Integration Health</h2>
         <div class="tenant-list">
-          ${briefData.integrations.services.map((service: any) => `
+          ${briefData.integrations.services
+            .map(
+              (service: any) => `
             <div class="tenant-item">
               <div>
                 <strong>${service.name}</strong><br>
                 <small>${service.uptime.toFixed(1)}% uptime</small>
               </div>
-              <div style="color: ${service.status === 'up' ? '#28a745' : service.status === 'degraded' ? '#ffc107' : '#dc3545'}">
+              <div style="color: ${service.status === "up" ? "#28a745" : service.status === "degraded" ? "#ffc107" : "#dc3545"}">
                 ${service.status.toUpperCase()}
               </div>
             </div>
-          `).join('')}
+          `,
+            )
+            .join("")}
         </div>
       </div>
 
       <div class="section">
         <h2>✅ Action Items</h2>
-        ${briefData.actionItems.map((item: any) => `
+        ${briefData.actionItems
+          .map(
+            (item: any) => `
           <div class="action-item">
             <div class="action-header">
               <strong>${item.title}</strong>
@@ -348,10 +366,12 @@ function generateEmailHTML(briefData: any): string {
             <div style="font-size: 14px; color: #6c757d;">
               Owner: ${item.owner} | 
               Deadline: ${new Date(item.deadline).toLocaleDateString()} | 
-              Status: ${item.status.replace('_', ' ')}
+              Status: ${item.status.replace("_", " ")}
             </div>
           </div>
-        `).join('')}
+        `,
+          )
+          .join("")}
       </div>
     </div>
     
@@ -371,38 +391,51 @@ WEEKLY EXECUTIVE BRIEF - ${new Date().toLocaleDateString()}
 
 KEY PERFORMANCE INDICATORS
 ==========================
-Monthly Recurring Revenue: $${briefData.kpis.mrr.current.toLocaleString()} (${briefData.kpis.mrr.change > 0 ? '+' : ''}${briefData.kpis.mrr.change.toFixed(1)}%)
-Churn Rate: ${briefData.kpis.churn.current.toFixed(1)}% (${briefData.kpis.churn.change > 0 ? '+' : ''}${briefData.kpis.churn.change.toFixed(1)}%)
-New Signups: ${briefData.kpis.newSignups.current} (${briefData.kpis.newSignups.change > 0 ? '+' : ''}${briefData.kpis.newSignups.change.toFixed(1)}%)
-Active Users: ${briefData.kpis.activeUsers.current.toLocaleString()} (${briefData.kpis.activeUsers.change > 0 ? '+' : ''}${briefData.kpis.activeUsers.change.toFixed(1)}%)
+Monthly Recurring Revenue: $${briefData.kpis.mrr.current.toLocaleString()} (${briefData.kpis.mrr.change > 0 ? "+" : ""}${briefData.kpis.mrr.change.toFixed(1)}%)
+Churn Rate: ${briefData.kpis.churn.current.toFixed(1)}% (${briefData.kpis.churn.change > 0 ? "+" : ""}${briefData.kpis.churn.change.toFixed(1)}%)
+New Signups: ${briefData.kpis.newSignups.current} (${briefData.kpis.newSignups.change > 0 ? "+" : ""}${briefData.kpis.newSignups.change.toFixed(1)}%)
+Active Users: ${briefData.kpis.activeUsers.current.toLocaleString()} (${briefData.kpis.activeUsers.change > 0 ? "+" : ""}${briefData.kpis.activeUsers.change.toFixed(1)}%)
 
 TOP PERFORMING TENANTS
 ======================
-${briefData.tenants.topPerforming.map((tenant: any) => 
-  `${tenant.name}: $${tenant.revenue} revenue (+${tenant.growth.toFixed(1)}% growth)`
-).join('\n')}
+${briefData.tenants.topPerforming
+  .map(
+    (tenant: any) =>
+      `${tenant.name}: $${tenant.revenue} revenue (+${tenant.growth.toFixed(1)}% growth)`,
+  )
+  .join("\n")}
 
 AT-RISK TENANTS
 ===============
-${briefData.tenants.atRisk.map((tenant: any) => 
-  `${tenant.name}: ${tenant.issue} (${tenant.severity} severity)`
-).join('\n')}
+${briefData.tenants.atRisk
+  .map(
+    (tenant: any) =>
+      `${tenant.name}: ${tenant.issue} (${tenant.severity} severity)`,
+  )
+  .join("\n")}
 
 INTEGRATION HEALTH
 ==================
-${briefData.integrations.services.map((service: any) => 
-  `${service.name}: ${service.status.toUpperCase()} (${service.uptime.toFixed(1)}% uptime)`
-).join('\n')}
+${briefData.integrations.services
+  .map(
+    (service: any) =>
+      `${service.name}: ${service.status.toUpperCase()} (${service.uptime.toFixed(1)}% uptime)`,
+  )
+  .join("\n")}
 
 ACTION ITEMS
 ============
-${briefData.actionItems.map((item: any) => 
-  `${item.title}
+${briefData.actionItems
+  .map(
+    (item: any) =>
+      `${item.title}
   Owner: ${item.owner}
   Priority: ${item.priority.toUpperCase()}
-  Status: ${item.status.replace('_', ' ')}
+  Status: ${item.status.replace("_", " ")}
   Deadline: ${new Date(item.deadline).toLocaleDateString()}
-`).join('\n')}
+`,
+  )
+  .join("\n")}
 
 Generated on: ${new Date().toISOString()}
 Atlas Fitness Platform - SaaS Admin Dashboard

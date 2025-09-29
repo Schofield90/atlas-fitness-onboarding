@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { migrationService } from "@/app/lib/services/migration-service";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/migration/jobs/[id]/progress
  * Get migration job progress and status

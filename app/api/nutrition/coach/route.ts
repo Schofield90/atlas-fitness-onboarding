@@ -3,6 +3,9 @@ import { createClient } from "@/app/lib/supabase/server";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 // Lazy initialization to avoid build-time errors
 let openai: OpenAI | null = null;
 let anthropic: Anthropic | null = null;

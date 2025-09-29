@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { serverBookingLinkService } from "@/app/lib/services/booking-link-server";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

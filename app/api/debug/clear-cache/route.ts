@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { clearUserCache } from "@/app/lib/api/auth-check";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function POST() {
   try {
     const supabase = await createClient();

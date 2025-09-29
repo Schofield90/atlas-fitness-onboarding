@@ -3,6 +3,9 @@ import { createClient } from "@/app/lib/supabase/server";
 import { MetaMessengerClient, MetaWebhookEntry } from "@/app/lib/meta/client";
 import { verifyWebhookSignature } from "@/app/lib/encryption";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 // Webhook verification for Meta
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;

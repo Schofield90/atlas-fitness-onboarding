@@ -6,6 +6,9 @@ import {
   createOrgScopedQuery,
 } from "@/app/lib/api/secure-route";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 /**
  * Example secure API route using the new security middleware
  * This demonstrates best practices for organization-scoped data access

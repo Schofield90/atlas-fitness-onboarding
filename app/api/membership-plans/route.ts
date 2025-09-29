@@ -1,12 +1,21 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/app/lib/supabase/server';
-import { getUserAndOrganization } from '@/app/lib/auth-utils';
+import { NextRequest, NextResponse } from "next/server";
+import { createServerSupabaseClient } from "@/app/lib/supabase/server";
+import { getUserAndOrganization } from "@/app/lib/auth-utils";
+
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
 
 interface MembershipPlanRequest {
   name: string;
   description?: string;
   price_pennies: number;
-  billing_period: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly' | 'one_time';
+  billing_period:
+    | "daily"
+    | "weekly"
+    | "monthly"
+    | "quarterly"
+    | "yearly"
+    | "one_time";
   contract_length_months?: number;
   class_limit?: number;
   features?: any;
@@ -25,39 +34,49 @@ export async function POST(request: NextRequest) {
     const { user, organization } = await getUserAndOrganization(supabase);
 
     if (!user || !organization) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body: MembershipPlanRequest = await request.json();
 
     // Validate required fields
-    if (!body.name || !body.billing_period || body.price_pennies === undefined) {
-      return NextResponse.json({ 
-        error: 'Missing required fields: name, billing_period, price_pennies' 
-      }, { status: 400 });
+    if (
+      !body.name ||
+      !body.billing_period ||
+      body.price_pennies === undefined
+    ) {
+      return NextResponse.json(
+        {
+          error: "Missing required fields: name, billing_period, price_pennies",
+        },
+        { status: 400 },
+      );
     }
 
     // Check for duplicate names within organization
     const { data: existingPlan } = await supabase
-      .from('membership_plans')
-      .select('id')
-      .eq('organization_id', organization.id)
-      .eq('name', body.name)
+      .from("membership_plans")
+      .select("id")
+      .eq("organization_id", organization.id)
+      .eq("name", body.name)
       .single();
 
     if (existingPlan) {
-      return NextResponse.json({ 
-        error: 'A membership plan with this name already exists' 
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: "A membership plan with this name already exists",
+        },
+        { status: 400 },
+      );
     }
 
     // Create the membership plan
     const { data: membershipPlan, error } = await supabase
-      .from('membership_plans')
+      .from("membership_plans")
       .insert({
         organization_id: organization.id,
         name: body.name,
-        description: body.description || '',
+        description: body.description || "",
         price_pennies: body.price_pennies,
         billing_period: body.billing_period,
         contract_length_months: body.contract_length_months,
@@ -71,25 +90,30 @@ export async function POST(request: NextRequest) {
         add_ons: body.add_ons || [],
         trial_days: body.trial_days || 0,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .select()
       .single();
 
     if (error) {
-      console.error('Error creating membership plan:', error);
-      return NextResponse.json({ error: 'Failed to create membership plan' }, { status: 500 });
+      console.error("Error creating membership plan:", error);
+      return NextResponse.json(
+        { error: "Failed to create membership plan" },
+        { status: 500 },
+      );
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       membershipPlan,
-      message: 'Membership plan created successfully' 
+      message: "Membership plan created successfully",
     });
-
   } catch (error) {
-    console.error('Error creating membership plan:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error("Error creating membership plan:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -99,28 +123,32 @@ export async function GET(request: NextRequest) {
     const { user, organization } = await getUserAndOrganization(supabase);
 
     if (!user || !organization) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const url = new URL(request.url);
-    const activeOnly = url.searchParams.get('active_only') === 'true';
-    const includeStats = url.searchParams.get('include_stats') === 'true';
+    const activeOnly = url.searchParams.get("active_only") === "true";
+    const includeStats = url.searchParams.get("include_stats") === "true";
 
     let query = supabase
-      .from('membership_plans')
-      .select('*')
-      .eq('organization_id', organization.id);
+      .from("membership_plans")
+      .select("*")
+      .eq("organization_id", organization.id);
 
     if (activeOnly) {
-      query = query.eq('is_active', true);
+      query = query.eq("is_active", true);
     }
 
-    const { data: membershipPlans, error } = await query
-      .order('created_at', { ascending: false });
+    const { data: membershipPlans, error } = await query.order("created_at", {
+      ascending: false,
+    });
 
     if (error) {
-      console.error('Error fetching membership plans:', error);
-      return NextResponse.json({ error: 'Failed to fetch membership plans' }, { status: 500 });
+      console.error("Error fetching membership plans:", error);
+      return NextResponse.json(
+        { error: "Failed to fetch membership plans" },
+        { status: 500 },
+      );
     }
 
     // If stats are requested, get member counts for each plan
@@ -128,43 +156,45 @@ export async function GET(request: NextRequest) {
       const plansWithStats = await Promise.all(
         membershipPlans.map(async (plan) => {
           const { count: memberCount } = await supabase
-            .from('customer_memberships')
-            .select('*', { count: 'exact', head: true })
-            .eq('membership_plan_id', plan.id)
-            .eq('status', 'active');
+            .from("customer_memberships")
+            .select("*", { count: "exact", head: true })
+            .eq("membership_plan_id", plan.id)
+            .eq("status", "active");
 
           const { count: totalRevenue } = await supabase
-            .from('payment_transactions')
-            .select('amount_pennies', { count: 'exact', head: true })
-            .eq('metadata->membership_plan_id', plan.id)
-            .eq('status', 'succeeded');
+            .from("payment_transactions")
+            .select("amount_pennies", { count: "exact", head: true })
+            .eq("metadata->membership_plan_id", plan.id)
+            .eq("status", "succeeded");
 
           return {
             ...plan,
             stats: {
               active_members: memberCount || 0,
-              total_revenue: totalRevenue || 0
-            }
+              total_revenue: totalRevenue || 0,
+            },
           };
-        })
+        }),
       );
 
       return NextResponse.json({
         membershipPlans: plansWithStats,
         plans: plansWithStats, // alias for backward compatibility
-        total: plansWithStats.length
+        total: plansWithStats.length,
       });
     }
 
     return NextResponse.json({
       membershipPlans: membershipPlans || [],
       plans: membershipPlans || [], // alias for backward compatibility
-      total: (membershipPlans || []).length
+      total: (membershipPlans || []).length,
     });
-
   } catch (error) {
-    console.error('Error fetching membership plans:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error("Error fetching membership plans:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -174,71 +204,85 @@ export async function PUT(request: NextRequest) {
     const { user, organization } = await getUserAndOrganization(supabase);
 
     if (!user || !organization) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
     const { id, ...updateData } = body;
 
     if (!id) {
-      return NextResponse.json({ error: 'Missing membership plan ID' }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing membership plan ID" },
+        { status: 400 },
+      );
     }
 
     // Verify the plan belongs to the organization
     const { data: existingPlan, error: fetchError } = await supabase
-      .from('membership_plans')
-      .select('id, name')
-      .eq('id', id)
-      .eq('organization_id', organization.id)
+      .from("membership_plans")
+      .select("id, name")
+      .eq("id", id)
+      .eq("organization_id", organization.id)
       .single();
 
     if (fetchError || !existingPlan) {
-      return NextResponse.json({ error: 'Membership plan not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: "Membership plan not found" },
+        { status: 404 },
+      );
     }
 
     // Check for name conflicts if name is being updated
     if (updateData.name && updateData.name !== existingPlan.name) {
       const { data: duplicatePlan } = await supabase
-        .from('membership_plans')
-        .select('id')
-        .eq('organization_id', organization.id)
-        .eq('name', updateData.name)
-        .neq('id', id)
+        .from("membership_plans")
+        .select("id")
+        .eq("organization_id", organization.id)
+        .eq("name", updateData.name)
+        .neq("id", id)
         .single();
 
       if (duplicatePlan) {
-        return NextResponse.json({ 
-          error: 'A membership plan with this name already exists' 
-        }, { status: 400 });
+        return NextResponse.json(
+          {
+            error: "A membership plan with this name already exists",
+          },
+          { status: 400 },
+        );
       }
     }
 
     // Update the membership plan
     const { data: updatedPlan, error: updateError } = await supabase
-      .from('membership_plans')
+      .from("membership_plans")
       .update({
         ...updateData,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
-      .eq('id', id)
-      .eq('organization_id', organization.id)
+      .eq("id", id)
+      .eq("organization_id", organization.id)
       .select()
       .single();
 
     if (updateError) {
-      console.error('Error updating membership plan:', updateError);
-      return NextResponse.json({ error: 'Failed to update membership plan' }, { status: 500 });
+      console.error("Error updating membership plan:", updateError);
+      return NextResponse.json(
+        { error: "Failed to update membership plan" },
+        { status: 500 },
+      );
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       membershipPlan: updatedPlan,
-      message: 'Membership plan updated successfully' 
+      message: "Membership plan updated successfully",
     });
-
   } catch (error) {
-    console.error('Error updating membership plan:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error("Error updating membership plan:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -248,60 +292,74 @@ export async function DELETE(request: NextRequest) {
     const { user, organization } = await getUserAndOrganization(supabase);
 
     if (!user || !organization) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const url = new URL(request.url);
-    const planId = url.searchParams.get('id');
+    const planId = url.searchParams.get("id");
 
     if (!planId) {
-      return NextResponse.json({ error: 'Missing membership plan ID' }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing membership plan ID" },
+        { status: 400 },
+      );
     }
 
     // Check if plan has active members
     const { count: activeMemberCount } = await supabase
-      .from('customer_memberships')
-      .select('*', { count: 'exact', head: true })
-      .eq('membership_plan_id', planId)
-      .eq('status', 'active');
+      .from("customer_memberships")
+      .select("*", { count: "exact", head: true })
+      .eq("membership_plan_id", planId)
+      .eq("status", "active");
 
     if (activeMemberCount && activeMemberCount > 0) {
-      return NextResponse.json({ 
-        error: `Cannot delete membership plan with ${activeMemberCount} active members. Please cancel or transfer these memberships first.` 
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: `Cannot delete membership plan with ${activeMemberCount} active members. Please cancel or transfer these memberships first.`,
+        },
+        { status: 400 },
+      );
     }
 
     // Verify the plan belongs to the organization
     const { data: existingPlan, error: fetchError } = await supabase
-      .from('membership_plans')
-      .select('id')
-      .eq('id', planId)
-      .eq('organization_id', organization.id)
+      .from("membership_plans")
+      .select("id")
+      .eq("id", planId)
+      .eq("organization_id", organization.id)
       .single();
 
     if (fetchError || !existingPlan) {
-      return NextResponse.json({ error: 'Membership plan not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: "Membership plan not found" },
+        { status: 404 },
+      );
     }
 
     // Delete the membership plan
     const { error: deleteError } = await supabase
-      .from('membership_plans')
+      .from("membership_plans")
       .delete()
-      .eq('id', planId)
-      .eq('organization_id', organization.id);
+      .eq("id", planId)
+      .eq("organization_id", organization.id);
 
     if (deleteError) {
-      console.error('Error deleting membership plan:', deleteError);
-      return NextResponse.json({ error: 'Failed to delete membership plan' }, { status: 500 });
+      console.error("Error deleting membership plan:", deleteError);
+      return NextResponse.json(
+        { error: "Failed to delete membership plan" },
+        { status: 500 },
+      );
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
-      message: 'Membership plan deleted successfully' 
+      message: "Membership plan deleted successfully",
     });
-
   } catch (error) {
-    console.error('Error deleting membership plan:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error("Error deleting membership plan:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

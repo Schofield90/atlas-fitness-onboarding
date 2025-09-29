@@ -3,6 +3,9 @@ import { createClient } from "@/app/lib/supabase/server";
 import { MetaMessengerClient } from "@/app/lib/meta/client";
 import { encrypt } from "@/app/lib/encryption";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get("code");

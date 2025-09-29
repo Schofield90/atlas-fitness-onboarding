@@ -3,6 +3,9 @@ import { createClient } from "@/app/lib/supabase/server";
 import { MetaMessengerClient } from "@/app/lib/meta/client";
 import { decrypt } from "@/app/lib/encryption";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
 

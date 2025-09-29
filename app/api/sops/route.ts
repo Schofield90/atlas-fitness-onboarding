@@ -3,6 +3,9 @@ import { createClient } from "@/app/lib/supabase/server";
 import { getOrganization } from "@/app/lib/organization-server";
 import { SOPInsert, SOPFilters, SOPWithDetails } from "@/app/lib/types/sop";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerClient();

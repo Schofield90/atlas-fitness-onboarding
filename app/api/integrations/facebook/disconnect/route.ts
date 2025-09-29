@@ -3,6 +3,9 @@ import { cookies } from "next/headers";
 import { createClient } from "@/app/lib/supabase/server";
 import { getCurrentUserOrganization } from "@/app/lib/organization-server";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   try {
     console.log("🔌 Disconnecting Facebook integration");

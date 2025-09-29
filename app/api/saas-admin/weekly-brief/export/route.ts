@@ -1,59 +1,67 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
-const ADMIN_EMAILS = ['sam@atlas-gyms.co.uk', 'sam@gymleadhub.co.uk'];
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
+const ADMIN_EMAILS = ["sam@atlas-gyms.co.uk", "sam@gymleadhub.co.uk"];
 
 // Use service role key for admin operations
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 export async function POST(request: NextRequest) {
   try {
     // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Check authorization
-    if (!ADMIN_EMAILS.includes(user.email?.toLowerCase() || '')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!ADMIN_EMAILS.includes(user.email?.toLowerCase() || "")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const { format } = await request.json();
 
     // Get the latest weekly brief
     const { data: briefData, error: briefError } = await supabase
-      .from('weekly_briefs')
-      .select('*')
-      .order('created_at', { ascending: false })
+      .from("weekly_briefs")
+      .select("*")
+      .order("created_at", { ascending: false })
       .limit(1)
       .single();
 
     if (briefError || !briefData) {
-      return NextResponse.json({ error: 'No brief data available' }, { status: 404 });
+      return NextResponse.json(
+        { error: "No brief data available" },
+        { status: 404 },
+      );
     }
 
-    if (format === 'pdf') {
+    if (format === "pdf") {
       const pdfBuffer = await generatePDF(briefData.data);
-      
+
       return new Response(pdfBuffer, {
         headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="weekly-brief-${new Date().toISOString().split('T')[0]}.pdf"`
-        }
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `attachment; filename="weekly-brief-${new Date().toISOString().split("T")[0]}.pdf"`,
+        },
       });
     }
 
-    return NextResponse.json({ error: 'Invalid format' }, { status: 400 });
-
+    return NextResponse.json({ error: "Invalid format" }, { status: 400 });
   } catch (error) {
-    console.error('Error exporting brief:', error);
+    console.error("Error exporting brief:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { error: "Internal server error" },
+      { status: 500 },
     );
   }
 }
@@ -61,7 +69,7 @@ export async function POST(request: NextRequest) {
 async function generatePDF(briefData: any): Promise<Buffer> {
   // Simple HTML to PDF conversion - in production, you might want to use libraries like puppeteer or jsPDF
   const htmlContent = generateHTMLReport(briefData);
-  
+
   // For now, return a simple text-based PDF simulation
   // In production, implement proper PDF generation
   const pdfContent = `
@@ -69,16 +77,16 @@ Weekly Executive Brief - ${new Date().toLocaleDateString()}
 
 === KEY PERFORMANCE INDICATORS ===
 Monthly Recurring Revenue: $${briefData.kpis.mrr.current.toLocaleString()}
-Change: ${briefData.kpis.mrr.change > 0 ? '+' : ''}${briefData.kpis.mrr.change.toFixed(1)}%
+Change: ${briefData.kpis.mrr.change > 0 ? "+" : ""}${briefData.kpis.mrr.change.toFixed(1)}%
 
 Churn Rate: ${briefData.kpis.churn.current.toFixed(1)}%
-Change: ${briefData.kpis.churn.change > 0 ? '+' : ''}${briefData.kpis.churn.change.toFixed(1)}%
+Change: ${briefData.kpis.churn.change > 0 ? "+" : ""}${briefData.kpis.churn.change.toFixed(1)}%
 
 New Signups: ${briefData.kpis.newSignups.current}
-Change: ${briefData.kpis.newSignups.change > 0 ? '+' : ''}${briefData.kpis.newSignups.change.toFixed(1)}%
+Change: ${briefData.kpis.newSignups.change > 0 ? "+" : ""}${briefData.kpis.newSignups.change.toFixed(1)}%
 
 Active Users: ${briefData.kpis.activeUsers.current.toLocaleString()}
-Change: ${briefData.kpis.activeUsers.change > 0 ? '+' : ''}${briefData.kpis.activeUsers.change.toFixed(1)}%
+Change: ${briefData.kpis.activeUsers.change > 0 ? "+" : ""}${briefData.kpis.activeUsers.change.toFixed(1)}%
 
 === REVENUE SUMMARY ===
 Total Revenue: $${briefData.revenue.total.toLocaleString()}
@@ -86,34 +94,47 @@ Growth: ${briefData.revenue.growth.toFixed(1)}%
 Forecast: $${briefData.revenue.forecast.toLocaleString()}
 
 === TOP PERFORMING TENANTS ===
-${briefData.tenants.topPerforming.map((tenant: any) => 
-  `${tenant.name}: $${tenant.revenue} revenue (${tenant.growth.toFixed(1)}% growth)`
-).join('\n')}
+${briefData.tenants.topPerforming
+  .map(
+    (tenant: any) =>
+      `${tenant.name}: $${tenant.revenue} revenue (${tenant.growth.toFixed(1)}% growth)`,
+  )
+  .join("\n")}
 
 === AT-RISK TENANTS ===
-${briefData.tenants.atRisk.map((tenant: any) => 
-  `${tenant.name}: ${tenant.issue} (${tenant.severity} severity)`
-).join('\n')}
+${briefData.tenants.atRisk
+  .map(
+    (tenant: any) =>
+      `${tenant.name}: ${tenant.issue} (${tenant.severity} severity)`,
+  )
+  .join("\n")}
 
 === INTEGRATION HEALTH ===
 Overall Status: ${briefData.integrations.overall}
-${briefData.integrations.services.map((service: any) => 
-  `${service.name}: ${service.status} (${service.uptime}% uptime)`
-).join('\n')}
+${briefData.integrations.services
+  .map(
+    (service: any) =>
+      `${service.name}: ${service.status} (${service.uptime}% uptime)`,
+  )
+  .join("\n")}
 
 === ACTION ITEMS ===
-${briefData.actionItems.map((item: any) => 
-  `${item.title}
+${briefData.actionItems
+  .map(
+    (item: any) =>
+      `${item.title}
   Owner: ${item.owner}
   Priority: ${item.priority}
   Status: ${item.status}
   Deadline: ${new Date(item.deadline).toLocaleDateString()}
-`).join('\n')}
+`,
+  )
+  .join("\n")}
 
 Generated on: ${new Date().toISOString()}
 `;
 
-  return Buffer.from(pdfContent, 'utf-8');
+  return Buffer.from(pdfContent, "utf-8");
 }
 
 function generateHTMLReport(briefData: any): string {
@@ -144,8 +165,8 @@ function generateHTMLReport(briefData: any): string {
     <div class="kpi-card">
       <div class="kpi-value">$${briefData.kpis.mrr.current.toLocaleString()}</div>
       <div>Monthly Recurring Revenue</div>
-      <div class="kpi-change ${briefData.kpis.mrr.change >= 0 ? 'positive' : 'negative'}">
-        ${briefData.kpis.mrr.change > 0 ? '+' : ''}${briefData.kpis.mrr.change.toFixed(1)}%
+      <div class="kpi-change ${briefData.kpis.mrr.change >= 0 ? "positive" : "negative"}">
+        ${briefData.kpis.mrr.change > 0 ? "+" : ""}${briefData.kpis.mrr.change.toFixed(1)}%
       </div>
     </div>
     <!-- Add other KPI cards here -->
@@ -153,9 +174,12 @@ function generateHTMLReport(briefData: any): string {
   
   <h2>Top Performing Tenants</h2>
   <ul>
-    ${briefData.tenants.topPerforming.map((tenant: any) => 
-      `<li>${tenant.name}: $${tenant.revenue} revenue (${tenant.growth.toFixed(1)}% growth)</li>`
-    ).join('')}
+    ${briefData.tenants.topPerforming
+      .map(
+        (tenant: any) =>
+          `<li>${tenant.name}: $${tenant.revenue} revenue (${tenant.growth.toFixed(1)}% growth)</li>`,
+      )
+      .join("")}
   </ul>
   
   <!-- Add other sections -->

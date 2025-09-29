@@ -7,6 +7,9 @@ import {
   ValidationError,
 } from "@/app/lib/types/plans";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 // Helper function to check admin authorization
 async function checkAdminAuth(supabase: any) {
   const {

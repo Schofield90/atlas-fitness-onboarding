@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { z } from "zod";
 
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
 const sendWaiverEmailSchema = z.object({
   customer_waiver_id: z.string().uuid("Invalid customer waiver ID"),
   email_type: z.enum(["initial", "reminder"]).default("initial"),
