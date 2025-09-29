@@ -4,23 +4,20 @@ import { createClient } from "@/app/lib/supabase/server";
 import { requireAuth } from "@/app/lib/api/auth-check";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 
-// Force dynamic rendering for this route
-export const dynamic = "force-dynamic";
-
-// Create OpenAI client lazily to avoid build-time errors
+// Lazy load OpenAI client to avoid browser environment errors during build
 let openai: OpenAI | null = null;
 
-function getOpenAIClient(): OpenAI {
+function getOpenAI(): OpenAI {
   if (!openai) {
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error("OPENAI_API_KEY is not set");
-    }
     openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
   }
   return openai;
 }
+
+// Force dynamic rendering for this route
+export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
@@ -73,7 +70,7 @@ Focus on creating comprehensive, legally sound forms for gym operations.`;
 
     console.log("Calling OpenAI API...");
 
-    const openaiClient = getOpenAIClient();
+    const openaiClient = getOpenAI();
     const response = await openaiClient.chat.completions.create({
       model: "gpt-3.5-turbo",
       temperature: 0.7,

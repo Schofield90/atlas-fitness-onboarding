@@ -4,23 +4,20 @@ import { createClient } from "@/app/lib/supabase/server";
 import OpenAI from "openai";
 import * as cheerio from "cheerio";
 
-// Force dynamic rendering for this route
-export const dynamic = "force-dynamic";
-
-// Lazy initialization to avoid build-time errors
+// Lazy load OpenAI client to avoid browser environment errors during build
 let openai: OpenAI | null = null;
 
 function getOpenAI(): OpenAI {
-  if (!openai && process.env.OPENAI_API_KEY) {
+  if (!openai) {
     openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
   }
-  if (!openai) {
-    throw new Error("OpenAI API key not configured");
-  }
   return openai;
 }
+
+// Force dynamic rendering for this route
+export const dynamic = "force-dynamic";
 
 // Function to fetch and parse webpage
 async function fetchAndParseWebpage(url: string) {
@@ -322,7 +319,7 @@ export async function POST(request: NextRequest) {
         meta_description: generatedTemplate.meta?.description,
         status: "draft",
         created_by: userId,
-        updated_by: user.id,
+        updated_by: userId,
       })
       .select()
       .single();
@@ -349,6 +346,7 @@ export async function POST(request: NextRequest) {
     console.error("AI generation error:", error);
 
     // Update generation record with error
+    const generation = (error as any).generation;
     if (generation?.id) {
       await supabase
         .from("ai_template_generations")

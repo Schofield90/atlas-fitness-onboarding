@@ -2,6 +2,18 @@
 // Client components should call API endpoints that use this
 import OpenAI from "openai";
 
+// Lazy load OpenAI client to avoid browser environment errors during build
+let openai: OpenAI | null = null;
+
+function getOpenAI(): OpenAI {
+  if (!openai) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return openai;
+}
+
 export interface WellnessPlan {
   id?: string;
   clientId: string;

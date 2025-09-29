@@ -1,8 +1,16 @@
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Lazy load OpenAI client to avoid browser environment errors during build
+let openai: OpenAI | null = null;
+
+function getOpenAI(): OpenAI {
+  if (!openai) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return openai;
+}
 
 interface UserPreferences {
   dietary_restrictions?: string[];
@@ -122,7 +130,7 @@ Format as JSON with structure:
   "mealPrepAdvice": "How to prep ahead if applicable"
 }`;
 
-  const response = await openai.chat.completions.create({
+  const response = await getOpenAI().chat.completions.create({
     model: "gpt-4-turbo-preview",
     messages: [
       {
@@ -209,7 +217,7 @@ Return as JSON:
   "nextFocus": "what aspect to explore next"
 }`;
 
-  const response = await openai.chat.completions.create({
+  const response = await getOpenAI().chat.completions.create({
     model: "gpt-4-turbo-preview",
     messages: [
       {
@@ -341,7 +349,7 @@ Return as JSON:
   "why_good_fit": "explanation of why this works for this user"
 }`;
 
-  const response = await openai.chat.completions.create({
+  const response = await getOpenAI().chat.completions.create({
     model: "gpt-4-turbo-preview",
     messages: [{ role: "user", content: prompt }],
     temperature: 0.6,

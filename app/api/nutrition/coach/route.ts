@@ -3,24 +3,21 @@ import { createClient } from "@/app/lib/supabase/server";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 
-// Force dynamic rendering to handle cookies and request properties
-export const dynamic = "force-dynamic";
-
-// Lazy initialization to avoid build-time errors
+// Lazy load OpenAI client to avoid browser environment errors during build
 let openai: OpenAI | null = null;
 let anthropic: Anthropic | null = null;
 
 function getOpenAI(): OpenAI {
-  if (!openai && process.env.OPENAI_API_KEY) {
+  if (!openai) {
     openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
   }
-  if (!openai) {
-    throw new Error("OpenAI API key not configured");
-  }
   return openai;
 }
+
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
 
 function getAnthropic(): Anthropic {
   if (!anthropic && process.env.ANTHROPIC_API_KEY) {

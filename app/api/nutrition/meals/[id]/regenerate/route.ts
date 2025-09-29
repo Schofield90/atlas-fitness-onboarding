@@ -3,23 +3,20 @@ import { createClient } from "@/app/lib/supabase/server";
 import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
 import OpenAI from "openai";
 
-// Force dynamic rendering for this route
-export const dynamic = "force-dynamic";
-
-// Lazy initialization to avoid build-time errors
+// Lazy load OpenAI client to avoid browser environment errors during build
 let openai: OpenAI | null = null;
 
 function getOpenAI(): OpenAI {
-  if (!openai && process.env.OPENAI_API_KEY) {
+  if (!openai) {
     openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
   }
-  if (!openai) {
-    throw new Error("OpenAI API key not configured");
-  }
   return openai;
 }
+
+// Force dynamic rendering for this route
+export const dynamic = "force-dynamic";
 
 export async function POST(
   request: NextRequest,

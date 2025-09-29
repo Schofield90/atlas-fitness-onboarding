@@ -2,9 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Lazy load OpenAI client to avoid browser environment errors during build
+let openai: OpenAI | null = null;
+
+function getOpenAI(): OpenAI {
+  if (!openai) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return openai;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -100,7 +108,7 @@ Provide a JSON response with:
 Format as JSON with these exact keys: field_mappings, data_quality, recommendations
 The field_mappings MUST be a flat object, not nested.`;
 
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
