@@ -3,10 +3,24 @@ import { createClient } from "@/app/lib/supabase/server";
 import { isSlotAvailable } from "@/packages/core/availability/generateSlots";
 import { parseISO } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
-import Redis from "ioredis";
 
-// Initialize Redis client
-const redis = process.env.REDIS_URL ? new Redis(process.env.REDIS_URL) : null;
+// Force dynamic rendering to handle cookies and request properties
+export const dynamic = "force-dynamic";
+
+// Lazy Redis initialization - only create when needed
+let redis: any = null;
+
+async function getRedisClient() {
+  if (!redis && process.env.REDIS_URL) {
+    try {
+      const Redis = (await import("ioredis")).default;
+      redis = new Redis(process.env.REDIS_URL);
+    } catch (error) {
+      console.warn("Failed to initialize Redis:", error);
+    }
+  }
+  return redis;
+}
 
 interface BookingRequest {
   slot: string; // ISO datetime

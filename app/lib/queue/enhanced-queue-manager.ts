@@ -1,12 +1,12 @@
 import { Queue, Worker, Job, QueueEvents } from "bullmq";
 import IORedis from "ioredis";
 import {
-  redisConnection,
-  redisClusterConnection,
+  getEnhancedRedisConnection,
+  getRedisClusterConnection,
   isRedisConfigured,
   QUEUE_NAMES,
-  defaultQueueOptions,
-  workerOptions,
+  getDefaultQueueOptions,
+  getWorkerOptions,
   QueueName,
   JobType,
   JOB_PRIORITIES,
@@ -128,19 +128,27 @@ export class EnhancedQueueManager {
 
   private async initializeRedisConnection(): Promise<void> {
     try {
-      if (redisClusterConnection) {
+      const clusterConnection = getRedisClusterConnection();
+      const singleConnection = getEnhancedRedisConnection();
+
+      if (!singleConnection && !clusterConnection) {
+        console.warn("No Redis connection available");
+        return;
+      }
+
+      if (clusterConnection) {
         // Use Redis cluster
         const cluster = new IORedis.Cluster(
           process.env.REDIS_CLUSTER_NODES!.split(",").map((node) => {
             const [host, port] = node.split(":");
             return { host, port: parseInt(port) };
           }),
-          redisClusterConnection,
+          clusterConnection,
         );
         this.redis = cluster;
-      } else {
+      } else if (singleConnection) {
         // Use single Redis instance
-        this.redis = new IORedis(redisConnection);
+        this.redis = new IORedis(singleConnection as any);
       }
 
       // Connection event handlers
@@ -181,19 +189,27 @@ export class EnhancedQueueManager {
   private async initializeQueues(): Promise<void> {
     console.log("🔧 Initializing queues...");
 
+    const connection = getEnhancedRedisConnection();
+    const defaultOptions = getDefaultQueueOptions();
+
+    if (!connection || !defaultOptions) {
+      console.warn("Cannot initialize queues - no Redis connection");
+      return;
+    }
+
     for (const [name, queueName] of Object.entries(QUEUE_NAMES)) {
       try {
         // Create queue
         const queue = new Queue(queueName, {
-          connection: redisConnection,
-          ...defaultQueueOptions,
+          connection,
+          ...defaultOptions,
         });
 
         this.queues.set(queueName as QueueName, queue);
 
         // Create queue events for monitoring
         const events = new QueueEvents(queueName, {
-          connection: redisConnection,
+          connection,
         });
 
         this.queueEvents.set(queueName as QueueName, events);
@@ -445,6 +461,9 @@ export class EnhancedQueueManager {
       return existingWorker;
     }
 
+    const workerOpts = getWorkerOptions();
+    const fallbackConnection = getEnhancedRedisConnection();
+
     const worker = new Worker(
       queueName,
       async (job: Job<T>) => {
@@ -467,8 +486,8 @@ export class EnhancedQueueManager {
           throw error;
         }
       },
-      workerOptions[queueName] || {
-        connection: redisConnection,
+      workerOpts?.[queueName] || {
+        connection: fallbackConnection,
         concurrency: 5,
       },
     );

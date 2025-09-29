@@ -22,6 +22,18 @@ class RedisClient {
 
   private async initializeConnection(): Promise<void> {
     try {
+      // Skip initialization during build
+      if (process.env.NODE_ENV === "production" && !process.env.VERCEL_ENV) {
+        console.log("Skipping Redis initialization in build environment");
+        return;
+      }
+
+      // Also skip if no Redis URL is configured
+      if (!process.env.REDIS_URL && !process.env.UPSTASH_REDIS_REST_URL) {
+        console.log("No Redis configuration found - skipping initialization");
+        return;
+      }
+
       // Dynamically import ioredis only when needed
       const { Redis } = await import("ioredis");
 
