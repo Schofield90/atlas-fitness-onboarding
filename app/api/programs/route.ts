@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/app/lib/supabase/server";
 import { getUserAndOrganization } from "@/app/lib/auth-utils";
 
+// Force dynamic rendering for this route
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     // First verify authentication

@@ -3,6 +3,9 @@ import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
 import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
 
+// Force dynamic rendering for this route
+export const dynamic = "force-dynamic";
+
 // Set max duration for generation
 export const maxDuration = 30;
 

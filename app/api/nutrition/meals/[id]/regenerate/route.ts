@@ -3,6 +3,9 @@ import { createClient } from "@/app/lib/supabase/server";
 import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
 import OpenAI from "openai";
 
+// Force dynamic rendering for this route
+export const dynamic = "force-dynamic";
+
 // Lazy initialization to avoid build-time errors
 let openai: OpenAI | null = null;
 

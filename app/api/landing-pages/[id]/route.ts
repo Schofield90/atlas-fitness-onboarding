@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/app/lib/api/auth-check-org";
 import { createClient } from "@/app/lib/supabase/server";
 
+// Force dynamic rendering for this route
+export const dynamic = "force-dynamic";
+
 // GET - Get single landing page
 export async function GET(
   request: NextRequest,

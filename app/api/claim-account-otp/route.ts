@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 
+// Force dynamic rendering for this route
+export const dynamic = "force-dynamic";
+
 // Generate a 6-digit OTP
 function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();

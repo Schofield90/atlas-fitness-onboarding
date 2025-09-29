@@ -7,9 +7,6 @@ export function createSessionClient() {
     return null;
   }
 
-  // Determine if we're in production based on hostname
-  const isProduction = window.location.hostname.includes("gymleadhub.co.uk");
-
   return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

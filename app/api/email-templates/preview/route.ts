@@ -3,6 +3,9 @@ import { createClient } from "@/app/lib/supabase/server";
 import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
 import { z } from "zod";
 
+// Force dynamic rendering for this route
+export const dynamic = "force-dynamic";
+
 // Validation schema for preview request
 const previewSchema = z.object({
   templateId: z.string().uuid().optional(),

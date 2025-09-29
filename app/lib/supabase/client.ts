@@ -23,9 +23,6 @@ export function createClient(forceNew = false) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
   ).trim();
 
-  // Determine if we're in production based on the URL
-  const isProduction = window.location.hostname.includes("gymleadhub.co.uk");
-
   browserClient = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey, {
     auth: {
       autoRefreshToken: true,

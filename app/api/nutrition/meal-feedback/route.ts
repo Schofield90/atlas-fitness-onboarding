@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/app/lib/api/auth-check";
 import OpenAI from "openai";
 
+// Force dynamic rendering for this route
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth();

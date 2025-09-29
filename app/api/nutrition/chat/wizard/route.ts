@@ -4,6 +4,9 @@ import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
 import OpenAI from "openai";
 import { NutritionProfile } from "@/app/api/nutrition/profile/route";
 
+// Force dynamic rendering for this route
+export const dynamic = "force-dynamic";
+
 interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;

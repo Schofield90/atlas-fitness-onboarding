@@ -4,6 +4,9 @@ import { createClient } from "@/app/lib/supabase/server";
 import OpenAI from "openai";
 import * as cheerio from "cheerio";
 
+// Force dynamic rendering for this route
+export const dynamic = "force-dynamic";
+
 // Lazy initialization to avoid build-time errors
 let openai: OpenAI | null = null;
 

@@ -3,6 +3,9 @@ import { createClient } from "@/app/lib/supabase/server";
 import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
 import { UpdateTimesheetRequest } from "@/app/lib/types/staff";
 
+// Force dynamic rendering for this route
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/staff/timesheets/[id] - Get specific timesheet entry
  */

@@ -3,6 +3,9 @@ import { createClient } from "@/app/lib/supabase/server";
 import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
 import { UpdateTimeOffRequest } from "@/app/lib/types/staff";
 
+// Force dynamic rendering for this route
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/staff/time-off/[id] - Get specific time off request
  */

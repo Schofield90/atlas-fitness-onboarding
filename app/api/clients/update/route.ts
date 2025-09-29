@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
 
+// Force dynamic rendering for this route
+export const dynamic = "force-dynamic";
+
 // Calculate BMR (Basal Metabolic Rate)
 function calculateBMR(
   weight: number,

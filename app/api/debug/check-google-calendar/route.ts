@@ -3,6 +3,9 @@ import { createClient } from "@/app/lib/supabase/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
 
+// Force dynamic rendering for this route
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth();

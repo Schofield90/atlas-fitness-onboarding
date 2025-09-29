@@ -1,5 +1,8 @@
-import { NextResponse } from 'next/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { NextResponse } from "next/server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
+
+// Force dynamic rendering for this route
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
@@ -9,46 +12,45 @@ export async function GET() {
       {
         auth: {
           autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    )
-    
+          persistSession: false,
+        },
+      },
+    );
+
     // Get all users
     const { data: allUsers, error: usersError } = await supabaseAdmin
-      .from('users')
-      .select('*')
-      .limit(5)
-    
+      .from("users")
+      .select("*")
+      .limit(5);
+
     // Get organizations
     const { data: orgs, error: orgsError } = await supabaseAdmin
-      .from('organizations')
-      .select('*')
-    
+      .from("organizations")
+      .select("*");
+
     // Get table info using raw SQL
     const { data: tableInfo, error: tableError } = await supabaseAdmin
-      .rpc('get_table_info', { table_name: 'users' })
-      .single()
-    
+      .rpc("get_table_info", { table_name: "users" })
+      .single();
+
     return NextResponse.json({
       users: {
         count: allUsers?.length || 0,
         sample: allUsers,
-        error: usersError?.message
+        error: usersError?.message,
       },
       organizations: {
         count: orgs?.length || 0,
         data: orgs,
-        error: orgsError?.message
+        error: orgsError?.message,
       },
       tableStructure: tableInfo,
       tableError: tableError?.message,
       targetUser: {
-        id: 'ea1fc8e3-35a2-4c59-80af-5fde557391a1',
-        shouldHaveOrgId: '63589490-8f55-4157-bd3a-e141594b748e'
-      }
-    })
-    
+        id: "ea1fc8e3-35a2-4c59-80af-5fde557391a1",
+        shouldHaveOrgId: "63589490-8f55-4157-bd3a-e141594b748e",
+      },
+    });
   } catch (error) {
     // If RPC doesn't exist, just return basic info
     const supabaseAdmin = createAdminClient(
@@ -57,24 +59,29 @@ export async function GET() {
       {
         auth: {
           autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    )
-    
-    const { data: users } = await supabaseAdmin.from('users').select('*').limit(5)
-    const { data: orgs } = await supabaseAdmin.from('organizations').select('*')
-    
+          persistSession: false,
+        },
+      },
+    );
+
+    const { data: users } = await supabaseAdmin
+      .from("users")
+      .select("*")
+      .limit(5);
+    const { data: orgs } = await supabaseAdmin
+      .from("organizations")
+      .select("*");
+
     return NextResponse.json({
       users: {
         count: users?.length || 0,
-        sample: users
+        sample: users,
       },
       organizations: {
         count: orgs?.length || 0,
-        data: orgs
+        data: orgs,
       },
-      error: error instanceof Error ? error.message : 'Unknown error'
-    })
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
   }
 }

@@ -4,6 +4,9 @@ import { createAdminClient } from "@/app/lib/supabase/admin";
 import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
 import twilio from "twilio";
 
+// Force dynamic rendering for this route
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   try {
     const userWithOrg = await requireAuth();

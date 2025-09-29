@@ -87,3 +87,6 @@ export async function GET() {
 
 // Add missing import
 import { cookies } from "next/headers";
+
+// Force dynamic rendering for this route
+export const dynamic = "force-dynamic";

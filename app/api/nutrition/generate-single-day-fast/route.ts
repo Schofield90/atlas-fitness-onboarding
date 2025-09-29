@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
 import OpenAI from "openai";
 
+// Force dynamic rendering for this route
+export const dynamic = "force-dynamic";
+
 // Set max duration for ultra-fast generation
 export const maxDuration = 30; // 30 seconds max
 
