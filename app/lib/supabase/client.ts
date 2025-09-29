@@ -37,12 +37,39 @@ export function createClient(forceNew = false) {
     // Add proper headers to avoid 406 errors
     global: {
       headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation'
-      }
-    }
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Prefer: "return=representation",
+      },
+    },
   });
+
+  // Set up session refresh on client initialization
+  if (browserClient) {
+    browserClient.auth.onAuthStateChange(async (event, session) => {
+      console.log("[Client] Auth state changed:", event, session?.user?.email);
+      if (event === "TOKEN_REFRESHED") {
+        console.log("[Client] Session token refreshed");
+      }
+    });
+
+    // Try to refresh session immediately if needed
+    browserClient.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        console.log("[Client] No session found on init, attempting refresh...");
+        browserClient?.auth
+          .refreshSession()
+          .then(({ data: { session: refreshedSession }, error }) => {
+            if (refreshedSession) {
+              console.log("[Client] Session refreshed on init");
+            } else if (error) {
+              console.log("[Client] Session refresh failed:", error.message);
+            }
+          });
+      }
+    });
+  }
+
   return browserClient;
 }
 
