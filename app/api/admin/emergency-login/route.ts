@@ -11,7 +11,7 @@ export async function POST(request: Request) {
 
     // TEMPORARY HARDCODED CHECK - REMOVE AFTER USE
     if (email === "sam@gymleadhub.co.uk" && password === "@Aa80236661") {
-      const supabase = createClient();
+      const supabase = await createClient();
 
       // Get the user from database
       const { data: adminUser } = await supabase

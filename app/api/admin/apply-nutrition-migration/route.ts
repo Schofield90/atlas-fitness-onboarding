@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
-import { cookies } from "next/headers";
 
 // Admin-only endpoint to apply nutrition database migration
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient(cookies());
+    const supabase = await createClient();
 
     // Check if user is authenticated and is admin
     const {
@@ -228,7 +227,7 @@ export async function POST(request: NextRequest) {
 // GET endpoint to check migration status
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient(cookies());
+    const supabase = await createClient();
 
     // Check if user is authenticated
     const {
