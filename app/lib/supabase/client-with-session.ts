@@ -31,3 +31,27 @@ export function createSessionClient() {
     },
   );
 }
+
+// Helper function to get session with retry logic
+export async function getSessionWithRetry(supabase: any, maxRetries = 3) {
+  if (!supabase) return null;
+
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
+      if (!error && session) {
+        return session;
+      }
+      // Wait a bit before retrying
+      if (i < maxRetries - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 100 * (i + 1)));
+      }
+    } catch (error) {
+      console.error(`Session fetch attempt ${i + 1} failed:`, error);
+    }
+  }
+  return null;
+}
