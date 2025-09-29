@@ -3,6 +3,7 @@ import IORedis from "ioredis";
 import {
   redisConnection,
   redisClusterConnection,
+  isRedisConfigured,
   QUEUE_NAMES,
   defaultQueueOptions,
   workerOptions,
@@ -82,6 +83,15 @@ export class EnhancedQueueManager {
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
 
+    // Skip initialization if Redis is not configured
+    if (!isRedisConfigured) {
+      console.warn(
+        "⚠️ Redis not configured - queue system will not be initialized",
+      );
+      this.isInitialized = true; // Mark as initialized to prevent retry attempts
+      return;
+    }
+
     console.log("🚀 Initializing enhanced queue system...");
 
     try {
@@ -101,7 +111,18 @@ export class EnhancedQueueManager {
       console.log("✅ Enhanced queue system initialized successfully");
     } catch (error) {
       console.error("❌ Failed to initialize queue system:", error);
-      throw error;
+      // Don't throw during build - just log the error
+      if (
+        process.env.NODE_ENV === "production" &&
+        process.env.BUILDING === "true"
+      ) {
+        console.warn(
+          "⚠️ Continuing build despite queue initialization failure",
+        );
+        this.isInitialized = true; // Prevent retry attempts during build
+      } else {
+        throw error;
+      }
     }
   }
 
@@ -322,12 +343,17 @@ export class EnhancedQueueManager {
     });
   }
 
-  getQueue(name: QueueName): Queue {
+  getQueue(name: QueueName): Queue | null {
+    if (!isRedisConfigured) {
+      console.warn(`⚠️ Queue ${name} requested but Redis not configured`);
+      return null;
+    }
     const queue = this.queues.get(name);
     if (!queue) {
-      throw new Error(
+      console.error(
         `Queue ${name} not found. Available queues: ${Array.from(this.queues.keys()).join(", ")}`,
       );
+      return null;
     }
     return queue;
   }
@@ -345,12 +371,21 @@ export class EnhancedQueueManager {
       repeat?: any;
       jobId?: string;
     },
-  ): Promise<Job<T>> {
+  ): Promise<Job<T> | null> {
+    if (!isRedisConfigured) {
+      console.warn(`⚠️ Cannot add job to ${queueName} - Redis not configured`);
+      return null;
+    }
+
     if (this.isShuttingDown) {
       throw new Error("Queue manager is shutting down, cannot add new jobs");
     }
 
     const queue = this.getQueue(queueName);
+    if (!queue) {
+      console.error(`Failed to get queue ${queueName}`);
+      return null;
+    }
 
     // Apply retry strategy if available
     const retryStrategy = RETRY_STRATEGIES[jobType] || RETRY_STRATEGIES.default;
