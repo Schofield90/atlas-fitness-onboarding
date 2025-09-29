@@ -2,7 +2,6 @@ import { createClient } from "@supabase/supabase-js";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { z } from "zod";
-import { Queue } from "bullmq";
 import { createRedisClient } from "@/app/lib/cache/redis-stub";
 
 // Import types
@@ -63,8 +62,8 @@ const LeadSchema = z.object({
 
 export class LeadImportService {
   private supabase: any;
-  private importQueue: Queue | null = null;
-  private redis: Redis | null = null;
+  private importQueue: any | null = null;
+  private redis: any | null = null;
 
   constructor() {
     this.supabase = createClient(
@@ -72,22 +71,31 @@ export class LeadImportService {
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
     );
 
-    // Initialize Redis and Queue if available
+    // Initialize Redis and Queue if available (lazy initialization in async methods)
     if (process.env.REDIS_URL || process.env.UPSTASH_REDIS_REST_URL) {
       this.redis = createRedisClient();
+    }
+  }
 
-      this.importQueue = new Queue("lead-import", {
-        connection: this.redis,
-        defaultJobOptions: {
-          removeOnComplete: true,
-          removeOnFail: false,
-          attempts: 3,
-          backoff: {
-            type: "exponential",
-            delay: 2000,
+  private async initializeQueue() {
+    if (!this.importQueue && this.redis) {
+      try {
+        const { Queue } = await import("bullmq");
+        this.importQueue = new Queue("lead-import", {
+          connection: this.redis,
+          defaultJobOptions: {
+            removeOnComplete: true,
+            removeOnFail: false,
+            attempts: 3,
+            backoff: {
+              type: "exponential",
+              delay: 2000,
+            },
           },
-        },
-      });
+        });
+      } catch (error) {
+        console.warn("Failed to initialize import queue:", error);
+      }
     }
   }
 
@@ -95,6 +103,9 @@ export class LeadImportService {
   async importLeads(options: ImportOptions): Promise<ImportProgress> {
     // Create import record
     const importId = await this.createImportRecord(options);
+
+    // Initialize queue if needed
+    await this.initializeQueue();
 
     // For large files (>1000 records), use background processing
     const fileSize =
