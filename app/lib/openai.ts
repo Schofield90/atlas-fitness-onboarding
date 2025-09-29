@@ -1,11 +1,19 @@
 import OpenAI from "openai";
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Lazy load OpenAI client to avoid browser environment errors during build
+let openai: OpenAI | null = null;
 
-export default openai;
+export function getOpenAI(): OpenAI {
+  if (!openai) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return openai;
+}
+
+// Export the getter function as default
+export default getOpenAI;
 
 // Helper function to generate a single meal with better error handling
 export async function generateSingleMeal(
@@ -91,7 +99,7 @@ Return this exact JSON structure:
 }`;
 
   try {
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: "gpt-4-turbo-preview", // Use GPT-4 for quality on Pro plan
       messages: [
         { role: "system", content: systemPrompt },
@@ -530,7 +538,7 @@ export async function generateMealSubstitution(
   Provide 3 alternative meals with similar macros in JSON format.`;
 
   try {
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: "gpt-3.5-turbo", // Using faster model to avoid timeouts
       messages: [
         { role: "system", content: systemPrompt },
@@ -571,7 +579,7 @@ export async function adjustMealPlanFromFeedback(
   Provide specific recommendations for future meal plans in JSON format.`;
 
   try {
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: "gpt-3.5-turbo", // Using faster model to avoid timeouts
       messages: [
         { role: "system", content: systemPrompt },

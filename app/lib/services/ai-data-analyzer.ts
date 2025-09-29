@@ -6,9 +6,17 @@
 import OpenAI from "openai";
 import { supabaseAdmin } from "../supabase/admin";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Lazy load OpenAI client to avoid browser environment errors during build
+let openai: OpenAI | null = null;
+
+function getOpenAI(): OpenAI {
+  if (!openai) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return openai;
+}
 
 export interface DataAnalysisResult {
   dataTypes: Record<string, string>;
@@ -305,7 +313,7 @@ async function generateFieldMappings(
     // Create AI prompt for field mapping
     const prompt = createFieldMappingPrompt(sampleData, headers, columns);
 
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: "gpt-4",
       messages: [
         {
