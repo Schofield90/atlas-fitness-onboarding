@@ -12,7 +12,7 @@
 
 import { EventEmitter } from "events";
 import { createAdminClient } from "@/app/lib/supabase/admin";
-import { queueManager } from "@/app/lib/queue/queue-manager";
+import { getQueueManager } from "@/app/lib/queue/queue-manager";
 import { QUEUE_NAMES, JOB_TYPES } from "@/app/lib/queue/config";
 import { createRedisClient } from "@/app/lib/cache/redis-stub";
 import {
@@ -1031,7 +1031,7 @@ export class EnhancedWorkflowExecutor extends EventEmitter {
   ): Promise<void> {
     const delay = delaySeconds ? delaySeconds * 1000 : 0;
 
-    await queueManager.addJob(
+    await getQueueManager().addJob(
       QUEUE_NAMES.WORKFLOW_EXECUTIONS,
       JOB_TYPES.EXECUTE_WORKFLOW,
       {

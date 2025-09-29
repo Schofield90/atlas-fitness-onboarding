@@ -207,5 +207,5 @@ export class QueueManager {
   }
 }
 
-// Export singleton instance
-export const queueManager = QueueManager.getInstance();
+// Export singleton getter function instead of instance to avoid module-level instantiation
+export const getQueueManager = () => QueueManager.getInstance();
