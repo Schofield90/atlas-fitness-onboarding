@@ -1,5 +1,4 @@
 import { Queue, Worker, Job, QueueEvents } from "bullmq";
-import IORedis from "ioredis";
 import {
   getEnhancedRedisConnection,
   getRedisClusterConnection,
@@ -44,7 +43,7 @@ export class EnhancedQueueManager {
   private queues: Map<QueueName, Queue>;
   private workers: Map<QueueName, Worker>;
   private queueEvents: Map<QueueName, QueueEvents>;
-  private redis: IORedis | null = null;
+  private redis: any | null = null; // Type will be IORedis when loaded
   private isInitialized: boolean = false;
   private isShuttingDown: boolean = false;
   private healthCheckInterval: NodeJS.Timeout | null = null;
@@ -135,6 +134,9 @@ export class EnhancedQueueManager {
         console.warn("No Redis connection available");
         return;
       }
+
+      // Dynamically import IORedis only when needed at runtime
+      const IORedis = (await import("ioredis")).default;
 
       if (clusterConnection) {
         // Use Redis cluster
