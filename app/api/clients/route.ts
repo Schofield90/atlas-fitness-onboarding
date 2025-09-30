@@ -14,18 +14,26 @@ export const dynamic = "force-dynamic";
 async function createClientMember(request: NextRequest) {
   // Check authentication and get organization
   const userWithOrg = await requireAuth();
+  console.log("[createClientMember] User authenticated:", {
+    userId: userWithOrg.id,
+    organizationId: userWithOrg.organizationId,
+  });
 
   const supabase = await createClient();
   const body = await request.json();
+  console.log("[createClientMember] Request body:", body);
 
   // Validate required fields
   if (!body.first_name) {
+    console.error("[createClientMember] Missing first_name");
     throw ValidationError.required("first_name", { body });
   }
   if (!body.last_name) {
+    console.error("[createClientMember] Missing last_name");
     throw ValidationError.required("last_name", { body });
   }
   if (!body.email) {
+    console.error("[createClientMember] Missing email");
     throw ValidationError.required("email", { body });
   }
   // Phone is now optional
@@ -33,8 +41,11 @@ async function createClientMember(request: NextRequest) {
   // Validate email format
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(body.email)) {
+    console.error("[createClientMember] Invalid email format:", body.email);
     throw ValidationError.invalid("email", body.email, "valid email address");
   }
+
+  console.log("[createClientMember] Validation passed");
 
   // Check for existing client with same email or phone in this organization
   const orgId = userWithOrg.organizationId;
