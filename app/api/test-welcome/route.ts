@@ -1,13 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 
-const resend = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null;
+// Force dynamic rendering to prevent static generation
+export const dynamic = "force-dynamic";
+
+// Lazy load Resend to prevent initialization during build
+function getResendClient() {
+  return process.env.RESEND_API_KEY
+    ? new Resend(process.env.RESEND_API_KEY)
+    : null;
+}
 
 export async function GET(request: NextRequest) {
+  // Prevent execution during build
+  if (
+    process.env.NODE_ENV === "production" &&
+    !process.env.ALLOW_TEST_ENDPOINTS
+  ) {
+    return NextResponse.json(
+      { error: "Test endpoints disabled in production" },
+      { status: 403 },
+    );
+  }
+
   console.log("Test welcome email endpoint called");
 
+  const resend = getResendClient();
   if (!resend) {
     return NextResponse.json(
       { error: "Resend not configured" },

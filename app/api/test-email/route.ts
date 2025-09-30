@@ -1,7 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 
+// Force dynamic rendering to prevent static generation
+export const dynamic = "force-dynamic";
+
+// Lazy load Resend to prevent initialization during build
+function getResendClient() {
+  return process.env.RESEND_API_KEY
+    ? new Resend(process.env.RESEND_API_KEY)
+    : null;
+}
+
 export async function GET(request: NextRequest) {
+  // Prevent execution during build
+  if (
+    process.env.NODE_ENV === "production" &&
+    !process.env.ALLOW_TEST_ENDPOINTS
+  ) {
+    return NextResponse.json(
+      { error: "Test endpoints disabled in production" },
+      { status: 403 },
+    );
+  }
+
   console.log("Test email endpoint called");
 
   // Check environment variables
@@ -19,10 +40,9 @@ export async function GET(request: NextRequest) {
   });
 
   // Try to send a test email
-  if (process.env.RESEND_API_KEY) {
+  const resend = getResendClient();
+  if (resend) {
     try {
-      const resend = new Resend(process.env.RESEND_API_KEY);
-
       const { data, error } = await resend.emails.send({
         from: "Gym Lead Hub <sam@email.gymleadhub.co.uk>",
         to: "sam@atlas-gyms.co.uk", // Your email

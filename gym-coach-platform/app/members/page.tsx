@@ -233,8 +233,23 @@ export default function MembersPage() {
         setEditingMember(null)
         loadMembers()
       } else {
-        const error = await response.json().catch(() => ({ message: 'Failed to save member' }))
-        toast.error(error.message || error.error || String(error))
+        const errorData = await response.json().catch(() => ({ error: 'Failed to save member' }))
+        console.error('API Error Response:', errorData)
+        
+        // Handle different error formats
+        let errorMessage = 'Failed to save member'
+        if (typeof errorData === 'string') {
+          errorMessage = errorData
+        } else if (errorData.error) {
+          errorMessage = errorData.error
+        } else if (errorData.message) {
+          errorMessage = errorData.message
+        } else if (errorData.details && Array.isArray(errorData.details)) {
+          // Handle Zod validation errors
+          errorMessage = errorData.details.map((d: any) => d.message).join(', ')
+        }
+        
+        toast.error(errorMessage)
       }
     } catch (error) {
       console.error('Error saving member:', error)

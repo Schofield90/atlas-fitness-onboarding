@@ -6,9 +6,12 @@ import { WelcomeEmail } from "@/emails/templates/WelcomeEmail";
 // Force dynamic rendering to handle cookies and request properties
 export const dynamic = "force-dynamic";
 
-const resend = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null;
+// Lazy load Resend to prevent initialization during build
+function getResendClient() {
+  return process.env.RESEND_API_KEY
+    ? new Resend(process.env.RESEND_API_KEY)
+    : null;
+}
 
 export async function POST(request: NextRequest) {
   console.log("=== SEND-WELCOME-EMAIL ENDPOINT HIT ===");
@@ -143,6 +146,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Check if Resend is configured
+    const resend = getResendClient();
     if (!resend) {
       console.warn(
         "Resend API key not configured - returning magic link for manual sharing",

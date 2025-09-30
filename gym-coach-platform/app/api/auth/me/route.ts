@@ -45,8 +45,14 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Format the response to include organization_id at root level for compatibility
+    const formattedResponse = {
+      ...userWithOrg,
+      organization_id: userWithOrg?.organization_id || userWithOrg?.organizations?.id || null
+    }
+
     return NextResponse.json(
-      userWithOrg,
+      formattedResponse,
       {
         status: 200,
         headers: { 'Content-Type': 'application/json' }

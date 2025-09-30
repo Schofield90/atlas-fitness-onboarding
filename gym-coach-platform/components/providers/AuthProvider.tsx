@@ -81,6 +81,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       const data = await response.json()
+      console.log('[AuthProvider] User profile fetched:', data)
       return data.data || data
     } catch (error) {
       console.error('Error fetching user profile:', error)
