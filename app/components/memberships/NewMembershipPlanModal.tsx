@@ -125,6 +125,9 @@ const NewMembershipPlanModal: React.FC<NewMembershipPlanModalProps> = ({
       });
 
       onClose();
+
+      // Reload page to refresh the list
+      window.location.reload();
     } catch (error: any) {
       console.error("Error:", error);
       toast.error(`An error occurred: ${error.message || "Please try again"}`);
