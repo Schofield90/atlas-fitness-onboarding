@@ -19,7 +19,7 @@ export async function POST(
 
     // Verify user has access to this client
     const { data: profile } = await supabase
-      .from('profiles')
+      .from('users')
       .select('organization_id')
       .eq('id', user.id)
       .single();
