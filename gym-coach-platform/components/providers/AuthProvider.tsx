@@ -70,8 +70,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const fetchUserProfile = async (user: User, accessToken?: string): Promise<UserProfile | null> => {
     try {
       const response = await fetch('/api/auth/me', {
+        credentials: 'include', // Use cookies instead of Bearer token
         headers: {
-          'Authorization': `Bearer ${accessToken || session?.access_token || ''}`
+          'Content-Type': 'application/json'
         }
       })
 
