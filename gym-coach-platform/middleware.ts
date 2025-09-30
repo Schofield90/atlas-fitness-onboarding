@@ -16,14 +16,20 @@ export async function middleware(request: NextRequest) {
 
   let organizationSlug: string | null = null;
 
+  // IMPORTANT: admin, login, members are PORTAL subdomains, NOT organization slugs
+  const isAdminPortal = subdomain === 'admin' || hostname.includes('admin.gymleadhub');
+  const isLoginPortal = subdomain === 'login' || hostname.includes('login.gymleadhub');
+  const isMembersPortal = subdomain === 'members' || hostname.includes('members.gymleadhub');
+
   // Determine organization from URL structure
   // Option 1: Subdomain routing (e.g., atlas-fitness.yourdomain.com)
-  if (subdomain && !['app', 'www', 'localhost', '127'].includes(subdomain)) {
+  // BUT: Exclude portal subdomains (admin, login, members)
+  if (subdomain && !['app', 'www', 'localhost', '127', 'admin', 'login', 'members'].includes(subdomain)) {
     organizationSlug = subdomain;
     response.headers.set('x-organization-slug', subdomain);
   }
   // Option 2: Path-based routing (e.g., app.yourdomain.com/atlas-fitness/...)
-  else if (pathSegments[0] && !['api', 'auth', 'dashboard', '_next', 'public'].includes(pathSegments[0])) {
+  else if (pathSegments[0] && !['api', 'auth', 'dashboard', '_next', 'public', 'admin', 'login', 'client', 'client-portal'].includes(pathSegments[0])) {
     organizationSlug = pathSegments[0];
     response.headers.set('x-organization-slug', pathSegments[0]);
   }
@@ -66,8 +72,9 @@ export async function middleware(request: NextRequest) {
     console.error('Middleware auth error:', error);
   }
 
-  // Check if this is a client portal route
-  const isClientPortal = organizationSlug || request.nextUrl.pathname.includes('/client');
+  // Check if this is a client portal route (but NOT the portal subdomains)
+  const isClientPortal = (organizationSlug && !isLoginPortal && !isAdminPortal && !isMembersPortal) ||
+                         request.nextUrl.pathname.includes('/client');
   const isAuthPage = request.nextUrl.pathname.includes('/auth');
   const isDashboard = request.nextUrl.pathname.includes('/dashboard') || request.nextUrl.pathname.includes('/class-calendar');
   const isProtectedAPI = request.nextUrl.pathname.startsWith('/api/') &&
@@ -106,13 +113,41 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Handle root path
+  // Handle root path - different routing per portal
   if (request.nextUrl.pathname === '/') {
-    // If accessing via subdomain, redirect to org-specific login
+    // Admin portal: Super admin only
+    if (isAdminPortal) {
+      if (session && session.user.email === 'sam@gymleadhub.co.uk') {
+        return NextResponse.redirect(new URL('/admin/dashboard', request.url))
+      } else {
+        return NextResponse.redirect(new URL('/auth/login?portal=admin', request.url))
+      }
+    }
+
+    // Members portal: Client login
+    if (isMembersPortal) {
+      if (session) {
+        return NextResponse.redirect(new URL('/client/dashboard', request.url))
+      } else {
+        return NextResponse.redirect(new URL('/client-portal/login', request.url))
+      }
+    }
+
+    // Login portal (staff dashboard): Gym owner login
+    if (isLoginPortal) {
+      if (session) {
+        return NextResponse.redirect(new URL('/dashboard', request.url))
+      } else {
+        return NextResponse.redirect(new URL('/auth/login', request.url))
+      }
+    }
+
+    // If accessing via organization subdomain, redirect to org-specific login
     if (organizationSlug) {
       return NextResponse.redirect(new URL(`/${organizationSlug}/auth/login`, request.url))
     }
-    // Otherwise, redirect to admin dashboard or login
+
+    // Default: redirect to staff login
     if (session) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     } else {
