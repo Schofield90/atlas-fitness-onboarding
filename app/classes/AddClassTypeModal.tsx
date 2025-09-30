@@ -1,9 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { createClient } from "@/app/lib/supabase/client";
 import { X } from "lucide-react";
-import { getCurrentUserOrganization } from "@/app/lib/organization-client";
 
 interface AddClassTypeModalProps {
   onClose: () => void;
@@ -51,33 +49,33 @@ export default function AddClassTypeModal({
     setLoading(true);
 
     try {
-      const supabase = createClient();
-
-      // Get organization ID
-      const { organizationId, error: orgError } =
-        await getCurrentUserOrganization();
-      if (orgError || !organizationId) {
-        throw new Error(orgError || "Organization not found");
-      }
-
-      // Create the class type (program)
+      // Create the class type (program) via API
       const capacity = parseInt(formData.defaultOccupancy) || 20;
-      const { error } = await supabase.from("programs").insert({
-        organization_id: organizationId,
-        name: formData.name,
-        description: formData.description || "",
-        price_pennies: 0, // Price will be set when creating actual classes
-        is_active: true,
-        max_participants: capacity, // Primary capacity field
-        default_capacity: capacity, // Ensure consistency between both fields
-        metadata: {
-          category: formData.category,
-          visibility: formData.visibility,
-          registrationSetting: formData.registrationSetting,
+      const response = await fetch("/api/programs", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          name: formData.name,
+          description: formData.description || "",
+          price_pennies: 0, // Price will be set when creating actual classes
+          is_active: true,
+          max_participants: capacity, // Primary capacity field
+          default_capacity: capacity, // Ensure consistency between both fields
+          metadata: {
+            category: formData.category,
+            visibility: formData.visibility,
+            registrationSetting: formData.registrationSetting,
+          },
+        }),
       });
 
-      if (error) throw error;
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to create class type");
+      }
 
       onSuccess();
     } catch (error: any) {
