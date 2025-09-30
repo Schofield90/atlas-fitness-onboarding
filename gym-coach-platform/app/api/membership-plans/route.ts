@@ -53,7 +53,17 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Failed to fetch membership plans' }, { status: 500 })
     }
 
-    return NextResponse.json({ plans: plans || [] })
+    // Debug logging
+    console.log('[Membership Plans GET] User:', user.id, 'Org:', userData.organization_id, 'Plans found:', plans?.length)
+
+    return NextResponse.json({
+      plans: plans || [],
+      debug: {
+        userId: user.id,
+        organizationId: userData.organization_id,
+        plansCount: plans?.length || 0
+      }
+    })
   } catch (error) {
     console.error('Membership plans GET error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
