@@ -128,6 +128,16 @@ export class ValidationError extends AppError {
       context,
     );
   }
+
+  static duplicate(field: string, value: any, context?: Record<string, any>) {
+    return new ValidationError(
+      `A record with this ${field} already exists`,
+      field,
+      value,
+      ["unique"],
+      context,
+    );
+  }
 }
 
 // Authentication Error - For auth failures
