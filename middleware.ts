@@ -178,37 +178,25 @@ export async function middleware(request: NextRequest) {
     // Check if user has an organization
     let userOrg = null;
 
-    // First check organization_staff table (new structure)
-    const { data: staffOrg } = await supabase
-      .from('organization_staff')
+    // Check user_organizations table first
+    const { data: userOrgData } = await supabase
+      .from('user_organizations')
       .select('organization_id, role')
       .eq('user_id', session.user.id)
-      .eq('is_active', true)
       .single()
 
-    if (staffOrg) {
-      userOrg = staffOrg;
+    if (userOrgData) {
+      userOrg = userOrgData;
     } else {
-      // Check user_organizations table
-      const { data: userOrgData } = await supabase
-        .from('user_organizations')
-        .select('organization_id, role')
-        .eq('user_id', session.user.id)
+      // Check if user owns an organization
+      const { data: ownedOrg } = await supabase
+        .from('organizations')
+        .select('id')
+        .eq('owner_id', session.user.id)
         .single()
 
-      if (userOrgData) {
-        userOrg = userOrgData;
-      } else {
-        // Check if user owns an organization
-        const { data: ownedOrg } = await supabase
-          .from('organizations')
-          .select('id')
-          .eq('owner_id', session.user.id)
-          .single()
-
-        if (ownedOrg) {
-          userOrg = { organization_id: ownedOrg.id, role: 'owner' };
-        }
+      if (ownedOrg) {
+        userOrg = { organization_id: ownedOrg.id, role: 'owner' };
       }
     }
 
