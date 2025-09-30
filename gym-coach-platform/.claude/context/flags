@@ -1,18 +1,25 @@
-# Feature Flags & Configuration - Atlas Fitness Gym Coach Platform  
-# Updated: 2025-08-30T10:00:00Z
+# Feature Flags & Configuration - Atlas Fitness CRM Platform
+# Updated: 2025-09-30T15:00:00Z
+
+## Critical Configuration Issues
+⚠️ **Session Duration**: Currently 3600s (1 hour) - TOO SHORT
+⚠️ **Middleware**: Single file for all domains - SECURITY RISK
+⚠️ **Cookie Scoping**: Shared .gymleadhub.co.uk domain - CROSSOVER RISK
 
 ## Environment Variables
 [source: next.config.js, middleware.ts, lib/supabase/]
 
 ### Supabase Configuration
 - `NEXT_PUBLIC_SUPABASE_URL`: Public Supabase project URL
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Public Supabase anonymous key  
-- `SUPABASE_SERVICE_ROLE_KEY`: Server-side admin access key
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Public Supabase anonymous key
+- `SUPABASE_SERVICE_ROLE_KEY`: Server-side admin access key (use ONLY in /api/admin routes)
 
-### Authentication
-- **Multi-tenant**: Organization-based access control
+### Authentication & Multi-Tenancy
+- **Multi-tenant**: Organization-based access control via RLS
+- **3 Portals**: admin.gymleadhub.co.uk, login.gymleadhub.co.uk, members.gymleadhub.co.uk
 - **Facebook OAuth**: Configured for social login
-- **Role-based**: owner, admin, staff, viewer roles
+- **Role-based**: super_admin, owner, admin, staff, viewer, client roles
+- **Session Cookie**: sb-access-token, sb-refresh-token (httpOnly, secure in prod)
 
 ## Development Features
 [source: components/providers/query-provider.tsx]

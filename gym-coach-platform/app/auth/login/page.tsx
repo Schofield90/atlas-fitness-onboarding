@@ -38,10 +38,7 @@ export default function LoginPage() {
 
       console.log('Login successful for user:', data.user.email)
 
-      // Wait for session to be fully established before redirecting
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
-      // Verify session is properly established
+      // Verify session is properly established (removed artificial 1s delay)
       const { data: { session: verifySession }, error: verifyError } = await supabase.auth.getSession()
 
       if (verifyError || !verifySession) {

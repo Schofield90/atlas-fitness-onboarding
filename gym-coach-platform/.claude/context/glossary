@@ -1,13 +1,20 @@
-# Glossary - Atlas Fitness Gym Coach Platform
-# Updated: 2025-08-30T10:00:00Z
+# Glossary - Atlas Fitness Gym Coach Platform (CRM System)
+# Updated: 2025-09-30T15:00:00Z
 
 ## Project Overview Terms
-- **Gym Coach Platform**: CRM/lead management system for fitness businesses
+- **Gym Coach Platform**: Multi-tenant SaaS CRM for fitness businesses with 3 separate portals
 - **Atlas Fitness**: Parent organization/brand name
+- **CRM System**: Customer Relationship Management - core purpose of the platform
 - **Lead**: Potential client/prospect in the sales pipeline
 - **Client**: Converted lead who became a paying member
-- **Organization**: Gym/fitness business using the platform (multi-tenant)
-- **User**: Staff member with access to the platform
+- **Organization**: Gym/fitness business using the platform (multi-tenant boundary)
+- **User**: Staff member with access to the platform (owner/admin/staff/viewer)
+- **Super Admin**: Platform administrator (sam@gymleadhub.co.uk)
+
+## Portal Types (CRITICAL)
+- **Admin Portal**: admin.gymleadhub.co.uk - Super admin only, platform management
+- **Staff Dashboard**: login.gymleadhub.co.uk - Gym staff CRM (leads, clients, bookings)
+- **Member Portal**: members.gymleadhub.co.uk - Client self-service (booking, profile, nutrition)
 
 ## Database Schema Terms
 - **Interactions**: Generic communication records (email, sms, call, meeting, whatsapp, telegram, note)
@@ -16,13 +23,23 @@
 - **Tasks**: Action items with priority and assignment tracking
 - **Analytics Events**: System event logging for insights
 
-## User Roles & Status
-- **Owner**: Full system access with billing control
-- **Admin**: Management access, can manage users
-- **Staff**: Daily operations access
-- **Viewer**: Read-only access
+## User Roles & Status (Organization-Scoped)
+- **Super Admin**: Platform-wide access (sam@gymleadhub.co.uk only)
+- **Owner**: Full organization access with billing control
+- **Admin**: Management access, can manage users within their org
+- **Staff**: Daily operations access for their org
+- **Viewer**: Read-only access to their org data
+- **Client/Member**: Member portal access only, can only see own data
 - **Lead Status**: cold → warm → hot → converted/lost
 - **Membership Status**: active, paused, cancelled
+
+## Security Terms (NEW)
+- **RLS**: Row Level Security - PostgreSQL policies enforcing organization isolation
+- **Organization Isolation**: Each tenant's data is separated via organization_id
+- **Multi-Tenant**: Multiple organizations using shared infrastructure, data isolated
+- **Auth Context**: User + Session + Organization information
+- **Cookie Scoping**: Domain-specific cookies (.admin, .login, .members)
+- **Service Role Key**: Admin-level database access (use only in admin endpoints)
 
 ## Messaging/Conversations (MISSING)
 - **Conversations Module**: Does not currently exist

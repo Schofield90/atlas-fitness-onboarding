@@ -33,8 +33,9 @@ export function createMiddlewareClient(
             httpOnly: options.httpOnly !== undefined ? options.httpOnly : true,
             // Set path to root for all cookies
             path: options.path || "/",
-            // Extend maxAge for better session persistence (default: 1 hour)
-            maxAge: options.maxAge || (isProduction ? 3600 : 7200), // 2 hours for dev
+            // Extend maxAge for better session persistence
+            // Changed from 3600s (1h) to 86400s (24h) for production
+            maxAge: options.maxAge || (isProduction ? 86400 : 7200), // 24h prod, 2h dev
           };
 
           // Log cookie operations in development for debugging

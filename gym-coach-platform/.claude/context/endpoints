@@ -1,9 +1,33 @@
-# API Endpoints - Atlas Fitness Gym Coach Platform
-# Updated: 2025-08-30T10:00:00Z
+# API Endpoints - Atlas Fitness Gym Coach Platform CRM
+# Updated: 2025-09-30T15:00:00Z
+# Total Routes: 65 API endpoints
 
-## Leads API
+## SECURITY REQUIREMENTS FOR ALL ROUTES
+Every API route MUST:
+1. Authenticate user via `supabase.auth.getUser()`
+2. Fetch user's organization_id from users table
+3. Filter all queries by `.eq('organization_id', userData.organization_id)`
+4. Return 401 if not authenticated, 403 if wrong permissions
+
+## Admin API (Super Admin Only)
+**Base Route**: `/api/admin`
+[Authentication: sam@gymleadhub.co.uk only]
+
+### POST /api/admin/reset-database
+- **Purpose**: Delete all organizations/users except super admin
+- **Auth**: Super admin email check
+- **Response**: Deletion log + final database state
+- **WARNING**: DESTRUCTIVE - cannot be undone
+
+### GET /api/admin/verify-super-admin
+- **Purpose**: Verify super admin permissions and database state
+- **Auth**: Super admin email check
+- **Response**: Complete verification report with RLS status
+
+## Leads API (Organization-Scoped)
 **Base Route**: `/api/leads`
 [source: /app/api/leads/route.ts]
+[Security: Organization-filtered]
 
 ### GET /api/leads
 - **Purpose**: Fetch paginated leads with filtering
