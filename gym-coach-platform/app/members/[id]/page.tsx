@@ -250,7 +250,7 @@ export default function MemberDetailPage({ params }: { params: { id: string } })
     setDeleting(true);
     try {
       // Call the API to delete the member and all related data
-      const response = await fetch(`/api/clients/${params.id}/delete`, {
+      const response = await fetch(`/api/clients/${params.id}`, {
         method: 'DELETE',
       });
 
