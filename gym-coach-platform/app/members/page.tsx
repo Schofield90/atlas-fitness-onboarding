@@ -92,12 +92,6 @@ export default function MembersPage() {
   }, [page, search, statusFilter, sortBy, sortOrder])
 
   const loadMembers = async () => {
-    if (!session?.access_token) {
-      console.error('No access token available')
-      setLoading(false)
-      return
-    }
-
     try {
       const params = new URLSearchParams({
         page: page.toString(),
@@ -110,8 +104,8 @@ export default function MembersPage() {
       if (statusFilter && statusFilter !== '') params.append('membership_status', statusFilter)
 
       const response = await fetch(`/api/clients?${params}`, {
+        credentials: 'include', // Send cookies with request
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
         },
       })
@@ -137,14 +131,10 @@ export default function MembersPage() {
   }
 
   const loadMembershipPlans = async () => {
-    if (!session?.access_token) {
-      return
-    }
-
     try {
       const response = await fetch('/api/membership-plans', {
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
         },
       })
@@ -209,7 +199,8 @@ export default function MembersPage() {
 
     try {
       const response = await fetch(`/api/clients/${member.id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        credentials: 'include'
       })
 
       if (response.ok) {
@@ -231,6 +222,7 @@ export default function MembersPage() {
 
       const response = await fetch(url, {
         method: isNew ? 'POST' : 'PUT',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(memberData)
       })
@@ -241,12 +233,12 @@ export default function MembersPage() {
         setEditingMember(null)
         loadMembers()
       } else {
-        const error = await response.json()
-        toast.error(error.message || 'Failed to save member')
+        const error = await response.json().catch(() => ({ message: 'Failed to save member' }))
+        toast.error(error.message || error.error || String(error))
       }
     } catch (error) {
       console.error('Error saving member:', error)
-      toast.error('Error saving member')
+      toast.error(error instanceof Error ? error.message : 'Error saving member')
     }
   }
 
