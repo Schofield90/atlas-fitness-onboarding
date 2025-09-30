@@ -256,11 +256,11 @@ async function getClients(request: NextRequest) {
       userWithOrg.organizationId,
     );
 
-    // Build base query - filter by organization_id
+    // Build base query - filter by org_id (not organization_id)
     let query = supabase
       .from("clients")
       .select("*", { count: "exact" })
-      .eq("organization_id", userWithOrg.organizationId)
+      .eq("org_id", userWithOrg.organizationId)
       .order("created_at", { ascending: false })
       .range(from, to);
 
