@@ -73,14 +73,14 @@ export default function ClassDetailPage() {
   const loadClassType = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("programs")
-        .select("*")
-        .eq("id", classId)
-        .eq("organization_id", organizationId)
-        .single();
+      const response = await fetch(`/api/programs?id=${classId}`);
+      const result = await response.json();
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to load class type");
+      }
+
+      const data = result.data;
 
       if (data) {
         setClassType(data);
@@ -96,9 +96,9 @@ export default function ClassDetailPage() {
           metadata: data.metadata || {},
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error loading class type:", error);
-      alert("Failed to load class type");
+      alert("Failed to load class type: " + error.message);
       router.push("/classes");
     } finally {
       setLoading(false);

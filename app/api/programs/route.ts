@@ -15,7 +15,32 @@ async function getPrograms(request: NextRequest) {
   const userWithOrg = await requireAuth();
   const supabase = await createClient();
 
-  // Get all programs for this organization
+  const { searchParams } = new URL(request.url);
+  const programId = searchParams.get("id");
+
+  // If ID provided, fetch single program
+  if (programId) {
+    const { data, error } = await supabase
+      .from("programs")
+      .select("*")
+      .eq("id", programId)
+      .eq("organization_id", userWithOrg.organizationId)
+      .single();
+
+    if (error) {
+      console.error("Error fetching program:", error);
+      throw DatabaseError.queryError("programs", "select", {
+        programId,
+        organizationId: userWithOrg.organizationId,
+        originalError: error.message,
+        code: error.code,
+      });
+    }
+
+    return NextResponse.json({ data });
+  }
+
+  // Otherwise fetch all programs for this organization
   const { data, error } = await supabase
     .from("programs")
     .select(`*`)
