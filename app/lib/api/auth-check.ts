@@ -112,41 +112,28 @@ export async function requireAuth(): Promise<AuthenticatedUser> {
   // Get user's organization - try multiple sources with improved security validation
   const adminClient = createAdminClient();
 
-  // First try organization_staff table (preferred for security)
-  const { data: staffData, error: staffError } = await adminClient
-    .from("organization_staff")
-    .select("organization_id, role, is_active")
+  // First check user_organizations table (primary source)
+  const { data: userOrgData, error: userOrgError } = await adminClient
+    .from("user_organizations")
+    .select("organization_id, role")
     .eq("user_id", user.id)
-    .eq("is_active", true)
     .single();
 
-  let organizationId = staffData?.organization_id;
-  let role = staffData?.role;
+  let organizationId = userOrgData?.organization_id;
+  let role = userOrgData?.role;
 
-  // If not found in staff table, check user_organizations table
+  // If not found, check organization_members table as fallback
   if (!organizationId) {
-    const { data: userOrgData, error: userOrgError } = await adminClient
-      .from("user_organizations")
+    const { data: memberData } = await adminClient
+      .from("organization_members")
       .select("organization_id, role")
       .eq("user_id", user.id)
+      .eq("is_active", true)
       .single();
 
-    if (userOrgData?.organization_id) {
-      organizationId = userOrgData.organization_id;
-      role = userOrgData.role || role;
-    } else {
-      // Last resort - check organization_members table
-      const { data: memberData } = await adminClient
-        .from("organization_members")
-        .select("organization_id, role")
-        .eq("user_id", user.id)
-        .eq("is_active", true)
-        .single();
-
-      if (memberData?.organization_id) {
-        organizationId = memberData.organization_id;
-        role = memberData.role || role;
-      }
+    if (memberData?.organization_id) {
+      organizationId = memberData.organization_id;
+      role = memberData.role || role;
     }
   }
 
