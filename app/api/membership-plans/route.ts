@@ -64,24 +64,19 @@ async function createMembershipPlan(request: NextRequest) {
   }
 
   // Create the membership plan
+  // Use 'price' column name (not 'price_pennies') to match database schema
   const { data: membershipPlan, error } = await supabase
     .from("membership_plans")
     .insert({
       organization_id: userWithOrg.organizationId,
       name: body.name,
       description: body.description || "",
-      price_pennies: body.price_pennies,
+      price: body.price_pennies, // Column is 'price' in database
       billing_period: body.billing_period,
-      contract_length_months: body.contract_length_months,
-      class_limit: body.class_limit,
-      features: body.features || {},
-      signup_fee_pennies: body.signup_fee_pennies || 0,
-      cancellation_fee_pennies: body.cancellation_fee_pennies || 0,
-      cancellation_notice_days: body.cancellation_notice_days || 30,
+      features: body.features || [],
       is_active: body.is_active !== undefined ? body.is_active : true,
-      eligible_class_types: body.eligible_class_types || [],
-      add_ons: body.add_ons || [],
       trial_days: body.trial_days || 0,
+      max_members: body.class_limit || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
