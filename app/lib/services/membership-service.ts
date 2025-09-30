@@ -25,32 +25,21 @@ export async function getMembershipPlans(): Promise<{
   error: string | null;
 }> {
   try {
-    // Get organization ID using the centralized service
-    const { organizationId, error: orgError } =
-      await getCurrentUserOrganization();
+    // Use API route with proper authentication
+    const response = await fetch("/api/membership-plans");
+    const result = await response.json();
 
-    if (orgError || !organizationId) {
-      console.error("Organization error:", orgError);
-      return { plans: [], error: orgError || "No organization found" };
+    if (!response.ok) {
+      console.error("Error fetching membership plans:", result.error);
+      return {
+        plans: [],
+        error: result.error || "Failed to load membership plans",
+      };
     }
 
-    // Use API route to bypass RLS issues
-    try {
-      const response = await fetch(
-        `/api/membership-plans-bypass?organizationId=${organizationId}`,
-      );
-      const result = await response.json();
-
-      if (!response.ok) {
-        console.error("Error fetching membership plans:", result.error);
-        return {
-          plans: [],
-          error: result.error || "Failed to load membership plans",
-        };
-      }
-
-      // Normalize the data (map 'price' field to 'price_pennies' for frontend)
-      const normalizedPlans = (result.data || []).map((plan: any) => {
+    // Normalize the data (map 'price' field to 'price_pennies' for frontend)
+    const normalizedPlans = (result.membershipPlans || result.plans || []).map(
+      (plan: any) => {
         // Force use of 'price' field since that's where the data is
         const mappedPrice =
           plan.price !== undefined ? plan.price : plan.price_pennies || 0;
@@ -67,16 +56,10 @@ export async function getMembershipPlans(): Promise<{
               ? [plan.features]
               : [],
         };
-      });
+      },
+    );
 
-      return { plans: normalizedPlans, error: null };
-    } catch (error: any) {
-      console.error("API error fetching membership plans:", error);
-      return {
-        plans: [],
-        error: error.message || "Failed to load membership plans",
-      };
-    }
+    return { plans: normalizedPlans, error: null };
   } catch (error: any) {
     console.error("Unexpected error in getMembershipPlans:", error);
     return {
