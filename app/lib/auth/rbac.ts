@@ -87,12 +87,11 @@ export async function getAuthClaims(
       };
     }
 
-    // Check organization staff/members for owner/coach roles
+    // Check user_organizations for owner/coach roles
     const { data: staffRole } = await supabase
-      .from("organization_staff")
+      .from("user_organizations")
       .select("organization_id, role")
       .eq("user_id", session.user.id)
-      .eq("is_active", true)
       .single();
 
     if (staffRole) {

@@ -1,144 +1,148 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { createClient } from '@/app/lib/supabase/client'
-import { MapPin, Plus, Edit2, Trash2, Users, Clock, Settings } from 'lucide-react'
+import { useState, useEffect } from "react";
+import { createClient } from "@/app/lib/supabase/client";
+import {
+  MapPin,
+  Plus,
+  Edit2,
+  Trash2,
+  Users,
+  Clock,
+  Settings,
+} from "lucide-react";
 
 interface Location {
-  id: string
-  name: string
-  slug: string
-  address?: string
-  city?: string
-  postcode?: string
-  phone?: string
-  email?: string
-  is_active: boolean
-  is_primary: boolean
-  staff_count?: number
-  customer_count?: number
+  id: string;
+  name: string;
+  slug: string;
+  address?: string;
+  city?: string;
+  postcode?: string;
+  phone?: string;
+  email?: string;
+  is_active: boolean;
+  is_primary: boolean;
+  staff_count?: number;
+  customer_count?: number;
 }
 
 interface LocationFormData {
-  name: string
-  address: string
-  city: string
-  postcode: string
-  phone: string
-  email: string
+  name: string;
+  address: string;
+  city: string;
+  postcode: string;
+  phone: string;
+  email: string;
 }
 
 export default function LocationsPage() {
-  const [locations, setLocations] = useState<Location[]>([])
-  const [loading, setLoading] = useState(true)
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [editingLocation, setEditingLocation] = useState<Location | null>(null)
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingLocation, setEditingLocation] = useState<Location | null>(null);
   const [formData, setFormData] = useState<LocationFormData>({
-    name: '',
-    address: '',
-    city: '',
-    postcode: '',
-    phone: '',
-    email: ''
-  })
-  
-  const supabase = createClient()
+    name: "",
+    address: "",
+    city: "",
+    postcode: "",
+    phone: "",
+    email: "",
+  });
+
+  const supabase = createClient();
 
   useEffect(() => {
-    loadLocations()
-  }, [])
+    loadLocations();
+  }, []);
 
   const loadLocations = async () => {
     try {
       // Get user's organization
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
 
-      // First try organization_staff table
-      let organizationId = null
-      
-      const { data: staffData } = await supabase
-        .from('organization_staff')
-        .select('organization_id')
-        .eq('user_id', user.id)
-        .single()
+      // Get organization from user_organizations
+      let organizationId = null;
 
-      if (staffData) {
-        organizationId = staffData.organization_id
-      } else {
-        // Fallback to user_organizations if needed
-        const { data: userOrgData } = await supabase
-          .from('user_organizations')
-          .select('organization_id')
-          .eq('user_id', user.id)
-          .single()
-          
-        if (userOrgData) {
-          organizationId = userOrgData.organization_id
-        }
+      const { data: userOrgData } = await supabase
+        .from("user_organizations")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (userOrgData) {
+        organizationId = userOrgData.organization_id;
       }
 
-      if (!organizationId) return
+      if (!organizationId) return;
 
       // Load locations with counts
       const { data: locationsData, error } = await supabase
-        .from('locations')
-        .select(`
+        .from("locations")
+        .select(
+          `
           *,
           location_staff!location_staff_location_id_fkey(count),
           customers!customers_location_id_fkey(count)
-        `)
-        .eq('organization_id', organizationId)
-        .order('is_primary', { ascending: false })
-        .order('created_at', { ascending: true })
+        `,
+        )
+        .eq("organization_id", organizationId)
+        .order("is_primary", { ascending: false })
+        .order("created_at", { ascending: true });
 
-      if (error) throw error
+      if (error) throw error;
 
-      const formattedLocations = locationsData?.map(loc => ({
-        ...loc,
-        staff_count: loc.location_staff?.[0]?.count || 0,
-        customer_count: loc.customers?.[0]?.count || 0
-      })) || []
+      const formattedLocations =
+        locationsData?.map((loc) => ({
+          ...loc,
+          staff_count: loc.location_staff?.[0]?.count || 0,
+          customer_count: loc.customers?.[0]?.count || 0,
+        })) || [];
 
-      setLocations(formattedLocations)
+      setLocations(formattedLocations);
     } catch (error) {
-      console.error('Error loading locations:', error)
+      console.error("Error loading locations:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    console.log('Form submitted with data:', formData)
-    
+    e.preventDefault();
+    console.log("Form submitted with data:", formData);
+
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
-        console.error('No user found')
-        alert('You must be logged in to add locations')
-        return
+        console.error("No user found");
+        alert("You must be logged in to add locations");
+        return;
       }
 
-      const { data: staffData, error: staffError } = await supabase
-        .from('organization_staff')
-        .select('organization_id')
-        .eq('user_id', user.id)
-        .single()
+      const { data: userData, error: userError } = await supabase
+        .from("user_organizations")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .single();
 
-      if (staffError || !staffData) {
-        console.error('Staff data error:', staffError)
-        alert('Could not find your organization')
-        return
+      if (userError || !userData) {
+        console.error("User organization error:", userError);
+        alert("Could not find your organization");
+        return;
       }
 
-      console.log('Organization ID:', staffData.organization_id)
-      const slug = formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+      console.log("Organization ID:", userData.organization_id);
+      const slug = formData.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
       if (editingLocation) {
         // Update existing location
         const { error } = await supabase
-          .from('locations')
+          .from("locations")
           .update({
             name: formData.name,
             address: formData.address,
@@ -146,114 +150,126 @@ export default function LocationsPage() {
             postcode: formData.postcode,
             phone: formData.phone,
             email: formData.email,
-            slug: slug
+            slug: slug,
           })
-          .eq('id', editingLocation.id)
+          .eq("id", editingLocation.id);
 
-        if (error) throw error
+        if (error) throw error;
       } else {
         // Create new location
-        const { error } = await supabase
-          .from('locations')
-          .insert({
-            organization_id: staffData.organization_id,
-            name: formData.name,
-            slug: slug,
-            address: formData.address,
-            city: formData.city,
-            postcode: formData.postcode,
-            phone: formData.phone,
-            email: formData.email,
-            is_primary: locations.length === 0 // First location is primary
-          })
+        const { error } = await supabase.from("locations").insert({
+          organization_id: userData.organization_id,
+          name: formData.name,
+          slug: slug,
+          address: formData.address,
+          city: formData.city,
+          postcode: formData.postcode,
+          phone: formData.phone,
+          email: formData.email,
+          is_primary: locations.length === 0, // First location is primary
+        });
 
-        if (error) throw error
+        if (error) throw error;
       }
 
       // Reset form and reload
-      setFormData({ name: '', address: '', city: '', postcode: '', phone: '', email: '' })
-      setShowAddModal(false)
-      setEditingLocation(null)
-      loadLocations()
+      setFormData({
+        name: "",
+        address: "",
+        city: "",
+        postcode: "",
+        phone: "",
+        email: "",
+      });
+      setShowAddModal(false);
+      setEditingLocation(null);
+      loadLocations();
     } catch (error: any) {
-      console.error('Error saving location:', error)
-      alert(`Failed to save location: ${error.message || 'Unknown error'}`)
+      console.error("Error saving location:", error);
+      alert(`Failed to save location: ${error.message || "Unknown error"}`);
     }
-  }
+  };
 
   const handleEdit = (location: Location) => {
-    setEditingLocation(location)
+    setEditingLocation(location);
     setFormData({
       name: location.name,
-      address: location.address || '',
-      city: location.city || '',
-      postcode: location.postcode || '',
-      phone: location.phone || '',
-      email: location.email || ''
-    })
-    setShowAddModal(true)
-  }
+      address: location.address || "",
+      city: location.city || "",
+      postcode: location.postcode || "",
+      phone: location.phone || "",
+      email: location.email || "",
+    });
+    setShowAddModal(true);
+  };
 
   const handleDelete = async (locationId: string) => {
-    if (!confirm('Are you sure you want to delete this location? This cannot be undone.')) {
-      return
+    if (
+      !confirm(
+        "Are you sure you want to delete this location? This cannot be undone.",
+      )
+    ) {
+      return;
     }
 
     try {
       const { error } = await supabase
-        .from('locations')
+        .from("locations")
         .delete()
-        .eq('id', locationId)
+        .eq("id", locationId);
 
-      if (error) throw error
-      loadLocations()
+      if (error) throw error;
+      loadLocations();
     } catch (error) {
-      console.error('Error deleting location:', error)
-      alert('Failed to delete location. It may have associated data.')
+      console.error("Error deleting location:", error);
+      alert("Failed to delete location. It may have associated data.");
     }
-  }
+  };
 
-  const toggleLocationStatus = async (locationId: string, currentStatus: boolean) => {
+  const toggleLocationStatus = async (
+    locationId: string,
+    currentStatus: boolean,
+  ) => {
     try {
       const { error } = await supabase
-        .from('locations')
+        .from("locations")
         .update({ is_active: !currentStatus })
-        .eq('id', locationId)
+        .eq("id", locationId);
 
-      if (error) throw error
-      loadLocations()
+      if (error) throw error;
+      loadLocations();
     } catch (error) {
-      console.error('Error updating location status:', error)
+      console.error("Error updating location status:", error);
     }
-  }
+  };
 
   const makePrimary = async (locationId: string) => {
     try {
       // First, unset all primary flags
       await supabase
-        .from('locations')
+        .from("locations")
         .update({ is_primary: false })
-        .eq('organization_id', locations[0]?.id) // Using first location's org_id
+        .eq("organization_id", locations[0]?.id); // Using first location's org_id
 
       // Then set the new primary
       const { error } = await supabase
-        .from('locations')
+        .from("locations")
         .update({ is_primary: true })
-        .eq('id', locationId)
+        .eq("id", locationId);
 
-      if (error) throw error
-      loadLocations()
+      if (error) throw error;
+      loadLocations();
     } catch (error) {
-      console.error('Error setting primary location:', error)
+      console.error("Error setting primary location:", error);
     }
-  }
+  };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 p-8 flex items-center justify-center">
         <div className="text-white">Loading locations...</div>
       </div>
-    )
+    );
   }
 
   return (
@@ -262,14 +278,25 @@ export default function LocationsPage() {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-4xl font-bold text-white mb-2">Gym Locations</h1>
-            <p className="text-gray-400">Manage multiple gym locations and control staff access</p>
+            <h1 className="text-4xl font-bold text-white mb-2">
+              Gym Locations
+            </h1>
+            <p className="text-gray-400">
+              Manage multiple gym locations and control staff access
+            </p>
           </div>
           <button
             onClick={() => {
-              setEditingLocation(null)
-              setFormData({ name: '', address: '', city: '', postcode: '', phone: '', email: '' })
-              setShowAddModal(true)
+              setEditingLocation(null);
+              setFormData({
+                name: "",
+                address: "",
+                city: "",
+                postcode: "",
+                phone: "",
+                email: "",
+              });
+              setShowAddModal(true);
             }}
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors"
           >
@@ -283,8 +310,12 @@ export default function LocationsPage() {
           {locations.length === 0 ? (
             <div className="bg-gray-800 rounded-lg p-12 text-center">
               <MapPin className="h-12 w-12 text-gray-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">No locations yet</h3>
-              <p className="text-gray-400 mb-6">Add your first gym location to get started</p>
+              <h3 className="text-xl font-semibold text-white mb-2">
+                No locations yet
+              </h3>
+              <p className="text-gray-400 mb-6">
+                Add your first gym location to get started
+              </p>
               <button
                 onClick={() => setShowAddModal(true)}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
@@ -298,18 +329,22 @@ export default function LocationsPage() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-xl font-semibold text-white">{location.name}</h3>
+                      <h3 className="text-xl font-semibold text-white">
+                        {location.name}
+                      </h3>
                       {location.is_primary && (
                         <span className="px-2 py-1 bg-blue-900 text-blue-300 text-xs rounded">
                           Primary
                         </span>
                       )}
-                      <span className={`px-2 py-1 text-xs rounded ${
-                        location.is_active 
-                          ? 'bg-green-900 text-green-300' 
-                          : 'bg-red-900 text-red-300'
-                      }`}>
-                        {location.is_active ? 'Active' : 'Inactive'}
+                      <span
+                        className={`px-2 py-1 text-xs rounded ${
+                          location.is_active
+                            ? "bg-green-900 text-green-300"
+                            : "bg-red-900 text-red-300"
+                        }`}
+                      >
+                        {location.is_active ? "Active" : "Inactive"}
                       </span>
                     </div>
 
@@ -320,21 +355,25 @@ export default function LocationsPage() {
                           <div>
                             <p>{location.address}</p>
                             {location.city && location.postcode && (
-                              <p>{location.city}, {location.postcode}</p>
+                              <p>
+                                {location.city}, {location.postcode}
+                              </p>
                             )}
                           </div>
                         </div>
                       )}
-                      
+
                       <div className="space-y-2">
                         {location.phone && (
                           <p className="flex items-center gap-2">
-                            <span className="text-gray-500">Phone:</span> {location.phone}
+                            <span className="text-gray-500">Phone:</span>{" "}
+                            {location.phone}
                           </p>
                         )}
                         {location.email && (
                           <p className="flex items-center gap-2">
-                            <span className="text-gray-500">Email:</span> {location.email}
+                            <span className="text-gray-500">Email:</span>{" "}
+                            {location.email}
                           </p>
                         )}
                       </div>
@@ -343,12 +382,16 @@ export default function LocationsPage() {
                     <div className="flex items-center gap-6 text-sm">
                       <div className="flex items-center gap-2">
                         <Users className="h-4 w-4 text-gray-500" />
-                        <span className="text-white">{location.staff_count || 0}</span>
+                        <span className="text-white">
+                          {location.staff_count || 0}
+                        </span>
                         <span className="text-gray-400">staff members</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Users className="h-4 w-4 text-gray-500" />
-                        <span className="text-white">{location.customer_count || 0}</span>
+                        <span className="text-white">
+                          {location.customer_count || 0}
+                        </span>
                         <span className="text-gray-400">customers</span>
                       </div>
                     </div>
@@ -365,9 +408,11 @@ export default function LocationsPage() {
                       </button>
                     )}
                     <button
-                      onClick={() => toggleLocationStatus(location.id, location.is_active)}
+                      onClick={() =>
+                        toggleLocationStatus(location.id, location.is_active)
+                      }
                       className="p-2 text-gray-400 hover:text-yellow-500 transition-colors"
-                      title={location.is_active ? 'Deactivate' : 'Activate'}
+                      title={location.is_active ? "Deactivate" : "Activate"}
                     >
                       <Clock className="h-5 w-5" />
                     </button>
@@ -397,9 +442,9 @@ export default function LocationsPage() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full">
               <h2 className="text-xl font-semibold text-white mb-4">
-                {editingLocation ? 'Edit Location' : 'Add New Location'}
+                {editingLocation ? "Edit Location" : "Add New Location"}
               </h2>
-              
+
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -409,7 +454,9 @@ export default function LocationsPage() {
                     type="text"
                     required
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none"
                     placeholder="e.g., Downtown Branch"
                   />
@@ -422,7 +469,9 @@ export default function LocationsPage() {
                   <input
                     type="text"
                     value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, address: e.target.value })
+                    }
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none"
                     placeholder="123 High Street"
                   />
@@ -436,7 +485,9 @@ export default function LocationsPage() {
                     <input
                       type="text"
                       value={formData.city}
-                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, city: e.target.value })
+                      }
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none"
                       placeholder="London"
                     />
@@ -448,7 +499,9 @@ export default function LocationsPage() {
                     <input
                       type="text"
                       value={formData.postcode}
-                      onChange={(e) => setFormData({ ...formData, postcode: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, postcode: e.target.value })
+                      }
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none"
                       placeholder="SW1A 1AA"
                     />
@@ -462,7 +515,9 @@ export default function LocationsPage() {
                   <input
                     type="tel"
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, phone: e.target.value })
+                    }
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none"
                     placeholder="020 1234 5678"
                   />
@@ -475,7 +530,9 @@ export default function LocationsPage() {
                   <input
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, email: e.target.value })
+                    }
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none"
                     placeholder="downtown@yourgym.com"
                   />
@@ -486,13 +543,13 @@ export default function LocationsPage() {
                     type="submit"
                     className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors"
                   >
-                    {editingLocation ? 'Save Changes' : 'Add Location'}
+                    {editingLocation ? "Save Changes" : "Add Location"}
                   </button>
                   <button
                     type="button"
                     onClick={() => {
-                      setShowAddModal(false)
-                      setEditingLocation(null)
+                      setShowAddModal(false);
+                      setEditingLocation(null);
                     }}
                     className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg transition-colors"
                   >
@@ -505,5 +562,5 @@ export default function LocationsPage() {
         )}
       </div>
     </div>
-  )
+  );
 }
