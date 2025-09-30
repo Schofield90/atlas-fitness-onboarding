@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/app/lib/supabase/server";
-import { getUserAndOrganization } from "@/app/lib/auth-utils";
+import { createClient } from "@/app/lib/supabase/server";
+import { requireAuth } from "@/app/lib/api/auth-check";
 
 // Force dynamic rendering to handle cookies and request properties
 export const dynamic = "force-dynamic";
@@ -30,12 +30,8 @@ interface MembershipPlanRequest {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const { user, organization } = await getUserAndOrganization(supabase);
-
-    if (!user || !organization) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const userWithOrg = await requireAuth();
+    const supabase = await createClient();
 
     const body: MembershipPlanRequest = await request.json();
 
@@ -57,7 +53,7 @@ export async function POST(request: NextRequest) {
     const { data: existingPlan } = await supabase
       .from("membership_plans")
       .select("id")
-      .eq("organization_id", organization.id)
+      .eq("organization_id", userWithOrg.organizationId)
       .eq("name", body.name)
       .single();
 
@@ -74,7 +70,7 @@ export async function POST(request: NextRequest) {
     const { data: membershipPlan, error } = await supabase
       .from("membership_plans")
       .insert({
-        organization_id: organization.id,
+        organization_id: userWithOrg.organizationId,
         name: body.name,
         description: body.description || "",
         price_pennies: body.price_pennies,
@@ -119,12 +115,8 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const { user, organization } = await getUserAndOrganization(supabase);
-
-    if (!user || !organization) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const userWithOrg = await requireAuth();
+    const supabase = await createClient();
 
     const url = new URL(request.url);
     const activeOnly = url.searchParams.get("active_only") === "true";
@@ -133,7 +125,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("membership_plans")
       .select("*")
-      .eq("organization_id", organization.id);
+      .eq("organization_id", userWithOrg.organizationId);
 
     if (activeOnly) {
       query = query.eq("is_active", true);
@@ -200,12 +192,8 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const { user, organization } = await getUserAndOrganization(supabase);
-
-    if (!user || !organization) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const userWithOrg = await requireAuth();
+    const supabase = await createClient();
 
     const body = await request.json();
     const { id, ...updateData } = body;
@@ -222,7 +210,7 @@ export async function PUT(request: NextRequest) {
       .from("membership_plans")
       .select("id, name")
       .eq("id", id)
-      .eq("organization_id", organization.id)
+      .eq("organization_id", userWithOrg.organizationId)
       .single();
 
     if (fetchError || !existingPlan) {
@@ -237,7 +225,7 @@ export async function PUT(request: NextRequest) {
       const { data: duplicatePlan } = await supabase
         .from("membership_plans")
         .select("id")
-        .eq("organization_id", organization.id)
+        .eq("organization_id", userWithOrg.organizationId)
         .eq("name", updateData.name)
         .neq("id", id)
         .single();
@@ -260,7 +248,7 @@ export async function PUT(request: NextRequest) {
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
-      .eq("organization_id", organization.id)
+      .eq("organization_id", userWithOrg.organizationId)
       .select()
       .single();
 
@@ -288,12 +276,8 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const { user, organization } = await getUserAndOrganization(supabase);
-
-    if (!user || !organization) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const userWithOrg = await requireAuth();
+    const supabase = await createClient();
 
     const url = new URL(request.url);
     const planId = url.searchParams.get("id");
@@ -326,7 +310,7 @@ export async function DELETE(request: NextRequest) {
       .from("membership_plans")
       .select("id")
       .eq("id", planId)
-      .eq("organization_id", organization.id)
+      .eq("organization_id", userWithOrg.organizationId)
       .single();
 
     if (fetchError || !existingPlan) {
@@ -341,7 +325,7 @@ export async function DELETE(request: NextRequest) {
       .from("membership_plans")
       .delete()
       .eq("id", planId)
-      .eq("organization_id", organization.id);
+      .eq("organization_id", userWithOrg.organizationId);
 
     if (deleteError) {
       console.error("Error deleting membership plan:", deleteError);

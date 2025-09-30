@@ -2,8 +2,6 @@
 
 import React, { useState } from "react";
 import { X, Save } from "lucide-react";
-import { createClient } from "@/app/lib/supabase/client";
-import { getCurrentUserOrganization } from "@/app/lib/organization-service";
 import toast from "@/app/lib/toast";
 
 interface NewMembershipPlanModalProps {
@@ -59,30 +57,6 @@ const NewMembershipPlanModal: React.FC<NewMembershipPlanModalProps> = ({
     setIsSubmitting(true);
 
     try {
-      const supabase = createClient();
-
-      // Get current user
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error("You must be logged in to create a membership plan");
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Get user's organization
-      const { organizationId, error: orgError } =
-        await getCurrentUserOrganization();
-
-      if (orgError || !organizationId) {
-        toast.error(
-          orgError || "No organization found. Please contact support.",
-        );
-        setIsSubmitting(false);
-        return;
-      }
-
       // Validate price
       if (
         !formData.price ||
@@ -102,39 +76,36 @@ const NewMembershipPlanModal: React.FC<NewMembershipPlanModalProps> = ({
       if (formData.durationType === "year") {
         billingPeriod = "yearly";
       } else if (formData.durationType === "day" && formData.duration === "1") {
-        billingPeriod = "one-time";
+        billingPeriod = "one_time";
       }
 
-      // Save membership plan
-      const insertData = {
+      // Save membership plan via API
+      const requestData = {
         name: formData.name,
         description: formData.description,
-        price: pricePennies, // Changed from price_pennies to price
+        price_pennies: pricePennies,
         billing_period: billingPeriod,
         features: formData.features.filter((f) => f.trim() !== ""),
         is_active: true,
-        organization_id: organizationId,
         trial_days: parseInt(formData.trialDays) || 0,
         class_limit: formData.maxMembers ? parseInt(formData.maxMembers) : null,
       };
 
-      console.log(
-        "Attempting to insert membership plan with data:",
-        insertData,
-      );
-      console.log("Organization ID:", organizationId);
+      console.log("Creating membership plan with data:", requestData);
 
-      const { data, error } = await supabase
-        .from("membership_plans")
-        .insert(insertData)
-        .select();
+      const response = await fetch("/api/membership-plans", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestData),
+      });
 
-      if (error) {
-        console.error("Error creating membership plan:", error);
-        console.error("Error details:", JSON.stringify(error, null, 2));
-        const errorMessage =
-          error.message || error.details || "Unknown error occurred";
-        toast.error(`Failed to create membership plan: ${errorMessage}`);
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error("API error:", result);
+        toast.error(result.error || "Failed to create membership plan");
         setIsSubmitting(false);
         return;
       }
