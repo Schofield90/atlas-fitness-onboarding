@@ -35,17 +35,37 @@ export type AuthenticatedRequest = NextRequest & {
 
 export async function authenticateRequest(request: NextRequest) {
   try {
+    // Extract token from Bearer header or Supabase auth cookies
+    let token: string | null = null
+
     const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1]
+    } else {
+      // Fallback: Extract from Supabase auth cookie
+      const cookieHeader = request.headers.get('cookie')
+      if (cookieHeader) {
+        // Supabase stores session in sb-<project-ref>-auth-token cookie
+        const match = cookieHeader.match(/sb-[^-]+-[^-]+-auth-token=([^;]+)/)
+        if (match) {
+          try {
+            const cookieData = JSON.parse(decodeURIComponent(match[1]))
+            token = cookieData.access_token || cookieData[0]?.access_token
+          } catch (e) {
+            // Cookie parsing failed, continue without token
+          }
+        }
+      }
+    }
+
+    if (!token) {
       return { error: 'Missing or invalid authorization header', status: 401 }
     }
 
-    const token = authHeader.split(' ')[1]
-    
     if (!supabaseAdmin) {
       return { error: 'Service not configured', status: 503 }
     }
-    
+
     // Verify the JWT token
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
     if (authError || !user) {
