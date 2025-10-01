@@ -300,6 +300,7 @@ export default function ClientBookingsPage() {
     if (!selectedBooking) return;
 
     try {
+      // Cancel booking directly via Supabase (not admin API)
       // Try to cancel in bookings table
       const { error } = await supabase
         .from("bookings")
