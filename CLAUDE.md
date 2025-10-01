@@ -237,11 +237,162 @@ const colors = {
 - Performance Score: X/100
 - Test Coverage: X%
 
-```
+````
 
 ---
 
-*Last Updated: September 2025*
-*Review Type: Automated Design & Accessibility*
-*Diff Policy: Minimal changes only*
+## Recent Fixes (October 1, 2025)
+
+### Booking System Fixes
+
+#### 1. Booking Cancellation Feature ✅
+**Problem**: Members couldn't cancel their class bookings from the member portal.
+
+**Root Cause**: Row Level Security (RLS) policies blocked UPDATE operations from user context.
+
+**Solution**:
+- Modified `/app/api/client-bookings/cancel/route.ts` to use service role key for UPDATE operations
+- Maintains security by validating user authentication and ownership BEFORE performing admin updates
+- Code location: `app/api/client-bookings/cancel/route.ts:12-15`
+
+```typescript
+// Create admin client for updates (bypasses RLS after auth check)
+const supabaseAdmin = createAdminClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+);
+````
+
+#### 2. Duplicate Booking Prevention ✅
+
+**Problem**: Users could book the same class session multiple times.
+
+**Root Cause**: `/api/booking/book` endpoint had no duplicate check.
+
+**Solution**:
+
+- Added duplicate check in `/app/api/booking/book/route.ts` before creating booking
+- Checks both `bookings` and `class_bookings` tables
+- Returns `409 Conflict` status with clear error message
+- Code location: `app/api/booking/book/route.ts:83-105`
+
+```typescript
+// Check for existing booking (duplicate prevention)
+const { data: existingBooking } = await supabase
+  .from("bookings")
+  .select("id")
+  .eq("client_id", customerId)
+  .eq("class_session_id", classSessionId)
+  .eq("status", "confirmed")
+  .maybeSingle();
+
+const { data: existingClassBooking } = await supabase
+  .from("class_bookings")
+  .select("id")
+  .eq("client_id", customerId)
+  .eq("class_session_id", classSessionId)
+  .eq("booking_status", "confirmed")
+  .maybeSingle();
+
+if (existingBooking || existingClassBooking) {
+  return NextResponse.json(
+    { error: "You have already booked this class" },
+    { status: 409 },
+  );
+}
+```
+
+#### 3. Cancelled Bookings Statistics ✅
+
+**Problem**: Cancelled bookings were counting as "Classes Attended".
+
+**Solution**:
+
+- Updated `/app/client/bookings/page.tsx` to exclude cancelled bookings from attendance count
+- Cancelled bookings now show with red "Cancelled" badge
+- Code location: `app/client/bookings/page.tsx:347-356`
+
+```typescript
+const cancelledBookings = bookings.filter((b) => {
+  return b.status === "cancelled";
+});
+
+// Only count attended classes, not cancelled ones
+const attendedCount = pastBookings.filter(
+  (b) => b.status === "attended",
+).length;
+```
+
+#### 4. Staff View - Member Bookings Not Showing ✅
+
+**Problem**: Gym staff couldn't see member bookings in the member profile view.
+
+**Root Cause**: `ClassBookingsTab` component only queried `class_bookings` table, but member bookings are in `bookings` table.
+
+**Solution**:
+
+- Updated `/app/components/customers/tabs/ClassBookingsTab.tsx` to query BOTH tables
+- Merges results to show all member bookings
+- Code location: `app/components/customers/tabs/ClassBookingsTab.tsx:208-267`
+
+```typescript
+// Query BOTH bookings and class_bookings tables
+const [bookingsResult, classBookingsResult] = await Promise.all([
+  // Query bookings table
+  supabase.from("bookings").select(...).eq("client_id", customerId),
+
+  // Query class_bookings table
+  supabase.from("class_bookings").select(...).or(`client_id.eq.${customerId},customer_id.eq.${customerId}`)
+]);
+
+// Merge both arrays
+let allBookingsData = [...bookingsTableData, ...classBookingsTableData];
+```
+
+### Database Schema Notes
+
+**Two Booking Tables**:
+
+- `bookings` - Primary table for direct client bookings (member portal)
+- `class_bookings` - Legacy table for lead-based bookings and staff-created bookings
+
+**Key Fields**:
+
+- `bookings.status` - Booking status ("confirmed", "cancelled", "attended", "no_show")
+- `class_bookings.booking_status` - Same as above
+- `bookings.client_id` - Links to clients table
+- `class_bookings.client_id` OR `class_bookings.customer_id` - Can link to either clients or leads
+
+### Testing Credentials
+
+**Member Portal** (`members.gymleadhub.co.uk`):
+
+- Email: samschofield90@hotmail.co.uk
+- Password: @Aa80236661
+
+**Staff Dashboard** (`login.gymleadhub.co.uk`):
+
+- Email: sam@gymleadhub.co.uk
+- Password: [Contact owner]
+
+### Deployment Structure
+
+**Three Separate Vercel Projects**:
+
+1. **Member Portal** - `apps/member-portal` → `members.gymleadhub.co.uk`
+2. **Staff Dashboard** - `apps/gym-dashboard` → `login.gymleadhub.co.uk`
+3. **Admin Portal** - `apps/admin-portal` → `admin.gymleadhub.co.uk`
+
+**Shared Code**: Root `/app` directory is shared via symlinks in each app's directory.
+
+**Triggering Deployments**: Modify `DEPLOYMENT_TRIGGER.md` in each app directory to force rebuild when shared code changes.
+
+---
+
+_Last Updated: October 1, 2025_
+_Review Type: Automated Design & Accessibility_
+_Diff Policy: Minimal changes only_
+
+```
+
 ```
