@@ -57,7 +57,7 @@ export async function GET(
       `,
       )
       .eq("id", customerId)
-      .eq("organization_id", user.organizationId) // SECURITY: Ensure organization ownership
+      .eq("org_id", user.organizationId) // SECURITY: Ensure organization ownership (clients table uses org_id)
       .single();
 
     if (clientData) {
@@ -151,7 +151,7 @@ export async function PATCH(
       .from("clients")
       .select("id")
       .eq("id", customerId)
-      .eq("organization_id", user.organizationId)
+      .eq("org_id", user.organizationId) // clients table uses org_id
       .single();
 
     if (clientCheck) {
@@ -169,6 +169,8 @@ export async function PATCH(
     }
 
     // SECURITY: Update only if customer belongs to user's organization
+    // Use org_id for clients table, organization_id for leads table
+    const orgIdField = tableName === "clients" ? "org_id" : "organization_id";
     const { data, error } = await supabase
       .from(tableName)
       .update({
@@ -176,7 +178,7 @@ export async function PATCH(
         updated_at: new Date().toISOString(),
       })
       .eq("id", customerId)
-      .eq("organization_id", user.organizationId) // SECURITY: Ensure organization ownership
+      .eq(orgIdField, user.organizationId) // SECURITY: Ensure organization ownership
       .select()
       .single();
 
