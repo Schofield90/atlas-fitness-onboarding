@@ -68,6 +68,7 @@ export default function AddMembershipModal({
       const data = result.membershipPlans || result.plans || [];
 
       console.log("Fetched membership plans:", data?.length || 0);
+      console.log("First plan details:", data[0]);
       setMembershipPlans(data || []);
 
       if (!data || data.length === 0) {
@@ -327,8 +328,8 @@ export default function AddMembershipModal({
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-              disabled={loading}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading || !selectedPlanId}
             >
               {loading ? "Adding..." : "Add Membership"}
             </button>
