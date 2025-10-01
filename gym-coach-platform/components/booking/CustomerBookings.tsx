@@ -52,28 +52,29 @@ export function CustomerBookings({ memberId }: CustomerBookingsProps = {}) {
   const loadBookings = async () => {
     setLoadingBookings(true);
     try {
-      const params = new URLSearchParams();
-      if (memberId) {
-        params.append('memberId', memberId);
+      if (!memberId) {
+        setBookings([]);
+        setLoadingBookings(false);
+        return;
       }
 
-      const response = await fetch(`/api/bookings?${params}`);
+      const response = await fetch(`/api/staff/customer-bookings?customerId=${memberId}`);
       if (response.ok) {
         const data = await response.json();
         
         // Transform API response to match our Booking interface
-        const transformedBookings: Booking[] = (data.bookings || []).map((session: any) => ({
-          id: session.id,
-          session_title: session.title || 'Unknown Session',
-          session_type: session.session_type || 'gym_class',
-          start_time: session.start_time,
-          end_time: session.end_time,
-          trainer_name: session.trainer?.name || session.coach?.name,
-          location: session.room_or_location,
-          status: session.status,
-          cost: session.cost,
-          booked_at: session.created_at,
-          cancellation_deadline: session.start_time // Use start_time as cancellation deadline fallback since we don't have this field
+        const transformedBookings: Booking[] = (data.bookings || []).map((booking: any) => ({
+          id: booking.id,
+          session_title: booking.class_sessions?.name || booking.class_sessions?.programs?.name || 'Unknown Session',
+          session_type: 'gym_class',
+          start_time: booking.class_sessions?.start_time || booking.start_time,
+          end_time: booking.class_sessions?.end_time || booking.end_time,
+          trainer_name: booking.class_sessions?.instructor_name || 'Unknown',
+          location: booking.class_sessions?.location || 'Unknown',
+          status: booking.status || booking.booking_status || 'confirmed',
+          cost: 0,
+          booked_at: booking.created_at,
+          cancellation_deadline: booking.class_sessions?.start_time || booking.start_time
         }));
         
         setBookings(transformedBookings);
