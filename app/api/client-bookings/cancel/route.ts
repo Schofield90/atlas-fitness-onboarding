@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
+
+    // Create admin client for updates (bypasses RLS after auth check)
+    const supabaseAdmin = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    );
 
     // Get the authenticated user
     const {
@@ -48,8 +55,8 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Try to cancel in bookings table
-      const { data, error } = await supabase
+      // Try to cancel in bookings table (use admin client to bypass RLS)
+      const { data, error } = await supabaseAdmin
         .from("bookings")
         .update({ status: "cancelled" })
         .eq("id", bookingId)
@@ -58,7 +65,7 @@ export async function POST(request: NextRequest) {
 
       if (error || !data || data.length === 0) {
         // Try class_bookings table
-        const { data: altData, error: altError } = await supabase
+        const { data: altData, error: altError } = await supabaseAdmin
           .from("class_bookings")
           .update({ booking_status: "cancelled" })
           .eq("id", bookingId)
@@ -85,11 +92,12 @@ export async function POST(request: NextRequest) {
 
             if (leadData) {
               // Verified ownership, cancel the booking
-              const { data: cancelledData, error: cancelError } = await supabase
-                .from("class_bookings")
-                .update({ booking_status: "cancelled" })
-                .eq("id", bookingId)
-                .select();
+              const { data: cancelledData, error: cancelError } =
+                await supabaseAdmin
+                  .from("class_bookings")
+                  .update({ booking_status: "cancelled" })
+                  .eq("id", bookingId)
+                  .select();
 
               if (!cancelError && cancelledData && cancelledData.length > 0) {
                 return NextResponse.json({ success: true });
@@ -107,8 +115,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    // Try to cancel in bookings table
-    const { data, error } = await supabase
+    // Try to cancel in bookings table (use admin client to bypass RLS)
+    const { data, error } = await supabaseAdmin
       .from("bookings")
       .update({ status: "cancelled" })
       .eq("id", bookingId)
@@ -117,7 +125,7 @@ export async function POST(request: NextRequest) {
 
     if (error || !data || data.length === 0) {
       // Try class_bookings table
-      const { data: altData, error: altError } = await supabase
+      const { data: altData, error: altError } = await supabaseAdmin
         .from("class_bookings")
         .update({ booking_status: "cancelled" })
         .eq("id", bookingId)
@@ -143,11 +151,12 @@ export async function POST(request: NextRequest) {
 
           if (leadData) {
             // Verified ownership, cancel the booking
-            const { data: cancelledData, error: cancelError } = await supabase
-              .from("class_bookings")
-              .update({ booking_status: "cancelled" })
-              .eq("id", bookingId)
-              .select();
+            const { data: cancelledData, error: cancelError } =
+              await supabaseAdmin
+                .from("class_bookings")
+                .update({ booking_status: "cancelled" })
+                .eq("id", bookingId)
+                .select();
 
             if (!cancelError && cancelledData && cancelledData.length > 0) {
               return NextResponse.json({ success: true });
