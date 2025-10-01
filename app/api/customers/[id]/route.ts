@@ -16,6 +16,11 @@ export async function GET(
 
     const { id: customerId } = await params;
 
+    console.log("[GET /api/customers/[id]] Loading customer:", {
+      customerId,
+      organizationId: user.organizationId,
+    });
+
     // First try to get from clients table
     const { data: clientData, error: clientError } = await supabase
       .from("clients")
@@ -60,6 +65,11 @@ export async function GET(
       .eq("org_id", user.organizationId) // SECURITY: Ensure organization ownership (clients table uses org_id)
       .single();
 
+    console.log("[GET /api/customers/[id]] Clients table result:", {
+      found: !!clientData,
+      error: clientError?.message,
+    });
+
     if (clientData) {
       // Transform and return client data
       const customerData = {
@@ -91,7 +101,19 @@ export async function GET(
       .eq("organization_id", user.organizationId) // SECURITY: Ensure organization ownership
       .single();
 
+    console.log("[GET /api/customers/[id]] Leads table result:", {
+      found: !!leadData,
+      error: leadError?.message,
+    });
+
     if (leadError && clientError) {
+      console.error(
+        "[GET /api/customers/[id]] Customer not found in either table:",
+        {
+          clientError: clientError?.message,
+          leadError: leadError?.message,
+        },
+      );
       return NextResponse.json(
         { error: "Customer not found or unauthorized" },
         { status: 404 },
@@ -110,12 +132,14 @@ export async function GET(
         is_lead: true,
         table_name: "leads",
       };
+      console.log("[GET /api/customers/[id]] Returning lead data");
       return NextResponse.json({ customer: customerData });
     }
 
+    console.error("[GET /api/customers/[id]] No customer data found");
     return NextResponse.json({ error: "Customer not found" }, { status: 404 });
   } catch (error) {
-    console.error("Error fetching customer:", error);
+    console.error("[GET /api/customers/[id]] Error fetching customer:", error);
     return createErrorResponse(error);
   }
 }
