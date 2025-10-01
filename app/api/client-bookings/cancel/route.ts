@@ -66,6 +66,31 @@ export async function POST(request: NextRequest) {
           .select();
 
         if (altError || !altData || altData.length === 0) {
+          // Try class_bookings with customer_id via leads table
+          const { data: leadData } = await supabase
+            .from("leads")
+            .select("id")
+            .eq("client_id", clientByEmail.id)
+            .single();
+
+          if (leadData) {
+            const { data: customerBookingData, error: customerBookingError } =
+              await supabase
+                .from("class_bookings")
+                .update({ booking_status: "cancelled" })
+                .eq("id", bookingId)
+                .eq("customer_id", leadData.id)
+                .select();
+
+            if (
+              !customerBookingError &&
+              customerBookingData &&
+              customerBookingData.length > 0
+            ) {
+              return NextResponse.json({ success: true });
+            }
+          }
+
           return NextResponse.json(
             { error: "Booking not found or unauthorized" },
             { status: 404 },
@@ -94,6 +119,31 @@ export async function POST(request: NextRequest) {
         .select();
 
       if (altError || !altData || altData.length === 0) {
+        // Try class_bookings with customer_id via leads table
+        const { data: leadData } = await supabase
+          .from("leads")
+          .select("id")
+          .eq("client_id", clientData.id)
+          .single();
+
+        if (leadData) {
+          const { data: customerBookingData, error: customerBookingError } =
+            await supabase
+              .from("class_bookings")
+              .update({ booking_status: "cancelled" })
+              .eq("id", bookingId)
+              .eq("customer_id", leadData.id)
+              .select();
+
+          if (
+            !customerBookingError &&
+            customerBookingData &&
+            customerBookingData.length > 0
+          ) {
+            return NextResponse.json({ success: true });
+          }
+        }
+
         return NextResponse.json(
           { error: "Booking not found or unauthorized" },
           { status: 404 },
