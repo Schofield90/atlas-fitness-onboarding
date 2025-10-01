@@ -205,35 +205,76 @@ export default function ClassBookingsTab({
       organizationId,
     );
 
-    // Query for bookings with either client_id or customer_id
-    // Remove the organization_id filter as it might be preventing bookings from showing
-    let { data, error } = await supabase
-      .from("class_bookings")
-      .select(
-        `
-        *,
-        class_sessions (
-          id,
-          name,
-          start_time,
-          end_time,
-          max_capacity,
-          current_bookings,
-          location,
-          instructor_name,
-          program_id,
-          programs (
+    // Query BOTH bookings and class_bookings tables
+    const [bookingsResult, classBookingsResult] = await Promise.all([
+      // Query bookings table
+      supabase
+        .from("bookings")
+        .select(
+          `
+          *,
+          class_sessions (
+            id,
             name,
-            description
+            start_time,
+            end_time,
+            max_capacity,
+            current_bookings,
+            location,
+            instructor_name,
+            program_id,
+            programs (
+              name,
+              description
+            )
           )
+        `,
         )
-      `,
-      )
-      .or(`client_id.eq.${customerId},customer_id.eq.${customerId}`)
-      .order("created_at", { ascending: false });
+        .eq("client_id", customerId)
+        .order("created_at", { ascending: false }),
 
-    if (error) {
-      console.error("Error fetching bookings:", error);
+      // Query class_bookings table
+      supabase
+        .from("class_bookings")
+        .select(
+          `
+          *,
+          class_sessions (
+            id,
+            name,
+            start_time,
+            end_time,
+            max_capacity,
+            current_bookings,
+            location,
+            instructor_name,
+            program_id,
+            programs (
+              name,
+              description
+            )
+          )
+        `,
+        )
+        .or(`client_id.eq.${customerId},customer_id.eq.${customerId}`)
+        .order("created_at", { ascending: false }),
+    ]);
+
+    let { data, error } = classBookingsResult;
+
+    // Combine bookings from both tables
+    const bookingsTableData = bookingsResult.data || [];
+    const classBookingsTableData = data || [];
+
+    // Merge both arrays - prioritize bookings table data
+    let allBookingsData = [...bookingsTableData, ...classBookingsTableData];
+
+    console.log("Bookings table data:", bookingsTableData.length);
+    console.log("Class bookings table data:", classBookingsTableData.length);
+    console.log("Combined total:", allBookingsData.length);
+
+    if (error && bookingsResult.error) {
+      console.error("Error fetching bookings:", error, bookingsResult.error);
       // Try a simpler query as fallback
       const { data: fallbackData, error: fallbackError } = await supabase
         .from("class_bookings")
@@ -277,10 +318,10 @@ export default function ClassBookingsTab({
       }
     }
 
-    console.log("Fetched bookings:", data);
+    console.log("Fetched bookings:", allBookingsData);
 
     // Transform bookings to match expected format
-    const bookingsWithClassType = (data || []).map((booking) => {
+    const bookingsWithClassType = (allBookingsData || []).map((booking) => {
       const session = booking.class_sessions || booking.class_session;
 
       // Handle bookings without session data (imported or simple bookings)
