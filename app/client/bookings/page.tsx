@@ -336,7 +336,9 @@ export default function ClientBookingsPage() {
     const classTime = new Date(b.class_sessions.start_time);
     const now = new Date();
     const isUpcoming = classTime > now;
-    const isConfirmed = b.status === "confirmed";
+    // Handle both 'status' and 'booking_status' field names
+    const bookingStatus = b.status || b.booking_status;
+    const isConfirmed = bookingStatus === "confirmed";
 
     console.log(`Booking ${b.id}:`, {
       start_time: b.class_sessions.start_time,
@@ -344,6 +346,8 @@ export default function ClientBookingsPage() {
       now: now.toISOString(),
       isUpcoming,
       status: b.status,
+      booking_status: b.booking_status,
+      resolvedStatus: bookingStatus,
       isConfirmed,
       willShow: isUpcoming && isConfirmed
     });
@@ -355,19 +359,22 @@ export default function ClientBookingsPage() {
     if (!b.class_sessions?.start_time) return false;
     const classTime = new Date(b.class_sessions.start_time);
     const now = new Date();
+    const bookingStatus = b.status || b.booking_status;
     return (
-      classTime <= now || b.status === "attended" || b.status === "no_show"
+      classTime <= now || bookingStatus === "attended" || bookingStatus === "no_show"
     );
   });
 
   const cancelledBookings = bookings.filter((b) => {
-    return b.status === "cancelled";
+    const bookingStatus = b.status || b.booking_status;
+    return bookingStatus === "cancelled";
   });
 
   // Only count attended classes, not cancelled ones
-  const attendedCount = pastBookings.filter(
-    (b) => b.status === "attended",
-  ).length;
+  const attendedCount = pastBookings.filter((b) => {
+    const bookingStatus = b.status || b.booking_status;
+    return bookingStatus === "attended";
+  }).length;
 
   return (
     <div className="min-h-screen bg-gray-900">
