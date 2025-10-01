@@ -13,7 +13,6 @@ import {
   type MembershipPlan,
 } from "@/app/lib/services/membership-service";
 import { Settings, MoreVertical, Edit, Users, Copy, Trash } from "lucide-react";
-import { createClient } from "@/app/lib/supabase/client";
 import toast from "@/app/lib/toast";
 import { useRouter } from "next/navigation";
 
@@ -93,45 +92,29 @@ export default function MembershipsPage() {
   };
 
   const handleDuplicatePlan = async (plan: MembershipPlan) => {
-    const supabase = createClient();
-
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error("You must be logged in");
-        return;
-      }
-
-      // Get organization ID
-      const { data: userData } = await supabase
-        .from("users")
-        .select("organization_id")
-        .eq("id", user.id)
-        .single();
-
-      if (!userData?.organization_id) {
-        toast.error("Organization not found");
-        return;
-      }
-
-      // Create duplicate with new name
-      const { error } = await supabase.from("membership_plans").insert({
-        organization_id: userData.organization_id,
-        name: `${plan.name} (Copy)`,
-        description: plan.description,
-        price: plan.price_pennies, // Use 'price' column name but map from price_pennies
-        billing_period: plan.billing_period,
-        features: plan.features,
-        is_active: false, // Start inactive
-        class_limit: plan.class_limit,
-        trial_days: plan.trial_days,
+      const response = await fetch("/api/membership-plans", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: `${plan.name} (Copy)`,
+          description: plan.description,
+          price_pennies: plan.price_pennies,
+          billing_period: plan.billing_period,
+          features: plan.features,
+          is_active: false, // Start inactive
+          class_limit: plan.class_limit,
+          trial_days: plan.trial_days,
+        }),
       });
 
-      if (error) {
-        console.error("Error duplicating plan:", error);
-        toast.error("Failed to duplicate plan");
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error("Error duplicating plan:", result);
+        toast.error(result.error || "Failed to duplicate plan");
         return;
       }
 
@@ -153,17 +136,16 @@ export default function MembershipsPage() {
       return;
     }
 
-    const supabase = createClient();
-
     try {
-      const { error } = await supabase
-        .from("membership_plans")
-        .delete()
-        .eq("id", plan.id);
+      const response = await fetch(`/api/membership-plans?id=${plan.id}`, {
+        method: "DELETE",
+      });
 
-      if (error) {
-        console.error("Error deleting plan:", error);
-        toast.error("Failed to delete plan");
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error("Error deleting plan:", result);
+        toast.error(result.error || "Failed to delete plan");
         return;
       }
 
