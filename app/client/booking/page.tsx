@@ -127,16 +127,24 @@ export default function ClientBookingPage() {
           return;
         }
 
-        // Check for existing booking
+        // Check for existing booking in both tables
         const { data: existingBooking } = await supabase
           .from("bookings")
           .select("id")
           .eq("client_id", clientByEmail.id)
           .eq("class_session_id", classId)
           .eq("status", "confirmed")
-          .single();
+          .maybeSingle();
 
-        if (existingBooking) {
+        const { data: existingClassBooking } = await supabase
+          .from("class_bookings")
+          .select("id")
+          .eq("client_id", clientByEmail.id)
+          .eq("class_session_id", classId)
+          .eq("booking_status", "confirmed")
+          .maybeSingle();
+
+        if (existingBooking || existingClassBooking) {
           setMessage("You have already booked this class.");
           return;
         }
@@ -150,16 +158,24 @@ export default function ClientBookingPage() {
 
         if (error) throw error;
       } else {
-        // Check for existing booking
+        // Check for existing booking in both tables
         const { data: existingBooking } = await supabase
           .from("bookings")
           .select("id")
           .eq("client_id", clientData.id)
           .eq("class_session_id", classId)
           .eq("status", "confirmed")
-          .single();
+          .maybeSingle();
 
-        if (existingBooking) {
+        const { data: existingClassBooking } = await supabase
+          .from("class_bookings")
+          .select("id")
+          .eq("client_id", clientData.id)
+          .eq("class_session_id", classId)
+          .eq("booking_status", "confirmed")
+          .maybeSingle();
+
+        if (existingBooking || existingClassBooking) {
           setMessage("You have already booked this class.");
           return;
         }
