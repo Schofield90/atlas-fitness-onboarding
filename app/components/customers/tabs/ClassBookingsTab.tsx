@@ -204,203 +204,72 @@ export default function ClassBookingsTab({
       "in org:",
       organizationId,
     );
-    console.log("organizationId type:", typeof organizationId);
-    console.log("organizationId length:", organizationId?.length);
 
-    // Query BOTH bookings and class_bookings tables
-    const [bookingsResult, classBookingsResult] = await Promise.all([
-      // Query bookings table
-      supabase
-        .from("bookings")
-        .select(
-          `
-          *,
-          class_sessions (
-            id,
-            name,
-            start_time,
-            end_time,
-            max_capacity,
-            current_bookings,
-            location,
-            instructor_name,
-            program_id,
-            programs (
-              name,
-              description
-            )
-          )
-        `,
-        )
-        .eq("client_id", customerId)
-        .order("created_at", { ascending: false }),
+    try {
+      // Use API endpoint to bypass RLS issues
+      const response = await fetch(
+        `/api/staff/customer-bookings?customerId=${customerId}`,
+      );
 
-      // Query class_bookings table
-      supabase
-        .from("class_bookings")
-        .select(
-          `
-          *,
-          class_sessions (
-            id,
-            name,
-            start_time,
-            end_time,
-            max_capacity,
-            current_bookings,
-            location,
-            instructor_name,
-            program_id,
-            programs (
-              name,
-              description
-            )
-          )
-        `,
-        )
-        .or(`client_id.eq.${customerId},customer_id.eq.${customerId}`)
-        .order("created_at", { ascending: false }),
-    ]);
-
-    let { data, error } = classBookingsResult;
-
-    // Log query results with errors
-    console.log("bookingsResult:", {
-      data: bookingsResult.data,
-      error: bookingsResult.error,
-      count: bookingsResult.count,
-      status: bookingsResult.status,
-      statusText: bookingsResult.statusText
-    });
-    console.log("classBookingsResult:", {
-      data: classBookingsResult.data,
-      error: classBookingsResult.error,
-      count: classBookingsResult.count,
-      status: classBookingsResult.status,
-      statusText: classBookingsResult.statusText
-    });
-
-    // Combine bookings from both tables
-    const bookingsTableData = bookingsResult.data || [];
-    const classBookingsTableData = data || [];
-
-    // Merge both arrays - prioritize bookings table data
-    let allBookingsData = [...bookingsTableData, ...classBookingsTableData];
-
-    console.log("Bookings table data:", bookingsTableData.length);
-    console.log("Bookings table raw:", bookingsTableData);
-    console.log("Class bookings table data:", classBookingsTableData.length);
-    console.log("Class bookings raw:", classBookingsTableData);
-    console.log("Combined total:", allBookingsData.length);
-
-    if (error && bookingsResult.error) {
-      console.error("Error fetching bookings:", error, bookingsResult.error);
-      // Try a simpler query as fallback
-      const { data: fallbackData, error: fallbackError } = await supabase
-        .from("class_bookings")
-        .select("*")
-        .or(`client_id.eq.${customerId},customer_id.eq.${customerId}`)
-        .in("booking_status", ["confirmed", "attended", "completed"]);
-
-      if (fallbackError) {
-        console.error("Fallback query also failed:", fallbackError);
-        throw fallbackError;
+      if (!response.ok) {
+        console.error("API error:", response.status, await response.text());
+        setBookings([]);
+        return;
       }
 
-      console.log("Using fallback data:", fallbackData);
+      const { bookings: apiBookings, counts } = await response.json();
+      console.log("API returned bookings:", counts);
 
-      // Fetch class sessions separately
-      if (fallbackData && fallbackData.length > 0) {
-        const sessionIds = fallbackData
-          .map((b) => b.class_session_id)
-          .filter(Boolean);
+      // Transform to match expected format
+      const allBookingsData = apiBookings || [];
 
-        if (sessionIds.length > 0) {
-          const { data: sessions } = await supabase
-            .from("class_sessions")
-            .select("*, programs(name, description)")
-            .in("id", sessionIds);
+      // Transform bookings to match expected format
+      const bookingsWithClassType = (allBookingsData || []).map((booking) => {
+        const session = booking.class_sessions || booking.class_session;
 
-          const sessionMap =
-            sessions?.reduce((acc, s) => {
-              acc[s.id] = s;
-              return acc;
-            }, {}) || {};
-
-          data = fallbackData.map((booking) => ({
+        // Handle bookings without session data (imported or simple bookings)
+        if (!session && (booking.notes || booking.booking_date)) {
+          return {
             ...booking,
-            class_sessions: sessionMap[booking.class_session_id],
-          }));
-        } else {
-          // No class_session_ids, just use the booking data as is
-          data = fallbackData;
+            class_session: {
+              id: booking.id,
+              start_time: booking.booking_date || booking.created_at,
+              end_time: booking.booking_date || booking.created_at,
+              max_capacity: 0,
+              current_bookings: 0,
+              instructor_name: booking.instructor_name || "Staff",
+              class_type: {
+                id: "imported",
+                name: booking.notes?.split("-")[0]?.trim() || "Class Session",
+                description: booking.notes || "Imported attendance",
+                color: "#10B981",
+              },
+            },
+          };
         }
-      }
-    }
 
-    console.log("Fetched bookings:", allBookingsData);
-
-    // Transform bookings to match expected format
-    const bookingsWithClassType = (allBookingsData || []).map((booking) => {
-      const session = booking.class_sessions || booking.class_session;
-
-      // Handle bookings without session data (imported or simple bookings)
-      if (!session && (booking.notes || booking.booking_date)) {
         return {
           ...booking,
-          class_session: {
-            id: booking.id,
-            start_time: booking.booking_date || booking.created_at,
-            end_time: booking.booking_date || booking.created_at,
-            max_capacity: 0,
-            current_bookings: 0,
-            instructor_name: booking.instructor_name || "Staff",
-            class_type: {
-              id: "imported",
-              name: booking.notes?.split("-")[0]?.trim() || "Class Session",
-              description: booking.notes || "Imported attendance",
-              color: "#10B981",
-            },
-          },
+          class_session: session
+            ? {
+                ...session,
+                class_type: {
+                  id: session.program_id || "default",
+                  name: session.programs?.name || session.name || "Group PT",
+                  description: session.programs?.description || "",
+                  color: "#3B82F6",
+                },
+              }
+            : null,
         };
-      }
+      });
 
-      return {
-        ...booking,
-        class_session: session
-          ? {
-              ...session,
-              class_type: {
-                id: session.program_id || "default",
-                name: session.programs?.name || session.name || "Group PT",
-                description: session.programs?.description || "",
-                color: "#3B82F6",
-              },
-            }
-          : null,
-      };
-    });
-
-    console.log("Transformed bookings:", bookingsWithClassType);
-    setBookings(bookingsWithClassType);
-
-    // DEBUG: Check if ANY bookings exist for this customer with ANY status
-    const { data: debugBookings, error: debugError } = await supabase
-      .from("bookings")
-      .select("id, client_id, status, booking_date, created_at")
-      .eq("client_id", customerId);
-
-    console.log("DEBUG - All bookings for this client_id (any status):", debugBookings);
-    console.log("DEBUG - Error:", debugError);
-
-    // DEBUG: Check recent bookings in the table
-    const { data: recentBookings } = await supabase
-      .from("bookings")
-      .select("id, client_id, status, created_at")
-      .order("created_at", { ascending: false })
-      .limit(5);
-
-    console.log("DEBUG - Recent bookings in database (last 5):", recentBookings);
+      console.log("Transformed bookings:", bookingsWithClassType);
+      setBookings(bookingsWithClassType);
+    } catch (error) {
+      console.error("Error fetching bookings:", error);
+      setBookings([]);
+    }
   };
 
   const fetchRecurringBookings = async () => {
