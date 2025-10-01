@@ -11,3 +11,5 @@
 # Trigger rebuild Wed 1 Oct 2025 11:04:03 BST
 
 # Trigger rebuild Wed 1 Oct 2025 12:30:00 BST - Fix duplicate bookings and staff view
+
+# Trigger rebuild Wed 1 Oct 2025 12:45:00 BST - Add API duplicate prevention
