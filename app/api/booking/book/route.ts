@@ -80,6 +80,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check for existing booking (duplicate prevention)
+    const { data: existingBooking } = await supabase
+      .from("bookings")
+      .select("id")
+      .eq("client_id", customerId)
+      .eq("class_session_id", classSessionId)
+      .eq("status", "confirmed")
+      .maybeSingle();
+
+    const { data: existingClassBooking } = await supabase
+      .from("class_bookings")
+      .select("id")
+      .eq("client_id", customerId)
+      .eq("class_session_id", classSessionId)
+      .eq("booking_status", "confirmed")
+      .maybeSingle();
+
+    if (existingBooking || existingClassBooking) {
+      return NextResponse.json(
+        { error: "You have already booked this class" },
+        { status: 409 },
+      );
+    }
+
     // Check if class is full
     const { count: bookingCount } = await supabase
       .from("bookings")
