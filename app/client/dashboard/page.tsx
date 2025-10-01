@@ -126,7 +126,8 @@ export default function ClientDashboardPage() {
       // First try to get bookings with simplified query
       const { data, error } = await supabase
         .from("bookings")
-        .select(`
+        .select(
+          `
           id,
           status,
           created_at,
@@ -139,17 +140,19 @@ export default function ClientDashboardPage() {
             name,
             instructor_name
           )
-        `)
+        `,
+        )
         .eq("client_id", clientId)
         .order("created_at", { ascending: false });
 
       if (error) {
         console.error("Error fetching bookings:", error.message, error.details);
-        
+
         // Try alternate query structure
         const { data: altData, error: altError } = await supabase
           .from("class_bookings")
-          .select(`
+          .select(
+            `
             id,
             booking_status,
             created_at,
@@ -162,25 +165,26 @@ export default function ClientDashboardPage() {
               name,
               instructor_name
             )
-          `)
+          `,
+          )
           .eq("client_id", clientId)
           .order("created_at", { ascending: false });
 
         if (!altError && altData) {
           // Map to expected format
-          const mappedBookings = altData.map(b => ({
+          const mappedBookings = altData.map((b) => ({
             id: b.id,
             class_session_id: b.class_session_id,
             status: b.booking_status,
             booked_at: b.created_at,
             class_sessions: b.class_sessions || {
-              date: '',
-              start_time: '',
-              end_time: '',
-              location: 'Main Studio',
-              class_types: { name: 'Class' },
-              instructors: { name: 'TBD' }
-            }
+              date: "",
+              start_time: "",
+              end_time: "",
+              location: "Main Studio",
+              class_types: { name: "Class" },
+              instructors: { name: "TBD" },
+            },
           }));
           setBookings(mappedBookings);
         } else {
@@ -189,14 +193,16 @@ export default function ClientDashboardPage() {
         }
       } else {
         // Map the simplified structure to expected format
-        const mappedBookings = (data || []).map(booking => ({
+        const mappedBookings = (data || []).map((booking) => ({
           ...booking,
           booked_at: booking.created_at,
           class_sessions: {
             ...booking.class_sessions,
-            class_types: { name: booking.class_sessions?.name || 'Class' },
-            instructors: { name: booking.class_sessions?.instructor_name || 'TBD' }
-          }
+            class_types: { name: booking.class_sessions?.name || "Class" },
+            instructors: {
+              name: booking.class_sessions?.instructor_name || "TBD",
+            },
+          },
         }));
         setBookings(mappedBookings);
       }
@@ -227,7 +233,7 @@ export default function ClientDashboardPage() {
           .from("class_bookings")
           .update({ booking_status: "cancelled" })
           .eq("id", bookingId);
-        
+
         if (altError) throw altError;
       }
 
@@ -290,8 +296,8 @@ export default function ClientDashboardPage() {
               <div className="flex items-center">
                 <User className="h-5 w-5 text-gray-400 mr-3" />
                 <div>
-                  <p className="text-sm text-gray-500">Name</p>
-                  <p className="font-medium">
+                  <p className="text-sm text-gray-300">Name</p>
+                  <p className="font-medium text-white">
                     {client.first_name} {client.last_name}
                   </p>
                 </div>
@@ -299,8 +305,8 @@ export default function ClientDashboardPage() {
               <div className="flex items-center">
                 <CreditCard className="h-5 w-5 text-gray-400 mr-3" />
                 <div>
-                  <p className="text-sm text-gray-500">Membership</p>
-                  <p className="font-medium capitalize">
+                  <p className="text-sm text-gray-300">Membership</p>
+                  <p className="font-medium text-white capitalize">
                     {client.client_type.replace("_", " ")}
                   </p>
                 </div>
@@ -308,8 +314,8 @@ export default function ClientDashboardPage() {
               <div className="flex items-center">
                 <Bell className="h-5 w-5 text-gray-400 mr-3" />
                 <div>
-                  <p className="text-sm text-gray-500">Status</p>
-                  <p className="font-medium text-green-600">Active</p>
+                  <p className="text-sm text-gray-300">Status</p>
+                  <p className="font-medium text-green-400">Active</p>
                 </div>
               </div>
             </div>
@@ -354,7 +360,7 @@ export default function ClientDashboardPage() {
 
         {/* Upcoming Bookings */}
         <div className="bg-gray-800 rounded-lg shadow-lg border border-gray-700">
-          <div className="px-6 py-4 border-b border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-700">
             <h2 className="text-lg font-semibold text-white">My Bookings</h2>
           </div>
           <div className="p-6">
@@ -362,65 +368,73 @@ export default function ClientDashboardPage() {
               <div className="space-y-4">
                 {bookings.map((booking) => {
                   // Use start_time for date comparison since date field doesn't exist
-                  const sessionDate = booking.class_sessions?.start_time ? 
-                    new Date(booking.class_sessions.start_time) : new Date();
+                  const sessionDate = booking.class_sessions?.start_time
+                    ? new Date(booking.class_sessions.start_time)
+                    : new Date();
                   const isUpcoming = sessionDate >= new Date();
                   const isCancelled = booking.status === "cancelled";
 
                   return (
                     <div
                       key={booking.id}
-                      className={`border rounded-lg p-4 ${
+                      className={`border border-gray-600 rounded-lg p-4 ${
                         isCancelled
                           ? "bg-gray-700 opacity-60"
-                          : "hover:shadow-md transition-shadow"
+                          : "bg-gray-750 hover:shadow-md transition-shadow"
                       }`}
                     >
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <h3 className="font-semibold text-white">
-                            {booking.class_sessions?.class_types?.name || 
-                             booking.class_sessions?.name || 'Class'}
+                            {booking.class_sessions?.class_types?.name ||
+                              booking.class_sessions?.name ||
+                              "Class"}
                           </h3>
                           <div className="mt-2 space-y-1">
-                            <p className="text-sm text-gray-600 flex items-center">
+                            <p className="text-sm text-gray-300 flex items-center">
                               <Calendar className="h-4 w-4 mr-2" />
-                              {booking.class_sessions?.start_time ? 
-                                formatDate(booking.class_sessions.start_time.split('T')[0]) :
-                                'TBD'}
+                              {booking.class_sessions?.start_time
+                                ? formatDate(
+                                    booking.class_sessions.start_time.split(
+                                      "T",
+                                    )[0],
+                                  )
+                                : "TBD"}
                             </p>
-                            <p className="text-sm text-gray-600 flex items-center">
+                            <p className="text-sm text-gray-300 flex items-center">
                               <Clock className="h-4 w-4 mr-2" />
-                              {booking.class_sessions?.start_time ? 
-                                `${formatTime(booking.class_sessions.start_time)} - ${formatTime(booking.class_sessions.end_time || '')}` :
-                                'Time TBD'}
+                              {booking.class_sessions?.start_time
+                                ? `${formatTime(booking.class_sessions.start_time)} - ${formatTime(booking.class_sessions.end_time || "")}`
+                                : "Time TBD"}
                             </p>
-                            <p className="text-sm text-gray-600 flex items-center">
+                            <p className="text-sm text-gray-300 flex items-center">
                               <MapPin className="h-4 w-4 mr-2" />
-                              {booking.class_sessions?.location || "Main Studio"}
+                              {booking.class_sessions?.location ||
+                                "Main Studio"}
                             </p>
-                            <p className="text-sm text-gray-600">
+                            <p className="text-sm text-gray-300">
                               Instructor:{" "}
-                              {booking.class_sessions?.instructors?.name || 
-                               booking.class_sessions?.instructor_name || 'TBD'}
+                              {booking.class_sessions?.instructors?.name ||
+                                booking.class_sessions?.instructor_name ||
+                                "TBD"}
                             </p>
                           </div>
                         </div>
 
                         <div className="ml-4">
                           {isCancelled ? (
-                            <span className="text-sm text-red-600 font-medium">
+                            <span className="text-sm text-red-400 font-medium">
                               Cancelled
                             </span>
                           ) : isUpcoming ? (
                             <button
                               onClick={() => cancelBooking(booking.id)}
-                              className="text-sm text-red-600 hover:text-red-800 font-medium"
+                              className="text-sm text-red-400 hover:text-red-300 font-medium"
                             >
                               Cancel
                             </button>
                           ) : (
-                            <span className="text-sm text-gray-500">
+                            <span className="text-sm text-gray-400">
                               Completed
                             </span>
                           )}
@@ -432,7 +446,7 @@ export default function ClientDashboardPage() {
               </div>
             ) : (
               <div className="text-center py-8">
-                <p className="text-gray-500 mb-4">
+                <p className="text-gray-300 mb-4">
                   You haven't booked any classes yet
                 </p>
                 <Link

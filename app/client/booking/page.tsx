@@ -107,14 +107,44 @@ export default function ClientBookingPage() {
         return;
       }
 
-      // Create booking
-      const { error } = await supabase.from("bookings").insert({
-        class_session_id: classId,
-        customer_id: user.id,
-        status: "confirmed",
-      });
+      // Get client info
+      const { data: clientData, error: clientError } = await supabase
+        .from("clients")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
 
-      if (error) throw error;
+      if (clientError || !clientData) {
+        // Try by email
+        const { data: clientByEmail, error: emailError } = await supabase
+          .from("clients")
+          .select("id")
+          .eq("email", user.email)
+          .single();
+
+        if (emailError || !clientByEmail) {
+          setMessage("Client profile not found. Please contact support.");
+          return;
+        }
+
+        // Create booking with client_id
+        const { error } = await supabase.from("bookings").insert({
+          class_session_id: classId,
+          client_id: clientByEmail.id,
+          status: "confirmed",
+        });
+
+        if (error) throw error;
+      } else {
+        // Create booking with client_id
+        const { error } = await supabase.from("bookings").insert({
+          class_session_id: classId,
+          client_id: clientData.id,
+          status: "confirmed",
+        });
+
+        if (error) throw error;
+      }
 
       setMessage("Booking confirmed!");
       setSelectedClass(null);
