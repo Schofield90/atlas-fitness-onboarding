@@ -163,6 +163,9 @@ export async function GET(request: NextRequest) {
         .order("created_at", { ascending: false }),
     ]);
 
+    console.log('[API] Bookings result:', bookingsResult);
+    console.log('[API] Class bookings result:', classBookingsResult);
+
     const bookingsData = bookingsResult.data || [];
     const classBookingsData = classBookingsResult.data || [];
 
@@ -172,6 +175,7 @@ export async function GET(request: NextRequest) {
     console.log(
       `[API] Fetched ${bookingsData.length} from bookings, ${classBookingsData.length} from class_bookings`,
     );
+    console.log('[API] Returning bookings:', allBookings);
 
     return NextResponse.json({
       bookings: allBookings,
