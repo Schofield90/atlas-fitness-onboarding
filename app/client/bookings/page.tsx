@@ -54,191 +54,107 @@ export default function ClientBookingsPage() {
   const loadBookings = async () => {
     console.log("Loading bookings for client:", client.id, client.email);
 
-    // Get bookings from BOTH tables (bookings and class_bookings)
-    // First, get from the bookings table (newer)
-    let { data: directBookings, error: directError } = await supabase
-      .from("bookings")
-      .select(
-        `
-        *,
-        class_sessions (
+    // Fetch bookings via API to bypass RLS issues
+    try {
+      const response = await fetch("/api/client-bookings");
+      if (!response.ok) {
+        console.error("Failed to fetch bookings:", await response.text());
+        setBookings([]);
+        return;
+      }
+
+      const { bookings: apiBookings } = await response.json();
+      console.log("API bookings:", apiBookings);
+
+      let allBookings = apiBookings || [];
+
+      // Also get from class_bookings table for legacy bookings
+      const { data: classBookings, error: classBookingsError } = await supabase
+        .from("class_bookings")
+        .select(
+          `
           *,
-          programs (
-            name,
-            description
+          class_sessions (
+            *,
+            programs (
+              name,
+              description
+            )
           )
+        `,
         )
-      `,
-      )
-      .eq("client_id", client.id)
-      .order("created_at", { ascending: false });
-
-    console.log("Direct bookings:", directBookings, "Error:", directError);
-
-    // Also get from class_bookings table
-    let { data: classBookings, error: classBookingsError } = await supabase
-      .from("class_bookings")
-      .select(
-        `
-        *,
-        class_sessions (
-          *,
-          programs (
-            name,
-            description
-          )
-        )
-      `,
-      )
-      .eq("client_id", client.id)
-      .eq("booking_status", "confirmed")
-      .order("created_at", { ascending: false });
-
-    console.log("Class bookings:", classBookings, "Error:", classBookingsError);
-
-    // Combine bookings from both tables
-    let allBookings = [];
-    if (directBookings) {
-      allBookings = [...directBookings];
-    }
-    if (classBookings) {
-      // Map class_bookings fields to match bookings structure
-      const mappedClassBookings = classBookings.map((cb) => ({
-        ...cb,
-        status: cb.booking_status || "confirmed",
-        booking_date: cb.created_at?.split("T")[0],
-      }));
-      allBookings = [...allBookings, ...mappedClassBookings];
-    }
-
-    // If we still need to check for lead-based bookings (backward compatibility)
-    if (allBookings.length === 0) {
-      console.log("No direct bookings, checking lead records...");
-      const { data: leadData } = await supabase
-        .from("leads")
-        .select("id")
         .eq("client_id", client.id)
-        .single();
+        .order("created_at", { ascending: false });
 
-      if (leadData) {
-        // Get bookings using the lead ID from BOTH tables
-        const { data: leadBookings } = await supabase
-          .from("class_bookings")
-          .select(
-            `
-            *,
-            class_sessions (
-              *,
-              programs (
-                name,
-                description
-              )
-            )
-          `,
-          )
-          .eq("customer_id", leadData.id)
-          .order("created_at", { ascending: false });
+      console.log(
+        "Class bookings:",
+        classBookings,
+        "Error:",
+        classBookingsError,
+      );
 
-        const { data: leadClassBookings } = await supabase
-          .from("class_bookings")
-          .select(
-            `
-            *,
-            class_sessions (
-              *,
-              programs (
-                name,
-                description
-              )
-            )
-          `,
-          )
-          .eq("customer_id", leadData.id)
-          .eq("booking_status", "confirmed")
-          .order("created_at", { ascending: false });
+      if (classBookings && classBookings.length > 0) {
+        // Map class_bookings fields to match bookings structure
+        const mappedClassBookings = classBookings.map((cb) => ({
+          ...cb,
+          status: cb.booking_status || "confirmed",
+          booking_date: cb.created_at?.split("T")[0],
+        }));
+        allBookings = [...allBookings, ...mappedClassBookings];
+      }
 
-        // Combine all bookings
-        if (leadBookings) {
-          allBookings = [...allBookings, ...leadBookings];
-        }
-        if (leadClassBookings) {
-          const mappedClassBookings = leadClassBookings.map((cb) => ({
-            ...cb,
-            status: cb.booking_status || "confirmed",
-            booking_date: cb.created_at?.split("T")[0],
-          }));
-          allBookings = [...allBookings, ...mappedClassBookings];
-        }
-
-        // Get credits from lead record
-        const { data: credits } = await supabase
-          .from("class_credits")
-          .select("credits_remaining")
-          .eq("customer_id", leadData.id)
-          .single();
-
-        if (credits) {
-          setCreditsRemaining(credits.credits_remaining);
-        }
-      } else {
-        // Final fallback: Try to find lead by email
-        console.log("No lead by client_id, trying by email:", client.email);
-        const { data: leadByEmail } = await supabase
+      // If we still need to check for lead-based bookings (backward compatibility)
+      if (allBookings.length === 0) {
+        console.log("No direct bookings, checking lead records...");
+        const { data: leadData } = await supabase
           .from("leads")
           .select("id")
-          .eq("email", client.email)
-          .eq("organization_id", client.organization_id)
+          .eq("client_id", client.id)
           .single();
 
-        console.log("Lead by email:", leadByEmail);
-
-        if (leadByEmail) {
-          const { data: emailBookings } = await supabase
+        if (leadData) {
+          // Get bookings using the lead ID from BOTH tables
+          const { data: leadBookings } = await supabase
             .from("class_bookings")
             .select(
               `
+            *,
+            class_sessions (
               *,
-              class_sessions (
-                *,
-                programs (
-                  name,
-                  description
-                ),
+              programs (
+                name,
+                description
               )
-            `,
             )
-            .eq("customer_id", leadByEmail.id)
+          `,
+            )
+            .eq("customer_id", leadData.id)
             .order("created_at", { ascending: false });
 
-          const { data: emailClassBookings } = await supabase
+          const { data: leadClassBookings } = await supabase
             .from("class_bookings")
             .select(
               `
+            *,
+            class_sessions (
               *,
-              class_sessions (
-                *,
-                programs (
-                  name,
-                  description
-                ),
+              programs (
+                name,
+                description
               )
-            `,
             )
-            .eq("customer_id", leadByEmail.id)
+          `,
+            )
+            .eq("customer_id", leadData.id)
             .eq("booking_status", "confirmed")
             .order("created_at", { ascending: false });
 
-          console.log(
-            "Email-based bookings:",
-            emailBookings,
-            emailClassBookings,
-          );
-
-          if (emailBookings) {
-            allBookings = [...allBookings, ...emailBookings];
+          // Combine all bookings
+          if (leadBookings) {
+            allBookings = [...allBookings, ...leadBookings];
           }
-          if (emailClassBookings) {
-            const mappedClassBookings = emailClassBookings.map((cb) => ({
+          if (leadClassBookings) {
+            const mappedClassBookings = leadClassBookings.map((cb) => ({
               ...cb,
               status: cb.booking_status || "confirmed",
               booking_date: cb.created_at?.split("T")[0],
@@ -246,22 +162,102 @@ export default function ClientBookingsPage() {
             allBookings = [...allBookings, ...mappedClassBookings];
           }
 
-          // Get credits
-          const { data: emailCredits } = await supabase
+          // Get credits from lead record
+          const { data: credits } = await supabase
             .from("class_credits")
             .select("credits_remaining")
-            .eq("customer_id", leadByEmail.id)
+            .eq("customer_id", leadData.id)
             .single();
 
-          if (emailCredits) {
-            setCreditsRemaining(emailCredits.credits_remaining);
+          if (credits) {
+            setCreditsRemaining(credits.credits_remaining);
+          }
+        } else {
+          // Final fallback: Try to find lead by email
+          console.log("No lead by client_id, trying by email:", client.email);
+          const { data: leadByEmail } = await supabase
+            .from("leads")
+            .select("id")
+            .eq("email", client.email)
+            .eq("organization_id", client.organization_id)
+            .single();
+
+          console.log("Lead by email:", leadByEmail);
+
+          if (leadByEmail) {
+            const { data: emailBookings } = await supabase
+              .from("class_bookings")
+              .select(
+                `
+              *,
+              class_sessions (
+                *,
+                programs (
+                  name,
+                  description
+                ),
+              )
+            `,
+              )
+              .eq("customer_id", leadByEmail.id)
+              .order("created_at", { ascending: false });
+
+            const { data: emailClassBookings } = await supabase
+              .from("class_bookings")
+              .select(
+                `
+              *,
+              class_sessions (
+                *,
+                programs (
+                  name,
+                  description
+                ),
+              )
+            `,
+              )
+              .eq("customer_id", leadByEmail.id)
+              .eq("booking_status", "confirmed")
+              .order("created_at", { ascending: false });
+
+            console.log(
+              "Email-based bookings:",
+              emailBookings,
+              emailClassBookings,
+            );
+
+            if (emailBookings) {
+              allBookings = [...allBookings, ...emailBookings];
+            }
+            if (emailClassBookings) {
+              const mappedClassBookings = emailClassBookings.map((cb) => ({
+                ...cb,
+                status: cb.booking_status || "confirmed",
+                booking_date: cb.created_at?.split("T")[0],
+              }));
+              allBookings = [...allBookings, ...mappedClassBookings];
+            }
+
+            // Get credits
+            const { data: emailCredits } = await supabase
+              .from("class_credits")
+              .select("credits_remaining")
+              .eq("customer_id", leadByEmail.id)
+              .single();
+
+            if (emailCredits) {
+              setCreditsRemaining(emailCredits.credits_remaining);
+            }
           }
         }
       }
-    }
 
-    // Set all combined bookings
-    setBookings(allBookings);
+      // Set all combined bookings
+      setBookings(allBookings);
+    } catch (error) {
+      console.error("Error loading bookings:", error);
+      setBookings([]);
+    }
 
     // Try to get credits directly for client
     const { data: credits } = await supabase
