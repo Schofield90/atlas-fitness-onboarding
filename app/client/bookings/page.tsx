@@ -306,32 +306,42 @@ export default function ClientBookingsPage() {
         "for client:",
         client.id,
       );
+      console.log("Selected booking object:", selectedBooking);
 
       // Cancel booking directly via Supabase (not admin API)
-      // Try to cancel in bookings table
+      // Try to cancel in bookings table - removed client_id filter as RLS should handle security
       const { data, error } = await supabase
         .from("bookings")
         .update({ status: "cancelled" })
         .eq("id", selectedBooking.id)
-        .eq("client_id", client.id)
         .select();
 
-      console.log("Cancel result:", { data, error });
+      console.log("Cancel result:", {
+        data,
+        error,
+        rowsAffected: data?.length,
+      });
 
-      if (error) {
-        console.log("First attempt failed, trying class_bookings table");
+      // Check if any rows were updated
+      if (!error && data && data.length === 0) {
+        console.log("No rows updated in bookings table, trying class_bookings");
         // Try alternate table name
         const { data: altData, error: altError } = await supabase
           .from("class_bookings")
           .update({ booking_status: "cancelled" })
           .eq("id", selectedBooking.id)
-          .eq("client_id", client.id)
           .select();
 
         console.log("Alt cancel result:", { altData, altError });
 
         if (altError) throw altError;
+
+        if (altData && altData.length === 0) {
+          throw new Error("Booking not found or already cancelled");
+        }
       }
+
+      if (error) throw error;
 
       setCancelModalOpen(false);
       setSelectedBooking(null);
