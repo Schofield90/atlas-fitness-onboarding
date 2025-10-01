@@ -4,6 +4,52 @@ import { requireAuth } from "@/app/lib/api/auth-check";
 
 export const dynamic = "force-dynamic";
 
+export async function GET(request: NextRequest) {
+  try {
+    const user = await requireAuth();
+    const supabase = createAdminClient();
+
+    const url = new URL(request.url);
+    const customerId = url.searchParams.get("customerId");
+
+    if (!customerId) {
+      return NextResponse.json(
+        { error: "Missing customerId parameter" },
+        { status: 400 },
+      );
+    }
+
+    // Fetch memberships for this customer
+    const { data: memberships, error } = await supabase
+      .from("customer_memberships")
+      .select(
+        `
+        *,
+        membership_plan:membership_plans(*)
+      `,
+      )
+      .or(`customer_id.eq.${customerId},client_id.eq.${customerId}`)
+      .eq("organization_id", user.organizationId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching memberships:", error);
+      return NextResponse.json(
+        { error: error.message || "Failed to fetch memberships" },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({ success: true, memberships: memberships || [] });
+  } catch (error: any) {
+    console.error("Error in GET /api/customer-memberships:", error);
+    return NextResponse.json(
+      { error: error.message || "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();

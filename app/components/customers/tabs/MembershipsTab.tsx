@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/app/lib/supabase/client";
 import {
   CreditCard,
   Calendar,
@@ -35,7 +34,6 @@ export default function MembershipsTab({ customerId }: MembershipsTabProps) {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeTarget, setUpgradeTarget] = useState<any | null>(null);
   const [membershipPlans, setMembershipPlans] = useState<any[]>([]);
-  const supabase = createClient();
 
   useEffect(() => {
     fetchMemberships();
@@ -80,19 +78,19 @@ export default function MembershipsTab({ customerId }: MembershipsTabProps) {
   const fetchMemberships = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("customer_memberships")
-        .select(
-          `
-          *,
-          membership_plan:membership_plans(*)
-        `,
-        )
-        .or(`customer_id.eq.${customerId},client_id.eq.${customerId}`)
-        .order("created_at", { ascending: false });
+      const response = await fetch(
+        `/api/customer-memberships?customerId=${customerId}`,
+      );
 
-      if (error && error.code !== "PGRST116") throw error;
-      setMemberships(data || []);
+      if (!response.ok) {
+        const error = await response.json();
+        console.error("Error fetching memberships:", error);
+        setMemberships([]);
+        return;
+      }
+
+      const result = await response.json();
+      setMemberships(result.memberships || []);
     } catch (error) {
       console.error("Error fetching memberships:", error);
       setMemberships([]); // Set empty array on error to prevent UI issues
