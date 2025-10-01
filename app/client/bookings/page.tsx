@@ -340,12 +340,18 @@ export default function ClientBookingsPage() {
     const classTime = new Date(b.class_sessions.start_time);
     const now = new Date();
     return (
-      classTime <= now ||
-      b.status === "attended" ||
-      b.status === "no_show" ||
-      b.status === "cancelled"
+      classTime <= now || b.status === "attended" || b.status === "no_show"
     );
   });
+
+  const cancelledBookings = bookings.filter((b) => {
+    return b.status === "cancelled";
+  });
+
+  // Only count attended classes, not cancelled ones
+  const attendedCount = pastBookings.filter(
+    (b) => b.status === "attended",
+  ).length;
 
   return (
     <div className="min-h-screen bg-gray-900">
@@ -380,9 +386,7 @@ export default function ClientBookingsPage() {
             <div className="text-sm text-gray-400">Credits Remaining</div>
           </div>
           <div className="bg-gray-800 rounded-lg shadow-lg border border-gray-700 p-6">
-            <div className="text-2xl font-bold text-white">
-              {pastBookings.length}
-            </div>
+            <div className="text-2xl font-bold text-white">{attendedCount}</div>
             <div className="text-sm text-gray-400">Classes Attended</div>
           </div>
         </div>
@@ -546,10 +550,16 @@ export default function ClientBookingsPage() {
                         className={`px-2.5 py-0.5 text-xs font-medium rounded ${
                           booking.status === "attended"
                             ? "bg-blue-900/50 text-blue-400"
-                            : "bg-gray-700 text-gray-400"
+                            : booking.status === "cancelled"
+                              ? "bg-red-900/50 text-red-400"
+                              : "bg-gray-700 text-gray-400"
                         }`}
                       >
-                        {booking.status === "attended" ? "Attended" : "Missed"}
+                        {booking.status === "attended"
+                          ? "Attended"
+                          : booking.status === "cancelled"
+                            ? "Cancelled"
+                            : "Missed"}
                       </span>
                     </div>
                   </div>
