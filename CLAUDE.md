@@ -327,27 +327,61 @@ const attendedCount = pastBookings.filter(
 
 **Problem**: Gym staff couldn't see member bookings in the member profile view.
 
-**Root Cause**: `ClassBookingsTab` component only queried `class_bookings` table, but member bookings are in `bookings` table.
+**Root Causes**:
 
-**Solution**:
+1. API endpoint `/api/staff/customer-bookings` only checked `user_organizations` table, but staff records exist in `organization_staff` table
+2. `CustomerBookings` component was using wrong API endpoint
+3. Data transformation didn't match API response structure
 
-- Updated `/app/components/customers/tabs/ClassBookingsTab.tsx` to query BOTH tables
-- Merges results to show all member bookings
-- Code location: `app/components/customers/tabs/ClassBookingsTab.tsx:208-267`
+**Solutions**:
+
+1. **API Authorization Fallback** - Updated `/app/api/staff/customer-bookings/route.ts` to check both tables:
 
 ```typescript
-// Query BOTH bookings and class_bookings tables
-const [bookingsResult, classBookingsResult] = await Promise.all([
-  // Query bookings table
-  supabase.from("bookings").select(...).eq("client_id", customerId),
+// Check user_organizations first
+const { data: staffOrg } = await supabase
+  .from("user_organizations")
+  .select("organization_id, role")
+  .eq("user_id", user.id)
+  .maybeSingle();
 
-  // Query class_bookings table
-  supabase.from("class_bookings").select(...).or(`client_id.eq.${customerId},customer_id.eq.${customerId}`)
-]);
+// Fallback to organization_staff table if not found
+let organizationId = staffOrg?.organization_id;
 
-// Merge both arrays
-let allBookingsData = [...bookingsTableData, ...classBookingsTableData];
+if (!organizationId) {
+  const { data: staffRecord } = await supabase
+    .from("organization_staff")
+    .select("organization_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  organizationId = staffRecord?.organization_id;
+}
 ```
+
+2. **Component Fix** - Updated `gym-coach-platform/components/booking/CustomerBookings.tsx`:
+
+```typescript
+// Use correct API endpoint
+const response = await fetch(
+  `/api/staff/customer-bookings?customerId=${memberId}`,
+);
+
+// Transform API response with nested class_sessions data
+const transformedBookings = (data.bookings || []).map((booking: any) => ({
+  session_title: booking.class_sessions?.name || "Unknown Session",
+  start_time: booking.class_sessions?.start_time,
+  trainer_name: booking.class_sessions?.instructor_name,
+  location: booking.class_sessions?.location,
+  status: booking.status || booking.booking_status,
+  // ... etc
+}));
+```
+
+**Code Locations**:
+
+- `app/api/staff/customer-bookings/route.ts:36-62` - Authorization fallback
+- `gym-coach-platform/components/booking/CustomerBookings.tsx:52-78` - API integration and data transformation
 
 ### Database Schema Notes
 
@@ -372,8 +406,8 @@ let allBookingsData = [...bookingsTableData, ...classBookingsTableData];
 
 **Staff Dashboard** (`login.gymleadhub.co.uk`):
 
-- Email: sam@gymleadhub.co.uk
-- Password: [Contact owner]
+- Email: sam@atlas-gyms.co.uk
+- Password: @Aa80236661
 
 ### Deployment Structure
 
