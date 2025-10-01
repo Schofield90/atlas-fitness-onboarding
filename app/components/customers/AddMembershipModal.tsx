@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/app/lib/supabase/client";
 import { X } from "lucide-react";
 import { formatBritishCurrency } from "@/app/lib/utils/british-format";
 import { useOrganization } from "@/app/hooks/useOrganization";
@@ -29,7 +28,6 @@ export default function AddMembershipModal({
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const supabase = createClient();
   const { organizationId } = useOrganization();
 
   useEffect(() => {
@@ -93,144 +91,32 @@ export default function AddMembershipModal({
     setError("");
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      const response = await fetch("/api/customer-memberships", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          customerId,
+          membershipPlanId: selectedPlanId,
+          startDate,
+          notes,
+        }),
+      });
 
-      if (!organizationId) throw new Error("No organization found");
+      const data = await response.json();
 
-      // Determine if this is a lead (customer_id) or client (client_id)
-      let isClient = false;
-      let isLead = false;
-
-      // Check if customerId exists in clients table
-      const { data: clientCheck } = await supabase
-        .from("clients")
-        .select("id")
-        .eq("id", customerId)
-        .or(`organization_id.eq.${organizationId},org_id.eq.${organizationId}`)
-        .single();
-
-      if (clientCheck) {
-        isClient = true;
-      } else {
-        // Check if customerId exists in leads table
-        const { data: leadCheck } = await supabase
-          .from("leads")
-          .select("id")
-          .eq("id", customerId)
-          .eq("organization_id", organizationId)
-          .single();
-
-        if (leadCheck) {
-          isLead = true;
-        }
-      }
-
-      if (!isClient && !isLead) {
-        throw new Error("Customer not found in clients or leads table");
-      }
-
-      // Check if customer already has an active membership with this plan
-      const { data: existingMemberships, error: checkError } = await supabase
-        .from("customer_memberships")
-        .select("*")
-        .or(
-          isClient
-            ? `client_id.eq.${customerId}`
-            : `customer_id.eq.${customerId}`,
-        )
-        .eq("membership_plan_id", selectedPlanId)
-        .eq("status", "active");
-
-      if (checkError) {
-        console.error("Error checking existing memberships:", checkError);
-      }
-
-      if (existingMemberships && existingMemberships.length > 0) {
-        setError(
-          "This customer already has an active membership with this plan. Please cancel or modify the existing membership first.",
-        );
-        setLoading(false);
+      if (!response.ok) {
+        setError(data.error || "Failed to add membership");
         return;
-      }
-
-      // Calculate end date based on billing period
-      const selectedPlan = membershipPlans.find((p) => p.id === selectedPlanId);
-      let endDate = null;
-      if (selectedPlan) {
-        const start = new Date(startDate);
-        if (selectedPlan.billing_period === "monthly") {
-          endDate = new Date(start.setMonth(start.getMonth() + 1));
-        } else if (selectedPlan.billing_period === "yearly") {
-          endDate = new Date(start.setFullYear(start.getFullYear() + 1));
-        }
-      }
-
-      // Create membership record with appropriate customer field
-      const membershipData: any = {
-        organization_id: organizationId,
-        membership_plan_id: selectedPlanId,
-        status: "active",
-        start_date: startDate,
-        end_date: endDate?.toISOString().split("T")[0],
-        next_billing_date: endDate?.toISOString().split("T")[0],
-        notes: notes || null,
-        created_by: user.id,
-      };
-
-      // Set either customer_id (for leads) or client_id (for clients)
-      if (isClient) {
-        membershipData.client_id = customerId;
-      } else {
-        membershipData.customer_id = customerId;
-      }
-
-      const { error: insertError } = await supabase
-        .from("customer_memberships")
-        .insert(membershipData);
-
-      if (insertError) {
-        console.error("Detailed insert error:", insertError);
-        // Handle specific error cases
-        if (insertError.code === "23505") {
-          setError(
-            "This customer already has this membership. Please check the existing memberships.",
-          );
-        } else if (insertError.code === "42501") {
-          setError("Permission denied. Please check your access rights.");
-        } else if (
-          insertError.message?.includes("violates foreign key constraint")
-        ) {
-          setError(
-            "Invalid customer or membership plan. Please refresh and try again.",
-          );
-        } else {
-          setError(
-            insertError.message ||
-              insertError.details ||
-              JSON.stringify(insertError) ||
-              "Failed to add membership",
-          );
-        }
-        throw insertError;
       }
 
       onSuccess();
       onClose();
       resetForm();
     } catch (error: any) {
-      console.error("Error adding membership:", {
-        error,
-        message: error?.message,
-        code: error?.code,
-        details: error?.details,
-      });
-      // Error is already set in the if block above
-      if (!error.code && !error) {
-        setError(error?.message || "Failed to add membership");
-      }
+      console.error("Error adding membership:", error);
+      setError(error?.message || "Failed to add membership");
     } finally {
       setLoading(false);
     }
@@ -272,16 +158,18 @@ export default function AddMembershipModal({
               required
             >
               <option value="">Select a plan</option>
-              {membershipPlans.map((plan) => (
-                <option key={plan.id} value={plan.id}>
-                  {plan.name} -{" "}
-                  {formatBritishCurrency(
-                    plan.price_pennies || plan.price || 0,
-                    plan.price_pennies ? true : false,
-                  )}
-                  /{plan.billing_period}
-                </option>
-              ))}
+              {membershipPlans.map((plan) => {
+                // If price_pennies exists and is not 0, use it
+                // Otherwise if price exists, convert pounds to pennies
+                const priceInPennies =
+                  plan.price_pennies || (plan.price ? plan.price * 100 : 0);
+                return (
+                  <option key={plan.id} value={plan.id}>
+                    {plan.name} - {formatBritishCurrency(priceInPennies, true)}/
+                    {plan.billing_period}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
