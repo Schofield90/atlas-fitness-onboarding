@@ -32,6 +32,7 @@ import WaiversTab from "@/app/components/customers/tabs/WaiversTab";
 import ClassBookingsTab from "@/app/components/customers/tabs/ClassBookingsTab";
 import ComprehensiveMessagingTab from "@/app/components/customers/tabs/ComprehensiveMessagingTab";
 import NutritionTab from "@/app/components/customers/tabs/NutritionTab";
+import { createClient } from "@/app/lib/supabase/client";
 
 interface CustomerProfile {
   id: string;
@@ -82,9 +83,11 @@ export default function CustomerProfilePage() {
   const params = useParams();
   const router = useRouter();
   const customerId = params.customerId as string;
+  const supabase = createClient();
 
   const [loading, setLoading] = useState(true);
   const [customer, setCustomer] = useState<CustomerProfile | null>(null);
+  const [organizationId, setOrganizationId] = useState<string>("");
   const [activities, setActivities] = useState<CustomerActivity[]>([]);
   const [registrations, setRegistrations] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
@@ -113,6 +116,22 @@ export default function CustomerProfilePage() {
   const loadCustomerProfile = async () => {
     setLoading(true);
     try {
+      // Get current user's organization
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        const { data: userOrg } = await supabase
+          .from("user_organizations")
+          .select("organization_id")
+          .eq("user_id", user.id)
+          .single();
+
+        if (userOrg?.organization_id) {
+          setOrganizationId(userOrg.organization_id);
+        }
+      }
+
       const response = await fetch(`/api/customers/${customerId}`);
       const result = await response.json();
 
@@ -1306,7 +1325,10 @@ export default function CustomerProfilePage() {
 
           {/* Class Bookings Tab */}
           {activeTab === "class-bookings" && (
-            <ClassBookingsTab customerId={customerId} />
+            <ClassBookingsTab
+              customerId={customerId}
+              organizationId={organizationId}
+            />
           )}
 
           {/* Messaging Tab */}
