@@ -329,10 +329,26 @@ export default function ClientBookingsPage() {
   }
 
   const upcomingBookings = bookings.filter((b) => {
-    if (!b.class_sessions?.start_time) return false;
+    if (!b.class_sessions?.start_time) {
+      console.log("Booking filtered out - no start_time:", b);
+      return false;
+    }
     const classTime = new Date(b.class_sessions.start_time);
     const now = new Date();
-    return classTime > now && b.status === "confirmed";
+    const isUpcoming = classTime > now;
+    const isConfirmed = b.status === "confirmed";
+
+    console.log(`Booking ${b.id}:`, {
+      start_time: b.class_sessions.start_time,
+      classTime: classTime.toISOString(),
+      now: now.toISOString(),
+      isUpcoming,
+      status: b.status,
+      isConfirmed,
+      willShow: isUpcoming && isConfirmed
+    });
+
+    return isUpcoming && isConfirmed;
   });
 
   const pastBookings = bookings.filter((b) => {
