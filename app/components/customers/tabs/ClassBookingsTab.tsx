@@ -264,9 +264,21 @@ export default function ClassBookingsTab({
 
     let { data, error } = classBookingsResult;
 
-    // Log query results
-    console.log("bookingsResult:", bookingsResult);
-    console.log("classBookingsResult:", classBookingsResult);
+    // Log query results with errors
+    console.log("bookingsResult:", {
+      data: bookingsResult.data,
+      error: bookingsResult.error,
+      count: bookingsResult.count,
+      status: bookingsResult.status,
+      statusText: bookingsResult.statusText
+    });
+    console.log("classBookingsResult:", {
+      data: classBookingsResult.data,
+      error: classBookingsResult.error,
+      count: classBookingsResult.count,
+      status: classBookingsResult.status,
+      statusText: classBookingsResult.statusText
+    });
 
     // Combine bookings from both tables
     const bookingsTableData = bookingsResult.data || [];
@@ -371,6 +383,24 @@ export default function ClassBookingsTab({
 
     console.log("Transformed bookings:", bookingsWithClassType);
     setBookings(bookingsWithClassType);
+
+    // DEBUG: Check if ANY bookings exist for this customer with ANY status
+    const { data: debugBookings, error: debugError } = await supabase
+      .from("bookings")
+      .select("id, client_id, status, booking_date, created_at")
+      .eq("client_id", customerId);
+
+    console.log("DEBUG - All bookings for this client_id (any status):", debugBookings);
+    console.log("DEBUG - Error:", debugError);
+
+    // DEBUG: Check recent bookings in the table
+    const { data: recentBookings } = await supabase
+      .from("bookings")
+      .select("id, client_id, status, created_at")
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    console.log("DEBUG - Recent bookings in database (last 5):", recentBookings);
   };
 
   const fetchRecurringBookings = async () => {
