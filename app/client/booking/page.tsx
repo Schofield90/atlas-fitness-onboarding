@@ -127,6 +127,20 @@ export default function ClientBookingPage() {
           return;
         }
 
+        // Check for existing booking
+        const { data: existingBooking } = await supabase
+          .from("bookings")
+          .select("id")
+          .eq("client_id", clientByEmail.id)
+          .eq("class_session_id", classId)
+          .eq("status", "confirmed")
+          .single();
+
+        if (existingBooking) {
+          setMessage("You have already booked this class.");
+          return;
+        }
+
         // Create booking with client_id
         const { error } = await supabase.from("bookings").insert({
           class_session_id: classId,
@@ -136,6 +150,20 @@ export default function ClientBookingPage() {
 
         if (error) throw error;
       } else {
+        // Check for existing booking
+        const { data: existingBooking } = await supabase
+          .from("bookings")
+          .select("id")
+          .eq("client_id", clientData.id)
+          .eq("class_session_id", classId)
+          .eq("status", "confirmed")
+          .single();
+
+        if (existingBooking) {
+          setMessage("You have already booked this class.");
+          return;
+        }
+
         // Create booking with client_id
         const { error } = await supabase.from("bookings").insert({
           class_session_id: classId,
