@@ -26,8 +26,6 @@ import {
   Apple,
 } from "lucide-react";
 import DashboardLayout from "@/app/components/DashboardLayout";
-import { createClient } from "@/app/lib/supabase/client";
-import { useOrganization } from "@/app/hooks/useOrganization";
 import MembershipsTab from "@/app/components/customers/tabs/MembershipsTab";
 import NotesTab from "@/app/components/customers/tabs/NotesTab";
 import WaiversTab from "@/app/components/customers/tabs/WaiversTab";
@@ -84,8 +82,6 @@ export default function CustomerProfilePage() {
   const params = useParams();
   const router = useRouter();
   const customerId = params.customerId as string;
-  const { organizationId } = useOrganization();
-  const supabase = createClient();
 
   const [loading, setLoading] = useState(true);
   const [customer, setCustomer] = useState<CustomerProfile | null>(null);
@@ -103,94 +99,30 @@ export default function CustomerProfilePage() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
-    if (customerId && organizationId) {
+    if (customerId) {
       loadCustomerProfile();
     }
-  }, [customerId, organizationId]);
+  }, [customerId]);
 
   useEffect(() => {
-    if (customerId && organizationId && activeTab !== "profile") {
+    if (customerId && activeTab !== "profile") {
       loadTabData();
     }
-  }, [activeTab, customerId, organizationId]);
+  }, [activeTab, customerId]);
 
   const loadCustomerProfile = async () => {
     setLoading(true);
     try {
-      // Prefer clients table; fallback to leads if not found
-      let { data, error } = await supabase
-        .from("clients")
-        .select("*")
-        .eq("id", customerId)
-        .eq("org_id", organizationId)
-        .single();
+      const response = await fetch(`/api/customers/${customerId}`);
+      const result = await response.json();
 
-      if (error || !data) {
-        const res = await supabase
-          .from("leads")
-          .select("*")
-          .eq("id", customerId)
-          .eq("organization_id", organizationId)
-          .single();
-        data = res.data as any;
-        error = res.error as any;
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to load customer");
       }
 
-      if (error) throw error;
+      const data = result.customer;
 
       if (data) {
-        // Calculate total visits from class_bookings
-        const { data: bookings } = await supabase
-          .from("class_bookings")
-          .select("id, booking_date, attended_at")
-          .or(`client_id.eq.${customerId},customer_id.eq.${customerId}`)
-          .not("attended_at", "is", null);
-
-        const totalVisits = bookings?.length || 0;
-
-        // Find the most recent visit
-        let lastVisitDate = data.last_visit || data.last_visit_date;
-        if (bookings && bookings.length > 0) {
-          const sortedBookings = bookings.sort((a, b) => {
-            const dateA = new Date(a.booking_date || a.attended_at);
-            const dateB = new Date(b.booking_date || b.attended_at);
-            return dateB.getTime() - dateA.getTime();
-          });
-          lastVisitDate =
-            sortedBookings[0].booking_date || sortedBookings[0].attended_at;
-        }
-
-        // Calculate lifetime value from payments
-        let lifetimeValue = 0;
-
-        // Get payments from both tables
-        const [paymentsResult, transactionsResult] = await Promise.all([
-          supabase
-            .from("payments")
-            .select("amount")
-            .eq("client_id", customerId)
-            .or("payment_status.eq.completed,payment_status.is.null"),
-          supabase
-            .from("transactions")
-            .select("amount")
-            .eq("client_id", customerId)
-            .eq("type", "payment"),
-        ]);
-
-        // Sum up payments (amounts are stored in pounds, not pennies)
-        if (paymentsResult.data) {
-          lifetimeValue += paymentsResult.data.reduce(
-            (sum, p) => sum + (p.amount || 0),
-            0,
-          );
-        }
-        if (transactionsResult.data) {
-          lifetimeValue += transactionsResult.data.reduce(
-            (sum, t) => sum + (t.amount || 0),
-            0,
-          );
-        }
-
         // Normalize to CustomerProfile shape
         const name = (
           data.name || `${data.first_name || ""} ${data.last_name || ""}`
@@ -198,18 +130,16 @@ export default function CustomerProfilePage() {
         const normalized: any = {
           ...data,
           name,
-          total_visits: totalVisits,
-          last_visit_date: lastVisitDate,
-          lifetime_value: lifetimeValue * 100, // Convert to pennies for display (as UI expects pennies)
+          total_visits: data.total_visits || 0,
+          last_visit_date: data.last_visit || data.last_visit_date,
+          lifetime_value: data.lifetime_value || 0,
           created_at: data.created_at,
           updated_at: data.updated_at,
         };
         setCustomer(normalized);
         setEditForm(normalized);
 
-        console.log(`Calculated Total Visits for ${name}: ${totalVisits}`);
-        console.log(`Last Visit: ${lastVisitDate}`);
-        console.log(`Lifetime Value: £${lifetimeValue.toFixed(2)}`);
+        console.log(`Loaded customer profile: ${name}`);
       }
     } catch (error) {
       console.error("Error loading customer:", error);
@@ -226,21 +156,7 @@ export default function CustomerProfilePage() {
         case "activity":
           await loadActivity();
           break;
-        case "payments":
-          await loadPayments();
-          break;
-        case "memberships":
-          await loadMemberships();
-          break;
-        case "notes":
-          await loadNotes();
-          break;
-        case "waivers":
-          await loadWaivers();
-          break;
-        case "class-bookings":
-          await loadClassBookings();
-          break;
+        // Other tabs handle their own data loading
       }
     } catch (error) {
       console.error("Error loading tab data:", error);
@@ -249,7 +165,6 @@ export default function CustomerProfilePage() {
 
   const loadActivity = async () => {
     try {
-      // Load customer activity from various sources
       const response = await fetch(`/api/customers/${customerId}/activity`);
       const data = await response.json();
 
@@ -723,23 +638,17 @@ export default function CustomerProfilePage() {
 
   const handleSaveProfile = async () => {
     try {
-      // Update whichever record exists
-      const updates = { ...editForm, updated_at: new Date().toISOString() };
-      const { error: updateClientErr } = await supabase
-        .from("clients")
-        .update(updates)
-        .eq("id", customerId);
-      const { error: updateLeadErr } = await supabase
-        .from("leads")
-        .update(updates)
-        .eq("id", customerId)
-        .eq("organization_id", organizationId);
-      const error =
-        updateClientErr && updateLeadErr
-          ? updateClientErr || updateLeadErr
-          : null;
+      const response = await fetch(`/api/customers/${customerId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm),
+      });
 
-      if (error) throw error;
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to update customer");
+      }
 
       setCustomer({ ...customer!, ...editForm });
       setIsEditing(false);
@@ -1397,27 +1306,20 @@ export default function CustomerProfilePage() {
 
           {/* Class Bookings Tab */}
           {activeTab === "class-bookings" && (
-            <ClassBookingsTab
-              customerId={customerId}
-              organizationId={organizationId!}
-            />
+            <ClassBookingsTab customerId={customerId} />
           )}
 
           {/* Messaging Tab */}
           {activeTab === "messaging" && (
             <ComprehensiveMessagingTab
               customerId={customerId}
-              organizationId={organizationId!}
               customer={customer}
             />
           )}
 
           {/* Nutrition Tab */}
           {activeTab === "nutrition" && (
-            <NutritionTab
-              customerId={customerId}
-              organizationId={organizationId!}
-            />
+            <NutritionTab customerId={customerId} />
           )}
         </div>
       </div>
