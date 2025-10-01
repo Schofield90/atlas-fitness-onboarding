@@ -30,46 +30,10 @@ export async function GET(
       organizationId: user.organizationId,
     });
 
-    // First try to get from clients table
+    // First try to get from clients table - simplified query to avoid join issues
     const { data: clientData, error: clientError } = await supabase
       .from("clients")
-      .select(
-        `
-        *,
-        memberships (
-          id,
-          membership_type,
-          status,
-          start_date,
-          end_date,
-          credits_remaining,
-          unlimited_access
-        ),
-        emergency_contacts (*),
-        customer_medical_info (*),
-        customer_documents (*),
-        customer_waivers (*),
-        customer_family_members (
-          *,
-          family_member_client:clients!customer_family_members_family_member_client_id_fkey(
-            id, first_name, last_name, email, phone
-          )
-        ),
-        bookings (
-          id,
-          booking_status,
-          booking_time,
-          attended_at,
-          class_session:class_sessions (
-            id,
-            name,
-            start_time,
-            end_time,
-            program:programs (name)
-          )
-        )
-      `,
-      )
+      .select("*")
       .eq("id", customerId)
       .eq("org_id", user.organizationId) // SECURITY: Ensure organization ownership (clients table uses org_id)
       .single();
