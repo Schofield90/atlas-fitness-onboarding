@@ -55,9 +55,9 @@ export default function ClientBookingsPage() {
     console.log("Loading bookings for client:", client.id, client.email);
 
     // Get bookings from BOTH tables (bookings and class_bookings)
-    // First, get from the class_bookings table
+    // First, get from the bookings table (newer)
     let { data: directBookings, error: directError } = await supabase
-      .from("class_bookings")
+      .from("bookings")
       .select(
         `
         *,
