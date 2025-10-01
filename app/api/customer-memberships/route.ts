@@ -94,3 +94,58 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const user = await requireAuth();
+    const supabase = createAdminClient();
+
+    const url = new URL(request.url);
+    const membershipId = url.searchParams.get("id");
+
+    if (!membershipId) {
+      return NextResponse.json(
+        { error: "Missing membership ID" },
+        { status: 400 },
+      );
+    }
+
+    // Verify the membership belongs to the user's organization
+    const { data: membership, error: fetchError } = await supabase
+      .from("customer_memberships")
+      .select("id, organization_id")
+      .eq("id", membershipId)
+      .eq("organization_id", user.organizationId)
+      .single();
+
+    if (fetchError || !membership) {
+      return NextResponse.json(
+        { error: "Membership not found or unauthorized" },
+        { status: 404 },
+      );
+    }
+
+    // Delete the membership
+    const { error: deleteError } = await supabase
+      .from("customer_memberships")
+      .delete()
+      .eq("id", membershipId)
+      .eq("organization_id", user.organizationId);
+
+    if (deleteError) {
+      console.error("Error deleting membership:", deleteError);
+      return NextResponse.json(
+        { error: "Failed to delete membership" },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error("Error in DELETE /api/customer-memberships:", error);
+    return NextResponse.json(
+      { error: error.message || "Internal server error" },
+      { status: 500 },
+    );
+  }
+}

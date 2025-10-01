@@ -149,15 +149,31 @@ export default function MembershipsTab({ customerId }: MembershipsTabProps) {
 
   const handleCancel = async (membership: any) => {
     try {
-      if (!confirm("Cancel this membership? This will end it today.")) return;
-      const today = new Date().toISOString().split("T")[0];
-      await updateMembership(membership.id, {
-        status: "cancelled",
-        end_date: today,
-      });
+      if (
+        !confirm(
+          "Delete this membership permanently? This cannot be undone.\n\nClick OK to delete, or Cancel to keep it.",
+        )
+      )
+        return;
+
+      const response = await fetch(
+        `/api/customer-memberships?id=${membership.id}`,
+        {
+          method: "DELETE",
+        },
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to delete membership");
+      }
+
       await fetchMemberships();
     } catch (error) {
-      console.error("Error cancelling membership:", error);
+      console.error("Error deleting membership:", error);
+      alert(
+        error instanceof Error ? error.message : "Failed to delete membership",
+      );
     }
   };
 
@@ -375,7 +391,7 @@ export default function MembershipsTab({ customerId }: MembershipsTabProps) {
                         handleCancel(membership);
                       }}
                     >
-                      <XCircle className="h-4 w-4" /> Cancel
+                      <XCircle className="h-4 w-4" /> Delete
                     </button>
                     <button
                       className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
