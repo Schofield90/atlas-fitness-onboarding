@@ -299,22 +299,31 @@ export default function ClientBookingsPage() {
   const cancelBooking = async () => {
     if (!selectedBooking) return;
 
-    const response = await fetch(`/api/v2/bookings/${selectedBooking.id}`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        customerId: client.id,
-        organizationId: client.organization_id,
-      }),
-    });
+    try {
+      // Try to cancel in bookings table
+      const { error } = await supabase
+        .from("bookings")
+        .update({ status: "cancelled" })
+        .eq("id", selectedBooking.id)
+        .eq("client_id", client.id);
 
-    if (response.ok) {
+      if (error) {
+        // Try alternate table name
+        const { error: altError } = await supabase
+          .from("class_bookings")
+          .update({ booking_status: "cancelled" })
+          .eq("id", selectedBooking.id)
+          .eq("client_id", client.id);
+
+        if (altError) throw altError;
+      }
+
       setCancelModalOpen(false);
       setSelectedBooking(null);
       loadBookings();
-    } else {
-      const error = await response.json();
-      alert(error.error || "Failed to cancel booking");
+    } catch (error) {
+      console.error("Error cancelling booking:", error);
+      alert("Failed to cancel booking");
     }
   };
 
