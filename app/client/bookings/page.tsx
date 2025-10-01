@@ -300,21 +300,35 @@ export default function ClientBookingsPage() {
     if (!selectedBooking) return;
 
     try {
+      console.log(
+        "Attempting to cancel booking:",
+        selectedBooking.id,
+        "for client:",
+        client.id,
+      );
+
       // Cancel booking directly via Supabase (not admin API)
       // Try to cancel in bookings table
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("bookings")
         .update({ status: "cancelled" })
         .eq("id", selectedBooking.id)
-        .eq("client_id", client.id);
+        .eq("client_id", client.id)
+        .select();
+
+      console.log("Cancel result:", { data, error });
 
       if (error) {
+        console.log("First attempt failed, trying class_bookings table");
         // Try alternate table name
-        const { error: altError } = await supabase
+        const { data: altData, error: altError } = await supabase
           .from("class_bookings")
           .update({ booking_status: "cancelled" })
           .eq("id", selectedBooking.id)
-          .eq("client_id", client.id);
+          .eq("client_id", client.id)
+          .select();
+
+        console.log("Alt cancel result:", { altData, altError });
 
         if (altError) throw altError;
       }
@@ -324,7 +338,7 @@ export default function ClientBookingsPage() {
       loadBookings();
     } catch (error) {
       console.error("Error cancelling booking:", error);
-      alert("Failed to cancel booking");
+      alert("Failed to cancel booking: " + (error as any).message);
     }
   };
 
