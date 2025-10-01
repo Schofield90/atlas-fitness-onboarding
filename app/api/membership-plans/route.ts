@@ -64,14 +64,16 @@ async function createMembershipPlan(request: NextRequest) {
   }
 
   // Create the membership plan
-  // Use 'price' column name (not 'price_pennies') to match database schema
+  // Database has both 'price' (pounds) and 'price_pennies' (pennies) columns
+  // Store the value correctly in price_pennies
   const { data: membershipPlan, error } = await supabase
     .from("membership_plans")
     .insert({
       organization_id: userWithOrg.organizationId,
       name: body.name,
       description: body.description || "",
-      price: body.price_pennies, // Column is 'price' in database
+      price_pennies: body.price_pennies, // Store in pennies column
+      price: body.price_pennies / 100, // Also store in pounds for backwards compatibility
       billing_period: body.billing_period,
       features: body.features || [],
       is_active: body.is_active !== undefined ? body.is_active : true,
