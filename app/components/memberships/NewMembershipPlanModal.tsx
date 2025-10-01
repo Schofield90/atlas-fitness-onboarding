@@ -71,6 +71,12 @@ const NewMembershipPlanModal: React.FC<NewMembershipPlanModalProps> = ({
       // Convert price to pence (database expects price_pennies as integer)
       const pricePennies = Math.round(parseFloat(formData.price) * 100);
 
+      console.log("DEBUG: Price conversion", {
+        formDataPrice: formData.price,
+        parsedFloat: parseFloat(formData.price),
+        pricePennies: pricePennies,
+      });
+
       // Determine billing period
       let billingPeriod = "monthly";
       if (formData.durationType === "year") {

@@ -40,6 +40,12 @@ async function createMembershipPlan(request: NextRequest) {
 
   const body: MembershipPlanRequest = await request.json();
 
+  console.log("API received membership plan data:", {
+    name: body.name,
+    price_pennies: body.price_pennies,
+    billing_period: body.billing_period,
+  });
+
   // Validate required fields
   if (!body.name) {
     throw ValidationError.required("name");
@@ -66,22 +72,29 @@ async function createMembershipPlan(request: NextRequest) {
   // Create the membership plan
   // Database has both 'price' (pounds) and 'price_pennies' (pennies) columns
   // Store the value correctly in price_pennies
+  const insertData = {
+    organization_id: userWithOrg.organizationId,
+    name: body.name,
+    description: body.description || "",
+    price_pennies: body.price_pennies, // Store in pennies column
+    price: body.price_pennies / 100, // Also store in pounds for backwards compatibility
+    billing_period: body.billing_period,
+    features: body.features || [],
+    is_active: body.is_active !== undefined ? body.is_active : true,
+    trial_days: body.trial_days || 0,
+    max_members: body.class_limit || null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  console.log("API inserting to database:", {
+    price_pennies: insertData.price_pennies,
+    price: insertData.price,
+  });
+
   const { data: membershipPlan, error } = await supabase
     .from("membership_plans")
-    .insert({
-      organization_id: userWithOrg.organizationId,
-      name: body.name,
-      description: body.description || "",
-      price_pennies: body.price_pennies, // Store in pennies column
-      price: body.price_pennies / 100, // Also store in pounds for backwards compatibility
-      billing_period: body.billing_period,
-      features: body.features || [],
-      is_active: body.is_active !== undefined ? body.is_active : true,
-      trial_days: body.trial_days || 0,
-      max_members: body.class_limit || null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
+    .insert(insertData)
     .select()
     .single();
 
