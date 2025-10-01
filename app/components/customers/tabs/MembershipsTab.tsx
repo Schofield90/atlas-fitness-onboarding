@@ -251,7 +251,11 @@ export default function MembershipsTab({ customerId }: MembershipsTabProps) {
                   <div className="mt-2">
                     <span className="text-lg font-semibold text-white">
                       {formatBritishCurrency(
-                        membership.membership_plan?.price || 0,
+                        membership.membership_plan?.price_pennies ||
+                          (membership.membership_plan?.price
+                            ? membership.membership_plan.price * 100
+                            : 0),
+                        true,
                       )}
                     </span>
                     <span className="text-sm text-gray-400 ml-1">
@@ -279,7 +283,11 @@ export default function MembershipsTab({ customerId }: MembershipsTabProps) {
                       <p className="text-xs text-gray-400 mt-2">Billing</p>
                       <p className="text-white">
                         {formatBritishCurrency(
-                          membership.membership_plan?.price || 0,
+                          membership.membership_plan?.price_pennies ||
+                            (membership.membership_plan?.price
+                              ? membership.membership_plan.price * 100
+                              : 0),
+                          true,
                         )}{" "}
                         /{" "}
                         {membership.membership_plan?.billing_period || "month"}
