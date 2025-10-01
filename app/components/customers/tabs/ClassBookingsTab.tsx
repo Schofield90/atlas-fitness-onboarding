@@ -204,6 +204,8 @@ export default function ClassBookingsTab({
       "in org:",
       organizationId,
     );
+    console.log("organizationId type:", typeof organizationId);
+    console.log("organizationId length:", organizationId?.length);
 
     // Query BOTH bookings and class_bookings tables
     const [bookingsResult, classBookingsResult] = await Promise.all([
@@ -262,6 +264,10 @@ export default function ClassBookingsTab({
 
     let { data, error } = classBookingsResult;
 
+    // Log query results
+    console.log("bookingsResult:", bookingsResult);
+    console.log("classBookingsResult:", classBookingsResult);
+
     // Combine bookings from both tables
     const bookingsTableData = bookingsResult.data || [];
     const classBookingsTableData = data || [];
@@ -270,7 +276,9 @@ export default function ClassBookingsTab({
     let allBookingsData = [...bookingsTableData, ...classBookingsTableData];
 
     console.log("Bookings table data:", bookingsTableData.length);
+    console.log("Bookings table raw:", bookingsTableData);
     console.log("Class bookings table data:", classBookingsTableData.length);
+    console.log("Class bookings raw:", classBookingsTableData);
     console.log("Combined total:", allBookingsData.length);
 
     if (error && bookingsResult.error) {

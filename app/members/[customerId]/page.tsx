@@ -120,15 +120,21 @@ export default function CustomerProfilePage() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
+      console.log("Current user:", user?.id);
       if (user) {
-        const { data: userOrg } = await supabase
+        const { data: userOrg, error: orgError } = await supabase
           .from("user_organizations")
           .select("organization_id")
           .eq("user_id", user.id)
           .single();
 
+        console.log("User org query result:", userOrg, orgError);
+
         if (userOrg?.organization_id) {
           setOrganizationId(userOrg.organization_id);
+          console.log("Set organizationId to:", userOrg.organization_id);
+        } else {
+          console.warn("No organization found for user");
         }
       }
 
