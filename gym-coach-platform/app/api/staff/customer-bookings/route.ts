@@ -163,8 +163,16 @@ export async function GET(request: NextRequest) {
         .order("created_at", { ascending: false }),
     ]);
 
-    console.log('[API] Bookings result:', bookingsResult);
-    console.log('[API] Class bookings result:', classBookingsResult);
+    // Check for errors
+    if (bookingsResult.error) {
+      console.error('[API] Bookings query error:', bookingsResult.error);
+    }
+    if (classBookingsResult.error) {
+      console.error('[API] Class bookings query error:', classBookingsResult.error);
+    }
+
+    console.log('[API] Bookings count:', bookingsResult.data?.length || 0);
+    console.log('[API] Class bookings count:', classBookingsResult.data?.length || 0);
 
     const bookingsData = bookingsResult.data || [];
     const classBookingsData = classBookingsResult.data || [];
