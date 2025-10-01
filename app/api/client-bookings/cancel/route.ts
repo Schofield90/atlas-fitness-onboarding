@@ -66,28 +66,34 @@ export async function POST(request: NextRequest) {
           .select();
 
         if (altError || !altData || altData.length === 0) {
-          // Try class_bookings with customer_id via leads table
-          const { data: leadData } = await supabase
-            .from("leads")
-            .select("id")
-            .eq("client_id", clientByEmail.id)
+          // Try class_bookings by ID only and verify ownership via customer_id
+          console.log("[Cancel] Checking booking by ID for customer_id field");
+          const { data: bookingData } = await supabase
+            .from("class_bookings")
+            .select("customer_id")
+            .eq("id", bookingId)
             .single();
 
-          if (leadData) {
-            const { data: customerBookingData, error: customerBookingError } =
-              await supabase
+          if (bookingData?.customer_id) {
+            // Booking has customer_id, verify it belongs to this client via leads
+            const { data: leadData } = await supabase
+              .from("leads")
+              .select("id")
+              .eq("id", bookingData.customer_id)
+              .eq("client_id", clientByEmail.id)
+              .single();
+
+            if (leadData) {
+              // Verified ownership, cancel the booking
+              const { data: cancelledData, error: cancelError } = await supabase
                 .from("class_bookings")
                 .update({ booking_status: "cancelled" })
                 .eq("id", bookingId)
-                .eq("customer_id", leadData.id)
                 .select();
 
-            if (
-              !customerBookingError &&
-              customerBookingData &&
-              customerBookingData.length > 0
-            ) {
-              return NextResponse.json({ success: true });
+              if (!cancelError && cancelledData && cancelledData.length > 0) {
+                return NextResponse.json({ success: true });
+              }
             }
           }
 
@@ -119,28 +125,33 @@ export async function POST(request: NextRequest) {
         .select();
 
       if (altError || !altData || altData.length === 0) {
-        // Try class_bookings with customer_id via leads table
-        const { data: leadData } = await supabase
-          .from("leads")
-          .select("id")
-          .eq("client_id", clientData.id)
+        // Try class_bookings by ID only and verify ownership via customer_id
+        const { data: bookingData } = await supabase
+          .from("class_bookings")
+          .select("customer_id")
+          .eq("id", bookingId)
           .single();
 
-        if (leadData) {
-          const { data: customerBookingData, error: customerBookingError } =
-            await supabase
+        if (bookingData?.customer_id) {
+          // Booking has customer_id, verify it belongs to this client via leads
+          const { data: leadData } = await supabase
+            .from("leads")
+            .select("id")
+            .eq("id", bookingData.customer_id)
+            .eq("client_id", clientData.id)
+            .single();
+
+          if (leadData) {
+            // Verified ownership, cancel the booking
+            const { data: cancelledData, error: cancelError } = await supabase
               .from("class_bookings")
               .update({ booking_status: "cancelled" })
               .eq("id", bookingId)
-              .eq("customer_id", leadData.id)
               .select();
 
-          if (
-            !customerBookingError &&
-            customerBookingData &&
-            customerBookingData.length > 0
-          ) {
-            return NextResponse.json({ success: true });
+            if (!cancelError && cancelledData && cancelledData.length > 0) {
+              return NextResponse.json({ success: true });
+            }
           }
         }
 
