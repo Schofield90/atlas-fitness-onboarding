@@ -5,6 +5,7 @@ import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
 
 // Force dynamic rendering for this route
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function GET(
   request: NextRequest,
