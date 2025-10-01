@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
+import { createAdminClient } from "@/app/lib/supabase/admin";
 import { requireAuth, createErrorResponse } from "@/app/lib/api/auth-check";
 
 // Force dynamic rendering for this route
@@ -12,7 +13,14 @@ export async function GET(
   try {
     // SECURITY: Get authenticated user's organization
     const user = await requireAuth();
-    const supabase = await createClient();
+    console.log("[GET /api/customers/[id]] Auth successful:", {
+      userId: user.id,
+      organizationId: user.organizationId,
+      email: user.email,
+    });
+
+    // Use admin client to bypass RLS
+    const supabase = createAdminClient();
 
     const { id: customerId } = await params;
 
@@ -151,7 +159,8 @@ export async function PATCH(
   try {
     // SECURITY: Get authenticated user's organization
     const user = await requireAuth();
-    const supabase = await createClient();
+    // Use admin client to bypass RLS
+    const supabase = createAdminClient();
 
     const { id: customerId } = await params;
     const updates = await request.json();
