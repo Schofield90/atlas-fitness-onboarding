@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 
@@ -95,10 +96,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Create service role client to bypass RLS
+    const supabaseAdmin = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
+
     // Fetch from both tables using service role
     const [bookingsResult, classBookingsResult] = await Promise.all([
       // Query bookings table
-      supabase
+      supabaseAdmin
         .from("bookings")
         .select(
           `
@@ -124,7 +137,7 @@ export async function GET(request: NextRequest) {
         .order("created_at", { ascending: false }),
 
       // Query class_bookings table
-      supabase
+      supabaseAdmin
         .from("class_bookings")
         .select(
           `
