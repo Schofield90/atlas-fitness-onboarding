@@ -22,6 +22,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
+    // Validate user.id
+    if (!user.id || user.id === "") {
+      console.error("[API] Invalid user.id:", user.id);
+      return NextResponse.json({ error: "Invalid user session" }, { status: 401 });
+    }
+
     // Get customerId from query params
     const { searchParams } = new URL(request.url);
     const customerId = searchParams.get("customerId");
@@ -33,28 +39,42 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    console.log("[API] Checking staff access for user:", user.id, "customer:", customerId);
+
     // Verify staff has access to this organization
     // Check user_organizations first
-    const { data: staffOrg } = await supabase
+    const { data: staffOrg, error: staffOrgError } = await supabase
       .from("user_organizations")
       .select("organization_id, role")
       .eq("user_id", user.id)
       .maybeSingle();
 
+    if (staffOrgError) {
+      console.error("[API] Error checking user_organizations:", staffOrgError);
+    }
+
     // Fallback to organization_staff table if not found
     let organizationId = staffOrg?.organization_id;
 
     if (!organizationId) {
-      const { data: staffRecord } = await supabase
+      const { data: staffRecord, error: staffRecordError } = await supabase
         .from("organization_staff")
         .select("organization_id")
         .eq("user_id", user.id)
         .maybeSingle();
 
+      if (staffRecordError) {
+        console.error("[API] Error checking organization_staff:", staffRecordError);
+      }
+
       organizationId = staffRecord?.organization_id;
+      console.log("[API] Fallback to organization_staff, found org:", organizationId);
+    } else {
+      console.log("[API] Found org from user_organizations:", organizationId);
     }
 
     if (!organizationId) {
+      console.error("[API] No organization found for user:", user.id);
       return NextResponse.json(
         { error: "Staff organization not found" },
         { status: 403 },
