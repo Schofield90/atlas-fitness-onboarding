@@ -20,7 +20,12 @@ interface AdminSidebarProps {
 export default function AdminSidebar({ role }: AdminSidebarProps) {
   const pathname = usePathname();
 
-  const navigation = [
+  const navigation: Array<{
+    name: string;
+    href: string;
+    icon: any;
+    indent?: boolean;
+  }> = [
     { name: "Dashboard", href: "/admin", icon: HomeIcon },
     {
       name: "Organizations",
@@ -29,6 +34,12 @@ export default function AdminSidebar({ role }: AdminSidebarProps) {
     },
     { name: "Users", href: "/admin/users", icon: UsersIcon },
     { name: "Billing", href: "/admin/billing", icon: CreditCardIcon },
+    {
+      name: "Plans",
+      href: "/admin/billing/plans",
+      icon: CreditCardIcon,
+      indent: true,
+    },
     { name: "Analytics", href: "/admin/analytics", icon: ChartBarIcon },
     { name: "Audit Logs", href: "/admin/audit", icon: DocumentTextIcon },
     { name: "Security", href: "/admin/security", icon: ShieldCheckIcon },
@@ -57,6 +68,7 @@ export default function AdminSidebar({ role }: AdminSidebarProps) {
                 href={item.href}
                 className={`
                   group flex items-center px-2 py-2 text-sm font-medium rounded-md
+                  ${item.indent ? "pl-11" : ""}
                   ${
                     isActive
                       ? "bg-blue-100 text-blue-700"
