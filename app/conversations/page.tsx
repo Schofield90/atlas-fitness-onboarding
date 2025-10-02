@@ -48,25 +48,40 @@ function ConversationsContent() {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) return;
-      const { data: userDataRow } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", user.id)
-        .single();
+
+      // Check user_organizations first (matching messages API pattern)
       const { data: userOrg } = await supabase
         .from("user_organizations")
-        .select("organization_id")
+        .select("organization_id, role")
         .eq("user_id", user.id)
-        .single();
-      // Provide a minimal fallback shape to keep coaching UI working
+        .maybeSingle();
+
+      let organizationId = userOrg?.organization_id;
+
+      // Fallback to organization_staff if not found
+      if (!organizationId) {
+        const { data: staffRecord } = await supabase
+          .from("organization_staff")
+          .select("organization_id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        organizationId = staffRecord?.organization_id;
+      }
+
+      // Set user data with organization
       setUserData({
-        ...(userDataRow || {}),
         id: user.id,
         full_name:
-          userDataRow?.full_name || user.email?.split("@")[0] || "Coach",
-        organization_id: userOrg?.organization_id || null,
+          user.user_metadata?.name ||
+          user.user_metadata?.full_name ||
+          user.email?.split("@")[0] ||
+          "Coach",
+        email: user.email,
+        organization_id: organizationId || null,
       });
-    } catch (_) {
+    } catch (error) {
+      console.error("[Conversations] Error loading user data:", error);
       // If anything fails, still set a minimal user so the UI renders
       const {
         data: { user },
@@ -75,6 +90,7 @@ function ConversationsContent() {
         setUserData({
           id: user.id,
           full_name: user.email?.split("@")[0] || "Coach",
+          email: user.email,
           organization_id: null,
         });
       }
