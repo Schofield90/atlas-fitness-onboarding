@@ -248,40 +248,28 @@ export default function ComprehensiveMessagingTab({
         return;
       }
 
-      const messageData = {
-        organization_id: orgId,
-        customer_id: customerId,
-        client_id: customerId,
-        channel: newMessage.channel,
-        direction: "outbound" as const,
-        subject: newMessage.subject || undefined,
-        content: newMessage.content,
-        status: "pending" as const,
-        sender_id: user?.id,
-        sender_name: user?.email,
-        created_at: new Date().toISOString(),
-      };
-
-      // Insert message into database
-      const { error: insertError } = await supabase
-        .from("messages")
-        .insert(messageData);
-
-      if (insertError) throw insertError;
-
-      // Send actual message based on channel
-      const endpoint = `/api/messages/send`;
-      const response = await fetch(endpoint, {
+      // Send message via API (which will handle insertion and sending)
+      const response = await fetch("/api/messages/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...messageData,
-          recipient: customer?.email || customer?.phone,
+          organization_id: orgId,
+          customer_id: customerId,
+          client_id: customerId,
+          type: newMessage.channel,
+          channel: newMessage.channel,
+          direction: "outbound",
+          subject: newMessage.subject || undefined,
+          body: newMessage.content,
+          content: newMessage.content,
+          to: customer?.email || customer?.phone,
         }),
       });
 
       if (!response.ok) {
-        console.error("Failed to send message via API");
+        const errorData = await response.json();
+        console.error("Failed to send message via API:", errorData);
+        throw new Error(errorData.error || "Failed to send message");
       }
 
       // Reset form and refresh messages
