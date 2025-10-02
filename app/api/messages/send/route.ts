@@ -149,6 +149,7 @@ export async function POST(request: NextRequest) {
       direction,
       status: isInAppMessage ? "delivered" : "pending",
       body: messageContent,
+      content: messageContent, // content column is NOT NULL in schema
       sender_type: "gym",
       sender_name: userData.name || userData.email || "Gym",
       created_at: new Date().toISOString(),

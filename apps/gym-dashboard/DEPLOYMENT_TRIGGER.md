@@ -7,3 +7,5 @@
 # Trigger rebuild Wed 2 Oct 2025 07:18:00 BST - Fix staff messaging with org_staff table support
 
 # Trigger rebuild Wed 2 Oct 2025 07:25:00 BST - Remove user_id from messages schema
+
+# Trigger rebuild Wed 2 Oct 2025 07:36:00 BST - Add content column (NOT NULL)
