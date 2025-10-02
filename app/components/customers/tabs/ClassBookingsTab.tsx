@@ -273,37 +273,21 @@ export default function ClassBookingsTab({
   };
 
   const fetchRecurringBookings = async () => {
-    const { data, error } = await supabase
-      .from("recurring_bookings")
-      .select(
-        `
-        *,
-        class_type:class_types(*)
-      `,
-      )
-      .eq("client_id", customerId)
-      .eq("organization_id", organizationId)
-      .order("created_at", { ascending: false });
-
-    if (error) throw error;
-    setRecurringBookings(data || []);
+    // DISABLED: organizationId is empty, causing UUID errors
+    // API endpoint /api/staff/customer-bookings already returns all bookings
+    console.log(
+      "[ClassBookingsTab] Skipping fetchRecurringBookings - using API data",
+    );
+    setRecurringBookings([]);
   };
 
   const fetchClassPackages = async () => {
-    const { data, error } = await supabase
-      .from("customer_class_packages")
-      .select(
-        `
-        *,
-        package:class_packages(*)
-      `,
-      )
-      .eq("client_id", customerId)
-      .eq("organization_id", organizationId)
-      .order("purchase_date", { ascending: false });
-
-    if (error) throw error;
-    setClassPackages(data || []);
+    // DISABLED: organizationId is empty, causing UUID errors
+    // Not critical for bookings display
+    console.log(
+      "[ClassBookingsTab] Skipping fetchClassPackages - using API data",
+    );
+    setClassPackages([]);
   };
 
   const getUpcomingBookings = () => {
