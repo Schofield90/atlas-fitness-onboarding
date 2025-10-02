@@ -19,6 +19,7 @@ import {
   ChevronDown,
   X,
   Plus,
+  Star,
 } from "lucide-react";
 import toast from "@/app/lib/toast";
 import { formatBritishDateTime } from "@/app/lib/utils/british-format";
@@ -48,6 +49,7 @@ interface Conversation {
   sender_type: "member" | "coach" | "ai" | "gym";
   type: "coaching" | "general";
   membership_status?: string;
+  is_starred?: boolean;
 }
 
 export default function UnifiedMessaging({
@@ -69,6 +71,9 @@ export default function UnifiedMessaging({
   >("in_app");
   const [showReplyArea, setShowReplyArea] = useState(false);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [activeTab, setActiveTab] = useState<"unread" | "recent" | "starred">(
+    "recent",
+  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
@@ -251,21 +256,33 @@ export default function UnifiedMessaging({
         allConversations?.length || 0,
       );
 
+      // Load starred conversations from localStorage
+      const starredKey = `starred_conversations_${userData.organization_id}`;
+      const starredConversations = JSON.parse(
+        localStorage.getItem(starredKey) || "[]",
+      );
+
       // Format conversations for display
       const formattedConversations = (allConversations || []).map(
-        (conv: any) => ({
-          id: conv.conv_id || `${conv.contact_type}-${conv.contact_id}`,
-          contact_id: conv.contact_id,
-          contact_name: conv.contact_name || "Unknown",
-          contact_email: conv.contact_email || "",
-          contact_phone: conv.contact_phone || "",
-          last_message: conv.last_message || "",
-          last_message_time: conv.last_message_time,
-          unread_count: conv.unread_count || 0,
-          sender_type: conv.sender_type || "client",
-          type: conv.contact_type === "client" ? "general" : "coaching",
-          membership_status: conv.contact_type === "client" ? "Client" : "Lead",
-        }),
+        (conv: any) => {
+          const convId =
+            conv.conv_id || `${conv.contact_type}-${conv.contact_id}`;
+          return {
+            id: convId,
+            contact_id: conv.contact_id,
+            contact_name: conv.contact_name || "Unknown",
+            contact_email: conv.contact_email || "",
+            contact_phone: conv.contact_phone || "",
+            last_message: conv.last_message || "",
+            last_message_time: conv.last_message_time,
+            unread_count: conv.unread_count || 0,
+            sender_type: conv.sender_type || "client",
+            type: conv.contact_type === "client" ? "general" : "coaching",
+            membership_status:
+              conv.contact_type === "client" ? "Client" : "Lead",
+            is_starred: starredConversations.includes(convId),
+          };
+        },
       );
 
       setConversations(formattedConversations);
@@ -279,6 +296,12 @@ export default function UnifiedMessaging({
   const loadConversationsOldMethod = async () => {
     try {
       console.log("[UnifiedMessaging] Using old method fallback");
+
+      // Load starred conversations from localStorage
+      const starredKey = `starred_conversations_${userData.organization_id}`;
+      const starredConversations = JSON.parse(
+        localStorage.getItem(starredKey) || "[]",
+      );
 
       // Get all coaching conversations
       const { data: coachingData, error: coachError } = await supabase.rpc(
@@ -299,19 +322,23 @@ export default function UnifiedMessaging({
         coachingData?.length || 0,
       );
 
-      const coachingConversations = (coachingData || []).map((conv: any) => ({
-        id: `coach-${conv.member_id}`,
-        contact_id: conv.member_id,
-        contact_name: conv.member_name,
-        contact_email: conv.member_email,
-        contact_phone: conv.member_phone || "",
-        last_message: conv.last_message,
-        last_message_time: conv.last_message_time,
-        unread_count: conv.unread_count,
-        sender_type: conv.sender_type,
-        type: "coaching" as const,
-        membership_status: "Member",
-      }));
+      const coachingConversations = (coachingData || []).map((conv: any) => {
+        const convId = `coach-${conv.member_id}`;
+        return {
+          id: convId,
+          contact_id: conv.member_id,
+          contact_name: conv.member_name,
+          contact_email: conv.member_email,
+          contact_phone: conv.member_phone || "",
+          last_message: conv.last_message,
+          last_message_time: conv.last_message_time,
+          unread_count: conv.unread_count,
+          sender_type: conv.sender_type,
+          type: "coaching" as const,
+          membership_status: "Member",
+          is_starred: starredConversations.includes(convId),
+        };
+      });
 
       // Get all general conversations from leads
       const { data: leads } = await supabase
@@ -339,8 +366,9 @@ export default function UnifiedMessaging({
             (m) => m.direction === "inbound" && m.status !== "read",
           ).length;
 
+          const convId = `general-${lead.id}`;
           return {
-            id: `general-${lead.id}`,
+            id: convId,
             contact_id: lead.id,
             contact_name:
               `${lead.first_name || ""} ${lead.last_name || ""}`.trim() ||
@@ -355,6 +383,7 @@ export default function UnifiedMessaging({
               lastMessage?.direction === "inbound" ? "member" : "gym",
             type: "general" as const,
             membership_status: lead.status === "converted" ? "Member" : "Lead",
+            is_starred: starredConversations.includes(convId),
           };
         })
         .filter((conv: any) => conv.last_message !== "No messages yet");
@@ -629,12 +658,71 @@ export default function UnifiedMessaging({
     }
   };
 
-  const filteredConversations = conversations.filter(
-    (conv) =>
+  const toggleStar = async (
+    conversationId: string,
+    event: React.MouseEvent,
+  ) => {
+    event.stopPropagation(); // Prevent selecting the conversation
+
+    const conversation = conversations.find((c) => c.id === conversationId);
+    if (!conversation) return;
+
+    const newStarredState = !conversation.is_starred;
+
+    // Optimistically update UI
+    setConversations((prev) =>
+      prev.map((conv) =>
+        conv.id === conversationId
+          ? { ...conv, is_starred: newStarredState }
+          : conv,
+      ),
+    );
+
+    try {
+      // Store starred state in localStorage for now (will move to DB later)
+      const starredKey = `starred_conversations_${userData.organization_id}`;
+      const starredConversations = JSON.parse(
+        localStorage.getItem(starredKey) || "[]",
+      );
+
+      if (newStarredState) {
+        starredConversations.push(conversationId);
+      } else {
+        const index = starredConversations.indexOf(conversationId);
+        if (index > -1) starredConversations.splice(index, 1);
+      }
+
+      localStorage.setItem(starredKey, JSON.stringify(starredConversations));
+      toast.success(
+        newStarredState ? "Conversation starred" : "Conversation unstarred",
+      );
+    } catch (error) {
+      console.error("Error toggling star:", error);
+      // Revert on error
+      setConversations((prev) =>
+        prev.map((conv) =>
+          conv.id === conversationId
+            ? { ...conv, is_starred: !newStarredState }
+            : conv,
+        ),
+      );
+      toast.error("Failed to update star");
+    }
+  };
+
+  const filteredConversations = conversations.filter((conv) => {
+    // Apply tab filter
+    if (activeTab === "unread" && conv.unread_count === 0) return false;
+    if (activeTab === "starred" && !conv.is_starred) return false;
+    // "recent" tab shows all
+
+    // Apply search filter
+    return (
       conv.contact_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       conv.contact_email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      conv.contact_phone.includes(searchQuery.toLowerCase()),
-  );
+      conv.contact_phone.includes(searchQuery.toLowerCase())
+    );
+  });
 
   const getMessageTypeIcon = (type?: string) => {
     switch (type) {
@@ -675,6 +763,49 @@ export default function UnifiedMessaging({
             <MessageCircle className="h-5 w-5 text-blue-400" />
             All Messages
           </h3>
+
+          {/* Tabs */}
+          <div className="flex gap-1 mb-3 bg-gray-900 rounded-lg p-1">
+            <button
+              onClick={() => setActiveTab("unread")}
+              className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === "unread"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-400 hover:text-white hover:bg-gray-800"
+              }`}
+            >
+              Unread
+              {conversations.filter((c) => c.unread_count > 0).length > 0 && (
+                <span className="ml-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5">
+                  {conversations.filter((c) => c.unread_count > 0).length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab("recent")}
+              className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === "recent"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-400 hover:text-white hover:bg-gray-800"
+              }`}
+            >
+              Recent
+            </button>
+            <button
+              onClick={() => setActiveTab("starred")}
+              className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+                activeTab === "starred"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-400 hover:text-white hover:bg-gray-800"
+              }`}
+            >
+              <Star
+                className={`h-4 w-4 ${activeTab === "starred" ? "fill-white" : ""}`}
+              />
+              Starred
+            </button>
+          </div>
+
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
@@ -690,8 +821,37 @@ export default function UnifiedMessaging({
         <div className="flex-1 overflow-y-auto bg-gray-800">
           {filteredConversations.length === 0 ? (
             <div className="p-4 text-center text-gray-400">
-              <MessageCircle className="h-12 w-12 mx-auto mb-2 opacity-50" />
-              <p>No conversations yet</p>
+              {activeTab === "unread" ? (
+                <>
+                  <Check className="h-12 w-12 mx-auto mb-2 opacity-50 text-green-400" />
+                  <p className="font-medium">All caught up!</p>
+                  <p className="text-sm mt-1">No unread messages</p>
+                </>
+              ) : activeTab === "starred" ? (
+                <>
+                  <Star className="h-12 w-12 mx-auto mb-2 opacity-50 text-yellow-400" />
+                  <p className="font-medium">No starred conversations</p>
+                  <p className="text-sm mt-1">
+                    Star conversations to find them easily later
+                  </p>
+                </>
+              ) : searchQuery ? (
+                <>
+                  <Search className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  <p className="font-medium">No results found</p>
+                  <p className="text-sm mt-1">
+                    Try adjusting your search terms
+                  </p>
+                </>
+              ) : (
+                <>
+                  <MessageCircle className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  <p className="font-medium">No conversations yet</p>
+                  <p className="text-sm mt-1">
+                    Start messaging your clients and leads
+                  </p>
+                </>
+              )}
             </div>
           ) : (
             <div className="space-y-1 p-2">
@@ -699,14 +859,37 @@ export default function UnifiedMessaging({
                 <button
                   key={conversation.id}
                   onClick={() => setSelectedConversation(conversation)}
-                  className={`w-full text-left p-3 rounded-lg transition-colors ${
+                  className={`w-full text-left p-3 rounded-lg transition-colors relative group ${
                     selectedConversation?.id === conversation.id
                       ? "bg-gray-700 border border-blue-500"
                       : "hover:bg-gray-700"
                   }`}
                 >
+                  {/* Star button */}
+                  <button
+                    onClick={(e) => toggleStar(conversation.id, e)}
+                    className={`absolute top-2 right-2 p-1 rounded hover:bg-gray-600 transition-opacity z-10 ${
+                      conversation.is_starred
+                        ? "opacity-100"
+                        : "opacity-0 group-hover:opacity-100"
+                    }`}
+                    title={
+                      conversation.is_starred
+                        ? "Remove from starred"
+                        : "Add to starred"
+                    }
+                  >
+                    <Star
+                      className={`h-4 w-4 ${
+                        conversation.is_starred
+                          ? "fill-yellow-400 text-yellow-400"
+                          : "text-gray-400"
+                      }`}
+                    />
+                  </button>
+
                   <div className="flex justify-between items-start mb-1">
-                    <div className="flex-1">
+                    <div className="flex-1 pr-6">
                       <span className="font-medium text-white truncate">
                         {conversation.contact_name}
                       </span>
