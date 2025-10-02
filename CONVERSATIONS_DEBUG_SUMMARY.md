@@ -64,24 +64,43 @@ Open https://login.gymleadhub.co.uk/conversations and check browser console for 
 - `/lib/client-logger.ts` - Browser-side logger
 - `/app/api/logs/route.ts` - Endpoint to receive client logs
 
-## Next Steps
+## ✅ SOLUTION FOUND AND DEPLOYED
 
-1. **Check Production Console Logs**
-   - Open https://login.gymleadhub.co.uk/conversations in browser
-   - Open DevTools Console (F12)
-   - Look for `[Conversations]` and `[UnifiedMessaging]` logs
-   - Share the console output
+### Root Cause
 
-2. **Fix Based on Logs**
-   - If userData doesn't load → Fix organization lookup
-   - If UnifiedMessaging doesn't receive userData → Fix prop passing
-   - If RPC fails → Check database function exists
-   - If conversations don't load → Check query logic
+The conversations page was calling a **non-existent API endpoint** `/api/auth/me` for user authentication.
 
-3. **Verify Fix**
-   - Deploy fix to production
-   - Test on https://login.gymleadhub.co.uk/conversations
-   - Run E2E test against production: `npx playwright test e2e/conversations-page.spec.ts --headed --project=chromium --config=playwright.config.production.ts`
+### Investigation
+
+- Console logs showed: `GET /api/auth/me 404 (Not Found)`
+- However, `useOrganization` hook successfully loaded organization data
+- Found that `useOrganization` uses `/api/auth/get-organization` endpoint (line 69 in `/app/hooks/useOrganization.tsx`)
+
+### Fix Applied (Commit 234ca06e)
+
+- Changed conversations page to use `/api/auth/get-organization` endpoint
+- Removed all references to non-existent `/api/auth/me`
+- Simplified loadUserData to use proven working endpoint
+- Maintains same userData structure for UnifiedMessaging
+
+### Next Steps
+
+1. **Wait for Vercel Deployment** (~2 minutes)
+   - Check deployment at: https://vercel.com/your-team/atlas-fitness
+
+2. **Test Production**
+   - Visit https://login.gymleadhub.co.uk/conversations
+   - Should see conversations load instead of stuck on "Loading..."
+   - Console logs should show:
+     ```
+     [Conversations] API response status: 200
+     [Conversations] API result: {success: true, data: {...}}
+     [Conversations] Setting userData: {...}
+     [UnifiedMessaging] userData available, loading conversations
+     ```
+
+3. **Verify E2E (Optional)**
+   - Run: `npx playwright test e2e/conversations-page.spec.ts --headed`
 
 ## Production URLs
 

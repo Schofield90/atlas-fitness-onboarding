@@ -19,11 +19,15 @@ async function checkAdminAuth(supabase: any) {
   } = await supabase.auth.getUser();
 
   if (error || !user) {
+    console.error("Auth check failed:", error);
     return { authorized: false, error: "Not authenticated" };
   }
 
-  const authorizedEmails = ["sam@atlas-gyms.co.uk", "sam@gymleadhub.co.uk"];
+  console.log("Checking admin auth for user:", user.email);
+
+  const authorizedEmails = ["sam@gymleadhub.co.uk"];
   if (!authorizedEmails.includes(user.email?.toLowerCase() || "")) {
+    console.error("User not authorized:", user.email);
     return { authorized: false, error: "Not authorized for admin access" };
   }
 
