@@ -20,19 +20,16 @@ interface BillingPlan {
   name: string;
   slug: string;
   description: string;
-  is_active: boolean;
-  is_popular: boolean;
-  sort_order: number;
-  monthly_price: number;
-  annual_price: number;
-  setup_fee: number;
-  max_members: number | null;
-  max_staff: number | null;
-  max_locations: number;
-  max_email_sends_per_month: number | null;
-  max_sms_sends_per_month: number | null;
-  max_ai_credits_per_month: number | null;
+  price_monthly: number;
+  price_yearly: number;
+  stripe_price_id?: string;
+  stripe_price_id_yearly?: string;
+  stripe_product_id?: string;
   features: any;
+  limits: any;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export default function BillingPlansAdmin() {
@@ -48,25 +45,11 @@ export default function BillingPlansAdmin() {
     name: "",
     slug: "",
     description: "",
+    price_monthly: 0,
+    price_yearly: 0,
     is_active: true,
-    is_popular: false,
-    monthly_price: 0,
-    annual_price: 0,
-    setup_fee: 0,
-    max_members: null,
-    max_staff: null,
-    max_locations: 1,
-    max_email_sends_per_month: null,
-    max_sms_sends_per_month: null,
-    max_ai_credits_per_month: null,
-    features: {
-      core: {},
-      communication: {},
-      ai: {},
-      integrations: {},
-      support: {},
-      advanced: {},
-    },
+    features: {},
+    limits: {},
   });
 
   useEffect(() => {
@@ -76,7 +59,7 @@ export default function BillingPlansAdmin() {
   const loadPlans = async () => {
     try {
       const { data, error } = await supabase
-        .from("billing_plans")
+        .from("saas_plans")
         .select("*")
         .order("sort_order");
 
@@ -97,7 +80,7 @@ export default function BillingPlansAdmin() {
       if (editingPlan) {
         // Update existing plan
         const { error } = await supabase
-          .from("billing_plans")
+          .from("saas_plans")
           .update(formData)
           .eq("id", editingPlan.id);
 
@@ -109,7 +92,7 @@ export default function BillingPlansAdmin() {
         }
       } else {
         // Create new plan
-        const { error } = await supabase.from("billing_plans").insert(formData);
+        const { error } = await supabase.from("saas_plans").insert(formData);
 
         if (!error) {
           await loadPlans();
@@ -132,10 +115,7 @@ export default function BillingPlansAdmin() {
     if (!confirm("Are you sure you want to delete this plan?")) return;
 
     try {
-      const { error } = await supabase
-        .from("billing_plans")
-        .delete()
-        .eq("id", id);
+      const { error } = await supabase.from("saas_plans").delete().eq("id", id);
 
       if (!error) {
         await loadPlans();
@@ -150,25 +130,11 @@ export default function BillingPlansAdmin() {
       name: "",
       slug: "",
       description: "",
+      price_monthly: 0,
+      price_yearly: 0,
       is_active: true,
-      is_popular: false,
-      monthly_price: 0,
-      annual_price: 0,
-      setup_fee: 0,
-      max_members: null,
-      max_staff: null,
-      max_locations: 1,
-      max_email_sends_per_month: null,
-      max_sms_sends_per_month: null,
-      max_ai_credits_per_month: null,
-      features: {
-        core: {},
-        communication: {},
-        ai: {},
-        integrations: {},
-        support: {},
-        advanced: {},
-      },
+      features: {},
+      limits: {},
     });
   };
 
