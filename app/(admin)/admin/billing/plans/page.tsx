@@ -434,11 +434,17 @@ export default function BillingPlansAdmin() {
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.monthly_price || ""}
+                      value={
+                        formData.price_monthly
+                          ? (formData.price_monthly / 100).toFixed(2)
+                          : ""
+                      }
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          monthly_price: parseFloat(e.target.value),
+                          price_monthly: Math.round(
+                            parseFloat(e.target.value) * 100,
+                          ),
                         })
                       }
                       className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
@@ -452,11 +458,17 @@ export default function BillingPlansAdmin() {
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.annual_price || ""}
+                      value={
+                        formData.price_yearly
+                          ? (formData.price_yearly / 100).toFixed(2)
+                          : ""
+                      }
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          annual_price: parseFloat(e.target.value),
+                          price_yearly: Math.round(
+                            parseFloat(e.target.value) * 100,
+                          ),
                         })
                       }
                       className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
