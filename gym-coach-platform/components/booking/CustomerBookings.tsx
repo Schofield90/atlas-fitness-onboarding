@@ -53,15 +53,20 @@ export function CustomerBookings({ memberId }: CustomerBookingsProps = {}) {
     setLoadingBookings(true);
     try {
       if (!memberId) {
+        console.log('[CustomerBookings] No memberId provided');
         setBookings([]);
         setLoadingBookings(false);
         return;
       }
 
+      console.log('[CustomerBookings] Fetching bookings for memberId:', memberId);
       const response = await fetch(`/api/staff/customer-bookings?customerId=${memberId}`);
+      console.log('[CustomerBookings] API response status:', response.status);
+
       if (response.ok) {
         const data = await response.json();
-        
+        console.log('[CustomerBookings] API response data:', data);
+
         // Transform API response to match our Booking interface
         const transformedBookings: Booking[] = (data.bookings || []).map((booking: any) => ({
           id: booking.id,
@@ -76,57 +81,17 @@ export function CustomerBookings({ memberId }: CustomerBookingsProps = {}) {
           booked_at: booking.created_at,
           cancellation_deadline: booking.class_sessions?.start_time || booking.start_time
         }));
-        
+
+        console.log('[CustomerBookings] Transformed bookings:', transformedBookings);
         setBookings(transformedBookings);
       } else {
-        throw new Error('Failed to fetch bookings');
+        const errorText = await response.text();
+        console.error('[CustomerBookings] API error:', response.status, errorText);
+        throw new Error(`API returned ${response.status}: ${errorText}`);
       }
     } catch (error) {
-      console.error('Error loading bookings:', error);
-      
-      // Fallback to mock data if API fails
-      const mockBookings: Booking[] = [
-        {
-          id: '1',
-          session_title: 'Morning HIIT',
-          session_type: 'gym_class',
-          start_time: moment().add(2, 'days').hour(9).minute(0).toISOString(),
-          end_time: moment().add(2, 'days').hour(9).minute(45).toISOString(),
-          trainer_name: 'Sarah Johnson',
-          location: 'Studio A',
-          status: 'confirmed',
-          cost: 10,
-          booked_at: moment().subtract(1, 'day').toISOString(),
-          cancellation_deadline: moment().add(1, 'day').hour(9).minute(0).toISOString(),
-        },
-        {
-          id: '2',
-          session_title: 'Personal Training',
-          session_type: 'personal_training',
-          start_time: moment().add(5, 'days').hour(18).minute(0).toISOString(),
-          end_time: moment().add(5, 'days').hour(19).minute(0).toISOString(),
-          trainer_name: 'Mike Davis',
-          location: 'Main Floor',
-          status: 'scheduled',
-          cost: 40,
-          booked_at: moment().subtract(2, 'days').toISOString(),
-          cancellation_deadline: moment().add(4, 'days').hour(18).minute(0).toISOString(),
-        },
-        {
-          id: '3',
-          session_title: 'Yoga Flow',
-          session_type: 'gym_class',
-          start_time: moment().subtract(3, 'days').hour(10).minute(30).toISOString(),
-          end_time: moment().subtract(3, 'days').hour(11).minute(30).toISOString(),
-          trainer_name: 'Emma Wilson',
-          location: 'Studio B',
-          status: 'completed',
-          cost: 8,
-          booked_at: moment().subtract(5, 'days').toISOString(),
-          cancellation_deadline: moment().subtract(4, 'days').hour(10).minute(30).toISOString(),
-        },
-      ];
-      setBookings(mockBookings);
+      console.error('[CustomerBookings] Error loading bookings:', error);
+      setBookings([]);
     } finally {
       setLoadingBookings(false);
     }
