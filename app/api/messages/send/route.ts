@@ -143,8 +143,7 @@ export async function POST(request: NextRequest) {
     // For in-app messages, set status to 'delivered' immediately
     const messageData = {
       organization_id: orgId,
-      lead_id: recipientId || null,
-      client_id: recipientId || client_id || null, // Ensure client_id is set
+      client_id: recipientId || client_id || null,
       user_id: user.id,
       type: messageType,
       channel: isInAppMessage ? "in_app" : channel || messageType,
@@ -152,7 +151,6 @@ export async function POST(request: NextRequest) {
       status: isInAppMessage ? "delivered" : "pending",
       subject: subject || null,
       body: messageContent,
-      content: messageContent, // Add content field for client compatibility
       sender_type: "gym",
       sender_name: userData.name || userData.email || "Gym",
       to_number:
