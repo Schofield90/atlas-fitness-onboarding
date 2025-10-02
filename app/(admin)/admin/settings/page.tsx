@@ -264,10 +264,10 @@ export default function AdminSettingsPage() {
                   Process payments and subscriptions
                 </p>
                 <button
-                  onClick={() => router.push("/settings/integrations/payments")}
+                  onClick={() => router.push("/admin/billing/plans")}
                   className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm"
                 >
-                  Configure
+                  Configure Plans
                 </button>
               </div>
               <div className="p-4 bg-gray-700 rounded-lg">
