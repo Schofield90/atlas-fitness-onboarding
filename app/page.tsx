@@ -52,7 +52,13 @@ export default async function HomePage({
       redirect(isAdminPortal ? "/signin" : "/landing");
     }
   } catch (error) {
+    const headersList = await headers();
+    const host = headersList.get("host") || "";
+    const isAdminPortal = host.includes("admin.gymleadhub.co.uk");
+
     console.error("Error on home page:", error);
-    redirect("/landing");
+    console.error("Host:", host, "Is admin portal:", isAdminPortal);
+
+    redirect(isAdminPortal ? "/signin" : "/landing");
   }
 }
