@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createSessionClient } from "@/app/lib/supabase/client-with-session";
 import { Mail, Lock, Chrome, AlertCircle, Loader2 } from "lucide-react";
 
-export default function OwnerLoginPage() {
+function OwnerLoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect") || "/dashboard";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -27,10 +29,11 @@ export default function OwnerLoginPage() {
       }
 
       console.log("🔑 Attempting direct Supabase login...");
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: email.toLowerCase().trim(),
-        password: password,
-      });
+      const { data: authData, error: authError } =
+        await supabase.auth.signInWithPassword({
+          email: email.toLowerCase().trim(),
+          password: password,
+        });
 
       if (authError) {
         console.error("❌ Authentication error:", authError);
@@ -43,30 +46,33 @@ export default function OwnerLoginPage() {
 
       console.log("✅ Login successful:", {
         user: authData.user.email,
-        sessionExpires: authData.session.expires_at
+        sessionExpires: authData.session.expires_at,
       });
 
       // Wait a moment for session to be set in cookies
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
-      console.log("🚀 Redirecting to dashboard...");
+      console.log("🚀 Redirecting to:", redirect);
 
       // Use router.push for proper Next.js navigation
-      router.push("/dashboard");
-
+      router.push(redirect);
     } catch (error: any) {
       console.error("Login error:", error);
       // Provide more specific error messages
       let errorMessage = "Invalid email or password";
 
       if (error.message?.includes("Invalid login credentials")) {
-        errorMessage = "Invalid email or password. Please check your credentials.";
+        errorMessage =
+          "Invalid email or password. Please check your credentials.";
       } else if (error.message?.includes("Email not confirmed")) {
-        errorMessage = "Please check your email and click the confirmation link before logging in.";
+        errorMessage =
+          "Please check your email and click the confirmation link before logging in.";
       } else if (error.message?.includes("Too many requests")) {
-        errorMessage = "Too many login attempts. Please wait a moment and try again.";
+        errorMessage =
+          "Too many login attempts. Please wait a moment and try again.";
       } else if (error.message?.includes("authentication service")) {
-        errorMessage = "Authentication service unavailable. Please try again later.";
+        errorMessage =
+          "Authentication service unavailable. Please try again later.";
       }
 
       setError(errorMessage);
@@ -86,7 +92,7 @@ export default function OwnerLoginPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?redirect=/dashboard`,
+          redirectTo: `${window.location.origin}/auth/callback?redirect=${redirect}`,
         },
       });
 
@@ -235,5 +241,19 @@ export default function OwnerLoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function OwnerLoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
+          <div className="text-white">Loading...</div>
+        </div>
+      }
+    >
+      <OwnerLoginForm />
+    </Suspense>
   );
 }
