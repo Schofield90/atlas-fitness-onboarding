@@ -1,6 +1,8 @@
 {
   "framework": "nextjs",
   "ignoreCommand": "git diff HEAD^ HEAD --quiet .",
+  "buildCommand": "cd ../.. && npm install && cd apps/admin-portal && npm run build",
+  "installCommand": "echo 'Skipping install - handled in buildCommand'",
   "env": {
     "NEXT_PUBLIC_APP_TYPE": "admin",
     "NEXT_PUBLIC_BASE_URL": "https://admin.gymleadhub.co.uk"
