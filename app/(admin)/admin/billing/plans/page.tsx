@@ -436,17 +436,19 @@ export default function BillingPlansAdmin() {
                       step="0.01"
                       value={
                         formData.price_monthly
-                          ? (formData.price_monthly / 100).toFixed(2)
+                          ? formData.price_monthly / 100
                           : ""
                       }
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const value = e.target.value;
                         setFormData({
                           ...formData,
-                          price_monthly: Math.round(
-                            parseFloat(e.target.value) * 100,
-                          ),
-                        })
-                      }
+                          price_monthly:
+                            value === ""
+                              ? 0
+                              : Math.round(parseFloat(value) * 100),
+                        });
+                      }}
                       className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
                     />
                   </div>
@@ -459,18 +461,18 @@ export default function BillingPlansAdmin() {
                       type="number"
                       step="0.01"
                       value={
-                        formData.price_yearly
-                          ? (formData.price_yearly / 100).toFixed(2)
-                          : ""
+                        formData.price_yearly ? formData.price_yearly / 100 : ""
                       }
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const value = e.target.value;
                         setFormData({
                           ...formData,
-                          price_yearly: Math.round(
-                            parseFloat(e.target.value) * 100,
-                          ),
-                        })
-                      }
+                          price_yearly:
+                            value === ""
+                              ? 0
+                              : Math.round(parseFloat(value) * 100),
+                        });
+                      }}
                       className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
                     />
                   </div>
