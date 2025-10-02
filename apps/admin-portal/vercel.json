@@ -1,7 +1,5 @@
 {
   "framework": "nextjs",
-  "buildCommand": "npm run build:admin",
-  "outputDirectory": ".next",
   "ignoreCommand": "git diff HEAD^ HEAD --quiet .",
   "env": {
     "NEXT_PUBLIC_APP_TYPE": "admin",

@@ -1,7 +1,5 @@
 {
   "framework": "nextjs",
-  "buildCommand": "npm run build:member",
-  "outputDirectory": ".next",
   "ignoreCommand": "git diff HEAD^ HEAD --quiet .",
   "functions": {
     "app/api/**/*.ts": {
