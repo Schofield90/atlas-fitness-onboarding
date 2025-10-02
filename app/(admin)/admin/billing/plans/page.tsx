@@ -40,6 +40,7 @@ export default function BillingPlansAdmin() {
   const [loading, setLoading] = useState(true);
   const [editingPlan, setEditingPlan] = useState<BillingPlan | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const supabase = createClient();
 
   // Form state
@@ -171,6 +172,45 @@ export default function BillingPlansAdmin() {
     });
   };
 
+  const syncWithStripe = async () => {
+    if (
+      !confirm(
+        "This will create/update Stripe products and prices for all active plans. Continue?",
+      )
+    ) {
+      return;
+    }
+
+    setSyncing(true);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const response = await fetch("/api/admin/stripe/sync-plans", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alert(`Successfully synced: ${result.message}`);
+        await loadPlans();
+      } else {
+        alert(`Error: ${result.error}`);
+      }
+    } catch (error) {
+      console.error("Error syncing with Stripe:", error);
+      alert("Failed to sync with Stripe");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const updateFeature = (category: string, feature: string, value: boolean) => {
     setFormData((prev) => ({
       ...prev,
@@ -207,17 +247,27 @@ export default function BillingPlansAdmin() {
             <Package className="h-8 w-8 text-orange-500" />
             Billing Plans Management
           </h1>
-          <button
-            onClick={() => {
-              setShowForm(true);
-              setEditingPlan(null);
-              resetForm();
-            }}
-            className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 flex items-center gap-2"
-          >
-            <Plus className="h-5 w-5" />
-            Add Plan
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={syncWithStripe}
+              disabled={syncing}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2 disabled:opacity-50"
+            >
+              <TrendingUp className="h-5 w-5" />
+              {syncing ? "Syncing..." : "Sync with Stripe"}
+            </button>
+            <button
+              onClick={() => {
+                setShowForm(true);
+                setEditingPlan(null);
+                resetForm();
+              }}
+              className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 flex items-center gap-2"
+            >
+              <Plus className="h-5 w-5" />
+              Add Plan
+            </button>
+          </div>
         </div>
 
         {/* Plans Grid */}
