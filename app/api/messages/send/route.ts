@@ -49,13 +49,37 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user's organization and details
-    const { data: userData, error: userError } = await supabase
+    // Try users table first
+    let userData = null;
+    const { data: userRecord, error: userError } = await supabase
       .from("users")
       .select("organization_id, full_name, email")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
-    if (userError || !userData.organization_id) {
+    if (userRecord?.organization_id) {
+      userData = userRecord;
+    } else {
+      // Fallback to organization_staff table
+      const { data: staffRecord } = await supabase
+        .from("organization_staff")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (staffRecord?.organization_id) {
+        userData = {
+          organization_id: staffRecord.organization_id,
+          full_name:
+            user.user_metadata?.full_name ||
+            user.email?.split("@")[0] ||
+            "Staff",
+          email: user.email || "",
+        };
+      }
+    }
+
+    if (!userData?.organization_id) {
       return NextResponse.json(
         { error: "User organization not found" },
         { status: 403 },
