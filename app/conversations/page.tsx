@@ -45,20 +45,39 @@ function ConversationsContent() {
   const loadUserData = async () => {
     console.log("[Conversations] Starting loadUserData");
     try {
+      // Use getSession instead of getUser for better session handling
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
-      console.log("[Conversations] Auth user:", {
-        hasUser: !!user,
-        userId: user?.id,
-        email: user?.email,
+      console.log("[Conversations] Session check:", {
+        hasSession: !!session,
+        sessionError,
+        userId: session?.user?.id,
+        email: session?.user?.email,
       });
 
-      if (!user) {
-        console.log("[Conversations] No authenticated user found");
+      if (!session?.user) {
+        console.log("[Conversations] No session found, trying API fallback");
+
+        // Fallback: Use the /api/auth/me endpoint that works for useOrganization
+        try {
+          const response = await fetch("/api/auth/me");
+          if (response.ok) {
+            const apiUserData = await response.json();
+            console.log("[Conversations] Got user from API:", apiUserData);
+            setUserData(apiUserData);
+            return;
+          }
+        } catch (apiError) {
+          console.error("[Conversations] API fallback failed:", apiError);
+        }
+
         return;
       }
+
+      const user = session.user;
 
       // Check user_organizations first (matching messages API pattern)
       const { data: userOrg } = await supabase
@@ -103,19 +122,20 @@ function ConversationsContent() {
       setUserData(finalUserData);
     } catch (error) {
       console.error("[Conversations] Error loading user data:", error);
-      // If anything fails, still set a minimal user so the UI renders
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        const fallbackData = {
-          id: user.id,
-          full_name: user.email?.split("@")[0] || "Coach",
-          email: user.email,
-          organization_id: null,
-        };
-        console.log("[Conversations] Setting fallback userData:", fallbackData);
-        setUserData(fallbackData);
+
+      // Final fallback: Try API endpoint
+      try {
+        const response = await fetch("/api/auth/me");
+        if (response.ok) {
+          const apiUserData = await response.json();
+          console.log(
+            "[Conversations] Error recovery - got user from API:",
+            apiUserData,
+          );
+          setUserData(apiUserData);
+        }
+      } catch (apiError) {
+        console.error("[Conversations] All fallbacks failed:", apiError);
       }
     }
   };
