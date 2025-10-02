@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient, createRealtimeChannel } from "@/app/lib/supabase/client-fixed";
+import {
+  createClient,
+  createRealtimeChannel,
+} from "@/app/lib/supabase/client-fixed";
 import {
   MessageSquare,
   Mail,
@@ -22,7 +25,7 @@ import { formatBritishDateTime } from "@/app/lib/utils/british-format";
 
 interface ComprehensiveMessagingTabProps {
   customerId: string;
-  organizationId: string;
+  organizationId?: string; // Make optional, will fallback to customer.org_id
   customer?: any;
 }
 
@@ -95,10 +98,10 @@ export default function ComprehensiveMessagingTab({
 
   useEffect(() => {
     fetchMessages();
-    
+
     // Set up real-time subscription with better error handling
     let subscription: any = null;
-    
+
     try {
       subscription = createRealtimeChannel(`messages-${customerId}`)
         .on(
@@ -110,19 +113,19 @@ export default function ComprehensiveMessagingTab({
             filter: `customer_id=eq.${customerId}`,
           },
           (payload) => {
-            console.log('Received message update:', payload);
+            console.log("Received message update:", payload);
             fetchMessages();
           },
         )
         .subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            console.log('Successfully subscribed to message updates');
-          } else if (status === 'CHANNEL_ERROR') {
-            console.warn('Failed to subscribe to message updates');
+          if (status === "SUBSCRIBED") {
+            console.log("Successfully subscribed to message updates");
+          } else if (status === "CHANNEL_ERROR") {
+            console.warn("Failed to subscribe to message updates");
           }
         });
     } catch (error) {
-      console.warn('Error setting up real-time subscription:', error);
+      console.warn("Error setting up real-time subscription:", error);
     }
 
     return () => {
@@ -130,7 +133,7 @@ export default function ComprehensiveMessagingTab({
         try {
           subscription.unsubscribe();
         } catch (error) {
-          console.warn('Error unsubscribing from real-time updates:', error);
+          console.warn("Error unsubscribing from real-time updates:", error);
         }
       }
     };
@@ -140,12 +143,24 @@ export default function ComprehensiveMessagingTab({
     try {
       setLoading(true);
 
+      // Get organization ID from prop or customer data
+      const orgId =
+        organizationId || customer?.org_id || customer?.organization_id;
+
+      if (!orgId) {
+        console.warn(
+          "[ComprehensiveMessagingTab] No organization ID available",
+        );
+        setLoading(false);
+        return;
+      }
+
       // Fetch messages using the view that includes user metadata
       const { data, error } = await supabase
         .from("messages_with_user_info")
         .select("*")
         .or(`customer_id.eq.${customerId},client_id.eq.${customerId}`)
-        .eq("organization_id", organizationId)
+        .eq("organization_id", orgId)
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -155,14 +170,14 @@ export default function ComprehensiveMessagingTab({
           .from("messages")
           .select("*")
           .or(`customer_id.eq.${customerId},client_id.eq.${customerId}`)
-          .eq("organization_id", organizationId)
+          .eq("organization_id", orgId)
           .order("created_at", { ascending: false });
 
         if (fallbackError) {
           console.error("Fallback query also failed:", fallbackError);
           return;
         }
-        
+
         // Use fallback data
         const transformedFallbackMessages = (fallbackData || []).map((msg) => ({
           id: msg.id,
@@ -223,8 +238,18 @@ export default function ComprehensiveMessagingTab({
         data: { user },
       } = await supabase.auth.getUser();
 
+      // Get organization ID from prop or customer data
+      const orgId =
+        organizationId || customer?.org_id || customer?.organization_id;
+
+      if (!orgId) {
+        alert("Unable to send message: Organization not found");
+        setSending(false);
+        return;
+      }
+
       const messageData = {
-        organization_id: organizationId,
+        organization_id: orgId,
         customer_id: customerId,
         client_id: customerId,
         channel: newMessage.channel,
