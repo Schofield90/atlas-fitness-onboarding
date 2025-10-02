@@ -17,3 +17,5 @@
 # Trigger rebuild Wed 2 Oct 2025 07:50:00 BST - Fix UnifiedMessaging leads query (organization_id not org_id)
 
 # Trigger rebuild Wed 2 Oct 2025 07:55:00 BST - Add debug logging to UnifiedMessaging
+
+# Trigger rebuild Wed 2 Oct 2025 08:00:00 BST - Fix UnifiedMessaging useEffect with userData guard

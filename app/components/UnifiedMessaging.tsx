@@ -73,6 +73,17 @@ export default function UnifiedMessaging({
   const supabase = createClient();
 
   useEffect(() => {
+    // Only load conversations if userData is available
+    if (!userData?.id || !userData?.organization_id) {
+      console.log("[UnifiedMessaging] Waiting for userData:", {
+        hasUserData: !!userData,
+        hasId: !!userData?.id,
+        hasOrgId: !!userData?.organization_id,
+      });
+      return;
+    }
+
+    console.log("[UnifiedMessaging] userData available, loading conversations");
     loadConversations();
 
     // Setup realtime with error handling
@@ -89,7 +100,7 @@ export default function UnifiedMessaging({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userData.id]);
+  }, [userData?.id, userData?.organization_id]);
 
   useEffect(() => {
     if (initialContactId && conversations.length > 0) {
