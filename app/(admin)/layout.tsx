@@ -23,9 +23,9 @@ export default async function AdminLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
-  // If not logged in, redirect to signin
+  // If not logged in, redirect to owner login with redirect back to admin
   if (!user) {
-    redirect("/signin");
+    redirect("/owner-login?redirect=/admin");
   }
 
   // Check admin authorization

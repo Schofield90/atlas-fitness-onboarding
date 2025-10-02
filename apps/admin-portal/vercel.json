@@ -1,8 +1,6 @@
 {
   "framework": "nextjs",
   "ignoreCommand": "git diff HEAD^ HEAD --quiet .",
-  "installCommand": "cd ../.. && npm install",
-  "buildCommand": "cd ../.. && npm run build --workspace=apps/admin-portal",
   "env": {
     "NEXT_PUBLIC_APP_TYPE": "admin",
     "NEXT_PUBLIC_BASE_URL": "https://admin.gymleadhub.co.uk"
