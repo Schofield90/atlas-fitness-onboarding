@@ -1,7 +1,6 @@
 {
   "framework": "nextjs",
-  "installCommand": "cd ../.. && npm install",
-  "buildCommand": "cd ../.. && npx turbo run build --filter=@atlas-fitness/admin-portal",
+  "buildCommand": "npm run build:admin",
   "outputDirectory": ".next",
   "ignoreCommand": "git diff HEAD^ HEAD --quiet .",
   "env": {

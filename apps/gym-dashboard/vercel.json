@@ -1,7 +1,6 @@
 {
   "framework": "nextjs",
-  "installCommand": "cd ../.. && npm install",
-  "buildCommand": "cd ../.. && npx turbo run build --filter=@atlas-fitness/gym-dashboard",
+  "buildCommand": "npm run build:gym",
   "outputDirectory": ".next",
   "ignoreCommand": "git diff HEAD^ HEAD --quiet .",
   "env": {
