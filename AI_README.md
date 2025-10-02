@@ -1,25 +1,22 @@
-# 🤖 AI ASSISTANT INSTRUCTIONS - READ FIRST
-
-> **For Claude Code / AI Assistants:** Read this file at the start of each conversation. This contains critical instructions for working with this codebase.
+# 🤖 AI ASSISTANT INSTRUCTIONS
 
 ## Automated Logging System
 
-This project has a comprehensive logging system. **You MUST use it.**
+This project uses Pino for logging. All logs go to `logs/` directory.
 
 ### When User Reports Issues
 
-If user mentions: "error", "broken", "not working", "failing", "bug", "issue" - **IMMEDIATELY:**
+If user mentions: "error", "broken", "not working", "failing", "bug" - **IMMEDIATELY:**
 
-1. Check logs: `view logs/error.log`
-2. Get context: `bash "tail -50 logs/app.log"`
-3. Search: `bash "grep -i '{keyword}' logs/app.log"`
-4. Provide solution from what you found
+1. `bash "tail -100 logs/error.log"` - Check recent errors
+2. `bash "tail -50 logs/app.log"` - Get context
+3. `bash "grep -i 'keyword' logs/app.log"` - Search logs
 
-**NEVER ask user to copy-paste console logs or errors.**
+**NEVER ask user to copy-paste logs.**
 
-### When Writing Code
+### When Writing API Routes
 
-Always add logging to new API routes:
+Always add logging:
 
 ```typescript
 import { apiLogger } from "@/lib/logging-helpers";
@@ -28,7 +25,7 @@ export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
   try {
     apiLogger.request("POST", "/api/endpoint", requestId);
-    // ... your code ...
+    // ... code ...
     apiLogger.success("POST", "/api/endpoint", requestId, duration);
     return Response.json(result);
   } catch (error) {
@@ -38,32 +35,28 @@ export async function POST(request: Request) {
 }
 ```
 
-## Log File Locations
+### Client-Side Logging
 
-- `logs/error.log` - All errors and exceptions
-- `logs/app.log` - General application logs
-- `logs/api.log` - API request/response logs
-- `logs/auth.log` - Authentication events
-- `logs/database.log` - Database queries and errors
+Use client logger for browser errors:
 
-## Required Workflow
+```typescript
+import { clientLogger } from "@/lib/client-logger";
 
-1. **User reports issue** → Check logs FIRST
-2. **Reproduce locally** → Add logging if missing
-3. **Fix code** → Verify logs show fix working
-4. **Deploy** → Monitor logs for errors
+// Automatically sends to server
+clientLogger.error("Failed to load data", { error, context });
+```
 
-## Never Do This ❌
+## Log Files
 
-- Ask user for console logs
-- Debug without checking logs first
-- Write code without logging
-- Deploy without checking logs
+- `logs/app.log` - All application logs
+- `logs/error.log` - Errors only
 
-## Always Do This ✅
+## Available Loggers
 
-- Check logs when user reports issues
-- Add comprehensive logging to new code
-- Use structured logging (JSON format)
-- Include request IDs for tracing
-- Log successes AND failures
+- `apiLogger` - API requests/responses
+- `dbLogger` - Database operations
+- `authLogger` - Authentication events
+- `integrationLogger` - Third-party calls
+- `businessLogger` - Business events
+- `perfLogger` - Performance metrics
+- `clientLogger` - Browser-side logs
