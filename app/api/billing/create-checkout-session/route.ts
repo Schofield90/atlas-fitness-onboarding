@@ -1,117 +1,125 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { createClient } from "@/app/lib/supabase/server";
+import { createAdminClient } from "@/app/lib/supabase/admin";
 
-// Force dynamic rendering to handle cookies and request properties
 export const dynamic = "force-dynamic";
 
-const stripeKey = process.env.STRIPE_SECRET_KEY;
-let stripe: Stripe | null = null;
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2024-11-20.acacia",
+});
 
-if (stripeKey) {
-  stripe = new Stripe(stripeKey, {
-    apiVersion: "2024-12-18.acacia",
-  });
-}
-
-export async function GET(request: NextRequest) {
-  if (!stripe) {
-    console.error("Stripe is not configured. Please set STRIPE_SECRET_KEY.");
-    return NextResponse.json(
-      { error: "Payment system not configured" },
-      { status: 503 },
-    );
-  }
-
+export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const { planId, billingPeriod } = await request.json();
 
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!planId || !billingPeriod) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 },
+      );
     }
 
-    const searchParams = request.nextUrl.searchParams;
-    const planId = searchParams.get("planId");
-    const billingPeriod = searchParams.get("billing") || "monthly";
-
-    if (!planId) {
-      return NextResponse.json({ error: "Missing plan ID" }, { status: 400 });
-    }
-
-    // Get the plan details
+    // Get plan details
+    const supabase = createAdminClient();
     const { data: plan, error: planError } = await supabase
-      .from("billing_plans")
+      .from("saas_plans")
       .select("*")
       .eq("id", planId)
+      .eq("is_active", true)
       .single();
 
     if (planError || !plan) {
       return NextResponse.json({ error: "Plan not found" }, { status: 404 });
     }
 
-    // Check if user already has an organization
-    const { data: userOrg } = await supabase
-      .from("user_organizations")
-      .select("organization_id")
-      .eq("user_id", user.id)
-      .single();
+    // Determine price based on billing period
+    const priceAmount =
+      billingPeriod === "monthly" ? plan.price_monthly : plan.price_yearly;
+    const interval = billingPeriod === "monthly" ? "month" : "year";
 
-    const priceId =
-      billingPeriod === "yearly"
-        ? plan.stripe_price_id_yearly
-        : plan.stripe_price_id_monthly;
+    // Create or get Stripe price ID
+    let stripePriceId =
+      billingPeriod === "monthly"
+        ? plan.stripe_price_id
+        : plan.stripe_price_id_yearly;
 
-    if (!priceId) {
-      return NextResponse.json(
-        { error: "This plan is not available for the selected billing period" },
-        { status: 400 },
-      );
+    // If price doesn't exist in Stripe, create it
+    if (!stripePriceId) {
+      // First, ensure product exists
+      let productId = plan.stripe_product_id;
+      if (!productId) {
+        const product = await stripe.products.create({
+          name: plan.name,
+          description: plan.description || undefined,
+          metadata: {
+            plan_id: plan.id,
+          },
+        });
+        productId = product.id;
+
+        // Save product ID
+        await supabase
+          .from("saas_plans")
+          .update({ stripe_product_id: productId })
+          .eq("id", plan.id);
+      }
+
+      // Create price
+      const price = await stripe.prices.create({
+        product: productId,
+        unit_amount: priceAmount,
+        currency: "gbp",
+        recurring: {
+          interval: interval,
+        },
+        metadata: {
+          plan_id: plan.id,
+          billing_period: billingPeriod,
+        },
+      });
+
+      stripePriceId = price.id;
+
+      // Save price ID
+      const priceField =
+        billingPeriod === "monthly"
+          ? "stripe_price_id"
+          : "stripe_price_id_yearly";
+      await supabase
+        .from("saas_plans")
+        .update({ [priceField]: stripePriceId })
+        .eq("id", plan.id);
     }
 
-    // Create Stripe checkout session
+    // Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
       mode: "subscription",
+      payment_method_types: ["card"],
       line_items: [
         {
-          price: priceId,
+          price: stripePriceId,
           quantity: 1,
         },
       ],
+      success_url: `${process.env.NEXT_PUBLIC_BASE_URL || "https://admin.gymleadhub.co.uk"}/signup/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || "https://admin.gymleadhub.co.uk"}/signup/${plan.slug}?canceled=true`,
       metadata: {
-        userId: user.id,
-        planId: planId,
-        organizationId: userOrg?.organization_id || "",
-        billingPeriod: billingPeriod,
-      },
-      customer_email: user.email,
-      success_url: `${request.nextUrl.origin}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${request.nextUrl.origin}/pricing`,
-      allow_promotion_codes: true,
-      billing_address_collection: "required",
-      tax_id_collection: {
-        enabled: true,
+        plan_id: plan.id,
+        billing_period: billingPeriod,
       },
       subscription_data: {
-        trial_period_days: 14,
         metadata: {
-          userId: user.id,
-          planId: planId,
-          organizationId: userOrg?.organization_id || "",
+          plan_id: plan.id,
+          billing_period: billingPeriod,
         },
       },
     });
 
-    // Redirect to Stripe checkout
-    return NextResponse.redirect(session.url!);
-  } catch (error) {
+    return NextResponse.json({ url: session.url });
+  } catch (error: any) {
     console.error("Error creating checkout session:", error);
     return NextResponse.json(
-      { error: "Failed to create checkout session" },
+      { error: error.message || "Failed to create checkout session" },
       { status: 500 },
     );
   }
