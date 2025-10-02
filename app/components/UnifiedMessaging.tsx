@@ -278,7 +278,7 @@ export default function UnifiedMessaging({
       const { data: leads } = await supabase
         .from("leads")
         .select("*")
-        .eq("org_id", userData.organization_id)
+        .eq("organization_id", userData.organization_id)
         .order("updated_at", { ascending: false })
         .limit(50);
 
