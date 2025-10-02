@@ -9,3 +9,5 @@
 # Trigger rebuild Wed 2 Oct 2025 07:25:00 BST - Remove user_id from messages schema
 
 # Trigger rebuild Wed 2 Oct 2025 07:36:00 BST - Add content column (NOT NULL)
+
+# Trigger rebuild Wed 2 Oct 2025 07:40:00 BST - Fix sender_type check constraint (coach not gym)
