@@ -49,28 +49,36 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user's organization and details
-    // Try users table first
+    // Check user_organizations first (same pattern as bookings API)
     let userData = null;
     console.log("[Messages API] Looking up user:", user.id, user.email);
 
-    const { data: userRecord, error: userError } = await supabase
-      .from("users")
-      .select("organization_id, full_name, email")
-      .eq("id", user.id)
+    const { data: userOrg, error: userOrgError } = await supabase
+      .from("user_organizations")
+      .select("organization_id, role")
+      .eq("user_id", user.id)
       .maybeSingle();
 
-    console.log("[Messages API] Users table result:", {
-      userRecord,
-      userError,
+    console.log("[Messages API] user_organizations result:", {
+      userOrg,
+      userOrgError,
     });
 
-    if (userRecord?.organization_id) {
-      userData = userRecord;
-      console.log("[Messages API] Found user in users table");
+    if (userOrg?.organization_id) {
+      userData = {
+        organization_id: userOrg.organization_id,
+        name:
+          user.user_metadata?.name ||
+          user.user_metadata?.full_name ||
+          user.email?.split("@")[0] ||
+          "Staff",
+        email: user.email || "",
+      };
+      console.log("[Messages API] Found user in user_organizations table");
     } else {
       // Fallback to organization_staff table
       console.log(
-        "[Messages API] User not in users table, checking organization_staff",
+        "[Messages API] User not in user_organizations, checking organization_staff",
       );
       const { data: staffRecord, error: staffError } = await supabase
         .from("organization_staff")
@@ -86,7 +94,8 @@ export async function POST(request: NextRequest) {
       if (staffRecord?.organization_id) {
         userData = {
           organization_id: staffRecord.organization_id,
-          full_name:
+          name:
+            user.user_metadata?.name ||
             user.user_metadata?.full_name ||
             user.email?.split("@")[0] ||
             "Staff",
@@ -145,7 +154,7 @@ export async function POST(request: NextRequest) {
       body: messageContent,
       content: messageContent, // Add content field for client compatibility
       sender_type: "gym",
-      sender_name: userData.full_name || userData.email || "Gym",
+      sender_name: userData.name || userData.email || "Gym",
       to_number:
         messageType === "sms" || messageType === "whatsapp"
           ? recipientAddress
