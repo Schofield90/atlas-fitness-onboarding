@@ -97,9 +97,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Create service role client to bypass RLS
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    console.log('[API] Service role key exists:', !!serviceRoleKey);
+    console.log('[API] Service role key prefix:', serviceRoleKey?.substring(0, 20));
+
     const supabaseAdmin = createServiceClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      serviceRoleKey!,
       {
         auth: {
           autoRefreshToken: false,
@@ -107,6 +111,8 @@ export async function GET(request: NextRequest) {
         }
       }
     );
+
+    console.log('[API] Querying for customerId:', customerId);
 
     // Fetch from both tables using service role
     const [bookingsResult, classBookingsResult] = await Promise.all([
