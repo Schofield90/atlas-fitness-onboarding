@@ -77,14 +77,31 @@ export default function BillingPlansAdmin() {
     e.preventDefault();
 
     try {
+      // Prepare data for database - use price_monthly as the base price_pennies
+      const dbData = {
+        name: formData.name,
+        slug: formData.slug,
+        description: formData.description,
+        price_pennies: formData.price_monthly || 0, // Use monthly price as base
+        price_monthly: formData.price_monthly,
+        price_yearly: formData.price_yearly,
+        billing_period: "monthly", // Default billing period
+        features: formData.features || {},
+        limits: formData.limits || {},
+        is_active: formData.is_active ?? true,
+      };
+
       if (editingPlan) {
         // Update existing plan
         const { error } = await supabase
           .from("saas_plans")
-          .update(formData)
+          .update(dbData)
           .eq("id", editingPlan.id);
 
-        if (!error) {
+        if (error) {
+          console.error("Update error:", error);
+          alert(`Error updating plan: ${error.message}`);
+        } else {
           await loadPlans();
           setShowForm(false);
           setEditingPlan(null);
@@ -92,9 +109,12 @@ export default function BillingPlansAdmin() {
         }
       } else {
         // Create new plan
-        const { error } = await supabase.from("saas_plans").insert(formData);
+        const { error } = await supabase.from("saas_plans").insert(dbData);
 
-        if (!error) {
+        if (error) {
+          console.error("Insert error:", error);
+          alert(`Error creating plan: ${error.message}`);
+        } else {
           await loadPlans();
           setShowForm(false);
           resetForm();
