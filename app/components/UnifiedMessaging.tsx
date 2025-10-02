@@ -393,32 +393,30 @@ export default function UnifiedMessaging({
         formattedMessages.push(...coachingMessages.map(formatMessage));
       }
 
-      // Load messages by conversation_id if available
-      if (selectedConversation?.id) {
-        const { data: conversationMessages } = await supabase
+      // Load messages by client_id for client conversations
+      if (selectedConversation?.contact_id) {
+        const { data: clientMessages } = await supabase
           .from("messages")
           .select("*")
-          .eq("conversation_id", selectedConversation.id)
+          .eq("client_id", selectedConversation.contact_id)
           .eq("organization_id", userData.organization_id)
           .order("created_at", { ascending: true });
 
-        if (conversationMessages) {
-          formattedMessages.push(...conversationMessages.map(formatMessage));
+        if (clientMessages) {
+          formattedMessages.push(...clientMessages.map(formatMessage));
         }
-      } else {
-        // Fallback: Load by client_id or lead_id
-        const { data: generalMessages } = await supabase
-          .from("messages")
-          .select("*")
-          .or(
-            `client_id.eq.${contactId},lead_id.eq.${contactId.replace("lead-", "")}`,
-          )
-          .eq("organization_id", userData.organization_id)
-          .order("created_at", { ascending: true });
+      }
 
-        if (generalMessages) {
-          formattedMessages.push(...generalMessages.map(formatMessage));
-        }
+      // Also try loading by lead_id if contact_id doesn't match
+      const { data: leadMessages } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("lead_id", contactId.replace("lead-", "").replace("client-", ""))
+        .eq("organization_id", userData.organization_id)
+        .order("created_at", { ascending: true });
+
+      if (leadMessages) {
+        formattedMessages.push(...leadMessages.map(formatMessage));
       }
 
       // Sort all messages by time
