@@ -21,6 +21,7 @@ const publicRoutes = [
   '/book',
   '/meta-review',
   '/claim',
+  '/admin', // Admin routes handle their own auth in layout
   // Public API endpoints
   '/api/auth',
   '/api/client-portal',
@@ -33,6 +34,7 @@ const publicRoutes = [
   '/api/booking-by-slug',
   '/api/login-otp',
   '/api/health-check',
+  '/api/saas-admin', // Admin API handles its own auth
 ]
 
 // Client-only routes
