@@ -51,21 +51,37 @@ export async function POST(request: NextRequest) {
     // Get user's organization and details
     // Try users table first
     let userData = null;
+    console.log("[Messages API] Looking up user:", user.id, user.email);
+
     const { data: userRecord, error: userError } = await supabase
       .from("users")
       .select("organization_id, full_name, email")
       .eq("id", user.id)
       .maybeSingle();
 
+    console.log("[Messages API] Users table result:", {
+      userRecord,
+      userError,
+    });
+
     if (userRecord?.organization_id) {
       userData = userRecord;
+      console.log("[Messages API] Found user in users table");
     } else {
       // Fallback to organization_staff table
-      const { data: staffRecord } = await supabase
+      console.log(
+        "[Messages API] User not in users table, checking organization_staff",
+      );
+      const { data: staffRecord, error: staffError } = await supabase
         .from("organization_staff")
         .select("organization_id")
         .eq("user_id", user.id)
         .maybeSingle();
+
+      console.log("[Messages API] Staff table result:", {
+        staffRecord,
+        staffError,
+      });
 
       if (staffRecord?.organization_id) {
         userData = {
@@ -76,15 +92,22 @@ export async function POST(request: NextRequest) {
             "Staff",
           email: user.email || "",
         };
+        console.log("[Messages API] Found user in organization_staff table");
       }
     }
 
     if (!userData?.organization_id) {
+      console.error("[Messages API] No organization found for user:", user.id);
       return NextResponse.json(
         { error: "User organization not found" },
         { status: 403 },
       );
     }
+
+    console.log(
+      "[Messages API] Using organization_id:",
+      userData.organization_id,
+    );
 
     const orgId = organization_id || userData.organization_id;
 
