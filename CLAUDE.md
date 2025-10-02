@@ -421,9 +421,70 @@ const transformedBookings = (data.bookings || []).map((booking: any) => ({
 
 **Triggering Deployments**: Modify `DEPLOYMENT_TRIGGER.md` in each app directory to force rebuild when shared code changes.
 
+### Stripe Integration Setup (October 2, 2025)
+
+#### Overview
+
+Setting up dual Stripe integration:
+
+1. **SaaS Billing**: Platform charges gym owners for software subscription
+2. **Stripe Connect**: Gym owners connect their Stripe accounts to accept payments from clients
+
+#### Completed Tasks
+
+- ✅ Fixed billing plans page to use `saas_plans` table instead of `billing_plans`
+- ✅ Fixed Create Plan button (was outside form, now uses `type="submit"` with `form` attribute)
+- ✅ Updated interface to match database schema (`price_monthly`, `price_yearly`, `features`, `limits`)
+- ✅ Added `.vercelignore` files to prevent root `node_modules` upload during deployment
+- ✅ Created API endpoint `/api/admin/stripe/sync-plans` for syncing plans to Stripe
+
+#### Pending Tasks
+
+1. **Apply Database Migration**: Add `stripe_product_id` column to `saas_plans` table
+
+   ```sql
+   ALTER TABLE saas_plans ADD COLUMN IF NOT EXISTS stripe_product_id VARCHAR(255);
+   CREATE INDEX IF NOT EXISTS idx_saas_plans_stripe_product ON saas_plans(stripe_product_id);
+   ```
+
+2. **Add Webhook Signing Secret**: Add `STRIPE_WEBHOOK_SECRET` to Vercel environment variables for all 3 projects
+
+3. **Test Admin Billing Sync**: Test the `/api/admin/stripe/sync-plans` endpoint
+
+4. **Admin Subscriptions Management**: Create page to view/manage gym subscriptions
+
+5. **Stripe Configuration UI**: Add admin UI to configure Stripe settings
+
+6. **Gym Payment Settings**: Create page for gyms to connect their Stripe accounts (Stripe Connect)
+
+7. **Payment Products Management**: Create page for gyms to manage their payment products
+
+#### Known Issues
+
+- **Vercel Deployment Errors**: All 3 projects failing with `npm error Tracker "idealTree" already exists`
+  - Added `.vercelignore` files to exclude root `node_modules`
+  - Deployments in progress (background processes running)
+  - May need to wait for GitHub auto-deployments or manually trigger from Vercel dashboard
+
+#### Files Modified
+
+- `/app/(admin)/admin/billing/plans/page.tsx` - Changed from `billing_plans` to `saas_plans` table
+- `/app/components/saas-admin/PlanEditor.tsx` - Fixed Create Plan button submission
+- `/app/api/admin/stripe/sync-plans/route.ts` - Created sync endpoint
+- `apps/*/vercel.json` - Simplified configuration
+- `apps/*/.vercelignore` - Added to prevent root node_modules upload
+
+#### Environment Variables Required
+
+All 3 Vercel projects need:
+
+- `STRIPE_SECRET_KEY` - ✅ Already added
+- `STRIPE_WEBHOOK_SECRET` - ⏳ Needs to be added
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` - ✅ Already added
+
 ---
 
-_Last Updated: October 1, 2025_
+_Last Updated: October 2, 2025_
 _Review Type: Automated Design & Accessibility_
 _Diff Policy: Minimal changes only_
 
