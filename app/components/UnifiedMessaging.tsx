@@ -783,7 +783,9 @@ export default function UnifiedMessaging({
           ? {
               ...conv,
               is_manually_read: newReadState,
-              needs_reply: conversation.needs_reply && !newReadState,
+              // If marking as read, remove from needs_reply
+              // If marking as unread, always set needs_reply to true
+              needs_reply: newReadState ? false : true,
             }
           : conv,
       ),
@@ -820,7 +822,7 @@ export default function UnifiedMessaging({
             ? {
                 ...conv,
                 is_manually_read: !newReadState,
-                needs_reply: conversation.needs_reply && newReadState,
+                needs_reply: !newReadState ? false : true,
               }
             : conv,
         ),
