@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { createClient } from "@/app/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/app/components/ui/Button";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
@@ -15,12 +15,14 @@ import {
 } from "@/app/components/ui/Card";
 import { Lock, Mail, AlertCircle } from "lucide-react";
 
-export default function AdminSignIn() {
+function SignInForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect") || "/admin";
   const supabase = createClient();
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -48,33 +50,16 @@ export default function AdminSignIn() {
       }
 
       if (data?.user) {
-        // Verify user is a platform admin (check staff table)
-        const { data: staffData, error: staffError } = await supabase
-          .from("staff")
-          .select("metadata")
-          .eq("user_id", data.user.id)
-          .single();
-
-        if (staffError || !staffData) {
+        // Verify user email is sam@gymleadhub.co.uk
+        if (data.user.email?.toLowerCase() !== "sam@gymleadhub.co.uk") {
           setError("You do not have admin access to this platform");
           await supabase.auth.signOut();
           setLoading(false);
           return;
         }
 
-        // Check if user has superadmin role in metadata
-        const role = staffData.metadata?.role;
-        const isActive = staffData.metadata?.is_active;
-
-        if (role !== "superadmin" || !isActive) {
-          setError("You do not have admin access to this platform");
-          await supabase.auth.signOut();
-          setLoading(false);
-          return;
-        }
-
-        // Successful login - redirect to admin dashboard
-        router.push("/admin/dashboard");
+        // Successful login - redirect to admin or requested page
+        router.push(redirect);
       }
     } catch (err: any) {
       setError("An unexpected error occurred");
@@ -166,5 +151,19 @@ export default function AdminSignIn() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function AdminSignIn() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+          <div className="text-white">Loading...</div>
+        </div>
+      }
+    >
+      <SignInForm />
+    </Suspense>
   );
 }
