@@ -263,12 +263,20 @@ export default function AdminSettingsPage() {
                 <p className="text-sm text-gray-400 mb-3">
                   Process payments and subscriptions
                 </p>
-                <button
-                  onClick={() => router.push("/admin/billing/plans")}
-                  className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm"
-                >
-                  Configure Plans
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => router.push("/admin/settings/stripe")}
+                    className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm"
+                  >
+                    Configure Stripe
+                  </button>
+                  <button
+                    onClick={() => router.push("/admin/billing/plans")}
+                    className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-500 text-sm"
+                  >
+                    Manage Plans
+                  </button>
+                </div>
               </div>
               <div className="p-4 bg-gray-700 rounded-lg">
                 <h4 className="font-medium mb-2">Email Service</h4>
