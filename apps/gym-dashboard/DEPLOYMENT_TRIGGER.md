@@ -19,3 +19,5 @@
 # Trigger rebuild Wed 2 Oct 2025 07:55:00 BST - Add debug logging to UnifiedMessaging
 
 # Trigger rebuild Wed 2 Oct 2025 08:00:00 BST - Fix UnifiedMessaging useEffect with userData guard
+
+# Trigger rebuild Wed 2 Oct 2025 08:10:00 BST - Add comprehensive debug logging to conversations page

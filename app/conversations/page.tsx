@@ -43,11 +43,22 @@ function ConversationsContent() {
   }, []);
 
   const loadUserData = async () => {
+    console.log("[Conversations] Starting loadUserData");
     try {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) return;
+
+      console.log("[Conversations] Auth user:", {
+        hasUser: !!user,
+        userId: user?.id,
+        email: user?.email,
+      });
+
+      if (!user) {
+        console.log("[Conversations] No authenticated user found");
+        return;
+      }
 
       // Check user_organizations first (matching messages API pattern)
       const { data: userOrg } = await supabase
@@ -56,21 +67,26 @@ function ConversationsContent() {
         .eq("user_id", user.id)
         .maybeSingle();
 
+      console.log("[Conversations] user_organizations result:", userOrg);
+
       let organizationId = userOrg?.organization_id;
 
       // Fallback to organization_staff if not found
       if (!organizationId) {
+        console.log(
+          "[Conversations] No org in user_organizations, checking organization_staff",
+        );
         const { data: staffRecord } = await supabase
           .from("organization_staff")
           .select("organization_id")
           .eq("user_id", user.id)
           .maybeSingle();
 
+        console.log("[Conversations] organization_staff result:", staffRecord);
         organizationId = staffRecord?.organization_id;
       }
 
-      // Set user data with organization
-      setUserData({
+      const finalUserData = {
         id: user.id,
         full_name:
           user.user_metadata?.name ||
@@ -79,7 +95,12 @@ function ConversationsContent() {
           "Coach",
         email: user.email,
         organization_id: organizationId || null,
-      });
+      };
+
+      console.log("[Conversations] Setting userData:", finalUserData);
+
+      // Set user data with organization
+      setUserData(finalUserData);
     } catch (error) {
       console.error("[Conversations] Error loading user data:", error);
       // If anything fails, still set a minimal user so the UI renders
@@ -87,12 +108,14 @@ function ConversationsContent() {
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        setUserData({
+        const fallbackData = {
           id: user.id,
           full_name: user.email?.split("@")[0] || "Coach",
           email: user.email,
           organization_id: null,
-        });
+        };
+        console.log("[Conversations] Setting fallback userData:", fallbackData);
+        setUserData(fallbackData);
       }
     }
   };
