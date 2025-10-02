@@ -210,6 +210,13 @@ export default function UnifiedMessaging({
 
   const loadConversations = async () => {
     try {
+      console.log(
+        "[UnifiedMessaging] Loading conversations for user:",
+        userData.id,
+        "org:",
+        userData.organization_id,
+      );
+
       // Get all conversations (clients and leads) using new unified function
       const { data: allConversations, error: convError } = await supabase.rpc(
         "get_all_conversations",
@@ -220,10 +227,18 @@ export default function UnifiedMessaging({
       );
 
       if (convError) {
-        console.error("Error loading conversations:", convError);
+        console.error(
+          "[UnifiedMessaging] Error loading conversations:",
+          convError,
+        );
         // Fallback to old method if new function doesn't exist
         return loadConversationsOldMethod();
       }
+
+      console.log(
+        "[UnifiedMessaging] Loaded conversations:",
+        allConversations?.length || 0,
+      );
 
       // Format conversations for display
       const formattedConversations = (allConversations || []).map(
@@ -252,12 +267,25 @@ export default function UnifiedMessaging({
 
   const loadConversationsOldMethod = async () => {
     try {
+      console.log("[UnifiedMessaging] Using old method fallback");
+
       // Get all coaching conversations
-      const { data: coachingData } = await supabase.rpc(
+      const { data: coachingData, error: coachError } = await supabase.rpc(
         "get_coach_conversations",
         {
           coach_user_id: userData.id,
         },
+      );
+
+      if (coachError) {
+        console.error(
+          "[UnifiedMessaging] Error loading coaching conversations:",
+          coachError,
+        );
+      }
+      console.log(
+        "[UnifiedMessaging] Loaded coaching conversations:",
+        coachingData?.length || 0,
       );
 
       const coachingConversations = (coachingData || []).map((conv: any) => ({

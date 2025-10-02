@@ -15,3 +15,5 @@
 # Trigger rebuild Wed 2 Oct 2025 07:45:00 BST - Fix conversations page loading (org_staff fallback)
 
 # Trigger rebuild Wed 2 Oct 2025 07:50:00 BST - Fix UnifiedMessaging leads query (organization_id not org_id)
+
+# Trigger rebuild Wed 2 Oct 2025 07:55:00 BST - Add debug logging to UnifiedMessaging
