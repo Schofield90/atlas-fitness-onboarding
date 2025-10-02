@@ -149,15 +149,9 @@ export async function POST(request: NextRequest) {
       channel: isInAppMessage ? "in_app" : channel || messageType,
       direction,
       status: isInAppMessage ? "delivered" : "pending",
-      subject: subject || null,
       body: messageContent,
       sender_type: "gym",
       sender_name: userData.name || userData.email || "Gym",
-      to_number:
-        messageType === "sms" || messageType === "whatsapp"
-          ? recipientAddress
-          : null,
-      to_email: messageType === "email" ? recipientAddress : null,
       created_at: new Date().toISOString(),
     };
 
