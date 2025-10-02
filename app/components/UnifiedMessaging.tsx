@@ -20,6 +20,8 @@ import {
   X,
   Plus,
   Star,
+  MailOpen,
+  MailX,
 } from "lucide-react";
 import toast from "@/app/lib/toast";
 import { formatBritishDateTime } from "@/app/lib/utils/british-format";
@@ -50,6 +52,8 @@ interface Conversation {
   type: "coaching" | "general";
   membership_status?: string;
   is_starred?: boolean;
+  needs_reply?: boolean; // True if last message was from member/ai
+  is_manually_read?: boolean; // True if user manually marked as read
 }
 
 export default function UnifiedMessaging({
@@ -256,10 +260,14 @@ export default function UnifiedMessaging({
         allConversations?.length || 0,
       );
 
-      // Load starred conversations from localStorage
+      // Load starred conversations and manually read status from localStorage
       const starredKey = `starred_conversations_${userData.organization_id}`;
       const starredConversations = JSON.parse(
         localStorage.getItem(starredKey) || "[]",
+      );
+      const manuallyReadKey = `manually_read_conversations_${userData.organization_id}`;
+      const manuallyReadConversations = JSON.parse(
+        localStorage.getItem(manuallyReadKey) || "[]",
       );
 
       // Format conversations for display
@@ -267,6 +275,13 @@ export default function UnifiedMessaging({
         (conv: any) => {
           const convId =
             conv.conv_id || `${conv.contact_type}-${conv.contact_id}`;
+          const senderType = conv.sender_type || "client";
+          const needsReply =
+            senderType === "member" ||
+            senderType === "ai" ||
+            senderType === "client";
+          const isManuallyRead = manuallyReadConversations.includes(convId);
+
           return {
             id: convId,
             contact_id: conv.contact_id,
@@ -276,11 +291,13 @@ export default function UnifiedMessaging({
             last_message: conv.last_message || "",
             last_message_time: conv.last_message_time,
             unread_count: conv.unread_count || 0,
-            sender_type: conv.sender_type || "client",
+            sender_type: senderType,
             type: conv.contact_type === "client" ? "general" : "coaching",
             membership_status:
               conv.contact_type === "client" ? "Client" : "Lead",
             is_starred: starredConversations.includes(convId),
+            needs_reply: needsReply && !isManuallyRead,
+            is_manually_read: isManuallyRead,
           };
         },
       );
@@ -297,10 +314,14 @@ export default function UnifiedMessaging({
     try {
       console.log("[UnifiedMessaging] Using old method fallback");
 
-      // Load starred conversations from localStorage
+      // Load starred conversations and manually read status from localStorage
       const starredKey = `starred_conversations_${userData.organization_id}`;
       const starredConversations = JSON.parse(
         localStorage.getItem(starredKey) || "[]",
+      );
+      const manuallyReadKey = `manually_read_conversations_${userData.organization_id}`;
+      const manuallyReadConversations = JSON.parse(
+        localStorage.getItem(manuallyReadKey) || "[]",
       );
 
       // Get all coaching conversations
@@ -324,6 +345,13 @@ export default function UnifiedMessaging({
 
       const coachingConversations = (coachingData || []).map((conv: any) => {
         const convId = `coach-${conv.member_id}`;
+        const senderType = conv.sender_type;
+        const needsReply =
+          senderType === "member" ||
+          senderType === "ai" ||
+          senderType === "client";
+        const isManuallyRead = manuallyReadConversations.includes(convId);
+
         return {
           id: convId,
           contact_id: conv.member_id,
@@ -333,10 +361,12 @@ export default function UnifiedMessaging({
           last_message: conv.last_message,
           last_message_time: conv.last_message_time,
           unread_count: conv.unread_count,
-          sender_type: conv.sender_type,
+          sender_type: senderType,
           type: "coaching" as const,
           membership_status: "Member",
           is_starred: starredConversations.includes(convId),
+          needs_reply: needsReply && !isManuallyRead,
+          is_manually_read: isManuallyRead,
         };
       });
 
@@ -367,6 +397,11 @@ export default function UnifiedMessaging({
           ).length;
 
           const convId = `general-${lead.id}`;
+          const senderType =
+            lastMessage?.direction === "inbound" ? "member" : "gym";
+          const needsReply = senderType === "member" || senderType === "ai";
+          const isManuallyRead = manuallyReadConversations.includes(convId);
+
           return {
             id: convId,
             contact_id: lead.id,
@@ -379,11 +414,12 @@ export default function UnifiedMessaging({
             last_message: lastMessage?.body || "No messages yet",
             last_message_time: lastMessage?.created_at || lead.created_at,
             unread_count: unreadCount,
-            sender_type:
-              lastMessage?.direction === "inbound" ? "member" : "gym",
+            sender_type: senderType,
             type: "general" as const,
             membership_status: lead.status === "converted" ? "Member" : "Lead",
             is_starred: starredConversations.includes(convId),
+            needs_reply: needsReply && !isManuallyRead,
+            is_manually_read: isManuallyRead,
           };
         })
         .filter((conv: any) => conv.last_message !== "No messages yet");
@@ -633,6 +669,25 @@ export default function UnifiedMessaging({
       }
 
       toast.success("Message sent!");
+
+      // Remove conversation from manually read list when we reply
+      if (selectedConversation) {
+        const manuallyReadKey = `manually_read_conversations_${userData.organization_id}`;
+        const manuallyReadConversations = JSON.parse(
+          localStorage.getItem(manuallyReadKey) || "[]",
+        );
+        const index = manuallyReadConversations.indexOf(
+          selectedConversation.id,
+        );
+        if (index > -1) {
+          manuallyReadConversations.splice(index, 1);
+          localStorage.setItem(
+            manuallyReadKey,
+            JSON.stringify(manuallyReadConversations),
+          );
+        }
+      }
+
       loadConversations(); // Refresh conversations
     } catch (error) {
       console.error("Error sending message:", error);
@@ -710,9 +765,73 @@ export default function UnifiedMessaging({
     }
   };
 
+  const toggleReadStatus = async (
+    conversationId: string,
+    event: React.MouseEvent,
+  ) => {
+    event.stopPropagation(); // Prevent selecting the conversation
+
+    const conversation = conversations.find((c) => c.id === conversationId);
+    if (!conversation) return;
+
+    const newReadState = !conversation.is_manually_read;
+
+    // Optimistically update UI
+    setConversations((prev) =>
+      prev.map((conv) =>
+        conv.id === conversationId
+          ? {
+              ...conv,
+              is_manually_read: newReadState,
+              needs_reply: conversation.needs_reply && !newReadState,
+            }
+          : conv,
+      ),
+    );
+
+    try {
+      const manuallyReadKey = `manually_read_conversations_${userData.organization_id}`;
+      const manuallyReadConversations = JSON.parse(
+        localStorage.getItem(manuallyReadKey) || "[]",
+      );
+
+      if (newReadState) {
+        // Mark as read
+        if (!manuallyReadConversations.includes(conversationId)) {
+          manuallyReadConversations.push(conversationId);
+        }
+      } else {
+        // Mark as unread
+        const index = manuallyReadConversations.indexOf(conversationId);
+        if (index > -1) manuallyReadConversations.splice(index, 1);
+      }
+
+      localStorage.setItem(
+        manuallyReadKey,
+        JSON.stringify(manuallyReadConversations),
+      );
+      toast.success(newReadState ? "Marked as read" : "Marked as unread");
+    } catch (error) {
+      console.error("Error toggling read status:", error);
+      // Revert on error
+      setConversations((prev) =>
+        prev.map((conv) =>
+          conv.id === conversationId
+            ? {
+                ...conv,
+                is_manually_read: !newReadState,
+                needs_reply: conversation.needs_reply && newReadState,
+              }
+            : conv,
+        ),
+      );
+      toast.error("Failed to update read status");
+    }
+  };
+
   const filteredConversations = conversations.filter((conv) => {
-    // Apply tab filter
-    if (activeTab === "unread" && conv.unread_count === 0) return false;
+    // Apply tab filter - show in unread if it needs a reply (last message from member/ai)
+    if (activeTab === "unread" && !conv.needs_reply) return false;
     if (activeTab === "starred" && !conv.is_starred) return false;
     // "recent" tab shows all
 
@@ -775,9 +894,9 @@ export default function UnifiedMessaging({
               }`}
             >
               Unread
-              {conversations.filter((c) => c.unread_count > 0).length > 0 && (
+              {conversations.filter((c) => c.needs_reply).length > 0 && (
                 <span className="ml-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5">
-                  {conversations.filter((c) => c.unread_count > 0).length}
+                  {conversations.filter((c) => c.needs_reply).length}
                 </span>
               )}
             </button>
@@ -865,31 +984,61 @@ export default function UnifiedMessaging({
                       : "hover:bg-gray-700"
                   }`}
                 >
-                  {/* Star button */}
-                  <button
-                    onClick={(e) => toggleStar(conversation.id, e)}
-                    className={`absolute top-2 right-2 p-1 rounded hover:bg-gray-600 transition-opacity z-10 ${
-                      conversation.is_starred
-                        ? "opacity-100"
-                        : "opacity-0 group-hover:opacity-100"
-                    }`}
-                    title={
-                      conversation.is_starred
-                        ? "Remove from starred"
-                        : "Add to starred"
-                    }
-                  >
-                    <Star
-                      className={`h-4 w-4 ${
-                        conversation.is_starred
-                          ? "fill-yellow-400 text-yellow-400"
-                          : "text-gray-400"
+                  {/* Action buttons */}
+                  <div className="absolute top-2 right-2 flex gap-1 z-10">
+                    {/* Mark as read/unread button */}
+                    <button
+                      onClick={(e) => toggleReadStatus(conversation.id, e)}
+                      className={`p-1 rounded hover:bg-gray-600 transition-opacity ${
+                        conversation.needs_reply
+                          ? "opacity-100"
+                          : "opacity-0 group-hover:opacity-100"
                       }`}
-                    />
-                  </button>
+                      title={
+                        conversation.is_manually_read
+                          ? "Mark as unread"
+                          : "Mark as read"
+                      }
+                    >
+                      {conversation.is_manually_read ? (
+                        <MailX className="h-4 w-4 text-gray-400" />
+                      ) : (
+                        <MailOpen
+                          className={`h-4 w-4 ${
+                            conversation.needs_reply
+                              ? "text-blue-400"
+                              : "text-gray-400"
+                          }`}
+                        />
+                      )}
+                    </button>
+
+                    {/* Star button */}
+                    <button
+                      onClick={(e) => toggleStar(conversation.id, e)}
+                      className={`p-1 rounded hover:bg-gray-600 transition-opacity ${
+                        conversation.is_starred
+                          ? "opacity-100"
+                          : "opacity-0 group-hover:opacity-100"
+                      }`}
+                      title={
+                        conversation.is_starred
+                          ? "Remove from starred"
+                          : "Add to starred"
+                      }
+                    >
+                      <Star
+                        className={`h-4 w-4 ${
+                          conversation.is_starred
+                            ? "fill-yellow-400 text-yellow-400"
+                            : "text-gray-400"
+                        }`}
+                      />
+                    </button>
+                  </div>
 
                   <div className="flex justify-between items-start mb-1">
-                    <div className="flex-1 pr-6">
+                    <div className="flex-1 pr-12">
                       <span className="font-medium text-white truncate">
                         {conversation.contact_name}
                       </span>
