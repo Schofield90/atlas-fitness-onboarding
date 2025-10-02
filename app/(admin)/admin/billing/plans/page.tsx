@@ -91,17 +91,21 @@ export default function BillingPlansAdmin() {
         is_active: formData.is_active ?? true,
       };
 
+      console.log("Submitting data:", dbData);
+
       if (editingPlan) {
         // Update existing plan
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("saas_plans")
           .update(dbData)
-          .eq("id", editingPlan.id);
+          .eq("id", editingPlan.id)
+          .select();
 
         if (error) {
           console.error("Update error:", error);
           alert(`Error updating plan: ${error.message}`);
         } else {
+          console.log("Update successful:", data);
           await loadPlans();
           setShowForm(false);
           setEditingPlan(null);
@@ -109,12 +113,16 @@ export default function BillingPlansAdmin() {
         }
       } else {
         // Create new plan
-        const { error } = await supabase.from("saas_plans").insert(dbData);
+        const { data, error } = await supabase
+          .from("saas_plans")
+          .insert(dbData)
+          .select();
 
         if (error) {
           console.error("Insert error:", error);
           alert(`Error creating plan: ${error.message}`);
         } else {
+          console.log("Insert successful:", data);
           await loadPlans();
           setShowForm(false);
           resetForm();
