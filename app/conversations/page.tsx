@@ -45,98 +45,53 @@ function ConversationsContent() {
   const loadUserData = async () => {
     console.log("[Conversations] Starting loadUserData");
     try {
-      // Use getSession instead of getUser for better session handling
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-
-      console.log("[Conversations] Session check:", {
-        hasSession: !!session,
-        sessionError,
-        userId: session?.user?.id,
-        email: session?.user?.email,
+      // Use the same API endpoint as useOrganization hook
+      const response = await fetch("/api/auth/get-organization", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        cache: "no-cache",
       });
 
-      if (!session?.user) {
-        console.log("[Conversations] No session found, trying API fallback");
+      console.log("[Conversations] API response status:", response.status);
 
-        // Fallback: Use the /api/auth/me endpoint that works for useOrganization
-        try {
-          const response = await fetch("/api/auth/me");
-          if (response.ok) {
-            const apiUserData = await response.json();
-            console.log("[Conversations] Got user from API:", apiUserData);
-            setUserData(apiUserData);
-            return;
-          }
-        } catch (apiError) {
-          console.error("[Conversations] API fallback failed:", apiError);
-        }
-
+      if (!response.ok) {
+        console.error("[Conversations] API request failed:", response.status);
         return;
       }
 
-      const user = session.user;
+      const result = await response.json();
+      console.log("[Conversations] API result:", result);
 
-      // Check user_organizations first (matching messages API pattern)
-      const { data: userOrg } = await supabase
-        .from("user_organizations")
-        .select("organization_id, role")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      console.log("[Conversations] user_organizations result:", userOrg);
-
-      let organizationId = userOrg?.organization_id;
-
-      // Fallback to organization_staff if not found
-      if (!organizationId) {
-        console.log(
-          "[Conversations] No org in user_organizations, checking organization_staff",
+      if (!result.success) {
+        console.error(
+          "[Conversations] API returned error:",
+          result.error || "Unknown error",
         );
-        const { data: staffRecord } = await supabase
-          .from("organization_staff")
-          .select("organization_id")
-          .eq("user_id", user.id)
-          .maybeSingle();
+        return;
+      }
 
-        console.log("[Conversations] organization_staff result:", staffRecord);
-        organizationId = staffRecord?.organization_id;
+      const { organizationId, user, role } = result.data;
+
+      if (!user) {
+        console.log("[Conversations] No user in API response");
+        return;
       }
 
       const finalUserData = {
         id: user.id,
         full_name:
-          user.user_metadata?.name ||
-          user.user_metadata?.full_name ||
-          user.email?.split("@")[0] ||
-          "Coach",
+          user.user_metadata?.name || user.email?.split("@")[0] || "Coach",
         email: user.email,
         organization_id: organizationId || null,
       };
 
       console.log("[Conversations] Setting userData:", finalUserData);
-
-      // Set user data with organization
       setUserData(finalUserData);
     } catch (error) {
       console.error("[Conversations] Error loading user data:", error);
-
-      // Final fallback: Try API endpoint
-      try {
-        const response = await fetch("/api/auth/me");
-        if (response.ok) {
-          const apiUserData = await response.json();
-          console.log(
-            "[Conversations] Error recovery - got user from API:",
-            apiUserData,
-          );
-          setUserData(apiUserData);
-        }
-      } catch (apiError) {
-        console.error("[Conversations] All fallbacks failed:", apiError);
-      }
     }
   };
 

@@ -23,3 +23,5 @@
 # Trigger rebuild Wed 2 Oct 2025 08:10:00 BST - Add comprehensive debug logging to conversations page
 
 # Trigger rebuild Wed 2 Oct 2025 12:50:00 BST - FIX: Use getSession + API fallback for userData loading
+
+# Trigger rebuild Wed 2 Oct 2025 13:00:00 BST - FIX: Use /api/auth/get-organization endpoint (working endpoint)
