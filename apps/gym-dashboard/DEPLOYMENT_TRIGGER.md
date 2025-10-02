@@ -5,3 +5,5 @@
 # Trigger rebuild Wed 1 Oct 2025 16:17:00 BST - Fix staff view member bookings with org_staff fallback
 
 # Trigger rebuild Wed 2 Oct 2025 07:18:00 BST - Fix staff messaging with org_staff table support
+
+# Trigger rebuild Wed 2 Oct 2025 07:25:00 BST - Remove user_id from messages schema

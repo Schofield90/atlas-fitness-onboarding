@@ -144,7 +144,6 @@ export async function POST(request: NextRequest) {
     const messageData = {
       organization_id: orgId,
       client_id: recipientId || client_id || null,
-      user_id: user.id,
       type: messageType,
       channel: isInAppMessage ? "in_app" : channel || messageType,
       direction,
