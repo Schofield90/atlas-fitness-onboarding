@@ -61,29 +61,50 @@ export async function POST(request: NextRequest) {
     const supabaseAdmin = createAdminClient();
 
     // Delete any existing connection
-    await supabaseAdmin
+    const { error: deleteError } = await supabaseAdmin
       .from("stripe_connect_accounts")
       .delete()
       .eq("organization_id", userOrg.organization_id);
 
+    if (deleteError) {
+      console.error("Error deleting existing connection:", deleteError);
+    }
+
     // Save new connection
-    await supabaseAdmin.from("stripe_connect_accounts").insert({
-      organization_id: userOrg.organization_id,
-      stripe_account_id: account.id,
-      access_token: apiKey, // Storing API key as access_token
-      connected_at: new Date().toISOString(),
-      onboarding_completed: true,
-      charges_enabled: account.charges_enabled || false,
-      payouts_enabled: account.payouts_enabled || false,
-    });
+    const { data: insertData, error: insertError } = await supabaseAdmin
+      .from("stripe_connect_accounts")
+      .insert({
+        organization_id: userOrg.organization_id,
+        stripe_account_id: account.id,
+        access_token: apiKey, // Storing API key as access_token
+        connected_at: new Date().toISOString(),
+        onboarding_completed: true,
+        charges_enabled: account.charges_enabled || false,
+        payouts_enabled: account.payouts_enabled || false,
+      })
+      .select();
+
+    if (insertError) {
+      console.error("Error inserting Stripe connection:", insertError);
+      return NextResponse.json(
+        { error: `Database error: ${insertError.message}` },
+        { status: 500 },
+      );
+    }
+
+    console.log("Stripe connection saved successfully:", insertData);
 
     // Update organization
-    await supabaseAdmin
+    const { error: updateError } = await supabaseAdmin
       .from("organizations")
       .update({
         stripe_account_id: account.id,
       })
       .eq("id", userOrg.organization_id);
+
+    if (updateError) {
+      console.error("Error updating organization:", updateError);
+    }
 
     return NextResponse.json({
       success: true,
