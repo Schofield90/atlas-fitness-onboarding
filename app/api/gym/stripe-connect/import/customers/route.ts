@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/app/lib/supabase/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 import Stripe from "stripe";
 
@@ -7,15 +6,6 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const body = await request.json();
     const { organizationId } = body;
 
@@ -26,11 +16,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get Stripe connection using admin client
+    // Use admin client for all operations
     const supabaseAdmin = createAdminClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
     );
+
+    // Verify organization exists
+    const { data: org, error: orgError } = await supabaseAdmin
+      .from("organizations")
+      .select("id")
+      .eq("id", organizationId)
+      .single();
+
+    if (orgError || !org) {
+      return NextResponse.json(
+        { error: "Organization not found" },
+        { status: 404 },
+      );
+    }
 
     const { data: stripeAccount } = await supabaseAdmin
       .from("stripe_connect_accounts")
@@ -80,7 +84,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Check if client already exists with this email
-      const { data: existingClient } = await supabase
+      const { data: existingClient } = await supabaseAdmin
         .from("clients")
         .select("id")
         .eq("organization_id", organizationId)
