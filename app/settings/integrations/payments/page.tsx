@@ -3,6 +3,7 @@
 // Updated: Fri 3 Oct 2025 14:35 - Dual option UI with API key flow v2
 import { useState, useEffect } from "react";
 import { createClient } from "@/app/lib/supabase/client";
+import Link from "next/link";
 import {
   CreditCard,
   CheckCircle,
@@ -10,6 +11,7 @@ import {
   Loader2,
   Shield,
   ExternalLink,
+  Download,
 } from "lucide-react";
 import SettingsHeader from "@/app/components/settings/SettingsHeader";
 
@@ -342,6 +344,22 @@ export default function PaymentIntegrationPage() {
             )}
           </div>
         </div>
+
+        {connected && (
+          <div className="mb-6">
+            <Link
+              href="/settings/integrations/payments/import"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              <Download className="w-4 h-4" />
+              Import Stripe Data
+            </Link>
+            <p className="text-sm text-gray-400 mt-2">
+              Import your existing customers, payment methods, and subscriptions
+              from Stripe
+            </p>
+          </div>
+        )}
 
         {!connected ? (
           <div>
