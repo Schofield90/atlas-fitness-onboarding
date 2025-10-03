@@ -41,3 +41,4 @@ Trigger deployment Fri 3 Oct 2025 14:45:00 BST - Add step to create NEW secret k
 Trigger deployment Fri 3 Oct 2025 14:50:00 BST - Clarify NOT to select 3rd party (standard key only)
 Trigger deployment Fri 3 Oct 2025 14:55:00 BST - Add reassurance about Stripe full access warning
 Trigger deployment Fri 3 Oct 2025 15:00:00 BST - Add detailed error logging for connection failures
+Trigger deployment Fri 3 Oct 2025 15:05:00 BST - Fix JSON parsing error by checking response body first

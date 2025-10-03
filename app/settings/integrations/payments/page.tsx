@@ -189,7 +189,21 @@ export default function PaymentIntegrationPage() {
         body: JSON.stringify({ apiKey }),
       });
 
-      const data = await response.json();
+      // Check if response has content before parsing JSON
+      const responseText = await response.text();
+      console.log("Response status:", response.status);
+      console.log("Response body:", responseText);
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Failed to parse response as JSON:", responseText);
+        alert(
+          `Server error: Received invalid response. Check console for details.`,
+        );
+        return;
+      }
 
       if (response.ok) {
         setConnected(true);
