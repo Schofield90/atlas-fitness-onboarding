@@ -43,3 +43,4 @@ Trigger deployment Fri 3 Oct 2025 14:55:00 BST - Add reassurance about Stripe fu
 Trigger deployment Fri 3 Oct 2025 15:00:00 BST - Add detailed error logging for connection failures
 Trigger deployment Fri 3 Oct 2025 15:05:00 BST - Fix JSON parsing error by checking response body first
 Trigger deployment Fri 3 Oct 2025 15:10:00 BST - Force redeploy to register connect-existing route
+Trigger deployment Fri 3 Oct 2025 15:15:00 BST - Remove ignoreCommand to force full rebuild
