@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
+import { createAdminClient } from "@/app/lib/supabase/admin";
 import Stripe from "stripe";
 
 export const dynamic = "force-dynamic";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-11-20.acacia",
-});
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,31 +17,45 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user's organization
-    const { data: userOrg } = await supabase
+    const { data: userOrg, error: orgError } = await supabase
       .from("user_organizations")
       .select("organization_id")
       .eq("user_id", user.id)
       .single();
 
-    if (!userOrg) {
+    if (orgError || !userOrg) {
+      console.log("No user organization found:", orgError);
       return NextResponse.json({ connected: false });
     }
 
+    console.log("Checking Stripe connection for org:", userOrg.organization_id);
+
+    // Use admin client to bypass RLS
+    const supabaseAdmin = createAdminClient();
+
     // Check for Stripe Connect account
-    const { data: connectAccount } = await supabase
+    const { data: connectAccount, error: connectError } = await supabaseAdmin
       .from("stripe_connect_accounts")
       .select("*")
       .eq("organization_id", userOrg.organization_id)
       .single();
 
-    if (!connectAccount) {
+    if (connectError || !connectAccount) {
+      console.log("No Stripe connection found:", connectError);
       return NextResponse.json({ connected: false });
     }
 
-    // Get account details from Stripe
-    const account = await stripe.accounts.retrieve(
-      connectAccount.stripe_account_id,
-    );
+    console.log("Stripe connection found:", {
+      account_id: connectAccount.stripe_account_id,
+      has_token: !!connectAccount.access_token,
+    });
+
+    // Get account details from Stripe using the connected account's API key
+    const stripe = new Stripe(connectAccount.access_token, {
+      apiVersion: "2024-11-20.acacia",
+    });
+
+    const account = await stripe.accounts.retrieve();
 
     return NextResponse.json({
       connected: true,

@@ -4,10 +4,6 @@ import Stripe from "stripe";
 
 export const dynamic = "force-dynamic";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-11-20.acacia",
-});
-
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -33,57 +29,88 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get Connect account
-    const { data: connectAccount } = await supabase
+    // Get Stripe connection
+    const { data: stripeAccount } = await supabase
       .from("stripe_connect_accounts")
-      .select("stripe_account_id")
+      .select("access_token, stripe_account_id")
       .eq("organization_id", userOrg.organization_id)
       .single();
 
-    if (!connectAccount) {
+    if (!stripeAccount || !stripeAccount.access_token) {
       return NextResponse.json(
-        { error: "No Stripe account connected" },
+        { error: "Stripe account not connected" },
         { status: 404 },
       );
     }
 
-    // Fetch customers from connected account
-    const customers = await stripe.customers.list(
-      { limit: 10 },
-      { stripeAccount: connectAccount.stripe_account_id }
-    );
+    // Initialize Stripe with the connected account's API key
+    const stripe = new Stripe(stripeAccount.access_token, {
+      apiVersion: "2024-11-20.acacia",
+    });
 
-    // Fetch recent payments from connected account
-    const paymentIntents = await stripe.paymentIntents.list(
-      { limit: 10 },
-      { stripeAccount: connectAccount.stripe_account_id }
-    );
+    // Fetch customers (limited to 10 for testing)
+    const customers = await stripe.customers.list({
+      limit: 10,
+    });
+
+    // Fetch recent charges (limited to 10 for testing)
+    const charges = await stripe.charges.list({
+      limit: 10,
+    });
+
+    // Fetch subscriptions (limited to 10 for testing)
+    const subscriptions = await stripe.subscriptions.list({
+      limit: 10,
+    });
 
     return NextResponse.json({
-      accountId: connectAccount.stripe_account_id,
-      customersCount: customers.data.length,
-      customers: customers.data.map(c => ({
-        id: c.id,
-        email: c.email,
-        name: c.name,
-        created: new Date(c.created * 1000).toLocaleDateString(),
-      })),
-      paymentsCount: paymentIntents.data.length,
-      payments: paymentIntents.data.map(p => ({
-        id: p.id,
-        amount: p.amount / 100,
-        currency: p.currency,
-        status: p.status,
-        created: new Date(p.created * 1000).toLocaleDateString(),
-      })),
-    });
-  } catch (error) {
-    console.error("Error testing Stripe data:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to fetch data",
-        details: error instanceof Error ? error.message : String(error)
+      success: true,
+      data: {
+        account_id: stripeAccount.stripe_account_id,
+        customers: {
+          total: customers.data.length,
+          has_more: customers.has_more,
+          data: customers.data.map((c) => ({
+            id: c.id,
+            email: c.email,
+            name: c.name,
+            created: new Date(c.created * 1000).toISOString(),
+            currency: c.currency,
+          })),
+        },
+        charges: {
+          total: charges.data.length,
+          has_more: charges.has_more,
+          data: charges.data.map((ch) => ({
+            id: ch.id,
+            amount: ch.amount / 100, // Convert cents to dollars
+            currency: ch.currency,
+            status: ch.status,
+            customer: ch.customer,
+            created: new Date(ch.created * 1000).toISOString(),
+          })),
+        },
+        subscriptions: {
+          total: subscriptions.data.length,
+          has_more: subscriptions.has_more,
+          data: subscriptions.data.map((s) => ({
+            id: s.id,
+            customer: s.customer,
+            status: s.status,
+            current_period_start: new Date(
+              s.current_period_start * 1000,
+            ).toISOString(),
+            current_period_end: new Date(
+              s.current_period_end * 1000,
+            ).toISOString(),
+          })),
+        },
       },
+    });
+  } catch (error: any) {
+    console.error("Error fetching Stripe data:", error);
+    return NextResponse.json(
+      { error: `Failed to fetch data: ${error.message}` },
       { status: 500 },
     );
   }
