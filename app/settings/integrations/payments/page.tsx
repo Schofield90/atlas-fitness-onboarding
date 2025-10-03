@@ -210,7 +210,9 @@ export default function PaymentIntegrationPage() {
         setShowApiKeyEntry(false);
         setShowConnectionOptions(false);
         setSuccessMessage("Stripe account connected successfully!");
-        await checkStripeConnection();
+        setAccountStatus(data.account);
+        // Reload page to show connected state
+        setTimeout(() => window.location.reload(), 1500);
       } else {
         const errorMsg = data.error || "Failed to connect Stripe account";
         console.error(
