@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/app/lib/supabase/client";
 import {
   Download,
   Users,
@@ -25,7 +24,6 @@ export default function StripeImportPage() {
   const [importStats, setImportStats] = useState<ImportStats | null>(null);
   const [error, setError] = useState("");
   const [progress, setProgress] = useState(0);
-  const supabase = createClient();
 
   const handleImport = async () => {
     setImporting(true);
@@ -33,18 +31,15 @@ export default function StripeImportPage() {
     setProgress(0);
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      // Get organization ID from API
+      const orgResponse = await fetch("/api/auth/get-organization");
+      const orgData = await orgResponse.json();
 
-      const { data: userOrg } = await supabase
-        .from("user_organizations")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .single();
+      if (!orgData.organizationId) {
+        throw new Error("No organization found");
+      }
 
-      if (!userOrg) throw new Error("No organization found");
+      const organizationId = orgData.organizationId;
 
       // Step 1: Import customers (33%)
       setProgress(33);
@@ -54,7 +49,7 @@ export default function StripeImportPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            organizationId: userOrg.organization_id,
+            organizationId,
           }),
         },
       );
@@ -74,7 +69,7 @@ export default function StripeImportPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            organizationId: userOrg.organization_id,
+            organizationId,
           }),
         },
       );
@@ -94,7 +89,7 @@ export default function StripeImportPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            organizationId: userOrg.organization_id,
+            organizationId,
           }),
         },
       );
