@@ -11,12 +11,17 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('[Stripe Connect] Starting connection request');
     const supabase = await createClient();
+    console.log('[Stripe Connect] Supabase client created');
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
+    console.log('[Stripe Connect] User:', user?.id);
 
     if (!user) {
+      console.log('[Stripe Connect] No user found');
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -81,9 +86,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ url: accountLink.url });
   } catch (error) {
-    console.error("Error initiating Stripe Connect:", error);
+    console.error("[Stripe Connect] Error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error", details: error instanceof Error ? error.message : String(error) },
       { status: 500 },
     );
   }
