@@ -3,7 +3,7 @@ import { createAdminClient } from "@/app/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
-export async function POST() {
+async function applyMigration() {
   try {
     const supabaseAdmin = createAdminClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -67,4 +67,12 @@ export async function POST() {
       { status: 500 },
     );
   }
+}
+
+export async function GET() {
+  return applyMigration();
+}
+
+export async function POST() {
+  return applyMigration();
 }
