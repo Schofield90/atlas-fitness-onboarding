@@ -47,3 +47,4 @@ Trigger deployment Fri 3 Oct 2025 15:15:00 BST - Remove ignoreCommand to force f
 Trigger deployment Fri 3 Oct 2025 15:25:00 BST - Move connect-existing to SHARED /app directory
 Trigger deployment Fri 3 Oct 2025 15:30:00 BST - Remove Payment Settings section from Stripe integration
 Trigger deployment Fri 3 Oct 2025 17:45:00 BST - Force rebuild with fixed Stripe routes
+Stripe import fix deployed at Fri 3 Oct 2025 21:39:24 BST
