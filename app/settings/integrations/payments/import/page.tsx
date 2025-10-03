@@ -35,11 +35,11 @@ export default function StripeImportPage() {
       const orgResponse = await fetch("/api/auth/get-organization");
       const orgData = await orgResponse.json();
 
-      if (!orgData.organizationId) {
+      if (!orgData.data?.organizationId) {
         throw new Error("No organization found");
       }
 
-      const organizationId = orgData.organizationId;
+      const organizationId = orgData.data.organizationId;
 
       // Step 1: Import customers (33%)
       setProgress(33);
