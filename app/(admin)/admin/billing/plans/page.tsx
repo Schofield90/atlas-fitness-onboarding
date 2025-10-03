@@ -13,6 +13,7 @@ import {
   Users,
   Mail,
   Brain,
+  Link,
 } from "lucide-react";
 
 interface BillingPlan {
@@ -335,20 +336,33 @@ export default function BillingPlansAdmin() {
                   </div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="space-y-2">
                   <button
-                    onClick={() => handleEdit(plan)}
-                    className="flex-1 px-3 py-2 bg-gray-700 text-white rounded hover:bg-gray-600 flex items-center justify-center gap-2"
+                    onClick={() => {
+                      const url = `${window.location.origin}/signup/${plan.slug}`;
+                      navigator.clipboard.writeText(url);
+                      alert("Signup link copied to clipboard!");
+                    }}
+                    className="w-full px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center gap-2"
                   >
-                    <Edit className="h-4 w-4" />
-                    Edit
+                    <Link className="h-4 w-4" />
+                    Copy Signup Link
                   </button>
-                  <button
-                    onClick={() => handleDelete(plan.id)}
-                    className="px-3 py-2 bg-red-900 text-red-300 rounded hover:bg-red-800"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEdit(plan)}
+                      className="flex-1 px-3 py-2 bg-gray-700 text-white rounded hover:bg-gray-600 flex items-center justify-center gap-2"
+                    >
+                      <Edit className="h-4 w-4" />
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(plan.id)}
+                      className="px-3 py-2 bg-red-900 text-red-300 rounded hover:bg-red-800"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
 
                 {!plan.is_active && (
