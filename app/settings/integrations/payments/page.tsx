@@ -1,5 +1,6 @@
 "use client";
 
+// Updated: Fri 3 Oct 2025 - Dual option UI with API key flow
 import { useState, useEffect } from "react";
 import { createClient } from "@/app/lib/supabase/client";
 import {
