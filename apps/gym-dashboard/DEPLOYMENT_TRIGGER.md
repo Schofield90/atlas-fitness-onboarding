@@ -37,3 +37,4 @@ Trigger deployment Fri 3 Oct 2025 13:01:28 BST
 Trigger deployment Fri 3 Oct 2025 14:11:01 BST
 Trigger deployment Fri 3 Oct 2025 14:25:33 BST - Simplified Stripe connection UI with dual options
 Trigger deployment Fri 3 Oct 2025 14:32:18 BST - Force cache refresh for Stripe UI
+Trigger deployment Fri 3 Oct 2025 14:45:00 BST - Add step to create NEW secret key with full access
