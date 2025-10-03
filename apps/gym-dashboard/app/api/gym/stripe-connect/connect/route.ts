@@ -47,17 +47,23 @@ export async function GET(request: NextRequest) {
     ).toString("base64");
 
     // OAuth URL - user can sign in to existing account OR create new one
-    const stripeAuthUrl = `https://connect.stripe.com/oauth/authorize?${new URLSearchParams(
-      {
-        response_type: "code",
-        client_id: clientId,
-        scope: "read_write",
-        redirect_uri: redirectUri,
-        state,
-        // This allows connecting existing accounts OR creating new ones
-        "stripe_user[email]": user.email || "",
-      },
-    )}`;
+    const params = new URLSearchParams({
+      response_type: "code",
+      client_id: clientId,
+      scope: "read_write",
+      redirect_uri: redirectUri,
+      state,
+    });
+
+    // Add suggested capabilities for existing accounts
+    if (user.email) {
+      params.append("stripe_user[email]", user.email);
+    }
+
+    // Add 'always_prompt' to force account selection (existing or new)
+    params.append("always_prompt", "true");
+
+    const stripeAuthUrl = `https://connect.stripe.com/oauth/authorize?${params.toString()}`;
 
     return NextResponse.json({ url: stripeAuthUrl });
   } catch (error) {
