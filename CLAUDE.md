@@ -421,7 +421,7 @@ const transformedBookings = (data.bookings || []).map((booking: any) => ({
 
 **Triggering Deployments**: Modify `DEPLOYMENT_TRIGGER.md` in each app directory to force rebuild when shared code changes.
 
-### Stripe Integration Setup (October 2, 2025)
+### Stripe Integration Setup (October 2-3, 2025)
 
 #### Overview
 
@@ -430,7 +430,65 @@ Setting up dual Stripe integration:
 1. **SaaS Billing**: Platform charges gym owners for software subscription
 2. **Stripe Connect**: Gym owners connect their Stripe accounts to accept payments from clients
 
-#### Completed Tasks
+#### ✅ Stripe Connect - COMPLETED (October 3, 2025)
+
+**Implementation**: Dual-option connection flow for existing gym owners switching platforms
+
+**Connection Methods**:
+
+1. **Connect Existing Account** (API Key) - Recommended for GoTeamUp migrations
+   - Uses Stripe secret API key (sk*live* or sk*test*)
+   - Preserves all existing customers and payment data
+   - No customer action required
+   - Takes ~30 seconds to connect
+
+2. **Create New Account** (OAuth) - For new gyms
+   - OAuth flow creates new Stripe Express account
+   - Customers need to re-enter payment details
+   - Full Stripe onboarding required
+
+**Key Files**:
+
+- `/app/settings/integrations/payments/page.tsx` - Main UI with connection flow
+- `/app/api/gym/stripe-connect/connect-existing/route.ts` - API key validation and storage
+- `/app/api/gym/stripe-connect/status/route.ts` - Connection status check (uses admin client)
+- `/app/api/gym/stripe-connect/test-data/route.ts` - Test endpoint to fetch Stripe data
+
+**Important Architecture Notes**:
+
+- `/app/api/` routes are SHARED across all Vercel projects
+- `/apps/gym-dashboard/app/api/` routes are SPECIFIC to gym-dashboard only
+- Both locations need identical routes due to monorepo structure
+- Use `createAdminClient()` to bypass RLS when reading `stripe_connect_accounts` table
+
+**Database Schema**:
+
+```sql
+stripe_connect_accounts (
+  organization_id UUID,
+  stripe_account_id TEXT,
+  access_token TEXT,  -- Stores API key for existing account connections
+  connected_at TIMESTAMP,
+  onboarding_completed BOOLEAN,
+  charges_enabled BOOLEAN,
+  payouts_enabled BOOLEAN
+)
+```
+
+**Security**:
+
+- API keys validated against Stripe before storage
+- Keys stored in `access_token` field (should be encrypted in production)
+- RLS policies protect `stripe_connect_accounts` table
+- Admin client bypasses RLS for status checks only
+
+**Testing**:
+
+- Test URL: `https://login.gymleadhub.co.uk/api/gym/stripe-connect/test-data`
+- Returns: customers, charges, subscriptions from connected account
+- Browser console: `fetch('/api/gym/stripe-connect/test-data').then(r => r.json()).then(console.log)`
+
+#### SaaS Billing - Completed Tasks
 
 - ✅ Fixed billing plans page to use `saas_plans` table instead of `billing_plans`
 - ✅ Fixed Create Plan button (was outside form, now uses `type="submit"` with `form` attribute)
@@ -455,24 +513,9 @@ Setting up dual Stripe integration:
 
 5. **Stripe Configuration UI**: Add admin UI to configure Stripe settings
 
-6. **Gym Payment Settings**: Create page for gyms to connect their Stripe accounts (Stripe Connect)
+6. **Payment Products Management**: Create page for gyms to manage their payment products
 
-7. **Payment Products Management**: Create page for gyms to manage their payment products
-
-#### Known Issues
-
-- **Vercel Deployment Errors**: All 3 projects failing with `npm error Tracker "idealTree" already exists`
-  - Added `.vercelignore` files to exclude root `node_modules`
-  - Deployments in progress (background processes running)
-  - May need to wait for GitHub auto-deployments or manually trigger from Vercel dashboard
-
-#### Files Modified
-
-- `/app/(admin)/admin/billing/plans/page.tsx` - Changed from `billing_plans` to `saas_plans` table
-- `/app/components/saas-admin/PlanEditor.tsx` - Fixed Create Plan button submission
-- `/app/api/admin/stripe/sync-plans/route.ts` - Created sync endpoint
-- `apps/*/vercel.json` - Simplified configuration
-- `apps/*/.vercelignore` - Added to prevent root node_modules upload
+7. **Encrypt API Keys**: Implement proper encryption for stored Stripe API keys
 
 #### Environment Variables Required
 
@@ -481,13 +524,10 @@ All 3 Vercel projects need:
 - `STRIPE_SECRET_KEY` - ✅ Already added
 - `STRIPE_WEBHOOK_SECRET` - ⏳ Needs to be added
 - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` - ✅ Already added
+- `SUPABASE_SERVICE_ROLE_KEY` - ✅ Already added (for admin operations)
 
 ---
 
-_Last Updated: October 2, 2025_
+_Last Updated: October 3, 2025_
 _Review Type: Automated Design & Accessibility_
 _Diff Policy: Minimal changes only_
-
-```
-
-```
