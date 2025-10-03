@@ -41,7 +41,7 @@ export default function PlanSignupPage() {
       const { data, error } = await supabase
         .from("saas_plans")
         .select("*")
-        .eq("slug", planSlug)
+        .ilike("slug", planSlug)
         .eq("is_active", true)
         .single();
 
