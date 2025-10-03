@@ -1,5 +1,7 @@
 {
   "framework": "nextjs",
+  "buildCommand": "npm run prebuild && npm run build",
+  "installCommand": "cd ../.. && npm ci && cd apps/gym-dashboard && npm install",
   "env": {
     "NEXT_PUBLIC_APP_TYPE": "gym",
     "NEXT_PUBLIC_BASE_URL": "https://login.gymleadhub.co.uk"
