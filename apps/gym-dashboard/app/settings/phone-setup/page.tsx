@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
 import SettingsHeader from '@/app/components/settings/SettingsHeader'
-import { 
-  Phone, Search, CreditCard, Key, MessageCircle, CheckCircle, 
+import {
+  Phone, Search, CreditCard, Key, MessageCircle, CheckCircle,
   AlertCircle, ArrowRight, HelpCircle, Loader2, ExternalLink,
-  Building, User, DollarSign, Clock, Shield, Zap
+  Building, User, DollarSign, Clock, Shield, Zap, Settings
 } from 'lucide-react'
 import PhoneSetupAssistant from '@/app/components/phone/PhoneSetupAssistant'
 import NumberSearchModal from '@/app/components/phone/NumberSearchModal'
