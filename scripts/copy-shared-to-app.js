@@ -27,6 +27,7 @@ if (!fs.existsSync(APP_DIR)) {
 
 // Directories to copy from root /app to apps/{appName}/app
 const SHARED_DIRS = [
+  'api',
   'components',
   'lib',
   'settings',
