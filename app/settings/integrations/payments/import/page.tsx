@@ -76,26 +76,38 @@ export default function StripeImportPage() {
         if (!hasMoreCustomers) setProgress(33);
       }
 
-      // Step 2: Link payment methods (33-66%)
-      setProgress(50);
-      const paymentMethodsResponse = await fetch(
-        "/api/gym/stripe-connect/import/payment-methods",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            organizationId,
-          }),
-        },
-      );
+      // Step 2: Link payment methods in batches (33-66%)
+      let totalPaymentMethods = { total: 0, linked: 0 };
+      let hasMorePaymentMethods = true;
+      let paymentMethodOffset = 0;
 
-      if (!paymentMethodsResponse.ok) {
-        const error = await paymentMethodsResponse.json();
-        throw new Error(error.error || "Failed to import payment methods");
+      while (hasMorePaymentMethods) {
+        const paymentMethodsResponse = await fetch(
+          "/api/gym/stripe-connect/import/payment-methods",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              organizationId,
+              offset: paymentMethodOffset,
+            }),
+          },
+        );
+
+        if (!paymentMethodsResponse.ok) {
+          const error = await paymentMethodsResponse.json();
+          throw new Error(error.error || "Failed to import payment methods");
+        }
+
+        const paymentMethodsData = await paymentMethodsResponse.json();
+        totalPaymentMethods.total += paymentMethodsData.stats.total;
+        totalPaymentMethods.linked += paymentMethodsData.stats.linked;
+
+        hasMorePaymentMethods = paymentMethodsData.stats.hasMore;
+        paymentMethodOffset = paymentMethodsData.stats.nextOffset || 0;
+
+        if (!hasMorePaymentMethods) setProgress(66);
       }
-
-      const paymentMethodsData = await paymentMethodsResponse.json();
-      setProgress(66);
 
       // Step 3: Sync subscriptions (66-100%)
       setProgress(80);
@@ -121,7 +133,7 @@ export default function StripeImportPage() {
       // Combine stats
       setImportStats({
         customers: totalCustomers,
-        paymentMethods: paymentMethodsData.stats,
+        paymentMethods: totalPaymentMethods,
         subscriptions: subscriptionsData.stats,
       });
     } catch (err: any) {

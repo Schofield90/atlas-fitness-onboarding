@@ -8,7 +8,7 @@ export const maxDuration = 60; // 60 seconds timeout (requires Pro plan)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { organizationId } = body;
+    const { organizationId, offset = 0 } = body;
 
     if (!organizationId) {
       return NextResponse.json(
@@ -41,24 +41,31 @@ export async function POST(request: NextRequest) {
       apiVersion: "2024-11-20.acacia",
     });
 
-    // Get all clients with Stripe customer IDs
-    const { data: clients } = await supabaseAdmin
+    // Get clients in batches of 50
+    const batchSize = 50;
+    const { data: clients, count } = await supabaseAdmin
       .from("clients")
-      .select("id, stripe_customer_id")
+      .select("id, stripe_customer_id", { count: "exact" })
       .eq("organization_id", organizationId)
-      .not("stripe_customer_id", "is", null);
+      .not("stripe_customer_id", "is", null)
+      .range(offset, offset + batchSize - 1);
 
     if (!clients || clients.length === 0) {
       return NextResponse.json({
         success: true,
-        stats: { total: 0, linked: 0 },
+        stats: {
+          total: 0,
+          linked: 0,
+          hasMore: false,
+          nextOffset: undefined,
+        },
       });
     }
 
     let totalPaymentMethods = 0;
     let linked = 0;
 
-    // For each client, get their payment methods from Stripe
+    // For each client in this batch, get their payment methods from Stripe
     for (const client of clients) {
       if (!client.stripe_customer_id) continue;
 
@@ -97,11 +104,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const hasMore = (count || 0) > offset + batchSize;
+
     return NextResponse.json({
       success: true,
       stats: {
         total: totalPaymentMethods,
         linked,
+        hasMore,
+        nextOffset: hasMore ? offset + batchSize : undefined,
       },
     });
   } catch (error: any) {

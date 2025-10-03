@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
 
       if (existingClient) {
         // Update existing client with Stripe ID
-        await supabaseAdmin
+        const { error: updateError } = await supabaseAdmin
           .from("clients")
           .update({
             stripe_customer_id: customer.id,
@@ -90,7 +90,12 @@ export async function POST(request: NextRequest) {
           })
           .eq("id", existingClient.id);
 
-        skipped++;
+        if (!updateError) {
+          imported++; // Count updated clients as successfully imported
+        } else {
+          console.error("Error updating client:", updateError);
+          skipped++;
+        }
       } else {
         // Create new client
         const { error } = await supabaseAdmin.from("clients").insert({
