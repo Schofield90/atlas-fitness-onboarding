@@ -36,7 +36,7 @@ export default function PlanSignupPage() {
 
   const loadPlan = async () => {
     try {
-      const response = await fetch(`/api/public/plans?slug=${planSlug}`);
+      const response = await fetch(`/api/plans-public?slug=${planSlug}`);
       const data = await response.json();
 
       if (!response.ok || !data.plan) {
