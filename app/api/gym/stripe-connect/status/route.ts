@@ -55,6 +55,8 @@ export async function GET(request: NextRequest) {
         default_currency: account.default_currency,
         charges_enabled: account.charges_enabled,
         payouts_enabled: account.payouts_enabled,
+        details_submitted: account.details_submitted,
+        onboarding_completed: connectAccount.onboarding_completed,
       },
     });
   } catch (error) {

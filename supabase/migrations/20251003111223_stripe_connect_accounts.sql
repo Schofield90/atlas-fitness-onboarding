@@ -2,13 +2,14 @@ CREATE TABLE IF NOT EXISTS stripe_connect_accounts (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   stripe_account_id TEXT NOT NULL,
-  access_token TEXT NOT NULL,
-  refresh_token TEXT,
-  scope TEXT,
   connected_at TIMESTAMPTZ NOT NULL,
+  onboarding_completed BOOLEAN DEFAULT false,
+  charges_enabled BOOLEAN DEFAULT false,
+  payouts_enabled BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(organization_id)
+  UNIQUE(organization_id),
+  UNIQUE(stripe_account_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_stripe_connect_org ON stripe_connect_accounts(organization_id);

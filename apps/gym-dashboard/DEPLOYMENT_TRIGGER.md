@@ -25,3 +25,5 @@
 # Trigger rebuild Wed 2 Oct 2025 12:50:00 BST - FIX: Use getSession + API fallback for userData loading
 
 # Trigger rebuild Wed 2 Oct 2025 13:00:00 BST - FIX: Use /api/auth/get-organization endpoint (working endpoint)
+
+Trigger deployment Fri 3 Oct 2025 11:56:01 BST
