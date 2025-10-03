@@ -91,14 +91,21 @@ export default function PaymentIntegrationPage() {
 
   const checkStripeConnection = async () => {
     try {
+      console.log("🔍 Checking Stripe connection status...");
       const response = await fetch("/api/gym/stripe-connect/status");
+      console.log("📡 Status response:", response.status, response.statusText);
+
       if (response.ok) {
         const data = await response.json();
+        console.log("✅ Status data:", data);
         setAccountStatus(data);
         setConnected(data.connected);
+      } else {
+        const errorText = await response.text();
+        console.error("❌ Status check failed:", response.status, errorText);
       }
     } catch (error) {
-      console.error("Error checking Stripe connection:", error);
+      console.error("💥 Error checking Stripe connection:", error);
     }
   };
 
