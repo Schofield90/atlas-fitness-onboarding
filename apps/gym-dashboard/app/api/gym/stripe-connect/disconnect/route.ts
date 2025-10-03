@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     // Get Connect account
     const { data: connectAccount } = await supabase
       .from("stripe_connect_accounts")
-      .select("stripe_account_id, access_token")
+      .select("stripe_account_id")
       .eq("organization_id", userOrg.organization_id)
       .single();
 
@@ -48,26 +48,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Only delete Express accounts (acct_), not OAuth connected accounts
-    if (connectAccount.stripe_account_id?.startsWith('acct_')) {
-      try {
-        await stripe.accounts.del(connectAccount.stripe_account_id);
-      } catch (err) {
-        console.log("Could not delete Stripe account:", err);
-      }
-    }
-
-    // For OAuth accounts, revoke access token
-    if (connectAccount.access_token) {
-      try {
-        await stripe.oauth.deauthorize({
-          client_id: process.env.STRIPE_CONNECT_CLIENT_ID!,
-          stripe_user_id: connectAccount.stripe_account_id,
-        });
-      } catch (err) {
-        console.log("Could not revoke OAuth token:", err);
-      }
-    }
+    // Delete the account from Stripe
+    await stripe.accounts.del(connectAccount.stripe_account_id);
 
     // Remove from database
     const supabaseAdmin = createAdminClient();
