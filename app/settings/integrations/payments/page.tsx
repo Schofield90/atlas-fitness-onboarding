@@ -211,8 +211,12 @@ export default function PaymentIntegrationPage() {
         setShowConnectionOptions(false);
         setSuccessMessage("Stripe account connected successfully!");
         setAccountStatus(data.account);
+        console.log("✅ Connection successful! Account data:", data.account);
+        alert(
+          "Success! Check console for details. Refresh page manually to see connected state.",
+        );
         // Reload page to show connected state
-        setTimeout(() => window.location.reload(), 1500);
+        // setTimeout(() => window.location.reload(), 1500);
       } else {
         const errorMsg = data.error || "Failed to connect Stripe account";
         console.error(
