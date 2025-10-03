@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { createClient } from "@/app/lib/supabase/client";
 import { Check, Loader2 } from "lucide-react";
 
 interface Plan {
@@ -30,7 +29,6 @@ export default function PlanSignupPage() {
     "monthly",
   );
   const [processing, setProcessing] = useState(false);
-  const supabase = createClient();
 
   useEffect(() => {
     loadPlan();
@@ -38,19 +36,15 @@ export default function PlanSignupPage() {
 
   const loadPlan = async () => {
     try {
-      const { data, error } = await supabase
-        .from("saas_plans")
-        .select("*")
-        .ilike("slug", planSlug)
-        .eq("is_active", true)
-        .single();
+      const response = await fetch(`/api/public/plans?slug=${planSlug}`);
+      const data = await response.json();
 
-      if (error || !data) {
-        console.error("Error loading plan:", error);
+      if (!response.ok || !data.plan) {
+        console.error("Error loading plan:", data.error);
         return;
       }
 
-      setPlan(data);
+      setPlan(data.plan);
     } catch (error) {
       console.error("Error:", error);
     } finally {
