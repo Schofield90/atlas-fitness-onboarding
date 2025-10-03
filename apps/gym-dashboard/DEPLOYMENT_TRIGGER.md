@@ -50,3 +50,4 @@ Trigger deployment Fri 3 Oct 2025 17:45:00 BST - Force rebuild with fixed Stripe
 Stripe import fix deployed at Fri 3 Oct 2025 21:39:24 BST
 Timeout fix deployed at Fri 3 Oct 2025 21:51:42 BST
 Batch processing deployed at Fri 3 Oct 2025 21:56:00 BST
+Import stats fix deployed at Fri 3 Oct 2025 22:07:17 BST
