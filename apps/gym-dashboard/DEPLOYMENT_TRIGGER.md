@@ -45,3 +45,4 @@ Trigger deployment Fri 3 Oct 2025 15:05:00 BST - Fix JSON parsing error by check
 Trigger deployment Fri 3 Oct 2025 15:10:00 BST - Force redeploy to register connect-existing route
 Trigger deployment Fri 3 Oct 2025 15:15:00 BST - Remove ignoreCommand to force full rebuild
 Trigger deployment Fri 3 Oct 2025 15:25:00 BST - Move connect-existing to SHARED /app directory
+Trigger deployment Fri 3 Oct 2025 15:30:00 BST - Remove Payment Settings section from Stripe integration
