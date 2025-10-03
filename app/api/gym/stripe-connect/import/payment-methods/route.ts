@@ -3,6 +3,7 @@ import { createAdminClient } from "@/app/lib/supabase/admin";
 import Stripe from "stripe";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60; // 60 seconds timeout (requires Pro plan)
 
 export async function POST(request: NextRequest) {
   try {
