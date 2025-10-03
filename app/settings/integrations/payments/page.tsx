@@ -198,11 +198,18 @@ export default function PaymentIntegrationPage() {
         setSuccessMessage("Stripe account connected successfully!");
         await checkStripeConnection();
       } else {
-        alert(data.error || "Failed to connect Stripe account");
+        const errorMsg = data.error || "Failed to connect Stripe account";
+        console.error(
+          "Connection failed:",
+          errorMsg,
+          "Status:",
+          response.status,
+        );
+        alert(errorMsg);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error connecting existing account:", error);
-      alert("Failed to connect Stripe account");
+      alert(`Network error: ${error.message || "Failed to connect to server"}`);
     } finally {
       setTestingApiKey(false);
     }

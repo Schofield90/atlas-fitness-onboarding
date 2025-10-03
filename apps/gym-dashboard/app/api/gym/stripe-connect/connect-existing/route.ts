@@ -25,8 +25,9 @@ export async function POST(request: NextRequest) {
     try {
       account = await stripe.accounts.retrieve();
     } catch (error: any) {
+      console.error("Stripe API key validation error:", error.message);
       return NextResponse.json(
-        { error: "Invalid API key or insufficient permissions" },
+        { error: `Invalid API key: ${error.message}` },
         { status: 401 },
       );
     }
@@ -95,10 +96,10 @@ export async function POST(request: NextRequest) {
         payouts_enabled: account.payouts_enabled,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error connecting existing account:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: `Failed to connect: ${error.message || "Unknown error"}` },
       { status: 500 },
     );
   }
