@@ -8,7 +8,7 @@ export const maxDuration = 60; // 60 seconds timeout (requires Pro plan)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { organizationId } = body;
+    const { organizationId, startingAfter } = body;
 
     if (!organizationId) {
       return NextResponse.json(
@@ -55,29 +55,17 @@ export async function POST(request: NextRequest) {
       apiVersion: "2024-11-20.acacia",
     });
 
-    // Fetch all customers from Stripe
-    const customers: Stripe.Customer[] = [];
-    let hasMore = true;
-    let startingAfter: string | undefined = undefined;
-
-    while (hasMore) {
-      const batch = await stripe.customers.list({
-        limit: 100,
-        starting_after: startingAfter,
-      });
-
-      customers.push(...batch.data);
-      hasMore = batch.has_more;
-      if (hasMore && batch.data.length > 0) {
-        startingAfter = batch.data[batch.data.length - 1].id;
-      }
-    }
+    // Fetch one batch of customers (50 at a time)
+    const batch = await stripe.customers.list({
+      limit: 50,
+      starting_after: startingAfter,
+    });
 
     let imported = 0;
     let skipped = 0;
 
-    // Import each customer
-    for (const customer of customers) {
+    // Import each customer in this batch
+    for (const customer of batch.data) {
       // Skip customers without email
       if (!customer.email) {
         skipped++;
@@ -128,9 +116,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       stats: {
-        total: customers.length,
+        total: batch.data.length,
         imported,
         skipped,
+        hasMore: batch.has_more,
+        nextStartingAfter:
+          batch.has_more && batch.data.length > 0
+            ? batch.data[batch.data.length - 1].id
+            : undefined,
       },
     });
   } catch (error: any) {

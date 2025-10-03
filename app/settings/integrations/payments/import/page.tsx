@@ -41,28 +41,43 @@ export default function StripeImportPage() {
 
       const organizationId = orgData.data.organizationId;
 
-      // Step 1: Import customers (33%)
-      setProgress(33);
-      const customersResponse = await fetch(
-        "/api/gym/stripe-connect/import/customers",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            organizationId,
-          }),
-        },
-      );
+      // Step 1: Import customers in batches (0-33%)
+      let totalCustomers = { total: 0, imported: 0, skipped: 0 };
+      let hasMoreCustomers = true;
+      let customerStartingAfter: string | undefined = undefined;
 
-      if (!customersResponse.ok) {
-        const error = await customersResponse.json();
-        throw new Error(error.error || "Failed to import customers");
+      while (hasMoreCustomers) {
+        const customersResponse = await fetch(
+          "/api/gym/stripe-connect/import/customers",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              organizationId,
+              startingAfter: customerStartingAfter,
+            }),
+          },
+        );
+
+        if (!customersResponse.ok) {
+          const error = await customersResponse.json();
+          throw new Error(error.error || "Failed to import customers");
+        }
+
+        const customersData = await customersResponse.json();
+        totalCustomers.total += customersData.stats.total;
+        totalCustomers.imported += customersData.stats.imported;
+        totalCustomers.skipped += customersData.stats.skipped;
+
+        hasMoreCustomers = customersData.stats.hasMore;
+        customerStartingAfter = customersData.stats.nextStartingAfter;
+
+        // Update progress within the 0-33% range
+        if (!hasMoreCustomers) setProgress(33);
       }
 
-      const customersData = await customersResponse.json();
-
-      // Step 2: Link payment methods (66%)
-      setProgress(66);
+      // Step 2: Link payment methods (33-66%)
+      setProgress(50);
       const paymentMethodsResponse = await fetch(
         "/api/gym/stripe-connect/import/payment-methods",
         {
@@ -80,9 +95,10 @@ export default function StripeImportPage() {
       }
 
       const paymentMethodsData = await paymentMethodsResponse.json();
+      setProgress(66);
 
-      // Step 3: Sync subscriptions (100%)
-      setProgress(100);
+      // Step 3: Sync subscriptions (66-100%)
+      setProgress(80);
       const subscriptionsResponse = await fetch(
         "/api/gym/stripe-connect/import/subscriptions",
         {
@@ -100,10 +116,11 @@ export default function StripeImportPage() {
       }
 
       const subscriptionsData = await subscriptionsResponse.json();
+      setProgress(100);
 
       // Combine stats
       setImportStats({
-        customers: customersData.stats,
+        customers: totalCustomers,
         paymentMethods: paymentMethodsData.stats,
         subscriptions: subscriptionsData.stats,
       });
