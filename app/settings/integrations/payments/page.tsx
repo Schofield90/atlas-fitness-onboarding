@@ -151,6 +151,30 @@ export default function PaymentIntegrationPage() {
     }
   };
 
+  const handleDisconnect = async () => {
+    if (!confirm("Are you sure you want to disconnect your Stripe account?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/gym/stripe-connect/disconnect", {
+        method: "POST",
+      });
+
+      if (response.ok) {
+        setConnected(false);
+        setAccountStatus(null);
+        alert("Stripe account disconnected successfully");
+        window.location.reload();
+      } else {
+        alert("Failed to disconnect Stripe account");
+      }
+    } catch (error) {
+      console.error("Error disconnecting:", error);
+      alert("Failed to disconnect Stripe account");
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -293,13 +317,21 @@ export default function PaymentIntegrationPage() {
               </button>
             ) : null}
             {connected ? (
-              <button
-                onClick={handleOpenDashboard}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-              >
-                Open Stripe Dashboard
-                <ExternalLink className="h-4 w-4" />
-              </button>
+              <>
+                <button
+                  onClick={handleOpenDashboard}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                >
+                  Open Stripe Dashboard
+                  <ExternalLink className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={handleDisconnect}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                >
+                  Disconnect
+                </button>
+              </>
             ) : (
               <button
                 onClick={handleConnectStripe}
