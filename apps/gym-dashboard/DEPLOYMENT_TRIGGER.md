@@ -49,3 +49,4 @@ Trigger deployment Fri 3 Oct 2025 15:30:00 BST - Remove Payment Settings section
 Trigger deployment Fri 3 Oct 2025 17:45:00 BST - Force rebuild with fixed Stripe routes
 Stripe import fix deployed at Fri 3 Oct 2025 21:39:24 BST
 Timeout fix deployed at Fri 3 Oct 2025 21:51:42 BST
+Batch processing deployed at Fri 3 Oct 2025 21:56:00 BST
