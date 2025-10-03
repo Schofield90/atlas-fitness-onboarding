@@ -13,18 +13,8 @@ export default function AdminStripePage() {
   const [connected, setConnected] = useState(false);
   const [accountStatus, setAccountStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [connecting, setConnecting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check for success/refresh params
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("stripe_success") === "true") {
-      setSuccess("Stripe account connected successfully!");
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-
     checkConnection();
   }, []);
 
@@ -45,48 +35,6 @@ export default function AdminStripePage() {
     }
   };
 
-  const handleConnect = async () => {
-    try {
-      setConnecting(true);
-      setError(null);
-
-      const response = await fetch("/api/admin/stripe/connect");
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to initiate connection");
-      }
-
-      // Redirect to Stripe OAuth
-      window.location.href = data.url;
-    } catch (err: any) {
-      setError(err.message);
-      setConnecting(false);
-    }
-  };
-
-  const handleDisconnect = async () => {
-    if (!confirm("Are you sure you want to disconnect your Stripe account?")) {
-      return;
-    }
-
-    try {
-      const response = await fetch("/api/admin/stripe/disconnect", {
-        method: "POST",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to disconnect");
-      }
-
-      setConnected(false);
-      setAccountStatus(null);
-      setSuccess("Stripe account disconnected");
-    } catch (err: any) {
-      setError(err.message);
-    }
-  };
-
   return (
     <div className="space-y-6">
       <div>
@@ -98,20 +46,6 @@ export default function AdminStripePage() {
           management
         </p>
       </div>
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
-          <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
-          <p className="text-red-700 text-sm">{error}</p>
-        </div>
-      )}
-
-      {success && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
-          <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
-          <p className="text-green-700 text-sm">{success}</p>
-        </div>
-      )}
 
       {loading ? (
         <div className="bg-white shadow rounded-lg p-12">
@@ -166,7 +100,7 @@ export default function AdminStripePage() {
             )}
           </div>
 
-          <div className="px-6 py-4 bg-gray-50 flex items-center justify-between">
+          <div className="px-6 py-4 bg-gray-50">
             <a
               href="https://dashboard.stripe.com"
               target="_blank"
@@ -176,45 +110,30 @@ export default function AdminStripePage() {
               Open Stripe Dashboard
               <ExternalLink className="h-3 w-3" />
             </a>
-            <button
-              onClick={handleDisconnect}
-              className="px-4 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg"
-            >
-              Disconnect
-            </button>
           </div>
         </div>
       ) : (
         <div className="bg-white shadow rounded-lg p-6">
           <div className="text-center">
-            <div className="mx-auto w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-              <CreditCard className="h-6 w-6 text-blue-600" />
+            <div className="mx-auto w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center mb-4">
+              <AlertCircle className="h-6 w-6 text-yellow-600" />
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Connect Your Stripe Account
+              Stripe Not Configured
             </h3>
             <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
-              Connect your Stripe account to start accepting subscription
-              payments from gym owners. We'll securely connect your account via
-              Stripe OAuth.
+              Your Stripe API keys are not configured. Add STRIPE_SECRET_KEY to
+              your environment variables in Vercel to enable platform billing.
             </p>
-            <button
-              onClick={handleConnect}
-              disabled={connecting}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            <a
+              href="https://dashboard.stripe.com/apikeys"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
-              {connecting ? (
-                <>
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  Connecting...
-                </>
-              ) : (
-                <>
-                  <CreditCard className="h-5 w-5" />
-                  Connect Stripe Account
-                </>
-              )}
-            </button>
+              <ExternalLink className="h-5 w-5" />
+              Get Stripe API Keys
+            </a>
           </div>
         </div>
       )}

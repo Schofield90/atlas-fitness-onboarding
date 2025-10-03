@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
-import { createAdminClient } from "@/app/lib/supabase/admin";
+import Stripe from "stripe";
 
 export const dynamic = "force-dynamic";
 
@@ -32,33 +32,31 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: authCheck.error }, { status: 401 });
     }
 
-    const adminSupabase = createAdminClient();
+    // Check if Stripe API key is configured and working
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
 
-    // Check if platform Stripe account is connected
-    const { data: stripeAccount } = await adminSupabase
-      .from("platform_stripe_accounts")
-      .select("*")
-      .eq("platform_id", "platform") // Fixed platform ID for admin
-      .single();
-
-    if (!stripeAccount || !stripeAccount.stripe_account_id) {
+    if (!stripeKey) {
       return NextResponse.json({ connected: false });
     }
+
+    // Try to retrieve account info from Stripe
+    const stripe = new Stripe(stripeKey, {
+      apiVersion: "2024-11-20.acacia",
+    });
+
+    const account = await stripe.accounts.retrieve();
 
     return NextResponse.json({
       connected: true,
       account: {
-        id: stripeAccount.stripe_account_id,
-        country: stripeAccount.country,
-        default_currency: stripeAccount.default_currency,
-        email: stripeAccount.email,
+        id: account.id,
+        country: account.country,
+        default_currency: account.default_currency,
+        email: account.email,
       },
     });
   } catch (error) {
     console.error("Error checking Stripe status:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return NextResponse.json({ connected: false });
   }
 }
