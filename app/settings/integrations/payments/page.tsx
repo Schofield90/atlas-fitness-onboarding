@@ -308,72 +308,127 @@ export default function PaymentIntegrationPage() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between">
+        {!connected ? (
           <div>
-            <p className="text-gray-400 text-sm">
-              {connected
-                ? "Your Stripe account is connected and ready to accept payments"
-                : "Connect your Stripe account to start accepting payments"}
+            <p className="text-gray-400 text-sm mb-6">
+              Choose how you want to connect Stripe to accept payments from your
+              customers
             </p>
-            {connected && accountStatus?.account && (
-              <div className="mt-2 space-y-1">
-                {!accountStatus.account.details_submitted && (
-                  <p className="text-yellow-400 text-xs">
-                    ⚠️ Onboarding incomplete - Complete setup to enable payments
-                  </p>
-                )}
-                {!accountStatus.account.charges_enabled && (
-                  <p className="text-yellow-400 text-xs">
-                    ⚠️ Charges not enabled - Complete verification to accept
-                    payments
-                  </p>
-                )}
-                {!accountStatus.account.payouts_enabled && (
-                  <p className="text-yellow-400 text-xs">
-                    ⚠️ Payouts not enabled - Complete verification to receive
-                    payouts
-                  </p>
-                )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Existing Account Option */}
+              <div className="p-6 border-2 border-blue-600 rounded-lg bg-gray-700/50">
+                <h4 className="text-white font-semibold mb-2 flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-blue-500" />
+                  Connect Existing Account
+                </h4>
+                <p className="text-gray-400 text-sm mb-4">
+                  Best for: Gyms switching from GoTeamUp or other platforms
+                </p>
+                <ul className="text-gray-300 text-xs space-y-1 mb-4">
+                  <li>✓ Keep all existing customers & payment data</li>
+                  <li>✓ No customer action required</li>
+                  <li>✓ Takes 30 seconds to connect</li>
+                </ul>
+                <button
+                  onClick={() => setShowApiKeyEntry(true)}
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                >
+                  Connect Current Account
+                </button>
               </div>
-            )}
-          </div>
-          <div className="flex gap-2">
-            {connected &&
-            accountStatus?.account &&
-            !accountStatus.account.details_submitted ? (
-              <button
-                onClick={handleRefreshOnboarding}
-                className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700"
-              >
-                Complete Onboarding
-              </button>
-            ) : null}
-            {connected ? (
-              <>
+
+              {/* New Account Option */}
+              <div className="p-6 border-2 border-gray-600 rounded-lg bg-gray-700/30">
+                <h4 className="text-white font-semibold mb-2 flex items-center gap-2">
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                  Create New Account
+                </h4>
+                <p className="text-gray-400 text-sm mb-4">
+                  Best for: New gyms without existing Stripe
+                </p>
+                <ul className="text-gray-300 text-xs space-y-1 mb-4">
+                  <li>• Fresh start with new account</li>
+                  <li>• Customers enter payment details</li>
+                  <li>• Full Stripe Express setup</li>
+                </ul>
                 <button
-                  onClick={handleOpenDashboard}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                  onClick={handleConnectStripe}
+                  className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium"
                 >
-                  Open Stripe Dashboard
-                  <ExternalLink className="h-4 w-4" />
+                  Create New Account
                 </button>
-                <button
-                  onClick={handleDisconnect}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                >
-                  Disconnect
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={() => setShowConnectionOptions(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Connect Stripe Account
-              </button>
-            )}
+              </div>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-400 text-sm">
+                Your Stripe account is connected and ready to accept payments
+              </p>
+              {connected && accountStatus?.account && (
+                <div className="mt-2 space-y-1">
+                  {!accountStatus.account.details_submitted && (
+                    <p className="text-yellow-400 text-xs">
+                      ⚠️ Onboarding incomplete - Complete setup to enable
+                      payments
+                    </p>
+                  )}
+                  {!accountStatus.account.charges_enabled && (
+                    <p className="text-yellow-400 text-xs">
+                      ⚠️ Charges not enabled - Complete verification to accept
+                      payments
+                    </p>
+                  )}
+                  {!accountStatus.account.payouts_enabled && (
+                    <p className="text-yellow-400 text-xs">
+                      ⚠️ Payouts not enabled - Complete verification to receive
+                      payouts
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2">
+              {connected &&
+              accountStatus?.account &&
+              !accountStatus.account.details_submitted ? (
+                <button
+                  onClick={handleRefreshOnboarding}
+                  className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700"
+                >
+                  Complete Onboarding
+                </button>
+              ) : null}
+              <button
+                onClick={handleOpenDashboard}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+              >
+                Open Stripe Dashboard
+                <ExternalLink className="h-4 w-4" />
+              </button>
+              <button
+                onClick={handleDisconnect}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Disconnect
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Connection Options Modal */}

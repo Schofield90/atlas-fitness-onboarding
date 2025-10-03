@@ -35,3 +35,4 @@ Trigger deployment Fri 3 Oct 2025 12:43:06 BST
 Trigger deployment Fri 3 Oct 2025 12:56:14 BST
 Trigger deployment Fri 3 Oct 2025 13:01:28 BST
 Trigger deployment Fri 3 Oct 2025 14:11:01 BST
+Trigger deployment Fri 3 Oct 2025 14:25:33 BST - Simplified Stripe connection UI with dual options
