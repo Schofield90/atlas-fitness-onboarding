@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/app/components/DashboardLayout";
+import { useOrganization } from "@/app/hooks/useOrganization";
 
 interface ImportStats {
   total: number;
@@ -50,6 +51,7 @@ interface UploadHistory {
 
 function ImportPageContent() {
   const router = useRouter();
+  const { organizationId } = useOrganization();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string[][]>([]);
   const [importing, setImporting] = useState(false);
@@ -465,6 +467,9 @@ function ImportPageContent() {
           const formData = new FormData();
           formData.append("file", chunkFile);
           formData.append("type", fileType);
+          if (organizationId) {
+            formData.append("organizationId", organizationId);
+          }
 
           const response = await fetch("/api/import/goteamup", {
             method: "POST",
@@ -517,6 +522,9 @@ function ImportPageContent() {
         const formData = new FormData();
         formData.append("file", file);
         formData.append("type", fileType);
+        if (organizationId) {
+          formData.append("organizationId", organizationId);
+        }
 
         // Use PUT method for background processing on large files
         const method = totalRows > 100 ? "PUT" : "POST";

@@ -33,31 +33,15 @@ async function handleImportRequest(
     // Use admin client for database operations - bypasses RLS
     const supabase = createAdminClient();
 
-    // Get the authorization header to extract user/org info
-    const authHeader = request.headers.get("authorization");
-    const organizationHeader = request.headers.get("x-organization-id");
+    // Parse form data first (can only read body once)
+    const formData = await request.formData();
+    const file = formData.get("file") as File;
+    const fileType = formData.get("type") as string;
+    const organizationId = formData.get("organizationId") as string | null;
 
-    // For immediate fix, use the organization ID from header if provided
-    // Otherwise use the known test organization
-    let organizationId: string | null =
-      organizationHeader || "63589490-8f55-4157-bd3a-e141594b748e";
-    let userId = "ea1fc8e3-35a2-4c59-80af-5fde557391a1"; // Known user ID for now
-
-    // If no organization ID provided, try to get from form data
+    // Validate organization ID
     if (!organizationId) {
-      const formData = await request.formData();
-      organizationId = formData.get("organizationId") as string;
-
-      // Restore the formData for later use
-      request = new Request(request.url, {
-        method: request.method,
-        headers: request.headers,
-        body: formData,
-      });
-    }
-
-    if (!organizationId) {
-      console.error("No organization found for user:", userId);
+      console.error("No organization ID provided in request");
       return NextResponse.json(
         {
           error:
@@ -69,10 +53,8 @@ async function handleImportRequest(
 
     console.log("Organization found:", organizationId);
 
-    // Parse form data
-    const formData = await request.formData();
-    const file = formData.get("file") as File;
-    const fileType = formData.get("type") as string;
+    // Set userId for background jobs (can be improved with actual auth)
+    const userId = "ea1fc8e3-35a2-4c59-80af-5fde557391a1";
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
