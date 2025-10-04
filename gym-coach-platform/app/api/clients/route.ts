@@ -24,15 +24,33 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get user's organization
-    const { data: userData, error: userError } = await supabase
+    // Get user's organization - check multiple tables
+    let organizationId = null;
+
+    // Try users table first
+    const { data: userData } = await supabase
       .from('users')
       .select('organization_id')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
 
-    if (userError || !userData) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    if (userData?.organization_id) {
+      organizationId = userData.organization_id;
+    } else {
+      // Fallback to organization_staff table
+      const { data: staffData } = await supabase
+        .from('organization_staff')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (staffData?.organization_id) {
+        organizationId = staffData.organization_id;
+      }
+    }
+
+    if (!organizationId) {
+      return NextResponse.json({ error: 'No organization found for user' }, { status: 404 })
     }
 
     // Parse query parameters
@@ -56,7 +74,7 @@ export async function GET(request: NextRequest) {
         lead:leads(id, source, campaign_id),
         interactions_count:interactions(count)
       `, { count: 'exact' })
-      .eq('organization_id', userData.organization_id)
+      .eq('organization_id', organizationId)
 
     // Apply filters
     if (search) {
