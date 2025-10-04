@@ -177,6 +177,16 @@ export async function middleware(request: NextRequest) {
   )
 
   if (isAdminRoute) {
+    // 🚨 CRITICAL: Check for session BEFORE accessing session.user
+    if (!session) {
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+      const loginUrl = new URL('/owner-login', request.url)
+      loginUrl.searchParams.set('redirect', pathname)
+      return NextResponse.redirect(loginUrl)
+    }
+
     // Check if user has an organization
     let userOrg = null;
 
@@ -199,6 +209,17 @@ export async function middleware(request: NextRequest) {
 
       if (ownedOrg) {
         userOrg = { organization_id: ownedOrg.id, role: 'owner' };
+      } else {
+        // Fallback: Check organization_staff table
+        const { data: staffData } = await supabase
+          .from('organization_staff')
+          .select('organization_id')
+          .eq('user_id', session.user.id)
+          .single()
+
+        if (staffData) {
+          userOrg = { organization_id: staffData.organization_id, role: 'staff' };
+        }
       }
     }
 
