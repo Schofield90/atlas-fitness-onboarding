@@ -55,9 +55,9 @@ function ImportPageContent() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string[][]>([]);
   const [importing, setImporting] = useState(false);
-  const [fileType, setFileType] = useState<"auto" | "payments" | "attendance">(
-    "auto",
-  );
+  const [fileType, setFileType] = useState<
+    "auto" | "payments" | "attendance" | "clients"
+  >("auto");
   const [stats, setStats] = useState<ImportStats | null>(null);
   const [errors, setErrors] = useState<ImportError[]>([]);
   const [message, setMessage] = useState("");
@@ -402,6 +402,18 @@ function ImportPageContent() {
           headerLower.some((h) => h.includes("class") || h.includes("time"))
         ) {
           setFileType("attendance");
+        } else if (
+          headerLower.filter(
+            (h) =>
+              h.includes("full name") ||
+              h.includes("first name") ||
+              h.includes("email") ||
+              h.includes("phone") ||
+              h.includes("dob") ||
+              h.includes("postcode"),
+          ).length >= 3
+        ) {
+          setFileType("clients");
         } else {
           setFileType("auto");
         }
@@ -797,6 +809,7 @@ function ImportPageContent() {
                     className="border border-gray-600 bg-gray-700 text-white rounded px-2 py-1 text-sm"
                   >
                     <option value="auto">Auto-detect</option>
+                    <option value="clients">Clients</option>
                     <option value="payments">Payments</option>
                     <option value="attendance">Attendance</option>
                   </select>
@@ -1086,6 +1099,11 @@ function ImportPageContent() {
                 resume failed imports.
               </p>
               <p>
+                <strong>Clients CSV:</strong> Must include columns: Full Name,
+                First Name, Last Name, Email, Phone, DOB, Gender, Address, etc.
+                Import this first to create all client records.
+              </p>
+              <p>
                 <strong>Payments CSV:</strong> Must include columns: Date,
                 Customer/Client Name, Email, Amount
               </p>
@@ -1095,8 +1113,8 @@ function ImportPageContent() {
                 Class sessions will be automatically created.
               </p>
               <p>
-                <strong>Client Creation:</strong> Clients with missing email
-                addresses will be automatically created if they don't exist.
+                <strong>Recommended Order:</strong> Import Clients first, then
+                Attendance, then Payments for best results.
               </p>
             </div>
           </div>

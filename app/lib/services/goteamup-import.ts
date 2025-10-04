@@ -239,9 +239,22 @@ export class GoTeamUpImporter {
   // Auto-detect file type based on headers
   public detectFileType(
     headers: string[],
-  ): "payments" | "attendance" | "unknown" {
+  ): "payments" | "attendance" | "clients" | "unknown" {
     const paymentHeaders = ["amount", "payment", "price", "total", "cost"];
     const attendanceHeaders = ["class", "session", "instructor", "time"];
+    const clientHeaders = [
+      "full name",
+      "first name",
+      "last name",
+      "email",
+      "phone",
+      "dob",
+      "gender",
+      "address",
+      "postcode",
+      "status",
+      "join date",
+    ];
 
     const lowerHeaders = headers.map((h) => h.toLowerCase());
 
@@ -253,11 +266,176 @@ export class GoTeamUpImporter {
       lowerHeaders.some((lh) => lh.includes(h)),
     );
 
-    if (hasPaymentHeaders && !hasAttendanceHeaders) return "payments";
-    if (hasAttendanceHeaders && !hasPaymentHeaders) return "attendance";
-    if (hasPaymentHeaders) return "payments"; // Default to payments if both
+    const hasClientHeaders =
+      clientHeaders.filter((h) => lowerHeaders.some((lh) => lh.includes(h)))
+        .length >= 4; // Need at least 4 client-specific headers
+
+    if (hasPaymentHeaders && !hasAttendanceHeaders && !hasClientHeaders)
+      return "payments";
+    if (hasAttendanceHeaders && !hasPaymentHeaders && !hasClientHeaders)
+      return "attendance";
+    if (hasClientHeaders && !hasPaymentHeaders && !hasAttendanceHeaders)
+      return "clients";
+    if (hasPaymentHeaders) return "payments"; // Default to payments if multiple matches
 
     return "unknown";
+  }
+
+  // Import clients from parsed CSV data with batch processing
+  public async importClients(
+    data: any[],
+    batchSize: number = 25,
+  ): Promise<ImportResult> {
+    const progress: ImportProgress = {
+      total: data.length,
+      processed: 0,
+      success: 0,
+      errors: 0,
+      skipped: 0,
+    };
+
+    const errors: Array<{ row: number; error: string }> = [];
+
+    // Process in batches to prevent timeouts
+    for (
+      let batchStart = 0;
+      batchStart < data.length;
+      batchStart += batchSize
+    ) {
+      const batchEnd = Math.min(batchStart + batchSize, data.length);
+      const batch = data.slice(batchStart, batchEnd);
+
+      console.log(
+        `Processing client batch ${Math.floor(batchStart / batchSize) + 1}/${Math.ceil(data.length / batchSize)}`,
+      );
+
+      for (let i = 0; i < batch.length; i++) {
+        const row = batch[i];
+        const globalIndex = batchStart + i;
+        progress.processed++;
+        progress.currentItem =
+          row["Full Name"] || row["Email"] || `Row ${globalIndex + 1}`;
+
+        try {
+          // Extract email
+          const email = row["Email"] || row["email"];
+          if (!email) {
+            progress.skipped++;
+            errors.push({ row: globalIndex + 1, error: "No email found" });
+            continue;
+          }
+
+          // Check if client already exists
+          const { data: existingClient } = await this.supabase
+            .from("clients")
+            .select("id")
+            .eq("email", email.toLowerCase().trim())
+            .eq("org_id", this.organizationId)
+            .maybeSingle();
+
+          if (existingClient) {
+            progress.skipped++;
+            continue;
+          }
+
+          // Parse client data
+          const firstName = row["First Name"] || "";
+          const lastName = row["Last Name"] || "";
+          const fullName =
+            row["Full Name"] || `${firstName} ${lastName}`.trim();
+          const phone = row["Phone"] || "";
+          const gender = row["Gender"]?.toLowerCase() || null;
+          const dob = this.parseDate(row["DOB"] || "");
+          const addressLine1 = row["Address Line 1"] || "";
+          const addressLine2 = row["Address Line 2"] || "";
+          const city = row["City"] || "";
+          const region = row["Region"] || "";
+          const postcode = row["Postcode"] || "";
+          const country = row["Country"] || "";
+          const status =
+            row["Status"]?.toLowerCase() === "active" ? "active" : "inactive";
+          const emergencyContactName = row["Emergency Contact Name"] || "";
+          const emergencyContactPhone = row["Emergency Contact Phone"] || "";
+          const emergencyContactRelationship =
+            row["Emergency Contact Relationship"] || "";
+
+          // Create client
+          const clientData: any = {
+            org_id: this.organizationId,
+            email: email.toLowerCase().trim(),
+            first_name: firstName,
+            last_name: lastName,
+            name: fullName,
+            phone: phone,
+            gender: gender,
+            date_of_birth: dob || null,
+            status: status,
+            emergency_contact_name: emergencyContactName || null,
+            emergency_contact_phone: emergencyContactPhone || null,
+            emergency_contact: emergencyContactName
+              ? {
+                  name: emergencyContactName,
+                  phone: emergencyContactPhone,
+                  relationship: emergencyContactRelationship,
+                }
+              : null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+
+          // Add address if provided
+          if (addressLine1 || city || postcode) {
+            clientData.address = {
+              line1: addressLine1,
+              line2: addressLine2,
+              city: city,
+              region: region,
+              postcode: postcode,
+              country: country,
+            };
+          }
+
+          const { error } = await this.supabase
+            .from("clients")
+            .insert(clientData);
+
+          if (error) {
+            progress.errors++;
+            errors.push({ row: globalIndex + 1, error: error.message });
+          } else {
+            progress.success++;
+            this.newClientsCreated++;
+          }
+        } catch (error: any) {
+          progress.errors++;
+          errors.push({ row: globalIndex + 1, error: error.message });
+        }
+
+        if (this.progressCallback) {
+          this.progressCallback(progress);
+        }
+      }
+
+      // Small delay between batches
+      if (batchStart + batchSize < data.length) {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+    }
+
+    const message = `Import completed: ${progress.success} clients created, ${progress.skipped} skipped, ${progress.errors} errors`;
+
+    return {
+      success: progress.errors === 0,
+      message,
+      stats: {
+        total: progress.total,
+        success: progress.success,
+        errors: progress.errors,
+        skipped: progress.skipped,
+        newClients: this.newClientsCreated,
+      },
+      errors: errors.length > 0 ? errors : undefined,
+    };
   }
 
   // Import payments from parsed CSV data with batch processing
