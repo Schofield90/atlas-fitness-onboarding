@@ -419,10 +419,16 @@ function ImportPageContent() {
         }
 
         // Check if file is large and needs chunking
+        // Only show dialog for attendance files, auto-chunk for others
         if (data.length > CHUNK_SIZE_LIMIT) {
           const weeklyChunks = splitByWeek(data, headers);
           setChunks(weeklyChunks);
-          setShowChunkDialog(true);
+
+          // Only show chunk dialog for attendance imports
+          if (detectedType === "attendance") {
+            setShowChunkDialog(true);
+          }
+          // For clients and payments, chunking happens automatically via background processing
         }
       }
     };
@@ -590,14 +596,24 @@ function ImportPageContent() {
             });
           }
         } else if (response.status === 504) {
-          // Suggest chunking
-          const weeklyChunks = splitByWeek(rawData, headers);
-          setChunks(weeklyChunks);
-          setShowChunkDialog(true);
-          setSuccess(false);
-          setMessage(
-            "File is too large to process. Would you like to split it by week?",
-          );
+          // Handle timeout based on file type
+          if (fileType === "attendance") {
+            // Suggest chunking for attendance files
+            const weeklyChunks = splitByWeek(rawData, headers);
+            setChunks(weeklyChunks);
+            setShowChunkDialog(true);
+            setSuccess(false);
+            setMessage(
+              "File is too large to process. Would you like to split it by week?",
+            );
+          } else {
+            // For clients/payments, automatically retry with background processing
+            setSuccess(false);
+            setMessage(
+              "File is too large. The system will process it in the background automatically.",
+            );
+            // This will be handled by the background processing logic in the API
+          }
         } else {
           setSuccess(false);
           setMessage(result.error || "Import failed");
@@ -816,31 +832,51 @@ function ImportPageContent() {
                 </div>
               </div>
 
-              {/* Large file warning */}
-              {totalRows > CHUNK_SIZE_LIMIT && !showChunkDialog && (
-                <div className="mb-4 p-3 bg-yellow-900 bg-opacity-50 border border-yellow-700 rounded-lg flex items-start">
-                  <AlertTriangle className="w-5 h-5 text-yellow-400 mr-2 flex-shrink-0" />
-                  <div className="text-sm">
-                    <p className="font-medium text-yellow-300">
-                      Large file detected
-                    </p>
-                    <p className="text-yellow-400">
-                      This file contains {totalRows} rows. For best results, we
-                      recommend splitting by week.
-                    </p>
-                    <button
-                      onClick={() => {
-                        const weeklyChunks = splitByWeek(rawData, headers);
-                        setChunks(weeklyChunks);
-                        setShowChunkDialog(true);
-                      }}
-                      className="mt-2 text-yellow-300 underline hover:no-underline"
-                    >
-                      Split by week now →
-                    </button>
+              {/* Large file warning - only for attendance files */}
+              {totalRows > CHUNK_SIZE_LIMIT &&
+                !showChunkDialog &&
+                fileType === "attendance" && (
+                  <div className="mb-4 p-3 bg-yellow-900 bg-opacity-50 border border-yellow-700 rounded-lg flex items-start">
+                    <AlertTriangle className="w-5 h-5 text-yellow-400 mr-2 flex-shrink-0" />
+                    <div className="text-sm">
+                      <p className="font-medium text-yellow-300">
+                        Large file detected
+                      </p>
+                      <p className="text-yellow-400">
+                        This file contains {totalRows} rows. For best results,
+                        we recommend splitting by week.
+                      </p>
+                      <button
+                        onClick={() => {
+                          const weeklyChunks = splitByWeek(rawData, headers);
+                          setChunks(weeklyChunks);
+                          setShowChunkDialog(true);
+                        }}
+                        className="mt-2 text-yellow-300 underline hover:no-underline"
+                      >
+                        Split by week now →
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+
+              {/* For clients/payments, show info that background processing will handle large files */}
+              {totalRows > CHUNK_SIZE_LIMIT &&
+                !showChunkDialog &&
+                (fileType === "clients" || fileType === "payments") && (
+                  <div className="mb-4 p-3 bg-blue-900 bg-opacity-50 border border-blue-700 rounded-lg flex items-start">
+                    <AlertCircle className="w-5 h-5 text-blue-400 mr-2 flex-shrink-0" />
+                    <div className="text-sm">
+                      <p className="font-medium text-blue-300">
+                        Large file detected
+                      </p>
+                      <p className="text-blue-200">
+                        This file contains {totalRows} rows. It will be
+                        processed automatically in the background.
+                      </p>
+                    </div>
+                  </div>
+                )}
 
               {/* Preview */}
               {preview.length > 0 && (
