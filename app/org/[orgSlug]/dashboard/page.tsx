@@ -42,11 +42,16 @@ export default function OrgDashboardPage() {
 
       setUser(currentUser);
 
-      // Check if user is admin
-      const adminEmails = ["sam@atlas-gyms.co.uk", "sam@gymleadhub.co.uk"];
+      // Check if user is admin by querying the database
+      const { data: adminRecord } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", currentUser.id)
+        .single();
+
       if (
-        currentUser.email &&
-        adminEmails.includes(currentUser.email.toLowerCase())
+        adminRecord?.role === "super_admin" ||
+        adminRecord?.role === "admin"
       ) {
         setIsAdmin(true);
       }

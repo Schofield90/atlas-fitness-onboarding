@@ -24,6 +24,8 @@ import {
 import Link from "next/link";
 import { useRouter, useSearchParams, useParams } from "next/navigation";
 import { useToast } from "@/app/lib/hooks/useToast";
+import { useOrganization } from "@/app/hooks/useOrganization";
+import { RequireOrganization } from "@/app/components/auth/RequireOrganization";
 
 interface Contact {
   id: string;
@@ -70,17 +72,20 @@ function ContactsContent() {
   const searchParams = useSearchParams();
   const params = useParams();
   const orgSlug = params.orgSlug as string;
+  const { organizationId } = useOrganization();
   const supabase = createClient();
   const toast = useToast();
 
   useEffect(() => {
-    fetchContacts();
+    if (organizationId) {
+      fetchContacts();
+    }
     // Initialize pagination from URL params
     const page = parseInt(searchParams.get("page") || "1");
     const pageSize = parseInt(searchParams.get("pageSize") || "25");
     setCurrentPage(page);
     setItemsPerPage(pageSize);
-  }, []);
+  }, [organizationId]);
 
   useEffect(() => {
     filterContacts();
@@ -111,52 +116,14 @@ function ContactsContent() {
 
   const fetchContacts = async () => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      console.log("Fetching contacts for user:", user?.id);
-      if (!user) {
-        console.error("No user authenticated");
+      if (!organizationId) {
+        console.log("Waiting for organization ID from context...");
+        setLoading(false);
         return;
       }
 
-      // Get user's organization
-      const { data: orgData, error: orgError } = await supabase
-        .from("user_organizations")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .single();
-
-      console.log("Organization data:", orgData, "Error:", orgError);
-
-      if (!orgData) {
-        console.error("No organization found for user, trying fallback");
-        // Try organization_members table as fallback
-        const { data: memberData } = await supabase
-          .from("organization_members")
-          .select("organization_id")
-          .eq("user_id", user.id)
-          .single();
-
-        if (!memberData) {
-          console.error("No organization found in either table");
-          // Use default organization
-          const defaultOrgId = "63589490-8f55-4157-bd3a-e141594b748e";
-          console.log("Using default organization:", defaultOrgId);
-
-          // Create a fake orgData object
-          const fakeOrgData = { organization_id: defaultOrgId };
-
-          // Continue with default org
-          await fetchContactsWithOrg(fakeOrgData);
-          return;
-        }
-
-        await fetchContactsWithOrg(memberData);
-        return;
-      }
-
-      await fetchContactsWithOrg(orgData);
+      console.log("Fetching contacts for organization:", organizationId);
+      await fetchContactsWithOrg({ organization_id: organizationId });
     } catch (error) {
       console.error("Error in fetchContacts:", error);
       toast.showToast("Failed to load contacts", "error");
@@ -1250,16 +1217,18 @@ function BulkTagModal({ onAddTags }: { onAddTags: (tags: string[]) => void }) {
 
 export default function ContactsPage() {
   return (
-    <DashboardLayout>
-      <Suspense
-        fallback={
-          <div className="flex items-center justify-center min-h-screen">
-            <div className="text-gray-400">Loading contacts...</div>
-          </div>
-        }
-      >
-        <ContactsContent />
-      </Suspense>
-    </DashboardLayout>
+    <RequireOrganization>
+      <DashboardLayout>
+        <Suspense
+          fallback={
+            <div className="flex items-center justify-center min-h-screen">
+              <div className="text-gray-400">Loading contacts...</div>
+            </div>
+          }
+        >
+          <ContactsContent />
+        </Suspense>
+      </DashboardLayout>
+    </RequireOrganization>
   );
 }
