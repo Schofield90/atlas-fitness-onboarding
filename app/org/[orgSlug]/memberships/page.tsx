@@ -1,6 +1,8 @@
 "use client";
 
 import DashboardLayout from "@/app/components/DashboardLayout";
+import { RequireOrganization } from "@/app/components/auth/RequireOrganization";
+import { useOrganization } from "@/app/hooks/useOrganization";
 import { useState, useEffect } from "react";
 import NewMembershipPlanModal from "@/app/components/memberships/NewMembershipPlanModal";
 import EditMembershipPlanModal from "@/app/components/memberships/EditMembershipPlanModal";
@@ -16,10 +18,11 @@ import { Settings, MoreVertical, Edit, Users, Copy, Trash } from "lucide-react";
 import toast from "@/app/lib/toast";
 import { useRouter, useParams } from "next/navigation";
 
-export default function MembershipsPage() {
+function MembershipsPageContent() {
   const router = useRouter();
   const params = useParams();
   const orgSlug = params.orgSlug as string;
+  const { organizationId } = useOrganization();
   const [activeTab, setActiveTab] = useState("plans");
   const [showNewPlanModal, setShowNewPlanModal] = useState(false);
   const [showEditPlanModal, setShowEditPlanModal] = useState(false);
@@ -462,5 +465,13 @@ export default function MembershipsPage() {
         plan={selectedPlan}
       />
     </DashboardLayout>
+  );
+}
+
+export default function MembershipsPage() {
+  return (
+    <RequireOrganization>
+      <MembershipsPageContent />
+    </RequireOrganization>
   );
 }

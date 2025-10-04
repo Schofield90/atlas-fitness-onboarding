@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/client";
+import { RequireOrganization } from "@/app/components/auth/RequireOrganization";
+import { useOrganization } from "@/app/hooks/useOrganization";
 import dynamic from "next/dynamic";
 import {
   Heart,
@@ -28,11 +30,11 @@ const EnhancedWellnessCoach = dynamic(
   },
 );
 
-export default function WellnessPage() {
+function WellnessPageContent() {
   const params = useParams();
   const orgSlug = params.orgSlug as string;
+  const { organizationId } = useOrganization();
   const [user, setUser] = useState<any>(null);
-  const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [client, setClient] = useState<any>(null);
   const [existingPlan, setExistingPlan] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,6 +44,8 @@ export default function WellnessPage() {
   const supabase = createClient();
 
   useEffect(() => {
+    if (!organizationId) return;
+
     const fetchUser = async () => {
       const {
         data: { user: authUser },
@@ -54,11 +58,11 @@ export default function WellnessPage() {
           .from("clients")
           .select("*")
           .eq("user_id", authUser.id)
+          .eq("organization_id", organizationId)
           .single();
 
         if (clientData) {
           setClient(clientData);
-          setOrganizationId(clientData.organization_id);
 
           // Check for existing wellness plan
           const { data: planData } = await supabase
@@ -77,7 +81,7 @@ export default function WellnessPage() {
     };
 
     fetchUser();
-  }, []);
+  }, [organizationId]);
 
   const handlePlanCreated = (plan: any) => {
     setExistingPlan(plan);
@@ -324,5 +328,13 @@ export default function WellnessPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function WellnessPage() {
+  return (
+    <RequireOrganization>
+      <WellnessPageContent />
+    </RequireOrganization>
   );
 }

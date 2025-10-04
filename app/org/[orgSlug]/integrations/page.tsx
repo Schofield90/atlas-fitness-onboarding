@@ -4,21 +4,26 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import DashboardLayout from "@/app/components/DashboardLayout";
+import { RequireOrganization } from "@/app/components/auth/RequireOrganization";
+import { useOrganization } from "@/app/hooks/useOrganization";
 import { useFacebookConnection } from "@/app/hooks/useFacebookConnection";
 
-export default function IntegrationsPage() {
+function IntegrationsPageContent() {
   const router = useRouter();
   const params = useParams();
   const orgSlug = params.orgSlug as string;
+  const { organizationId } = useOrganization();
   const [userData, setUserData] = useState<any>(null);
   const facebookConnection = useFacebookConnection();
 
   useEffect(() => {
-    const storedData = localStorage.getItem("gymleadhub_trial_data");
+    // Scope localStorage by organization to prevent cross-tenant leakage
+    const storageKey = `gymleadhub_trial_data_${organizationId}`;
+    const storedData = localStorage.getItem(storageKey);
     if (storedData) {
       setUserData(JSON.parse(storedData));
     }
-  }, []);
+  }, [organizationId]);
 
   const integrations = [
     {
@@ -278,5 +283,13 @@ export default function IntegrationsPage() {
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function IntegrationsPage() {
+  return (
+    <RequireOrganization>
+      <IntegrationsPageContent />
+    </RequireOrganization>
   );
 }

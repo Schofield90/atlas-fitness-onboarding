@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 import DashboardLayout from "@/app/components/DashboardLayout";
+import { RequireOrganization } from "@/app/components/auth/RequireOrganization";
+import { useOrganization } from "@/app/hooks/useOrganization";
 import { isFeatureEnabled } from "@/app/lib/feature-flags";
 import {
   BarChart3,
@@ -33,9 +35,11 @@ interface AnalyticsData {
   };
 }
 
-export default function AnalyticsPage() {
+function AnalyticsPageContent() {
   const params = useParams();
+  const router = useRouter();
   const orgSlug = params.orgSlug as string;
+  const { organizationId } = useOrganization();
   const [activeTab, setActiveTab] = useState<
     "overview" | "members" | "revenue" | "classes"
   >("overview");
@@ -243,90 +247,98 @@ export default function AnalyticsPage() {
   );
 
   return (
-    <DashboardLayout>
-      <div className="min-h-screen bg-gray-900 text-white">
-        <div className="container mx-auto px-6 py-8">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-white">
-                Analytics & Reporting
-              </h1>
-              <p className="text-gray-400 mt-1">
-                Track your gym's performance and member engagement
-              </p>
-            </div>
-            <div className="flex items-center gap-4">
-              <select
-                value={timeRange}
-                onChange={(e) => setTimeRange(e.target.value as any)}
-                className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
-              >
-                <option value="7d">Last 7 days</option>
-                <option value="30d">Last 30 days</option>
-                <option value="90d">Last 90 days</option>
-                <option value="1y">Last year</option>
-              </select>
-            </div>
+    <div className="min-h-screen bg-gray-900 text-white">
+      <div className="container mx-auto px-6 py-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-white">
+              Analytics & Reporting
+            </h1>
+            <p className="text-gray-400 mt-1">
+              Track your gym's performance and member engagement
+            </p>
           </div>
-
-          {/* Tab Navigation */}
-          <div className="flex space-x-1 bg-gray-800 p-1 rounded-lg mb-6">
-            {[
-              { key: "overview", label: "Overview", icon: BarChart3 },
-              { key: "members", label: "Members", icon: Users },
-              { key: "revenue", label: "Revenue", icon: DollarSign },
-              { key: "classes", label: "Classes", icon: Calendar },
-            ].map(({ key, label, icon: Icon }) => (
-              <button
-                key={key}
-                onClick={() => setActiveTab(key as any)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                  activeTab === key
-                    ? "bg-orange-600 text-white"
-                    : "text-gray-400 hover:text-white hover:bg-gray-700"
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                {label}
-              </button>
-            ))}
+          <div className="flex items-center gap-4">
+            <select
+              value={timeRange}
+              onChange={(e) => setTimeRange(e.target.value as any)}
+              className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+            >
+              <option value="7d">Last 7 days</option>
+              <option value="30d">Last 30 days</option>
+              <option value="90d">Last 90 days</option>
+              <option value="1y">Last year</option>
+            </select>
           </div>
-
-          {/* Tab Content */}
-          {activeTab === "overview" &&
-            (isAnalyticsBeta
-              ? renderDemoData()
-              : isAnalyticsEnabled
-                ? renderDemoData()
-                : renderComingSoonFeature(
-                    "Analytics Dashboard",
-                    "Get comprehensive insights into your gym's performance with detailed analytics and reporting tools.",
-                    <BarChart3 className="w-8 h-8" />,
-                  ))}
-
-          {activeTab === "members" &&
-            renderComingSoonFeature(
-              "Member Analytics",
-              "Track member engagement, retention rates, and demographic insights to better serve your community.",
-              <Users className="w-8 h-8" />,
-            )}
-
-          {activeTab === "revenue" &&
-            renderComingSoonFeature(
-              "Revenue Analytics",
-              "Monitor your financial performance with detailed revenue tracking, forecasting, and trend analysis.",
-              <DollarSign className="w-8 h-8" />,
-            )}
-
-          {activeTab === "classes" &&
-            renderComingSoonFeature(
-              "Class Analytics",
-              "Analyze class attendance, popular time slots, and optimize your schedule for maximum engagement.",
-              <Calendar className="w-8 h-8" />,
-            )}
         </div>
+
+        {/* Tab Navigation */}
+        <div className="flex space-x-1 bg-gray-800 p-1 rounded-lg mb-6">
+          {[
+            { key: "overview", label: "Overview", icon: BarChart3 },
+            { key: "members", label: "Members", icon: Users },
+            { key: "revenue", label: "Revenue", icon: DollarSign },
+            { key: "classes", label: "Classes", icon: Calendar },
+          ].map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key as any)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                activeTab === key
+                  ? "bg-orange-600 text-white"
+                  : "text-gray-400 hover:text-white hover:bg-gray-700"
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === "overview" &&
+          (isAnalyticsBeta
+            ? renderDemoData()
+            : isAnalyticsEnabled
+              ? renderDemoData()
+              : renderComingSoonFeature(
+                  "Analytics Dashboard",
+                  "Get comprehensive insights into your gym's performance with detailed analytics and reporting tools.",
+                  <BarChart3 className="w-8 h-8" />,
+                ))}
+
+        {activeTab === "members" &&
+          renderComingSoonFeature(
+            "Member Analytics",
+            "Track member engagement, retention rates, and demographic insights to better serve your community.",
+            <Users className="w-8 h-8" />,
+          )}
+
+        {activeTab === "revenue" &&
+          renderComingSoonFeature(
+            "Revenue Analytics",
+            "Monitor your financial performance with detailed revenue tracking, forecasting, and trend analysis.",
+            <DollarSign className="w-8 h-8" />,
+          )}
+
+        {activeTab === "classes" &&
+          renderComingSoonFeature(
+            "Class Analytics",
+            "Analyze class attendance, popular time slots, and optimize your schedule for maximum engagement.",
+            <Calendar className="w-8 h-8" />,
+          )}
       </div>
+    </div>
+  );
+}
+
+export default function AnalyticsPage() {
+  return (
+    <DashboardLayout>
+      <RequireOrganization>
+        <AnalyticsPageContent />
+      </RequireOrganization>
     </DashboardLayout>
   );
 }

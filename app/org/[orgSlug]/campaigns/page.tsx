@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import DashboardLayout from "@/app/components/DashboardLayout";
+import { RequireOrganization } from "@/app/components/auth/RequireOrganization";
+import { useOrganization } from "@/app/hooks/useOrganization";
 import { isFeatureEnabled } from "@/app/lib/feature-flags";
 import ComingSoon from "@/app/components/ComingSoon";
 import { useToast } from "@/app/lib/hooks/useToast";
@@ -92,9 +94,10 @@ const emailTemplates = [
   },
 ];
 
-export default function CampaignsPage() {
+function CampaignsPageContent() {
   const params = useParams();
   const orgSlug = params.orgSlug as string;
+  const { organizationId } = useOrganization();
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<
     "overview" | "create" | "analytics"
@@ -1421,5 +1424,13 @@ The Atlas Fitness Team"
         )}
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function CampaignsPage() {
+  return (
+    <RequireOrganization>
+      <CampaignsPageContent />
+    </RequireOrganization>
   );
 }

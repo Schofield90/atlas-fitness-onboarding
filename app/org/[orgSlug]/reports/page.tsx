@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import DashboardLayout from "@/app/components/DashboardLayout";
+import { RequireOrganization } from "@/app/components/auth/RequireOrganization";
+import { useOrganization } from "@/app/hooks/useOrganization";
 import {
   BarChart3,
   Users,
@@ -50,19 +52,24 @@ const categoryColors: Record<string, string> = {
   Revenue: "text-yellow-500",
 };
 
-export default function ReportsHubPage() {
+function ReportsHubPageContent() {
   const router = useRouter();
   const params = useParams();
   const orgSlug = params.orgSlug as string;
+  const { organizationId } = useOrganization();
   const [reports, setReports] = useState<ReportsMetadata | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!organizationId) return;
+
     const fetchReports = async () => {
       try {
         setLoading(true);
-        const response = await fetch("/api/reports/meta");
+        const response = await fetch(
+          `/api/reports/meta?organizationId=${organizationId}`,
+        );
         const data = await response.json();
 
         if (!response.ok) {
@@ -84,7 +91,7 @@ export default function ReportsHubPage() {
     };
 
     fetchReports();
-  }, []);
+  }, [organizationId]);
 
   const handleReportClick = (report: ReportLink) => {
     if (!report.enabled) return;
@@ -292,5 +299,13 @@ export default function ReportsHubPage() {
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function ReportsHubPage() {
+  return (
+    <RequireOrganization>
+      <ReportsHubPageContent />
+    </RequireOrganization>
   );
 }

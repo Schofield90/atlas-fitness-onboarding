@@ -6,6 +6,8 @@ import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams, useParams } from "next/navigation";
 import DashboardLayout from "@/app/components/DashboardLayout";
+import { RequireOrganization } from "@/app/components/auth/RequireOrganization";
+import { useOrganization } from "@/app/hooks/useOrganization";
 import {
   Play,
   Pause,
@@ -47,6 +49,7 @@ function AutomationsContent() {
   const searchParams = useSearchParams();
   const params = useParams();
   const orgSlug = params.orgSlug as string;
+  const { organizationId } = useOrganization();
 
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,9 +74,12 @@ function AutomationsContent() {
   }, [statusFilter, pagination.page, pagination.pageSize]);
 
   const fetchWorkflows = async () => {
+    if (!organizationId) return;
+
     try {
       setLoading(true);
       const params = new URLSearchParams({
+        organizationId,
         page: pagination.page.toString(),
         page_size: pagination.pageSize.toString(),
         ...(statusFilter !== "all" && { status: statusFilter }),
@@ -577,15 +583,17 @@ function AutomationsContent() {
 export default function AutomationsPage() {
   return (
     <DashboardLayout>
-      <Suspense
-        fallback={
-          <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
-          </div>
-        }
-      >
-        <AutomationsContent />
-      </Suspense>
+      <RequireOrganization>
+        <Suspense
+          fallback={
+            <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+            </div>
+          }
+        >
+          <AutomationsContent />
+        </Suspense>
+      </RequireOrganization>
     </DashboardLayout>
   );
 }
