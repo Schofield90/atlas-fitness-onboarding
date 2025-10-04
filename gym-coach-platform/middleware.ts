@@ -76,7 +76,31 @@ export async function middleware(request: NextRequest) {
   const isClientPortal = (organizationSlug && !isLoginPortal && !isAdminPortal && !isMembersPortal) ||
                          request.nextUrl.pathname.includes('/client');
   const isAuthPage = request.nextUrl.pathname.includes('/auth');
-  const isDashboard = request.nextUrl.pathname.includes('/dashboard') || request.nextUrl.pathname.includes('/class-calendar');
+
+  // ALL protected staff routes that require authentication
+  const protectedStaffRoutes = [
+    '/dashboard',
+    '/class-calendar',
+    '/members',
+    '/customers',
+    '/clients',
+    '/leads',
+    '/settings',
+    '/billing',
+    '/memberships',
+    '/automations',
+    '/conversations',
+    '/messages',
+    '/staff',
+    '/forms',
+    '/integrations',
+    '/classes',
+    '/booking',
+    '/reports',
+    '/analytics'
+  ];
+
+  const isDashboard = protectedStaffRoutes.some(route => request.nextUrl.pathname.startsWith(route));
   const isProtectedAPI = request.nextUrl.pathname.startsWith('/api/') &&
     !request.nextUrl.pathname.startsWith('/api/auth/') &&
     !request.nextUrl.pathname.startsWith('/api/facebook/webhook') &&
