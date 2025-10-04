@@ -102,10 +102,14 @@ export default function SignupPage() {
       }
 
       if (authData?.user) {
+        // Wait a moment for session to be fully established
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
         // Call API to properly set up user record
         const response = await fetch("/api/auth/fix-signup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include", // Ensure cookies are sent
           body: JSON.stringify({
             email: authData.user.email,
             name,
