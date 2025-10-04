@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
+import { ReactNode } from "react";
 
 const SUPER_ADMIN_EMAIL = "sam@gymleadhub.co.uk";
 
@@ -7,10 +8,10 @@ export default async function OrgLayout({
   children,
   params,
 }: {
-  children: React.Node;
+  children: ReactNode;
   params: { orgSlug: string };
 }) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Get authenticated user
   const {
