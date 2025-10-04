@@ -67,8 +67,13 @@ export async function POST(request: NextRequest) {
 
     // Import each customer in this batch
     for (const customer of batch.data) {
+      console.log(
+        `Processing customer ${customer.id}, email: ${customer.email || "NO EMAIL"}`,
+      );
+
       // Skip customers without email
       if (!customer.email) {
+        console.log(`Skipping customer ${customer.id} - no email`);
         skipped++;
         continue;
       }
@@ -81,6 +86,11 @@ export async function POST(request: NextRequest) {
         .eq("email", customer.email)
         .maybeSingle();
 
+      console.log(
+        `Customer ${customer.email} - existing client:`,
+        existingClient ? "FOUND" : "NOT FOUND",
+      );
+
       if (existingClient) {
         // Update existing client with Stripe ID
         const { error: updateError } = await supabaseAdmin
@@ -90,6 +100,11 @@ export async function POST(request: NextRequest) {
             updated_at: new Date().toISOString(),
           })
           .eq("id", existingClient.id);
+
+        console.log(
+          `Update result for ${customer.email}:`,
+          updateError ? `ERROR: ${updateError.message}` : "SUCCESS",
+        );
 
         if (!updateError) {
           imported++; // Count updated clients as successfully imported
@@ -109,6 +124,11 @@ export async function POST(request: NextRequest) {
           status: "active",
           created_at: new Date(customer.created * 1000).toISOString(),
         });
+
+        console.log(
+          `Insert result for ${customer.email}:`,
+          error ? `ERROR: ${error.message}` : "SUCCESS",
+        );
 
         if (!error) {
           imported++;
