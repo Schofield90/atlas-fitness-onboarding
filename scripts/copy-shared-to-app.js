@@ -32,7 +32,8 @@ const SHARED_DIRS = [
   'lib',
   'settings',
   'hooks',
-  'types'
+  'types',
+  'org'  // Path-based multi-tenant routes
 ];
 
 // Function to copy directory recursively
