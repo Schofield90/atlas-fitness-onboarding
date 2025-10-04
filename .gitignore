@@ -113,3 +113,5 @@ docker-compose.override.yml
 # Playwright auth states
 .playwright/
 !.playwright/.gitkeep
+scripts/check-prod-clients.js
+DELETE_*.sql
