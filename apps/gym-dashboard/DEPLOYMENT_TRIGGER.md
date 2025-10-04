@@ -51,3 +51,4 @@ Stripe import fix deployed at Fri 3 Oct 2025 21:39:24 BST
 Timeout fix deployed at Fri 3 Oct 2025 21:51:42 BST
 Batch processing deployed at Fri 3 Oct 2025 21:56:00 BST
 Import stats fix deployed at Fri 3 Oct 2025 22:07:17 BST
+Testing mode deployed at Sat 4 Oct 2025 06:31:26 BST
