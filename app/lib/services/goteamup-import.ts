@@ -367,6 +367,10 @@ export class GoTeamUpImporter {
           const emergencyContactRelationship =
             row["Emergency Contact Relationship"] || "";
 
+          // Extract membership data
+          const activeMemberships = row["Active Memberships"] || "";
+          const lastPaymentAmount = row["Last Payment Amount (GBP)"] || "";
+
           // Create client
           const clientData: any = {
             org_id: this.organizationId,
@@ -403,9 +407,11 @@ export class GoTeamUpImporter {
             };
           }
 
-          const { error } = await this.supabase
+          const { data: newClient, error } = await this.supabase
             .from("clients")
-            .insert(clientData);
+            .insert(clientData)
+            .select("id")
+            .single();
 
           if (error) {
             progress.errors++;
@@ -413,6 +419,23 @@ export class GoTeamUpImporter {
           } else {
             progress.success++;
             this.newClientsCreated++;
+
+            // Handle membership assignment if Active Memberships is provided
+            if (activeMemberships && newClient) {
+              try {
+                await this.assignMembership(
+                  newClient.id,
+                  activeMemberships,
+                  lastPaymentAmount,
+                );
+              } catch (membershipError: any) {
+                console.error(
+                  `Failed to assign membership for ${email}:`,
+                  membershipError,
+                );
+                // Don't fail the whole import if membership assignment fails
+              }
+            }
           }
         } catch (error: any) {
           progress.errors++;
@@ -444,6 +467,100 @@ export class GoTeamUpImporter {
       },
       errors: errors.length > 0 ? errors : undefined,
     };
+  }
+
+  // Assign membership plan to a client (create plan if it doesn't exist)
+  private async assignMembership(
+    clientId: string,
+    membershipNames: string,
+    lastPaymentAmount?: string,
+  ): Promise<void> {
+    // Split on comma in case there are multiple memberships
+    const membershipList = membershipNames
+      .split(",")
+      .map((m) => m.trim())
+      .filter((m) => m.length > 0);
+
+    for (const membershipName of membershipList) {
+      // Check if membership plan exists
+      const { data: existingPlan } = await this.supabase
+        .from("membership_plans")
+        .select("id")
+        .eq("organization_id", this.organizationId)
+        .eq("name", membershipName)
+        .maybeSingle();
+
+      let planId = existingPlan?.id;
+
+      // Create plan if it doesn't exist
+      if (!planId) {
+        // Parse price from lastPaymentAmount if available
+        let pricePennies = 0;
+        if (lastPaymentAmount) {
+          const priceNum = parseFloat(lastPaymentAmount.replace(/[£$,]/g, ""));
+          if (!isNaN(priceNum)) {
+            pricePennies = Math.round(priceNum * 100);
+          }
+        }
+
+        const { data: newPlan, error: planError } = await this.supabase
+          .from("membership_plans")
+          .insert({
+            organization_id: this.organizationId,
+            name: membershipName,
+            price_pennies: pricePennies,
+            billing_period: "monthly", // Default to monthly
+            is_active: true,
+            description: `Imported from GoTeamUp`,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .select("id")
+          .single();
+
+        if (planError) {
+          console.error(`Failed to create membership plan:`, planError);
+          throw planError;
+        }
+
+        planId = newPlan?.id;
+        console.log(`Created membership plan: ${membershipName} (${planId})`);
+      }
+
+      // Assign client to membership plan
+      if (planId) {
+        // Check if membership already exists
+        const { data: existingMembership } = await this.supabase
+          .from("memberships")
+          .select("id")
+          .eq("customer_id", clientId)
+          .eq("membership_plan_id", planId)
+          .maybeSingle();
+
+        if (!existingMembership) {
+          const { error: membershipError } = await this.supabase
+            .from("memberships")
+            .insert({
+              customer_id: clientId,
+              organization_id: this.organizationId,
+              membership_plan_id: planId,
+              status: "active",
+              start_date: new Date().toISOString().split("T")[0],
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+
+          if (membershipError) {
+            console.error(`Failed to assign membership:`, membershipError);
+            throw membershipError;
+          }
+
+          console.log(
+            `Assigned client ${clientId} to membership ${membershipName}`,
+          );
+        }
+      }
+    }
   }
 
   // Import payments from parsed CSV data with batch processing
