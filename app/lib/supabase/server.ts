@@ -17,9 +17,9 @@ function isProduction() {
   );
 }
 
-// Next.js 15 - cookies() is async
+// Next.js 14 - cookies() is synchronous
 export async function createClient() {
-  const cookieStore = await cookies();
+  const cookieStore = cookies();
   const isProd = isProduction();
 
   return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
