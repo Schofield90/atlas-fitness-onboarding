@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
       const { data: existingClient } = await supabaseAdmin
         .from("clients")
         .select("id")
-        .eq("organization_id", organizationId)
+        .eq("org_id", organizationId)
         .eq("email", customer.email)
         .maybeSingle();
 
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
       } else {
         // Create new client
         const { error } = await supabaseAdmin.from("clients").insert({
-          organization_id: organizationId,
+          org_id: organizationId,
           email: customer.email,
           first_name: customer.name?.split(" ")[0] || "",
           last_name: customer.name?.split(" ").slice(1).join(" ") || "",

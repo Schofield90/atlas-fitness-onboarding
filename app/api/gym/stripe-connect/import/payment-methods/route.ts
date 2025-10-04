@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     const { data: clients, count } = await supabaseAdmin
       .from("clients")
       .select("id, stripe_customer_id", { count: "exact" })
-      .eq("organization_id", organizationId)
+      .eq("org_id", organizationId)
       .not("stripe_customer_id", "is", null)
       .range(offset, offset + batchSize - 1);
 

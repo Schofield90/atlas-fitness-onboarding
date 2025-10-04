@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       const { data: client } = await supabaseAdmin
         .from("clients")
         .select("id")
-        .eq("organization_id", organizationId)
+        .eq("org_id", organizationId)
         .eq("stripe_customer_id", customerId)
         .maybeSingle();
 
