@@ -24,6 +24,7 @@ export default function StripeImportPage() {
   const [importStats, setImportStats] = useState<ImportStats | null>(null);
   const [error, setError] = useState("");
   const [progress, setProgress] = useState(0);
+  const [updateOnly, setUpdateOnly] = useState(true); // Default to update-only mode
 
   const handleImport = async () => {
     setImporting(true);
@@ -59,6 +60,7 @@ export default function StripeImportPage() {
               organizationId,
               startingAfter: customerStartingAfter,
               limit: CUSTOMER_LIMIT,
+              updateOnly,
             }),
           },
         );
@@ -232,6 +234,33 @@ export default function StripeImportPage() {
             </div>
           </div>
         </div>
+
+        {/* Import options */}
+        {!importStats && (
+          <div className="bg-gray-800 rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">
+              Import Mode
+            </h3>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={updateOnly}
+                onChange={(e) => setUpdateOnly(e.target.checked)}
+                className="mt-1 w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+              />
+              <div>
+                <p className="font-medium text-white">
+                  Update existing clients only (Recommended)
+                </p>
+                <p className="text-sm text-gray-400">
+                  Only add Stripe data to clients already in your CRM. Skip
+                  creating new client records for Stripe customers not in your
+                  system.
+                </p>
+              </div>
+            </label>
+          </div>
+        )}
 
         {/* Import button */}
         {!importStats && (

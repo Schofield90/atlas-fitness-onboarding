@@ -9,7 +9,12 @@ export const maxDuration = 60; // 60 seconds timeout (requires Pro plan)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { organizationId, startingAfter, limit = 50 } = body;
+    const {
+      organizationId,
+      startingAfter,
+      limit = 50,
+      updateOnly = false,
+    } = body;
 
     if (!organizationId) {
       return NextResponse.json(
@@ -113,28 +118,36 @@ export async function POST(request: NextRequest) {
           skipped++;
         }
       } else {
-        // Create new client
-        const { error } = await supabaseAdmin.from("clients").insert({
-          org_id: organizationId,
-          email: customer.email,
-          first_name: customer.name?.split(" ")[0] || "",
-          last_name: customer.name?.split(" ").slice(1).join(" ") || "",
-          phone: customer.phone || "",
-          stripe_customer_id: customer.id,
-          status: "active",
-          created_at: new Date(customer.created * 1000).toISOString(),
-        });
-
-        console.log(
-          `Insert result for ${customer.email}:`,
-          error ? `ERROR: ${error.message}` : "SUCCESS",
-        );
-
-        if (!error) {
-          imported++;
-        } else {
-          console.error("Error creating client:", error);
+        // If updateOnly mode, skip creating new clients
+        if (updateOnly) {
+          console.log(
+            `Skipping ${customer.email} - not found in CRM (update-only mode)`,
+          );
           skipped++;
+        } else {
+          // Create new client
+          const { error } = await supabaseAdmin.from("clients").insert({
+            org_id: organizationId,
+            email: customer.email,
+            first_name: customer.name?.split(" ")[0] || "",
+            last_name: customer.name?.split(" ").slice(1).join(" ") || "",
+            phone: customer.phone || "",
+            stripe_customer_id: customer.id,
+            status: "active",
+            created_at: new Date(customer.created * 1000).toISOString(),
+          });
+
+          console.log(
+            `Insert result for ${customer.email}:`,
+            error ? `ERROR: ${error.message}` : "SUCCESS",
+          );
+
+          if (!error) {
+            imported++;
+          } else {
+            console.error("Error creating client:", error);
+            skipped++;
+          }
         }
       }
     }
