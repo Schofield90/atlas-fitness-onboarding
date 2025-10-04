@@ -8,7 +8,7 @@ export const maxDuration = 60; // 60 seconds timeout (requires Pro plan)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { organizationId, startingAfter } = body;
+    const { organizationId, startingAfter, limit = 50 } = body;
 
     if (!organizationId) {
       return NextResponse.json(
@@ -55,9 +55,9 @@ export async function POST(request: NextRequest) {
       apiVersion: "2024-11-20.acacia",
     });
 
-    // Fetch one batch of customers (50 at a time)
+    // Fetch one batch of customers
     const batch = await stripe.customers.list({
-      limit: 50,
+      limit,
       starting_after: startingAfter,
     });
 

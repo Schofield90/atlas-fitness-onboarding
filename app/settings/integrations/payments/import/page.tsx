@@ -42,6 +42,9 @@ export default function StripeImportPage() {
       const organizationId = orgData.data.organizationId;
 
       // Step 1: Import customers in batches (0-33%)
+      // For testing: Set limit to 5 to quickly test the import flow
+      const CUSTOMER_LIMIT = 5; // Change to 50 for production
+
       let totalCustomers = { total: 0, imported: 0, skipped: 0 };
       let hasMoreCustomers = true;
       let customerStartingAfter: string | undefined = undefined;
@@ -55,6 +58,7 @@ export default function StripeImportPage() {
             body: JSON.stringify({
               organizationId,
               startingAfter: customerStartingAfter,
+              limit: CUSTOMER_LIMIT,
             }),
           },
         );
@@ -72,11 +76,16 @@ export default function StripeImportPage() {
         hasMoreCustomers = customersData.stats.hasMore;
         customerStartingAfter = customersData.stats.nextStartingAfter;
 
+        // For testing: Stop after first batch
+        if (CUSTOMER_LIMIT === 5) hasMoreCustomers = false;
+
         // Update progress within the 0-33% range
         if (!hasMoreCustomers) setProgress(33);
       }
 
       // Step 2: Link payment methods in batches (33-66%)
+      const PAYMENT_METHOD_BATCH_SIZE = CUSTOMER_LIMIT === 5 ? 5 : 50;
+
       let totalPaymentMethods = { total: 0, linked: 0 };
       let hasMorePaymentMethods = true;
       let paymentMethodOffset = 0;
@@ -90,6 +99,7 @@ export default function StripeImportPage() {
             body: JSON.stringify({
               organizationId,
               offset: paymentMethodOffset,
+              batchSize: PAYMENT_METHOD_BATCH_SIZE,
             }),
           },
         );
@@ -105,6 +115,9 @@ export default function StripeImportPage() {
 
         hasMorePaymentMethods = paymentMethodsData.stats.hasMore;
         paymentMethodOffset = paymentMethodsData.stats.nextOffset || 0;
+
+        // For testing: Stop after first batch
+        if (CUSTOMER_LIMIT === 5) hasMorePaymentMethods = false;
 
         if (!hasMorePaymentMethods) setProgress(66);
       }

@@ -8,7 +8,7 @@ export const maxDuration = 60; // 60 seconds timeout (requires Pro plan)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { organizationId, offset = 0 } = body;
+    const { organizationId, offset = 0, batchSize = 50 } = body;
 
     if (!organizationId) {
       return NextResponse.json(
@@ -41,8 +41,7 @@ export async function POST(request: NextRequest) {
       apiVersion: "2024-11-20.acacia",
     });
 
-    // Get clients in batches of 50
-    const batchSize = 50;
+    // Get clients in batches
     const { data: clients, count } = await supabaseAdmin
       .from("clients")
       .select("id, stripe_customer_id", { count: "exact" })
