@@ -42,8 +42,11 @@ export class GoTeamUpImporter {
   }
 
   // Parse UK date format (DD/MM/YYYY) or US format (MM/DD/YYYY)
-  private parseDate(dateStr: string): string {
-    if (!dateStr) return "";
+  private parseDate(dateStr: string): string | null {
+    if (!dateStr || dateStr.trim() === "") return null;
+
+    // Validate input looks like a date (has numbers and separators)
+    if (!/\d/.test(dateStr)) return null; // No digits = not a date
 
     // Try UK format first (DD/MM/YYYY)
     let parts = dateStr.split("/");
@@ -77,10 +80,12 @@ export class GoTeamUpImporter {
       }
     }
     // Try ISO format (YYYY-MM-DD)
-    if (dateStr.includes("-")) {
+    if (dateStr.includes("-") && /^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
       return dateStr;
     }
-    return dateStr;
+
+    // If we can't parse it, return null instead of invalid string
+    return null;
   }
 
   // Parse amount to pennies (supports multiple currency symbols)
@@ -344,7 +349,10 @@ export class GoTeamUpImporter {
           const fullName =
             row["Full Name"] || `${firstName} ${lastName}`.trim();
           const phone = row["Phone"] || "";
-          const gender = row["Gender"]?.toLowerCase() || null;
+          // Handle gender: convert to lowercase, and treat empty strings as null
+          const genderRaw = row["Gender"]?.trim();
+          const gender =
+            genderRaw && genderRaw.length > 0 ? genderRaw.toLowerCase() : null;
           const dob = this.parseDate(row["DOB"] || "");
           const addressLine1 = row["Address Line 1"] || "";
           const addressLine2 = row["Address Line 2"] || "";
