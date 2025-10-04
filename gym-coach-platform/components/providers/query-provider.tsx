@@ -9,8 +9,10 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 5 * 60 * 1000, // 5 minutes
-        gcTime: 10 * 60 * 1000, // 10 minutes
+        staleTime: 30 * 1000, // 30 seconds - data goes stale quickly
+        gcTime: 2 * 60 * 1000, // 2 minutes - clean up old data faster
+        refetchOnWindowFocus: true, // Refetch when user returns to tab
+        refetchOnMount: true, // Always refetch on component mount
         retry: (failureCount, error) => {
           if (error instanceof Error && error.message.includes('401')) {
             return false // Don't retry on auth errors

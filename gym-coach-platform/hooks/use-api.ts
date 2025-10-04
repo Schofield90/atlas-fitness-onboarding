@@ -143,7 +143,7 @@ export function useClients(params?: Record<string, any>) {
   return useQuery({
     queryKey: ['clients', params],
     queryFn: () => apiClient.getClients(params),
-    placeholderData: (previousData) => previousData,
+    // Removed placeholderData to prevent showing stale client data
   })
 }
 
