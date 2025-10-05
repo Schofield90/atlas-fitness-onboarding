@@ -73,3 +73,4 @@ GoCardless import debugging at Sat 5 Oct 2025 15:30:00 BST - Add detailed loggin
 GoCardless payments schema fix at Sat 5 Oct 2025 15:45:00 BST - Fix column names (client_id, payment_status, payment_date)
 Force rebuild at Sat 5 Oct 2025 16:10:00 BST - Clear Vercel function cache
 GoCardless diagnostic update at Sat 5 Oct 2025 16:30:00 BST - Remove API status filter, add detailed debug info
+GoCardless payments diagnostic at Sat 5 Oct 2025 16:45:00 BST - Add client matching failure tracking

@@ -91,6 +91,11 @@ export async function POST(request: NextRequest) {
     let skipped = 0;
     let totalAmount = 0;
     let clientsCreated = 0;
+    const clientMatchFailures: Array<{
+      customer_id: string;
+      email: string | null;
+      reason: string;
+    }> = [];
 
     // Import each payment
     for (const payment of payments) {
@@ -159,13 +164,23 @@ export async function POST(request: NextRequest) {
                 `Failed to create client for ${customer.email}:`,
                 clientError,
               );
+              clientMatchFailures.push({
+                customer_id: customer.id,
+                email: customer.email,
+                reason: clientError?.message || "Unknown error creating client",
+              });
             }
           }
-        } catch (customerError) {
+        } catch (customerError: any) {
           console.error(
             `Failed to fetch GoCardless customer ${payment.links.customer}:`,
             customerError,
           );
+          clientMatchFailures.push({
+            customer_id: payment.links.customer,
+            email: null,
+            reason: `Failed to fetch customer: ${customerError?.message || "Unknown error"}`,
+          });
         }
       }
 
@@ -228,8 +243,13 @@ export async function POST(request: NextRequest) {
         skipped,
         clientsCreated,
         totalAmount: Math.round(totalAmount * 100) / 100,
+        paymentsWithoutClient: imported - clientsCreated,
       },
       message: `Imported ${imported} payments totaling ${Math.round(totalAmount * 100) / 100} GBP. Auto-created ${clientsCreated} archived clients.`,
+      debug: {
+        clientMatchFailures: clientMatchFailures.slice(0, 10), // First 10 failures
+        totalClientMatchFailures: clientMatchFailures.length,
+      },
     });
   } catch (error: any) {
     console.error("Error importing GoCardless payments:", error);
