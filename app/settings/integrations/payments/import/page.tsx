@@ -404,39 +404,80 @@ function ImportPageContent() {
             </div>
 
             <div className="grid md:grid-cols-3 gap-4">
-              <div className="bg-gray-800 rounded-lg p-4">
-                <Users className="w-5 h-5 text-blue-400 mb-2" />
-                <p className="text-sm text-gray-400">Customers</p>
-                <p className="text-2xl font-bold text-white">
-                  {importStats.customers.imported}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {importStats.customers.total} total,{" "}
-                  {importStats.customers.skipped} skipped
-                </p>
-              </div>
+              {isGoCardless ? (
+                <>
+                  <div className="bg-gray-800 rounded-lg p-4">
+                    <Download className="w-5 h-5 text-purple-400 mb-2" />
+                    <p className="text-sm text-gray-400">Subscriptions</p>
+                    <p className="text-2xl font-bold text-white">
+                      {importStats.subscriptions?.active || 0}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {importStats.subscriptions?.total || 0} total
+                    </p>
+                  </div>
 
-              <div className="bg-gray-800 rounded-lg p-4">
-                <CreditCard className="w-5 h-5 text-green-400 mb-2" />
-                <p className="text-sm text-gray-400">Payment Methods</p>
-                <p className="text-2xl font-bold text-white">
-                  {importStats.paymentMethods.linked}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {importStats.paymentMethods.total} total
-                </p>
-              </div>
+                  <div className="bg-gray-800 rounded-lg p-4">
+                    <CreditCard className="w-5 h-5 text-green-400 mb-2" />
+                    <p className="text-sm text-gray-400">Payments</p>
+                    <p className="text-2xl font-bold text-white">
+                      {importStats.payments?.imported || 0}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {importStats.payments?.total || 0} total,{" "}
+                      {importStats.payments?.skipped || 0} skipped
+                    </p>
+                  </div>
 
-              <div className="bg-gray-800 rounded-lg p-4">
-                <Download className="w-5 h-5 text-purple-400 mb-2" />
-                <p className="text-sm text-gray-400">Subscriptions</p>
-                <p className="text-2xl font-bold text-white">
-                  {importStats.subscriptions.active}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {importStats.subscriptions.total} total
-                </p>
-              </div>
+                  <div className="bg-gray-800 rounded-lg p-4">
+                    <Users className="w-5 h-5 text-blue-400 mb-2" />
+                    <p className="text-sm text-gray-400">Plans & Memberships</p>
+                    <p className="text-2xl font-bold text-white">
+                      {importStats.plans?.created || 0} plans
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {importStats.memberships?.created || 0} memberships
+                      assigned
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="bg-gray-800 rounded-lg p-4">
+                    <Users className="w-5 h-5 text-blue-400 mb-2" />
+                    <p className="text-sm text-gray-400">Customers</p>
+                    <p className="text-2xl font-bold text-white">
+                      {importStats.customers?.imported || 0}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {importStats.customers?.total || 0} total,{" "}
+                      {importStats.customers?.skipped || 0} skipped
+                    </p>
+                  </div>
+
+                  <div className="bg-gray-800 rounded-lg p-4">
+                    <CreditCard className="w-5 h-5 text-green-400 mb-2" />
+                    <p className="text-sm text-gray-400">Payment Methods</p>
+                    <p className="text-2xl font-bold text-white">
+                      {importStats.paymentMethods?.linked || 0}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {importStats.paymentMethods?.total || 0} total
+                    </p>
+                  </div>
+
+                  <div className="bg-gray-800 rounded-lg p-4">
+                    <Download className="w-5 h-5 text-purple-400 mb-2" />
+                    <p className="text-sm text-gray-400">Subscriptions</p>
+                    <p className="text-2xl font-bold text-white">
+                      {importStats.subscriptions?.active || 0}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {importStats.subscriptions?.total || 0} total
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="mt-4 flex gap-3">

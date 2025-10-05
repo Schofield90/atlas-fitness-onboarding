@@ -66,3 +66,4 @@ Path-based contacts page deployed at Sat 4 Oct 2025 20:30:00 BST
 Path-based booking page deployed at Sat 4 Oct 2025 20:45:00 BST
 Path-based conversations page deployed at Sat 4 Oct 2025 21:00:00 BST
 GoCardless integration with gocardless-nodejs package at Sat 5 Oct 2025 14:30:00 BST - FORCE FRESH INSTALL
+GoCardless import stats fix deployed at Sat 5 Oct 2025 14:45:00 BST - Fix multi-provider stats display
