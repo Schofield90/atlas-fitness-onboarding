@@ -102,17 +102,7 @@ async function handleImportRequest(
         userId,
       );
 
-      // Create temporary file for processing
-      const tempFile = new File([fileContent], file.name, { type: "text/csv" });
-
-      // Upload file to migration system
-      await migrationService.uploadMigrationFiles(
-        jobId,
-        [tempFile],
-        organizationId,
-      );
-
-      // Start background processing
+      // Start background processing with parsed rows (no file upload needed)
       await processGoTeamUpImportInBackground(
         jobId,
         organizationId,
