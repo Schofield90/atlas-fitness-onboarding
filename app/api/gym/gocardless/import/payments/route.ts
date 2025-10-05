@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
-import gocardless from "gocardless-nodejs";
+
+// @ts-ignore - CommonJS module
+const gocardless = require("gocardless-nodejs");
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
