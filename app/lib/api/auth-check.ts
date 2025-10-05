@@ -76,6 +76,7 @@ export function clearUserCache(userId: string) {
  * @throws {AuthError} If no valid session exists or no organization found
  */
 export async function requireAuth(): Promise<AuthenticatedUser> {
+  console.log("[requireAuth] Starting authentication check");
   const supabase = await createClient();
 
   // Get the current user session
@@ -83,6 +84,12 @@ export async function requireAuth(): Promise<AuthenticatedUser> {
     data: { user },
     error,
   } = await supabase.auth.getUser();
+
+  console.log("[requireAuth] Got user:", {
+    userId: user?.id,
+    email: user?.email,
+    error: error?.message,
+  });
 
   if (error || !user) {
     // Log security event for failed authentication
@@ -92,6 +99,7 @@ export async function requireAuth(): Promise<AuthenticatedUser> {
       details: { error: error?.message || "No user session" },
     });
 
+    console.error("[requireAuth] Authentication failed - no user or error");
     throw AuthenticationError.invalidCredentials("session", {
       supabaseError: error?.message,
       hasUser: !!user,
@@ -100,7 +108,12 @@ export async function requireAuth(): Promise<AuthenticatedUser> {
 
   // Check cache first
   const cached = orgCache.get(user.id);
+  console.log("[requireAuth] Cache check:", {
+    cached: !!cached,
+    expired: cached ? Date.now() - cached.timestamp >= CACHE_TTL : null,
+  });
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    console.log("[requireAuth] Returning cached org:", cached.organizationId);
     return {
       id: user.id,
       email: user.email!,
@@ -110,26 +123,45 @@ export async function requireAuth(): Promise<AuthenticatedUser> {
   }
 
   // Get user's organization - try multiple sources with improved security validation
+  console.log("[requireAuth] Creating admin client to fetch organization");
   const adminClient = createAdminClient();
 
   // First check user_organizations table (primary source)
+  console.log("[requireAuth] Querying user_organizations for user:", user.id);
   const { data: userOrgData, error: userOrgError } = await adminClient
     .from("user_organizations")
     .select("organization_id, role")
     .eq("user_id", user.id)
     .single();
 
+  console.log("[requireAuth] user_organizations result:", {
+    found: !!userOrgData,
+    orgId: userOrgData?.organization_id,
+    role: userOrgData?.role,
+    error: userOrgError?.message,
+  });
+
   let organizationId = userOrgData?.organization_id;
   let role = userOrgData?.role;
 
   // If not found, check organization_members table as fallback
   if (!organizationId) {
-    const { data: memberData } = await adminClient
+    console.log(
+      "[requireAuth] Not found in user_organizations, checking organization_members",
+    );
+    const { data: memberData, error: memberError } = await adminClient
       .from("organization_members")
       .select("organization_id, role")
       .eq("user_id", user.id)
       .eq("is_active", true)
       .single();
+
+    console.log("[requireAuth] organization_members result:", {
+      found: !!memberData,
+      orgId: memberData?.organization_id,
+      role: memberData?.role,
+      error: memberError?.message,
+    });
 
     if (memberData?.organization_id) {
       organizationId = memberData.organization_id;
