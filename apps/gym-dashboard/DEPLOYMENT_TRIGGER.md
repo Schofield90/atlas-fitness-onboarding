@@ -68,3 +68,4 @@ Path-based conversations page deployed at Sat 4 Oct 2025 21:00:00 BST
 GoCardless integration with gocardless-nodejs package at Sat 5 Oct 2025 14:30:00 BST - FORCE FRESH INSTALL
 GoCardless import stats fix deployed at Sat 5 Oct 2025 14:45:00 BST - Fix multi-provider stats display
 GoCardless full import enabled at Sat 5 Oct 2025 15:00:00 BST - Remove 5 record test limit
+Stripe subscription import fix at Sat 5 Oct 2025 15:15:00 BST - Fix 4-level expansion limit error

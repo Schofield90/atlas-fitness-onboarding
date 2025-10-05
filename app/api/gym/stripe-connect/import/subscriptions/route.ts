@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       const batch = await stripe.subscriptions.list({
         limit: 100,
         starting_after: startingAfter,
-        expand: ["data.items.data.price.product"], // Expand to get product details
+        expand: ["data.items.data.price"], // Only expand to price level (3 levels max)
       });
 
       subscriptions.push(...batch.data);
