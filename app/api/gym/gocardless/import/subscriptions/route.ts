@@ -52,11 +52,16 @@ export async function POST(request: NextRequest) {
         : Environments.Sandbox,
     );
 
-    // Fetch all subscriptions
+    // Fetch all subscriptions - try without status filter first
     const subscriptionsResponse = await client.subscriptions.list({
       limit: 500,
+      status: "active", // Try filtering for active only
     });
     const subscriptions = subscriptionsResponse.subscriptions || [];
+
+    console.log(
+      `Fetched ${subscriptions.length} active subscriptions from GoCardless`,
+    );
 
     // Log subscription statuses for debugging
     const statusCounts = subscriptions.reduce(
