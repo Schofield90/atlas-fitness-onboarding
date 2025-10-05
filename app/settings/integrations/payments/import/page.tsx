@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Download,
   Users,
@@ -14,17 +15,25 @@ import Link from "next/link";
 import SettingsHeader from "@/app/components/settings/SettingsHeader";
 
 interface ImportStats {
-  customers: { total: number; imported: number; skipped: number };
-  paymentMethods: { total: number; linked: number };
-  subscriptions: { total: number; active: number };
+  customers?: { total: number; imported: number; skipped: number };
+  paymentMethods?: { total: number; linked: number };
+  subscriptions?: { total: number; active: number };
+  payments?: { total: number; imported: number };
+  memberships?: { total: number; created: number };
+  plans?: { total: number; created: number };
 }
 
-export default function StripeImportPage() {
+function ImportPageContent() {
+  const searchParams = useSearchParams();
+  const provider = searchParams.get("provider") || "stripe"; // Default to stripe
+  const isGoCardless = provider === "gocardless";
+  const providerName = isGoCardless ? "GoCardless" : "Stripe";
+
   const [importing, setImporting] = useState(false);
   const [importStats, setImportStats] = useState<ImportStats | null>(null);
   const [error, setError] = useState("");
   const [progress, setProgress] = useState(0);
-  const [updateOnly, setUpdateOnly] = useState(true); // Default to update-only mode
+  const [updateOnly, setUpdateOnly] = useState(true); // Default to update-only mode (Stripe only)
 
   const handleImport = async () => {
     setImporting(true);
@@ -41,9 +50,77 @@ export default function StripeImportPage() {
       }
 
       const organizationId = orgData.data.organizationId;
+      const TEST_MODE = true; // Set to false for full import
 
+      if (isGoCardless) {
+        // GoCardless import flow
+        // Step 1: Import subscriptions (auto-creates plans + assigns members) (0-50%)
+        setProgress(10);
+        const subscriptionsResponse = await fetch(
+          "/api/gym/gocardless/import/subscriptions",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              organizationId,
+              limit: TEST_MODE ? 5 : 500,
+            }),
+          },
+        );
+
+        if (!subscriptionsResponse.ok) {
+          const error = await subscriptionsResponse.json();
+          throw new Error(
+            error.error || "Failed to import GoCardless subscriptions",
+          );
+        }
+
+        const subscriptionsData = await subscriptionsResponse.json();
+        setProgress(50);
+
+        // Step 2: Import payments (historical data) (50-100%)
+        setProgress(60);
+        const paymentsResponse = await fetch(
+          "/api/gym/gocardless/import/payments",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              organizationId,
+              limit: TEST_MODE ? 5 : 100,
+            }),
+          },
+        );
+
+        if (!paymentsResponse.ok) {
+          const error = await paymentsResponse.json();
+          throw new Error(
+            error.error || "Failed to import GoCardless payments",
+          );
+        }
+
+        const paymentsData = await paymentsResponse.json();
+        setProgress(100);
+
+        // Set combined stats
+        setImportStats({
+          subscriptions: subscriptionsData.stats,
+          payments: paymentsData.stats,
+          memberships: {
+            total: subscriptionsData.stats.membershipsCreated || 0,
+            created: subscriptionsData.stats.membershipsCreated || 0,
+          },
+          plans: {
+            total: subscriptionsData.stats.plansCreated || 0,
+            created: subscriptionsData.stats.plansCreated || 0,
+          },
+        });
+        return;
+      }
+
+      // Stripe import flow (original code)
       // Step 1: Import customers in batches (0-33%)
-      const CUSTOMER_LIMIT = 100; // Import in batches of 100
+      const CUSTOMER_LIMIT = TEST_MODE ? 5 : 100; // Import 5 for testing, 100 for production
 
       let totalCustomers = { total: 0, imported: 0, skipped: 0 };
       let hasMoreCustomers = true;
@@ -82,7 +159,7 @@ export default function StripeImportPage() {
       }
 
       // Step 2: Link payment methods in batches (33-66%)
-      const PAYMENT_METHOD_BATCH_SIZE = 100;
+      const PAYMENT_METHOD_BATCH_SIZE = TEST_MODE ? 5 : 100;
 
       let totalPaymentMethods = { total: 0, linked: 0 };
       let hasMorePaymentMethods = true;
@@ -166,8 +243,12 @@ export default function StripeImportPage() {
       </Link>
 
       <SettingsHeader
-        title="Import Stripe Data"
-        description="Import your existing customers, payment methods, and subscriptions from Stripe"
+        title={`Import ${providerName} Data`}
+        description={
+          isGoCardless
+            ? "Import your existing customers, direct debits, and subscriptions from GoCardless"
+            : "Import your existing customers, payment methods, and subscriptions from Stripe"
+        }
       />
 
       <div className="mt-6 space-y-6">
@@ -376,5 +457,13 @@ export default function StripeImportPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function PaymentImportPage() {
+  return (
+    <Suspense fallback={<div className="p-6">Loading...</div>}>
+      <ImportPageContent />
+    </Suspense>
   );
 }

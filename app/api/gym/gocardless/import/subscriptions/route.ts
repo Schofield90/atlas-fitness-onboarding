@@ -15,7 +15,7 @@ export const maxDuration = 60;
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { organizationId } = body;
+    const { organizationId, limit = 500 } = body; // Default 500, can be overridden for testing
 
     if (!organizationId) {
       return NextResponse.json(
