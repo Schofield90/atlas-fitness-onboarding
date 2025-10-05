@@ -248,8 +248,25 @@ export const POST = withApiErrorBoundary(createClientMember);
 
 async function getClients(request: NextRequest) {
   try {
+    console.log("[GET /api/clients] Starting request");
+
     // Check authentication and get organization
-    const userWithOrg = await requireAuth();
+    let userWithOrg;
+    try {
+      userWithOrg = await requireAuth();
+      console.log("[GET /api/clients] Auth successful:", {
+        userId: userWithOrg.id,
+        organizationId: userWithOrg.organizationId,
+        email: userWithOrg.email,
+      });
+    } catch (authError: any) {
+      console.error("[GET /api/clients] Auth failed:", {
+        error: authError.message,
+        name: authError.name,
+        statusCode: authError.statusCode,
+      });
+      throw authError;
+    }
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
