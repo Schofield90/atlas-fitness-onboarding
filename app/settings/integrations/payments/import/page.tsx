@@ -50,7 +50,7 @@ function ImportPageContent() {
       }
 
       const organizationId = orgData.data.organizationId;
-      const TEST_MODE = true; // Set to false for full import
+      const TEST_MODE = false; // Full import enabled
 
       if (isGoCardless) {
         // GoCardless import flow
