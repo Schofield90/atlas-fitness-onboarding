@@ -71,3 +71,4 @@ GoCardless full import enabled at Sat 5 Oct 2025 15:00:00 BST - Remove 5 record 
 Stripe subscription import fix at Sat 5 Oct 2025 15:15:00 BST - Fix 4-level expansion limit error
 GoCardless import debugging at Sat 5 Oct 2025 15:30:00 BST - Add detailed logging for status filtering
 GoCardless payments schema fix at Sat 5 Oct 2025 15:45:00 BST - Fix column names (client_id, payment_status, payment_date)
+Force rebuild at Sat 5 Oct 2025 16:10:00 BST - Clear Vercel function cache
