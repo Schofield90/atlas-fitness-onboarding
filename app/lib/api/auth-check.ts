@@ -256,6 +256,7 @@ export async function requireAuth(): Promise<AuthenticatedUser> {
     orgStatus &&
     (orgStatus.subscription_status === "active" ||
       orgStatus.subscription_status === "trialing" ||
+      orgStatus.subscription_status === "trial" || // Support both "trial" and "trialing"
       !orgStatus.subscription_status);
 
   // For development, allow organizations that don't have a subscription_status column or are missing
