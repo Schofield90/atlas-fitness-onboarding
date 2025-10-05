@@ -81,8 +81,9 @@ async function handleImportRequest(
     }
 
     // Check if we should use background processing for large files
+    // DISABLED: Background processing requires migrations bucket setup
     // Use background processing for files with more than 100 rows to avoid timeouts
-    const shouldUseBackground = useBackgroundProcessing || rows.length > 100;
+    const shouldUseBackground = false; // Temporarily disabled
 
     if (shouldUseBackground) {
       // Create migration job for background processing
