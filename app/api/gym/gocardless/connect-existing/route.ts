@@ -4,6 +4,7 @@ import { requireAuth } from "@/app/lib/api/auth-check";
 
 // @ts-ignore - CommonJS module
 const gocardless = require("gocardless-nodejs");
+const { Environments } = require("gocardless-nodejs/constants");
 
 export const dynamic = "force-dynamic";
 
@@ -46,9 +47,7 @@ export async function POST(request: NextRequest) {
     try {
       client = gocardless(
         apiKey,
-        environment === "live"
-          ? gocardless.constants.Environments.Live
-          : gocardless.constants.Environments.Sandbox,
+        environment === "live" ? Environments.Live : Environments.Sandbox,
       );
     } catch (error: any) {
       return NextResponse.json(

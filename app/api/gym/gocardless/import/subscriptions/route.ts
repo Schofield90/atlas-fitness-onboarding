@@ -3,6 +3,7 @@ import { createAdminClient } from "@/app/lib/supabase/admin";
 
 // @ts-ignore - CommonJS module
 const gocardless = require("gocardless-nodejs");
+const { Environments } = require("gocardless-nodejs/constants");
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -47,8 +48,8 @@ export async function POST(request: NextRequest) {
     const client = gocardless(
       connection.access_token,
       connection.environment === "live"
-        ? gocardless.constants.Environments.Live
-        : gocardless.constants.Environments.Sandbox,
+        ? Environments.Live
+        : Environments.Sandbox,
     );
 
     // Fetch all subscriptions
