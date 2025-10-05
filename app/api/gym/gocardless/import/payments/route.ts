@@ -190,13 +190,14 @@ export async function POST(request: NextRequest) {
         .from("payments")
         .insert({
           organization_id: organizationId,
-          user_id: clientId,
+          client_id: clientId,
           amount,
-          currency: payment.currency.toUpperCase(),
-          status: "succeeded",
+          payment_status: "completed",
           payment_method: "direct_debit",
           payment_provider: "gocardless",
           provider_payment_id: payment.id,
+          payment_date:
+            payment.charge_date || new Date().toISOString().split("T")[0],
           description: payment.description || `GoCardless payment`,
           metadata: {
             gocardless_payment_id: payment.id,
@@ -204,6 +205,8 @@ export async function POST(request: NextRequest) {
             gocardless_subscription_id: payment.links?.subscription,
             charge_date: payment.charge_date,
             reference: payment.reference,
+            currency: payment.currency.toUpperCase(),
+            amount_minor: payment.amount,
           },
           created_at: new Date(payment.created_at).toISOString(),
         });

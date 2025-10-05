@@ -292,6 +292,12 @@ export async function POST(request: NextRequest) {
         clientsUpdated,
       },
       message: `Imported ${activeSubscriptions.length} subscriptions, created ${plansCreated} new plans, and assigned ${membershipsCreated} memberships`,
+      debug: {
+        statusBreakdown: statusCounts,
+        totalFetched: subscriptions.length,
+        filteredToActive: activeSubscriptions.length,
+        skipped: subscriptions.length - activeSubscriptions.length,
+      },
     });
   } catch (error: any) {
     console.error("Error importing GoCardless subscriptions:", error);
