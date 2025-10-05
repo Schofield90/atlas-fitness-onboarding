@@ -52,15 +52,15 @@ export async function POST(request: NextRequest) {
         : Environments.Sandbox,
     );
 
-    // Fetch all subscriptions - try without status filter first
+    // Fetch ALL subscriptions without status filter to see what exists
     const subscriptionsResponse = await client.subscriptions.list({
       limit: 500,
-      status: "active", // Try filtering for active only
+      // No status filter - fetch everything to diagnose the issue
     });
     const subscriptions = subscriptionsResponse.subscriptions || [];
 
     console.log(
-      `Fetched ${subscriptions.length} active subscriptions from GoCardless`,
+      `Fetched ${subscriptions.length} subscriptions from GoCardless (all statuses)`,
     );
 
     // Log subscription statuses for debugging
@@ -287,6 +287,23 @@ export async function POST(request: NextRequest) {
       `Skipped subscriptions: ${subscriptions.length - activeSubscriptions.length}`,
     );
 
+    // Get sample of excluded subscriptions for debugging
+    const excludedSubscriptions = subscriptions
+      .filter(
+        (sub) =>
+          sub.status !== "active" &&
+          sub.status !== "pending_customer_approval" &&
+          sub.status !== "paused",
+      )
+      .slice(0, 3)
+      .map((sub) => ({
+        id: sub.id,
+        status: sub.status,
+        name: sub.name,
+        amount: sub.amount,
+        created_at: sub.created_at,
+      }));
+
     return NextResponse.json({
       success: true,
       stats: {
@@ -302,6 +319,8 @@ export async function POST(request: NextRequest) {
         totalFetched: subscriptions.length,
         filteredToActive: activeSubscriptions.length,
         skipped: subscriptions.length - activeSubscriptions.length,
+        acceptedStatuses: ["active", "pending_customer_approval", "paused"],
+        excludedSample: excludedSubscriptions,
       },
     });
   } catch (error: any) {
