@@ -58,10 +58,22 @@ export async function POST(request: NextRequest) {
     });
     const subscriptions = subscriptionsResponse.subscriptions || [];
 
-    // Filter active subscriptions
+    // Log subscription statuses for debugging
+    const statusCounts = subscriptions.reduce(
+      (acc, sub) => {
+        acc[sub.status] = (acc[sub.status] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+    console.log("GoCardless subscription statuses:", statusCounts);
+
+    // Filter active subscriptions (include all non-cancelled statuses)
     const activeSubscriptions = subscriptions.filter(
       (sub) =>
-        sub.status === "active" || sub.status === "pending_customer_approval",
+        sub.status === "active" ||
+        sub.status === "pending_customer_approval" ||
+        sub.status === "paused",
     );
 
     // PHASE 1: Auto-create membership plans from unique subscription amounts
@@ -160,15 +172,21 @@ export async function POST(request: NextRequest) {
       // Find client by email
       const { data: client } = await supabaseAdmin
         .from("clients")
-        .select("id")
+        .select("id, email, first_name, last_name")
         .eq("org_id", organizationId)
         .eq("email", customer.email)
         .maybeSingle();
 
       if (!client) {
-        console.log(`Client not found for email ${customer.email}, skipping`);
+        console.log(
+          `⚠️ Client not found for GoCardless customer ${customer.email} (${customer.given_name} ${customer.family_name}), skipping subscription ${subscription.id}`,
+        );
         continue;
       }
+
+      console.log(
+        `✅ Found client ${client.id} (${client.email}) for subscription ${subscription.id}`,
+      );
 
       // Update client with subscription info (if not already set)
       await supabaseAdmin
@@ -253,6 +271,16 @@ export async function POST(request: NextRequest) {
         }
       }
     }
+
+    console.log("=== GoCardless Import Summary ===");
+    console.log(`Total subscriptions fetched: ${subscriptions.length}`);
+    console.log(`Active subscriptions: ${activeSubscriptions.length}`);
+    console.log(`Plans created: ${plansCreated}`);
+    console.log(`Memberships created: ${membershipsCreated}`);
+    console.log(`Clients updated: ${clientsUpdated}`);
+    console.log(
+      `Skipped subscriptions: ${subscriptions.length - activeSubscriptions.length}`,
+    );
 
     return NextResponse.json({
       success: true,

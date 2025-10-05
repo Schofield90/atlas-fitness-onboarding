@@ -77,6 +77,16 @@ export async function POST(request: NextRequest) {
     const paymentsResponse = await client.payments.list(queryParams);
     const payments = paymentsResponse.payments || [];
 
+    // Log payment statuses for debugging
+    const paymentStatusCounts = payments.reduce(
+      (acc, payment) => {
+        acc[payment.status] = (acc[payment.status] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+    console.log("GoCardless payment statuses:", paymentStatusCounts);
+
     let imported = 0;
     let skipped = 0;
     let totalAmount = 0;
@@ -86,6 +96,9 @@ export async function POST(request: NextRequest) {
     for (const payment of payments) {
       // Only import successful payments
       if (payment.status !== "confirmed" && payment.status !== "paid_out") {
+        console.log(
+          `Skipping payment ${payment.id} with status: ${payment.status}`,
+        );
         skipped++;
         continue;
       }
