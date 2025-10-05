@@ -169,55 +169,18 @@ export async function requireAuth(): Promise<AuthenticatedUser> {
     }
   }
 
-  // SECURITY: Validate organization exists and is active before auto-assignment
-  if (!organizationId) {
-    const defaultOrgId = "63589490-8f55-4157-bd3a-e141594b748e";
-
-    // Verify default organization exists and is active
-    const { data: orgData } = await adminClient
-      .from("organizations")
-      .select("id, subscription_status")
-      .eq("id", defaultOrgId)
-      .or("subscription_status.eq.active,subscription_status.eq.trialing")
-      .single();
-
-    if (orgData) {
-      organizationId = defaultOrgId;
-      role = "member"; // Default to member, not owner for security
-
-      // Log security event for auto-assignment
-      logSecurityEvent({
-        event: "AUTO_ORG_ASSIGNMENT",
-        userId: user.id,
-        organizationId,
-        details: { assignedRole: role },
-      });
-
-      // Try to create the association
-      await adminClient.from("user_organizations").upsert(
-        {
-          user_id: user.id,
-          organization_id: organizationId,
-          role: role,
-        },
-        {
-          onConflict: "user_id",
-        },
-      );
-
-      console.log(
-        "Created default organization association for user:",
-        user.id,
-      );
-    }
-  }
+  // SECURITY: No auto-assignment - user must have explicit organization membership
+  // Auto-assignment removed to prevent unauthorized access to production organizations
 
   if (!organizationId) {
     // Log security event for missing organization
     logSecurityEvent({
       event: "MISSING_ORGANIZATION",
       userId: user.id,
-      details: { email: user.email },
+      details: {
+        email: user.email,
+        message: "User not assigned to any organization - check signup flow",
+      },
     });
 
     throw MultiTenantError.missingOrganization({
