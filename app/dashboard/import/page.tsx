@@ -425,7 +425,7 @@ function ImportPageContent() {
           setChunks(weeklyChunks);
 
           // Only show chunk dialog for attendance imports
-          if (detectedType === "attendance") {
+          if (fileType === "attendance") {
             setShowChunkDialog(true);
           }
           // For clients and payments, chunking happens automatically via background processing

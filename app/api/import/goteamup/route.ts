@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { GoTeamUpImporter, parseCSV } from "@/app/lib/services/goteamup-import";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 import { migrationService } from "@/app/lib/services/migration-service";
+import { requireAuth } from "@/app/lib/api/auth-check";
 
 export const runtime = "nodejs"; // Ensure Node runtime (not edge)
 export const dynamic = "force-dynamic"; // No caching
@@ -24,11 +25,12 @@ async function handleImportRequest(
   console.log("GoTeamUp import endpoint called");
 
   try {
-    // Ensure we're in server environment
-    if (typeof window !== "undefined") {
-      console.error("Import API called from client side!");
-      return NextResponse.json({ error: "Server-side only" }, { status: 500 });
-    }
+    // Authenticate user
+    const user = await requireAuth();
+    const userId = user.id;
+    const organizationId = user.organizationId;
+
+    console.log("Authenticated user:", userId, "Organization:", organizationId);
 
     // Use admin client for database operations - bypasses RLS
     const supabase = createAdminClient();
@@ -37,24 +39,6 @@ async function handleImportRequest(
     const formData = await request.formData();
     const file = formData.get("file") as File;
     const fileType = formData.get("type") as string;
-    const organizationId = formData.get("organizationId") as string | null;
-
-    // Validate organization ID
-    if (!organizationId) {
-      console.error("No organization ID provided in request");
-      return NextResponse.json(
-        {
-          error:
-            "No organization found. Please ensure you have an active organization membership.",
-        },
-        { status: 400 },
-      );
-    }
-
-    console.log("Organization found:", organizationId);
-
-    // Set userId for background jobs (can be improved with actual auth)
-    const userId = "ea1fc8e3-35a2-4c59-80af-5fde557391a1";
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
