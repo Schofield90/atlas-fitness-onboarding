@@ -148,12 +148,23 @@ export default function CustomerDetailPage() {
       }
 
       if (clientData) {
+        // Calculate lifetime value from payments table
+        const { data: payments } = await supabase
+          .from('payments')
+          .select('amount')
+          .or(`client_id.eq.${customerId},customer_id.eq.${customerId}`)
+          .eq('organization_id', organizationId)
+          .in('payment_status', ['paid', 'confirmed_paid', 'succeeded']);
+
+        const lifetimeValue = (payments || []).reduce((sum, payment) => sum + (payment.amount || 0), 0);
+
         // Transform client data to expected format
         const customerData = {
           ...clientData,
           name:
             `${clientData.first_name || ""} ${clientData.last_name || ""}`.trim() ||
             clientData.name,
+          lifetime_value: lifetimeValue, // Override with calculated value from payments
           is_lead: false,
           lead_tags: [],
         };
