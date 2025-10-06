@@ -132,6 +132,8 @@ async function handleImportRequest(
         result = await importer.importAttendance(rows);
       } else if (importType === "clients") {
         result = await importer.importClients(rows);
+      } else if (importType === "memberships") {
+        result = await importer.importMemberships(rows);
       } else {
         return NextResponse.json(
           { error: "Invalid import type" },
@@ -284,6 +286,8 @@ async function processGoTeamUpImportInBackground(
       result = await importer.importAttendance(rows, 10); // Use smaller batch size
     } else if (importType === "clients") {
       result = await importer.importClients(rows, 10); // Use smaller batch size
+    } else if (importType === "memberships") {
+      result = await importer.importMemberships(rows, 10); // Use smaller batch size
     } else {
       throw new Error("Invalid import type");
     }

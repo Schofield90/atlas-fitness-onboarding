@@ -56,7 +56,7 @@ function ImportPageContent() {
   const [preview, setPreview] = useState<string[][]>([]);
   const [importing, setImporting] = useState(false);
   const [fileType, setFileType] = useState<
-    "auto" | "payments" | "attendance" | "clients"
+    "auto" | "payments" | "attendance" | "clients" | "memberships"
   >("auto");
   const [stats, setStats] = useState<ImportStats | null>(null);
   const [errors, setErrors] = useState<ImportError[]>([]);
@@ -395,6 +395,11 @@ function ImportPageContent() {
         // Auto-detect file type
         const headerLower = headers.map((h) => h.toLowerCase());
         if (
+          headerLower.some((h) => h.includes("active memberships")) &&
+          headerLower.some((h) => h.includes("last payment amount"))
+        ) {
+          setFileType("memberships");
+        } else if (
           headerLower.some((h) => h.includes("amount") || h.includes("payment"))
         ) {
           setFileType("payments");
@@ -826,6 +831,7 @@ function ImportPageContent() {
                   >
                     <option value="auto">Auto-detect</option>
                     <option value="clients">Clients</option>
+                    <option value="memberships">Memberships</option>
                     <option value="payments">Payments</option>
                     <option value="attendance">Attendance</option>
                   </select>
@@ -1140,6 +1146,11 @@ function ImportPageContent() {
                 Import this first to create all client records.
               </p>
               <p>
+                <strong>Memberships CSV:</strong> Must include columns: Email,
+                Active Memberships, Last Payment Amount, Last Payment Date,
+                Status. Creates membership plans and assigns them to clients.
+              </p>
+              <p>
                 <strong>Payments CSV:</strong> Must include columns: Date,
                 Customer/Client Name, Email, Amount
               </p>
@@ -1150,7 +1161,7 @@ function ImportPageContent() {
               </p>
               <p>
                 <strong>Recommended Order:</strong> Import Clients first, then
-                Attendance, then Payments for best results.
+                Memberships, then Payments and Attendance for best results.
               </p>
             </div>
           </div>

@@ -244,9 +244,10 @@ export class GoTeamUpImporter {
   // Auto-detect file type based on headers
   public detectFileType(
     headers: string[],
-  ): "payments" | "attendance" | "clients" | "unknown" {
+  ): "payments" | "attendance" | "clients" | "memberships" | "unknown" {
     const paymentHeaders = ["amount", "payment", "price", "total", "cost"];
     const attendanceHeaders = ["class", "session", "instructor", "time"];
+    const membershipHeaders = ["active memberships", "last payment amount"];
     const clientHeaders = [
       "full name",
       "first name",
@@ -263,6 +264,10 @@ export class GoTeamUpImporter {
 
     const lowerHeaders = headers.map((h) => h.toLowerCase());
 
+    const hasMembershipHeaders = membershipHeaders.every((h) =>
+      lowerHeaders.some((lh) => lh.includes(h)),
+    );
+
     const hasPaymentHeaders = paymentHeaders.some((h) =>
       lowerHeaders.some((lh) => lh.includes(h)),
     );
@@ -275,6 +280,7 @@ export class GoTeamUpImporter {
       clientHeaders.filter((h) => lowerHeaders.some((lh) => lh.includes(h)))
         .length >= 4; // Need at least 4 client-specific headers
 
+    if (hasMembershipHeaders) return "memberships"; // Check memberships first (most specific)
     if (hasPaymentHeaders && !hasAttendanceHeaders && !hasClientHeaders)
       return "payments";
     if (hasAttendanceHeaders && !hasPaymentHeaders && !hasClientHeaders)
@@ -1128,6 +1134,255 @@ export class GoTeamUpImporter {
     } catch (error) {
       console.error("Error in findOrCreateClassSession:", error);
       return null;
+    }
+  }
+
+  // Import memberships from GoTeamUp CSV export
+  public async importMemberships(
+    data: any[],
+    batchSize: number = 25,
+  ): Promise<ImportResult> {
+    const progress: ImportProgress = {
+      total: data.length,
+      processed: 0,
+      success: 0,
+      errors: 0,
+      skipped: 0,
+    };
+
+    const errors: Array<{ row: number; error: string }> = [];
+    const processedPlans = new Map<string, string>(); // membershipKey -> planId
+    let plansCreated = 0;
+    let membershipsCreated = 0;
+
+    try {
+      // PHASE 1: Create unique membership plans
+      for (let i = 0; i < data.length; i++) {
+        const row = data[i];
+        const activeMemberships = row["Active Memberships"]?.trim();
+        const lastPaymentAmount = parseFloat(
+          row["Last Payment Amount (GBP)"] || "0",
+        );
+
+        if (!activeMemberships || activeMemberships === "") {
+          continue; // Skip rows without active memberships
+        }
+
+        const amountPennies = Math.round(lastPaymentAmount * 100);
+        const membershipKey = `${activeMemberships}|${amountPennies}`;
+
+        if (processedPlans.has(membershipKey)) {
+          continue; // Already created this plan
+        }
+
+        // Extract billing period from membership name
+        let billingPeriod = "monthly"; // default
+        const nameLower = activeMemberships.toLowerCase();
+
+        if (nameLower.includes("week") && !nameLower.includes("month")) {
+          billingPeriod = "weekly";
+        } else if (nameLower.includes("year") || nameLower.includes("12 month")) {
+          billingPeriod = "yearly";
+        } else if (nameLower.includes("lifetime") || nameLower.includes("life time")) {
+          billingPeriod = "one-time";
+        }
+
+        // Check if plan already exists
+        const { data: existingPlan } = await this.supabase
+          .from("membership_plans")
+          .select("id")
+          .eq("organization_id", this.organizationId)
+          .eq("name", activeMemberships)
+          .eq("price_pennies", amountPennies)
+          .maybeSingle();
+
+        if (existingPlan) {
+          processedPlans.set(membershipKey, existingPlan.id);
+          continue;
+        }
+
+        // Create new membership plan
+        const { data: newPlan, error: planError } = await this.supabase
+          .from("membership_plans")
+          .insert({
+            organization_id: this.organizationId,
+            name: activeMemberships,
+            description: `Imported from GoTeamUp - ${activeMemberships}`,
+            price_pennies: amountPennies,
+            price: lastPaymentAmount,
+            billing_period: billingPeriod,
+            is_active: true,
+            payment_provider: "manual", // GoTeamUp manages billing
+            metadata: {
+              imported_from: "goteamup",
+              import_date: new Date().toISOString(),
+              original_name: activeMemberships,
+            },
+          })
+          .select("id")
+          .single();
+
+        if (planError) {
+          console.error(`Error creating plan "${activeMemberships}":`, planError);
+          continue;
+        }
+
+        if (newPlan) {
+          processedPlans.set(membershipKey, newPlan.id);
+          plansCreated++;
+        }
+      }
+
+      // PHASE 2: Batch load all clients
+      const { data: allClients } = await this.supabase
+        .from("clients")
+        .select("id, email")
+        .eq("org_id", this.organizationId);
+
+      const clientsByEmail = new Map(
+        (allClients || []).map((c) => [c.email.toLowerCase(), c]),
+      );
+
+      // PHASE 3: Assign memberships
+      for (let i = 0; i < data.length; i++) {
+        const row = data[i];
+        const email = row["Email"]?.trim().toLowerCase();
+        const activeMemberships = row["Active Memberships"]?.trim();
+        const lastPaymentAmount = parseFloat(
+          row["Last Payment Amount (GBP)"] || "0",
+        );
+        const lastPaymentDate = row["Last Payment Date"]?.trim();
+        const status = row["Status"]?.trim().toLowerCase();
+
+        progress.processed++;
+
+        if (!email) {
+          progress.skipped++;
+          continue;
+        }
+
+        if (!activeMemberships || activeMemberships === "") {
+          progress.skipped++;
+          continue;
+        }
+
+        // Find client by email
+        const client = clientsByEmail.get(email);
+
+        if (!client) {
+          progress.errors++;
+          errors.push({
+            row: i + 2,
+            error: `Client not found: ${email}`,
+          });
+          continue;
+        }
+
+        // Get the plan ID
+        const amountPennies = Math.round(lastPaymentAmount * 100);
+        const membershipKey = `${activeMemberships}|${amountPennies}`;
+        const planId = processedPlans.get(membershipKey);
+
+        if (!planId) {
+          progress.errors++;
+          errors.push({
+            row: i + 2,
+            error: `Membership plan not found: ${activeMemberships}`,
+          });
+          continue;
+        }
+
+        // Check if membership already exists
+        const { data: existingMembership } = await this.supabase
+          .from("customer_memberships")
+          .select("id")
+          .eq("client_id", client.id)
+          .eq("membership_plan_id", planId)
+          .maybeSingle();
+
+        if (existingMembership) {
+          // Update existing membership
+          const { error: updateError } = await this.supabase
+            .from("customer_memberships")
+            .update({
+              status: status === "active" ? "active" : "inactive",
+              payment_status: "current",
+              payment_provider: "manual",
+              next_billing_date: lastPaymentDate || null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", existingMembership.id);
+
+          if (!updateError) {
+            progress.success++;
+          } else {
+            progress.errors++;
+            errors.push({
+              row: i + 2,
+              error: updateError.message,
+            });
+          }
+        } else {
+          // Create new membership
+          const { error: membershipError } = await this.supabase
+            .from("customer_memberships")
+            .insert({
+              client_id: client.id,
+              organization_id: this.organizationId,
+              membership_plan_id: planId,
+              status: status === "active" ? "active" : "inactive",
+              payment_status: "current",
+              payment_provider: "manual",
+              start_date: lastPaymentDate || new Date().toISOString().split("T")[0],
+              next_billing_date: lastPaymentDate || null,
+              metadata: {
+                imported_from: "goteamup",
+                import_date: new Date().toISOString(),
+              },
+            });
+
+          if (!membershipError) {
+            progress.success++;
+            membershipsCreated++;
+          } else {
+            progress.errors++;
+            errors.push({
+              row: i + 2,
+              error: membershipError.message,
+            });
+          }
+        }
+
+        // Report progress
+        if (this.progressCallback) {
+          this.progressCallback(progress);
+        }
+      }
+
+      return {
+        success: true,
+        message: `Created ${plansCreated} membership plans and assigned ${membershipsCreated} memberships`,
+        stats: {
+          total: progress.total,
+          success: progress.success,
+          errors: progress.errors,
+          skipped: progress.skipped,
+        },
+        errors: errors.slice(0, 10), // Return first 10 errors
+      };
+    } catch (error: any) {
+      console.error("Membership import error:", error);
+      return {
+        success: false,
+        message: `Import failed: ${error.message}`,
+        stats: {
+          total: progress.total,
+          success: progress.success,
+          errors: progress.errors,
+          skipped: progress.skipped,
+        },
+        errors,
+      };
     }
   }
 }
