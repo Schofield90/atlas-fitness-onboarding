@@ -539,6 +539,7 @@ export class GoTeamUpImporter {
             .insert({
               customer_id: clientId,
               program_id: planId, // Changed from membership_plan_id to program_id
+              organization_id: this.organizationId, // Required field - NOT NULL constraint
               membership_status: "active", // Changed from status to membership_status
               start_date: new Date().toISOString().split("T")[0],
               created_at: new Date().toISOString(),
@@ -1365,6 +1366,7 @@ export class GoTeamUpImporter {
           const membershipData = {
             customer_id: client.id,
             program_id: planId, // memberships table uses program_id, not membership_plan_id
+            organization_id: this.organizationId, // Required field - NOT NULL constraint
             membership_status: status === "active" ? "active" : "inactive",
             start_date: lastPaymentDate || new Date().toISOString().split("T")[0],
             created_at: new Date().toISOString(),
