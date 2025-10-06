@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
                 email: stripeCustomer.email || null,
                 phone: stripeCustomer.phone || null,
                 stripe_customer_id: charge.customer as string,
-                status: "archived", // Mark as archived so they don't clutter active lists
+                status: "cancelled", // Historical customer - mark as cancelled
                 source: "stripe_import",
                 created_at:
                   new Date(stripeCustomer.created * 1000).toISOString() ||
@@ -173,15 +173,15 @@ export async function POST(request: NextRequest) {
       }
 
       // Create payment record
-      const paymentDate = new Date(charge.created * 1000).toISOString().split("T")[0];
+      const paymentDate = new Date(charge.created * 1000)
+        .toISOString()
+        .split("T")[0];
       const { error: insertError } = await supabaseAdmin
         .from("payments")
         .insert({
           organization_id: organizationId,
           client_id: clientId, // Will be null if customer not found in CRM
           amount: charge.amount / 100, // Convert cents to dollars
-          currency: charge.currency.toUpperCase(),
-          status: "completed", // Internal status
           payment_status: charge.status, // Stripe charge status (succeeded, pending, failed)
           payment_method: charge.payment_method_details?.type || "unknown",
           payment_provider: "stripe",
@@ -191,6 +191,7 @@ export async function POST(request: NextRequest) {
             charge.description ||
             `Payment from ${charge.billing_details?.name || "customer"}`,
           metadata: {
+            currency: charge.currency.toUpperCase(), // Store currency in metadata
             stripe_customer_id: charge.customer,
             stripe_charge_id: charge.id,
             stripe_payment_intent_id: charge.payment_intent,
