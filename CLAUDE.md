@@ -526,8 +526,110 @@ All 3 Vercel projects need:
 - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` - ✅ Already added
 - `SUPABASE_SERVICE_ROLE_KEY` - ✅ Already added (for admin operations)
 
+### GoCardless Integration (October 5, 2025) - IN PROGRESS
+
+#### Completed
+
+- ✅ Created `payment_provider_accounts` table for multi-provider support
+- ✅ Added GoCardless connection UI (dual-option: API key or OAuth)
+- ✅ Implemented `/api/gym/gocardless/connect-existing` endpoint
+- ✅ Created GoCardless payments import endpoint
+- ✅ Created GoCardless subscriptions import endpoint
+- ✅ Fixed database schema issues (client_id, payment_status, payment_date columns)
+
+#### Current Issues Being Debugged
+
+**Issue 1: All 87 GoCardless payments have client_id = NULL**
+
+- Status: INVESTIGATING
+- Database confirms: 87 payments imported but not linked to any clients
+- Payments don't show in client payment tabs or financial reports
+- Latest deployment: Added diagnostic logging to track client matching failures
+- Next step: Re-run payments import to see detailed error messages in `debug.clientMatchFailures`
+
+**Issue 2: Zero GoCardless subscriptions importing**
+
+- Status: INVESTIGATING
+- API shows 134 total subscriptions (126 cancelled, 8 finished)
+- User confirms having active members with GoCardless subscriptions
+- Latest deployment: Removed API status filter to see all subscription statuses
+- Next step: Re-run subscriptions import to see full status breakdown in `debug` section
+
+**Issue 3: Similar Stripe subscription import problem**
+
+- Status: NOT YET INVESTIGATED
+- Stripe customers and payment methods importing successfully
+- But 0 subscriptions showing up (similar to GoCardless)
+- May be related to same underlying issue
+
+#### Diagnostic Endpoints
+
+Both import endpoints now return enhanced `debug` sections:
+
+**GoCardless Subscriptions** (`/api/gym/gocardless/import/subscriptions`):
+
+```json
+{
+  "debug": {
+    "statusBreakdown": { "cancelled": 126, "finished": 8 },
+    "acceptedStatuses": ["active", "pending_customer_approval", "paused"],
+    "excludedSample": [...]
+  }
+}
+```
+
+**GoCardless Payments** (`/api/gym/gocardless/import/payments`):
+
+```json
+{
+  "debug": {
+    "clientMatchFailures": [...],
+    "totalClientMatchFailures": 87
+  }
+}
+```
+
+#### Key Files
+
+- `/app/api/gym/gocardless/import/payments/route.ts` - Payment import with client matching
+- `/app/api/gym/gocardless/import/subscriptions/route.ts` - Subscription import with plan creation
+- `/app/api/gym/gocardless/connect-existing/route.ts` - API key connection
+- `/app/settings/integrations/payments/import/page.tsx` - Import UI
+
+#### Database Schema
+
+```sql
+payment_provider_accounts (
+  organization_id UUID,
+  provider TEXT, -- 'stripe' | 'gocardless'
+  access_token TEXT, -- API key for existing account
+  environment TEXT, -- 'live' | 'sandbox'
+)
+
+payments (
+  client_id UUID, -- NULL for all 87 GoCardless payments
+  payment_provider TEXT,
+  provider_payment_id TEXT,
+  payment_status TEXT,
+  payment_date DATE,
+  metadata JSONB
+)
+
+customer_memberships (
+  payment_provider TEXT,
+  provider_subscription_id TEXT
+)
+```
+
+#### Organization Context
+
+- Organization ID: `ee1206d7-62fb-49cf-9f39-95b9c54423a4`
+- Total clients: 205 (all with emails)
+- GoCardless environment: live
+- Test credentials: sam@atlas-gyms.co.uk / @Aa80236661
+
 ---
 
-_Last Updated: October 3, 2025_
+_Last Updated: October 5, 2025 16:45 BST_
 _Review Type: Automated Design & Accessibility_
 _Diff Policy: Minimal changes only_
