@@ -49,12 +49,21 @@ export async function GET(request: NextRequest) {
         : Environments.Sandbox,
     );
 
-    // Fetch ALL subscriptions
+    // Fetch subscriptions - check pagination
     const subscriptionsResponse = await client.subscriptions.list({
       limit: 500,
     });
 
     const subscriptions = subscriptionsResponse.subscriptions || [];
+
+    // Check if there are more subscriptions beyond the limit
+    const hasMore = subscriptionsResponse.meta?.cursors?.after ? true : false;
+    const cursor = subscriptionsResponse.meta?.cursors?.after;
+
+    // Get date range of fetched subscriptions
+    const dates = subscriptions.map((s: any) => s.created_at).sort();
+    const oldestDate = dates[0];
+    const newestDate = dates[dates.length - 1];
 
     // Get raw details
     const subscriptionDetails = subscriptions.map((sub: any) => ({
@@ -105,11 +114,21 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       total: subscriptions.length,
+      hasMore,
+      nextCursor: cursor,
+      dateRange: {
+        oldest: oldestDate,
+        newest: newestDate,
+      },
       statusBreakdown,
       namePatterns,
       goteamupSubscriptions: goteamupSubscriptions.length,
       subscriptions: subscriptionDetails.slice(0, 20), // First 20 for inspection
+      lastSubscriptions: subscriptionDetails.slice(-5), // Last 5 to see newest
       rawFirstSubscription: subscriptions[0] || null,
+      warning: hasMore
+        ? `There are MORE subscriptions beyond the 500 limit! Use cursor: ${cursor} to fetch next batch`
+        : null,
     });
   } catch (error: any) {
     console.error("GoCardless raw subscription debug error:", error);
