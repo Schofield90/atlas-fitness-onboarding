@@ -272,8 +272,8 @@ function ImportPageContent() {
 
       const organizationId = orgData.data.organizationId;
 
-      // Call backfill endpoint
-      const response = await fetch("/api/gym/gocardless/backfill-payments", {
+      // Call re-import endpoint (deletes broken payments and re-imports with customer links)
+      const response = await fetch("/api/gym/gocardless/reimport-payments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ organizationId }),
@@ -281,7 +281,7 @@ function ImportPageContent() {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || "Failed to backfill payments");
+        throw new Error(error.error || "Failed to re-import payments");
       }
 
       const data = await response.json();
@@ -436,13 +436,13 @@ function ImportPageContent() {
                   <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
                   <div>
                     <h4 className="font-semibold text-white mb-2">
-                      Fix Unlinked Payments
+                      Fix Unlinked Payments (Delete & Re-import)
                     </h4>
                     <p className="text-sm text-gray-400">
-                      If you have payments that aren't showing up in member
-                      profiles, use this tool to link them to the correct
-                      clients. This will fetch customer information from
-                      GoCardless and match payments by email.
+                      Payments not showing in member profiles were imported
+                      without customer data. This will{" "}
+                      <strong>delete the broken payments</strong> and re-import
+                      them from GoCardless with proper customer links.
                     </p>
                   </div>
                 </div>
@@ -468,18 +468,24 @@ function ImportPageContent() {
                 {backfillStats && (
                   <div className="mt-4 p-4 bg-green-900/20 border border-green-600/30 rounded-lg">
                     <p className="text-green-400 font-medium mb-2">
-                      ✓ Backfill Complete!
+                      ✓ Re-import Complete!
                     </p>
                     <div className="text-sm text-gray-300 space-y-1">
                       <p>
-                        • {backfillStats.updated} payments linked to clients
+                        • {backfillStats.deleted || 0} broken payments deleted
                       </p>
                       <p>
-                        • {backfillStats.clientsCreated} new clients created
+                        • {backfillStats.imported || 0} payments re-imported
+                        with customer links
                       </p>
-                      {backfillStats.failed > 0 && (
+                      <p>
+                        • {backfillStats.clientsCreated || 0} new clients
+                        created
+                      </p>
+                      {backfillStats.skipped > 0 && (
                         <p className="text-yellow-400">
-                          • {backfillStats.failed} payments failed to link
+                          • {backfillStats.skipped} payments skipped (no
+                          customer data in GoCardless)
                         </p>
                       )}
                     </div>
