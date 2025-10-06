@@ -42,10 +42,10 @@ export async function GET(request: NextRequest) {
       apiVersion: "2024-11-20.acacia",
     });
 
-    // Fetch ALL subscriptions with NO filters
+    // Fetch ALL subscriptions with NO filters (max 3 levels expansion)
     const allSubscriptions = await stripe.subscriptions.list({
       limit: 100,
-      expand: ["data.customer", "data.items.data.price.product"],
+      expand: ["data.customer", "data.items.data.price"],
     });
 
     // Get raw subscription details
@@ -60,8 +60,9 @@ export async function GET(request: NextRequest) {
       items: sub.items.data.map((item) => ({
         price_id: item.price.id,
         amount: item.price.unit_amount,
-        product_id: item.price.product,
-        product_name: (item.price.product as any)?.name || null,
+        product_id: typeof item.price.product === 'string' ? item.price.product : item.price.product?.id,
+        interval: item.price.recurring?.interval,
+        interval_count: item.price.recurring?.interval_count,
       })),
       metadata: sub.metadata,
       created: sub.created,
