@@ -3,6 +3,7 @@ import { GoTeamUpImporter, parseCSV } from "@/app/lib/services/goteamup-import";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 import { migrationService } from "@/app/lib/services/migration-service";
 import { requireAuth } from "@/app/lib/api/auth-check";
+import { parse } from "csv-parse/sync";
 
 export const runtime = "nodejs"; // Ensure Node runtime (not edge)
 export const dynamic = "force-dynamic"; // No caching
@@ -52,9 +53,14 @@ async function handleImportRequest(
       );
     }
 
-    // Parse CSV
+    // Parse CSV using proper csv-parse library
     const fileContent = await file.text();
-    const rows = parseCSVContent(fileContent);
+    const rows = parse(fileContent, {
+      columns: true,
+      skip_empty_lines: true,
+      trim: true,
+      relax_column_count: true, // Handle rows with different column counts
+    });
 
     if (!rows || rows.length === 0) {
       return NextResponse.json({ error: "CSV file is empty" }, { status: 400 });
@@ -172,57 +178,7 @@ async function handleImportRequest(
   }
 }
 
-// Helper to parse CSV content (handles quoted values properly)
-function parseCSVContent(content: string): any[] {
-  const lines = content.split("\n");
-  if (lines.length < 2) {
-    return [];
-  }
-
-  // Parse headers
-  const headers = parseCSVLine(lines[0]);
-  const data = [];
-
-  // Parse data rows
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-
-    const values = parseCSVLine(line);
-    const row: any = {};
-
-    headers.forEach((header, index) => {
-      row[header] = values[index] || "";
-    });
-
-    data.push(row);
-  }
-
-  return data;
-}
-
-// Helper to parse a single CSV line (handles quoted values)
-function parseCSVLine(line: string): string[] {
-  const result: string[] = [];
-  let current = "";
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-
-    if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === "," && !inQuotes) {
-      result.push(current.trim());
-      current = "";
-    } else {
-      current += char;
-    }
-  }
-
-  result.push(current.trim());
-  return result.map((cell) => cell.replace(/^"|"$/g, ""));
-}
+// Old custom CSV parsing functions removed - now using csv-parse library instead
 
 // Background processing function for GoTeamUp imports
 async function processGoTeamUpImportInBackground(
