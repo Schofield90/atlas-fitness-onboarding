@@ -115,16 +115,30 @@ export async function POST(request: NextRequest) {
         try {
           const customer = await client.customers.find(payment.links.customer);
 
-          // Try to find client by email
-          const { data: client } = await supabaseAdmin
+          // Try to find client by email (case-insensitive)
+          let { data: matchedClient } = await supabaseAdmin
             .from("clients")
-            .select("id")
+            .select("id, email")
             .eq("org_id", organizationId)
-            .eq("email", customer.email)
+            .ilike("email", customer.email)
             .maybeSingle();
 
-          if (client) {
-            clientId = client.id;
+          // Fallback: Try exact lowercase match
+          if (!matchedClient && customer.email) {
+            const { data: exactMatch } = await supabaseAdmin
+              .from("clients")
+              .select("id, email")
+              .eq("org_id", organizationId)
+              .eq("email", customer.email.toLowerCase())
+              .maybeSingle();
+
+            if (exactMatch) {
+              matchedClient = exactMatch;
+            }
+          }
+
+          if (matchedClient) {
+            clientId = matchedClient.id;
           } else {
             // Auto-create archived client for historical data
             const nameParts =
@@ -206,7 +220,10 @@ export async function POST(request: NextRequest) {
         .insert({
           organization_id: organizationId,
           client_id: clientId,
+          user_id: clientId, // Also populate user_id for backwards compatibility
           amount,
+          currency: payment.currency.toUpperCase(),
+          status: "succeeded", // Match Stripe's status field
           payment_status: "completed",
           payment_method: "direct_debit",
           payment_provider: "gocardless",

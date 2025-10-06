@@ -24,6 +24,7 @@ export default function MembershipsPage() {
   const [membershipPlans, setMembershipPlans] = useState<MembershipPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [providerFilter, setProviderFilter] = useState<string>("all");
   const router = useRouter();
 
   const handleNewPlan = () => {
@@ -213,6 +214,23 @@ export default function MembershipsPage() {
             </nav>
           </div>
 
+          {/* Provider Filter */}
+          {activeTab === "plans" && (
+            <div className="mb-4 flex items-center gap-3">
+              <label className="text-sm text-gray-400">Filter by provider:</label>
+              <select
+                value={providerFilter}
+                onChange={(e) => setProviderFilter(e.target.value)}
+                className="bg-gray-800 border border-gray-700 text-white px-3 py-1 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              >
+                <option value="all">All Providers</option>
+                <option value="stripe">Stripe</option>
+                <option value="gocardless">GoCardless</option>
+                <option value="manual">Manual</option>
+              </select>
+            </div>
+          )}
+
           {/* Content */}
           {activeTab === "plans" && (
             <div>
@@ -251,7 +269,26 @@ export default function MembershipsPage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {membershipPlans.map((plan) => (
+                  {membershipPlans
+                    .filter((plan) => {
+                      if (providerFilter === "all") return true;
+                      const planProvider = (plan as any).payment_provider || "manual";
+                      return planProvider === providerFilter;
+                    })
+                    .map((plan) => {
+                      const provider = (plan as any).payment_provider || "manual";
+                      const providerBadgeColors = {
+                        stripe: "bg-purple-600",
+                        gocardless: "bg-blue-600",
+                        manual: "bg-gray-600",
+                      };
+                      const providerLabels = {
+                        stripe: "Stripe",
+                        gocardless: "GoCardless",
+                        manual: "Manual",
+                      };
+
+                      return (
                     <div
                       key={plan.id}
                       className="bg-gray-800 rounded-lg p-6 hover:bg-gray-750 transition-colors"
@@ -259,6 +296,15 @@ export default function MembershipsPage() {
                       <div className="flex justify-between items-start mb-4">
                         <h3 className="text-xl font-semibold">{plan.name}</h3>
                         <div className="flex items-center gap-2">
+                          <span
+                            className={`px-2 py-1 text-xs rounded ${
+                              providerBadgeColors[
+                                provider as keyof typeof providerBadgeColors
+                              ]
+                            }`}
+                          >
+                            {providerLabels[provider as keyof typeof providerLabels]}
+                          </span>
                           <span
                             className={`px-2 py-1 text-xs rounded ${plan.is_active ? "bg-green-600" : "bg-gray-600"}`}
                           >
@@ -416,7 +462,8 @@ export default function MembershipsPage() {
                         </span>
                       </div>
                     </div>
-                  ))}
+                      );
+                    })}
                 </div>
               )}
             </div>

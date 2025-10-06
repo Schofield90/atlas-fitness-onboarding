@@ -155,17 +155,48 @@ export async function POST(request: NextRequest) {
     for (const subscription of activeSubscriptions) {
       const customerId = subscription.customer as string;
 
-      // Find client by Stripe customer ID
-      const { data: client } = await supabaseAdmin
+      // Find client by Stripe customer ID (primary method)
+      let { data: client } = await supabaseAdmin
         .from("clients")
-        .select("id")
+        .select("id, email")
         .eq("org_id", organizationId)
         .eq("stripe_customer_id", customerId)
         .maybeSingle();
 
+      // Fallback: Try matching by email if stripe_customer_id not found
+      if (!client) {
+        try {
+          const stripeCustomer = await stripe.customers.retrieve(customerId);
+          if (stripeCustomer.email) {
+            // Try exact email match
+            const { data: emailMatch } = await supabaseAdmin
+              .from("clients")
+              .select("id, email, stripe_customer_id")
+              .eq("org_id", organizationId)
+              .ilike("email", stripeCustomer.email)
+              .maybeSingle();
+
+            if (emailMatch) {
+              // Update client with stripe_customer_id for future imports
+              await supabaseAdmin
+                .from("clients")
+                .update({ stripe_customer_id: customerId })
+                .eq("id", emailMatch.id);
+
+              client = emailMatch;
+              console.log(
+                `✅ Matched Stripe customer ${customerId} to client via email: ${stripeCustomer.email}`,
+              );
+            }
+          }
+        } catch (e) {
+          console.error(`Failed to fetch Stripe customer ${customerId}:`, e);
+        }
+      }
+
       if (!client) {
         console.log(
-          `Client not found for Stripe customer ${customerId}, skipping`,
+          `⚠️ Client not found for Stripe customer ${customerId}, skipping subscription ${subscription.id}`,
         );
         continue;
       }

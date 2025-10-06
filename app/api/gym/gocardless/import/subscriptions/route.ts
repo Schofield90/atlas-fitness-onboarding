@@ -174,13 +174,27 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Find client by email
-      const { data: client } = await supabaseAdmin
+      // Find client by email (case-insensitive)
+      let { data: client } = await supabaseAdmin
         .from("clients")
-        .select("id, email, first_name, last_name")
+        .select("id, email, first_name, last_name, metadata")
         .eq("org_id", organizationId)
-        .eq("email", customer.email)
+        .ilike("email", customer.email)
         .maybeSingle();
+
+      // Fallback: Try exact case-sensitive match if ilike failed
+      if (!client) {
+        const { data: exactMatch } = await supabaseAdmin
+          .from("clients")
+          .select("id, email, first_name, last_name, metadata")
+          .eq("org_id", organizationId)
+          .eq("email", customer.email.toLowerCase())
+          .maybeSingle();
+
+        if (exactMatch) {
+          client = exactMatch;
+        }
+      }
 
       if (!client) {
         console.log(

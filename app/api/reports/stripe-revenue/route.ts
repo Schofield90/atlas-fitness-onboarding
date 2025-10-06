@@ -5,11 +5,11 @@ import { requireOrgAccess } from "@/app/lib/auth/organization";
 export const dynamic = "force-dynamic";
 
 /**
- * Enhanced revenue reporting using Stripe data
+ * Enhanced revenue reporting using multi-provider data
  * Data sources:
- * - payments table (from Stripe charges import)
- * - customer_memberships (linked to Stripe subscriptions)
- * - membership_plans (auto-created from Stripe prices)
+ * - payments table (from Stripe + GoCardless imports)
+ * - customer_memberships (linked to Stripe/GoCardless subscriptions)
+ * - membership_plans (auto-created from Stripe/GoCardless prices)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch Stripe payments (from charges import)
+    // Fetch ALL payments (Stripe + GoCardless)
     const { data: payments } = await supabase
       .from("payments")
       .select(
@@ -44,7 +44,9 @@ export async function GET(request: NextRequest) {
         currency,
         status,
         payment_method,
+        payment_provider,
         created_at,
+        client_id,
         user_id,
         metadata
       `,
@@ -54,14 +56,16 @@ export async function GET(request: NextRequest) {
       .lte("created_at", endDate)
       .eq("status", "succeeded");
 
-    // Fetch active memberships with Stripe data
+    // Fetch active memberships (all providers)
     const { data: memberships } = await supabase
       .from("customer_memberships")
       .select(
         `
         id,
         status,
+        payment_provider,
         stripe_subscription_id,
+        provider_subscription_id,
         start_date,
         next_billing_date,
         client_id,
@@ -71,7 +75,9 @@ export async function GET(request: NextRequest) {
           price,
           price_pennies,
           billing_period,
-          stripe_price_id
+          payment_provider,
+          stripe_price_id,
+          provider_price_id
         )
       `,
       )
@@ -89,6 +95,14 @@ export async function GET(request: NextRequest) {
     (payments || []).forEach((payment) => {
       const method = payment.payment_method || "unknown";
       revenueByMethod[method] = (revenueByMethod[method] || 0) + payment.amount;
+    });
+
+    // Revenue by provider
+    const revenueByProvider: Record<string, number> = {};
+    (payments || []).forEach((payment) => {
+      const provider = payment.payment_provider || "stripe";
+      revenueByProvider[provider] =
+        (revenueByProvider[provider] || 0) + payment.amount;
     });
 
     // Daily revenue trend from Stripe payments
@@ -199,6 +213,16 @@ export async function GET(request: NextRequest) {
         ([method, amount]) => ({
           method,
           amount: Math.round(amount * 100) / 100,
+        }),
+      ),
+      revenueByProvider: Object.entries(revenueByProvider).map(
+        ([provider, amount]) => ({
+          provider,
+          amount: Math.round(amount * 100) / 100,
+          percentage:
+            totalRevenue > 0
+              ? Math.round((amount / totalRevenue) * 10000) / 100
+              : 0,
         }),
       ),
       revenueByPlan: Object.entries(revenueByPlan).map(
