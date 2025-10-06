@@ -11,7 +11,7 @@ export async function GET() {
     // Check total payments in database
     const { data: allPayments, error: allError } = await supabase
       .from("payments")
-      .select("id, client_id, customer_id, amount, payment_date, payment_status, payment_provider, provider_payment_id")
+      .select("id, client_id, amount, payment_date, payment_status, payment_provider, provider_payment_id")
       .eq("organization_id", orgId)
       .order("created_at", { ascending: false })
       .limit(10);
@@ -46,7 +46,7 @@ export async function GET() {
         const { data: clientPayments } = await supabase
           .from("payments")
           .select("id, amount, payment_date, payment_provider")
-          .or(`client_id.eq.${client.id},customer_id.eq.${client.id}`)
+          .eq("client_id", client.id)
           .eq("organization_id", orgId);
 
         clientPaymentChecks.push({

@@ -152,7 +152,7 @@ export default function CustomerDetailPage() {
         const { data: payments } = await supabase
           .from('payments')
           .select('amount')
-          .or(`client_id.eq.${customerId},customer_id.eq.${customerId}`)
+          .eq('client_id', customerId)
           .eq('organization_id', organizationId)
           .in('payment_status', ['paid', 'confirmed_paid', 'succeeded']);
 
