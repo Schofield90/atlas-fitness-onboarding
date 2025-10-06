@@ -525,11 +525,60 @@ export class GoTeamUpImporter {
 
       // Assign client to membership plan
       if (planId) {
+        // memberships.customer_id references leads(id), so we need to find/create in leads table
+        // Get client data from clients table
+        const { data: clientData } = await this.supabase
+          .from("clients")
+          .select("email, name, first_name, last_name, phone")
+          .eq("id", clientId)
+          .single();
+
+        if (!clientData) {
+          console.error(`Client ${clientId} not found in clients table`);
+          throw new Error(`Client ${clientId} not found`);
+        }
+
+        // Find or create in leads table
+        const { data: existingLead } = await this.supabase
+          .from("leads")
+          .select("id")
+          .eq("email", clientData.email.toLowerCase().trim())
+          .eq("organization_id", this.organizationId)
+          .maybeSingle();
+
+        let leadId = existingLead?.id;
+
+        if (!leadId) {
+          // Create lead from client data
+          const { data: newLead, error: leadError } = await this.supabase
+            .from("leads")
+            .insert({
+              organization_id: this.organizationId,
+              email: clientData.email.toLowerCase().trim(),
+              name: clientData.name,
+              first_name: clientData.first_name,
+              last_name: clientData.last_name,
+              phone: clientData.phone,
+              status: "customer", // They're already a customer
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .select("id")
+            .single();
+
+          if (leadError) {
+            console.error(`Failed to create lead:`, leadError);
+            throw leadError;
+          }
+
+          leadId = newLead?.id;
+        }
+
         // Check if membership already exists
         const { data: existingMembership } = await this.supabase
           .from("memberships")
           .select("id")
-          .eq("customer_id", clientId)
+          .eq("customer_id", leadId)
           .eq("program_id", planId)
           .maybeSingle();
 
@@ -537,7 +586,7 @@ export class GoTeamUpImporter {
           const { error: membershipError } = await this.supabase
             .from("memberships")
             .insert({
-              customer_id: clientId,
+              customer_id: leadId, // Use leadId, not clientId
               program_id: planId, // Changed from membership_plan_id to program_id
               organization_id: this.organizationId, // Required field - NOT NULL constraint
               membership_status: "active", // Changed from status to membership_status
@@ -552,7 +601,7 @@ export class GoTeamUpImporter {
           }
 
           console.log(
-            `Assigned client ${clientId} to membership ${membershipName}`,
+            `Assigned lead ${leadId} (client ${clientId}) to membership ${membershipName}`,
           );
         }
       }
