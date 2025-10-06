@@ -66,9 +66,26 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Track subscription statuses for debugging
+    const statusCounts = subscriptions.reduce(
+      (acc, sub) => {
+        acc[sub.status] = (acc[sub.status] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+    console.log("Stripe subscription statuses:", statusCounts);
+
     const activeSubscriptions = subscriptions.filter(
       (sub) => sub.status === "active" || sub.status === "trialing",
     );
+
+    // Track failures for debugging
+    const failedMatches: Array<{
+      subscription_id: string;
+      customer_id: string;
+      reason: string;
+    }> = [];
 
     // PHASE 1: Auto-create membership plans from unique Stripe prices
     const processedPriceIds = new Set<string>();
@@ -198,6 +215,11 @@ export async function POST(request: NextRequest) {
         console.log(
           `⚠️ Client not found for Stripe customer ${customerId}, skipping subscription ${subscription.id}`,
         );
+        failedMatches.push({
+          subscription_id: subscription.id,
+          customer_id: customerId,
+          reason: "Client not found in database",
+        });
         continue;
       }
 
@@ -298,6 +320,13 @@ export async function POST(request: NextRequest) {
         plansCreated,
         membershipsCreated,
         clientsUpdated,
+      },
+      debug: {
+        statusBreakdown: statusCounts,
+        totalFetched: subscriptions.length,
+        filteredToActive: activeSubscriptions.length,
+        failedClientMatches: failedMatches.length,
+        sampleFailures: failedMatches.slice(0, 5),
       },
       message: `Imported ${activeSubscriptions.length} subscriptions, created ${plansCreated} new plans, and assigned ${membershipsCreated} memberships`,
     });

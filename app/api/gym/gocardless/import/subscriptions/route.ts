@@ -318,6 +318,13 @@ export async function POST(request: NextRequest) {
         created_at: sub.created_at,
       }));
 
+    // Provide helpful message based on what we found
+    let message = `Imported ${activeSubscriptions.length} subscriptions, created ${plansCreated} new plans, and assigned ${membershipsCreated} memberships`;
+
+    if (activeSubscriptions.length === 0 && subscriptions.length > 0) {
+      message = `No active subscriptions found. Found ${subscriptions.length} total subscriptions but all are ${Object.keys(statusCounts).join("/")}. Only active/pending/paused subscriptions are imported.`;
+    }
+
     return NextResponse.json({
       success: true,
       stats: {
@@ -327,7 +334,7 @@ export async function POST(request: NextRequest) {
         membershipsCreated,
         clientsUpdated,
       },
-      message: `Imported ${activeSubscriptions.length} subscriptions, created ${plansCreated} new plans, and assigned ${membershipsCreated} memberships`,
+      message,
       debug: {
         statusBreakdown: statusCounts,
         totalFetched: subscriptions.length,
@@ -336,6 +343,9 @@ export async function POST(request: NextRequest) {
         acceptedStatuses: ["active", "pending_customer_approval", "paused"],
         excludedSample: excludedSubscriptions,
       },
+      warning: activeSubscriptions.length === 0 && subscriptions.length > 0
+        ? "All subscriptions are cancelled or finished. No active memberships to import."
+        : null,
     });
   } catch (error: any) {
     console.error("Error importing GoCardless subscriptions:", error);

@@ -78,6 +78,14 @@ function ImportPageContent() {
         const subscriptionsData = await subscriptionsResponse.json();
         setProgress(50);
 
+        // Show warnings/debug info
+        if (subscriptionsData.warning) {
+          console.warn("GoCardless subscription warning:", subscriptionsData.warning);
+        }
+        if (subscriptionsData.debug) {
+          console.log("GoCardless subscription debug:", subscriptionsData.debug);
+        }
+
         // Step 2: Import payments (historical data) (50-100%)
         setProgress(60);
         const paymentsResponse = await fetch(
@@ -217,6 +225,14 @@ function ImportPageContent() {
 
       const subscriptionsData = await subscriptionsResponse.json();
       setProgress(100);
+
+      // Show warning if no subscriptions imported
+      if (subscriptionsData.warning) {
+        console.warn("Subscription import warning:", subscriptionsData.warning);
+      }
+      if (subscriptionsData.debug) {
+        console.log("Subscription import debug:", subscriptionsData.debug);
+      }
 
       // Combine stats
       setImportStats({
