@@ -98,3 +98,5 @@ Payment query fix - Mon 6 Oct 2025 14:48:59 BST
 # Fix GoCardless: Import ALL subscriptions (incl. cancelled) - Mon 6 Oct 2025 18:00:00 BST
 
 # Fix Stripe charges import: Remove currency column, fix status constraint - Mon 6 Oct 2025 18:15:00 BST
+
+# Fix import results link: /customers → /members - Mon 6 Oct 2025 18:20:00 BST

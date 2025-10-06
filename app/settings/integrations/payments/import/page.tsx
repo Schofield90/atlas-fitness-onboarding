@@ -682,10 +682,10 @@ function ImportPageContent() {
 
             <div className="mt-4 flex gap-3">
               <Link
-                href="/customers"
+                href="/members"
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-center"
               >
-                View Customers
+                View Members
               </Link>
               <button
                 onClick={() => setImportStats(null)}
