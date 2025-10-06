@@ -82,3 +82,4 @@ GoCardless payments diagnostic at Sat 5 Oct 2025 16:45:00 BST - Add client match
 # FIX organization_id NULL constraint - Mon 6 Oct 2025 12:00:00 BST
 
 # Add organization_id back to memberships insert (QA agent wrongly removed it)
+Payment query fix - Mon  6 Oct 2025 14:48:59 BST
