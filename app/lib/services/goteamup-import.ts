@@ -1240,17 +1240,6 @@ export class GoTeamUpImporter {
             billing_period: billingPeriod,
             is_active: true,
             payment_provider: "manual", // GoTeamUp manages billing
-            metadata: {
-              imported_from: "goteamup",
-              import_date: new Date().toISOString(),
-              original_name: activeMemberships,
-              standard_price: standardPrice,
-              price_range: pricesForPlan.length > 0 ? {
-                min: Math.min(...pricesForPlan),
-                max: Math.max(...pricesForPlan),
-                unique_prices: Array.from(new Set(pricesForPlan)).sort()
-              } : null
-            },
           })
           .select("id")
           .single();
