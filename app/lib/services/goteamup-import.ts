@@ -1256,7 +1256,11 @@ export class GoTeamUpImporter {
           .single();
 
         if (planError) {
-          console.error(`Error creating plan "${activeMemberships}":`, planError);
+          console.error(`[MEMBERSHIP-IMPORT] Error creating plan "${activeMemberships}":`, planError);
+          errors.push({
+            row: i + 2,
+            error: `Failed to create plan "${activeMemberships}": ${planError.message}`,
+          });
           continue;
         }
 
