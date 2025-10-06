@@ -21,17 +21,32 @@ export async function GET() {
     }
 
     // Count payments by provider
-    const { data: stripePayments } = await supabase
+    const { data: stripePayments, count: stripeCount } = await supabase
       .from("payments")
       .select("id", { count: "exact", head: true })
       .eq("organization_id", orgId)
       .eq("payment_provider", "stripe");
 
-    const { data: gocardlessPayments } = await supabase
+    const { data: gocardlessPayments, count: gocardlessCount } = await supabase
       .from("payments")
       .select("id", { count: "exact", head: true })
       .eq("organization_id", orgId)
       .eq("payment_provider", "gocardless");
+
+    // Count unlinked payments (client_id is null)
+    const { count: unlinkedStripeCount } = await supabase
+      .from("payments")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", orgId)
+      .eq("payment_provider", "stripe")
+      .is("client_id", null);
+
+    const { count: unlinkedGocardlessCount } = await supabase
+      .from("payments")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", orgId)
+      .eq("payment_provider", "gocardless")
+      .is("client_id", null);
 
     // Get a sample client to check their payments
     const { data: clients } = await supabase
@@ -63,8 +78,10 @@ export async function GET() {
       success: true,
       summary: {
         total_payments: allPayments?.length || 0,
-        stripe_count: stripePayments || 0,
-        gocardless_count: gocardlessPayments || 0,
+        stripe_count: stripeCount || 0,
+        gocardless_count: gocardlessCount || 0,
+        unlinked_stripe_count: unlinkedStripeCount || 0,
+        unlinked_gocardless_count: unlinkedGocardlessCount || 0,
       },
       sample_payments: allPayments,
       client_checks: clientPaymentChecks,
