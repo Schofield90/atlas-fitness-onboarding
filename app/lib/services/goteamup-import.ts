@@ -550,28 +550,41 @@ export class GoTeamUpImporter {
 
         if (!leadId) {
           // Create lead from client data
+          console.log(`[MEMBERSHIP] Creating lead for ${clientData.email}`);
+          const leadInsertData = {
+            organization_id: this.organizationId,
+            email: clientData.email.toLowerCase().trim(),
+            name: clientData.name,
+            first_name: clientData.first_name,
+            last_name: clientData.last_name,
+            phone: clientData.phone,
+            status: "customer", // They're already a customer
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          console.log(`[MEMBERSHIP] Lead insert data:`, leadInsertData);
+
           const { data: newLead, error: leadError } = await this.supabase
             .from("leads")
-            .insert({
-              organization_id: this.organizationId,
-              email: clientData.email.toLowerCase().trim(),
-              name: clientData.name,
-              first_name: clientData.first_name,
-              last_name: clientData.last_name,
-              phone: clientData.phone,
-              status: "customer", // They're already a customer
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            })
+            .insert(leadInsertData)
             .select("id")
             .single();
 
           if (leadError) {
-            console.error(`Failed to create lead:`, leadError);
-            throw leadError;
+            console.error(`[MEMBERSHIP] Failed to create lead:`, leadError);
+            console.error(`[MEMBERSHIP] Lead data that failed:`, leadInsertData);
+            throw new Error(`Failed to create lead: ${leadError.message}`);
           }
 
-          leadId = newLead?.id;
+          if (!newLead?.id) {
+            console.error(`[MEMBERSHIP] Lead created but no ID returned`);
+            throw new Error(`Lead created but no ID returned for ${clientData.email}`);
+          }
+
+          leadId = newLead.id;
+          console.log(`[MEMBERSHIP] Created lead ${leadId} for ${clientData.email}`);
+        } else {
+          console.log(`[MEMBERSHIP] Found existing lead ${leadId} for ${clientData.email}`);
         }
 
         // Check if membership already exists
@@ -583,26 +596,34 @@ export class GoTeamUpImporter {
           .maybeSingle();
 
         if (!existingMembership) {
+          const membershipData = {
+            customer_id: leadId, // Use leadId, not clientId
+            program_id: planId, // Changed from membership_plan_id to program_id
+            organization_id: this.organizationId, // Required field - NOT NULL constraint
+            membership_status: "active", // Changed from status to membership_status
+            start_date: new Date().toISOString().split("T")[0],
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+
+          console.log(`[MEMBERSHIP] Creating membership with data:`, membershipData);
+          console.log(`[MEMBERSHIP] leadId=${leadId}, planId=${planId}, orgId=${this.organizationId}`);
+
           const { error: membershipError } = await this.supabase
             .from("memberships")
-            .insert({
-              customer_id: leadId, // Use leadId, not clientId
-              program_id: planId, // Changed from membership_plan_id to program_id
-              organization_id: this.organizationId, // Required field - NOT NULL constraint
-              membership_status: "active", // Changed from status to membership_status
-              start_date: new Date().toISOString().split("T")[0],
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            });
+            .insert(membershipData);
 
           if (membershipError) {
-            console.error(`Failed to assign membership:`, membershipError);
-            throw membershipError;
+            console.error(`[MEMBERSHIP] Failed to assign membership:`, membershipError);
+            console.error(`[MEMBERSHIP] Membership data that failed:`, membershipData);
+            throw new Error(`Failed to assign membership: ${membershipError.message}`);
           }
 
           console.log(
-            `Assigned lead ${leadId} (client ${clientId}) to membership ${membershipName}`,
+            `[MEMBERSHIP] Assigned lead ${leadId} (client ${clientId}) to membership ${membershipName}`,
           );
+        } else {
+          console.log(`[MEMBERSHIP] Membership already exists for lead ${leadId}`);
         }
       }
     }
