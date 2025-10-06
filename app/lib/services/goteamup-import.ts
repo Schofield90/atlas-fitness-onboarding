@@ -1395,12 +1395,57 @@ export class GoTeamUpImporter {
               : "Premium rate (imported from GoTeamUp)")
           : null;
 
-        // Check if membership already exists
-        console.log(`[MEMBERSHIP-IMPORT] Checking for existing membership for client ${client.id}, plan ${planId}`);
+        // memberships.customer_id references leads(id), so find/create lead first
+        const { data: existingLead } = await this.supabase
+          .from("leads")
+          .select("id")
+          .eq("email", client.email.toLowerCase().trim())
+          .eq("organization_id", this.organizationId)
+          .maybeSingle();
+
+        let leadId = existingLead?.id;
+
+        if (!leadId) {
+          // Create lead from client data
+          console.log(`[MEMBERSHIP-IMPORT] Creating lead for ${client.email}`);
+          const { data: newLead, error: leadError } = await this.supabase
+            .from("leads")
+            .insert({
+              organization_id: this.organizationId,
+              email: client.email.toLowerCase().trim(),
+              name: client.name || `${client.first_name || ''} ${client.last_name || ''}`.trim(),
+              first_name: client.first_name,
+              last_name: client.last_name,
+              phone: client.phone,
+              status: "customer",
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .select("id")
+            .single();
+
+          if (leadError) {
+            console.error(`[MEMBERSHIP-IMPORT] Failed to create lead:`, leadError);
+            progress.errors++;
+            errors.push({
+              row: i + 2,
+              error: `Failed to create lead: ${leadError.message}`,
+            });
+            continue;
+          }
+
+          leadId = newLead?.id;
+          console.log(`[MEMBERSHIP-IMPORT] Created lead ${leadId} for ${client.email}`);
+        } else {
+          console.log(`[MEMBERSHIP-IMPORT] Found existing lead ${leadId} for ${client.email}`);
+        }
+
+        // Check if membership already exists (using leadId now)
+        console.log(`[MEMBERSHIP-IMPORT] Checking for existing membership for lead ${leadId}, plan ${planId}`);
         const { data: existingMembership, error: checkError } = await this.supabase
           .from("memberships")
           .select("id")
-          .eq("customer_id", client.id)
+          .eq("customer_id", leadId)
           .eq("program_id", planId)
           .maybeSingle();
 
@@ -1431,12 +1476,13 @@ export class GoTeamUpImporter {
             });
           }
         } else {
-          // Create new membership - use 'memberships' table with correct schema
-          console.log(`[MEMBERSHIP-IMPORT] Creating new membership for client ${client.id}, plan ${planId}`);
+          // Create new membership (leadId already obtained above)
+          console.log(`[MEMBERSHIP-IMPORT] Creating new membership for lead ${leadId}, plan ${planId}`);
+
           const membershipData = {
-            customer_id: client.id,
-            program_id: planId, // memberships table uses program_id, not membership_plan_id
-            organization_id: this.organizationId, // Required field - NOT NULL constraint
+            customer_id: leadId, // Use leadId from leads table
+            program_id: planId,
+            organization_id: this.organizationId,
             membership_status: status === "active" ? "active" : "inactive",
             start_date: lastPaymentDate || new Date().toISOString().split("T")[0],
             created_at: new Date().toISOString(),
