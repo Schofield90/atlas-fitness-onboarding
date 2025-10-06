@@ -88,3 +88,5 @@ Payment query fix - Mon 6 Oct 2025 14:48:59 BST
 # GoCardless payment backfill endpoint + UI - Mon 6 Oct 2025 17:00:00 BST
 
 # Fixes 87 unlinked payments by fetching customer data from GoCardless API
+
+# Debug endpoint - Mon 6 Oct 2025 17:15:00 BST
