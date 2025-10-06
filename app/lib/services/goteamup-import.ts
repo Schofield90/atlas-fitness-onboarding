@@ -489,9 +489,9 @@ export class GoTeamUpImporter {
       .filter((m) => m.length > 0);
 
     for (const membershipName of membershipList) {
-      // Check if membership plan exists
+      // Check if program (membership plan) exists
       const { data: existingPlan } = await this.supabase
-        .from("membership_plans")
+        .from("programs")
         .select("id")
         .eq("organization_id", this.organizationId)
         .eq("name", membershipName)
@@ -501,24 +501,13 @@ export class GoTeamUpImporter {
 
       // Create plan if it doesn't exist
       if (!planId) {
-        // Parse price from lastPaymentAmount if available
-        let pricePennies = 0;
-        if (lastPaymentAmount) {
-          const priceNum = parseFloat(lastPaymentAmount.replace(/[£$,]/g, ""));
-          if (!isNaN(priceNum)) {
-            pricePennies = Math.round(priceNum * 100);
-          }
-        }
-
         const { data: newPlan, error: planError } = await this.supabase
-          .from("membership_plans")
+          .from("programs")
           .insert({
             organization_id: this.organizationId,
             name: membershipName,
-            price_pennies: pricePennies,
-            billing_period: "monthly", // Default to monthly
-            is_active: true,
             description: `Imported from GoTeamUp`,
+            is_active: true,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           })
@@ -541,7 +530,7 @@ export class GoTeamUpImporter {
           .from("memberships")
           .select("id")
           .eq("customer_id", clientId)
-          .eq("membership_plan_id", planId)
+          .eq("program_id", planId)
           .maybeSingle();
 
         if (!existingMembership) {
@@ -549,9 +538,8 @@ export class GoTeamUpImporter {
             .from("memberships")
             .insert({
               customer_id: clientId,
-              organization_id: this.organizationId,
-              membership_plan_id: planId,
-              status: "active",
+              program_id: planId, // Changed from membership_plan_id to program_id
+              membership_status: "active", // Changed from status to membership_status
               start_date: new Date().toISOString().split("T")[0],
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
