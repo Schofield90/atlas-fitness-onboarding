@@ -341,7 +341,7 @@ export class GoTeamUpImporter {
             .from("clients")
             .select("id")
             .eq("email", email.toLowerCase().trim())
-            .eq("org_id", this.organizationId)
+            .eq("organization_id", this.organizationId)
             .maybeSingle();
 
           if (existingClient) {
