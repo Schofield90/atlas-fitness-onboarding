@@ -143,12 +143,12 @@ export class GoTeamUpImporter {
     email: string,
     name?: string,
   ): Promise<string | null> {
-    // First try to find existing client (primary table)
+    // First try to find existing client (primary table) - use org_id as per schema
     const { data: existingClient } = await this.supabase
       .from("clients")
       .select("id")
       .eq("email", email.toLowerCase().trim())
-      .eq("organization_id", this.organizationId)
+      .eq("org_id", this.organizationId)
       .maybeSingle();
 
     if (existingClient) {
@@ -336,16 +336,17 @@ export class GoTeamUpImporter {
             continue;
           }
 
-          // Check if client already exists
+          // Check if client already exists - use org_id as per schema
           const { data: existingClient } = await this.supabase
             .from("clients")
             .select("id")
             .eq("email", email.toLowerCase().trim())
-            .eq("organization_id", this.organizationId)
+            .eq("org_id", this.organizationId)
             .maybeSingle();
 
           if (existingClient) {
             progress.skipped++;
+            console.log(`[CLIENT-IMPORT] Skipping duplicate client: ${email}`);
             continue;
           }
 
@@ -377,7 +378,7 @@ export class GoTeamUpImporter {
           const activeMemberships = row["Active Memberships"] || "";
           const lastPaymentAmount = row["Last Payment Amount (GBP)"] || "";
 
-          // Create client
+          // Create client - use org_id as per schema
           const clientData: any = {
             org_id: this.organizationId,
             email: email.toLowerCase().trim(),
@@ -1266,10 +1267,18 @@ export class GoTeamUpImporter {
       }
 
       // PHASE 2: Batch load all clients
-      const { data: allClients } = await this.supabase
+      console.log(`[MEMBERSHIP-IMPORT] Loading all clients for org ${this.organizationId}`);
+      const { data: allClients, error: clientsError } = await this.supabase
         .from("clients")
         .select("id, email")
-        .eq("organization_id", this.organizationId);
+        .eq("org_id", this.organizationId);
+
+      if (clientsError) {
+        console.error(`[MEMBERSHIP-IMPORT] Error loading clients:`, clientsError);
+        throw new Error(`Failed to load clients: ${clientsError.message}`);
+      }
+
+      console.log(`[MEMBERSHIP-IMPORT] Loaded ${allClients?.length || 0} clients`);
 
       const clientsByEmail = new Map(
         (allClients || []).map((c) => [c.email.toLowerCase(), c]),
@@ -1338,73 +1347,71 @@ export class GoTeamUpImporter {
               : "Premium rate (imported from GoTeamUp)")
           : null;
 
-        // Check if membership already exists
-        const { data: existingMembership } = await this.supabase
-          .from("customer_memberships")
+        // Check if membership already exists (use 'memberships' table, not 'customer_memberships')
+        console.log(`[MEMBERSHIP-IMPORT] Checking for existing membership for client ${client.id}, plan ${planId}`);
+        const { data: existingMembership, error: checkError } = await this.supabase
+          .from("memberships")
           .select("id")
-          .eq("client_id", client.id)
+          .eq("customer_id", client.id)
           .eq("membership_plan_id", planId)
           .maybeSingle();
 
+        if (checkError) {
+          console.error(`[MEMBERSHIP-IMPORT] Error checking existing membership:`, checkError);
+        }
+
         if (existingMembership) {
-          // Update existing membership with custom pricing
+          // Update existing membership - use 'memberships' table
+          console.log(`[MEMBERSHIP-IMPORT] Updating existing membership ${existingMembership.id}`);
           const { error: updateError } = await this.supabase
-            .from("customer_memberships")
+            .from("memberships")
             .update({
               status: status === "active" ? "active" : "inactive",
-              payment_status: "current",
-              payment_provider: "manual",
-              next_billing_date: lastPaymentDate || null,
-              custom_price_pennies: hasCustomPrice ? clientPricePennies : null,
-              custom_price: hasCustomPrice ? lastPaymentAmount : null,
-              price_override_reason: priceOverrideReason,
               updated_at: new Date().toISOString(),
             })
             .eq("id", existingMembership.id);
 
           if (!updateError) {
+            console.log(`[MEMBERSHIP-IMPORT] Successfully updated membership ${existingMembership.id}`);
             progress.success++;
           } else {
+            console.error(`[MEMBERSHIP-IMPORT] Error updating membership:`, updateError);
             progress.errors++;
             errors.push({
               row: i + 2,
-              error: updateError.message,
+              error: `Update failed: ${updateError.message}`,
             });
           }
         } else {
-          // Create new membership with custom pricing and billing control
-          const { error: membershipError } = await this.supabase
-            .from("customer_memberships")
-            .insert({
-              client_id: client.id,
-              organization_id: this.organizationId,
-              membership_plan_id: planId,
-              status: status === "active" ? "active" : "inactive",
-              payment_status: "current",
-              payment_provider: "manual",
-              start_date: lastPaymentDate || new Date().toISOString().split("T")[0],
-              next_billing_date: lastPaymentDate || null,
-              custom_price_pennies: hasCustomPrice ? clientPricePennies : null,
-              custom_price: hasCustomPrice ? lastPaymentAmount : null,
-              price_override_reason: priceOverrideReason,
-              billing_source: "goteamup", // GoTeamUp is currently handling billing
-              billing_paused: false, // Not paused, but billing_source prevents CRM charges
-              metadata: {
-                imported_from: "goteamup",
-                import_date: new Date().toISOString(),
-                has_custom_pricing: hasCustomPrice,
-                original_price: lastPaymentAmount,
-              },
-            });
+          // Create new membership - use 'memberships' table with correct schema
+          console.log(`[MEMBERSHIP-IMPORT] Creating new membership for client ${client.id}, plan ${planId}`);
+          const membershipData = {
+            customer_id: client.id,
+            organization_id: this.organizationId,
+            membership_plan_id: planId,
+            status: status === "active" ? "active" : "inactive",
+            start_date: lastPaymentDate || new Date().toISOString().split("T")[0],
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
 
-          if (!membershipError) {
+          console.log(`[MEMBERSHIP-IMPORT] Inserting membership:`, membershipData);
+          const { data: newMembership, error: membershipError } = await this.supabase
+            .from("memberships")
+            .insert(membershipData)
+            .select();
+
+          if (!membershipError && newMembership) {
+            console.log(`[MEMBERSHIP-IMPORT] Successfully created membership ${newMembership[0]?.id}`);
             progress.success++;
             membershipsCreated++;
           } else {
+            console.error(`[MEMBERSHIP-IMPORT] Error creating membership:`, membershipError);
+            console.error(`[MEMBERSHIP-IMPORT] Failed data:`, membershipData);
             progress.errors++;
             errors.push({
               row: i + 2,
-              error: membershipError.message,
+              error: `Insert failed: ${membershipError?.message || 'Unknown error'}`,
             });
           }
         }

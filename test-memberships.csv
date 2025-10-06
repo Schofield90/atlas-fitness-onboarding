@@ -1,0 +1,6 @@
+Email,Active Memberships,Last Payment Amount (GBP),Last Payment Date,Status
+john.doe@example.com,Full Member,110.00,15/09/2024,active
+jane.smith@example.com,Student,95.00,12/09/2024,active
+bob.johnson@example.com,Full Member,110.00,10/09/2024,active
+alice.williams@example.com,Corporate,85.00,08/09/2024,active
+charlie.brown@example.com,Full Member,120.00,14/09/2024,active
