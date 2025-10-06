@@ -34,6 +34,8 @@ function ImportPageContent() {
   const [error, setError] = useState("");
   const [progress, setProgress] = useState(0);
   const [updateOnly, setUpdateOnly] = useState(true); // Default to update-only mode (Stripe only)
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillStats, setBackfillStats] = useState<any>(null);
 
   const handleImport = async () => {
     setImporting(true);
@@ -80,10 +82,16 @@ function ImportPageContent() {
 
         // Show warnings/debug info
         if (subscriptionsData.warning) {
-          console.warn("GoCardless subscription warning:", subscriptionsData.warning);
+          console.warn(
+            "GoCardless subscription warning:",
+            subscriptionsData.warning,
+          );
         }
         if (subscriptionsData.debug) {
-          console.log("GoCardless subscription debug:", subscriptionsData.debug);
+          console.log(
+            "GoCardless subscription debug:",
+            subscriptionsData.debug,
+          );
         }
 
         // Step 2: Import payments (historical data) (50-100%)
@@ -248,6 +256,49 @@ function ImportPageContent() {
     }
   };
 
+  const handleBackfill = async () => {
+    setBackfilling(true);
+    setError("");
+    setBackfillStats(null);
+
+    try {
+      // Get organization ID from API
+      const orgResponse = await fetch("/api/auth/get-organization");
+      const orgData = await orgResponse.json();
+
+      if (!orgData.data?.organizationId) {
+        throw new Error("No organization found");
+      }
+
+      const organizationId = orgData.data.organizationId;
+
+      // Call backfill endpoint
+      const response = await fetch("/api/gym/gocardless/backfill-payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ organizationId }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to backfill payments");
+      }
+
+      const data = await response.json();
+      setBackfillStats(data.stats);
+
+      // Show errors if any
+      if (data.errors && data.errors.length > 0) {
+        console.error("Backfill errors:", data.errors);
+      }
+    } catch (err: any) {
+      console.error("Backfill error:", err);
+      setError(err.message || "Backfill failed");
+    } finally {
+      setBackfilling(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <Link
@@ -357,24 +408,85 @@ function ImportPageContent() {
 
         {/* Import button */}
         {!importStats && (
-          <div className="flex justify-center">
-            <button
-              onClick={handleImport}
-              disabled={importing}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-lg font-medium"
-            >
-              {importing ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Importing... {progress}%
-                </>
-              ) : (
-                <>
-                  <Download className="w-5 h-5" />
-                  Start Import
-                </>
-              )}
-            </button>
+          <div className="flex flex-col gap-4">
+            <div className="flex justify-center">
+              <button
+                onClick={handleImport}
+                disabled={importing}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-lg font-medium"
+              >
+                {importing ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Importing... {progress}%
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-5 h-5" />
+                    Start Import
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Backfill button for GoCardless */}
+            {isGoCardless && (
+              <div className="bg-gray-800 rounded-lg p-6 border-2 border-yellow-600/30">
+                <div className="flex items-start gap-3 mb-4">
+                  <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-white mb-2">
+                      Fix Unlinked Payments
+                    </h4>
+                    <p className="text-sm text-gray-400">
+                      If you have payments that aren't showing up in member
+                      profiles, use this tool to link them to the correct
+                      clients. This will fetch customer information from
+                      GoCardless and match payments by email.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleBackfill}
+                  disabled={backfilling || importing}
+                  className="w-full px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {backfilling ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Linking Payments...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4" />
+                      Fix Unlinked Payments
+                    </>
+                  )}
+                </button>
+
+                {/* Backfill results */}
+                {backfillStats && (
+                  <div className="mt-4 p-4 bg-green-900/20 border border-green-600/30 rounded-lg">
+                    <p className="text-green-400 font-medium mb-2">
+                      ✓ Backfill Complete!
+                    </p>
+                    <div className="text-sm text-gray-300 space-y-1">
+                      <p>
+                        • {backfillStats.updated} payments linked to clients
+                      </p>
+                      <p>
+                        • {backfillStats.clientsCreated} new clients created
+                      </p>
+                      {backfillStats.failed > 0 && (
+                        <p className="text-yellow-400">
+                          • {backfillStats.failed} payments failed to link
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
