@@ -1269,7 +1269,7 @@ export class GoTeamUpImporter {
       const { data: allClients } = await this.supabase
         .from("clients")
         .select("id, email")
-        .eq("org_id", this.organizationId);
+        .eq("organization_id", this.organizationId);
 
       const clientsByEmail = new Map(
         (allClients || []).map((c) => [c.email.toLowerCase(), c]),
