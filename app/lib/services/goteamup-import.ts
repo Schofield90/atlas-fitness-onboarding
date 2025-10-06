@@ -1186,9 +1186,9 @@ export class GoTeamUpImporter {
           billingPeriod = "one-time";
         }
 
-        // Check if plan already exists (by name only)
+        // Check if plan already exists (by name only) - using programs table
         const { data: existingPlan } = await this.supabase
-          .from("membership_plans")
+          .from("programs")
           .select("id")
           .eq("organization_id", this.organizationId)
           .eq("name", activeMemberships)
@@ -1228,18 +1228,14 @@ export class GoTeamUpImporter {
 
         const standardPricePennies = Math.round(standardPrice * 100);
 
-        // Create new membership plan with standard price
-        const { data: newPlan, error: planError } = await this.supabase
-          .from("membership_plans")
+        // Create new program (membership plan) - using programs table schema
+        const { data: newPlan, error: planError} = await this.supabase
+          .from("programs")
           .insert({
             organization_id: this.organizationId,
             name: activeMemberships,
             description: `Imported from GoTeamUp - ${activeMemberships}`,
-            price_pennies: standardPricePennies,
-            price: standardPrice,
-            billing_period: billingPeriod,
             is_active: true,
-            payment_provider: "manual", // GoTeamUp manages billing
           })
           .select("id")
           .single();
@@ -1340,13 +1336,13 @@ export class GoTeamUpImporter {
               : "Premium rate (imported from GoTeamUp)")
           : null;
 
-        // Check if membership already exists (use 'memberships' table, not 'customer_memberships')
+        // Check if membership already exists
         console.log(`[MEMBERSHIP-IMPORT] Checking for existing membership for client ${client.id}, plan ${planId}`);
         const { data: existingMembership, error: checkError } = await this.supabase
           .from("memberships")
           .select("id")
           .eq("customer_id", client.id)
-          .eq("membership_plan_id", planId)
+          .eq("program_id", planId)
           .maybeSingle();
 
         if (checkError) {
@@ -1354,12 +1350,12 @@ export class GoTeamUpImporter {
         }
 
         if (existingMembership) {
-          // Update existing membership - use 'memberships' table
+          // Update existing membership
           console.log(`[MEMBERSHIP-IMPORT] Updating existing membership ${existingMembership.id}`);
           const { error: updateError } = await this.supabase
             .from("memberships")
             .update({
-              status: status === "active" ? "active" : "inactive",
+              membership_status: status === "active" ? "active" : "inactive",
               updated_at: new Date().toISOString(),
             })
             .eq("id", existingMembership.id);
@@ -1380,9 +1376,8 @@ export class GoTeamUpImporter {
           console.log(`[MEMBERSHIP-IMPORT] Creating new membership for client ${client.id}, plan ${planId}`);
           const membershipData = {
             customer_id: client.id,
-            organization_id: this.organizationId,
-            membership_plan_id: planId,
-            status: status === "active" ? "active" : "inactive",
+            program_id: planId, // memberships table uses program_id, not membership_plan_id
+            membership_status: status === "active" ? "active" : "inactive",
             start_date: lastPaymentDate || new Date().toISOString().split("T")[0],
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
