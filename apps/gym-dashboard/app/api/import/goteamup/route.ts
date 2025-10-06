@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { GoTeamUpImporter, parseCSV } from "@/app/lib/services/goteamup-import";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 import { migrationService } from "@/app/lib/services/migration-service";
+import { requireAuth } from "@/app/lib/api/auth-check";
 
 export const runtime = "nodejs"; // Ensure Node runtime (not edge)
 export const dynamic = "force-dynamic"; // No caching
@@ -24,52 +25,17 @@ async function handleImportRequest(
   console.log("GoTeamUp import endpoint called");
 
   try {
-    // Ensure we're in server environment
-    if (typeof window !== "undefined") {
-      console.error("Import API called from client side!");
-      return NextResponse.json({ error: "Server-side only" }, { status: 500 });
-    }
+    // Authenticate user
+    const user = await requireAuth();
+    const userId = user.id;
+    const organizationId = user.organizationId;
+
+    console.log("Authenticated user:", userId, "Organization:", organizationId);
 
     // Use admin client for database operations - bypasses RLS
     const supabase = createAdminClient();
 
-    // Get the authorization header to extract user/org info
-    const authHeader = request.headers.get("authorization");
-    const organizationHeader = request.headers.get("x-organization-id");
-
-    // For immediate fix, use the organization ID from header if provided
-    // Otherwise use the known test organization
-    let organizationId: string | null =
-      organizationHeader || "63589490-8f55-4157-bd3a-e141594b748e";
-    let userId = "ea1fc8e3-35a2-4c59-80af-5fde557391a1"; // Known user ID for now
-
-    // If no organization ID provided, try to get from form data
-    if (!organizationId) {
-      const formData = await request.formData();
-      organizationId = formData.get("organizationId") as string;
-
-      // Restore the formData for later use
-      request = new Request(request.url, {
-        method: request.method,
-        headers: request.headers,
-        body: formData,
-      });
-    }
-
-    if (!organizationId) {
-      console.error("No organization found for user:", userId);
-      return NextResponse.json(
-        {
-          error:
-            "No organization found. Please ensure you have an active organization membership.",
-        },
-        { status: 400 },
-      );
-    }
-
-    console.log("Organization found:", organizationId);
-
-    // Parse form data
+    // Parse form data first (can only read body once)
     const formData = await request.formData();
     const file = formData.get("file") as File;
     const fileType = formData.get("type") as string;
@@ -136,17 +102,7 @@ async function handleImportRequest(
         userId,
       );
 
-      // Create temporary file for processing
-      const tempFile = new File([fileContent], file.name, { type: "text/csv" });
-
-      // Upload file to migration system
-      await migrationService.uploadMigrationFiles(
-        jobId,
-        [tempFile],
-        organizationId,
-      );
-
-      // Start background processing
+      // Start background processing with parsed rows (no file upload needed)
       await processGoTeamUpImportInBackground(
         jobId,
         organizationId,
@@ -174,6 +130,10 @@ async function handleImportRequest(
         result = await importer.importPayments(rows);
       } else if (importType === "attendance") {
         result = await importer.importAttendance(rows);
+      } else if (importType === "clients") {
+        result = await importer.importClients(rows);
+      } else if (importType === "memberships") {
+        result = await importer.importMemberships(rows);
       } else {
         return NextResponse.json(
           { error: "Invalid import type" },
@@ -324,6 +284,10 @@ async function processGoTeamUpImportInBackground(
       result = await importer.importPayments(rows, 10); // Use smaller batch size
     } else if (importType === "attendance") {
       result = await importer.importAttendance(rows, 10); // Use smaller batch size
+    } else if (importType === "clients") {
+      result = await importer.importClients(rows, 10); // Use smaller batch size
+    } else if (importType === "memberships") {
+      result = await importer.importMemberships(rows, 10); // Use smaller batch size
     } else {
       throw new Error("Invalid import type");
     }

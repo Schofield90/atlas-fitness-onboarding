@@ -1,355 +1,1404 @@
-import { createClient } from '@supabase/supabase-js'
-import Papa from 'papaparse'
+import Papa from "papaparse";
 
 export interface ImportProgress {
-  total: number
-  processed: number
-  success: number
-  errors: number
-  skipped: number
-  currentItem?: string
+  total: number;
+  processed: number;
+  success: number;
+  errors: number;
+  skipped: number;
+  currentItem?: string;
 }
 
 export interface ImportResult {
-  success: boolean
-  message: string
+  success: boolean;
+  message: string;
   stats: {
-    total: number
-    success: number
-    errors: number
-    skipped: number
-  }
-  errors?: Array<{ row: number; error: string }>
-}
-
-interface PaymentRecord {
-  'Client Name': string
-  Email: string
-  Date: string
-  Amount: string
-  'Payment Method': string
-  Status: string
-  Description: string
-}
-
-interface AttendanceRecord {
-  'Client Name': string
-  Email: string
-  Date: string
-  Time: string
-  'Class Name': string
-  Instructor: string
-}
-
-// Parse UK date format (DD/MM/YYYY)
-function parseUKDate(dateStr: string): string {
-  const [day, month, year] = dateStr.split('/')
-  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
-}
-
-// Parse amount to pennies
-function parseAmount(amountStr: string): number {
-  const amount = parseFloat(amountStr.replace(/[£,]/g, ''))
-  return Math.round(amount * 100) // Convert to pennies
+    total: number;
+    success: number;
+    errors: number;
+    skipped: number;
+    newClients?: number;
+  };
+  errors?: Array<{ row: number; error: string }>;
 }
 
 export class GoTeamUpImporter {
-  private supabase: any
-  private organizationId: string
-  private onProgress?: (progress: ImportProgress) => void
+  private supabase: any;
+  private organizationId: string;
+  private progressCallback?: (progress: ImportProgress) => void;
+  private createMissingClients: boolean;
+  private newClientsCreated: number = 0;
 
-  constructor(organizationId: string, onProgress?: (progress: ImportProgress) => void) {
-    this.supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
-    this.organizationId = organizationId
-    this.onProgress = onProgress
+  constructor(
+    supabase: any,
+    organizationId: string,
+    progressCallback?: (progress: ImportProgress) => void,
+    createMissingClients: boolean = true, // Default to creating missing clients
+  ) {
+    this.supabase = supabase;
+    this.organizationId = organizationId;
+    this.progressCallback = progressCallback;
+    this.createMissingClients = createMissingClients;
   }
 
-  async importPayments(csvContent: string): Promise<ImportResult> {
-    try {
-      const parseResult = Papa.parse<PaymentRecord>(csvContent, {
-        header: true,
-        skipEmptyLines: true,
-        transformHeader: (header) => header.trim()
-      })
+  // Parse UK date format (DD/MM/YYYY) or US format (MM/DD/YYYY)
+  private parseDate(dateStr: string): string | null {
+    if (!dateStr || dateStr.trim() === "") return null;
 
-      if (parseResult.errors.length > 0) {
-        return {
-          success: false,
-          message: 'CSV parsing failed',
-          stats: { total: 0, success: 0, errors: parseResult.errors.length, skipped: 0 },
-          errors: parseResult.errors.map((err, idx) => ({ row: idx, error: err.message }))
-        }
+    // Validate input looks like a date (has numbers and separators)
+    if (!/\d/.test(dateStr)) return null; // No digits = not a date
+
+    // Try UK format first (DD/MM/YYYY)
+    let parts = dateStr.split("/");
+    if (parts.length === 3) {
+      const [first, second, yearPart] = parts;
+      const firstNum = parseInt(first);
+      const secondNum = parseInt(second);
+
+      // Handle both 2-digit and 4-digit years
+      let year = yearPart;
+      if (yearPart.length === 2) {
+        const yearNum = parseInt(yearPart);
+        // Assume 20xx for years 00-50, 19xx for years 51-99
+        year = yearNum <= 50 ? `20${yearPart}` : `19${yearPart}`;
       }
 
-      const payments = parseResult.data
-      let successCount = 0
-      let errorCount = 0
-      let skippedCount = 0
-      const errors: Array<{ row: number; error: string }> = []
+      // Logic to determine format:
+      // If first > 12, it must be DD/MM/YYYY (day > 12)
+      // If second > 12, it must be MM/DD/YYYY (day > 12)
+      // Otherwise, assume MM/DD/YYYY (US format) since that's more common in exported data
 
-      this.updateProgress({
-        total: payments.length,
-        processed: 0,
-        success: 0,
-        errors: 0,
-        skipped: 0
-      })
+      if (firstNum > 12) {
+        // Must be DD/MM/YYYY format
+        return `${year}-${second.padStart(2, "0")}-${first.padStart(2, "0")}`;
+      } else if (secondNum > 12) {
+        // Must be MM/DD/YYYY format
+        return `${year}-${first.padStart(2, "0")}-${second.padStart(2, "0")}`;
+      } else {
+        // Ambiguous case - assume MM/DD/YYYY (US format) since it's more common in exports
+        return `${year}-${first.padStart(2, "0")}-${second.padStart(2, "0")}`;
+      }
+    }
+    // Try ISO format (YYYY-MM-DD)
+    if (dateStr.includes("-") && /^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+      return dateStr;
+    }
 
-      for (let i = 0; i < payments.length; i++) {
-        const payment = payments[i]
+    // If we can't parse it, return null instead of invalid string
+    return null;
+  }
+
+  // Parse amount to pennies (supports multiple currency symbols)
+  private parseAmount(amountStr: string): number {
+    if (!amountStr) return 0;
+    // Remove all currency symbols and commas
+    const cleanAmount = amountStr.replace(/[£€$¥₹,\s]/g, "");
+    const amount = parseFloat(cleanAmount);
+    if (isNaN(amount)) return 0;
+    return Math.round(amount * 100); // Convert to pennies
+  }
+
+  // Parse time string to 24-hour format (HH:MM)
+  private parseTime(timeStr: string): string {
+    if (!timeStr) return "09:00";
+
+    // Remove extra whitespace
+    timeStr = timeStr.trim();
+
+    // Handle 24-hour format (already correct)
+    if (/^\d{1,2}:\d{2}$/.test(timeStr)) {
+      const [hours, minutes] = timeStr.split(":");
+      return `${hours.padStart(2, "0")}:${minutes}`;
+    }
+
+    // Handle 12-hour format with AM/PM (e.g., "7:30 p.m.", "7:30pm", "7:30 PM")
+    const timeMatch = timeStr.match(/^(\d{1,2}):(\d{2})\s*([ap])\.?m\.?/i);
+    if (timeMatch) {
+      let [_, hours, minutes, meridiem] = timeMatch;
+      let hour = parseInt(hours);
+
+      // Convert to 24-hour format
+      if (meridiem.toLowerCase() === "p" && hour !== 12) {
+        hour += 12;
+      } else if (meridiem.toLowerCase() === "a" && hour === 12) {
+        hour = 0;
+      }
+
+      return `${hour.toString().padStart(2, "0")}:${minutes}`;
+    }
+
+    // Handle hour-only format
+    if (/^\d{1,2}$/.test(timeStr)) {
+      return `${timeStr.padStart(2, "0")}:00`;
+    }
+
+    // Default fallback
+    console.log(`Could not parse time: "${timeStr}", using default 09:00`);
+    return "09:00";
+  }
+
+  // Helper to create or find a client
+  // Using clients table as primary since that's what payments use
+  private async findOrCreateClient(
+    email: string,
+    name?: string,
+  ): Promise<string | null> {
+    // First try to find existing client (primary table)
+    const { data: existingClient } = await this.supabase
+      .from("clients")
+      .select("id")
+      .eq("email", email.toLowerCase().trim())
+      .eq("organization_id", this.organizationId)
+      .maybeSingle();
+
+    if (existingClient) {
+      return existingClient.id;
+    }
+
+    // If not found and we should create missing clients
+    if (!this.createMissingClients) {
+      return null;
+    }
+
+    // Parse name into first_name and last_name
+    const fullName = name || email.split("@")[0];
+    const nameParts = fullName.trim().split(" ");
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || "";
+
+    // Create new client in clients table (same table payments use)
+    // Handle both organization_id and org_id for compatibility
+    const clientData = {
+      organization_id: this.organizationId,
+      org_id: this.organizationId, // Support both for compatibility
+      email: email.toLowerCase().trim(),
+      name: fullName,
+      first_name: firstName,
+      last_name: lastName,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: newClient, error } = await this.supabase
+      .from("clients")
+      .insert(clientData)
+      .select("id")
+      .single();
+
+    if (error) {
+      console.error("Error creating client:", error);
+
+      // Try with just the fields that definitely exist
+      const minimalClientData = {
+        organization_id: this.organizationId,
+        email: email.toLowerCase().trim(),
+        name: fullName,
+        created_at: new Date().toISOString(),
+      };
+
+      const { data: minimalClient, error: minimalError } = await this.supabase
+        .from("clients")
+        .insert(minimalClientData)
+        .select("id")
+        .single();
+
+      if (minimalError) {
+        console.error("Error creating minimal client:", minimalError);
+
+        // If clients table fails, try customers table as fallback
+        const { data: newCustomer, error: customerError } = await this.supabase
+          .from("customers")
+          .insert({
+            organization_id: this.organizationId,
+            email: email.toLowerCase().trim(),
+            name: fullName,
+            created_at: new Date().toISOString(),
+          })
+          .select("id")
+          .single();
+
+        if (customerError) {
+          console.error("Error creating customer:", customerError);
+          return null;
+        }
+
+        if (newCustomer?.id) {
+          this.newClientsCreated++;
+        }
+        return newCustomer?.id || null;
+      }
+
+      if (minimalClient?.id) {
+        this.newClientsCreated++;
+      }
+      return minimalClient?.id || null;
+    }
+
+    if (newClient?.id) {
+      this.newClientsCreated++;
+    }
+
+    return newClient?.id || null;
+  }
+
+  // Auto-detect file type based on headers
+  public detectFileType(
+    headers: string[],
+  ): "payments" | "attendance" | "clients" | "memberships" | "unknown" {
+    const paymentHeaders = ["amount", "payment", "price", "total", "cost"];
+    const attendanceHeaders = ["class", "session", "instructor", "time"];
+    const membershipHeaders = ["active memberships", "last payment amount"];
+    const clientHeaders = [
+      "full name",
+      "first name",
+      "last name",
+      "email",
+      "phone",
+      "dob",
+      "gender",
+      "address",
+      "postcode",
+      "status",
+      "join date",
+    ];
+
+    const lowerHeaders = headers.map((h) => h.toLowerCase());
+
+    const hasMembershipHeaders = membershipHeaders.every((h) =>
+      lowerHeaders.some((lh) => lh.includes(h)),
+    );
+
+    const hasPaymentHeaders = paymentHeaders.some((h) =>
+      lowerHeaders.some((lh) => lh.includes(h)),
+    );
+
+    const hasAttendanceHeaders = attendanceHeaders.some((h) =>
+      lowerHeaders.some((lh) => lh.includes(h)),
+    );
+
+    const hasClientHeaders =
+      clientHeaders.filter((h) => lowerHeaders.some((lh) => lh.includes(h)))
+        .length >= 4; // Need at least 4 client-specific headers
+
+    if (hasMembershipHeaders) return "memberships"; // Check memberships first (most specific)
+    if (hasPaymentHeaders && !hasAttendanceHeaders && !hasClientHeaders)
+      return "payments";
+    if (hasAttendanceHeaders && !hasPaymentHeaders && !hasClientHeaders)
+      return "attendance";
+    if (hasClientHeaders && !hasPaymentHeaders && !hasAttendanceHeaders)
+      return "clients";
+    if (hasPaymentHeaders) return "payments"; // Default to payments if multiple matches
+
+    return "unknown";
+  }
+
+  // Import clients from parsed CSV data with batch processing
+  public async importClients(
+    data: any[],
+    batchSize: number = 25,
+  ): Promise<ImportResult> {
+    const progress: ImportProgress = {
+      total: data.length,
+      processed: 0,
+      success: 0,
+      errors: 0,
+      skipped: 0,
+    };
+
+    const errors: Array<{ row: number; error: string }> = [];
+
+    // Process in batches to prevent timeouts
+    for (
+      let batchStart = 0;
+      batchStart < data.length;
+      batchStart += batchSize
+    ) {
+      const batchEnd = Math.min(batchStart + batchSize, data.length);
+      const batch = data.slice(batchStart, batchEnd);
+
+      console.log(
+        `Processing client batch ${Math.floor(batchStart / batchSize) + 1}/${Math.ceil(data.length / batchSize)}`,
+      );
+
+      for (let i = 0; i < batch.length; i++) {
+        const row = batch[i];
+        const globalIndex = batchStart + i;
+        progress.processed++;
+        progress.currentItem =
+          row["Full Name"] || row["Email"] || `Row ${globalIndex + 1}`;
 
         try {
-          this.updateProgress({
-            total: payments.length,
-            processed: i,
-            success: successCount,
-            errors: errorCount,
-            skipped: skippedCount,
-            currentItem: `${payment['Client Name']} - £${payment.Amount}`
-          })
-
-          // Find client by email
-          const { data: client } = await this.supabase
-            .from('clients')
-            .select('id')
-            .eq('email', payment.Email)
-            .eq('org_id', this.organizationId)
-            .single()
-
-          if (!client) {
-            skippedCount++
-            continue
+          // Extract email
+          const email = row["Email"] || row["email"];
+          if (!email) {
+            progress.skipped++;
+            errors.push({ row: globalIndex + 1, error: "No email found" });
+            continue;
           }
 
-          // Check if payment already exists
-          const paymentDate = parseUKDate(payment.Date)
-          const amount = parseAmount(payment.Amount)
+          // Check if client already exists
+          const { data: existingClient } = await this.supabase
+            .from("clients")
+            .select("id")
+            .eq("email", email.toLowerCase().trim())
+            .eq("org_id", this.organizationId)
+            .maybeSingle();
 
-          const { data: existingPayment } = await this.supabase
-            .from('payments')
-            .select('id')
-            .eq('client_id', client.id)
-            .eq('payment_date', paymentDate)
-            .eq('amount', amount)
-            .single()
-
-          if (existingPayment) {
-            skippedCount++
-            continue
+          if (existingClient) {
+            progress.skipped++;
+            continue;
           }
 
-          // Insert payment
-          const { error } = await this.supabase
-            .from('payments')
-            .insert({
-              organization_id: this.organizationId,
-              client_id: client.id,
-              amount: amount,
-              payment_date: paymentDate,
-              payment_method: payment['Payment Method'].toLowerCase().replace(' ', '_'),
-              payment_status: payment.Status.toLowerCase(),
-              description: payment.Description,
-              payment_type: 'membership',
-              created_at: new Date().toISOString()
-            })
+          // Parse client data
+          const firstName = row["First Name"] || "";
+          const lastName = row["Last Name"] || "";
+          const fullName =
+            row["Full Name"] || `${firstName} ${lastName}`.trim();
+          const phone = row["Phone"] || "";
+          // Handle gender: convert to lowercase, and treat empty strings as null
+          const genderRaw = row["Gender"]?.trim();
+          const gender =
+            genderRaw && genderRaw.length > 0 ? genderRaw.toLowerCase() : null;
+          const dob = this.parseDate(row["DOB"] || "");
+          const addressLine1 = row["Address Line 1"] || "";
+          const addressLine2 = row["Address Line 2"] || "";
+          const city = row["City"] || "";
+          const region = row["Region"] || "";
+          const postcode = row["Postcode"] || "";
+          const country = row["Country"] || "";
+          const status =
+            row["Status"]?.toLowerCase() === "active" ? "active" : "inactive";
+          const emergencyContactName = row["Emergency Contact Name"] || "";
+          const emergencyContactPhone = row["Emergency Contact Phone"] || "";
+          const emergencyContactRelationship =
+            row["Emergency Contact Relationship"] || "";
+
+          // Extract membership data
+          const activeMemberships = row["Active Memberships"] || "";
+          const lastPaymentAmount = row["Last Payment Amount (GBP)"] || "";
+
+          // Create client
+          const clientData: any = {
+            org_id: this.organizationId,
+            email: email.toLowerCase().trim(),
+            first_name: firstName,
+            last_name: lastName,
+            name: fullName,
+            phone: phone,
+            gender: gender,
+            date_of_birth: dob || null,
+            status: status,
+            emergency_contact_name: emergencyContactName || null,
+            emergency_contact_phone: emergencyContactPhone || null,
+            emergency_contact: emergencyContactName
+              ? {
+                  name: emergencyContactName,
+                  phone: emergencyContactPhone,
+                  relationship: emergencyContactRelationship,
+                }
+              : null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+
+          // Add address if provided
+          if (addressLine1 || city || postcode) {
+            clientData.address = {
+              line1: addressLine1,
+              line2: addressLine2,
+              city: city,
+              region: region,
+              postcode: postcode,
+              country: country,
+            };
+          }
+
+          const { data: newClient, error } = await this.supabase
+            .from("clients")
+            .insert(clientData)
+            .select("id")
+            .single();
 
           if (error) {
-            errorCount++
-            errors.push({ row: i + 1, error: error.message })
+            progress.errors++;
+            errors.push({ row: globalIndex + 1, error: error.message });
           } else {
-            successCount++
+            progress.success++;
+            this.newClientsCreated++;
+
+            // Handle membership assignment if Active Memberships is provided
+            if (activeMemberships && newClient) {
+              try {
+                await this.assignMembership(
+                  newClient.id,
+                  activeMemberships,
+                  lastPaymentAmount,
+                );
+              } catch (membershipError: any) {
+                console.error(
+                  `Failed to assign membership for ${email}:`,
+                  membershipError,
+                );
+                // Don't fail the whole import if membership assignment fails
+              }
+            }
           }
-        } catch (error) {
-          errorCount++
-          errors.push({ row: i + 1, error: (error as Error).message })
+        } catch (error: any) {
+          progress.errors++;
+          errors.push({ row: globalIndex + 1, error: error.message });
+        }
+
+        if (this.progressCallback) {
+          this.progressCallback(progress);
         }
       }
 
-      this.updateProgress({
-        total: payments.length,
-        processed: payments.length,
-        success: successCount,
-        errors: errorCount,
-        skipped: skippedCount
-      })
-
-      return {
-        success: errorCount === 0,
-        message: `Import completed: ${successCount} payments imported, ${skippedCount} skipped, ${errorCount} errors`,
-        stats: {
-          total: payments.length,
-          success: successCount,
-          errors: errorCount,
-          skipped: skippedCount
-        },
-        errors: errors.length > 0 ? errors : undefined
+      // Small delay between batches
+      if (batchStart + batchSize < data.length) {
+        await new Promise((resolve) => setTimeout(resolve, 200));
       }
-    } catch (error) {
-      return {
-        success: false,
-        message: `Import failed: ${(error as Error).message}`,
-        stats: { total: 0, success: 0, errors: 1, skipped: 0 }
+    }
+
+    const message = `Import completed: ${progress.success} clients created, ${progress.skipped} skipped, ${progress.errors} errors`;
+
+    return {
+      success: progress.errors === 0,
+      message,
+      stats: {
+        total: progress.total,
+        success: progress.success,
+        errors: progress.errors,
+        skipped: progress.skipped,
+        newClients: this.newClientsCreated,
+      },
+      errors: errors.length > 0 ? errors : undefined,
+    };
+  }
+
+  // Assign membership plan to a client (create plan if it doesn't exist)
+  private async assignMembership(
+    clientId: string,
+    membershipNames: string,
+    lastPaymentAmount?: string,
+  ): Promise<void> {
+    // Split on comma in case there are multiple memberships
+    const membershipList = membershipNames
+      .split(",")
+      .map((m) => m.trim())
+      .filter((m) => m.length > 0);
+
+    for (const membershipName of membershipList) {
+      // Check if membership plan exists
+      const { data: existingPlan } = await this.supabase
+        .from("membership_plans")
+        .select("id")
+        .eq("organization_id", this.organizationId)
+        .eq("name", membershipName)
+        .maybeSingle();
+
+      let planId = existingPlan?.id;
+
+      // Create plan if it doesn't exist
+      if (!planId) {
+        // Parse price from lastPaymentAmount if available
+        let pricePennies = 0;
+        if (lastPaymentAmount) {
+          const priceNum = parseFloat(lastPaymentAmount.replace(/[£$,]/g, ""));
+          if (!isNaN(priceNum)) {
+            pricePennies = Math.round(priceNum * 100);
+          }
+        }
+
+        const { data: newPlan, error: planError } = await this.supabase
+          .from("membership_plans")
+          .insert({
+            organization_id: this.organizationId,
+            name: membershipName,
+            price_pennies: pricePennies,
+            billing_period: "monthly", // Default to monthly
+            is_active: true,
+            description: `Imported from GoTeamUp`,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .select("id")
+          .single();
+
+        if (planError) {
+          console.error(`Failed to create membership plan:`, planError);
+          throw planError;
+        }
+
+        planId = newPlan?.id;
+        console.log(`Created membership plan: ${membershipName} (${planId})`);
+      }
+
+      // Assign client to membership plan
+      if (planId) {
+        // Check if membership already exists
+        const { data: existingMembership } = await this.supabase
+          .from("memberships")
+          .select("id")
+          .eq("customer_id", clientId)
+          .eq("membership_plan_id", planId)
+          .maybeSingle();
+
+        if (!existingMembership) {
+          const { error: membershipError } = await this.supabase
+            .from("memberships")
+            .insert({
+              customer_id: clientId,
+              organization_id: this.organizationId,
+              membership_plan_id: planId,
+              status: "active",
+              start_date: new Date().toISOString().split("T")[0],
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+
+          if (membershipError) {
+            console.error(`Failed to assign membership:`, membershipError);
+            throw membershipError;
+          }
+
+          console.log(
+            `Assigned client ${clientId} to membership ${membershipName}`,
+          );
+        }
       }
     }
   }
 
-  async importAttendance(csvContent: string): Promise<ImportResult> {
-    try {
-      const parseResult = Papa.parse<AttendanceRecord>(csvContent, {
-        header: true,
-        skipEmptyLines: true,
-        transformHeader: (header) => header.trim()
-      })
+  // Import payments from parsed CSV data with batch processing
+  public async importPayments(
+    data: any[],
+    batchSize: number = 25,
+  ): Promise<ImportResult> {
+    const progress: ImportProgress = {
+      total: data.length,
+      processed: 0,
+      success: 0,
+      errors: 0,
+      skipped: 0,
+    };
 
-      if (parseResult.errors.length > 0) {
-        return {
-          success: false,
-          message: 'CSV parsing failed',
-          stats: { total: 0, success: 0, errors: parseResult.errors.length, skipped: 0 },
-          errors: parseResult.errors.map((err, idx) => ({ row: idx, error: err.message }))
-        }
-      }
+    const errors: Array<{ row: number; error: string }> = [];
 
-      const attendances = parseResult.data
-      let successCount = 0
-      let errorCount = 0
-      let skippedCount = 0
-      const errors: Array<{ row: number; error: string }> = []
+    // Process in batches to prevent timeouts
+    for (
+      let batchStart = 0;
+      batchStart < data.length;
+      batchStart += batchSize
+    ) {
+      const batchEnd = Math.min(batchStart + batchSize, data.length);
+      const batch = data.slice(batchStart, batchEnd);
 
-      this.updateProgress({
-        total: attendances.length,
-        processed: 0,
-        success: 0,
-        errors: 0,
-        skipped: 0
-      })
+      console.log(
+        `Processing payment batch ${Math.floor(batchStart / batchSize) + 1}/${Math.ceil(data.length / batchSize)}`,
+      );
 
-      for (let i = 0; i < attendances.length; i++) {
-        const attendance = attendances[i]
+      for (let i = 0; i < batch.length; i++) {
+        const row = batch[i];
+        const globalIndex = batchStart + i;
+        progress.processed++;
+        progress.currentItem =
+          row["Client Name"] || row["Name"] || `Row ${globalIndex + 1}`;
 
         try {
-          this.updateProgress({
-            total: attendances.length,
-            processed: i,
-            success: successCount,
-            errors: errorCount,
-            skipped: skippedCount,
-            currentItem: `${attendance['Client Name']} - ${attendance['Class Name']}`
-          })
-
           // Find client by email
-          const { data: client } = await this.supabase
-            .from('clients')
-            .select('id')
-            .eq('email', attendance.Email)
-            .eq('org_id', this.organizationId)
-            .single()
-
-          if (!client) {
-            skippedCount++
-            continue
+          const email = row["Email"] || row["email"];
+          if (!email) {
+            progress.skipped++;
+            errors.push({ row: globalIndex + 1, error: "No email found" });
+            continue;
           }
 
-          // Check if attendance already exists
-          const bookingDate = parseUKDate(attendance.Date)
-          const bookingTime = attendance.Time
+          // Get name from row data
+          const name =
+            row["Client Name"] || row["Name"] || row["Customer"] || "";
 
-          const { data: existingBooking } = await this.supabase
-            .from('class_bookings')
-            .select('id')
-            .eq('client_id', client.id)
-            .eq('booking_date', bookingDate)
-            .eq('booking_time', bookingTime)
-            .single()
+          // Find or create client
+          const clientId = await this.findOrCreateClient(email, name);
 
-          if (existingBooking) {
-            skippedCount++
-            continue
+          if (!clientId) {
+            progress.skipped++;
+            errors.push({
+              row: globalIndex + 1,
+              error: `Could not find or create client: ${email}`,
+            });
+            continue;
           }
 
-          // Insert attendance as class booking
-          const attendedAt = `${bookingDate}T${bookingTime}:00`
+          // Parse payment data
+          const paymentDate = this.parseDate(row["Date"] || row["date"] || "");
+          const amount = this.parseAmount(
+            row["Amount"] || row["amount"] || "0",
+          );
 
-          const { error } = await this.supabase
-            .from('class_bookings')
-            .insert({
-              organization_id: this.organizationId,
-              client_id: client.id,
-              customer_id: client.id,
-              booking_date: bookingDate,
-              booking_time: bookingTime,
-              booking_status: 'completed',
-              booking_type: 'attendance_import',
-              attended_at: attendedAt,
-              notes: `${attendance['Class Name']} - ${attendance.Instructor}`,
-              payment_status: 'succeeded',
-              created_at: new Date().toISOString()
-            })
+          // Check for duplicate
+          const { data: existing } = await this.supabase
+            .from("payments")
+            .select("id")
+            .eq("client_id", clientId)
+            .eq("payment_date", paymentDate)
+            .eq("amount", amount)
+            .maybeSingle();
+
+          if (existing) {
+            progress.skipped++;
+            continue;
+          }
+
+          // Insert payment - use organization_id consistently
+          const { error } = await this.supabase.from("payments").insert({
+            organization_id: this.organizationId,
+            client_id: clientId,
+            amount: amount,
+            payment_date: paymentDate,
+            payment_method: (row["Payment Method"] || row["Method"] || "card")
+              .toLowerCase()
+              .replace(/\s+/g, "_"),
+            payment_status: (row["Status"] || "paid").toLowerCase(),
+            description: row["Description"] || row["Notes"] || "Payment",
+            payment_type: "membership",
+            created_at: new Date().toISOString(),
+          });
 
           if (error) {
-            errorCount++
-            errors.push({ row: i + 1, error: error.message })
+            progress.errors++;
+            errors.push({ row: globalIndex + 1, error: error.message });
           } else {
-            successCount++
+            progress.success++;
           }
-        } catch (error) {
-          errorCount++
-          errors.push({ row: i + 1, error: (error as Error).message })
+        } catch (error: any) {
+          progress.errors++;
+          errors.push({ row: globalIndex + 1, error: error.message });
+        }
+
+        if (this.progressCallback) {
+          this.progressCallback(progress);
         }
       }
 
-      this.updateProgress({
-        total: attendances.length,
-        processed: attendances.length,
-        success: successCount,
-        errors: errorCount,
-        skipped: skippedCount
-      })
+      // Small delay between batches to prevent overwhelming the database
+      if (batchStart + batchSize < data.length) {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+    }
+
+    const message =
+      this.newClientsCreated > 0
+        ? `Import completed: ${progress.success} successful, ${this.newClientsCreated} new clients created, ${progress.skipped} skipped, ${progress.errors} errors`
+        : `Import completed: ${progress.success} successful, ${progress.skipped} skipped, ${progress.errors} errors`;
+
+    return {
+      success: progress.errors === 0,
+      message,
+      stats: {
+        total: progress.total,
+        success: progress.success,
+        errors: progress.errors,
+        skipped: progress.skipped,
+        newClients: this.newClientsCreated,
+      },
+      errors: errors.length > 0 ? errors : undefined,
+    };
+  }
+
+  // Import attendance from parsed CSV data with batch processing
+  public async importAttendance(
+    data: any[],
+    batchSize: number = 10,
+  ): Promise<ImportResult> {
+    const progress: ImportProgress = {
+      total: data.length,
+      processed: 0,
+      success: 0,
+      errors: 0,
+      skipped: 0,
+    };
+
+    const errors: Array<{ row: number; error: string }> = [];
+
+    // Process in batches to prevent timeouts
+    for (
+      let batchStart = 0;
+      batchStart < data.length;
+      batchStart += batchSize
+    ) {
+      const batchEnd = Math.min(batchStart + batchSize, data.length);
+      const batch = data.slice(batchStart, batchEnd);
+
+      console.log(
+        `Processing attendance batch ${Math.floor(batchStart / batchSize) + 1}/${Math.ceil(data.length / batchSize)}`,
+      );
+
+      for (let i = 0; i < batch.length; i++) {
+        const row = batch[i];
+        const globalIndex = batchStart + i;
+        progress.processed++;
+        progress.currentItem =
+          row["Customer"] ||
+          row["Client Name"] ||
+          row["Name"] ||
+          `Row ${globalIndex + 1}`;
+
+        try {
+          // Find customer by email
+          const email = row["Email"] || row["email"];
+          if (!email) {
+            progress.skipped++;
+            errors.push({ row: globalIndex + 1, error: "No email found" });
+            continue;
+          }
+
+          // Get name from row data
+          const name =
+            row["Customer"] || row["Client Name"] || row["Name"] || "";
+
+          // Find or create customer
+          const customerId = await this.findOrCreateClient(email, name);
+
+          if (!customerId) {
+            progress.skipped++;
+            console.error(
+              `[GOTEAMUP-ATTENDANCE] Could not find/create client: ${email} (${name})`,
+            );
+            errors.push({
+              row: globalIndex + 1,
+              error: `Could not find or create customer: ${email}`,
+            });
+            continue;
+          } else {
+            console.log(
+              `[GOTEAMUP-ATTENDANCE] Using client ID: ${customerId} for ${email}`,
+            );
+          }
+
+          // Parse attendance data
+          const bookingDate = this.parseDate(row["Date"] || row["date"] || "");
+          if (!bookingDate) {
+            progress.skipped++;
+            errors.push({
+              row: globalIndex + 1,
+              error: "Invalid or missing date",
+            });
+            continue;
+          }
+          const rawTime = row["Time"] || row["time"] || "09:00";
+          const bookingTime = this.parseTime(rawTime); // Parse time to 24-hour format
+          const className =
+            row["Class Type"] ||
+            row["Class Name"] ||
+            row["Class"] ||
+            row["Session"] ||
+            "Class";
+          const instructor =
+            row["Instructors"] ||
+            row["Instructor"] ||
+            row["Trainer"] ||
+            "Staff";
+          const venue = row["Venue"] || "";
+          const status = row["Status"] || "Registered";
+
+          // Create datetime strings for session matching
+          // Ensure time is in HH:MM format
+          const formattedTime = bookingTime.includes(":")
+            ? bookingTime
+            : `${bookingTime}:00`;
+          const sessionStartTime = `${bookingDate}T${formattedTime}:00`;
+
+          const sessionEndTime = this.calculateEndTime(
+            sessionStartTime,
+            className,
+          );
+
+          // Auto-create or find class session
+          let sessionId = await this.findOrCreateClassSession({
+            organizationId: this.organizationId,
+            className,
+            instructor,
+            venue,
+            startTime: sessionStartTime,
+            endTime: sessionEndTime,
+            date: bookingDate,
+          });
+
+          if (!sessionId) {
+            progress.errors++;
+            errors.push({
+              row: globalIndex + 1,
+              error: "Could not create or find class session",
+            });
+            continue;
+          }
+
+          // Check for duplicate booking in class_bookings table
+          // Check by customer, booking date, AND session to prevent duplicates
+          const { data: existingBookings } = await this.supabase
+            .from("class_bookings")
+            .select("id")
+            .or(`client_id.eq.${customerId},customer_id.eq.${customerId}`)
+            .eq("booking_date", bookingDate)
+            .eq("class_session_id", sessionId)
+            .eq("organization_id", this.organizationId);
+
+          const existing = existingBookings && existingBookings.length > 0;
+
+          if (existing) {
+            progress.skipped++;
+            console.log(
+              `[GOTEAMUP-ATTENDANCE] Skipped duplicate booking for ${email} on ${bookingDate} for session ${sessionId}`,
+            );
+            continue;
+          }
+
+          // Determine booking status based on Status field
+          const bookingStatus =
+            status.toLowerCase() === "attended" ? "completed" : "confirmed";
+          const attendedAt =
+            status.toLowerCase() === "attended"
+              ? new Date(sessionStartTime).toISOString()
+              : null;
+
+          // Insert attendance into class_bookings table
+          const bookingData: any = {
+            organization_id: this.organizationId,
+            class_session_id: sessionId,
+            booking_status: bookingStatus,
+            attended_at: attendedAt,
+            booking_date: bookingDate,
+            created_at: new Date().toISOString(),
+            // Use client_id for the customer reference (UI checks both fields with OR)
+            client_id: customerId,
+            customer_id: null,
+          };
+
+          const { error, data } = await this.supabase
+            .from("class_bookings")
+            .insert(bookingData)
+            .select();
+
+          if (error) {
+            progress.errors++;
+            console.error(
+              `[GOTEAMUP-ATTENDANCE] Insert error for row ${globalIndex + 1}: ${error.message}`,
+            );
+            console.error(`[GOTEAMUP-ATTENDANCE] Error details:`, error);
+            console.error(`[GOTEAMUP-ATTENDANCE] Attempted data:`, bookingData);
+            errors.push({ row: globalIndex + 1, error: error.message });
+          } else {
+            progress.success++;
+            console.log(
+              `[GOTEAMUP-ATTENDANCE] Successfully inserted booking ${data?.[0]?.id}`,
+            );
+          }
+        } catch (error: any) {
+          progress.errors++;
+          errors.push({ row: globalIndex + 1, error: error.message });
+        }
+
+        if (this.progressCallback) {
+          this.progressCallback(progress);
+        }
+      }
+
+      // Small delay between batches to prevent overwhelming the database
+      if (batchStart + batchSize < data.length) {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+    }
+
+    // Skip client statistics update for performance - this was taking 25+ seconds
+    // Statistics can be updated separately if needed
+    // await this.updateClientStatistics();
+
+    const message =
+      this.newClientsCreated > 0
+        ? `Import completed: ${progress.success} successful, ${this.newClientsCreated} new customers created, ${progress.skipped} skipped, ${progress.errors} errors`
+        : `Import completed: ${progress.success} successful, ${progress.skipped} skipped, ${progress.errors} errors`;
+
+    return {
+      success: progress.errors === 0,
+      message,
+      stats: {
+        total: progress.total,
+        success: progress.success,
+        errors: progress.errors,
+        skipped: progress.skipped,
+        newClients: this.newClientsCreated,
+      },
+      errors: errors.length > 0 ? errors : undefined,
+    };
+  }
+
+  // Update client statistics
+  private async updateClientStatistics() {
+    const { data: clients } = await this.supabase
+      .from("clients")
+      .select("id")
+      .eq("organization_id", this.organizationId);
+
+    if (!clients) return;
+
+    for (const client of clients) {
+      // Calculate lifetime value
+      const { data: payments } = await this.supabase
+        .from("payments")
+        .select("amount")
+        .eq("client_id", client.id);
+
+      const lifetimeValue =
+        payments?.reduce((sum: number, p: any) => sum + (p.amount || 0), 0) ||
+        0;
+
+      // Count visits
+      const { data: bookings } = await this.supabase
+        .from("bookings")
+        .select("id, booking_date")
+        .eq("client_id", client.id)
+        .not("attended_at", "is", null);
+
+      const totalVisits = bookings?.length || 0;
+      const lastVisit =
+        bookings && bookings.length > 0
+          ? bookings.sort(
+              (a: any, b: any) =>
+                new Date(b.booking_date).getTime() -
+                new Date(a.booking_date).getTime(),
+            )[0].booking_date
+          : null;
+
+      // Update client - only update fields that exist
+      // Try to update with all fields, but don't fail if some don't exist
+      try {
+        await this.supabase
+          .from("clients")
+          .update({
+            lifetime_value: lifetimeValue,
+            total_visits: totalVisits,
+            last_visit: lastVisit,
+          })
+          .eq("id", client.id);
+      } catch (updateError) {
+        // If update fails, try with minimal fields
+        console.log(
+          "Could not update all statistics fields, trying minimal update",
+        );
+        try {
+          await this.supabase
+            .from("clients")
+            .update({
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", client.id);
+        } catch (minimalError) {
+          console.log("Statistics update skipped for client:", client.id);
+        }
+      }
+    }
+  }
+
+  // Helper to calculate end time for a session based on class type
+  private calculateEndTime(startTime: string, className: string): string {
+    try {
+      const start = new Date(startTime);
+
+      if (isNaN(start.getTime())) {
+        console.error(`[GOTEAMUP-ATTENDANCE] Invalid start time: ${startTime}`);
+        // Return a default end time 1 hour after start
+        const fallbackStart = new Date();
+        const fallbackEnd = new Date(fallbackStart.getTime() + 60 * 60000);
+        return fallbackEnd.toISOString();
+      }
+
+      let durationMinutes = 60; // Default 1 hour
+
+      // Estimate duration based on class name patterns
+      const classNameLower = className.toLowerCase();
+      if (
+        classNameLower.includes("yoga") ||
+        classNameLower.includes("stretch")
+      ) {
+        durationMinutes = 75;
+      } else if (
+        classNameLower.includes("hiit") ||
+        classNameLower.includes("bootcamp")
+      ) {
+        durationMinutes = 45;
+      } else if (
+        classNameLower.includes("spin") ||
+        classNameLower.includes("cycle")
+      ) {
+        durationMinutes = 45;
+      } else if (classNameLower.includes("pilates")) {
+        durationMinutes = 55;
+      }
+
+      const endTime = new Date(start.getTime() + durationMinutes * 60000);
+      return endTime.toISOString();
+    } catch (error) {
+      console.error(`[GOTEAMUP-ATTENDANCE] Error calculating end time:`, error);
+      throw error;
+    }
+  }
+
+  // Helper to find or create a class session
+  private async findOrCreateClassSession({
+    organizationId,
+    className,
+    instructor,
+    venue,
+    startTime,
+    endTime,
+    date,
+  }: {
+    organizationId: string;
+    className: string;
+    instructor: string;
+    venue: string;
+    startTime: string;
+    endTime: string;
+    date: string;
+  }): Promise<string | null> {
+    try {
+      // First try to find existing session by exact match
+      const { data: exactMatch } = await this.supabase
+        .from("class_sessions")
+        .select("id")
+        .eq("organization_id", organizationId)
+        .eq("name", className)
+        .eq("start_time", startTime)
+        .maybeSingle();
+
+      if (exactMatch) {
+        console.log(
+          `[GOTEAMUP-SESSION] Found exact match session ${exactMatch.id} for ${className} at ${startTime}`,
+        );
+        return exactMatch.id;
+      }
+
+      // If no exact match, try to find within 15 minutes of the start time
+      const startBuffer = new Date(
+        new Date(startTime).getTime() - 15 * 60000,
+      ).toISOString();
+      const endBuffer = new Date(
+        new Date(startTime).getTime() + 15 * 60000,
+      ).toISOString();
+
+      const { data: existingSession } = await this.supabase
+        .from("class_sessions")
+        .select("id")
+        .eq("organization_id", organizationId)
+        .eq("name", className)
+        .gte("start_time", startBuffer)
+        .lte("start_time", endBuffer)
+        .maybeSingle();
+
+      if (existingSession) {
+        return existingSession.id;
+      }
+
+      // Create new session if not found
+      const sessionData = {
+        organization_id: organizationId,
+        name: className,
+        description: `Imported from GoTeamUp - ${instructor}`,
+        start_time: startTime,
+        end_time: endTime,
+        max_capacity: 20, // Default capacity
+        current_bookings: 0,
+        // status field removed - column doesn't exist in database
+        location: venue || null,
+        // instructor_notes field removed - column doesn't exist in database
+        // instructor info is already in the description field
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const { data: newSession, error } = await this.supabase
+        .from("class_sessions")
+        .insert(sessionData)
+        .select("id")
+        .single();
+
+      if (error) {
+        console.error("Error creating class session:", error);
+        return null;
+      }
+
+      console.log(
+        `[GOTEAMUP-SESSION] Created new session ${newSession?.id} for ${className} at ${startTime}`,
+      );
+      return newSession?.id || null;
+    } catch (error) {
+      console.error("Error in findOrCreateClassSession:", error);
+      return null;
+    }
+  }
+
+  // Import memberships from GoTeamUp CSV export
+  public async importMemberships(
+    data: any[],
+    batchSize: number = 25,
+  ): Promise<ImportResult> {
+    const progress: ImportProgress = {
+      total: data.length,
+      processed: 0,
+      success: 0,
+      errors: 0,
+      skipped: 0,
+    };
+
+    const errors: Array<{ row: number; error: string }> = [];
+    const processedPlans = new Map<string, string>(); // membershipKey -> planId
+    let plansCreated = 0;
+    let membershipsCreated = 0;
+
+    try {
+      // PHASE 1: Create unique membership plans
+      for (let i = 0; i < data.length; i++) {
+        const row = data[i];
+        const activeMemberships = row["Active Memberships"]?.trim();
+        const lastPaymentAmount = parseFloat(
+          row["Last Payment Amount (GBP)"] || "0",
+        );
+
+        if (!activeMemberships || activeMemberships === "") {
+          continue; // Skip rows without active memberships
+        }
+
+        const amountPennies = Math.round(lastPaymentAmount * 100);
+        const membershipKey = `${activeMemberships}|${amountPennies}`;
+
+        if (processedPlans.has(membershipKey)) {
+          continue; // Already created this plan
+        }
+
+        // Extract billing period from membership name
+        let billingPeriod = "monthly"; // default
+        const nameLower = activeMemberships.toLowerCase();
+
+        if (nameLower.includes("week") && !nameLower.includes("month")) {
+          billingPeriod = "weekly";
+        } else if (nameLower.includes("year") || nameLower.includes("12 month")) {
+          billingPeriod = "yearly";
+        } else if (nameLower.includes("lifetime") || nameLower.includes("life time")) {
+          billingPeriod = "one-time";
+        }
+
+        // Check if plan already exists
+        const { data: existingPlan } = await this.supabase
+          .from("membership_plans")
+          .select("id")
+          .eq("organization_id", this.organizationId)
+          .eq("name", activeMemberships)
+          .eq("price_pennies", amountPennies)
+          .maybeSingle();
+
+        if (existingPlan) {
+          processedPlans.set(membershipKey, existingPlan.id);
+          continue;
+        }
+
+        // Create new membership plan
+        const { data: newPlan, error: planError } = await this.supabase
+          .from("membership_plans")
+          .insert({
+            organization_id: this.organizationId,
+            name: activeMemberships,
+            description: `Imported from GoTeamUp - ${activeMemberships}`,
+            price_pennies: amountPennies,
+            price: lastPaymentAmount,
+            billing_period: billingPeriod,
+            is_active: true,
+            payment_provider: "manual", // GoTeamUp manages billing
+            metadata: {
+              imported_from: "goteamup",
+              import_date: new Date().toISOString(),
+              original_name: activeMemberships,
+            },
+          })
+          .select("id")
+          .single();
+
+        if (planError) {
+          console.error(`Error creating plan "${activeMemberships}":`, planError);
+          continue;
+        }
+
+        if (newPlan) {
+          processedPlans.set(membershipKey, newPlan.id);
+          plansCreated++;
+        }
+      }
+
+      // PHASE 2: Batch load all clients
+      const { data: allClients } = await this.supabase
+        .from("clients")
+        .select("id, email")
+        .eq("org_id", this.organizationId);
+
+      const clientsByEmail = new Map(
+        (allClients || []).map((c) => [c.email.toLowerCase(), c]),
+      );
+
+      // PHASE 3: Assign memberships
+      for (let i = 0; i < data.length; i++) {
+        const row = data[i];
+        const email = row["Email"]?.trim().toLowerCase();
+        const activeMemberships = row["Active Memberships"]?.trim();
+        const lastPaymentAmount = parseFloat(
+          row["Last Payment Amount (GBP)"] || "0",
+        );
+        const lastPaymentDate = row["Last Payment Date"]?.trim();
+        const status = row["Status"]?.trim().toLowerCase();
+
+        progress.processed++;
+
+        if (!email) {
+          progress.skipped++;
+          continue;
+        }
+
+        if (!activeMemberships || activeMemberships === "") {
+          progress.skipped++;
+          continue;
+        }
+
+        // Find client by email
+        const client = clientsByEmail.get(email);
+
+        if (!client) {
+          progress.errors++;
+          errors.push({
+            row: i + 2,
+            error: `Client not found: ${email}`,
+          });
+          continue;
+        }
+
+        // Get the plan ID
+        const amountPennies = Math.round(lastPaymentAmount * 100);
+        const membershipKey = `${activeMemberships}|${amountPennies}`;
+        const planId = processedPlans.get(membershipKey);
+
+        if (!planId) {
+          progress.errors++;
+          errors.push({
+            row: i + 2,
+            error: `Membership plan not found: ${activeMemberships}`,
+          });
+          continue;
+        }
+
+        // Check if membership already exists
+        const { data: existingMembership } = await this.supabase
+          .from("customer_memberships")
+          .select("id")
+          .eq("client_id", client.id)
+          .eq("membership_plan_id", planId)
+          .maybeSingle();
+
+        if (existingMembership) {
+          // Update existing membership
+          const { error: updateError } = await this.supabase
+            .from("customer_memberships")
+            .update({
+              status: status === "active" ? "active" : "inactive",
+              payment_status: "current",
+              payment_provider: "manual",
+              next_billing_date: lastPaymentDate || null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", existingMembership.id);
+
+          if (!updateError) {
+            progress.success++;
+          } else {
+            progress.errors++;
+            errors.push({
+              row: i + 2,
+              error: updateError.message,
+            });
+          }
+        } else {
+          // Create new membership
+          const { error: membershipError } = await this.supabase
+            .from("customer_memberships")
+            .insert({
+              client_id: client.id,
+              organization_id: this.organizationId,
+              membership_plan_id: planId,
+              status: status === "active" ? "active" : "inactive",
+              payment_status: "current",
+              payment_provider: "manual",
+              start_date: lastPaymentDate || new Date().toISOString().split("T")[0],
+              next_billing_date: lastPaymentDate || null,
+              metadata: {
+                imported_from: "goteamup",
+                import_date: new Date().toISOString(),
+              },
+            });
+
+          if (!membershipError) {
+            progress.success++;
+            membershipsCreated++;
+          } else {
+            progress.errors++;
+            errors.push({
+              row: i + 2,
+              error: membershipError.message,
+            });
+          }
+        }
+
+        // Report progress
+        if (this.progressCallback) {
+          this.progressCallback(progress);
+        }
+      }
 
       return {
-        success: errorCount === 0,
-        message: `Import completed: ${successCount} attendance records imported, ${skippedCount} skipped, ${errorCount} errors`,
+        success: true,
+        message: `Created ${plansCreated} membership plans and assigned ${membershipsCreated} memberships`,
         stats: {
-          total: attendances.length,
-          success: successCount,
-          errors: errorCount,
-          skipped: skippedCount
+          total: progress.total,
+          success: progress.success,
+          errors: progress.errors,
+          skipped: progress.skipped,
         },
-        errors: errors.length > 0 ? errors : undefined
-      }
-    } catch (error) {
+        errors: errors.slice(0, 10), // Return first 10 errors
+      };
+    } catch (error: any) {
+      console.error("Membership import error:", error);
       return {
         success: false,
-        message: `Import failed: ${(error as Error).message}`,
-        stats: { total: 0, success: 0, errors: 1, skipped: 0 }
-      }
+        message: `Import failed: ${error.message}`,
+        stats: {
+          total: progress.total,
+          success: progress.success,
+          errors: progress.errors,
+          skipped: progress.skipped,
+        },
+        errors,
+      };
     }
   }
+}
 
-  private updateProgress(progress: ImportProgress) {
-    if (this.onProgress) {
-      this.onProgress(progress)
-    }
-  }
-
-  // Auto-detect file type based on CSV headers
-  static detectFileType(csvContent: string): 'payments' | 'attendance' | 'unknown' {
-    const lines = csvContent.split('\n')
-    if (lines.length === 0) return 'unknown'
-
-    const headers = lines[0].toLowerCase()
-
-    if (headers.includes('payment method') || headers.includes('amount')) {
-      return 'payments'
-    }
-
-    if (headers.includes('class name') || headers.includes('instructor')) {
-      return 'attendance'
-    }
-
-    return 'unknown'
-  }
+// Helper function to parse CSV file
+export function parseCSV(file: File): Promise<any[]> {
+  return new Promise((resolve, reject) => {
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        resolve(results.data);
+      },
+      error: (error) => {
+        reject(error);
+      },
+    });
+  });
 }
