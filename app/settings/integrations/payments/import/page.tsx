@@ -135,7 +135,7 @@ function ImportPageContent() {
       }
 
       // Stripe import flow (original code)
-      // Step 1: Import customers in batches (0-33%)
+      // Step 1: Import customers in batches (0-25%)
       const CUSTOMER_LIMIT = TEST_MODE ? 5 : 100; // Import 5 for testing, 100 for production
 
       let totalCustomers = { total: 0, imported: 0, skipped: 0 };
@@ -170,11 +170,49 @@ function ImportPageContent() {
         hasMoreCustomers = customersData.stats.hasMore;
         customerStartingAfter = customersData.stats.nextStartingAfter;
 
-        // Update progress within the 0-33% range
-        if (!hasMoreCustomers) setProgress(33);
+        // Update progress within the 0-25% range
+        if (!hasMoreCustomers) setProgress(25);
       }
 
-      // Step 2: Link payment methods in batches (33-66%)
+      // Step 2: Import payment history/charges in batches (25-50%)
+      const CHARGE_LIMIT = TEST_MODE ? 5 : 100;
+
+      let totalCharges = { total: 0, imported: 0, skipped: 0 };
+      let hasMoreCharges = true;
+      let chargeStartingAfter: string | undefined = undefined;
+
+      while (hasMoreCharges) {
+        const chargesResponse = await fetch(
+          "/api/gym/stripe-connect/import/charges",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              organizationId,
+              startingAfter: chargeStartingAfter,
+              limit: CHARGE_LIMIT,
+            }),
+          },
+        );
+
+        if (!chargesResponse.ok) {
+          const error = await chargesResponse.json();
+          throw new Error(error.error || "Failed to import payment history");
+        }
+
+        const chargesData = await chargesResponse.json();
+        totalCharges.total += chargesData.stats.total;
+        totalCharges.imported += chargesData.stats.imported;
+        totalCharges.skipped += chargesData.stats.skipped;
+
+        hasMoreCharges = chargesData.stats.hasMore;
+        chargeStartingAfter = chargesData.stats.nextStartingAfter;
+
+        // Update progress within the 25-50% range
+        if (!hasMoreCharges) setProgress(50);
+      }
+
+      // Step 3: Link payment methods in batches (50-75%)
       const PAYMENT_METHOD_BATCH_SIZE = TEST_MODE ? 5 : 100;
 
       let totalPaymentMethods = { total: 0, linked: 0 };
@@ -210,11 +248,11 @@ function ImportPageContent() {
         // For testing: Stop after first batch
         if (CUSTOMER_LIMIT === 5) hasMorePaymentMethods = false;
 
-        if (!hasMorePaymentMethods) setProgress(66);
+        if (!hasMorePaymentMethods) setProgress(75);
       }
 
-      // Step 3: Sync subscriptions (66-100%)
-      setProgress(80);
+      // Step 4: Sync subscriptions (75-100%)
+      setProgress(85);
       const subscriptionsResponse = await fetch(
         "/api/gym/stripe-connect/import/subscriptions",
         {
@@ -245,6 +283,7 @@ function ImportPageContent() {
       // Combine stats
       setImportStats({
         customers: totalCustomers,
+        payments: totalCharges,
         paymentMethods: totalPaymentMethods,
         subscriptions: subscriptionsData.stats,
       });
@@ -331,14 +370,26 @@ function ImportPageContent() {
               <div>
                 <p className="font-medium text-white">Customers</p>
                 <p className="text-sm text-gray-400">
-                  All Stripe customers will be imported as clients in your CRM.
-                  Existing clients with matching emails will be updated.
+                  All {isGoCardless ? "GoCardless" : "Stripe"} customers will be
+                  imported as clients in your CRM. Existing clients with
+                  matching emails will be updated.
                 </p>
               </div>
             </div>
 
             <div className="flex items-start gap-3">
               <CreditCard className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-white">Payment History</p>
+                <p className="text-sm text-gray-400">
+                  All successful payments will be imported and linked to
+                  clients. Payment history will appear in member profiles.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <Download className="w-5 h-5 text-purple-400 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-medium text-white">Payment Methods</p>
                 <p className="text-sm text-gray-400">
@@ -349,7 +400,7 @@ function ImportPageContent() {
             </div>
 
             <div className="flex items-start gap-3">
-              <Download className="w-5 h-5 text-purple-400 flex-shrink-0 mt-0.5" />
+              <CheckCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-medium text-white">Subscriptions</p>
                 <p className="text-sm text-gray-400">
@@ -506,9 +557,12 @@ function ImportPageContent() {
               />
             </div>
             <p className="text-sm text-gray-400 mt-2 text-center">
-              {progress < 33 && "Importing customers..."}
-              {progress >= 33 && progress < 66 && "Linking payment methods..."}
-              {progress >= 66 && progress < 100 && "Syncing subscriptions..."}
+              {progress < 25 && "Importing customers..."}
+              {progress >= 25 &&
+                progress < 50 &&
+                "Importing payment history..."}
+              {progress >= 50 && progress < 75 && "Linking payment methods..."}
+              {progress >= 75 && progress < 100 && "Syncing subscriptions..."}
               {progress === 100 && "Finalizing..."}
             </p>
           </div>
@@ -591,6 +645,18 @@ function ImportPageContent() {
 
                   <div className="bg-gray-800 rounded-lg p-4">
                     <CreditCard className="w-5 h-5 text-green-400 mb-2" />
+                    <p className="text-sm text-gray-400">Payment History</p>
+                    <p className="text-2xl font-bold text-white">
+                      {importStats.payments?.imported || 0}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {importStats.payments?.total || 0} total,{" "}
+                      {importStats.payments?.skipped || 0} skipped
+                    </p>
+                  </div>
+
+                  <div className="bg-gray-800 rounded-lg p-4">
+                    <Download className="w-5 h-5 text-purple-400 mb-2" />
                     <p className="text-sm text-gray-400">Payment Methods</p>
                     <p className="text-2xl font-bold text-white">
                       {importStats.paymentMethods?.linked || 0}
@@ -601,7 +667,7 @@ function ImportPageContent() {
                   </div>
 
                   <div className="bg-gray-800 rounded-lg p-4">
-                    <Download className="w-5 h-5 text-purple-400 mb-2" />
+                    <CreditCard className="w-5 h-5 text-blue-400 mb-2" />
                     <p className="text-sm text-gray-400">Subscriptions</p>
                     <p className="text-2xl font-bold text-white">
                       {importStats.subscriptions?.active || 0}
