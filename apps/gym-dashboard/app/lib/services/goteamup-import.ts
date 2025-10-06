@@ -1156,20 +1156,18 @@ export class GoTeamUpImporter {
     let membershipsCreated = 0;
 
     try {
-      // PHASE 1: Create unique membership plans
+      // PHASE 1: Create unique membership plans (by name only, ignoring price variations)
+      // We'll store individual client prices at the assignment level
       for (let i = 0; i < data.length; i++) {
         const row = data[i];
         const activeMemberships = row["Active Memberships"]?.trim();
-        const lastPaymentAmount = parseFloat(
-          row["Last Payment Amount (GBP)"] || "0",
-        );
 
         if (!activeMemberships || activeMemberships === "") {
           continue; // Skip rows without active memberships
         }
 
-        const amountPennies = Math.round(lastPaymentAmount * 100);
-        const membershipKey = `${activeMemberships}|${amountPennies}`;
+        // Use membership name as key (not price) to avoid duplicates
+        const membershipKey = activeMemberships;
 
         if (processedPlans.has(membershipKey)) {
           continue; // Already created this plan
@@ -1187,13 +1185,12 @@ export class GoTeamUpImporter {
           billingPeriod = "one-time";
         }
 
-        // Check if plan already exists
+        // Check if plan already exists (by name only)
         const { data: existingPlan } = await this.supabase
           .from("membership_plans")
           .select("id")
           .eq("organization_id", this.organizationId)
           .eq("name", activeMemberships)
-          .eq("price_pennies", amountPennies)
           .maybeSingle();
 
         if (existingPlan) {
@@ -1201,15 +1198,44 @@ export class GoTeamUpImporter {
           continue;
         }
 
-        // Create new membership plan
+        // Calculate the most common price for this membership (will be the base price)
+        const pricesForPlan = data
+          .filter(r => r["Active Memberships"]?.trim() === activeMemberships)
+          .map(r => parseFloat(r["Last Payment Amount (GBP)"] || "0"))
+          .filter(p => p > 0);
+
+        // Use the mode (most common price) or median if no clear mode
+        const priceFrequency = new Map<number, number>();
+        pricesForPlan.forEach(price => {
+          priceFrequency.set(price, (priceFrequency.get(price) || 0) + 1);
+        });
+
+        let standardPrice = 0;
+        let maxFrequency = 0;
+        priceFrequency.forEach((frequency, price) => {
+          if (frequency > maxFrequency) {
+            maxFrequency = frequency;
+            standardPrice = price;
+          }
+        });
+
+        // Fallback to median if still 0
+        if (standardPrice === 0 && pricesForPlan.length > 0) {
+          pricesForPlan.sort((a, b) => a - b);
+          standardPrice = pricesForPlan[Math.floor(pricesForPlan.length / 2)];
+        }
+
+        const standardPricePennies = Math.round(standardPrice * 100);
+
+        // Create new membership plan with standard price
         const { data: newPlan, error: planError } = await this.supabase
           .from("membership_plans")
           .insert({
             organization_id: this.organizationId,
             name: activeMemberships,
             description: `Imported from GoTeamUp - ${activeMemberships}`,
-            price_pennies: amountPennies,
-            price: lastPaymentAmount,
+            price_pennies: standardPricePennies,
+            price: standardPrice,
             billing_period: billingPeriod,
             is_active: true,
             payment_provider: "manual", // GoTeamUp manages billing
@@ -1217,6 +1243,12 @@ export class GoTeamUpImporter {
               imported_from: "goteamup",
               import_date: new Date().toISOString(),
               original_name: activeMemberships,
+              standard_price: standardPrice,
+              price_range: pricesForPlan.length > 0 ? {
+                min: Math.min(...pricesForPlan),
+                max: Math.max(...pricesForPlan),
+                unique_prices: Array.from(new Set(pricesForPlan)).sort()
+              } : null
             },
           })
           .select("id")
@@ -1278,9 +1310,9 @@ export class GoTeamUpImporter {
           continue;
         }
 
-        // Get the plan ID
-        const amountPennies = Math.round(lastPaymentAmount * 100);
-        const membershipKey = `${activeMemberships}|${amountPennies}`;
+        // Get the plan ID (by name only now)
+        const clientPricePennies = Math.round(lastPaymentAmount * 100);
+        const membershipKey = activeMemberships;
         const planId = processedPlans.get(membershipKey);
 
         if (!planId) {
@@ -1292,6 +1324,20 @@ export class GoTeamUpImporter {
           continue;
         }
 
+        // Get the plan's standard price to determine if this client has custom pricing
+        const { data: membershipPlan } = await this.supabase
+          .from("membership_plans")
+          .select("price_pennies")
+          .eq("id", planId)
+          .single();
+
+        const hasCustomPrice = membershipPlan && clientPricePennies !== membershipPlan.price_pennies;
+        const priceOverrideReason = hasCustomPrice
+          ? (clientPricePennies < membershipPlan.price_pennies
+              ? "Discounted rate (imported from GoTeamUp)"
+              : "Premium rate (imported from GoTeamUp)")
+          : null;
+
         // Check if membership already exists
         const { data: existingMembership } = await this.supabase
           .from("customer_memberships")
@@ -1301,7 +1347,7 @@ export class GoTeamUpImporter {
           .maybeSingle();
 
         if (existingMembership) {
-          // Update existing membership
+          // Update existing membership with custom pricing
           const { error: updateError } = await this.supabase
             .from("customer_memberships")
             .update({
@@ -1309,6 +1355,9 @@ export class GoTeamUpImporter {
               payment_status: "current",
               payment_provider: "manual",
               next_billing_date: lastPaymentDate || null,
+              custom_price_pennies: hasCustomPrice ? clientPricePennies : null,
+              custom_price: hasCustomPrice ? lastPaymentAmount : null,
+              price_override_reason: priceOverrideReason,
               updated_at: new Date().toISOString(),
             })
             .eq("id", existingMembership.id);
@@ -1323,7 +1372,7 @@ export class GoTeamUpImporter {
             });
           }
         } else {
-          // Create new membership
+          // Create new membership with custom pricing
           const { error: membershipError } = await this.supabase
             .from("customer_memberships")
             .insert({
@@ -1335,9 +1384,14 @@ export class GoTeamUpImporter {
               payment_provider: "manual",
               start_date: lastPaymentDate || new Date().toISOString().split("T")[0],
               next_billing_date: lastPaymentDate || null,
+              custom_price_pennies: hasCustomPrice ? clientPricePennies : null,
+              custom_price: hasCustomPrice ? lastPaymentAmount : null,
+              price_override_reason: priceOverrideReason,
               metadata: {
                 imported_from: "goteamup",
                 import_date: new Date().toISOString(),
+                has_custom_pricing: hasCustomPrice,
+                original_price: lastPaymentAmount,
               },
             });
 
