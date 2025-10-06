@@ -1372,7 +1372,7 @@ export class GoTeamUpImporter {
             });
           }
         } else {
-          // Create new membership with custom pricing
+          // Create new membership with custom pricing and billing control
           const { error: membershipError } = await this.supabase
             .from("customer_memberships")
             .insert({
@@ -1387,6 +1387,8 @@ export class GoTeamUpImporter {
               custom_price_pennies: hasCustomPrice ? clientPricePennies : null,
               custom_price: hasCustomPrice ? lastPaymentAmount : null,
               price_override_reason: priceOverrideReason,
+              billing_source: "goteamup", // GoTeamUp is currently handling billing
+              billing_paused: false, // Not paused, but billing_source prevents CRM charges
               metadata: {
                 imported_from: "goteamup",
                 import_date: new Date().toISOString(),
