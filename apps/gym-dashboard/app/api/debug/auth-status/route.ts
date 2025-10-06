@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
+import { blockInProduction } from "../production-check";
 
 // Force dynamic rendering
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  // Block in production
+  const productionBlock = blockInProduction();
+  if (productionBlock) return productionBlock;
   try {
     const supabase = await createClient();
     const adminClient = createAdminClient();

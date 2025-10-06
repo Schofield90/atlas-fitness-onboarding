@@ -72,6 +72,21 @@ export async function GET(request: NextRequest) {
       if (checkOwnedOrg && checkOwnedOrg.length > 0) {
         hasOrganization = true;
         console.log("✅ Found organization by owner_id:", checkOwnedOrg[0].id);
+      } else {
+        // Check organization_staff table
+        const { data: checkStaff } = await admin
+          .from("organization_staff")
+          .select("organization_id")
+          .eq("user_id", user.id)
+          .limit(1);
+
+        if (checkStaff && checkStaff.length > 0) {
+          hasOrganization = true;
+          console.log(
+            "✅ Found organization in organization_staff:",
+            checkStaff[0].organization_id,
+          );
+        }
       }
     }
 
@@ -150,6 +165,27 @@ export async function GET(request: NextRequest) {
         userRole = userOrgData[0].role;
       } else if (userOrgError) {
         console.log("❌ user_organizations query error:", userOrgError);
+      }
+    }
+
+    // If still no organization, check organization_staff table
+    if (!orgId) {
+      console.log("Checking organization_staff for user:", user.id);
+      const { data: staffData, error: staffError } = await admin
+        .from("organization_staff")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .limit(1);
+
+      if (staffData && staffData.length > 0) {
+        console.log(
+          "✅ Found organization via organization_staff:",
+          staffData[0],
+        );
+        orgId = staffData[0].organization_id;
+        userRole = "staff";
+      } else if (staffError) {
+        console.log("❌ organization_staff query error:", staffError);
       }
     }
 

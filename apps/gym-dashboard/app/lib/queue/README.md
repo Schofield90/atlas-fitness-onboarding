@@ -5,7 +5,6 @@ A comprehensive, production-ready queue system built on BullMQ with Redis, desig
 ## Features
 
 ### Core Capabilities
-
 - 🚀 **High-Performance Processing** - Optimized for high-throughput workflow execution
 - 🔄 **Auto-Retry Logic** - Intelligent retry mechanisms with exponential backoff
 - 🏥 **Health Monitoring** - Comprehensive system health checks and alerts
@@ -16,7 +15,6 @@ A comprehensive, production-ready queue system built on BullMQ with Redis, desig
 - 🔍 **Monitoring Dashboard** - Built-in queue monitoring and management
 
 ### Queue Types
-
 1. **Workflow Triggers** - Process workflow trigger events
 2. **Workflow Actions** - Execute workflow nodes and actions
 3. **Scheduled Tasks** - Handle delayed and scheduled executions
@@ -28,8 +26,7 @@ A comprehensive, production-ready queue system built on BullMQ with Redis, desig
 ## Installation & Setup
 
 ### Prerequisites
-
-- Node.js 18+
+- Node.js 18+ 
 - Redis 6+
 - Supabase (PostgreSQL database)
 - Environment variables configured
@@ -71,7 +68,7 @@ ADMIN_EMAIL=admin@yourdomain.com
 ### Basic Setup
 
 ```typescript
-import { initializeQueueSystem, shutdownQueueSystem } from "@/app/lib/queue";
+import { initializeQueueSystem, shutdownQueueSystem } from '@/app/lib/queue';
 
 // Initialize the complete queue system
 await initializeQueueSystem();
@@ -79,7 +76,7 @@ await initializeQueueSystem();
 // Your application code here...
 
 // Graceful shutdown
-process.on("SIGTERM", async () => {
+process.on('SIGTERM', async () => {
   await shutdownQueueSystem();
   process.exit(0);
 });
@@ -90,26 +87,26 @@ process.on("SIGTERM", async () => {
 ### Triggering Workflows
 
 ```typescript
-import { QueueUtils } from "@/app/lib/queue";
+import { QueueUtils } from '@/app/lib/queue';
 
 // Trigger a workflow
 const job = await QueueUtils.triggerWorkflow(
-  "org_123",
-  "lead_created",
+  'org_123',
+  'lead_created',
   {
     lead: {
-      id: "lead_456",
-      email: "john@example.com",
-      name: "John Doe",
-    },
+      id: 'lead_456',
+      email: 'john@example.com',
+      name: 'John Doe'
+    }
   },
   {
     priority: 1, // High priority
-    metadata: { source: "api" },
-  },
+    metadata: { source: 'api' }
+  }
 );
 
-console.log("Workflow triggered:", job.id);
+console.log('Workflow triggered:', job.id);
 ```
 
 ### Sending Communications
@@ -117,50 +114,50 @@ console.log("Workflow triggered:", job.id);
 ```typescript
 // Send email
 await QueueUtils.sendEmail(
-  "org_123",
+  'org_123',
   {
-    to: "customer@example.com",
-    subject: "Welcome to Atlas Fitness!",
-    template: "welcome_email",
+    to: 'customer@example.com',
+    subject: 'Welcome to Atlas Fitness!',
+    template: 'welcome_email',
     templateData: {
-      firstName: "John",
-      gymName: "Atlas Fitness Downtown",
-    },
+      firstName: 'John',
+      gymName: 'Atlas Fitness Downtown'
+    }
   },
   {
     priority: 2,
-    trackingId: "welcome_campaign_001",
-  },
+    trackingId: 'welcome_campaign_001'
+  }
 );
 
 // Send SMS
 await QueueUtils.sendSMS(
-  "org_123",
+  'org_123',
   {
-    to: "+1234567890",
-    message: "Your workout session starts in 30 minutes!",
+    to: '+1234567890',
+    message: 'Your workout session starts in 30 minutes!'
   },
   {
-    priority: 1, // High priority for time-sensitive messages
-  },
+    priority: 1 // High priority for time-sensitive messages
+  }
 );
 
 // Bulk communications
 await QueueUtils.scheduleBulkCommunication(
-  "org_123",
-  "email",
+  'org_123',
+  'email',
   [
-    { to: "member1@example.com", personalizedData: { name: "Alice" } },
-    { to: "member2@example.com", personalizedData: { name: "Bob" } },
+    { to: 'member1@example.com', personalizedData: { name: 'Alice' } },
+    { to: 'member2@example.com', personalizedData: { name: 'Bob' } }
   ],
   {
-    subject: "Hello {{name}}!",
-    templateName: "monthly_newsletter",
+    subject: 'Hello {{name}}!',
+    templateName: 'monthly_newsletter'
   },
   {
     batchSize: 25,
-    delayBetweenBatches: 2000, // 2 seconds
-  },
+    delayBetweenBatches: 2000 // 2 seconds
+  }
 );
 ```
 
@@ -169,23 +166,23 @@ await QueueUtils.scheduleBulkCommunication(
 ```typescript
 // Schedule workflow execution
 await QueueUtils.scheduleWorkflowExecution(
-  "workflow_789",
-  "org_123",
-  { reminder: "class_tomorrow" },
+  'workflow_789',
+  'org_123',
+  { reminder: 'class_tomorrow' },
   24 * 60 * 60 * 1000, // 24 hours from now
   {
     priority: 3,
-    context: { reminderType: "class" },
-  },
+    context: { reminderType: 'class' }
+  }
 );
 
 // Create recurring job
 await QueueUtils.createCronJob(
   QUEUE_NAMES.WORKFLOW_CLEANUP,
   JOB_TYPES.CLEANUP_OLD_EXECUTIONS,
-  "0 2 * * *", // Daily at 2 AM
+  '0 2 * * *', // Daily at 2 AM
   { retentionDays: 30 },
-  { jobId: "daily_cleanup" },
+  { jobId: 'daily_cleanup' }
 );
 ```
 
@@ -194,37 +191,37 @@ await QueueUtils.createCronJob(
 ```typescript
 // Track custom analytics
 await QueueUtils.trackAnalytics(
-  "org_123",
-  "workflow_completed",
+  'org_123',
+  'workflow_completed',
   {
-    workflowId: "workflow_789",
+    workflowId: 'workflow_789',
     duration: 5420,
     nodesExecuted: 8,
-    success: true,
+    success: true
   },
   {
-    type: "workflow",
-    userId: "user_456",
-  },
+    type: 'workflow',
+    userId: 'user_456'
+  }
 );
 
 // Generate reports
 await QueueUtils.generateReport(
-  "org_123",
-  "workflow_performance",
+  'org_123',
+  'workflow_performance',
   {
-    start: "2024-01-01T00:00:00Z",
-    end: "2024-01-31T23:59:59Z",
+    start: '2024-01-01T00:00:00Z',
+    end: '2024-01-31T23:59:59Z'
   },
   {
-    recipients: ["admin@yourdomain.com"],
-    format: "pdf",
-  },
+    recipients: ['admin@yourdomain.com'],
+    format: 'pdf'
+  }
 );
 
 // Get system health
 const systemHealth = await QueueUtils.getSystemHealth();
-console.log("System Status:", systemHealth);
+console.log('System Status:', systemHealth);
 ```
 
 ### Error Handling
@@ -232,23 +229,27 @@ console.log("System Status:", systemHealth);
 ```typescript
 // Report errors for centralized handling
 await QueueUtils.reportError(
-  "org_123",
-  "job_failure",
-  "email-processor",
-  "send_email",
-  "SMTP connection timeout",
+  'org_123',
+  'job_failure',
+  'email-processor',
+  'send_email',
+  'SMTP connection timeout',
   {
-    jobId: "job_123",
-    recipient: "user@example.com",
+    jobId: 'job_123',
+    recipient: 'user@example.com'
   },
-  "high",
+  'high'
 );
 
 // Manually retry failed job
-await QueueUtils.retryFailedJob("failed_job_456", "org_123", {
-  priority: 1,
-  delay: 5000, // Retry after 5 seconds
-});
+await QueueUtils.retryFailedJob(
+  'failed_job_456',
+  'org_123',
+  {
+    priority: 1,
+    delay: 5000 // Retry after 5 seconds
+  }
+);
 ```
 
 ## Architecture
@@ -308,11 +309,11 @@ Error Logger → Retry Queue → Error Queue → Alert System
 
 ```typescript
 export const JOB_PRIORITIES = {
-  CRITICAL: 1, // System critical operations
-  HIGH: 2, // User-facing operations
-  NORMAL: 3, // Standard workflows
-  LOW: 4, // Analytics, reporting
-  BACKGROUND: 5, // Cleanup, maintenance
+  CRITICAL: 1,    // System critical operations
+  HIGH: 2,        // User-facing operations
+  NORMAL: 3,      // Standard workflows
+  LOW: 4,         // Analytics, reporting
+  BACKGROUND: 5,  // Cleanup, maintenance
 };
 ```
 
@@ -322,16 +323,16 @@ export const JOB_PRIORITIES = {
 export const RETRY_STRATEGIES = {
   send_email: {
     attempts: 5,
-    backoff: { type: "exponential", delay: 2000 },
+    backoff: { type: 'exponential', delay: 2000 }
   },
   send_sms: {
     attempts: 3,
-    backoff: { type: "exponential", delay: 1000 },
+    backoff: { type: 'exponential', delay: 1000 }
   },
   execute_workflow: {
     attempts: 5,
-    backoff: { type: "exponential", delay: 3000 },
-  },
+    backoff: { type: 'exponential', delay: 3000 }
+  }
 };
 ```
 
@@ -353,9 +354,8 @@ export const HEALTH_THRESHOLDS = {
 ### Health Checks
 
 The system performs regular health checks on:
-
 - Redis connectivity and performance
-- Database connectivity and query performance
+- Database connectivity and query performance  
 - Queue sizes and job statuses
 - Worker processes and memory usage
 - System resources (CPU, memory, disk)
@@ -370,7 +370,6 @@ The system performs regular health checks on:
 ### Alerts
 
 The system generates alerts for:
-
 - Queue size thresholds exceeded
 - High error rates
 - System resource exhaustion
@@ -380,28 +379,24 @@ The system generates alerts for:
 ## Best Practices
 
 ### Job Design
-
 - Keep job data minimal and serializable
 - Use idempotent operations where possible
 - Implement proper timeout handling
 - Add correlation IDs for tracking
 
 ### Error Handling
-
 - Use structured error messages
 - Include context for debugging
 - Implement circuit breakers for external services
 - Set up appropriate retry policies
 
 ### Performance
-
 - Use bulk operations for multiple similar jobs
 - Implement proper concurrency limits
 - Monitor and tune worker concurrency
 - Use appropriate job priorities
 
 ### Security
-
 - Validate all job data
 - Implement proper authentication for queue operations
 - Use encrypted connections (Redis TLS)
@@ -475,7 +470,7 @@ LOG_LEVEL=debug
 ### Emergency Procedures
 
 ```typescript
-import { emergencyRecovery, shutdownQueueSystem } from "@/app/lib/queue";
+import { emergencyRecovery, shutdownQueueSystem } from '@/app/lib/queue';
 
 // Emergency recovery
 await emergencyRecovery();
@@ -494,14 +489,14 @@ See the [QueueUtils documentation](./utils/queue-utils.ts) for complete API refe
 
 ```typescript
 // Worker events
-worker.on("completed", (job, result) => {});
-worker.on("failed", (job, err) => {});
-worker.on("stalled", (jobId) => {});
+worker.on('completed', (job, result) => {});
+worker.on('failed', (job, err) => {});
+worker.on('stalled', (jobId) => {});
 
 // Queue events
-queue.on("error", (error) => {});
-queue.on("waiting", (job) => {});
-queue.on("active", (job) => {});
+queue.on('error', (error) => {});
+queue.on('waiting', (job) => {});
+queue.on('active', (job) => {});
 ```
 
 ## Contributing

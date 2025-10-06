@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
 import { clearUserCache } from "@/app/lib/api/auth-check";
+import { blockInProduction } from "../production-check";
 
 // Force dynamic rendering
 export const dynamic = "force-dynamic";
 
 export async function POST() {
+  // Block in production
+  const productionBlock = blockInProduction();
+  if (productionBlock) return productionBlock;
   try {
     const supabase = await createClient();
 

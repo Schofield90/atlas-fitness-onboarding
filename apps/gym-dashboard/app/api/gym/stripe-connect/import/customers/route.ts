@@ -9,7 +9,12 @@ export const maxDuration = 60; // 60 seconds timeout (requires Pro plan)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { organizationId, startingAfter, limit = 50 } = body;
+    const {
+      organizationId,
+      startingAfter,
+      limit = 50,
+      updateOnly = false,
+    } = body;
 
     if (!organizationId) {
       return NextResponse.json(
@@ -67,8 +72,13 @@ export async function POST(request: NextRequest) {
 
     // Import each customer in this batch
     for (const customer of batch.data) {
+      console.log(
+        `Processing customer ${customer.id}, email: ${customer.email || "NO EMAIL"}`,
+      );
+
       // Skip customers without email
       if (!customer.email) {
+        console.log(`Skipping customer ${customer.id} - no email`);
         skipped++;
         continue;
       }
@@ -77,9 +87,14 @@ export async function POST(request: NextRequest) {
       const { data: existingClient } = await supabaseAdmin
         .from("clients")
         .select("id")
-        .eq("organization_id", organizationId)
+        .eq("org_id", organizationId)
         .eq("email", customer.email)
         .maybeSingle();
+
+      console.log(
+        `Customer ${customer.email} - existing client:`,
+        existingClient ? "FOUND" : "NOT FOUND",
+      );
 
       if (existingClient) {
         // Update existing client with Stripe ID
@@ -91,6 +106,11 @@ export async function POST(request: NextRequest) {
           })
           .eq("id", existingClient.id);
 
+        console.log(
+          `Update result for ${customer.email}:`,
+          updateError ? `ERROR: ${updateError.message}` : "SUCCESS",
+        );
+
         if (!updateError) {
           imported++; // Count updated clients as successfully imported
         } else {
@@ -98,23 +118,36 @@ export async function POST(request: NextRequest) {
           skipped++;
         }
       } else {
-        // Create new client
-        const { error } = await supabaseAdmin.from("clients").insert({
-          organization_id: organizationId,
-          email: customer.email,
-          first_name: customer.name?.split(" ")[0] || "",
-          last_name: customer.name?.split(" ").slice(1).join(" ") || "",
-          phone: customer.phone || "",
-          stripe_customer_id: customer.id,
-          status: "active",
-          created_at: new Date(customer.created * 1000).toISOString(),
-        });
-
-        if (!error) {
-          imported++;
-        } else {
-          console.error("Error creating client:", error);
+        // If updateOnly mode, skip creating new clients
+        if (updateOnly) {
+          console.log(
+            `Skipping ${customer.email} - not found in CRM (update-only mode)`,
+          );
           skipped++;
+        } else {
+          // Create new client
+          const { error } = await supabaseAdmin.from("clients").insert({
+            org_id: organizationId,
+            email: customer.email,
+            first_name: customer.name?.split(" ")[0] || "",
+            last_name: customer.name?.split(" ").slice(1).join(" ") || "",
+            phone: customer.phone || "",
+            stripe_customer_id: customer.id,
+            status: "active",
+            created_at: new Date(customer.created * 1000).toISOString(),
+          });
+
+          console.log(
+            `Insert result for ${customer.email}:`,
+            error ? `ERROR: ${error.message}` : "SUCCESS",
+          );
+
+          if (!error) {
+            imported++;
+          } else {
+            console.error("Error creating client:", error);
+            skipped++;
+          }
         }
       }
     }
