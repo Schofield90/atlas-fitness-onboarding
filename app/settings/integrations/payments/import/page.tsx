@@ -484,8 +484,8 @@ function ImportPageContent() {
           </div>
         </div>
 
-        {/* Import options */}
-        {!importStats && (
+        {/* Import options - Stripe only */}
+        {!importStats && !isGoCardless && (
           <div className="bg-gray-800 rounded-lg p-6">
             <h3 className="text-lg font-semibold text-white mb-4">
               Import Mode
@@ -511,8 +511,8 @@ function ImportPageContent() {
           </div>
         )}
 
-        {/* Import button */}
-        {!importStats && (
+        {/* Import button - Stripe only (GoCardless uses CSV import) */}
+        {!importStats && !isGoCardless && (
           <div className="flex flex-col gap-4">
             <div className="flex justify-center">
               <button
@@ -533,163 +533,155 @@ function ImportPageContent() {
                 )}
               </button>
             </div>
+          </div>
+        )}
 
-            {/* Backfill button for GoCardless */}
-            {isGoCardless && (
-              <div className="bg-gray-800 rounded-lg p-6 border-2 border-yellow-600/30">
-                <div className="flex items-start gap-3 mb-4">
-                  <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="font-semibold text-white mb-2">
-                      Fix Unlinked Payments (Delete & Re-import)
-                    </h4>
-                    <p className="text-sm text-gray-400">
-                      Payments not showing in member profiles were imported
-                      without customer data. This will{" "}
-                      <strong>delete the broken payments</strong> and re-import
-                      them from GoCardless with proper customer links.
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={handleBackfill}
-                  disabled={backfilling || importing}
-                  className="w-full px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {backfilling ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Linking Payments...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="w-4 h-4" />
-                      Fix Unlinked Payments
-                    </>
-                  )}
-                </button>
+        {/* CSV Import for GoCardless - Primary Method */}
+        {isGoCardless && !importStats && (
+          <div className="bg-gray-800 rounded-lg p-6 border-2 border-blue-600/30">
+            <div className="flex items-start gap-3 mb-4">
+              <Download className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-semibold text-white mb-2">
+                  Import from CSV File
+                </h4>
+                <p className="text-sm text-gray-400">
+                  Upload a CSV export from your GoCardless dashboard. This
+                  includes full payment history with customer details.
+                </p>
+              </div>
+            </div>
 
-                {/* Backfill results */}
-                {backfillStats && (
-                  <div className="mt-4 p-4 bg-green-900/20 border border-green-600/30 rounded-lg">
-                    <p className="text-green-400 font-medium mb-2">
-                      ✓ Re-import Complete!
-                    </p>
-                    <div className="text-sm text-gray-300 space-y-1">
-                      <p>
-                        • {backfillStats.deleted || 0} broken payments deleted
-                      </p>
-                      <p>
-                        • {backfillStats.imported || 0} payments re-imported
-                        with customer links
-                      </p>
-                      <p>
-                        • {backfillStats.clientsCreated || 0} new clients
-                        created
-                      </p>
-                      {backfillStats.skipped > 0 && (
-                        <p className="text-yellow-400">
-                          • {backfillStats.skipped} payments skipped (no
-                          customer data in GoCardless)
-                        </p>
-                      )}
-                    </div>
-                  </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Select CSV File
+                </label>
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setCsvFile(file);
+                      setError("");
+                    }
+                  }}
+                  disabled={csvImporting || importing}
+                  className="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 file:cursor-pointer disabled:opacity-50"
+                />
+                {csvFile && (
+                  <p className="mt-2 text-sm text-gray-400">
+                    Selected: {csvFile.name} ({(csvFile.size / 1024).toFixed(2)}{" "}
+                    KB)
+                  </p>
                 )}
               </div>
-            )}
 
-            {/* CSV Import for GoCardless */}
-            {isGoCardless && (
-              <div className="bg-gray-800 rounded-lg p-6 border-2 border-blue-600/30 mt-4">
-                <div className="flex items-start gap-3 mb-4">
-                  <Download className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="font-semibold text-white mb-2">
-                      Import from CSV File (Recommended)
-                    </h4>
-                    <p className="text-sm text-gray-400">
-                      Upload a CSV export from your GoCardless dashboard. This
-                      includes full payment history with customer details.
+              <button
+                onClick={handleCsvImport}
+                disabled={!csvFile || csvImporting || importing}
+                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {csvImporting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Importing CSV...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    Import from CSV
+                  </>
+                )}
+              </button>
+
+              {/* CSV Import results */}
+              {csvStats && (
+                <div className="mt-4 p-4 bg-green-900/20 border border-green-600/30 rounded-lg">
+                  <p className="text-green-400 font-medium mb-2">
+                    ✓ CSV Import Complete!
+                  </p>
+                  <div className="text-sm text-gray-300 space-y-1">
+                    <p>• {csvStats.imported || 0} new payments imported</p>
+                    <p>• {csvStats.updated || 0} existing payments updated</p>
+                    <p>• {csvStats.clientsCreated || 0} new clients created</p>
+                    <p className="text-gray-400">
+                      • {csvStats.skipped || 0} payments skipped
                     </p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Select CSV File
-                    </label>
-                    <input
-                      type="file"
-                      accept=".csv"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          setCsvFile(file);
-                          setError("");
-                        }
-                      }}
-                      disabled={csvImporting || importing}
-                      className="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 file:cursor-pointer disabled:opacity-50"
-                    />
-                    {csvFile && (
-                      <p className="mt-2 text-sm text-gray-400">
-                        Selected: {csvFile.name} (
-                        {(csvFile.size / 1024).toFixed(2)} KB)
+                    {csvStats.errors > 0 && (
+                      <p className="text-yellow-400">
+                        • {csvStats.errors} errors (check console for details)
                       </p>
                     )}
                   </div>
-
-                  <button
-                    onClick={handleCsvImport}
-                    disabled={!csvFile || csvImporting || importing}
-                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  <Link
+                    href="/members"
+                    className="inline-block mt-3 text-sm text-blue-400 hover:text-blue-300"
                   >
-                    {csvImporting ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Importing CSV...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="w-4 h-4" />
-                        Import from CSV
-                      </>
-                    )}
-                  </button>
+                    View imported members →
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
-                  {/* CSV Import results */}
-                  {csvStats && (
-                    <div className="mt-4 p-4 bg-green-900/20 border border-green-600/30 rounded-lg">
-                      <p className="text-green-400 font-medium mb-2">
-                        ✓ CSV Import Complete!
-                      </p>
-                      <div className="text-sm text-gray-300 space-y-1">
-                        <p>• {csvStats.imported || 0} new payments imported</p>
-                        <p>
-                          • {csvStats.updated || 0} existing payments updated
-                        </p>
-                        <p>
-                          • {csvStats.clientsCreated || 0} new clients created
-                        </p>
-                        <p className="text-gray-400">
-                          • {csvStats.skipped || 0} payments skipped
-                        </p>
-                        {csvStats.errors > 0 && (
-                          <p className="text-yellow-400">
-                            • {csvStats.errors} errors (check console for
-                            details)
-                          </p>
-                        )}
-                      </div>
-                      <Link
-                        href="/members"
-                        className="inline-block mt-3 text-sm text-blue-400 hover:text-blue-300"
-                      >
-                        View imported members →
-                      </Link>
-                    </div>
+        {/* Backfill button for GoCardless - Secondary Method */}
+        {isGoCardless && !importStats && (
+          <div className="bg-gray-800 rounded-lg p-6 border-2 border-yellow-600/30">
+            <div className="flex items-start gap-3 mb-4">
+              <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-semibold text-white mb-2">
+                  Fix Unlinked Payments (Delete & Re-import)
+                </h4>
+                <p className="text-sm text-gray-400">
+                  Payments not showing in member profiles were imported without
+                  customer data. This will{" "}
+                  <strong>delete the broken payments</strong> and re-import them
+                  from GoCardless with proper customer links.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleBackfill}
+              disabled={backfilling || importing}
+              className="w-full px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {backfilling ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Linking Payments...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-4 h-4" />
+                  Fix Unlinked Payments
+                </>
+              )}
+            </button>
+
+            {/* Backfill results */}
+            {backfillStats && (
+              <div className="mt-4 p-4 bg-green-900/20 border border-green-600/30 rounded-lg">
+                <p className="text-green-400 font-medium mb-2">
+                  ✓ Re-import Complete!
+                </p>
+                <div className="text-sm text-gray-300 space-y-1">
+                  <p>• {backfillStats.deleted || 0} broken payments deleted</p>
+                  <p>
+                    • {backfillStats.imported || 0} payments re-imported with
+                    customer links
+                  </p>
+                  <p>
+                    • {backfillStats.clientsCreated || 0} new clients created
+                  </p>
+                  {backfillStats.skipped > 0 && (
+                    <p className="text-yellow-400">
+                      • {backfillStats.skipped} payments skipped (no customer
+                      data in GoCardless)
+                    </p>
                   )}
                 </div>
               </div>
