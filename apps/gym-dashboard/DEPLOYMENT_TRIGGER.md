@@ -117,3 +117,4 @@ Add GoCardless CSV import feature for self-service payment imports - Tue 7 Oct 2
 Make CSV upload the primary GoCardless import method (hide API import) - Tue 7 Oct 2025 13:15:00 BST
 Add background processing for large CSV imports (>100 rows) - Tue 7 Oct 2025 13:45:00 BST
 Fix job progress endpoint auth (use requireAuth instead of getUser) - Tue 7 Oct 2025 14:00:00 BST
+Fix dashboard and reports to query 'payments' table instead of empty tables - Tue 7 Oct 2025 14:30:00 BST

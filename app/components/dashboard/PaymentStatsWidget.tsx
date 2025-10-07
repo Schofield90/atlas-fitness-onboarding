@@ -32,89 +32,18 @@ export function PaymentStatsWidget() {
 
   const fetchPaymentStats = async () => {
     try {
-      const supabase = createClient();
+      // Fetch payment stats from API (queries 'payments' table)
+      const response = await fetch("/api/dashboard/payment-stats");
 
-      // Get all payment transactions
-      const { data: transactions, error } = await supabase
-        .from("transactions")
-        .select(
-          `
-          id,
-          client_id,
-          amount,
-          type,
-          created_at,
-          clients!transactions_client_id_fkey(name)
-        `,
-        )
-        .eq("type", "payment");
-
-      if (error) {
-        console.error("Error fetching payment stats:", error);
+      if (!response.ok) {
+        console.error("Error fetching payment stats:", response.status);
         setLoading(false);
         return;
       }
 
-      // Calculate statistics
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-      const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const { stats: apiStats } = await response.json();
 
-      let todayTotal = 0;
-      let weekTotal = 0;
-      let monthTotal = 0;
-      let totalRevenue = 0;
-      const clientPayments: Record<string, { name: string; total: number }> =
-        {};
-
-      transactions?.forEach((transaction) => {
-        const amount = transaction.amount || 0;
-        const transactionDate = new Date(transaction.created_at);
-        totalRevenue += amount;
-
-        // Calculate by time period
-        if (transactionDate >= today) {
-          todayTotal += amount;
-        }
-        if (transactionDate >= weekAgo) {
-          weekTotal += amount;
-        }
-        if (transactionDate >= monthAgo) {
-          monthTotal += amount;
-        }
-
-        // Track payments per client
-        if (transaction.client_id) {
-          const clientName = transaction.clients?.name || "Unknown";
-          if (!clientPayments[transaction.client_id]) {
-            clientPayments[transaction.client_id] = {
-              name: clientName,
-              total: 0,
-            };
-          }
-          clientPayments[transaction.client_id].total += amount;
-        }
-      });
-
-      // Get top 5 payers
-      const topPayers = Object.values(clientPayments)
-        .sort((a, b) => b.total - a.total)
-        .slice(0, 5);
-
-      const totalTransactions = transactions?.length || 0;
-      const averagePayment =
-        totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
-
-      setStats({
-        totalRevenue,
-        totalTransactions,
-        todayRevenue: todayTotal,
-        weeklyRevenue: weekTotal,
-        monthlyRevenue: monthTotal,
-        topPayers,
-        averagePayment,
-      });
+      setStats(apiStats);
     } catch (error) {
       console.error("Error fetching payment stats:", error);
     } finally {
@@ -122,14 +51,13 @@ export function PaymentStatsWidget() {
     }
   };
 
-  const formatAmount = (amountInPennies: number) => {
-    const pounds = amountInPennies / 100;
+  const formatAmount = (amountInPounds: number) => {
     return new Intl.NumberFormat("en-GB", {
       style: "currency",
       currency: "GBP",
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(pounds);
+    }).format(amountInPounds);
   };
 
   if (loading) {
