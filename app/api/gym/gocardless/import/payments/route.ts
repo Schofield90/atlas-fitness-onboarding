@@ -85,7 +85,9 @@ export async function POST(request: NextRequest) {
       },
       {} as Record<string, number>,
     );
-    console.log("GoCardless payment statuses:", paymentStatusCounts);
+    console.log("=== GoCardless Payment Status Breakdown ===");
+    console.log("Total payments fetched:", payments.length);
+    console.log("Status counts:", JSON.stringify(paymentStatusCounts, null, 2));
 
     let imported = 0;
     let skipped = 0;
@@ -265,6 +267,7 @@ export async function POST(request: NextRequest) {
       },
       message: `Imported ${imported} payments totaling ${Math.round(totalAmount * 100) / 100} GBP. Auto-created ${clientsCreated} archived clients.`,
       debug: {
+        statusBreakdown: paymentStatusCounts,
         clientMatchFailures: clientMatchFailures.slice(0, 10), // First 10 failures
         totalClientMatchFailures: clientMatchFailures.length,
       },
