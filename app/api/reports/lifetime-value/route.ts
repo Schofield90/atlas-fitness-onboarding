@@ -22,8 +22,7 @@ export async function GET() {
     );
 
     // Get all payments with client data
-    // NOTE: Supabase has a default limit, so we need to paginate or use a large limit
-    // For now, using a very large limit to get all records
+    // Use range(0, 999999) instead of limit() to bypass Supabase's default pagination
     const { data: payments, error } = await supabaseAdmin
       .from("payments")
       .select(
@@ -44,8 +43,9 @@ export async function GET() {
       `,
       )
       .eq("organization_id", organizationId)
+      .not("client_id", "is", null) // Filter out NULL client_id at database level
       .order("payment_date", { ascending: false })
-      .limit(100000); // Set very high limit to get all payments
+      .range(0, 999999); // Use range instead of limit to get all records
 
     if (error) {
       console.error("Error fetching LTV data:", error);
