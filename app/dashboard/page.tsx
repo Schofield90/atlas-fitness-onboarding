@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "../components/DashboardLayout";
-import { createClient } from "@/app/lib/supabase/client";
 import { AttendanceStatsWidget } from "../components/dashboard/AttendanceStatsWidget";
 import { PaymentStatsWidget } from "../components/dashboard/PaymentStatsWidget";
 import {
@@ -29,76 +28,36 @@ export default function DashboardPage() {
     // Check if user is logged in and get organization
     const checkAuth = async () => {
       console.log("Dashboard: Checking authentication...");
-      const supabase = createClient();
-
-      // Handle SSR case where client is null
-      if (!supabase) {
-        setLoading(false);
-        return;
-      }
 
       try {
-        // Try multiple approaches to get the authenticated user
-        let currentUser = null;
+        // Call API endpoint to check auth from httpOnly cookies
+        const response = await fetch("/api/auth/user");
 
-        // 1. First try getting user directly (works with server-side cookies)
-        const { data: { user: directUser }, error: userError } = await supabase.auth.getUser();
-
-        if (directUser && !userError) {
-          currentUser = directUser;
-          console.log("Dashboard: User found via direct auth check");
-        } else {
-          // 2. Try to get session and refresh if needed
-          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-          if (session?.user) {
-            currentUser = session.user;
-            console.log("Dashboard: User found via session");
-          } else {
-            // 3. Try to refresh session
-            const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-
-            if (refreshedSession?.user) {
-              currentUser = refreshedSession.user;
-              console.log("Dashboard: User found via session refresh");
-            }
-          }
+        if (!response.ok) {
+          console.log(
+            "Dashboard: No authenticated user found, redirecting to login",
+          );
+          window.location.href = "/owner-login";
+          return;
         }
 
-        if (!currentUser) {
-          console.log("Dashboard: No authenticated user found, redirecting to login");
-          // Check localStorage backup before redirecting
-          const backup = localStorage.getItem('owner-auth-backup');
-          if (backup) {
-            try {
-              const parsed = JSON.parse(backup);
-              if (parsed.access_token && parsed.user) {
-                console.log("Dashboard: Using backup auth");
-                setUser(parsed.user);
-                setLoading(false);
-                return;
-              }
-            } catch (e) {
-              console.error("Failed to parse backup auth:", e);
-            }
-          }
+        const { user: currentUser } = await response.json();
 
-          // Only redirect if we're not already on an auth page
-          const currentPath = window.location.pathname;
-          if (!currentPath.includes("/login") && !currentPath.includes("/owner-login")) {
-            window.location.href = "/owner-login";
-          }
+        if (!currentUser) {
+          console.log(
+            "Dashboard: No authenticated user found, redirecting to login",
+          );
+          window.location.href = "/owner-login";
           return;
         }
 
         console.log("Dashboard: User authenticated:", currentUser.email);
         setUser(currentUser);
 
-        // Check if user is admin
-        const adminEmails = ["sam@atlas-gyms.co.uk", "sam@gymleadhub.co.uk"];
+        // Check if user is admin (from role returned by API)
         if (
-          currentUser.email &&
-          adminEmails.includes(currentUser.email.toLowerCase())
+          currentUser.role === "super_admin" ||
+          currentUser.role === "admin"
         ) {
           setIsAdmin(true);
         }
@@ -106,26 +65,39 @@ export default function DashboardPage() {
         // Get user's organization using API endpoint to avoid RLS issues
         try {
           console.log("Dashboard: Fetching organization via API...");
-          const response = await fetch('/api/auth/get-organization', {
-            method: 'GET',
+          const response = await fetch("/api/auth/get-organization", {
+            method: "GET",
             headers: {
-              'Content-Type': 'application/json',
+              "Content-Type": "application/json",
             },
-            credentials: 'include',
+            credentials: "include",
           });
 
           if (response.ok) {
             const result = await response.json();
             if (result.success && result.data.organizationId) {
-              console.log("Dashboard: Organization found:", result.data.organizationId);
+              console.log(
+                "Dashboard: Organization found:",
+                result.data.organizationId,
+              );
               setOrganizationId(result.data.organizationId);
-              localStorage.setItem("organizationId", result.data.organizationId);
+              localStorage.setItem(
+                "organizationId",
+                result.data.organizationId,
+              );
             } else {
-              console.log("Dashboard: No organization for user (role:", result.data?.role, ")");
+              console.log(
+                "Dashboard: No organization for user (role:",
+                result.data?.role,
+                ")",
+              );
               // User might not have an organization yet or is admin
             }
           } else {
-            console.error("Dashboard: Failed to fetch organization:", response.status);
+            console.error(
+              "Dashboard: Failed to fetch organization:",
+              response.status,
+            );
 
             // Handle authentication errors from organization API
             if (response.status === 401) {
