@@ -281,7 +281,7 @@ async function processGoTeamUpImportInBackground(
     // Send email notification if provided
     const notificationEmail = jobData?.result_summary?.notification_email;
     if (notificationEmail && result.success) {
-      const { sendEmail } = await import("@/app/lib/services/email-service");
+      const { sendEmail } = await import("@/app/lib/email");
       await sendEmail({
         to: notificationEmail,
         subject: "✅ GoTeamUp Import Complete",
@@ -293,12 +293,12 @@ async function processGoTeamUpImportInBackground(
             <li>⏭️ <strong>${result.stats.skipped}</strong> records skipped (duplicates)</li>
             <li>❌ <strong>${result.stats.errors}</strong> errors</li>
           </ul>
-          <p><a href="https://login.gymleadhub.co.uk/${importType === 'clients' ? 'members' : importType}">View your ${importType}</a></p>
+          <p><a href="https://login.gymleadhub.co.uk/${importType === "clients" ? "members" : importType}">View your ${importType}</a></p>
         `,
         organizationId,
       });
     } else if (notificationEmail && !result.success) {
-      const { sendEmail } = await import("@/app/lib/services/email-service");
+      const { sendEmail } = await import("@/app/lib/email");
       await sendEmail({
         to: notificationEmail,
         subject: "❌ GoTeamUp Import Failed",
@@ -330,7 +330,7 @@ async function processGoTeamUpImportInBackground(
     // Send failure email if notification email was provided
     const notificationEmail = jobData?.result_summary?.notification_email;
     if (notificationEmail) {
-      const { sendEmail } = await import("@/app/lib/services/email-service");
+      const { sendEmail } = await import("@/app/lib/email");
       await sendEmail({
         to: notificationEmail,
         subject: "❌ GoTeamUp Import Failed",
