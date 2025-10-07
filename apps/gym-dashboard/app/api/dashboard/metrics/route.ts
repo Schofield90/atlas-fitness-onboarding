@@ -129,18 +129,26 @@ export async function GET() {
         .order("start_time", { ascending: true })
         .limit(10),
 
-      // Recent transactions/payments
+      // Recent payments from payments table (not payment_transactions)
       supabase
-        .from("payment_transactions")
+        .from("payments")
         .select(
           `
-          *,
-          customer:leads(name)
+          id,
+          amount,
+          payment_date,
+          payment_status,
+          payment_provider,
+          description,
+          clients!payments_client_id_fkey(
+            first_name,
+            last_name
+          )
         `,
         )
         .eq("organization_id", organizationId)
-        .gte("created_at", startOfMonth.toISOString())
-        .order("created_at", { ascending: false })
+        .gte("payment_date", startOfMonth.toISOString().split("T")[0])
+        .order("payment_date", { ascending: false })
         .limit(10),
 
       // Upcoming birthdays (next 30 days)
@@ -276,13 +284,17 @@ export async function GET() {
         name,
         value: value / 100,
       })),
-      recentTransactions: transactions.map((t) => ({
-        id: t.id,
-        date: t.created_at,
-        customer: t.customer?.name || "Unknown",
-        amount: t.amount / 100,
-        status: t.status,
-        type: t.description || "Payment",
+      recentTransactions: transactions.map((payment: any) => ({
+        id: payment.id,
+        date: payment.payment_date,
+        customer:
+          `${payment.clients?.first_name || ""} ${payment.clients?.last_name || ""}`.trim() ||
+          "Unknown",
+        amount: Number(payment.amount),
+        status: payment.payment_status,
+        type:
+          payment.description ||
+          `${payment.payment_provider?.charAt(0).toUpperCase()}${payment.payment_provider?.slice(1)} Payment`,
       })),
       upcomingBirthdays: getUpcomingBirthdays(birthdayData),
     });

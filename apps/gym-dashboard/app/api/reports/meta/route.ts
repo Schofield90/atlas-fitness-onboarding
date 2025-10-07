@@ -81,6 +81,13 @@ export async function GET(request: NextRequest) {
         description: "Financial reporting and payment analytics",
         reports: [
           {
+            name: "Client Lifetime Value (LTV)",
+            description:
+              "Leaderboard of clients by total revenue with average LTV metrics",
+            href: "/reports/lifetime-value",
+            enabled: true,
+          },
+          {
             name: "Invoices",
             description: "Complete invoice reporting and payment tracking",
             href: "/reports/invoices",

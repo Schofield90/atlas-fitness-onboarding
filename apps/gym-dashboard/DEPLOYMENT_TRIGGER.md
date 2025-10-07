@@ -118,3 +118,5 @@ Make CSV upload the primary GoCardless import method (hide API import) - Tue 7 O
 Add background processing for large CSV imports (>100 rows) - Tue 7 Oct 2025 13:45:00 BST
 Fix job progress endpoint auth (use requireAuth instead of getUser) - Tue 7 Oct 2025 14:00:00 BST
 Fix dashboard and reports to query 'payments' table instead of empty tables - Tue 7 Oct 2025 14:30:00 BST
+Add Client LTV report with leaderboard and average metrics - Tue 7 Oct 2025 15:00:00 BST
+Fix dashboard metrics to pull from database (active members, classes, revenue, growth) - Tue 7 Oct 2025 15:15:00 BST

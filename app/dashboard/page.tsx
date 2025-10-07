@@ -17,12 +17,25 @@ import {
   Shield,
 } from "lucide-react";
 
+interface DashboardStats {
+  activeMembers: number;
+  classesToday: number;
+  thisMonthRevenue: number;
+  growthPercentage: number;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [stats, setStats] = useState<DashboardStats>({
+    activeMembers: 0,
+    classesToday: 0,
+    thisMonthRevenue: 0,
+    growthPercentage: 0,
+  });
 
   useEffect(() => {
     // Check if user is logged in and get organization
@@ -124,6 +137,34 @@ export default function DashboardPage() {
     checkAuth();
   }, []);
 
+  useEffect(() => {
+    if (organizationId) {
+      fetchDashboardStats();
+    }
+  }, [organizationId]);
+
+  const fetchDashboardStats = async () => {
+    try {
+      const response = await fetch("/api/dashboard/stats");
+      const result = await response.json();
+
+      if (result.success) {
+        setStats(result.stats);
+      }
+    } catch (error) {
+      console.error("Error fetching dashboard stats:", error);
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-GB", {
+      style: "currency",
+      currency: "GBP",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
   if (loading) {
     return (
       <DashboardLayout userData={null}>
@@ -167,9 +208,11 @@ export default function DashboardPage() {
           <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
             <div className="flex items-center justify-between mb-2">
               <Users className="h-8 w-8 text-blue-500" />
-              <span className="text-xs text-gray-400">THIS MONTH</span>
+              <span className="text-xs text-gray-400">ACTIVE</span>
             </div>
-            <p className="text-2xl font-bold">127</p>
+            <p className="text-2xl font-bold">
+              {stats.activeMembers.toLocaleString()}
+            </p>
             <p className="text-sm text-gray-400">Active Members</p>
           </div>
 
@@ -178,7 +221,9 @@ export default function DashboardPage() {
               <Calendar className="h-8 w-8 text-green-500" />
               <span className="text-xs text-gray-400">TODAY</span>
             </div>
-            <p className="text-2xl font-bold">8</p>
+            <p className="text-2xl font-bold">
+              {stats.classesToday.toLocaleString()}
+            </p>
             <p className="text-sm text-gray-400">Classes Scheduled</p>
           </div>
 
@@ -187,16 +232,31 @@ export default function DashboardPage() {
               <DollarSign className="h-8 w-8 text-yellow-500" />
               <span className="text-xs text-gray-400">THIS MONTH</span>
             </div>
-            <p className="text-2xl font-bold">£5,432</p>
+            <p className="text-2xl font-bold">
+              {formatCurrency(stats.thisMonthRevenue)}
+            </p>
             <p className="text-sm text-gray-400">Revenue</p>
           </div>
 
           <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
             <div className="flex items-center justify-between mb-2">
-              <TrendingUp className="h-8 w-8 text-purple-500" />
+              <TrendingUp
+                className={`h-8 w-8 ${
+                  stats.growthPercentage >= 0
+                    ? "text-green-500"
+                    : "text-red-500"
+                }`}
+              />
               <span className="text-xs text-gray-400">GROWTH</span>
             </div>
-            <p className="text-2xl font-bold">+12%</p>
+            <p
+              className={`text-2xl font-bold ${
+                stats.growthPercentage >= 0 ? "text-green-500" : "text-red-500"
+              }`}
+            >
+              {stats.growthPercentage >= 0 ? "+" : ""}
+              {stats.growthPercentage.toFixed(1)}%
+            </p>
             <p className="text-sm text-gray-400">vs Last Month</p>
           </div>
         </div>
