@@ -293,8 +293,21 @@ export default function CustomerProfilePage() {
 
       // Calculate and update lifetime value
       const totalValue = allPayments.reduce((sum, payment) => {
-        const amount = payment.amount_pennies || payment.amount || 0;
-        return sum + amount;
+        // payment_transactions uses amount_pennies (in pennies)
+        // payments table uses amount (in pounds - need to convert to pennies)
+        // transactions uses amount (in pennies)
+        let amountInPennies = 0;
+
+        if (payment.source === "payment_transactions") {
+          amountInPennies = payment.amount_pennies || 0;
+        } else if (payment.source === "payments") {
+          // Convert pounds to pennies
+          amountInPennies = Math.round((payment.amount || 0) * 100);
+        } else if (payment.source === "transactions") {
+          amountInPennies = payment.amount || 0;
+        }
+
+        return sum + amountInPennies;
       }, 0);
 
       console.log(
