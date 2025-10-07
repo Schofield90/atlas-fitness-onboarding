@@ -36,6 +36,9 @@ function ImportPageContent() {
   const [updateOnly, setUpdateOnly] = useState(true); // Default to update-only mode (Stripe only)
   const [backfilling, setBackfilling] = useState(false);
   const [backfillStats, setBackfillStats] = useState<any>(null);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvImporting, setCsvImporting] = useState(false);
+  const [csvStats, setCsvStats] = useState<any>(null);
 
   const handleImport = async () => {
     setImporting(true);
@@ -338,6 +341,57 @@ function ImportPageContent() {
     }
   };
 
+  const handleCsvImport = async () => {
+    if (!csvFile) {
+      setError("Please select a CSV file");
+      return;
+    }
+
+    setCsvImporting(true);
+    setError("");
+    setCsvStats(null);
+
+    try {
+      // Get organization ID from API
+      const orgResponse = await fetch("/api/auth/get-organization");
+      const orgData = await orgResponse.json();
+
+      if (!orgData.data?.organizationId) {
+        throw new Error("No organization found");
+      }
+
+      const organizationId = orgData.data.organizationId;
+
+      // Upload CSV file
+      const formData = new FormData();
+      formData.append("file", csvFile);
+      formData.append("organizationId", organizationId);
+
+      const response = await fetch("/api/gym/gocardless/import-csv", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "CSV import failed");
+      }
+
+      const data = await response.json();
+      setCsvStats(data.stats);
+
+      // Show errors if any
+      if (data.errors && data.errors.length > 0) {
+        console.error("CSV import errors:", data.errors);
+      }
+    } catch (err: any) {
+      console.error("CSV import error:", err);
+      setError(err.message || "CSV import failed");
+    } finally {
+      setCsvImporting(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <Link
@@ -542,6 +596,102 @@ function ImportPageContent() {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* CSV Import for GoCardless */}
+            {isGoCardless && (
+              <div className="bg-gray-800 rounded-lg p-6 border-2 border-blue-600/30 mt-4">
+                <div className="flex items-start gap-3 mb-4">
+                  <Download className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-white mb-2">
+                      Import from CSV File (Recommended)
+                    </h4>
+                    <p className="text-sm text-gray-400">
+                      Upload a CSV export from your GoCardless dashboard. This
+                      includes full payment history with customer details.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Select CSV File
+                    </label>
+                    <input
+                      type="file"
+                      accept=".csv"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setCsvFile(file);
+                          setError("");
+                        }
+                      }}
+                      disabled={csvImporting || importing}
+                      className="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 file:cursor-pointer disabled:opacity-50"
+                    />
+                    {csvFile && (
+                      <p className="mt-2 text-sm text-gray-400">
+                        Selected: {csvFile.name} (
+                        {(csvFile.size / 1024).toFixed(2)} KB)
+                      </p>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={handleCsvImport}
+                    disabled={!csvFile || csvImporting || importing}
+                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {csvImporting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Importing CSV...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4" />
+                        Import from CSV
+                      </>
+                    )}
+                  </button>
+
+                  {/* CSV Import results */}
+                  {csvStats && (
+                    <div className="mt-4 p-4 bg-green-900/20 border border-green-600/30 rounded-lg">
+                      <p className="text-green-400 font-medium mb-2">
+                        ✓ CSV Import Complete!
+                      </p>
+                      <div className="text-sm text-gray-300 space-y-1">
+                        <p>• {csvStats.imported || 0} new payments imported</p>
+                        <p>
+                          • {csvStats.updated || 0} existing payments updated
+                        </p>
+                        <p>
+                          • {csvStats.clientsCreated || 0} new clients created
+                        </p>
+                        <p className="text-gray-400">
+                          • {csvStats.skipped || 0} payments skipped
+                        </p>
+                        {csvStats.errors > 0 && (
+                          <p className="text-yellow-400">
+                            • {csvStats.errors} errors (check console for
+                            details)
+                          </p>
+                        )}
+                      </div>
+                      <Link
+                        href="/members"
+                        className="inline-block mt-3 text-sm text-blue-400 hover:text-blue-300"
+                      >
+                        View imported members →
+                      </Link>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
