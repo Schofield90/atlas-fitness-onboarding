@@ -104,5 +104,7 @@ Payment query fix - Mon 6 Oct 2025 14:48:59 BST
 # Change default member filter to active - Mon 6 Oct 2025 18:40:00 BST
 
 # FIX PAYMENTS NOT SHOWING: Add payments API endpoint to bypass RLS - Mon 6 Oct 2025 19:00:00 BST
-Fix lifetime value calculation - Tue  7 Oct 2025 10:12:44 BST
-Fix GoCardless status filter - Tue  7 Oct 2025 10:57:44 BST
+
+Fix lifetime value calculation - Tue 7 Oct 2025 10:12:44 BST
+Fix GoCardless status filter - Tue 7 Oct 2025 10:57:44 BST
+Fix GoCardless subscription import: Auto-create archived clients - Tue 7 Oct 2025 11:15:00 BST

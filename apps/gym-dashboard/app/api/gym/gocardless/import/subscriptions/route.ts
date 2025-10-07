@@ -73,19 +73,15 @@ export async function POST(request: NextRequest) {
     );
     console.log("GoCardless subscription statuses:", statusCounts);
 
-    // Filter active subscriptions (include all non-cancelled statuses)
-    const activeSubscriptions = subscriptions.filter(
-      (sub) =>
-        sub.status === "active" ||
-        sub.status === "pending_customer_approval" ||
-        sub.status === "paused",
-    );
+    // Import ALL subscriptions (including cancelled/finished) for payment history
+    // We need historical subscriptions to link payments to members
+    const allSubscriptions = subscriptions;
 
     // PHASE 1: Auto-create membership plans from unique subscription amounts
     const processedAmounts = new Set<string>();
     let plansCreated = 0;
 
-    for (const subscription of activeSubscriptions) {
+    for (const subscription of allSubscriptions) {
       const amount = parseInt(subscription.amount);
       const interval = subscription.interval_unit; // monthly, yearly, weekly
       const planKey = `${amount}-${interval}`;
@@ -158,8 +154,9 @@ export async function POST(request: NextRequest) {
     // PHASE 2: Auto-assign customers to membership plans
     let membershipsCreated = 0;
     let clientsUpdated = 0;
+    let clientsCreated = 0;
 
-    for (const subscription of activeSubscriptions) {
+    for (const subscription of allSubscriptions) {
       // Fetch customer details
       if (!subscription.links?.customer) continue;
 
@@ -198,9 +195,51 @@ export async function POST(request: NextRequest) {
 
       if (!client) {
         console.log(
-          `⚠️ Client not found for GoCardless customer ${customer.email} (${customer.given_name} ${customer.family_name}), skipping subscription ${subscription.id}`,
+          `⚠️ Client not found for GoCardless customer ${customer.email} (${customer.given_name} ${customer.family_name}), auto-creating archived client...`,
         );
-        continue;
+
+        // Auto-create archived client for historical data (same as payments import)
+        const nameParts =
+          customer.given_name && customer.family_name
+            ? [customer.given_name, customer.family_name]
+            : (customer.company_name || "Unknown Customer").split(" ");
+
+        const firstName = nameParts[0] || "Unknown";
+        const lastName = nameParts.slice(1).join(" ") || "";
+
+        const { data: newClient, error: clientError } = await supabaseAdmin
+          .from("clients")
+          .insert({
+            org_id: organizationId,
+            first_name: firstName,
+            last_name: lastName,
+            email: customer.email || null,
+            phone: customer.phone_number || null,
+            status: "archived",
+            source: "gocardless_import",
+            subscription_status: subscription.status,
+            metadata: {
+              gocardless_customer_id: customer.id,
+              gocardless_subscription_id: subscription.id,
+            },
+            created_at: new Date(customer.created_at).toISOString(),
+          })
+          .select("id, email, first_name, last_name, metadata")
+          .single();
+
+        if (!clientError && newClient) {
+          client = newClient;
+          clientsCreated++;
+          console.log(
+            `✅ Auto-created archived client ${newClient.id} for GoCardless customer ${customer.id}`,
+          );
+        } else {
+          console.error(
+            `❌ Failed to create client for ${customer.email}:`,
+            clientError,
+          );
+          continue;
+        }
       }
 
       console.log(
@@ -246,15 +285,31 @@ export async function POST(request: NextRequest) {
         .maybeSingle();
 
       if (existingMembership) {
-        // Update existing membership
+        // Update existing membership with proper status mapping
+        const membershipStatus =
+          subscription.status === "active"
+            ? "active"
+            : subscription.status === "cancelled" ||
+                subscription.status === "finished"
+              ? "cancelled"
+              : subscription.status === "paused"
+                ? "paused"
+                : "pending";
+
         await supabaseAdmin
           .from("customer_memberships")
           .update({
-            status: subscription.status === "active" ? "active" : "pending",
+            status: membershipStatus,
             payment_provider: "gocardless",
             provider_subscription_id: subscription.id,
             next_billing_date:
               subscription.upcoming_payments?.[0]?.charge_date || null,
+            end_date:
+              subscription.status === "cancelled" ||
+              subscription.status === "finished"
+                ? subscription.end_date ||
+                  new Date().toISOString().split("T")[0]
+                : null,
             updated_at: new Date().toISOString(),
           })
           .eq("id", existingMembership.id);
@@ -263,19 +318,36 @@ export async function POST(request: NextRequest) {
           `Updated membership for client ${client.id} to plan ${membershipPlan.id}`,
         );
       } else {
-        // Create new customer_membership
+        // Create new customer_membership with proper status mapping
+        const membershipStatus =
+          subscription.status === "active"
+            ? "active"
+            : subscription.status === "cancelled" ||
+                subscription.status === "finished"
+              ? "cancelled"
+              : subscription.status === "paused"
+                ? "paused"
+                : "pending";
+
         const { error: membershipError } = await supabaseAdmin
           .from("customer_memberships")
           .insert({
             client_id: client.id,
             organization_id: organizationId,
             membership_plan_id: membershipPlan.id,
-            status: subscription.status === "active" ? "active" : "pending",
-            payment_status: "current",
+            status: membershipStatus,
+            payment_status:
+              subscription.status === "active" ? "current" : "past_due",
             payment_provider: "gocardless",
             provider_subscription_id: subscription.id,
             start_date:
               subscription.start_date || new Date().toISOString().split("T")[0],
+            end_date:
+              subscription.status === "cancelled" ||
+              subscription.status === "finished"
+                ? subscription.end_date ||
+                  new Date().toISOString().split("T")[0]
+                : null,
             next_billing_date:
               subscription.upcoming_payments?.[0]?.charge_date || null,
           });
@@ -293,59 +365,46 @@ export async function POST(request: NextRequest) {
 
     console.log("=== GoCardless Import Summary ===");
     console.log(`Total subscriptions fetched: ${subscriptions.length}`);
-    console.log(`Active subscriptions: ${activeSubscriptions.length}`);
+    console.log(`All subscriptions imported: ${allSubscriptions.length}`);
     console.log(`Plans created: ${plansCreated}`);
     console.log(`Memberships created: ${membershipsCreated}`);
+    console.log(`Clients created: ${clientsCreated}`);
     console.log(`Clients updated: ${clientsUpdated}`);
-    console.log(
-      `Skipped subscriptions: ${subscriptions.length - activeSubscriptions.length}`,
-    );
 
-    // Get sample of excluded subscriptions for debugging
-    const excludedSubscriptions = subscriptions
-      .filter(
-        (sub) =>
-          sub.status !== "active" &&
-          sub.status !== "pending_customer_approval" &&
-          sub.status !== "paused",
-      )
-      .slice(0, 3)
-      .map((sub) => ({
-        id: sub.id,
-        status: sub.status,
-        name: sub.name,
-        amount: sub.amount,
-        created_at: sub.created_at,
-      }));
+    // Count active vs cancelled
+    const activeCount = subscriptions.filter(
+      (sub) =>
+        sub.status === "active" ||
+        sub.status === "pending_customer_approval" ||
+        sub.status === "paused",
+    ).length;
+    const cancelledCount = subscriptions.filter(
+      (sub) => sub.status === "cancelled" || sub.status === "finished",
+    ).length;
 
-    // Provide helpful message based on what we found
-    let message = `Imported ${activeSubscriptions.length} subscriptions, created ${plansCreated} new plans, and assigned ${membershipsCreated} memberships`;
-
-    if (activeSubscriptions.length === 0 && subscriptions.length > 0) {
-      message = `No active subscriptions found. Found ${subscriptions.length} total subscriptions but all are ${Object.keys(statusCounts).join("/")}. Only active/pending/paused subscriptions are imported.`;
-    }
+    // Provide helpful message
+    const message = `Imported ${subscriptions.length} subscriptions (${activeCount} active, ${cancelledCount} cancelled/finished), created ${plansCreated} new plans, auto-created ${clientsCreated} archived clients, and assigned ${membershipsCreated} memberships`;
 
     return NextResponse.json({
       success: true,
       stats: {
         total: subscriptions.length,
-        active: activeSubscriptions.length,
+        active: activeCount,
+        cancelled: cancelledCount,
         plansCreated,
         membershipsCreated,
+        clientsCreated,
         clientsUpdated,
       },
       message,
       debug: {
         statusBreakdown: statusCounts,
         totalFetched: subscriptions.length,
-        filteredToActive: activeSubscriptions.length,
-        skipped: subscriptions.length - activeSubscriptions.length,
-        acceptedStatuses: ["active", "pending_customer_approval", "paused"],
-        excludedSample: excludedSubscriptions,
+        totalImported: allSubscriptions.length,
+        activeCount,
+        cancelledCount,
+        note: "Now importing ALL subscriptions (including cancelled/finished) for payment history",
       },
-      warning: activeSubscriptions.length === 0 && subscriptions.length > 0
-        ? "All subscriptions are cancelled or finished. No active memberships to import."
-        : null,
     });
   } catch (error: any) {
     console.error("Error importing GoCardless subscriptions:", error);

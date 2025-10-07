@@ -154,6 +154,7 @@ export async function POST(request: NextRequest) {
     // PHASE 2: Auto-assign customers to membership plans
     let membershipsCreated = 0;
     let clientsUpdated = 0;
+    let clientsCreated = 0;
 
     for (const subscription of allSubscriptions) {
       // Fetch customer details
@@ -194,9 +195,51 @@ export async function POST(request: NextRequest) {
 
       if (!client) {
         console.log(
-          `⚠️ Client not found for GoCardless customer ${customer.email} (${customer.given_name} ${customer.family_name}), skipping subscription ${subscription.id}`,
+          `⚠️ Client not found for GoCardless customer ${customer.email} (${customer.given_name} ${customer.family_name}), auto-creating archived client...`,
         );
-        continue;
+
+        // Auto-create archived client for historical data (same as payments import)
+        const nameParts =
+          customer.given_name && customer.family_name
+            ? [customer.given_name, customer.family_name]
+            : (customer.company_name || "Unknown Customer").split(" ");
+
+        const firstName = nameParts[0] || "Unknown";
+        const lastName = nameParts.slice(1).join(" ") || "";
+
+        const { data: newClient, error: clientError } = await supabaseAdmin
+          .from("clients")
+          .insert({
+            org_id: organizationId,
+            first_name: firstName,
+            last_name: lastName,
+            email: customer.email || null,
+            phone: customer.phone_number || null,
+            status: "archived",
+            source: "gocardless_import",
+            subscription_status: subscription.status,
+            metadata: {
+              gocardless_customer_id: customer.id,
+              gocardless_subscription_id: subscription.id,
+            },
+            created_at: new Date(customer.created_at).toISOString(),
+          })
+          .select("id, email, first_name, last_name, metadata")
+          .single();
+
+        if (!clientError && newClient) {
+          client = newClient;
+          clientsCreated++;
+          console.log(
+            `✅ Auto-created archived client ${newClient.id} for GoCardless customer ${customer.id}`,
+          );
+        } else {
+          console.error(
+            `❌ Failed to create client for ${customer.email}:`,
+            clientError,
+          );
+          continue;
+        }
       }
 
       console.log(
@@ -325,6 +368,7 @@ export async function POST(request: NextRequest) {
     console.log(`All subscriptions imported: ${allSubscriptions.length}`);
     console.log(`Plans created: ${plansCreated}`);
     console.log(`Memberships created: ${membershipsCreated}`);
+    console.log(`Clients created: ${clientsCreated}`);
     console.log(`Clients updated: ${clientsUpdated}`);
 
     // Count active vs cancelled
@@ -339,7 +383,7 @@ export async function POST(request: NextRequest) {
     ).length;
 
     // Provide helpful message
-    const message = `Imported ${subscriptions.length} subscriptions (${activeCount} active, ${cancelledCount} cancelled/finished), created ${plansCreated} new plans, and assigned ${membershipsCreated} memberships`;
+    const message = `Imported ${subscriptions.length} subscriptions (${activeCount} active, ${cancelledCount} cancelled/finished), created ${plansCreated} new plans, auto-created ${clientsCreated} archived clients, and assigned ${membershipsCreated} memberships`;
 
     return NextResponse.json({
       success: true,
@@ -349,6 +393,7 @@ export async function POST(request: NextRequest) {
         cancelled: cancelledCount,
         plansCreated,
         membershipsCreated,
+        clientsCreated,
         clientsUpdated,
       },
       message,
