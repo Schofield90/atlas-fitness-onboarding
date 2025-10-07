@@ -181,6 +181,9 @@ export default function CustomerProfilePage() {
         case "activity":
           await loadActivity();
           break;
+        case "payments":
+          await loadPayments();
+          break;
         // Other tabs handle their own data loading
       }
     } catch (error) {
