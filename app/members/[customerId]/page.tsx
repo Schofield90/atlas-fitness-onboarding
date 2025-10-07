@@ -220,39 +220,18 @@ export default function CustomerProfilePage() {
     try {
       console.log("Loading payments for customerId:", customerId);
 
-      // Load from payment_transactions table
-      const { data: paymentTransactions, error: ptError } = await supabase
-        .from("payment_transactions")
-        .select("*")
-        .eq("customer_id", customerId)
-        .order("created_at", { ascending: false });
+      // Load payments from API endpoint (bypasses RLS)
+      const response = await fetch(`/api/customers/${customerId}/payments`);
 
-      if (ptError) {
-        console.error("Payment transactions query error:", ptError);
+      if (!response.ok) {
+        throw new Error("Failed to load payments from API");
       }
 
-      // Also load from payments table (for imported payments)
-      const { data: importedPayments, error: ipError } = await supabase
-        .from("payments")
-        .select("*")
-        .eq("client_id", customerId)
-        .order("payment_date", { ascending: false });
+      const result = await response.json();
 
-      if (ipError) {
-        console.error("Imported payments query error:", ipError);
-      }
-
-      // Also check transactions table
-      const { data: transactions, error: tError } = await supabase
-        .from("transactions")
-        .select("*")
-        .eq("client_id", customerId)
-        .eq("type", "payment")
-        .order("created_at", { ascending: false });
-
-      if (tError) {
-        console.error("Transactions query error:", tError);
-      }
+      const paymentTransactions = result.payments.payment_transactions || [];
+      const importedPayments = result.payments.imported_payments || [];
+      const transactions = result.payments.transactions || [];
 
       // Combine all payments
       const allPayments = [];
