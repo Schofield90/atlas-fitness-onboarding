@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { migrationService } from "@/app/lib/services/migration-service";
 import { createAdminClient } from "@/app/lib/supabase/admin";
+import { requireAuth } from "@/app/lib/api/auth-check";
 
 // Force dynamic rendering to handle cookies and request properties
 export const dynamic = "force-dynamic";
@@ -16,38 +17,20 @@ export async function GET(
   try {
     const jobId = params.id;
 
-    // Get current user
-    const supabase = createAdminClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 },
-      );
-    }
-
-    // Get user's organization from user_organizations table
-    const { data: userOrg } = await supabase
-      .from("user_organizations")
-      .select("organization_id")
-      .eq("user_id", user.id)
-      .single();
-
-    if (!userOrg?.organization_id) {
-      return NextResponse.json(
-        { success: false, error: "User organization not found" },
-        { status: 401 },
-      );
-    }
+    // Authenticate user
+    const user = await requireAuth();
+    const userId = user.id;
+    const organizationId = user.organizationId;
 
     // Verify job exists and user has access
-    const supabaseAdmin = createAdminClient();
+    const supabaseAdmin = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    );
+
     const { data: job, error: jobError } = await supabaseAdmin
       .from("migration_jobs")
-      .select("organization_id")
+      .select("*")
       .eq("id", jobId)
       .single();
 
@@ -58,7 +41,7 @@ export async function GET(
       );
     }
 
-    if (job.organization_id !== userOrg.organization_id) {
+    if (job.organization_id !== organizationId) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
         { status: 401 },
