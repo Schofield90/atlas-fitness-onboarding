@@ -734,6 +734,133 @@ const { payments } = await response.json();
 
 ---
 
+## GoCardless Subscription Import Fix (October 7, 2025) - COMPLETED ✅
+
+### 🔴 CRITICAL BUG: Zero GoCardless Data Importing
+
+**Issue Discovered:**
+
+- 134 GoCardless subscriptions fetched from API but 0 imported to database
+- Import returned success message but no data persisted
+- Console logs showed: "totalFetched: 134, totalImported: 134" but database had 0 records
+- Unlike Stripe import, GoCardless import wasn't creating any data
+
+**Root Cause Analysis:**
+
+1. **Subscription Import Logic** (`/app/api/gym/gocardless/import/subscriptions/route.ts:195-200`):
+   - Import tried to match GoCardless customers to existing clients by email
+   - When no match found, code logged warning and **skipped subscription** (line 195-200)
+   - No client = no subscription imported
+
+2. **Inconsistent with Payments Import**:
+   - Payments import (`/app/api/gym/gocardless/import/payments/route.ts:147-192`) auto-creates archived clients
+   - Subscriptions import did NOT auto-create clients
+   - Created data mismatch: payments could import but subscriptions couldn't
+
+3. **Result**: 134 cancelled/finished subscriptions existed in GoCardless but couldn't import because:
+   - Historical customers don't exist as clients in Atlas Fitness yet
+   - No auto-creation = no import = no payment history
+
+**Diagnosis Steps:**
+
+1. Checked database: 0 GoCardless payments, 0 GoCardless subscriptions
+2. Checked Rich Young's profile: Only Stripe payments (14) + 1 test payment
+3. Compared subscription import vs payment import code
+4. Found payments import auto-creates archived clients (lines 147-192)
+5. Found subscriptions import just skips (lines 195-200)
+
+**Solution Implemented:**
+
+- ✅ Updated subscription import to match payment import behavior
+- ✅ Auto-creates archived clients for historical GoCardless customers
+- ✅ Sets `status='archived'` and `source='gocardless_import'`
+- ✅ Added `clientsCreated` metric to import stats
+- ✅ Now both subscriptions AND payments can import successfully
+
+**Files Changed:**
+
+- `app/api/gym/gocardless/import/subscriptions/route.ts` - Added auto-create logic
+- `apps/gym-dashboard/app/api/gym/gocardless/import/subscriptions/route.ts` - Mirror fix
+- `apps/gym-dashboard/DEPLOYMENT_TRIGGER.md` - Trigger deployment
+
+**Code Changes:**
+
+```typescript
+// ❌ OLD: Skip subscription if no client found (line 195-200)
+if (!client) {
+  console.log(`⚠️ Client not found, skipping subscription`);
+  continue;
+}
+
+// ✅ NEW: Auto-create archived client (line 195-241)
+if (!client) {
+  console.log(`⚠️ Client not found, auto-creating archived client...`);
+
+  const { data: newClient, error: clientError } = await supabaseAdmin
+    .from("clients")
+    .insert({
+      org_id: organizationId,
+      first_name: firstName,
+      last_name: lastName,
+      email: customer.email || null,
+      status: "archived",
+      source: "gocardless_import",
+      subscription_status: subscription.status,
+      metadata: {
+        gocardless_customer_id: customer.id,
+        gocardless_subscription_id: subscription.id,
+      },
+    })
+    .select("id, email, first_name, last_name, metadata")
+    .single();
+
+  if (!clientError && newClient) {
+    client = newClient;
+    clientsCreated++;
+  }
+}
+```
+
+**Expected Import Results (After Deployment):**
+
+1. Navigate to Settings → Integrations → Payments → Import
+2. Select "GoCardless" provider
+3. Click "Import Data"
+4. Should see:
+   - ✅ 134 subscriptions imported
+   - ✅ ~134 archived clients auto-created
+   - ✅ Membership plans created for each subscription amount
+   - ✅ Customer memberships assigned
+5. Then payment import will work because clients now exist
+6. Members page will show all imported GoCardless members (status: archived)
+7. Payment history will link to these archived members
+
+**Database Status After Import:**
+
+```sql
+-- Check import results
+SELECT 'Clients' as type, COUNT(*) as count FROM clients WHERE source = 'gocardless_import'
+UNION ALL
+SELECT 'Subscriptions', COUNT(*) FROM customer_memberships WHERE payment_provider = 'gocardless'
+UNION ALL
+SELECT 'Payments', COUNT(*) FROM payments WHERE payment_provider = 'gocardless';
+```
+
+**Key Learnings:**
+
+- Always check for consistency between related import endpoints
+- Auto-create archived clients for historical data imports
+- Test import with actual API data, not just mock data
+- Database queries are essential for verifying "successful" imports
+
+**Deployment:**
+
+- Committed: October 7, 2025 11:15 BST
+- Status: Deployed to production
+- Next Step: User should re-run GoCardless import to populate data
+
+---
+
 _Last Updated: October 6, 2025 19:15 BST_
 _Review Type: Automated Design & Accessibility_
 _Diff Policy: Minimal changes only_
