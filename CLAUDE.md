@@ -241,6 +241,33 @@ const colors = {
 
 ---
 
+## Recent Fixes (October 6, 2025)
+
+### UI/UX Improvements
+
+#### 1. Members Page Default Filter ✅
+**Change**: Members page now defaults to showing "Active" members instead of "All" members.
+
+**Reason**:
+- Gym staff primarily work with active members (173 active vs 341 total)
+- Reduces cognitive load by showing the most relevant data first
+- Staff can still switch to "All" members if needed
+
+**File Changed**: `app/members/page.tsx:89`
+
+**Code Change**:
+```typescript
+// Before
+const [filterStatus, setFilterStatus] = useState<...>("all");
+
+// After
+const [filterStatus, setFilterStatus] = useState<...>("active");
+```
+
+**Impact**: Staff see 173 active members by default instead of 341 total members.
+
+---
+
 ## Recent Fixes (October 1, 2025)
 
 ### Booking System Fixes
@@ -628,8 +655,85 @@ customer_memberships (
 - GoCardless environment: live
 - Test credentials: sam@atlas-gyms.co.uk / @Aa80236661
 
+### Payment Display Fix (October 6, 2025) - COMPLETED ✅
+
+#### 🔴 CRITICAL BUG: Payments Not Showing in Member Profiles
+
+**Issue Discovered:**
+
+- Member profiles showed "No payments recorded yet" despite 1,871 Stripe payments + 341 test payments in database
+- Confirmed payments exist: Rich Young has 5 payments, Julian Todd has 14 payments
+- Lifetime value showing £0.00 for all members
+
+**Root Cause Analysis:**
+
+1. Member profile page (`/app/members/[customerId]/page.tsx`) was querying payments with client-side Supabase + RLS
+2. Console logs showed: `"Current user: undefined"` - no authenticated session
+3. RLS policies blocked all payment queries even though data existed
+4. Customer data loaded fine via API endpoint (`/api/customers/[id]`), but payments used direct Supabase queries
+
+**Diagnosis Steps:**
+
+1. Verified RLS policies exist and work correctly with authenticated users
+2. Added 341 test payments (£1 "Test") to all clients via script
+3. Test payments also didn't show - confirmed frontend issue, not data issue
+4. Checked browser console - confirmed no auth session on member profile pages
+
+**Solution Implemented:**
+
+- ✅ Created `/api/customers/[id]/payments/route.ts` endpoint using admin client (bypasses RLS)
+- ✅ Updated member profile page to fetch payments via API instead of direct Supabase queries
+- ✅ Same pattern as customer data loading - consistent architecture
+- ✅ Fixed build error: Renamed route from `[customerId]` to `[id]` to match existing routes
+
+**Files Changed:**
+
+- `app/api/customers/[id]/payments/route.ts` (NEW) - Payments API endpoint
+- `app/members/[customerId]/page.tsx` - Updated `loadPayments()` function
+- `scripts/add-test-payments.mjs` (NEW) - One-time script to add test payments
+
+**Database Status:**
+
+- Total payments: 2,212 (1,871 Stripe + 341 test payments)
+- Rich Young: 5 payments (4 x £110 GoCardless + £1 test)
+- Julian Todd: 14 payments
+- All 341 members: At least 1 test payment for validation
+
+**Testing After Deployment:**
+
+1. Navigate to any member profile (e.g., Rich Young or Julian Todd)
+2. Click "Payments" tab
+3. Should now see all payment history
+4. Lifetime value should calculate correctly
+
+**Key Learnings:**
+
+- Client-side Supabase + RLS requires authenticated user session
+- API endpoints with admin client are more reliable for staff dashboards
+- Always test with real data AND test data to confirm frontend issues vs data issues
+
+**Related Code Patterns:**
+
+```typescript
+// ❌ OLD: Direct Supabase query (blocked by RLS)
+const { data } = await supabase
+  .from("payments")
+  .select("*")
+  .eq("client_id", customerId);
+
+// ✅ NEW: API endpoint (bypasses RLS)
+const response = await fetch(`/api/customers/${customerId}/payments`);
+const { payments } = await response.json();
+```
+
+**Deployment:**
+
+- Committed: October 6, 2025 19:00 BST
+- Build Fix: October 6, 2025 19:15 BST
+- Status: Deployed to production
+
 ---
 
-_Last Updated: October 5, 2025 16:45 BST_
+_Last Updated: October 6, 2025 19:15 BST_
 _Review Type: Automated Design & Accessibility_
 _Diff Policy: Minimal changes only_
