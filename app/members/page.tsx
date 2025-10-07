@@ -86,7 +86,7 @@ function MembersContent() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<
     "all" | "active" | "inactive" | "pending"
-  >("all");
+  >("active");
   const [planFilter, setPlanFilter] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(25);
