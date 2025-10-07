@@ -225,8 +225,7 @@ export async function POST(request: NextRequest) {
           organization_id: organizationId,
           client_id: clientId,
           amount,
-          currency: payment.currency.toUpperCase(),
-          status: "completed", // Internal status
+          // Note: currency column doesn't exist in table, stored in metadata instead
           payment_status: payment.status, // GoCardless payment status (confirmed, paid_out, etc.)
           payment_method: "direct_debit",
           payment_provider: "gocardless",
