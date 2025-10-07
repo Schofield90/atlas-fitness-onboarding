@@ -39,6 +39,9 @@ function ImportPageContent() {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvImporting, setCsvImporting] = useState(false);
   const [csvStats, setCsvStats] = useState<any>(null);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [notificationEmail, setNotificationEmail] = useState("");
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
 
   const handleImport = async () => {
     setImporting(true);
@@ -382,8 +385,15 @@ function ImportPageContent() {
 
       // Check if using background processing
       if (data.backgroundProcessing && data.jobId) {
-        // Poll for job status
-        await pollJobStatus(data.jobId);
+        // Store job ID
+        setCurrentJobId(data.jobId);
+
+        // Show email notification modal
+        setShowEmailModal(true);
+
+        // Wait for user to submit email or skip
+        // The modal will call handleEmailSubmit or handleSkipEmail
+        return;
       } else {
         // Direct processing - immediate results
         setCsvStats(data.stats);
@@ -454,6 +464,49 @@ function ImportPageContent() {
     };
 
     await poll();
+  };
+
+  const handleEmailSubmit = async () => {
+    if (!currentJobId) return;
+
+    // Validate email
+    if (!notificationEmail || !notificationEmail.includes("@")) {
+      setError("Please enter a valid email address");
+      return;
+    }
+
+    // Save email to job
+    try {
+      await fetch(`/api/migration/jobs/${currentJobId}/email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: notificationEmail }),
+      });
+
+      // Close modal
+      setShowEmailModal(false);
+
+      // Show success message
+      alert(
+        `Import running in background. We'll send an email to ${notificationEmail} when it's done. Feel free to navigate away!`,
+      );
+
+      // Navigate away or stay - user can choose
+      setCsvImporting(false);
+    } catch (err: any) {
+      console.error("Failed to save email:", err);
+      setError("Failed to save email preference");
+    }
+  };
+
+  const handleSkipEmail = () => {
+    if (!currentJobId) return;
+
+    // Close modal and start polling
+    setShowEmailModal(false);
+
+    // Poll for job status (stay on page)
+    pollJobStatus(currentJobId);
   };
 
   return (
@@ -903,6 +956,62 @@ function ImportPageContent() {
           </div>
         )}
       </div>
+
+      {/* Email Notification Modal */}
+      {showEmailModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-bold text-white mb-4">
+              Large Import Detected
+            </h3>
+
+            <div className="space-y-4">
+              <p className="text-gray-300">
+                This import will run in the background and may take several
+                minutes. You can safely navigate away from this page.
+              </p>
+
+              <div className="bg-blue-900/20 border border-blue-600/30 rounded-lg p-3">
+                <p className="text-sm text-blue-300">
+                  💡 <strong>Tip:</strong> Get notified when your import
+                  completes! Enter your email below.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Email Address (optional)
+                </label>
+                <input
+                  type="email"
+                  value={notificationEmail}
+                  onChange={(e) => setNotificationEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {error && <p className="text-sm text-red-400">{error}</p>}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleEmailSubmit}
+                  disabled={!notificationEmail}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Get Notified
+                </button>
+                <button
+                  onClick={handleSkipEmail}
+                  className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600"
+                >
+                  Stay on Page
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

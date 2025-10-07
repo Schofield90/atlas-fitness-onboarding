@@ -74,6 +74,9 @@ function ImportPageContent() {
     polling: boolean;
   } | null>(null);
   const [uploadHistory, setUploadHistory] = useState<UploadHistory[]>([]);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [notificationEmail, setNotificationEmail] = useState("");
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
 
   const CHUNK_SIZE_LIMIT = 200; // Reduced to 200 rows per chunk for better processing
 
@@ -128,6 +131,88 @@ function ImportPageContent() {
   const addToHistory = (item: UploadHistory) => {
     const newHistory = [item, ...uploadHistory].slice(0, 10); // Keep last 10
     saveHistory(newHistory);
+  };
+
+  // Email notification handlers
+  const handleEmailSubmit = async () => {
+    if (!currentJobId) return;
+
+    if (!notificationEmail || !notificationEmail.includes("@")) {
+      setMessage("Please enter a valid email address");
+      setSuccess(false);
+      return;
+    }
+
+    try {
+      // Save email to migration job
+      await fetch(`/api/migration/jobs/${currentJobId}/email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: notificationEmail }),
+      });
+
+      setShowEmailModal(false);
+      setMessage(
+        `Import running in background. We'll send an email to ${notificationEmail} when it's done.`,
+      );
+      setSuccess(true);
+
+      // Add to history
+      addToHistory({
+        id: currentJobId,
+        fileName: file?.name || "Unknown",
+        type: fileType,
+        status: "processing",
+        timestamp: new Date().toISOString(),
+        jobId: currentJobId,
+      });
+
+      // Start polling for progress
+      setBackgroundJob({
+        jobId: currentJobId,
+        progress: null,
+        polling: true,
+      });
+
+      // Clear states
+      setNotificationEmail("");
+      setCurrentJobId(null);
+    } catch (error) {
+      console.error("Error saving email:", error);
+      setMessage("Failed to save notification email");
+      setSuccess(false);
+    }
+  };
+
+  const handleSkipEmail = () => {
+    if (!currentJobId) return;
+
+    setShowEmailModal(false);
+    setMessage(
+      "Import running in background. Stay on this page to monitor progress.",
+    );
+    setSuccess(true);
+
+    // Add to history
+    addToHistory({
+      id: currentJobId,
+      fileName: file?.name || "Unknown",
+      type: fileType,
+      status: "processing",
+      timestamp: new Date().toISOString(),
+      jobId: currentJobId,
+    });
+
+    // Start polling for progress
+    setBackgroundJob({
+      jobId: currentJobId,
+      progress: null,
+      polling: true,
+    });
+
+    // Clear states
+    setNotificationEmail("");
+    setCurrentJobId(null);
   };
 
   // Update history item
@@ -560,26 +645,11 @@ function ImportPageContent() {
 
         if (response.ok) {
           if (result.backgroundProcessing) {
-            // Start background job tracking
-            setBackgroundJob({
-              jobId: result.jobId,
-              progress: null,
-              polling: true,
-            });
-            setMessage(
-              "Import started in background. This may take several minutes...",
-            );
-
-            // Add to history
-            addToHistory({
-              id: result.jobId,
-              fileName: file.name,
-              type: fileType,
-              status: "processing",
-              timestamp: new Date().toISOString(),
-              jobId: result.jobId,
-            });
-            // Don't set importing to false here - let the polling handle it
+            // Show email modal for notification
+            setCurrentJobId(result.jobId);
+            setShowEmailModal(true);
+            setImporting(false);
+            return;
           } else {
             // Direct processing completed
             setSuccess(true);
@@ -1166,6 +1236,43 @@ function ImportPageContent() {
             </div>
           </div>
         </div>
+
+        {/* Email Notification Modal */}
+        {showEmailModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+              <h3 className="text-xl font-bold text-white mb-4">
+                Large Import Detected
+              </h3>
+              <p className="text-gray-300 mb-4">
+                This import will run in the background and may take several
+                minutes. Enter your email to get notified when it's complete, or
+                stay on this page to monitor progress.
+              </p>
+              <input
+                type="email"
+                value={notificationEmail}
+                onChange={(e) => setNotificationEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={handleEmailSubmit}
+                  className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Get Notified
+                </button>
+                <button
+                  onClick={handleSkipEmail}
+                  className="flex-1 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-500 transition-colors"
+                >
+                  Stay on Page
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

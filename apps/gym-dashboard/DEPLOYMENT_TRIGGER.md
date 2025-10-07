@@ -121,3 +121,7 @@ Fix dashboard and reports to query 'payments' table instead of empty tables - Tu
 Add Client LTV report with leaderboard and average metrics - Tue 7 Oct 2025 15:00:00 BST
 Fix dashboard metrics to pull from database (active members, classes, revenue, growth) - Tue 7 Oct 2025 15:15:00 BST
 Fix Supabase query limits - add .limit(100000) to get all payment records - Tue 7 Oct 2025 15:30:00 BST
+Fix sidebar scrolling - make sidebar fixed with independent scroll - Tue 7 Oct 2025 15:45:00 BST
+Add email notifications for large CSV imports - Tue 7 Oct 2025 16:00:00 BST
+Contacts page auto-populates from clients with Current/Ex-Client badges - Tue 7 Oct 2025 16:15:00 BST
+Fix GoTeamUp import: Add email notifications for background processing - Tue 7 Oct 2025 16:30:00 BST

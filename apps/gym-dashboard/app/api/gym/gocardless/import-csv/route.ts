@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 import { migrationService } from "@/app/lib/services/migration-service";
 import { requireAuth } from "@/app/lib/api/auth-check";
+import { sendEmail } from "@/app/lib/email";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minutes for large CSV files
@@ -98,22 +99,17 @@ export async function POST(request: NextRequest) {
       );
 
       // Start background processing (don't await)
-      processCSVImportInBackground(
-        jobId,
-        organizationId,
-        lines,
-        {
-          idIndex,
-          emailIndex,
-          firstNameIndex,
-          lastNameIndex,
-          amountIndex,
-          statusIndex,
-          chargeDateIndex,
-          descriptionIndex,
-          customerIdIndex,
-        },
-      ).catch((error) => {
+      processCSVImportInBackground(jobId, organizationId, lines, {
+        idIndex,
+        emailIndex,
+        firstNameIndex,
+        lastNameIndex,
+        amountIndex,
+        statusIndex,
+        chargeDateIndex,
+        descriptionIndex,
+        customerIdIndex,
+      }).catch((error) => {
         console.error("Background CSV import failed:", error);
       });
 
@@ -550,7 +546,7 @@ async function processCSVImportInBackground(
     }
 
     // Mark job as completed
-    await supabaseAdmin
+    const { data: jobData } = await supabaseAdmin
       .from("migration_jobs")
       .update({
         status: "completed",
@@ -567,11 +563,57 @@ async function processCSVImportInBackground(
           errors: errors.slice(0, 10),
         },
       })
-      .eq("id", jobId);
+      .eq("id", jobId)
+      .select("result_summary, name")
+      .single();
 
     console.log(
       `✅ Background import completed: ${imported} imported, ${updated} updated, ${clientsCreated} clients created, ${skipped} skipped, ${errors.length} errors`,
     );
+
+    // Send email notification if email was provided
+    const notificationEmail = jobData?.result_summary?.notification_email;
+    if (notificationEmail) {
+      try {
+        await sendEmail({
+          to: notificationEmail,
+          subject: "✅ GoCardless Import Complete",
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #10B981;">Import Successful!</h2>
+              <p>Your GoCardless payment import has completed successfully.</p>
+
+              <div style="background: #F3F4F6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="margin-top: 0;">Import Summary</h3>
+                <ul style="list-style: none; padding: 0;">
+                  <li>✅ <strong>${imported}</strong> payments imported</li>
+                  <li>🔄 <strong>${updated}</strong> payments updated</li>
+                  <li>👤 <strong>${clientsCreated}</strong> clients auto-created</li>
+                  <li>⏭️ <strong>${skipped}</strong> records skipped</li>
+                  ${errors.length > 0 ? `<li>⚠️ <strong>${errors.length}</strong> errors</li>` : ""}
+                </ul>
+              </div>
+
+              <p>
+                <a href="https://login.gymleadhub.co.uk/members"
+                   style="background: #3B82F6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+                  View Members
+                </a>
+              </p>
+
+              <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">
+                This is an automated notification from GymLeadHub
+              </p>
+            </div>
+          `,
+          organizationId,
+        });
+
+        console.log(`📧 Success email sent to ${notificationEmail}`);
+      } catch (emailError) {
+        console.error("Failed to send completion email:", emailError);
+      }
+    }
   } catch (error: any) {
     console.error("Background CSV import failed:", error);
 
@@ -581,7 +623,7 @@ async function processCSVImportInBackground(
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
     );
 
-    await supabaseAdmin
+    const { data: jobData } = await supabaseAdmin
       .from("migration_jobs")
       .update({
         status: "failed",
@@ -590,6 +632,54 @@ async function processCSVImportInBackground(
           error: error.message,
         },
       })
-      .eq("id", jobId);
+      .eq("id", jobId)
+      .select("result_summary, organization_id")
+      .single();
+
+    // Send failure email notification if email was provided
+    const notificationEmail = jobData?.result_summary?.notification_email;
+    if (notificationEmail && jobData?.organization_id) {
+      try {
+        await sendEmail({
+          to: notificationEmail,
+          subject: "❌ GoCardless Import Failed",
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #EF4444;">Import Failed</h2>
+              <p>Unfortunately, your GoCardless payment import encountered an error and could not complete.</p>
+
+              <div style="background: #FEE2E2; border-left: 4px solid #EF4444; padding: 20px; margin: 20px 0;">
+                <h3 style="margin-top: 0; color: #991B1B;">Error Details</h3>
+                <p style="color: #7F1D1D; font-family: monospace;">${error.message}</p>
+              </div>
+
+              <p>Please try the following:</p>
+              <ul>
+                <li>Check that your CSV file is in the correct format</li>
+                <li>Verify all required columns are present</li>
+                <li>Try importing a smaller file to test</li>
+                <li>Contact support if the issue persists</li>
+              </ul>
+
+              <p>
+                <a href="https://login.gymleadhub.co.uk/settings/integrations/payments/import?provider=gocardless"
+                   style="background: #3B82F6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+                  Try Again
+                </a>
+              </p>
+
+              <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">
+                This is an automated notification from GymLeadHub
+              </p>
+            </div>
+          `,
+          organizationId: jobData.organization_id,
+        });
+
+        console.log(`📧 Failure email sent to ${notificationEmail}`);
+      } catch (emailError) {
+        console.error("Failed to send failure email:", emailError);
+      }
+    }
   }
 }

@@ -248,8 +248,8 @@ async function processGoTeamUpImportInBackground(
       throw new Error("Invalid import type");
     }
 
-    // Update final job status
-    await supabase
+    // Update final job status and get notification email
+    const { data: jobData } = await supabase
       .from("migration_jobs")
       .update({
         status: result.success ? "completed" : "failed",
@@ -260,7 +260,9 @@ async function processGoTeamUpImportInBackground(
         progress_percentage: 100,
         error_message: result.success ? null : result.message,
       })
-      .eq("id", jobId);
+      .eq("id", jobId)
+      .select("result_summary, name")
+      .single();
 
     // Log any errors
     if (result.errors && result.errors.length > 0) {
@@ -275,18 +277,71 @@ async function processGoTeamUpImportInBackground(
     }
 
     console.log(`Background import completed for job ${jobId}:`, result.stats);
+
+    // Send email notification if provided
+    const notificationEmail = jobData?.result_summary?.notification_email;
+    if (notificationEmail && result.success) {
+      const { sendEmail } = await import("@/app/lib/services/email-service");
+      await sendEmail({
+        to: notificationEmail,
+        subject: "✅ GoTeamUp Import Complete",
+        html: `
+          <h2>Import Successful!</h2>
+          <p>Your GoTeamUp ${importType} import has completed successfully.</p>
+          <ul>
+            <li>✅ <strong>${result.stats.success}</strong> records imported</li>
+            <li>⏭️ <strong>${result.stats.skipped}</strong> records skipped (duplicates)</li>
+            <li>❌ <strong>${result.stats.errors}</strong> errors</li>
+          </ul>
+          <p><a href="https://login.gymleadhub.co.uk/${importType === "clients" ? "members" : importType}">View your ${importType}</a></p>
+        `,
+        organizationId,
+      });
+    } else if (notificationEmail && !result.success) {
+      const { sendEmail } = await import("@/app/lib/services/email-service");
+      await sendEmail({
+        to: notificationEmail,
+        subject: "❌ GoTeamUp Import Failed",
+        html: `
+          <h2>Import Failed</h2>
+          <p>Your GoTeamUp ${importType} import encountered an error.</p>
+          <p><strong>Error:</strong> ${result.message}</p>
+          <p>Please check your CSV file and try again, or contact support if the issue persists.</p>
+        `,
+        organizationId,
+      });
+    }
   } catch (error) {
     console.error(`Background import failed for job ${jobId}:`, error);
 
-    // Update job as failed
+    // Update job as failed and get notification email
     const supabase = createAdminClient();
-    await supabase
+    const { data: jobData } = await supabase
       .from("migration_jobs")
       .update({
         status: "failed",
         completed_at: new Date().toISOString(),
         error_message: error instanceof Error ? error.message : "Unknown error",
       })
-      .eq("id", jobId);
+      .eq("id", jobId)
+      .select("result_summary")
+      .single();
+
+    // Send failure email if notification email was provided
+    const notificationEmail = jobData?.result_summary?.notification_email;
+    if (notificationEmail) {
+      const { sendEmail } = await import("@/app/lib/services/email-service");
+      await sendEmail({
+        to: notificationEmail,
+        subject: "❌ GoTeamUp Import Failed",
+        html: `
+          <h2>Import Failed</h2>
+          <p>Your GoTeamUp import encountered a critical error and could not be completed.</p>
+          <p><strong>Error:</strong> ${error instanceof Error ? error.message : "Unknown error"}</p>
+          <p>Please check your CSV file and try again, or contact support if the issue persists.</p>
+        `,
+        organizationId,
+      });
+    }
   }
 }

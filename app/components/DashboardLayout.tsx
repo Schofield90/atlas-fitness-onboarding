@@ -986,10 +986,10 @@ export default function DashboardLayout({
       : 0;
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex">
+    <div className="min-h-screen bg-gray-900 text-white">
       {/* Sidebar */}
       <div
-        className={`${sidebarOpen ? "w-64" : "w-16"} bg-gray-800 transition-all duration-300 flex flex-col`}
+        className={`${sidebarOpen ? "w-64" : "w-16"} bg-gray-800 transition-all duration-300 flex flex-col fixed left-0 top-0 h-screen overflow-y-auto`}
       >
         {/* Logo and System Toggle */}
         <div className="p-4 border-b border-gray-700">
@@ -1156,7 +1156,9 @@ export default function DashboardLayout({
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col">
+      <div
+        className={`${sidebarOpen ? "ml-64" : "ml-16"} flex flex-col transition-all duration-300`}
+      >
         {/* Top bar with system indicator */}
         <div className="bg-gray-800 border-b border-gray-700 px-6 py-3">
           <div className="flex items-center justify-between">

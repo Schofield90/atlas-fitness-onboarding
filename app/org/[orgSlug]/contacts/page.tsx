@@ -35,6 +35,12 @@ interface Contact {
   phone: string;
   lead_id?: string;
   client_id?: string;
+  client_type?: string; // "Current Client" or "Ex-Client"
+  is_current_client?: boolean;
+  status?: string;
+  subscription_status?: string;
+  membership_plan?: string;
+  source?: string;
   sms_opt_in: boolean;
   whatsapp_opt_in: boolean;
   email_opt_in: boolean;
@@ -135,221 +141,27 @@ function ContactsContent() {
   const fetchContactsWithOrg = async (orgData: { organization_id: string }) => {
     console.log("Fetching contacts for organization:", orgData.organization_id);
 
-    // Fetch all contacts with their related lead information
-    // First try with organization_id filter
-    let { data: contactsData, error: contactsError } = await supabase
-      .from("contacts")
-      .select(
-        `
-        *,
-        lead:leads (
-          id,
-          name,
-          source,
-          status,
-          score
-        )
-      `,
-      )
-      .eq("organization_id", orgData.organization_id)
-      .order("created_at", { ascending: false });
+    try {
+      // Fetch contacts from API endpoint (auto-populated from clients table)
+      const response = await fetch("/api/contacts");
+      const result = await response.json();
 
-    console.log("Contacts query result:", { contactsData, contactsError });
-
-    // If we get a column error, try without organization_id filter
-    if (
-      contactsError?.message?.includes("column") ||
-      contactsError?.message?.includes("organization_id")
-    ) {
-      console.log(
-        "Contacts table missing organization_id column, fetching all contacts",
-      );
-      const result = await supabase
-        .from("contacts")
-        .select(
-          `
-          *,
-          lead:leads (
-            id,
-            name,
-            source,
-            status,
-            score
-          )
-        `,
-        )
-        .order("created_at", { ascending: false });
-
-      contactsData = result.data;
-      contactsError = result.error;
-      console.log("Fallback contacts query result:", {
-        contactsData,
-        contactsError,
-      });
-    }
-
-    if (contactsError) {
-      console.error("Error fetching contacts:", contactsError);
-    }
-
-    // Also fetch leads that might not have a contact record yet
-    let { data: leadsData, error: leadsError } = await supabase
-      .from("leads")
-      .select("*")
-      .eq("organization_id", orgData.organization_id)
-      .order("created_at", { ascending: false });
-
-    // If leads query fails due to missing organization_id, try without filter
-    if (
-      leadsError?.message?.includes("column") ||
-      leadsError?.message?.includes("organization_id")
-    ) {
-      console.log(
-        "Leads table missing organization_id column, fetching all leads",
-      );
-      const result = await supabase
-        .from("leads")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      leadsData = result.data;
-      leadsError = result.error;
-    }
-
-    console.log("Leads query result:", { leadsData, leadsError });
-
-    if (leadsError) {
-      console.error("Error fetching leads:", leadsError);
-    }
-
-    // Create a map to avoid duplicates
-    const contactsMap = new Map();
-    console.log("Processing contacts and leads...");
-
-    // Add all contacts first
-    if (contactsData) {
-      console.log(`Adding ${contactsData.length} direct contacts`);
-      contactsData.forEach((contact) => {
-        contactsMap.set(contact.id, contact);
-      });
-    } else {
-      console.log("No direct contacts found");
-    }
-
-    // Process leads and create contact records for those without one
-    if (leadsData) {
-      console.log(`Processing ${leadsData.length} leads`);
-      for (const lead of leadsData) {
-        // Check if this lead already has a contact record
-        const hasContact = contactsData?.some((c) => c.lead_id === lead.id);
-
-        if (!hasContact) {
-          console.log(`Creating contact from lead: ${lead.name || lead.email}`);
-          // Create a contact-like object from the lead
-          const contactFromLead: Contact = {
-            id: `lead-${lead.id}`, // Temporary ID to distinguish from real contacts
-            first_name: lead.name?.split(" ")[0] || "",
-            last_name: lead.name?.split(" ").slice(1).join(" ") || "",
-            email: lead.email || "",
-            phone: lead.phone || "",
-            lead_id: lead.id,
-            client_id: undefined,
-            sms_opt_in: true,
-            whatsapp_opt_in: true,
-            email_opt_in: true,
-            tags: lead.metadata?.tags || [],
-            metadata: lead.metadata,
-            created_at: lead.created_at,
-            updated_at: lead.updated_at,
-            lead: {
-              id: lead.id,
-              name: lead.name || "",
-              source: lead.source || "unknown",
-              status: lead.status || "new",
-              score: lead.score,
-            },
-          };
-
-          // Add Facebook-specific tags
-          if (lead.source === "facebook" || lead.metadata?.facebook_lead_id) {
-            if (!contactFromLead.tags) contactFromLead.tags = [];
-            if (!contactFromLead.tags.includes("facebook-lead")) {
-              contactFromLead.tags.push("facebook-lead");
-            }
-            if (
-              lead.metadata?.page_name &&
-              !contactFromLead.tags.includes(lead.metadata.page_name)
-            ) {
-              contactFromLead.tags.push(lead.metadata.page_name);
-            }
-            if (
-              lead.metadata?.form_name &&
-              !contactFromLead.tags.includes(lead.metadata.form_name)
-            ) {
-              contactFromLead.tags.push(lead.metadata.form_name);
-            }
-          }
-
-          contactsMap.set(contactFromLead.id, contactFromLead);
-        } else {
-          console.log(
-            `Skipping lead ${lead.name || lead.email} - already has contact record`,
-          );
-        }
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to fetch contacts");
       }
-    } else {
-      console.log("No leads found");
-    }
 
-    // Convert map to array
-    let allContacts = Array.from(contactsMap.values());
-
-    // Remove duplicates based on email OR normalized phone, keeping the most recent
-    const normalizePhone = (phone?: string) =>
-      (phone || "").replace(/[^0-9]/g, "");
-    const uniqueContacts = allContacts.reduce((acc: Contact[], contact) => {
-      const email = (contact.email || "").toLowerCase();
-      const phoneDigits = normalizePhone(contact.phone);
-
-      const existingIndex = acc.findIndex((c) => {
-        const cEmail = (c.email || "").toLowerCase();
-        const cPhone = normalizePhone(c.phone);
-        const emailMatch = email && cEmail && cEmail === email;
-        const phoneMatch =
-          phoneDigits &&
-          cPhone &&
-          (cPhone.endsWith(phoneDigits) || phoneDigits.endsWith(cPhone));
-        return emailMatch || phoneMatch;
-      });
-
-      if (existingIndex === -1) {
-        acc.push(contact);
+      if (result.success && result.contacts) {
+        console.log(`Loaded ${result.contacts.length} contacts from API`);
+        setContacts(result.contacts);
       } else {
-        const existing = acc[existingIndex];
-        const existingDate = new Date(
-          existing.updated_at || existing.created_at,
-        );
-        const currentDate = new Date(contact.updated_at || contact.created_at);
-        if (currentDate > existingDate) {
-          acc[existingIndex] = contact;
-        }
+        console.error("Invalid API response:", result);
+        setContacts([]);
       }
-
-      return acc;
-    }, []);
-
-    // Sort by created date (most recent first)
-    uniqueContacts.sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-    );
-
-    console.log(
-      `Final contact count: ${uniqueContacts.length} (deduplicated from ${allContacts.length})`,
-    );
-    console.log("Sample contacts:", uniqueContacts.slice(0, 3));
-
-    setContacts(uniqueContacts);
+    } catch (error) {
+      console.error("Error fetching contacts from API:", error);
+      toast.showToast("Failed to load contacts", "error");
+      setContacts([]);
+    }
   };
 
   const filterContacts = () => {
@@ -375,22 +187,20 @@ function ContactsContent() {
     // Source filter
     if (sourceFilter !== "all") {
       filtered = filtered.filter((contact) => {
+        const contactSource = contact.source || contact.lead?.source;
         if (sourceFilter === "facebook") {
           return (
             contact.tags?.includes("facebook-lead") ||
-            contact.lead?.source === "facebook"
+            contactSource === "facebook"
           );
         }
         if (sourceFilter === "website") {
-          return (
-            contact.lead?.source === "website" ||
-            contact.lead?.source === "form"
-          );
+          return contactSource === "website" || contactSource === "form";
         }
         if (sourceFilter === "manual") {
           return (
-            contact.lead?.source === "manual" ||
-            (!contact.lead?.source && !contact.tags?.includes("facebook-lead"))
+            contactSource === "manual" ||
+            (!contactSource && !contact.tags?.includes("facebook-lead"))
           );
         }
         return true;
@@ -898,6 +708,9 @@ function ContactsContent() {
                   Communication
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  Type
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Source
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
@@ -933,7 +746,7 @@ function ContactsContent() {
               {loading ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={9}
                     className="px-6 py-4 text-center text-gray-400"
                   >
                     Loading contacts...
@@ -942,7 +755,7 @@ function ContactsContent() {
               ) : paginatedContacts.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={9}
                     className="px-6 py-4 text-center text-gray-400"
                   >
                     No contacts found
@@ -992,8 +805,22 @@ function ContactsContent() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
+                      {contact.client_type && (
+                        <span
+                          className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            contact.is_current_client
+                              ? "bg-green-500/20 text-green-400"
+                              : "bg-gray-600/50 text-gray-300"
+                          }`}
+                        >
+                          {contact.client_type}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-700 text-gray-300">
-                        {contact.lead?.source ||
+                        {contact.source ||
+                          contact.lead?.source ||
                           contact.metadata?.source ||
                           "Direct"}
                       </span>
