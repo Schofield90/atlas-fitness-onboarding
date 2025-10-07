@@ -22,6 +22,7 @@ export async function GET() {
     );
 
     // Get all payments with client data
+    // NOTE: Supabase has a default limit, so we need to set a high limit
     const { data: payments, error } = await supabaseAdmin
       .from("payments")
       .select(
@@ -39,7 +40,8 @@ export async function GET() {
       `,
       )
       .eq("organization_id", organizationId)
-      .order("payment_date", { ascending: false });
+      .order("payment_date", { ascending: false })
+      .limit(100000); // Set very high limit to get all payments
 
     if (error) {
       console.error("Error fetching payment stats:", error);
@@ -56,10 +58,7 @@ export async function GET() {
     let weekTotal = 0;
     let monthTotal = 0;
     let totalRevenue = 0;
-    const clientPayments: Record<
-      string,
-      { name: string; total: number }
-    > = {};
+    const clientPayments: Record<string, { name: string; total: number }> = {};
 
     payments?.forEach((payment) => {
       const amount = Number(payment.amount) || 0;
