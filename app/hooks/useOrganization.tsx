@@ -8,7 +8,6 @@ import {
   useCallback,
   ReactNode,
 } from "react";
-import { createSessionClient } from "@/app/lib/supabase/client-with-session";
 import { useRouter } from "next/navigation";
 import { User } from "@supabase/supabase-js";
 
@@ -38,134 +37,122 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchOrganization = useCallback(async (retryCount = 0) => {
-    // Only run on client side
-    if (typeof window === "undefined") {
-      setIsLoading(false);
-      return;
-    }
-
-    // Skip organization fetching on login/auth pages to prevent 406 errors
-    if (typeof window !== "undefined") {
-      const currentPath = window.location.pathname;
-      const isAuthPage = [
-        "/owner-login",
-        "/signin",
-        "/signup",
-        "/login",
-        "/auth",
-      ].some((path) => currentPath.startsWith(path));
-
-      if (isAuthPage) {
+  const fetchOrganization = useCallback(
+    async (retryCount = 0) => {
+      // Only run on client side
+      if (typeof window === "undefined") {
         setIsLoading(false);
         return;
       }
-    }
 
-    try {
-      setError(null);
+      // Skip organization fetching on login/auth pages to prevent 406 errors
+      if (typeof window !== "undefined") {
+        const currentPath = window.location.pathname;
+        const isAuthPage = [
+          "/owner-login",
+          "/signin",
+          "/signup",
+          "/login",
+          "/auth",
+        ].some((path) => currentPath.startsWith(path));
 
-      // Use the API endpoint that bypasses RLS issues
-      const response = await fetch("/api/auth/get-organization", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include", // Include cookies for authentication
-        cache: "no-cache", // Prevent stale auth responses
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          // Retry 401 errors once in case of temporary auth issues
-          if (retryCount < 1) {
-            console.log("Auth failed, retrying in 1 second...");
-            setTimeout(() => fetchOrganization(retryCount + 1), 1000);
-            return;
-          }
-          console.log("Not authenticated after retry - clearing organization state");
-          setUser(null);
-          setOrganizationId(null);
-          setOrganization(null);
+        if (isAuthPage) {
           setIsLoading(false);
           return;
         }
-        throw new Error(`API request failed: ${response.status}`);
       }
 
-      const result = await response.json();
+      try {
+        setError(null);
 
-      if (!result.success) {
-        throw new Error(result.error || "Failed to fetch organization");
-      }
+        // Use the API endpoint that bypasses RLS issues
+        const response = await fetch("/api/auth/get-organization", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include", // Include cookies for authentication
+          cache: "no-cache", // Prevent stale auth responses
+        });
 
-      const {
-        organizationId,
-        organization,
-        user: currentUser,
-        role,
-      } = result.data;
+        if (!response.ok) {
+          if (response.status === 401) {
+            // Retry 401 errors once in case of temporary auth issues
+            if (retryCount < 1) {
+              console.log("Auth failed, retrying in 1 second...");
+              setTimeout(() => fetchOrganization(retryCount + 1), 1000);
+              return;
+            }
+            console.log(
+              "Not authenticated after retry - clearing organization state",
+            );
+            setUser(null);
+            setOrganizationId(null);
+            setOrganization(null);
+            setIsLoading(false);
+            return;
+          }
+          throw new Error(`API request failed: ${response.status}`);
+        }
 
-      // Set user data
-      setUser(currentUser);
+        const result = await response.json();
 
-      // Set organization data
-      console.log(
-        "[useOrganization] API returned - orgId:",
-        organizationId,
-        "org:",
-        organization?.name,
-      );
-      if (organizationId && organization) {
-        console.log(
-          "[useOrganization] Setting organizationId:",
+        if (!result.success) {
+          throw new Error(result.error || "Failed to fetch organization");
+        }
+
+        const {
           organizationId,
+          organization,
+          user: currentUser,
+          role,
+        } = result.data;
+
+        // Set user data
+        setUser(currentUser);
+
+        // Set organization data
+        console.log(
+          "[useOrganization] API returned - orgId:",
+          organizationId,
+          "org:",
+          organization?.name,
         );
-        setOrganizationId(organizationId);
-        setOrganization(organization);
-      } else {
-        console.log("[useOrganization] No organization found, clearing state");
+        if (organizationId && organization) {
+          console.log(
+            "[useOrganization] Setting organizationId:",
+            organizationId,
+          );
+          setOrganizationId(organizationId);
+          setOrganization(organization);
+        } else {
+          console.log(
+            "[useOrganization] No organization found, clearing state",
+          );
+          setOrganizationId(null);
+          setOrganization(null);
+        }
+      } catch (err: any) {
+        console.error("Organization fetch error:", err);
+        setError(err.message);
+
+        // Clear state on error
+        setUser(null);
         setOrganizationId(null);
         setOrganization(null);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (err: any) {
-      console.error("Organization fetch error:", err);
-      setError(err.message);
-
-      // Clear state on error
-      setUser(null);
-      setOrganizationId(null);
-      setOrganization(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [router]);
+    },
+    [router],
+  );
 
   useEffect(() => {
     fetchOrganization();
 
-    // Only set up auth state listener on client side
-    if (typeof window === "undefined") return;
-
-    const supabase = createSessionClient();
-    if (!supabase) return;
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        fetchOrganization();
-      } else {
-        setUser(null);
-        setOrganizationId(null);
-        setOrganization(null);
-        setIsLoading(false);
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    // Note: Removed auth state listener because we now use httpOnly cookies
+    // Auth state is managed server-side, not in localStorage
+    // The /api/auth/get-organization endpoint checks auth on each request
   }, [fetchOrganization]);
 
   return (

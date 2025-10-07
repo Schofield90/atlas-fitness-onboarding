@@ -112,3 +112,4 @@ Fix GoCardless payments: Remove currency column - Tue 7 Oct 2025 11:30:00 BST
 Fix login loop: Add session cookie API endpoint - Tue 7 Oct 2025 11:50:00 BST
 Fix dashboard auth check: Use API endpoint instead of browser client - Tue 7 Oct 2025 12:00:00 BST
 Fix SHARED /app/dashboard auth check: Use API endpoint - Tue 7 Oct 2025 12:15:00 BST
+Fix useOrganization hook: Remove browser client auth listener - Tue 7 Oct 2025 12:30:00 BST
