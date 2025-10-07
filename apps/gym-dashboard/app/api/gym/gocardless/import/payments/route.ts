@@ -99,8 +99,10 @@ export async function POST(request: NextRequest) {
 
     // Import each payment
     for (const payment of payments) {
-      // Only import successful payments
-      if (payment.status !== "confirmed" && payment.status !== "paid_out") {
+      // Only import successful payments (confirmed, submitted, or paid_out)
+      // Skip: pending, cancelled, failed, charged_back, customer_approval_denied
+      const VALID_STATUSES = ["confirmed", "paid_out", "submitted"];
+      if (!VALID_STATUSES.includes(payment.status)) {
         console.log(
           `Skipping payment ${payment.id} with status: ${payment.status}`,
         );
@@ -220,11 +222,10 @@ export async function POST(request: NextRequest) {
         .insert({
           organization_id: organizationId,
           client_id: clientId,
-          user_id: clientId, // Also populate user_id for backwards compatibility
           amount,
           currency: payment.currency.toUpperCase(),
-          status: "succeeded", // Match Stripe's status field
-          payment_status: "completed",
+          status: "completed", // Internal status
+          payment_status: payment.status, // GoCardless payment status (confirmed, paid_out, etc.)
           payment_method: "direct_debit",
           payment_provider: "gocardless",
           provider_payment_id: payment.id,
