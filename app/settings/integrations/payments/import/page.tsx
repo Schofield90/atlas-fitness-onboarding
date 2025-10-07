@@ -350,6 +350,7 @@ function ImportPageContent() {
     setCsvImporting(true);
     setError("");
     setCsvStats(null);
+    setProgress(0);
 
     try {
       // Get organization ID from API
@@ -378,18 +379,81 @@ function ImportPageContent() {
       }
 
       const data = await response.json();
-      setCsvStats(data.stats);
 
-      // Show errors if any
-      if (data.errors && data.errors.length > 0) {
-        console.error("CSV import errors:", data.errors);
+      // Check if using background processing
+      if (data.backgroundProcessing && data.jobId) {
+        // Poll for job status
+        await pollJobStatus(data.jobId);
+      } else {
+        // Direct processing - immediate results
+        setCsvStats(data.stats);
+
+        // Show errors if any
+        if (data.errors && data.errors.length > 0) {
+          console.error("CSV import errors:", data.errors);
+        }
       }
     } catch (err: any) {
       console.error("CSV import error:", err);
       setError(err.message || "CSV import failed");
-    } finally {
       setCsvImporting(false);
     }
+  };
+
+  const pollJobStatus = async (jobId: string) => {
+    const pollInterval = 2000; // Poll every 2 seconds
+    let attempts = 0;
+    const maxAttempts = 300; // 10 minutes max
+
+    const poll = async (): Promise<void> => {
+      try {
+        const response = await fetch(`/api/migration/jobs/${jobId}/progress`);
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch job status");
+        }
+
+        const jobData = await response.json();
+
+        // Update progress
+        if (jobData.progress_percentage !== undefined) {
+          setProgress(jobData.progress_percentage);
+        }
+
+        // Check if job is complete
+        if (jobData.status === "completed") {
+          const summary = jobData.result_summary || {};
+          setCsvStats({
+            imported: summary.imported || 0,
+            updated: summary.updated || 0,
+            skipped: summary.skipped || 0,
+            clientsCreated: summary.clientsCreated || 0,
+            errors: summary.errors?.length || 0,
+            totalProcessed: jobData.total_records || 0,
+          });
+          setCsvImporting(false);
+          return;
+        }
+
+        if (jobData.status === "failed") {
+          throw new Error(jobData.result_summary?.error || "Import failed");
+        }
+
+        // Continue polling if still processing
+        if (jobData.status === "processing" && attempts < maxAttempts) {
+          attempts++;
+          setTimeout(() => poll(), pollInterval);
+        } else if (attempts >= maxAttempts) {
+          throw new Error("Import timed out");
+        }
+      } catch (err: any) {
+        console.error("Job polling error:", err);
+        setError(err.message || "Failed to track import progress");
+        setCsvImporting(false);
+      }
+    };
+
+    await poll();
   };
 
   return (

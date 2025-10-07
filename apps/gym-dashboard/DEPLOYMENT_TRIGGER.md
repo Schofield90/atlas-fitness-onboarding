@@ -115,3 +115,4 @@ Fix SHARED /app/dashboard auth check: Use API endpoint - Tue 7 Oct 2025 12:15:00
 Fix useOrganization hook: Remove browser client auth listener - Tue 7 Oct 2025 12:30:00 BST
 Add GoCardless CSV import feature for self-service payment imports - Tue 7 Oct 2025 13:00:00 BST
 Make CSV upload the primary GoCardless import method (hide API import) - Tue 7 Oct 2025 13:15:00 BST
+Add background processing for large CSV imports (>100 rows) - Tue 7 Oct 2025 13:45:00 BST
