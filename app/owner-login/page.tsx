@@ -49,9 +49,23 @@ function OwnerLoginForm() {
         sessionExpires: authData.session.expires_at,
       });
 
-      // Wait a moment for session to be set in cookies
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Set session cookies via API for middleware compatibility
+      console.log("🍪 Setting session cookies...");
+      const cookieResponse = await fetch("/api/auth/set-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          access_token: authData.session.access_token,
+          refresh_token: authData.session.refresh_token,
+        }),
+      });
 
+      if (!cookieResponse.ok) {
+        console.error("❌ Failed to set session cookies");
+        throw new Error("Failed to complete login");
+      }
+
+      console.log("✅ Session cookies set successfully");
       console.log("🚀 Redirecting to:", redirect);
 
       // Use router.push for proper Next.js navigation
