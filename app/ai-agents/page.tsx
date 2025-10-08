@@ -31,7 +31,7 @@ export default function AIAgentsRedirectPage() {
         }
 
         // Get organization from API
-        const orgResponse = await fetch("/api/auth/organization");
+        const orgResponse = await fetch("/api/auth/get-organization");
 
         if (!orgResponse.ok) {
           console.log(
@@ -41,11 +41,14 @@ export default function AIAgentsRedirectPage() {
           return;
         }
 
-        const { organization } = await orgResponse.json();
+        const { data } = await orgResponse.json();
 
-        if (organization?.slug) {
-          router.push(`/org/${organization.slug}/ai-agents`);
+        if (data?.organization?.slug) {
+          router.push(`/org/${data.organization.slug}/ai-agents`);
         } else {
+          console.log(
+            "AI Agents: No organization slug, redirecting to dashboard",
+          );
           router.push("/dashboard");
         }
       } catch (error) {
