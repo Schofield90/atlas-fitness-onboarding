@@ -57,20 +57,20 @@ export async function POST(request: NextRequest) {
 
     for (const classData of classes as ClassToImport[]) {
       try {
-        // 1. Get or create class type
-        let classTypeId = classTypeMap.get(classData.name);
+        // 1. Get or create program (class type)
+        let programId = classTypeMap.get(classData.name);
 
-        if (!classTypeId) {
-          // Check if class type exists
-          const { data: existingType } = await supabaseAdmin
-            .from("class_types")
+        if (!programId) {
+          // Check if program exists
+          const { data: existingProgram } = await supabaseAdmin
+            .from("programs")
             .select("id")
             .eq("organization_id", organizationId)
             .eq("name", classData.name)
             .maybeSingle();
 
-          if (existingType) {
-            classTypeId = existingType.id;
+          if (existingProgram) {
+            programId = existingProgram.id;
           } else {
             // Calculate duration from start/end times
             const [startHour, startMin] = classData.startTime
@@ -80,31 +80,38 @@ export async function POST(request: NextRequest) {
             const durationMinutes =
               endHour * 60 + endMin - (startHour * 60 + startMin);
 
-            // Create new class type
-            const { data: newType, error: typeError } = await supabaseAdmin
-              .from("class_types")
+            // Create new program
+            const { data: newProgram, error: programError } = await supabaseAdmin
+              .from("programs")
               .insert({
                 organization_id: organizationId,
                 name: classData.name,
                 description: `Imported from TeamUp schedule`,
                 duration_minutes: durationMinutes > 0 ? durationMinutes : 60,
+                max_participants: classData.capacity,
                 default_capacity: classData.capacity,
+                price_pennies: 0,
+                is_active: true,
+                metadata: {
+                  source: "teamup_pdf_import",
+                  imported_at: new Date().toISOString(),
+                },
               })
               .select("id")
               .single();
 
-            if (typeError || !newType) {
+            if (programError || !newProgram) {
               errors.push(
-                `Failed to create class type "${classData.name}": ${typeError?.message}`,
+                `Failed to create program "${classData.name}": ${programError?.message}`,
               );
               continue;
             }
 
-            classTypeId = newType.id;
+            programId = newProgram.id;
             classTypesCreated++;
           }
 
-          classTypeMap.set(classData.name, classTypeId);
+          classTypeMap.set(classData.name, programId);
         }
 
         // 2. Create class schedule
@@ -120,7 +127,7 @@ export async function POST(request: NextRequest) {
         const { data: existingSchedule } = await supabaseAdmin
           .from("class_schedules")
           .select("id")
-          .eq("class_type_id", classTypeId)
+          .eq("program_id", programId)
           .eq("day_of_week", dayOfWeekNum)
           .eq("start_time", classData.startTime)
           .eq("room_location", classData.location || "Unknown")
@@ -134,7 +141,7 @@ export async function POST(request: NextRequest) {
         const { error: scheduleError } = await supabaseAdmin
           .from("class_schedules")
           .insert({
-            class_type_id: classTypeId,
+            program_id: programId,
             day_of_week: dayOfWeekNum,
             start_time: classData.startTime,
             end_time: classData.endTime,
