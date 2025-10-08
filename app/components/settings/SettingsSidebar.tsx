@@ -80,6 +80,11 @@ const settingsNavigation = [
         icon: CreditCard,
       },
       {
+        name: "TeamUp Schedule Import",
+        href: "/settings/integrations/teamup",
+        icon: Upload,
+      },
+      {
         name: "Website & Forms",
         href: "/settings/integrations/website",
         icon: Globe,
