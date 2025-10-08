@@ -52,8 +52,10 @@ export async function POST(request: NextRequest) {
 
     let classTypesCreated = 0;
     let schedulesCreated = 0;
+    let sessionsCreated = 0;
     const errors: string[] = [];
     const classTypeMap = new Map<string, string>(); // name -> id
+    const importLog: string[] = []; // Track what's being imported
 
     for (const classData of classes as ClassToImport[]) {
       try {
@@ -160,6 +162,7 @@ export async function POST(request: NextRequest) {
         // Insert with minimal fields - production table has limited schema
         const insertData: any = {
           class_type_id: classTypeId,
+          day_of_week: dayOfWeekNum, // CRITICAL: Must include day_of_week
           start_time: startTimeFormatted,
           end_time: endTimeFormatted,
         };
@@ -178,18 +181,35 @@ export async function POST(request: NextRequest) {
           );
         } else {
           schedulesCreated++;
+          importLog.push(
+            `✓ Schedule: ${classData.name} - ${classData.dayOfWeek} ${startTimeFormatted}-${endTimeFormatted}`,
+          );
         }
 
         // ALSO generate class_sessions for the next 4 weeks so they appear in the calendar
         // Get the program we just created (or find existing one)
-        const { data: programData } = await supabaseAdmin
-          .from("programs")
-          .select("id")
-          .eq("organization_id", organizationId)
-          .eq("name", classData.name)
-          .single();
+        const { data: programData, error: programQueryError } =
+          await supabaseAdmin
+            .from("programs")
+            .select("id")
+            .eq("organization_id", organizationId)
+            .eq("name", classData.name)
+            .single();
+
+        if (programQueryError) {
+          console.log(
+            `Program query error for ${classData.name}:`,
+            programQueryError,
+          );
+          errors.push(
+            `No program found for "${classData.name}": ${programQueryError.message}`,
+          );
+        }
 
         if (programData) {
+          console.log(
+            `Generating sessions for ${classData.name}, program_id: ${programData.id}`,
+          );
           const weeksToGenerate = 4;
           const startDate = new Date();
           startDate.setHours(0, 0, 0, 0);
@@ -200,12 +220,25 @@ export async function POST(request: NextRequest) {
             currentDate.setDate(startDate.getDate() + week * 7);
 
             // Find the next occurrence of this day of the week
-            const daysUntilTarget = dayOfWeekNum - currentDate.getDay();
+            let daysUntilTarget = dayOfWeekNum - currentDate.getDay();
+            // If target day is in the past this week, schedule for next week
+            if (daysUntilTarget < 0) {
+              daysUntilTarget += 7;
+            }
             const targetDate = new Date(currentDate);
             targetDate.setDate(currentDate.getDate() + daysUntilTarget);
 
             // Skip if the date is in the past
-            if (targetDate < new Date()) continue;
+            if (targetDate < new Date()) {
+              console.log(
+                `Skipping past date: ${targetDate.toISOString()} for ${classData.name}`,
+              );
+              continue;
+            }
+
+            console.log(
+              `Attempting session: ${classData.name} on ${targetDate.toLocaleDateString()} at ${classData.startTime}`,
+            );
 
             // Set the time
             const [hours, minutes] = classData.startTime.split(":").map(Number);
@@ -242,6 +275,7 @@ export async function POST(request: NextRequest) {
               };
 
               // Add optional fields only if they exist in production schema
+              // (production schema may differ from migration files)
               if (classData.location) sessionData.location = classData.location;
 
               const { error: sessionError } = await supabaseAdmin
@@ -256,9 +290,25 @@ export async function POST(request: NextRequest) {
                   `Session creation error for ${classData.name}:`,
                   sessionError,
                 );
+              } else {
+                sessionsCreated++;
+                console.log(
+                  `✓ Session created: ${classData.name} on ${targetDate.toLocaleDateString()}`,
+                );
               }
+            } else {
+              console.log(
+                `Session already exists: ${classData.name} on ${targetDate.toLocaleDateString()}`,
+              );
             }
           }
+          console.log(
+            `Finished generating sessions for ${classData.name}. Total created so far: ${sessionsCreated}`,
+          );
+        } else {
+          console.log(
+            `No program found for ${classData.name}, skipping session generation`,
+          );
         }
       } catch (error: any) {
         errors.push(`Error processing "${classData.name}": ${error.message}`);
@@ -270,9 +320,14 @@ export async function POST(request: NextRequest) {
       data: {
         classTypesCreated,
         schedulesCreated,
+        sessionsCreated,
         totalProcessed: classes.length,
         errors: errors.length > 0 ? errors : undefined,
         importedAt: new Date().toISOString(),
+        debug: {
+          importLog: importLog.slice(0, 20), // First 20 entries for debugging
+          totalLogEntries: importLog.length,
+        },
       },
     });
   } catch (error: any) {
