@@ -142,3 +142,4 @@ Fix merge duplicates button: Exclude archived/inactive clients from duplicate de
 Fix Monthly Turnover 1000 payment limit: Add .limit(100000) to bypass Supabase default - Wed 8 Oct 2025 17:30:00 BST
 Force deployment - Wed 8 Oct 2025 18:00:00 BST - Clear Vercel function cache
 Fix TeamUp PDF import: Use HH:MM:SS format for PostgreSQL time columns - Wed 8 Oct 2025 18:15:00 BST
+Fix TeamUp PDF extraction: Increase max_tokens to 8192 for multi-page PDFs - Wed 8 Oct 2025 18:30:00 BST
