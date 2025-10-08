@@ -110,6 +110,13 @@ function MonthlyTurnoverPageContent() {
 
       const response = await fetch(
         `/api/reports/monthly-turnover?months=${timeRange}`,
+        {
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+          },
+        },
       );
       const result = await response.json();
 
