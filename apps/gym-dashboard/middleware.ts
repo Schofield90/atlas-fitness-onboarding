@@ -35,6 +35,7 @@ const publicRoutes = [
   '/api/login-otp',
   '/api/health-check',
   '/api/saas-admin', // Admin API handles its own auth
+  '/api/test', // Test endpoints (public for verification)
 ]
 
 // Client-only routes
