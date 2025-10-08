@@ -992,11 +992,109 @@ const activeClients = clients.filter((c: any) => {
 
 ---
 
+## Recent Fixes (October 8, 2025 - Evening) - DEPLOYED ✅
+
+### Bulk Membership Category Assignment
+
+**Issue Requested:**
+User created membership categories and wanted an easy way to select multiple memberships and bulk assign them to categories.
+
+**Implementation:**
+
+1. **Checkbox Selection System**
+   - Added checkbox to top-left of each membership card
+   - Selected state: Orange CheckSquare icon
+   - Unselected state: Gray Square icon
+   - Visual feedback: Selected cards get `ring-2 ring-orange-500` border
+
+2. **Select All Button**
+   - Button in top-right of filters section
+   - Selects all memberships matching current filters
+   - Respects provider and category filters
+
+3. **Floating Action Bar**
+   - Appears at bottom center when items selected
+   - Shows count of selected items
+   - Category dropdown to choose target category
+   - "Assign" button to perform bulk update
+   - "X" button to clear selection
+   - Fixed positioning with shadow for visibility
+
+4. **Bulk Update Logic**
+   - Uses parallel Promise.all() for speed
+   - Updates via existing PUT `/api/membership-plans` endpoint
+   - Only updates `category_id` field
+   - Success toast shows count of updated items
+   - Auto-refreshes membership list after update
+   - Clears selection after successful update
+
+**Files Changed:**
+- `app/memberships/page.tsx` - Added bulk selection UI and logic
+- `apps/gym-dashboard/DEPLOYMENT_TRIGGER.md` - Trigger deployment
+
+**State Management:**
+```typescript
+const [selectedPlans, setSelectedPlans] = useState<Set<string>>(new Set());
+const [bulkCategory, setBulkCategory] = useState<string>("");
+const [updatingBulk, setUpdatingBulk] = useState(false);
+```
+
+**Key Functions:**
+- `handleToggleSelection(planId)` - Toggle individual checkbox
+- `handleSelectAll()` - Select all filtered plans
+- `handleClearSelection()` - Clear all selections
+- `handleBulkCategoryAssign()` - Perform bulk update
+
+**Security Audit:** ✅ PASSED
+- Authentication: Uses existing `requireAuth()` middleware
+- Authorization: Organization ownership validated by PUT endpoint
+- Input Validation: Only updates `category_id` field
+- SQL Injection: Protected (Supabase parameterized queries)
+- XSS: No user input rendered directly (UUIDs only)
+- CSRF: Protected (SameSite cookies + session validation)
+
+**Commit:** `434bc21b`
+
+**User Journey:**
+1. User creates categories via "Manage Categories" button
+2. User selects memberships by clicking checkboxes
+3. OR user clicks "Select All Visible" to select filtered memberships
+4. Floating action bar appears at bottom
+5. User selects target category from dropdown
+6. User clicks "Assign" button
+7. System updates all selected memberships in parallel
+8. Success toast shows "Updated X memberships successfully"
+9. Selection clears automatically
+10. Page refreshes to show updated categories
+
+**Testing:**
+- Test URL: `https://login.gymleadhub.co.uk/memberships`
+- Select multiple memberships with checkboxes
+- Use "Select All Visible" with filters active
+- Assign to different categories
+- Verify category badges update immediately
+
+---
+
 ### Pending Tasks
 
-1. **AI Insights Button** (Monthly Turnover Report)
+1. **Monthly Turnover Enhancements** - IN PROGRESS
+   - User Request: "I want a setting in here to compare these brackets both to themselves and against others"
+   - Features Needed:
+     - Custom date range picker (not just 12/24/36 month presets)
+     - Comparison modes (year-over-year, month-over-month)
+     - Multi-line graph support for comparative analysis
+     - AI Insights enhancement (financial expert persona)
+     - Payment type breakdowns (upfront vs recurring)
+     - Membership tier analysis (front-end vs back-end)
+     - Industry benchmark comparisons
+   - Status: Ready to implement
+   - Location: `/app/reports/monthly-turnover/page.tsx`
+   - API: `/app/api/reports/monthly-turnover/analyze/route.ts`
+
+2. **AI Insights Button** (Monthly Turnover Report)
    - Issue: "when i pres the ai insights button it doesnt do anything"
-   - Status: NOT STARTED
+   - Status: BLOCKED BY ENHANCEMENTS
    - Location: `/reports/monthly-turnover` page
    - API endpoint exists: `/api/reports/monthly-turnover/analyze` (POST)
    - Needs investigation after date fixes are verified
@@ -1022,6 +1120,45 @@ const activeClients = clients.filter((c: any) => {
 
 ---
 
-_Last Updated: October 8, 2025 17:00 BST_
+_Last Updated: October 8, 2025 23:30 BST_
 _Review Type: Automated Design & Accessibility_
 _Diff Policy: Minimal changes only_
+
+## Session Handoff Notes (October 8, 2025 - Evening)
+
+### Completed This Session ✅
+1. **Bulk Membership Category Assignment** - DEPLOYED
+   - Checkbox selection on each membership card
+   - Select All button for filtered memberships
+   - Floating action bar for bulk category assignment
+   - Parallel API updates for performance
+   - Security audit passed
+   - Commit: `434bc21b`
+
+### Ready for Next Session 🚀
+**Monthly Turnover Enhancements** - All research complete, ready to implement:
+
+**Task Breakdown:**
+1. Add custom date range picker (HTML5 date inputs or date picker library)
+2. Add comparison mode selector dropdown (None, Year-over-Year, Month-over-Month, Custom)
+3. Modify `/api/reports/monthly-turnover` to accept custom date parameters
+4. Update graph configuration to support multiple Line series with different colors
+5. Fix AI Insights button onClick handler (verify it calls `handleAnalyze()`)
+6. Enhance AI prompt in `/api/reports/monthly-turnover/analyze/route.ts`:
+   - Financial expert persona for fitness industry
+   - Payment type breakdown (upfront vs recurring)
+   - Membership tier analysis (front-end vs back-end)
+   - Industry benchmark comparisons
+   - Deeper actionable insights
+
+**Current State:**
+- Monthly Turnover page: `/app/reports/monthly-turnover/page.tsx`
+- AI Analysis API: `/app/api/reports/monthly-turnover/analyze/route.ts`
+- Graph library: Recharts (LineChart component)
+- Current AI model: OpenAI GPT-4o-mini
+- User quote: "I want it to use the AI to act as a financial expert reviewing growth, seasonality and providing key insights into the overall finances of the business, it can compare upfront payments to recurring payments to front end memberships to back end memberships and use its knowledge of the industry average to provide deep analysis. it should be like an expert in their back pocket"
+
+**Files to Modify:**
+- `/app/reports/monthly-turnover/page.tsx` (Lines 99, 136-165, 494-525)
+- `/app/api/reports/monthly-turnover/analyze/route.ts` (Lines 61-98)
+- `/app/api/reports/monthly-turnover/route.ts` (Add custom date support)
