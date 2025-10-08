@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/app/lib/supabase/client";
 
 /**
  * AI Agents redirect page
@@ -11,36 +10,46 @@ import { createClient } from "@/app/lib/supabase/client";
 export default function AIAgentsRedirectPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
 
   useEffect(() => {
     const redirect = async () => {
       try {
-        // Get authenticated user
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        // Get authenticated user via API (uses httpOnly cookies)
+        const response = await fetch("/api/auth/user");
 
-        if (!user) {
-          router.push("/auth/login");
+        if (!response.ok) {
+          console.log("AI Agents: Not authenticated, redirecting to login");
+          window.location.href = "/owner-login";
           return;
         }
 
-        // Get user's organization
-        const { data: userData } = await supabase
-          .from("users")
-          .select("organization_id, organizations(slug)")
-          .eq("id", user.id)
-          .single();
+        const { user } = await response.json();
 
-        if (userData?.organizations?.slug) {
-          router.push(`/org/${userData.organizations.slug}/ai-agents`);
+        if (!user) {
+          window.location.href = "/owner-login";
+          return;
+        }
+
+        // Get organization from API
+        const orgResponse = await fetch("/api/auth/organization");
+
+        if (!orgResponse.ok) {
+          console.log(
+            "AI Agents: No organization found, redirecting to dashboard",
+          );
+          router.push("/dashboard");
+          return;
+        }
+
+        const { organization } = await orgResponse.json();
+
+        if (organization?.slug) {
+          router.push(`/org/${organization.slug}/ai-agents`);
         } else {
-          // Fallback to dashboard
           router.push("/dashboard");
         }
       } catch (error) {
-        console.error("Redirect error:", error);
+        console.error("AI Agents redirect error:", error);
         router.push("/dashboard");
       } finally {
         setLoading(false);
@@ -48,7 +57,7 @@ export default function AIAgentsRedirectPage() {
     };
 
     redirect();
-  }, [router, supabase]);
+  }, [router]);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-900">
