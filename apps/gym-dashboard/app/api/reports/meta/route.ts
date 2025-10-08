@@ -87,6 +87,13 @@ export async function GET(request: NextRequest) {
             href: "/reports/lifetime-value",
             enabled: true,
           },
+          {
+            name: "Monthly Turnover",
+            description:
+              "Monthly revenue analysis with AI-powered insights, seasonality detection, and category breakdown",
+            href: "/reports/monthly-turnover",
+            enabled: true,
+          },
         ],
       },
     ];

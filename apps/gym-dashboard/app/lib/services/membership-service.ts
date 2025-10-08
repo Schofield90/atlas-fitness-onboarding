@@ -15,6 +15,7 @@ export interface MembershipPlan {
   cancellation_fee_pennies?: number;
   cancellation_notice_days?: number;
   contract_length_months?: number;
+  category?: string | null;
   created_at: string;
   updated_at: string;
   organization_id: string;

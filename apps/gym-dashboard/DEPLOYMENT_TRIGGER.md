@@ -126,3 +126,4 @@ Add email notifications for large CSV imports - Tue 7 Oct 2025 16:00:00 BST
 Contacts page auto-populates from clients with Current/Ex-Client badges - Tue 7 Oct 2025 16:15:00 BST
 Fix GoTeamUp import: Add email notifications for background processing - Tue 7 Oct 2025 16:30:00 BST
 Remove all revenue reports except Client Lifetime Value (LTV) - Wed 8 Oct 2025 10:00:00 BST
+Add Monthly Turnover report with AI insights, graphs, and category breakdown - Wed 8 Oct 2025 11:00:00 BST
