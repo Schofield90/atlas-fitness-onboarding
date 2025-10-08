@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/app/lib/api/auth-check";
-import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
 export interface ExtractedClass {
@@ -80,35 +80,45 @@ Format your response as JSON with this structure:
   }
 }`;
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const message = await anthropic.messages.create({
+      model: "claude-3-5-sonnet-20241022",
+      max_tokens: 4096,
       messages: [
-        {
-          role: "system",
-          content:
-            "You are a data extraction specialist. Extract class schedule data from TeamUp PDFs with high accuracy. Return valid JSON only.",
-        },
         {
           role: "user",
           content: [
             {
-              type: "text",
-              text: prompt,
+              type: "document",
+              source: {
+                type: "base64",
+                media_type: "application/pdf",
+                data: base64,
+              },
             },
             {
-              type: "image_url",
-              image_url: {
-                url: `data:application/pdf;base64,${base64}`,
-              },
+              type: "text",
+              text: prompt,
             },
           ],
         },
       ],
-      response_format: { type: "json_object" },
       temperature: 0.3,
     });
 
-    const result = JSON.parse(completion.choices[0].message.content || "{}");
+    // Extract text content from Claude's response
+    const textContent = message.content.find((block) => block.type === "text");
+    if (!textContent || textContent.type !== "text") {
+      throw new Error("No text response from Claude");
+    }
+
+    // Parse JSON from response (Claude may wrap it in markdown code blocks)
+    let responseText = textContent.text;
+    const jsonMatch = responseText.match(/```json\n([\s\S]*?)\n```/);
+    if (jsonMatch) {
+      responseText = jsonMatch[1];
+    }
+
+    const result = JSON.parse(responseText);
 
     return NextResponse.json({
       success: true,
