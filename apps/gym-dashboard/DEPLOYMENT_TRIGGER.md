@@ -158,3 +158,4 @@ CRITICAL FIX: Use minimal schema - remove instructor, max_capacity, etc - Wed 8 
 Add debug logging to diagnose session generation - Wed 8 Oct 2025 20:30:00 BST
 FORCE MONTHLY TURNOVER CACHE CLEAR - Wed 8 Oct 2025 20:45:00 BST - revalidate=0
 TeamUp 4-step review workflow: Edit classes → Preview schedule → Import - Wed 8 Oct 2025 22:45:00 BST
+FORCE REBUILD: Ensure TeamUp 4-step workflow deploys correctly - Wed 8 Oct 2025 23:55:00 BST
