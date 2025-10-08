@@ -5,10 +5,6 @@ import OpenAI from "openai";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 /**
  * POST /api/reports/monthly-turnover/analyze
  * Analyzes monthly turnover data using AI to provide insights
@@ -27,6 +23,11 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+
+    // Initialize OpenAI client inside function to avoid build-time errors
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
 
     // Prepare data summary for AI
     const dataSummary = {
@@ -57,43 +58,99 @@ export async function POST(request: NextRequest) {
         : [],
     };
 
-    const prompt = `You are a financial analyst for a fitness business. Analyze the following monthly turnover data and provide actionable insights.
+    // Calculate additional financial metrics
+    const monthlyRevenueChanges = dataSummary.monthlyRevenue.map(
+      (m: any, i: number) => {
+        if (i === 0) return { month: m.month, change: 0 };
+        const prevRevenue = dataSummary.monthlyRevenue[i - 1].revenue;
+        const change = ((m.revenue - prevRevenue) / prevRevenue) * 100;
+        return { month: m.month, change };
+      },
+    );
 
-Data Summary:
-- Analyzing ${dataSummary.totalMonths} months of data
+    const avgMonthlyGrowth =
+      monthlyRevenueChanges.reduce(
+        (sum: number, m: any) => sum + m.change,
+        0,
+      ) / monthlyRevenueChanges.length;
+
+    const prompt = `You are a seasoned financial expert and business consultant specializing in the fitness industry with 15+ years of experience. You understand membership economics, seasonal fitness trends, client retention patterns, and the difference between front-end (joining fees, bootcamps) and back-end (monthly memberships, PT packages) revenue streams.
+
+Analyze this gym's financial performance with the depth and insight of an expert advisor:
+
+🔢 FINANCIAL METRICS:
+- Time period: ${dataSummary.totalMonths} months
 - Average monthly revenue: £${dataSummary.averageRevenue.toFixed(2)}
-- Highest performing month: ${dataSummary.highestMonth.period} (£${dataSummary.highestMonth.total_revenue})
-- Lowest performing month: ${dataSummary.lowestMonth.period} (£${dataSummary.lowestMonth.total_revenue})
+- Best month: ${dataSummary.highestMonth.period} (£${dataSummary.highestMonth.total_revenue.toFixed(2)})
+- Worst month: ${dataSummary.lowestMonth.period} (£${dataSummary.lowestMonth.total_revenue.toFixed(2)})
+- Revenue volatility: ${((dataSummary.highestMonth.total_revenue - dataSummary.lowestMonth.total_revenue) / dataSummary.averageRevenue * 100).toFixed(1)}%
+- Average monthly growth rate: ${avgMonthlyGrowth.toFixed(1)}%
 
-Monthly Revenue Trend:
-${dataSummary.monthlyRevenue.map((m: any) => `${m.month}: £${m.revenue.toFixed(2)} (${m.payments} payments, ${m.customers} customers)`).join("\n")}
+📊 MONTHLY BREAKDOWN:
+${dataSummary.monthlyRevenue.map((m: any, i: number) => {
+  const growth = i > 0 ? ((m.revenue - dataSummary.monthlyRevenue[i-1].revenue) / dataSummary.monthlyRevenue[i-1].revenue * 100) : 0;
+  return `${m.month}: £${m.revenue.toFixed(2)} | ${m.payments} transactions | ${m.customers} unique clients | ${growth > 0 ? '+' : ''}${growth.toFixed(1)}% vs prev month`;
+}).join("\n")}
 
-${dataSummary.categoryBreakdown.length > 0 ? `Category Breakdown:\n${dataSummary.categoryBreakdown.map((c: any) => `${c.category}: £${c.revenue.toFixed(2)}`).join("\n")}` : ""}
+${dataSummary.categoryBreakdown.length > 0 ? `💰 REVENUE STREAMS:\n${dataSummary.categoryBreakdown.map((c: any) => {
+  const percentage = (c.revenue / dataSummary.monthlyRevenue.reduce((sum: number, m: any) => sum + m.revenue, 0) * 100);
+  return `${c.category}: £${c.revenue.toFixed(2)} (${percentage.toFixed(1)}% of total)`;
+}).join("\n")}` : ""}
 
-Please provide:
-1. **Seasonality Analysis**: Identify any seasonal patterns or trends
-2. **Peak Periods**: What months show consistent high performance and why
-3. **Low Periods**: What months show consistent low performance and potential reasons
-4. **Growth Trends**: Is the business growing, stable, or declining
-5. **Recommendations**: 3-5 specific actionable recommendations to improve turnover
+🎯 PROVIDE EXPERT ANALYSIS AS IF YOU'RE THEIR PERSONAL CFO:
 
-Format your response as JSON with the following structure:
+1. **Seasonality & Market Trends**
+   - Identify fitness industry seasonal patterns (New Year rush, summer drop-off, September resurgence)
+   - Compare their performance to typical industry benchmarks
+   - Highlight unexpected deviations from normal seasonality
+
+2. **Peak Performance Analysis**
+   - Which months consistently outperform and WHY (specific to fitness industry)
+   - Are peaks driven by new member acquisition, existing member upgrades, or special promotions?
+   - How to extend peak periods or replicate success
+
+3. **Underperformance Diagnosis**
+   - Identify low-revenue periods and root causes (churn, reduced acquisition, pricing issues)
+   - Is this normal seasonal dip or concerning trend?
+   - Specific tactics to shore up weak months
+
+4. **Growth Trajectory & Health Metrics**
+   - Overall business health: growing/stable/declining with evidence
+   - Revenue predictability and stability analysis
+   - Red flags or green flags in the data
+
+5. **Strategic Recommendations (3-5 HIGH-IMPACT actions)**
+   - Focus on: membership retention, front-end offers, back-end optimization, pricing strategy
+   - Each recommendation must include:
+     * Specific action they can take THIS MONTH
+     * Expected revenue impact (quantified if possible)
+     * Implementation difficulty and timeline
+   - Prioritize by ROI potential
+
+Industry benchmarks to reference:
+- Typical gym retention: 70-80% annually
+- New Year boost: 30-50% increase in Jan-Feb
+- Summer dip: 15-25% decrease Jun-Aug
+- Average revenue per member: £40-80/month (UK)
+- Front-end to back-end ratio: Usually 30:70
+
+Format as JSON:
 {
-  "seasonality": "description of seasonal patterns",
+  "seasonality": "detailed seasonal pattern analysis with industry context",
   "peakPeriods": ["month1", "month2"],
-  "peakReason": "why these months perform well",
+  "peakReason": "why these months excel - be specific to fitness industry dynamics",
   "lowPeriods": ["month1", "month2"],
-  "lowReason": "why these months underperform",
+  "lowReason": "root cause analysis with fitness industry context",
   "trend": "growing|stable|declining",
-  "trendDescription": "detailed trend analysis",
+  "trendDescription": "comprehensive growth analysis with supporting metrics",
   "recommendations": [
     {
-      "title": "recommendation title",
-      "description": "detailed recommendation",
+      "title": "actionable recommendation title",
+      "description": "detailed implementation plan with expected outcomes",
       "impact": "high|medium|low"
     }
   ],
-  "summary": "2-3 sentence executive summary"
+  "summary": "3-4 sentence executive summary positioning you as their trusted financial advisor"
 }`;
 
     const completion = await openai.chat.completions.create({
@@ -102,7 +159,7 @@ Format your response as JSON with the following structure:
         {
           role: "system",
           content:
-            "You are a financial analyst specializing in fitness business revenue analysis. Provide actionable, data-driven insights.",
+            "You are a seasoned CFO and business strategist with 15+ years of experience in the fitness industry. You understand membership economics, retention strategies, seasonal patterns, and revenue optimization. You provide sharp, actionable insights that gym owners can implement immediately. You're direct, data-driven, and focused on ROI. You're their expert in their back pocket.",
         },
         {
           role: "user",

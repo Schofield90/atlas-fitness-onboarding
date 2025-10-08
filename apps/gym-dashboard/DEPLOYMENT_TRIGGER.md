@@ -151,7 +151,7 @@ Force deployment - Wed 8 Oct 2025 18:00:00 BST - Clear Vercel function cache
 Fix TeamUp PDF import: Use HH:MM:SS format for PostgreSQL time columns - Wed 8 Oct 2025 18:15:00 BST
 Fix TeamUp PDF extraction: Increase max_tokens to 8192 for multi-page PDFs - Wed 8 Oct 2025 18:30:00 BST
 Fix TeamUp calendar display: Auto-generate class_sessions from schedules - Wed 8 Oct 2025 18:45:00 BST
-Deployment trigger: TeamUp PDF import fixes - Wed  8 Oct 2025 11:44:13 BST
+Deployment trigger: TeamUp PDF import fixes - Wed 8 Oct 2025 11:44:13 BST
 QA fixes: Add day_of_week + fix date calculation - Wed 8 Oct 2025 19:15:00 BST
 CRITICAL FIX: Correct class_sessions field names (instructor, max_capacity, end_time) - Wed 8 Oct 2025 20:00:00 BST
 CRITICAL FIX: Use minimal schema - remove instructor, max_capacity, etc - Wed 8 Oct 2025 20:15:00 BST
@@ -164,3 +164,4 @@ FIX: Use compact JSON format to fit 50+ classes within 8K token limit - Thu 9 Oc
 FIX: Show actual active member counts on memberships page - Thu 9 Oct 2025 00:35:00 BST
 Add membership categories feature - Thu 9 Oct 2025 00:50:00 BST
 Add bulk selection and category assignment - Wed 8 Oct 2025 23:30:00 BST
+Wed 8 Oct 2025 18:54:40 BST: Force monthly turnover enhancements deployment
