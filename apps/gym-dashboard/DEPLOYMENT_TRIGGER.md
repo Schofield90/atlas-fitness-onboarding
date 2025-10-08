@@ -131,3 +131,4 @@ TeamUp PDF schedule import with AI extraction - Wed 8 Oct 2025 13:00:00 BST
 Fix reports page: Remove old revenue reports, add Monthly Turnover - Wed 8 Oct 2025 13:30:00 BST
 Force rebuild - Wed 8 Oct 2025 13:45:00 BST
 Add TeamUp to settings sidebar navigation - Wed 8 Oct 2025 14:00:00 BST
+Fix ESLint errors and add TeamUp to shared sidebar - Wed 8 Oct 2025 14:15:00 BST
