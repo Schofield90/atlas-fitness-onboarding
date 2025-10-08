@@ -165,7 +165,6 @@ export async function POST(request: NextRequest) {
             end_time: endDateTime.toISOString(),
             instructor_name: classData.instructor || null,
             room_location: classData.location || "Unknown",
-            max_capacity: classData.capacity,
             organization_id: organizationId,
           });
 
