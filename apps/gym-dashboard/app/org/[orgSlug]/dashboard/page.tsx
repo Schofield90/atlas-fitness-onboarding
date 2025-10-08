@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import DashboardLayout from "@/app/components/DashboardLayout";
+import { createClient } from "@/app/lib/supabase/client";
 import { AttendanceStatsWidget } from "@/app/components/dashboard/AttendanceStatsWidget";
 import { PaymentStatsWidget } from "@/app/components/dashboard/PaymentStatsWidget";
 import {
@@ -28,37 +29,34 @@ export default function OrgDashboardPage() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      try {
-        // Call API endpoint to check auth from httpOnly cookies
-        const response = await fetch("/api/auth/user");
+      const supabase = createClient();
 
-        if (!response.ok) {
-          router.push("/owner-login");
-          return;
-        }
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
 
-        const { user: currentUser } = await response.json();
-
-        if (!currentUser) {
-          router.push("/owner-login");
-          return;
-        }
-
-        setUser(currentUser);
-
-        // Check if user is admin
-        if (
-          currentUser.role === "super_admin" ||
-          currentUser.role === "admin"
-        ) {
-          setIsAdmin(true);
-        }
-
-        setLoading(false);
-      } catch (error) {
-        console.error("Auth check failed:", error);
+      if (!currentUser) {
         router.push("/owner-login");
+        return;
       }
+
+      setUser(currentUser);
+
+      // Check if user is admin by querying the database
+      const { data: adminRecord } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", currentUser.id)
+        .single();
+
+      if (
+        adminRecord?.role === "super_admin" ||
+        adminRecord?.role === "admin"
+      ) {
+        setIsAdmin(true);
+      }
+
+      setLoading(false);
     };
 
     checkAuth();

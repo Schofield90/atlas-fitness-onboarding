@@ -73,9 +73,12 @@ export async function POST(request: NextRequest) {
             classTypeId = existingType.id;
           } else {
             // Calculate duration from start/end times
-            const [startHour, startMin] = classData.startTime.split(":").map(Number);
+            const [startHour, startMin] = classData.startTime
+              .split(":")
+              .map(Number);
             const [endHour, endMin] = classData.endTime.split(":").map(Number);
-            const durationMinutes = (endHour * 60 + endMin) - (startHour * 60 + startMin);
+            const durationMinutes =
+              endHour * 60 + endMin - (startHour * 60 + startMin);
 
             // Create new class type
             const { data: newType, error: typeError } = await supabaseAdmin
@@ -91,7 +94,9 @@ export async function POST(request: NextRequest) {
               .single();
 
             if (typeError || !newType) {
-              errors.push(`Failed to create class type "${classData.name}": ${typeError?.message}`);
+              errors.push(
+                `Failed to create class type "${classData.name}": ${typeError?.message}`,
+              );
               continue;
             }
 
@@ -105,7 +110,9 @@ export async function POST(request: NextRequest) {
         // 2. Create class schedule
         const dayOfWeekNum = DAY_MAP[classData.dayOfWeek];
         if (dayOfWeekNum === undefined) {
-          errors.push(`Invalid day of week "${classData.dayOfWeek}" for class "${classData.name}"`);
+          errors.push(
+            `Invalid day of week "${classData.dayOfWeek}" for class "${classData.name}"`,
+          );
           continue;
         }
 
@@ -143,7 +150,9 @@ export async function POST(request: NextRequest) {
           });
 
         if (scheduleError) {
-          errors.push(`Failed to create schedule for "${classData.name}" on ${classData.dayOfWeek}: ${scheduleError.message}`);
+          errors.push(
+            `Failed to create schedule for "${classData.name}" on ${classData.dayOfWeek}: ${scheduleError.message}`,
+          );
         } else {
           schedulesCreated++;
         }

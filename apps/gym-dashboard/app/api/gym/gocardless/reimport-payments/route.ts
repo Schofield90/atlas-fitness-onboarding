@@ -68,10 +68,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    console.log(`Found ${unlinkedPayments.length} unlinked payments to re-import`);
+    console.log(
+      `Found ${unlinkedPayments.length} unlinked payments to re-import`,
+    );
 
     // Step 2: Delete the broken payments
-    const paymentIds = unlinkedPayments.map(p => p.id);
+    const paymentIds = unlinkedPayments.map((p) => p.id);
     const { error: deleteError } = await supabaseAdmin
       .from("payments")
       .delete()
@@ -88,7 +90,9 @@ export async function POST(request: NextRequest) {
     console.log(`Deleted ${paymentIds.length} broken payments`);
 
     // Step 3: Re-import payments from GoCardless with proper customer links
-    const providerPaymentIds = unlinkedPayments.map(p => p.provider_payment_id);
+    const providerPaymentIds = unlinkedPayments.map(
+      (p) => p.provider_payment_id,
+    );
 
     let imported = 0;
     let skipped = 0;
@@ -112,10 +116,14 @@ export async function POST(request: NextRequest) {
         }
 
         // Fetch customer details
-        const gcCustomer = await client.customers.find(gcPayment.links.customer);
+        const gcCustomer = await client.customers.find(
+          gcPayment.links.customer,
+        );
 
         if (!gcCustomer.email) {
-          console.log(`Customer ${gcPayment.links.customer} has no email - skipping`);
+          console.log(
+            `Customer ${gcPayment.links.customer} has no email - skipping`,
+          );
           skipped++;
           errors.push({
             payment_id: gcPaymentId,
@@ -179,7 +187,10 @@ export async function POST(request: NextRequest) {
             .single();
 
           if (clientError || !newClient) {
-            console.error(`Failed to create client for ${gcCustomer.email}:`, clientError);
+            console.error(
+              `Failed to create client for ${gcCustomer.email}:`,
+              clientError,
+            );
             skipped++;
             errors.push({
               payment_id: gcPaymentId,
@@ -206,14 +217,16 @@ export async function POST(request: NextRequest) {
             payment_method: "direct_debit",
             payment_provider: "gocardless",
             provider_payment_id: gcPayment.id,
-            payment_date: gcPayment.charge_date || new Date().toISOString().split("T")[0],
+            payment_date:
+              gcPayment.charge_date || new Date().toISOString().split("T")[0],
             description: gcPayment.description || `GoCardless payment`,
             metadata: {
               gocardless_payment_id: gcPayment.id,
               gocardless_customer_id: gcPayment.links.customer,
               gocardless_subscription_id: gcPayment.links?.subscription,
               customer_email: gcCustomer.email,
-              customer_name: `${gcCustomer.given_name || ""} ${gcCustomer.family_name || ""}`.trim(),
+              customer_name:
+                `${gcCustomer.given_name || ""} ${gcCustomer.family_name || ""}`.trim(),
               charge_date: gcPayment.charge_date,
               reference: gcPayment.reference,
               currency: gcPayment.currency.toUpperCase(),
@@ -223,7 +236,10 @@ export async function POST(request: NextRequest) {
           });
 
         if (insertError) {
-          console.error(`Error re-importing payment ${gcPaymentId}:`, insertError);
+          console.error(
+            `Error re-importing payment ${gcPaymentId}:`,
+            insertError,
+          );
           skipped++;
           errors.push({
             payment_id: gcPaymentId,
@@ -231,7 +247,9 @@ export async function POST(request: NextRequest) {
           });
         } else {
           imported++;
-          console.log(`✓ Re-imported payment ${gcPaymentId} -> client ${clientId}`);
+          console.log(
+            `✓ Re-imported payment ${gcPaymentId} -> client ${clientId}`,
+          );
         }
       } catch (error: any) {
         console.error(`Error processing payment ${gcPaymentId}:`, error);

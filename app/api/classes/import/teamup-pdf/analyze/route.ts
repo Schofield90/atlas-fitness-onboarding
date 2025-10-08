@@ -5,10 +5,6 @@ import OpenAI from "openai";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 export interface ExtractedClass {
   name: string;
   dayOfWeek: string;
@@ -37,6 +33,11 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+
+    // Initialize OpenAI client inside function to avoid build-time errors
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
 
     const prompt = `You are analyzing a TeamUp class schedule PDF. Extract ALL classes from this weekly schedule.
 

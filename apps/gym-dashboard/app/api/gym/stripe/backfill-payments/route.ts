@@ -68,7 +68,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    console.log(`Found ${unlinkedPayments.length} unlinked Stripe payments to backfill`);
+    console.log(
+      `Found ${unlinkedPayments.length} unlinked Stripe payments to backfill`,
+    );
 
     let updated = 0;
     let failed = 0;
@@ -83,7 +85,9 @@ export async function POST(request: NextRequest) {
         const stripeCustomerId = payment.metadata?.stripe_customer_id;
 
         if (!stripeCustomerId) {
-          console.log(`Payment ${payment.provider_payment_id} has no Stripe customer ID`);
+          console.log(
+            `Payment ${payment.provider_payment_id} has no Stripe customer ID`,
+          );
           skipped++;
           continue;
         }
@@ -93,7 +97,10 @@ export async function POST(request: NextRequest) {
         try {
           stripeCustomer = await stripe.customers.retrieve(stripeCustomerId);
         } catch (stripeError: any) {
-          console.error(`Failed to fetch Stripe customer ${stripeCustomerId}:`, stripeError);
+          console.error(
+            `Failed to fetch Stripe customer ${stripeCustomerId}:`,
+            stripeError,
+          );
           failed++;
           errors.push({
             payment_id: payment.provider_payment_id,
@@ -151,7 +158,8 @@ export async function POST(request: NextRequest) {
           // @ts-ignore
           const firstName = stripeCustomer.name?.split(" ")[0] || "Unknown";
           // @ts-ignore
-          const lastName = stripeCustomer.name?.split(" ").slice(1).join(" ") || "";
+          const lastName =
+            stripeCustomer.name?.split(" ").slice(1).join(" ") || "";
 
           const { data: newClient, error: clientError } = await supabaseAdmin
             .from("clients")
@@ -174,7 +182,10 @@ export async function POST(request: NextRequest) {
             .single();
 
           if (clientError || !newClient) {
-            console.error(`Failed to create client for ${customerEmail}:`, clientError);
+            console.error(
+              `Failed to create client for ${customerEmail}:`,
+              clientError,
+            );
             failed++;
             errors.push({
               payment_id: payment.provider_payment_id,
@@ -216,7 +227,10 @@ export async function POST(request: NextRequest) {
           updated++;
         }
       } catch (error: any) {
-        console.error(`Error processing payment ${payment.provider_payment_id}:`, error);
+        console.error(
+          `Error processing payment ${payment.provider_payment_id}:`,
+          error,
+        );
         failed++;
         errors.push({
           payment_id: payment.provider_payment_id,

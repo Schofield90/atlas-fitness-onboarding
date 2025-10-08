@@ -83,7 +83,9 @@ export async function POST(request: NextRequest) {
       console.log(
         `Fetching payment from GoCardless: ${dbPayment.provider_payment_id}`,
       );
-      const gcPayment = await client.payments.find(dbPayment.provider_payment_id);
+      const gcPayment = await client.payments.find(
+        dbPayment.provider_payment_id,
+      );
 
       debug.goCardlessPayment = {
         id: gcPayment.id,
@@ -97,7 +99,9 @@ export async function POST(request: NextRequest) {
       // Try to fetch customer if link exists
       if (gcPayment.links?.customer) {
         try {
-          const gcCustomer = await client.customers.find(gcPayment.links.customer);
+          const gcCustomer = await client.customers.find(
+            gcPayment.links.customer,
+          );
           debug.goCardlessCustomer = {
             id: gcCustomer.id,
             email: gcCustomer.email,

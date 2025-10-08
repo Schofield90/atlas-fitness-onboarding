@@ -74,7 +74,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    console.log(`Found ${unlinkedPayments.length} unlinked payments to backfill`);
+    console.log(
+      `Found ${unlinkedPayments.length} unlinked payments to backfill`,
+    );
 
     let updated = 0;
     let failed = 0;
@@ -85,10 +87,14 @@ export async function POST(request: NextRequest) {
     for (const payment of unlinkedPayments) {
       try {
         // Fetch full payment details from GoCardless
-        const gcPayment = await client.payments.find(payment.provider_payment_id);
+        const gcPayment = await client.payments.find(
+          payment.provider_payment_id,
+        );
 
         if (!gcPayment.links?.customer) {
-          console.log(`Payment ${payment.provider_payment_id} has no customer link`);
+          console.log(
+            `Payment ${payment.provider_payment_id} has no customer link`,
+          );
           failed++;
           errors.push({
             payment_id: payment.provider_payment_id,
@@ -98,7 +104,9 @@ export async function POST(request: NextRequest) {
         }
 
         // Fetch customer details
-        const gcCustomer = await client.customers.find(gcPayment.links.customer);
+        const gcCustomer = await client.customers.find(
+          gcPayment.links.customer,
+        );
 
         if (!gcCustomer.email) {
           console.log(`Customer ${gcPayment.links.customer} has no email`);
@@ -168,7 +176,10 @@ export async function POST(request: NextRequest) {
             .single();
 
           if (clientError || !newClient) {
-            console.error(`Failed to create client for ${gcCustomer.email}:`, clientError);
+            console.error(
+              `Failed to create client for ${gcCustomer.email}:`,
+              clientError,
+            );
             failed++;
             errors.push({
               payment_id: payment.provider_payment_id,
@@ -194,7 +205,8 @@ export async function POST(request: NextRequest) {
               gocardless_customer_id: gcPayment.links.customer,
               gocardless_subscription_id: gcPayment.links?.subscription,
               customer_email: gcCustomer.email,
-              customer_name: `${gcCustomer.given_name || ""} ${gcCustomer.family_name || ""}`.trim(),
+              customer_name:
+                `${gcCustomer.given_name || ""} ${gcCustomer.family_name || ""}`.trim(),
             },
           })
           .eq("id", payment.id);
@@ -210,7 +222,10 @@ export async function POST(request: NextRequest) {
           updated++;
         }
       } catch (error: any) {
-        console.error(`Error processing payment ${payment.provider_payment_id}:`, error);
+        console.error(
+          `Error processing payment ${payment.provider_payment_id}:`,
+          error,
+        );
         failed++;
         errors.push({
           payment_id: payment.provider_payment_id,

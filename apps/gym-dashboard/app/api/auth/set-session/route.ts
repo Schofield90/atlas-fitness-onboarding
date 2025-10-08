@@ -12,10 +12,7 @@ export async function POST(request: NextRequest) {
     const { access_token, refresh_token } = await request.json();
 
     if (!access_token || !refresh_token) {
-      return NextResponse.json(
-        { error: "Missing tokens" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing tokens" }, { status: 400 });
     }
 
     // Create server client which will set httpOnly cookies
@@ -29,13 +26,13 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error("[set-session] Error setting session:", error);
-      return NextResponse.json(
-        { error: error.message },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: error.message }, { status: 401 });
     }
 
-    console.log("[set-session] Session set successfully for:", data.user?.email);
+    console.log(
+      "[set-session] Session set successfully for:",
+      data.user?.email,
+    );
 
     return NextResponse.json({
       success: true,
@@ -43,9 +40,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("[set-session] Error:", error);
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

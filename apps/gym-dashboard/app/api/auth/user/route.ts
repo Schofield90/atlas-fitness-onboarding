@@ -20,10 +20,7 @@ export async function GET(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (error || !user) {
-      return NextResponse.json(
-        { error: "Not authenticated" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
     // Get user role from database
@@ -42,9 +39,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("[user] Error:", error);
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

@@ -44,19 +44,25 @@ export async function GET(request: NextRequest) {
       ORDER BY period DESC
     `;
 
-    const { data: monthlyData, error: monthlyError } =
-      await supabaseAdmin.rpc("execute_sql", {
+    const { data: monthlyData, error: monthlyError } = await supabaseAdmin.rpc(
+      "execute_sql",
+      {
         query: monthlyQuery,
         params: [organizationId],
-      });
+      },
+    );
 
     if (monthlyError) {
       // Fallback to direct query if RPC fails
-      const result = await supabaseAdmin.from("payments").select(`
+      const result = await supabaseAdmin
+        .from("payments")
+        .select(
+          `
           payment_date,
           amount,
           client_id
-        `)
+        `,
+        )
         .eq("organization_id", organizationId)
         .in("payment_status", ["paid_out", "succeeded", "confirmed"])
         .gte(
@@ -267,7 +273,10 @@ export async function GET(request: NextRequest) {
         view,
         periods: processedData,
         categoryBreakdown: categoryData,
-        totalRevenue: processedData.reduce((sum, p) => sum + p.total_revenue, 0),
+        totalRevenue: processedData.reduce(
+          (sum, p) => sum + p.total_revenue,
+          0,
+        ),
         totalPayments: processedData.reduce(
           (sum, p) => sum + p.payment_count,
           0,
