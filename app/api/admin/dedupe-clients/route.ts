@@ -1,13 +1,34 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/app/lib/supabase/admin'
+import { requireAuth } from '@/app/lib/api/auth-check'
 
-export async function POST() {
-  const supabase = await createAdminClient()
+export async function POST(request: NextRequest) {
   try {
+    // ✅ SECURITY FIX: Require authentication
+    const user = await requireAuth()
+
+    // ✅ SECURITY FIX: Require admin or owner role
+    if (!['owner', 'admin', 'super_admin'].includes(user.role)) {
+      console.warn(
+        `[Dedupe API] Unauthorized access attempt by user ${user.id} with role ${user.role}`
+      )
+      return NextResponse.json(
+        { error: 'Admin access required' },
+        { status: 403 }
+      )
+    }
+
+    // ✅ SECURITY FIX: Scope to user's organization only
+    const organizationId = user.organizationId
+
+    const supabase = await createAdminClient()
+
     // Find duplicate emails across clients (case-insensitive) within the same org
+    // ✅ SECURITY FIX: Filter by organization_id
     const { data: allClients, error } = await supabase
       .from('clients')
       .select('*')
+      .eq('organization_id', organizationId)
     if (error) throw error
 
     const orgEmailToPrimary: Record<string, any> = {}
@@ -39,19 +60,59 @@ export async function POST() {
     for (const { primary, dup } of duplicates) {
       const primaryId = primary.id
       const dupId = dup.id
+      // ✅ SECURITY FIX: Add organization_id filter to all updates
       // bookings
-      await supabase.from('bookings').update({ client_id: primaryId, customer_id: primaryId }).or(`client_id.eq.${dupId},customer_id.eq.${dupId}`)
+      await supabase
+        .from('bookings')
+        .update({ client_id: primaryId, customer_id: primaryId })
+        .eq('organization_id', organizationId)
+        .or(`client_id.eq.${dupId},customer_id.eq.${dupId}`)
       // customer_memberships
-      await supabase.from('customer_memberships').update({ customer_id: primaryId }).or(`customer_id.eq.${dupId},client_id.eq.${dupId}`)
+      await supabase
+        .from('customer_memberships')
+        .update({ customer_id: primaryId })
+        .eq('organization_id', organizationId)
+        .or(`customer_id.eq.${dupId},client_id.eq.${dupId}`)
       // payment_transactions
-      await supabase.from('payment_transactions').update({ client_id: primaryId, customer_id: primaryId }).or(`client_id.eq.${dupId},customer_id.eq.${dupId}`)
+      await supabase
+        .from('payment_transactions')
+        .update({ client_id: primaryId, customer_id: primaryId })
+        .eq('organization_id', organizationId)
+        .or(`client_id.eq.${dupId},customer_id.eq.${dupId}`)
       // emergency_contacts, medical, family members (best-effort)
-      await supabase.from('emergency_contacts').update({ client_id: primaryId }).eq('client_id', dupId)
-      await supabase.from('customer_medical_info').update({ client_id: primaryId }).eq('client_id', dupId)
-      await supabase.from('customer_family_members').update({ primary_client_id: primaryId }).eq('primary_client_id', dupId)
-      await supabase.from('customer_family_members').update({ family_member_client_id: primaryId }).eq('family_member_client_id', dupId)
+      await supabase
+        .from('emergency_contacts')
+        .update({ client_id: primaryId })
+        .eq('organization_id', organizationId)
+        .eq('client_id', dupId)
+      await supabase
+        .from('customer_medical_info')
+        .update({ client_id: primaryId })
+        .eq('organization_id', organizationId)
+        .eq('client_id', dupId)
+      await supabase
+        .from('customer_family_members')
+        .update({ primary_client_id: primaryId })
+        .eq('organization_id', organizationId)
+        .eq('primary_client_id', dupId)
+      await supabase
+        .from('customer_family_members')
+        .update({ family_member_client_id: primaryId })
+        .eq('organization_id', organizationId)
+        .eq('family_member_client_id', dupId)
       // Archive duplicate client
-      await supabase.from('clients').update({ status: 'inactive', metadata: { ...(dup.metadata || {}), archived_as_duplicate_of: primaryId, archived_at: new Date().toISOString() } }).eq('id', dupId)
+      await supabase
+        .from('clients')
+        .update({
+          status: 'inactive',
+          metadata: {
+            ...(dup.metadata || {}),
+            archived_as_duplicate_of: primaryId,
+            archived_at: new Date().toISOString()
+          }
+        })
+        .eq('organization_id', organizationId)
+        .eq('id', dupId)
     }
 
     return NextResponse.json({ success: true, merged: duplicates.length })

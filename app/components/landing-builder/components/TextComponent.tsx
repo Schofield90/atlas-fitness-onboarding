@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { ComponentProps } from '../types'
+import { sanitizeHtml } from '@/app/lib/security/sanitize'
 
 interface TextProps extends ComponentProps {
   content?: string
@@ -23,6 +24,8 @@ export const TextComponent: React.FC<TextProps> = ({
   maxWidth = 'prose',
   className = ''
 }) => {
+  // ✅ SECURITY FIX: Sanitize HTML to prevent XSS attacks
+  const sanitizedContent = sanitizeHtml(content)
   const sizeMap = {
     small: 'text-sm',
     base: 'text-base',
@@ -69,7 +72,7 @@ export const TextComponent: React.FC<TextProps> = ({
         ${className}
       `}
       style={{ color: textColor }}
-      dangerouslySetInnerHTML={{ __html: content }}
+      dangerouslySetInnerHTML={{ __html: sanitizedContent }}
     />
   )
 }
