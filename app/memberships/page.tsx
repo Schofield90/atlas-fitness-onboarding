@@ -4,6 +4,7 @@ import DashboardLayout from "../components/DashboardLayout";
 import { useState, useEffect } from "react";
 import NewMembershipPlanModal from "../components/memberships/NewMembershipPlanModal";
 import EditMembershipPlanModal from "../components/memberships/EditMembershipPlanModal";
+import CategoryManagementModal from "../components/memberships/CategoryManagementModal";
 import {
   formatBritishCurrency,
   formatBritishDate,
@@ -12,7 +13,7 @@ import {
   getMembershipPlans,
   type MembershipPlan,
 } from "@/app/lib/services/membership-service";
-import { Settings, MoreVertical, Edit, Users, Copy, Trash } from "lucide-react";
+import { Settings, MoreVertical, Edit, Users, Copy, Trash, FolderKanban, Tag } from "lucide-react";
 import toast from "@/app/lib/toast";
 import { useRouter } from "next/navigation";
 
@@ -20,15 +21,31 @@ export default function MembershipsPage() {
   const [activeTab, setActiveTab] = useState("plans");
   const [showNewPlanModal, setShowNewPlanModal] = useState(false);
   const [showEditPlanModal, setShowEditPlanModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<MembershipPlan | null>(null);
   const [membershipPlans, setMembershipPlans] = useState<MembershipPlan[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [providerFilter, setProviderFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const router = useRouter();
 
   const handleNewPlan = () => {
     setShowNewPlanModal(true);
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch("/api/membership-categories");
+      const result = await response.json();
+
+      if (response.ok) {
+        setCategories(result.categories || []);
+      }
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+    }
   };
 
   const fetchMembershipPlans = async () => {
@@ -61,6 +78,7 @@ export default function MembershipsPage() {
 
   useEffect(() => {
     fetchMembershipPlans();
+    fetchCategories();
   }, []);
 
   // Close dropdown when clicking outside
@@ -182,12 +200,21 @@ export default function MembershipsPage() {
                 Create and manage membership plans for your gym
               </p>
             </div>
-            <button
-              onClick={handleNewPlan}
-              className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg transition-colors"
-            >
-              + New Membership Plan
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCategoryModal(true)}
+                className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+              >
+                <FolderKanban className="h-4 w-4" />
+                Manage Categories
+              </button>
+              <button
+                onClick={handleNewPlan}
+                className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg transition-colors"
+              >
+                + New Membership Plan
+              </button>
+            </div>
           </div>
 
           {/* Tabs */}
@@ -214,20 +241,39 @@ export default function MembershipsPage() {
             </nav>
           </div>
 
-          {/* Provider Filter */}
+          {/* Filters */}
           {activeTab === "plans" && (
-            <div className="mb-4 flex items-center gap-3">
-              <label className="text-sm text-gray-400">Filter by provider:</label>
-              <select
-                value={providerFilter}
-                onChange={(e) => setProviderFilter(e.target.value)}
-                className="bg-gray-800 border border-gray-700 text-white px-3 py-1 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              >
-                <option value="all">All Providers</option>
-                <option value="stripe">Stripe</option>
-                <option value="gocardless">GoCardless</option>
-                <option value="manual">Manual</option>
-              </select>
+            <div className="mb-4 flex items-center gap-6">
+              <div className="flex items-center gap-3">
+                <label className="text-sm text-gray-400">Provider:</label>
+                <select
+                  value={providerFilter}
+                  onChange={(e) => setProviderFilter(e.target.value)}
+                  className="bg-gray-800 border border-gray-700 text-white px-3 py-1 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                >
+                  <option value="all">All Providers</option>
+                  <option value="stripe">Stripe</option>
+                  <option value="gocardless">GoCardless</option>
+                  <option value="manual">Manual</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <label className="text-sm text-gray-400">Category:</label>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="bg-gray-800 border border-gray-700 text-white px-3 py-1 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                >
+                  <option value="all">All Categories</option>
+                  <option value="uncategorized">Uncategorized</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           )}
 
@@ -271,9 +317,23 @@ export default function MembershipsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {membershipPlans
                     .filter((plan) => {
-                      if (providerFilter === "all") return true;
-                      const planProvider = (plan as any).payment_provider || "manual";
-                      return planProvider === providerFilter;
+                      // Provider filter
+                      if (providerFilter !== "all") {
+                        const planProvider = (plan as any).payment_provider || "manual";
+                        if (planProvider !== providerFilter) return false;
+                      }
+
+                      // Category filter
+                      if (categoryFilter !== "all") {
+                        const planCategoryId = (plan as any).category_id;
+                        if (categoryFilter === "uncategorized") {
+                          if (planCategoryId) return false;
+                        } else {
+                          if (planCategoryId !== categoryFilter) return false;
+                        }
+                      }
+
+                      return true;
                     })
                     .map((plan) => {
                       const provider = (plan as any).payment_provider || "manual";
@@ -287,6 +347,8 @@ export default function MembershipsPage() {
                         gocardless: "GoCardless",
                         manual: "Manual",
                       };
+                      const planCategoryId = (plan as any).category_id;
+                      const planCategory = categories.find((c) => c.id === planCategoryId);
 
                       return (
                     <div
@@ -294,7 +356,20 @@ export default function MembershipsPage() {
                       className="bg-gray-800 rounded-lg p-6 hover:bg-gray-750 transition-colors"
                     >
                       <div className="flex justify-between items-start mb-4">
-                        <h3 className="text-xl font-semibold">{plan.name}</h3>
+                        <div className="flex-1">
+                          <h3 className="text-xl font-semibold">{plan.name}</h3>
+                          {planCategory && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <Tag className="h-3 w-3 text-gray-400" />
+                              <span
+                                className="text-xs px-2 py-0.5 rounded"
+                                style={{ backgroundColor: planCategory.color + '30', color: planCategory.color }}
+                              >
+                                {planCategory.name}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2">
                           <span
                             className={`px-2 py-1 text-xs rounded ${
@@ -505,6 +580,15 @@ export default function MembershipsPage() {
         onClose={handleEditModalClose}
         onSuccess={handleEditModalClose}
         plan={selectedPlan}
+      />
+
+      <CategoryManagementModal
+        isOpen={showCategoryModal}
+        onClose={() => setShowCategoryModal(false)}
+        onCategoryChange={() => {
+          fetchCategories();
+          fetchMembershipPlans();
+        }}
       />
     </DashboardLayout>
   );

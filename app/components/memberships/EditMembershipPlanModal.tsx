@@ -30,8 +30,24 @@ export default function EditMembershipPlanModal({
     is_active: true,
     max_members: "",
     trial_days: "0",
+    category_id: "",
   });
+  const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      // Fetch categories when modal opens
+      fetch("/api/membership-categories")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            setCategories(data.categories || []);
+          }
+        })
+        .catch((err) => console.error("Error fetching categories:", err));
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (plan) {
@@ -45,6 +61,7 @@ export default function EditMembershipPlanModal({
         is_active: plan.is_active !== undefined ? plan.is_active : true,
         max_members: plan.max_members ? plan.max_members.toString() : "",
         trial_days: plan.trial_days ? plan.trial_days.toString() : "0",
+        category_id: (plan as any).category_id || "",
       });
     }
   }, [plan]);
@@ -98,6 +115,7 @@ export default function EditMembershipPlanModal({
             ? parseInt(formData.max_members)
             : null,
           trial_days: parseInt(formData.trial_days) || 0,
+          category_id: formData.category_id || null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", plan.id)
@@ -186,6 +204,30 @@ export default function EditMembershipPlanModal({
               rows={3}
               placeholder="Describe what's included in this membership..."
             />
+          </div>
+
+          {/* Category */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">
+              Category
+            </label>
+            <select
+              value={formData.category_id}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  category_id: e.target.value,
+                }))
+              }
+              className="w-full bg-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+            >
+              <option value="">Uncategorized</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Price and Billing */}
