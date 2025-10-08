@@ -130,16 +130,9 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Create datetime for start/end (needed for duplicate check)
-        const today = new Date();
-        const [startHour, startMin] = classData.startTime.split(":").map(Number);
-        const [endHour, endMin] = classData.endTime.split(":").map(Number);
-
-        const startDateTime = new Date(today);
-        startDateTime.setHours(startHour, startMin, 0, 0);
-
-        const endDateTime = new Date(today);
-        endDateTime.setHours(endHour, endMin, 0, 0);
+        // Format times as HH:MM:SS for PostgreSQL time column
+        const startTimeFormatted = `${classData.startTime}:00`; // "06:00" -> "06:00:00"
+        const endTimeFormatted = `${classData.endTime}:00`; // "07:00" -> "07:00:00"
 
         // Check if schedule already exists (include start_time to catch different time slots)
         const { data: existingSchedule } = await supabaseAdmin
@@ -148,7 +141,7 @@ export async function POST(request: NextRequest) {
           .eq("class_type_id", classTypeId)
           .eq("instructor_name", classData.instructor || "")
           .eq("room_location", classData.location || "Unknown")
-          .eq("start_time", startDateTime.toISOString())
+          .eq("start_time", startTimeFormatted)
           .maybeSingle();
 
         if (existingSchedule) {
@@ -159,8 +152,8 @@ export async function POST(request: NextRequest) {
         // Insert with minimal fields - production table has limited schema
         const insertData: any = {
           class_type_id: classTypeId,
-          start_time: startDateTime.toISOString(),
-          end_time: endDateTime.toISOString(),
+          start_time: startTimeFormatted,
+          end_time: endTimeFormatted,
         };
 
         // Add optional fields only if they exist in schema
