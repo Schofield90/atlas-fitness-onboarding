@@ -214,11 +214,20 @@ function MembersContent() {
         console.log("First client:", clients[0]);
       }
 
-      // Check for duplicates based on email
+      // Check for duplicates based on email (exclude archived/inactive clients)
       const emailToClient: Record<string, any> = {};
       const dupEmails: Set<string> = new Set();
 
-      for (const client of clients) {
+      // Only check active clients for duplicates (exclude archived duplicates)
+      const activeClients = clients.filter((c: any) => {
+        // Exclude clients that were archived as duplicates
+        if (c.metadata?.archived_as_duplicate_of) return false;
+        // Exclude inactive clients
+        if (c.status === "inactive") return false;
+        return true;
+      });
+
+      for (const client of activeClients) {
         const emailKey = (client.email || "").toLowerCase().trim();
         if (!emailKey) continue;
 
