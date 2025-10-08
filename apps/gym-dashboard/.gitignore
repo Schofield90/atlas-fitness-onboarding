@@ -7,3 +7,4 @@ app/lib/
 app/settings/
 app/hooks/
 app/types/
+.env*.local
