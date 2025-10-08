@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useOrganization } from "@/app/hooks/useOrganization";
+import { createClient } from "@/app/lib/supabase/client";
 
 /**
  * AI Agents redirect page
@@ -10,25 +10,52 @@ import { useOrganization } from "@/app/hooks/useOrganization";
  */
 export default function AIAgentsRedirectPage() {
   const router = useRouter();
-  const { currentOrganization, loading } = useOrganization();
+  const [loading, setLoading] = useState(true);
+  const supabase = createClient();
 
   useEffect(() => {
-    if (!loading && currentOrganization) {
-      // Redirect to org-scoped AI agents page
-      router.push(`/org/${currentOrganization.slug}/ai-agents`);
-    }
-  }, [loading, currentOrganization, router]);
+    const redirect = async () => {
+      try {
+        // Get authenticated user
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
-          <p className="mt-4 text-gray-600">Loading AI Agents...</p>
-        </div>
+        if (!user) {
+          router.push("/auth/login");
+          return;
+        }
+
+        // Get user's organization
+        const { data: userData } = await supabase
+          .from("users")
+          .select("organization_id, organizations(slug)")
+          .eq("id", user.id)
+          .single();
+
+        if (userData?.organizations?.slug) {
+          router.push(`/org/${userData.organizations.slug}/ai-agents`);
+        } else {
+          // Fallback to dashboard
+          router.push("/dashboard");
+        }
+      } catch (error) {
+        console.error("Redirect error:", error);
+        router.push("/dashboard");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    redirect();
+  }, [router, supabase]);
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-900">
+      <div className="text-center">
+        <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-orange-500 border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+        <p className="mt-4 text-gray-400 text-lg">Loading AI Agents...</p>
       </div>
-    );
-  }
-
-  return null;
+    </div>
+  );
 }
