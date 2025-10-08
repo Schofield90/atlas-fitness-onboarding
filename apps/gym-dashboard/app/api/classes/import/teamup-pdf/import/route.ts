@@ -275,6 +275,8 @@ export async function POST(request: NextRequest) {
                 start_time: targetDate.toISOString(),
                 end_time: endTime.toISOString(),
                 description: `Imported from TeamUp schedule`,
+                max_capacity: classData.capacity, // Set capacity from PDF
+                current_bookings: 0, // Initialize to 0
               };
 
               // Add optional fields only if they exist in production schema

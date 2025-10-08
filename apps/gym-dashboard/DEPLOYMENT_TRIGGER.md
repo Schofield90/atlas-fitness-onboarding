@@ -65,6 +65,7 @@ FORCE FRONTEND CACHE CLEAR - Add no-store to fetch - Wed 8 Oct 2025 21:15:00 BST
 FIX MONTHLY TURNOVER QUERY ORDER - Add order by payment_date - Wed 8 Oct 2025 22:00:00 BST
 FIX TEAMUP IMPORT: Generate sessions for existing schedules - Wed 8 Oct 2025 22:10:00 BST
 FIX MONTHLY TURNOVER: Add pagination to bypass 1000 row limit - Wed 8 Oct 2025 22:20:00 BST
+FIX TEAMUP IMPORT: Add capacity to class sessions - Wed 8 Oct 2025 22:30:00 BST
 Path-based customers page deployed at Sat 4 Oct 2025 19:45:00 BST
 Path-based leads page deployed at Sat 4 Oct 2025 20:00:00 BST
 Path-based settings page deployed at Sat 4 Oct 2025 20:15:00 BST
