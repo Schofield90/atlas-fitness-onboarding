@@ -453,7 +453,7 @@ export default function MembershipsPage() {
 
                       <div className="flex justify-between items-center pt-4 border-t border-gray-700">
                         <span className="text-sm text-gray-400">
-                          0 active members
+                          {plan.stats?.active_members || 0} active member{plan.stats?.active_members !== 1 ? 's' : ''}
                         </span>
                         <span
                           className={`text-sm ${plan.is_active ? "text-green-400" : "text-gray-500"}`}
