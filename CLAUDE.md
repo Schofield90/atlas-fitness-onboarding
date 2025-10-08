@@ -861,6 +861,167 @@ SELECT 'Payments', COUNT(*) FROM payments WHERE payment_provider = 'gocardless';
 
 ---
 
-_Last Updated: October 6, 2025 19:15 BST_
+## Recent Fixes (October 8, 2025) - DEPLOYED ✅
+
+### 1. Monthly Turnover Report Date Range Fix
+
+**Issues Fixed:**
+
+- Data only showing up to April 2025 (current date: October 8, 2025)
+- Total payments stuck at 1000 regardless of timeframe
+- 36-month view showing virtually no turnover from 2022-2024
+- User quote: "the monthly turnover report is about a 5/10 its not pulling the data right up until today"
+
+**Root Cause:**
+
+- API attempted to use non-existent `execute_sql()` RPC function
+- Fell back to approximate date math: `months * 30 * 24 * 60 * 60 * 1000`
+- All months don't have 30 days, causing cumulative drift:
+  - 12 months: ~5 day drift
+  - 36 months: ~15 day drift
+
+**Solution:**
+
+- Removed all RPC function calls (function doesn't exist in database)
+- Use proper JavaScript date calculation: `startDate.setMonth(startDate.getMonth() - months)`
+- Applied fix to both main query and category breakdown query
+- Reduced code from ~300 lines to ~170 lines (eliminated duplicate blocks)
+
+**Files Changed:**
+
+- `apps/gym-dashboard/app/api/reports/monthly-turnover/route.ts`
+- `app/api/reports/monthly-turnover/route.ts` (shared)
+- `apps/gym-dashboard/DEPLOYMENT_TRIGGER.md`
+
+**Commit:** `1de35e1f`
+
+**Database Verified:**
+
+- 6039 payments exist from 2016-06-13 to 2025-10-07
+- 113 unique months of payment data
+- October 2025 has 379 payments totaling £3829.51
+
+---
+
+### 2. Class Type Deletion Button Fix
+
+**Issue Fixed:**
+
+- Delete button appeared to work (no error) but class types weren't actually deleted
+- User quote: "i got no error but its not deleted the class type"
+
+**Root Cause:**
+
+- `handleDeleteClassType()` used client-side Supabase (`createClient`)
+- RLS policies blocked DELETE operations from browser
+- DELETE succeeded but affected 0 rows (silent failure)
+- No error thrown, so user saw no feedback
+
+**Solution:**
+
+- Added DELETE handler to `/api/programs` endpoint
+- Uses `createAdminClient()` to bypass RLS (server-side only)
+- Validates organization ownership before deleting
+- Deletes `class_sessions` first (avoid foreign key constraint errors)
+- Updated classes page to use API endpoint instead of direct Supabase
+
+**Security:**
+
+- `requireAuth()` validates user authentication
+- Verifies program belongs to user's organization before delete
+- Admin client only used server-side after auth check
+
+**Files Changed:**
+
+- `app/api/programs/route.ts` - Added DELETE handler
+- `apps/gym-dashboard/app/api/programs/route.ts` - Added DELETE handler
+- `app/org/[orgSlug]/classes/page.tsx` - Use API for deletion
+- `apps/gym-dashboard/DEPLOYMENT_TRIGGER.md`
+
+**Commit:** `acdd275c`
+
+---
+
+### 3. Merge Duplicates Button Fix
+
+**Issue Fixed:**
+
+- "Merge duplicates" button showed success message but remained visible
+- User quote: "i get a success of duplicates merged but then nothing happens and the button remains"
+
+**Root Cause:**
+
+- `dedupe-clients` endpoint marks duplicates as `status='inactive'` with `metadata.archived_as_duplicate_of`
+- `fetchMembers()` correctly refreshes data after merge
+- BUT duplicate detection logic included ALL clients (active + inactive)
+- Inactive/archived duplicates still counted as duplicates
+- Button condition `(duplicateEmails.length > 0)` remained true
+
+**Solution:**
+Updated duplicate detection in `app/members/page.tsx` to exclude:
+
+1. Clients with `metadata.archived_as_duplicate_of` (explicitly archived duplicates)
+2. Clients with `status='inactive'` (all inactive clients)
+
+```typescript
+// Only check active clients for duplicates (exclude archived duplicates)
+const activeClients = clients.filter((c: any) => {
+  // Exclude clients that were archived as duplicates
+  if (c.metadata?.archived_as_duplicate_of) return false;
+  // Exclude inactive clients
+  if (c.status === "inactive") return false;
+  return true;
+});
+```
+
+**Files Changed:**
+
+- `app/members/page.tsx` - Filter duplicate detection to active clients only
+- `apps/gym-dashboard/DEPLOYMENT_TRIGGER.md`
+
+**Commit:** `ed867269`
+
+**Expected Result:**
+
+1. User clicks "Merge duplicates"
+2. Duplicates merged successfully (archived as inactive)
+3. Page refreshes via `fetchMembers()`
+4. Duplicate detection only checks active clients
+5. `duplicateEmails.length` becomes 0
+6. Button disappears (condition no longer met)
+
+---
+
+### Pending Tasks
+
+1. **AI Insights Button** (Monthly Turnover Report)
+   - Issue: "when i pres the ai insights button it doesnt do anything"
+   - Status: NOT STARTED
+   - Location: `/reports/monthly-turnover` page
+   - API endpoint exists: `/api/reports/monthly-turnover/analyze` (POST)
+   - Needs investigation after date fixes are verified
+   - Potential causes:
+     - Frontend onClick handler issue
+     - API route failing silently
+     - Error handling not displaying feedback
+     - Missing error state in UI
+     - OpenAI API key or rate limit issue
+
+2. **Verification After Deployment**
+   - [ ] Monthly turnover report shows data through October 2025
+   - [ ] 36-month view shows correct historical data (2022-2024)
+   - [ ] Total payments calculates correctly for all timeframes
+   - [ ] Class deletion successfully removes class types and sessions
+   - [ ] Merge duplicates button disappears after merging
+
+3. **Future Improvements**
+   - Add loading state to AI Insights button
+   - Add error toast notifications to all API calls
+   - Consider adding optimistic UI updates for delete operations
+   - Add confirmation step before "Delete All" class types
+
+---
+
+_Last Updated: October 8, 2025 17:00 BST_
 _Review Type: Automated Design & Accessibility_
 _Diff Policy: Minimal changes only_
