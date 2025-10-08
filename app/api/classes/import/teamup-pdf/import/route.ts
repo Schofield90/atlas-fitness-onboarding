@@ -165,7 +165,6 @@ export async function POST(request: NextRequest) {
             end_time: endDateTime.toISOString(),
             instructor_name: classData.instructor || null,
             room_location: classData.location || "Unknown",
-            organization_id: organizationId,
           });
 
         if (scheduleError) {
