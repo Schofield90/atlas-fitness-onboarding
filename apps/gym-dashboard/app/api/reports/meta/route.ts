@@ -87,44 +87,6 @@ export async function GET(request: NextRequest) {
             href: "/reports/lifetime-value",
             enabled: true,
           },
-          {
-            name: "Invoices",
-            description: "Complete invoice reporting and payment tracking",
-            href: "/reports/invoices",
-            enabled: true,
-          },
-          {
-            name: "Invoice Items / Item Summary / Transactions",
-            description:
-              "Detailed breakdown of invoice line items and transaction history",
-            href: "/reports/invoice-items",
-            enabled: true,
-          },
-          {
-            name: "Upcoming Billing",
-            description:
-              "Preview upcoming billing cycles and scheduled payments",
-            href: "/reports/upcoming-billing",
-            enabled: true,
-          },
-          {
-            name: "Invoice Transactions",
-            description: "Detailed transaction history for all invoices",
-            href: "/reports/invoice-items?tab=transactions",
-            enabled: true,
-          },
-          {
-            name: "Discount Code Usage: All Uses / Most Used",
-            description: "Track discount code effectiveness and usage patterns",
-            href: "/reports/discount-codes",
-            enabled: true,
-          },
-          {
-            name: "Payouts",
-            description: "Payment processor payouts and settlement reports",
-            href: "/reports/payouts",
-            enabled: true,
-          },
         ],
       },
     ];
