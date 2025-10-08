@@ -130,21 +130,7 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Check if schedule already exists (prevent duplicates)
-        const { data: existingSchedule } = await supabaseAdmin
-          .from("class_schedules")
-          .select("id")
-          .eq("class_type_id", classTypeId)
-          .eq("instructor_name", classData.instructor || "")
-          .eq("room_location", classData.location || "Unknown")
-          .maybeSingle();
-
-        if (existingSchedule) {
-          // Schedule already exists, skip
-          continue;
-        }
-
-        // Create datetime for start/end
+        // Create datetime for start/end (needed for duplicate check)
         const today = new Date();
         const [startHour, startMin] = classData.startTime.split(":").map(Number);
         const [endHour, endMin] = classData.endTime.split(":").map(Number);
@@ -154,6 +140,21 @@ export async function POST(request: NextRequest) {
 
         const endDateTime = new Date(today);
         endDateTime.setHours(endHour, endMin, 0, 0);
+
+        // Check if schedule already exists (include start_time to catch different time slots)
+        const { data: existingSchedule } = await supabaseAdmin
+          .from("class_schedules")
+          .select("id")
+          .eq("class_type_id", classTypeId)
+          .eq("instructor_name", classData.instructor || "")
+          .eq("room_location", classData.location || "Unknown")
+          .eq("start_time", startDateTime.toISOString())
+          .maybeSingle();
+
+        if (existingSchedule) {
+          // Schedule already exists, skip
+          continue;
+        }
 
         const { error: scheduleError } = await supabaseAdmin
           .from("class_schedules")
