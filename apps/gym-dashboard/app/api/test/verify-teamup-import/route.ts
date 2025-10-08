@@ -3,16 +3,18 @@
  *
  * This endpoint verifies that the TeamUp import fixes are working correctly
  * by querying the database directly using admin client.
+ *
+ * PUBLIC ENDPOINT - No auth required (for testing only)
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/app/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
 const ORG_ID = 'ee1206d7-62fb-49cf-9f39-95b9c54423a4'; // Sam's organization
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const supabaseAdmin = createAdminClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
