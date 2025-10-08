@@ -33,28 +33,42 @@ export async function GET(request: NextRequest) {
     startDate.setMonth(startDate.getMonth() - months);
     const startDateString = startDate.toISOString().split("T")[0];
 
-    // Get payment data (set high limit to bypass default 1000 row limit)
-    const result = await supabaseAdmin
-      .from("payments")
-      .select(
-        `
-        payment_date,
-        amount,
-        client_id
-      `,
-        { count: "exact" },
-      )
-      .eq("organization_id", organizationId)
-      .in("payment_status", ["paid_out", "succeeded", "confirmed"])
-      .gte("payment_date", startDateString)
-      .order("payment_date", { ascending: false })
-      .limit(100000);
+    // Get payment data using pagination (Supabase enforces 1000 row max)
+    let allPayments: any[] = [];
+    let page = 0;
+    const pageSize = 1000;
+    let hasMore = true;
 
-    if (result.error) throw result.error;
+    while (hasMore) {
+      const result = await supabaseAdmin
+        .from("payments")
+        .select(
+          `
+          payment_date,
+          amount,
+          client_id
+        `,
+        )
+        .eq("organization_id", organizationId)
+        .in("payment_status", ["paid_out", "succeeded", "confirmed"])
+        .gte("payment_date", startDateString)
+        .order("payment_date", { ascending: false })
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+
+      if (result.error) throw result.error;
+
+      if (result.data && result.data.length > 0) {
+        allPayments = allPayments.concat(result.data);
+        page++;
+        hasMore = result.data.length === pageSize; // Continue if we got a full page
+      } else {
+        hasMore = false;
+      }
+    }
 
     // Process monthly data
     const grouped = new Map();
-    result.data?.forEach((payment) => {
+    allPayments.forEach((payment) => {
       const date = new Date(payment.payment_date);
       const period = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 
@@ -88,31 +102,49 @@ export async function GET(request: NextRequest) {
       }))
       .sort((a, b) => b.period.localeCompare(a.period));
 
-    // Get category breakdown (set high limit to bypass default 1000 row limit)
-    const categoryResult = await supabaseAdmin
-      .from("payments")
-      .select(
-        `
-        payment_date,
-        amount,
-        customer_memberships!inner(
-          membership_plans!inner(
-            category
+    // Get category breakdown using pagination (Supabase enforces 1000 row max)
+    let allCategoryPayments: any[] = [];
+    let catPage = 0;
+    let hasMoreCat = true;
+
+    while (hasMoreCat) {
+      const categoryResult = await supabaseAdmin
+        .from("payments")
+        .select(
+          `
+          payment_date,
+          amount,
+          customer_memberships!inner(
+            membership_plans!inner(
+              category
+            )
           )
+        `,
         )
-      `,
-        { count: "exact" },
-      )
-      .eq("organization_id", organizationId)
-      .in("payment_status", ["paid_out", "succeeded", "confirmed"])
-      .gte("payment_date", startDateString)
-      .order("payment_date", { ascending: false })
-      .limit(100000);
+        .eq("organization_id", organizationId)
+        .in("payment_status", ["paid_out", "succeeded", "confirmed"])
+        .gte("payment_date", startDateString)
+        .order("payment_date", { ascending: false })
+        .range(catPage * pageSize, (catPage + 1) * pageSize - 1);
+
+      if (categoryResult.error) {
+        console.error("Category query error:", categoryResult.error);
+        break; // Don't fail entire request if category breakdown fails
+      }
+
+      if (categoryResult.data && categoryResult.data.length > 0) {
+        allCategoryPayments = allCategoryPayments.concat(categoryResult.data);
+        catPage++;
+        hasMoreCat = categoryResult.data.length === pageSize;
+      } else {
+        hasMoreCat = false;
+      }
+    }
 
     // Process category data
     const categoryBreakdown = new Map<string, Map<string, any>>();
 
-    categoryResult.data?.forEach((payment: any) => {
+    allCategoryPayments.forEach((payment: any) => {
       const date = new Date(payment.payment_date);
       const period = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
       const category =
