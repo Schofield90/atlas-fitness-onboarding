@@ -227,6 +227,10 @@ export async function POST(request: NextRequest) {
               .maybeSingle();
 
             if (!existingSession) {
+              // Calculate end time
+              const endTime = new Date(targetDate);
+              endTime.setMinutes(targetDate.getMinutes() + (sessionDuration > 0 ? sessionDuration : 60));
+
               // Create class session
               const { error: sessionError } = await supabaseAdmin
                 .from("class_sessions")
@@ -234,15 +238,20 @@ export async function POST(request: NextRequest) {
                   organization_id: organizationId,
                   program_id: programData.id,
                   name: classData.name,
-                  instructor_name: classData.instructor || "TBD",
+                  instructor: classData.instructor || "TBD", // Use 'instructor' not 'instructor_name'
                   start_time: targetDate.toISOString(),
+                  end_time: endTime.toISOString(), // Add required end_time field
                   duration_minutes: sessionDuration > 0 ? sessionDuration : 60,
-                  capacity: classData.capacity || 20,
+                  max_capacity: classData.capacity || 20, // Use 'max_capacity' not 'capacity'
+                  current_bookings: 0,
                   location: classData.location || "Main Studio",
                   description: `Imported from TeamUp schedule`,
                 });
 
               if (sessionError) {
+                errors.push(
+                  `Session creation failed for ${classData.name}: ${sessionError.message}`,
+                );
                 console.error(
                   `Session creation error for ${classData.name}:`,
                   sessionError,
