@@ -23,6 +23,21 @@ import {
   Sparkles,
 } from "lucide-react";
 
+// Import step components
+import GoogleCalendarStep from "./steps/GoogleCalendarStep";
+import EmailStep from "./steps/EmailStep";
+import FacebookStep from "./steps/FacebookStep";
+import WhatsAppStep from "./steps/WhatsAppStep";
+import TwilioStep from "./steps/TwilioStep";
+import {
+  GoTeamUpClientsStep,
+  GoTeamUpMembershipsStep,
+  GoTeamUpTimetableStep,
+  GoTeamUpRevenueStep,
+} from "./steps/GoTeamUpImportSteps";
+import PaymentProvidersStep from "./steps/PaymentProvidersStep";
+import { AIBotIntroStep, AIFirstBotStep } from "./steps/AIBotSteps";
+
 // Icon mapping
 const ICON_MAP: Record<string, any> = {
   Plug,
@@ -61,6 +76,7 @@ export default function OnboardingChecklist() {
   const [isMinimized, setIsMinimized] = useState(false);
   const [status, setStatus] = useState<OnboardingStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const [openStep, setOpenStep] = useState<string | null>(null);
 
   useEffect(() => {
     fetchStatus();
@@ -102,8 +118,49 @@ export default function OnboardingChecklist() {
   };
 
   const handleStepClick = (stepId: string) => {
-    // TODO: Open step modal or navigate to step page
-    console.log("Opening step:", stepId);
+    setOpenStep(stepId);
+  };
+
+  const handleStepComplete = async (stepId: string) => {
+    try {
+      await fetch("/api/onboarding/progress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          step_id: stepId,
+          action: "complete",
+        }),
+      });
+
+      // Refresh status
+      await fetchStatus();
+      setOpenStep(null);
+    } catch (error) {
+      console.error("Error completing step:", error);
+    }
+  };
+
+  const handleStepSkip = async (stepId: string) => {
+    try {
+      await fetch("/api/onboarding/progress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          step_id: stepId,
+          action: "skip",
+        }),
+      });
+
+      // Refresh status
+      await fetchStatus();
+      setOpenStep(null);
+    } catch (error) {
+      console.error("Error skipping step:", error);
+    }
+  };
+
+  const handleStepClose = () => {
+    setOpenStep(null);
   };
 
   // Don't show if loading, no status, dismissed, or complete
@@ -258,6 +315,92 @@ export default function OnboardingChecklist() {
           I'll finish this later
         </button>
       </div>
+
+      {/* Step Modals */}
+      {openStep === "google_calendar" && (
+        <GoogleCalendarStep
+          onComplete={() => handleStepComplete("google_calendar")}
+          onSkip={() => handleStepSkip("google_calendar")}
+          onClose={handleStepClose}
+        />
+      )}
+      {openStep === "email_integration" && (
+        <EmailStep
+          onComplete={() => handleStepComplete("email_integration")}
+          onSkip={() => handleStepSkip("email_integration")}
+          onClose={handleStepClose}
+        />
+      )}
+      {openStep === "facebook_ads" && (
+        <FacebookStep
+          onComplete={() => handleStepComplete("facebook_ads")}
+          onSkip={() => handleStepSkip("facebook_ads")}
+          onClose={handleStepClose}
+        />
+      )}
+      {openStep === "whatsapp" && (
+        <WhatsAppStep
+          onComplete={() => handleStepComplete("whatsapp")}
+          onSkip={() => handleStepSkip("whatsapp")}
+          onClose={handleStepClose}
+        />
+      )}
+      {openStep === "twilio" && (
+        <TwilioStep
+          onComplete={() => handleStepComplete("twilio")}
+          onSkip={() => handleStepSkip("twilio")}
+          onClose={handleStepClose}
+        />
+      )}
+      {openStep === "goteamup_clients" && (
+        <GoTeamUpClientsStep
+          onComplete={() => handleStepComplete("goteamup_clients")}
+          onSkip={() => handleStepSkip("goteamup_clients")}
+          onClose={handleStepClose}
+        />
+      )}
+      {openStep === "goteamup_memberships" && (
+        <GoTeamUpMembershipsStep
+          onComplete={() => handleStepComplete("goteamup_memberships")}
+          onSkip={() => handleStepSkip("goteamup_memberships")}
+          onClose={handleStepClose}
+        />
+      )}
+      {openStep === "goteamup_timetable" && (
+        <GoTeamUpTimetableStep
+          onComplete={() => handleStepComplete("goteamup_timetable")}
+          onSkip={() => handleStepSkip("goteamup_timetable")}
+          onClose={handleStepClose}
+        />
+      )}
+      {openStep === "goteamup_revenue" && (
+        <GoTeamUpRevenueStep
+          onComplete={() => handleStepComplete("goteamup_revenue")}
+          onSkip={() => handleStepSkip("goteamup_revenue")}
+          onClose={handleStepClose}
+        />
+      )}
+      {openStep === "stripe_gocardless" && (
+        <PaymentProvidersStep
+          onComplete={() => handleStepComplete("stripe_gocardless")}
+          onSkip={() => handleStepSkip("stripe_gocardless")}
+          onClose={handleStepClose}
+        />
+      )}
+      {openStep === "ai_bot_intro" && (
+        <AIBotIntroStep
+          onComplete={() => handleStepComplete("ai_bot_intro")}
+          onSkip={() => handleStepSkip("ai_bot_intro")}
+          onClose={handleStepClose}
+        />
+      )}
+      {openStep === "ai_first_bot" && (
+        <AIFirstBotStep
+          onComplete={() => handleStepComplete("ai_first_bot")}
+          onSkip={() => handleStepSkip("ai_first_bot")}
+          onClose={handleStepClose}
+        />
+      )}
     </div>
   );
 }
