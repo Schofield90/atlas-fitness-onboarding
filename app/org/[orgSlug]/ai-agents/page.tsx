@@ -78,17 +78,22 @@ export default function AIAgentsPage() {
   }, [user]);
 
   const checkAuth = async () => {
-    const {
-      data: { user: currentUser },
-    } = await supabase.auth.getUser();
+    try {
+      // Use API endpoint for reliable auth check (bypasses client-side session issues)
+      const response = await fetch("/api/auth/get-organization");
+      const result = await response.json();
 
-    if (!currentUser) {
+      if (!result.success || !result.data?.user) {
+        router.push("/owner-login");
+        return;
+      }
+
+      setUser(result.data.user);
+      setLoading(false);
+    } catch (error) {
+      console.error("Auth check failed:", error);
       router.push("/owner-login");
-      return;
     }
-
-    setUser(currentUser);
-    setLoading(false);
   };
 
   const loadAgents = async () => {
