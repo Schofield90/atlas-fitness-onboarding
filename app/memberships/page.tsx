@@ -13,7 +13,7 @@ import {
   getMembershipPlans,
   type MembershipPlan,
 } from "@/app/lib/services/membership-service";
-import { Settings, MoreVertical, Edit, Users, Copy, Trash, FolderKanban, Tag } from "lucide-react";
+import { Settings, MoreVertical, Edit, Users, Copy, Trash, FolderKanban, Tag, CheckSquare, Square, X } from "lucide-react";
 import toast from "@/app/lib/toast";
 import { useRouter } from "next/navigation";
 
@@ -29,6 +29,9 @@ export default function MembershipsPage() {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [providerFilter, setProviderFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [selectedPlans, setSelectedPlans] = useState<Set<string>>(new Set());
+  const [bulkCategory, setBulkCategory] = useState<string>("");
+  const [updatingBulk, setUpdatingBulk] = useState(false);
   const router = useRouter();
 
   const handleNewPlan = () => {
@@ -182,6 +185,77 @@ export default function MembershipsPage() {
     router.push(`/members?plan=${plan.id}`);
   };
 
+  const handleToggleSelection = (planId: string) => {
+    const newSelected = new Set(selectedPlans);
+    if (newSelected.has(planId)) {
+      newSelected.delete(planId);
+    } else {
+      newSelected.add(planId);
+    }
+    setSelectedPlans(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    const filteredPlanIds = membershipPlans
+      .filter((plan) => {
+        // Provider filter
+        if (providerFilter !== "all") {
+          const planProvider = (plan as any).payment_provider || "manual";
+          if (planProvider !== providerFilter) return false;
+        }
+
+        // Category filter
+        if (categoryFilter !== "all") {
+          const planCategoryId = (plan as any).category_id;
+          if (categoryFilter === "uncategorized") {
+            if (planCategoryId) return false;
+          } else {
+            if (planCategoryId !== categoryFilter) return false;
+          }
+        }
+
+        return true;
+      })
+      .map((p) => p.id);
+
+    setSelectedPlans(new Set(filteredPlanIds));
+  };
+
+  const handleClearSelection = () => {
+    setSelectedPlans(new Set());
+    setBulkCategory("");
+  };
+
+  const handleBulkCategoryAssign = async () => {
+    if (!bulkCategory || selectedPlans.size === 0) return;
+
+    setUpdatingBulk(true);
+    try {
+      const updatePromises = Array.from(selectedPlans).map((planId) =>
+        fetch(`/api/membership-plans?id=${planId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            category_id: bulkCategory === "none" ? null : bulkCategory,
+          }),
+        })
+      );
+
+      await Promise.all(updatePromises);
+
+      toast.success(
+        `Updated ${selectedPlans.size} membership${selectedPlans.size !== 1 ? "s" : ""} successfully`
+      );
+      handleClearSelection();
+      fetchMembershipPlans();
+    } catch (error) {
+      console.error("Error updating memberships:", error);
+      toast.error("Failed to update memberships");
+    } finally {
+      setUpdatingBulk(false);
+    }
+  };
+
   console.log("Render state:", {
     loading,
     membershipPlansCount: membershipPlans.length,
@@ -243,37 +317,48 @@ export default function MembershipsPage() {
 
           {/* Filters */}
           {activeTab === "plans" && (
-            <div className="mb-4 flex items-center gap-6">
-              <div className="flex items-center gap-3">
-                <label className="text-sm text-gray-400">Provider:</label>
-                <select
-                  value={providerFilter}
-                  onChange={(e) => setProviderFilter(e.target.value)}
-                  className="bg-gray-800 border border-gray-700 text-white px-3 py-1 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                >
-                  <option value="all">All Providers</option>
-                  <option value="stripe">Stripe</option>
-                  <option value="gocardless">GoCardless</option>
-                  <option value="manual">Manual</option>
-                </select>
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-3">
+                  <label className="text-sm text-gray-400">Provider:</label>
+                  <select
+                    value={providerFilter}
+                    onChange={(e) => setProviderFilter(e.target.value)}
+                    className="bg-gray-800 border border-gray-700 text-white px-3 py-1 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  >
+                    <option value="all">All Providers</option>
+                    <option value="stripe">Stripe</option>
+                    <option value="gocardless">GoCardless</option>
+                    <option value="manual">Manual</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <label className="text-sm text-gray-400">Category:</label>
+                  <select
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    className="bg-gray-800 border border-gray-700 text-white px-3 py-1 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  >
+                    <option value="all">All Categories</option>
+                    <option value="uncategorized">Uncategorized</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <label className="text-sm text-gray-400">Category:</label>
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="bg-gray-800 border border-gray-700 text-white px-3 py-1 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                >
-                  <option value="all">All Categories</option>
-                  <option value="uncategorized">Uncategorized</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <button
+                onClick={handleSelectAll}
+                disabled={loading || membershipPlans.length === 0}
+                className="flex items-center gap-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <CheckSquare className="h-4 w-4" />
+                Select All Visible
+              </button>
             </div>
           )}
 
@@ -350,12 +435,26 @@ export default function MembershipsPage() {
                       const planCategoryId = (plan as any).category_id;
                       const planCategory = categories.find((c) => c.id === planCategoryId);
 
+                      const isSelected = selectedPlans.has(plan.id);
+
                       return (
                     <div
                       key={plan.id}
-                      className="bg-gray-800 rounded-lg p-6 hover:bg-gray-750 transition-colors"
+                      className={`bg-gray-800 rounded-lg p-6 hover:bg-gray-750 transition-all relative ${isSelected ? 'ring-2 ring-orange-500' : ''}`}
                     >
-                      <div className="flex justify-between items-start mb-4">
+                      {/* Checkbox */}
+                      <button
+                        onClick={() => handleToggleSelection(plan.id)}
+                        className="absolute top-4 left-4 z-10 p-1 hover:bg-gray-700 rounded transition-colors"
+                      >
+                        {isSelected ? (
+                          <CheckSquare className="h-5 w-5 text-orange-500" />
+                        ) : (
+                          <Square className="h-5 w-5 text-gray-400" />
+                        )}
+                      </button>
+
+                      <div className="flex justify-between items-start mb-4 pl-8">
                         <div className="flex-1">
                           <h3 className="text-xl font-semibold">{plan.name}</h3>
                           {planCategory && (
@@ -569,6 +668,54 @@ export default function MembershipsPage() {
           )}
         </div>
       </div>
+
+      {/* Floating Bulk Action Bar */}
+      {selectedPlans.size > 0 && (
+        <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-800 border border-gray-700 rounded-lg shadow-2xl p-4 z-50 min-w-[500px]">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <CheckSquare className="h-5 w-5 text-orange-500" />
+              <span className="text-white font-medium">
+                {selectedPlans.size} selected
+              </span>
+            </div>
+
+            <div className="h-6 w-px bg-gray-700" />
+
+            <div className="flex items-center gap-2 flex-1">
+              <label className="text-sm text-gray-400">Move to:</label>
+              <select
+                value={bulkCategory}
+                onChange={(e) => setBulkCategory(e.target.value)}
+                className="bg-gray-900 border border-gray-700 text-white px-3 py-1.5 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent flex-1"
+              >
+                <option value="">Select category...</option>
+                <option value="none">No Category</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              onClick={handleBulkCategoryAssign}
+              disabled={!bulkCategory || updatingBulk}
+              className="bg-orange-600 hover:bg-orange-700 px-4 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium text-sm"
+            >
+              {updatingBulk ? "Updating..." : "Assign"}
+            </button>
+
+            <button
+              onClick={handleClearSelection}
+              className="p-1.5 hover:bg-gray-700 rounded transition-colors text-gray-400"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       <NewMembershipPlanModal
         isOpen={showNewPlanModal}

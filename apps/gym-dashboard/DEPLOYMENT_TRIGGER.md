@@ -163,3 +163,4 @@ FIX: Increase AI max_tokens to 16384 for complete schedule extraction - Thu 9 Oc
 FIX: Use compact JSON format to fit 50+ classes within 8K token limit - Thu 9 Oct 2025 00:20:00 BST
 FIX: Show actual active member counts on memberships page - Thu 9 Oct 2025 00:35:00 BST
 Add membership categories feature - Thu 9 Oct 2025 00:50:00 BST
+Add bulk selection and category assignment - Wed 8 Oct 2025 23:30:00 BST
