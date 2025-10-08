@@ -144,3 +144,4 @@ Force deployment - Wed 8 Oct 2025 18:00:00 BST - Clear Vercel function cache
 Fix TeamUp PDF import: Use HH:MM:SS format for PostgreSQL time columns - Wed 8 Oct 2025 18:15:00 BST
 Fix TeamUp PDF extraction: Increase max_tokens to 8192 for multi-page PDFs - Wed 8 Oct 2025 18:30:00 BST
 Fix TeamUp calendar display: Auto-generate class_sessions from schedules - Wed 8 Oct 2025 18:45:00 BST
+Deployment trigger: TeamUp PDF import fixes - Wed  8 Oct 2025 11:44:13 BST

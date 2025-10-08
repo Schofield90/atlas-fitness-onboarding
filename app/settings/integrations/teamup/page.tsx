@@ -326,6 +326,12 @@ export default function TeamUpImportPage() {
               </span>
             </div>
             <div className="flex justify-between text-sm">
+              <span className="text-gray-300">Sessions Created (4 weeks):</span>
+              <span className="text-white font-medium">
+                {importResult.sessionsCreated || 0}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
               <span className="text-gray-300">Total Processed:</span>
               <span className="text-white font-medium">
                 {importResult.totalProcessed}
