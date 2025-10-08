@@ -115,13 +115,16 @@ function ClassesPageContent() {
       return;
 
     try {
-      // First delete all class sessions for this program
-      await supabase.from("class_sessions").delete().eq("program_id", id);
+      // Use API endpoint to delete (bypasses RLS)
+      const response = await fetch(`/api/programs?id=${id}`, {
+        method: "DELETE",
+      });
 
-      // Then delete the program
-      const { error } = await supabase.from("programs").delete().eq("id", id);
+      const result = await response.json();
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to delete class type");
+      }
 
       forceRefresh();
     } catch (error: any) {
@@ -135,19 +138,30 @@ function ClassesPageContent() {
 
     setDeletingAll(true);
     try {
-      // Delete all class sessions first
-      await supabase
-        .from("class_sessions")
-        .delete()
-        .eq("organization_id", organizationId);
+      // Get all programs for this organization
+      const response = await fetch(
+        `/api/programs?organizationId=${organizationId}`,
+      );
+      const result = await response.json();
 
-      // Delete all programs
-      const { error } = await supabase
-        .from("programs")
-        .delete()
-        .eq("organization_id", organizationId);
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to load programs");
+      }
 
-      if (error) throw error;
+      // Delete each program using the API endpoint
+      for (const program of result.data || []) {
+        const deleteResponse = await fetch(`/api/programs?id=${program.id}`, {
+          method: "DELETE",
+        });
+
+        if (!deleteResponse.ok) {
+          const deleteResult = await deleteResponse.json();
+          console.error(
+            `Failed to delete program ${program.id}:`,
+            deleteResult,
+          );
+        }
+      }
 
       setShowDeleteAllModal(false);
       forceRefresh();

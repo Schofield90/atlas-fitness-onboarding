@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
+import { createAdminClient } from "@/app/lib/supabase/admin";
 import { requireAuth } from "@/app/lib/api/auth-check";
 import {
   handleApiError,
@@ -104,5 +105,65 @@ async function createProgram(request: NextRequest) {
   });
 }
 
+async function deleteProgram(request: NextRequest) {
+  const userWithOrg = await requireAuth();
+  const supabaseAdmin = createAdminClient();
+
+  const { searchParams } = new URL(request.url);
+  const programId = searchParams.get("id");
+
+  if (!programId) {
+    throw ValidationError.required("id");
+  }
+
+  // Verify program belongs to user's organization before deleting
+  const { data: program, error: fetchError } = await supabaseAdmin
+    .from("programs")
+    .select("id")
+    .eq("id", programId)
+    .eq("organization_id", userWithOrg.organizationId)
+    .single();
+
+  if (fetchError || !program) {
+    throw new Error("Program not found or access denied");
+  }
+
+  // First delete all class sessions for this program (to avoid foreign key constraint errors)
+  const { error: sessionsError } = await supabaseAdmin
+    .from("class_sessions")
+    .delete()
+    .eq("program_id", programId);
+
+  if (sessionsError) {
+    console.error("Error deleting class sessions:", sessionsError);
+    throw DatabaseError.queryError("class_sessions", "delete", {
+      programId,
+      originalError: sessionsError.message,
+      code: sessionsError.code,
+    });
+  }
+
+  // Then delete the program
+  const { error: programError } = await supabaseAdmin
+    .from("programs")
+    .delete()
+    .eq("id", programId);
+
+  if (programError) {
+    console.error("Error deleting program:", programError);
+    throw DatabaseError.queryError("programs", "delete", {
+      programId,
+      originalError: programError.message,
+      code: programError.code,
+    });
+  }
+
+  return NextResponse.json({
+    success: true,
+    message: "Program and associated sessions deleted successfully",
+  });
+}
+
 export const GET = withApiErrorBoundary(getPrograms);
 export const POST = withApiErrorBoundary(createProgram);
+export const DELETE = withApiErrorBoundary(deleteProgram);
