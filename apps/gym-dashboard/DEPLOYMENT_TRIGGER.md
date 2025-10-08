@@ -141,3 +141,4 @@ Fix class deletion: Add DELETE endpoint with admin client to bypass RLS - Wed 8 
 Fix merge duplicates button: Exclude archived/inactive clients from duplicate detection - Wed 8 Oct 2025 17:00:00 BST
 Fix Monthly Turnover 1000 payment limit: Add .limit(100000) to bypass Supabase default - Wed 8 Oct 2025 17:30:00 BST
 Force deployment - Wed 8 Oct 2025 18:00:00 BST - Clear Vercel function cache
+Fix TeamUp PDF import: Use HH:MM:SS format for PostgreSQL time columns - Wed 8 Oct 2025 18:15:00 BST
