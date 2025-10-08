@@ -54,17 +54,36 @@ export class AgentTaskQueue {
     }
 
     // Initialize Redis connection
-    this.redis = new Redis({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379', 10),
-      password: process.env.REDIS_PASSWORD,
-      maxRetriesPerRequest: null, // Required for BullMQ
-      enableReadyCheck: false,
-      retryStrategy: (times) => {
-        const delay = Math.min(times * 50, 2000);
-        return delay;
-      }
-    });
+    // Support both Upstash URL format and traditional host/port/password
+    const redisUrl = process.env.KV_URL || process.env.UPSTASH_REDIS_REST_URL || process.env.REDIS_URL;
+
+    if (redisUrl) {
+      // Use connection URL (Upstash format)
+      this.redis = new Redis(redisUrl, {
+        maxRetriesPerRequest: null, // Required for BullMQ
+        enableReadyCheck: false,
+        retryStrategy: (times) => {
+          const delay = Math.min(times * 50, 2000);
+          return delay;
+        },
+        family: 6, // Force IPv6 if needed for Upstash
+      });
+      console.log('[AgentTaskQueue] Initialized with Redis URL');
+    } else {
+      // Use traditional host/port/password format
+      this.redis = new Redis({
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT || '6379', 10),
+        password: process.env.REDIS_PASSWORD,
+        maxRetriesPerRequest: null, // Required for BullMQ
+        enableReadyCheck: false,
+        retryStrategy: (times) => {
+          const delay = Math.min(times * 50, 2000);
+          return delay;
+        }
+      });
+      console.log('[AgentTaskQueue] Initialized with Redis host/port');
+    }
 
     // Initialize queue
     this.queue = new Queue<AgentTaskJobData>(QUEUE_NAME, {
