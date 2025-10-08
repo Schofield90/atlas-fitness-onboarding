@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
       .eq("organization_id", organizationId)
       .in("payment_status", ["paid_out", "succeeded", "confirmed"])
       .gte("payment_date", startDateString)
+      .order("payment_date", { ascending: false })
       .limit(100000);
 
     if (result.error) throw result.error;
@@ -105,6 +106,7 @@ export async function GET(request: NextRequest) {
       .eq("organization_id", organizationId)
       .in("payment_status", ["paid_out", "succeeded", "confirmed"])
       .gte("payment_date", startDateString)
+      .order("payment_date", { ascending: false })
       .limit(100000);
 
     // Process category data
