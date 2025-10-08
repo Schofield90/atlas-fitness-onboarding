@@ -81,9 +81,7 @@ export default function OrgDashboardPage() {
         <div className="mb-8">
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-3xl font-bold mb-2">
-                Welcome to Atlas Fitness CRM
-              </h1>
+              <h1 className="text-3xl font-bold mb-2">Welcome to GymLeadHub</h1>
               <p className="text-gray-300">
                 Manage your gym operations from one central location
               </p>
