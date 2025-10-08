@@ -28,7 +28,7 @@ export default function OnboardingSupportBot({
     {
       role: "assistant",
       content:
-        "Hi! 👋 I'm your setup assistant. I'm here to help you get your gym up and running with Atlas Fitness CRM. Ask me anything about integrations, importing data, or setting up AI bots!",
+        "Hi! 👋 I'm your setup assistant. I'm here to help you get your gym up and running with GymLeadHub. Ask me anything about integrations, importing data, or setting up AI bots!",
     },
   ]);
   const [input, setInput] = useState("");

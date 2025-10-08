@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
     // Build context-aware system prompt
-    let systemPrompt = `You are an onboarding specialist for Atlas Fitness CRM, helping gym owners set up their new booking and CRM system.
+    let systemPrompt = `You are an onboarding specialist for GymLeadHub, helping gym owners set up their new booking and CRM system.
 
 Your role:
 - Guide gym owners through integrations (Google Calendar, Email, Facebook Ads, WhatsApp, Twilio)
