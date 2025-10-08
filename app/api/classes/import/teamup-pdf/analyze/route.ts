@@ -41,6 +41,9 @@ export async function POST(request: NextRequest) {
 
     const prompt = `You are analyzing a TeamUp class schedule PDF. Extract ALL classes from this weekly schedule.
 
+CRITICAL: Extract EVERY SINGLE CLASS SLOT, even if the same class name appears at multiple different times.
+For example, if "Strength and Combat Fitness" appears at both 6:00 AM and 7:00 AM, create TWO separate entries.
+
 For each class, extract:
 - Class name (e.g., "Strength and Combat Fitness", "Group Personal Training Session")
 - Day of week (Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday)
@@ -56,7 +59,8 @@ Important notes:
 - If you see "[HG]" in the class name, location is "Harrogate"
 - Extract the actual class name WITHOUT the location prefix
 - Capacity is the SECOND number in the "X / Y" format (e.g., "4 / 12" means capacity is 12)
-- If multiple classes have the same name, time, and instructor on different days, create separate entries
+- IMPORTANT: Same class name at different times = separate entries (e.g., "Yoga" at 6am + "Yoga" at 7am = 2 entries)
+- Different days also = separate entries (e.g., "Yoga" on Monday + "Yoga" on Tuesday = 2 entries)
 
 Format your response as JSON with this structure:
 {
