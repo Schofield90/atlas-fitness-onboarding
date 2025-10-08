@@ -38,10 +38,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const prompt = `You are analyzing a TeamUp class schedule PDF. Extract ALL classes from this weekly schedule.
+    const prompt = `You are analyzing a TeamUp class schedule PDF. This document contains MULTIPLE PAGES (typically 4 pages).
 
-CRITICAL: Extract EVERY SINGLE CLASS SLOT, even if the same class name appears at multiple different times.
-For example, if "Strength and Combat Fitness" appears at both 6:00 AM and 7:00 AM, create TWO separate entries.
+CRITICAL INSTRUCTIONS:
+1. Process the ENTIRE DOCUMENT - ALL PAGES, not just the first page
+2. Extract EVERY SINGLE CLASS SLOT from EVERY PAGE
+3. Same class name at different times = separate entries (e.g., "Yoga" at 6am + "Yoga" at 7am = 2 entries)
+4. Different days also = separate entries (e.g., "Yoga" on Monday + "Yoga" on Tuesday = 2 entries)
 
 For each class, extract:
 - Class name (e.g., "Strength and Combat Fitness", "Group Personal Training Session")
@@ -53,13 +56,13 @@ For each class, extract:
 - Capacity (number from "X / Y" format - use Y as capacity)
 
 Important notes:
+- **PROCESS ALL PAGES** - Don't stop after the first page, continue through the entire document
 - Each class should be treated as RECURRING (weekly)
 - If you see "[YO]" in the class name, location is "York"
 - If you see "[HG]" in the class name, location is "Harrogate"
 - Extract the actual class name WITHOUT the location prefix
 - Capacity is the SECOND number in the "X / Y" format (e.g., "4 / 12" means capacity is 12)
-- IMPORTANT: Same class name at different times = separate entries (e.g., "Yoga" at 6am + "Yoga" at 7am = 2 entries)
-- Different days also = separate entries (e.g., "Yoga" on Monday + "Yoga" on Tuesday = 2 entries)
+- Typical TeamUp PDFs have 40-50 classes across multiple pages - make sure you've captured them all
 
 Format your response as JSON with this structure:
 {
@@ -86,7 +89,7 @@ Format your response as JSON with this structure:
 
     const message = await anthropic.messages.create({
       model: "claude-3-5-sonnet-20241022",
-      max_tokens: 4096,
+      max_tokens: 8192, // Increased for multi-page PDFs with 40+ classes
       messages: [
         {
           role: "user",
