@@ -22,41 +22,61 @@ export async function GET() {
     );
 
     // Get all payments with client data
-    // Use range(0, 999999) instead of limit() to bypass Supabase's default pagination
-    const { data: payments, error } = await supabaseAdmin
-      .from("payments")
-      .select(
-        `
-        id,
-        client_id,
-        amount,
-        payment_date,
-        payment_provider,
-        payment_status,
-        clients!payments_client_id_fkey(
+    // Supabase has a 1,000 row limit per query, so we need to paginate
+    const allPayments = [];
+    let page = 0;
+    const PAGE_SIZE = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabaseAdmin
+        .from("payments")
+        .select(
+          `
           id,
-          first_name,
-          last_name,
-          email,
-          status
+          client_id,
+          amount,
+          payment_date,
+          payment_provider,
+          payment_status,
+          clients!payments_client_id_fkey(
+            id,
+            first_name,
+            last_name,
+            email,
+            status
+          )
+        `,
         )
-      `,
-      )
-      .eq("organization_id", organizationId)
-      .not("client_id", "is", null) // Filter out NULL client_id at database level
-      .order("payment_date", { ascending: false })
-      .range(0, 999999); // Use range instead of limit to get all records
+        .eq("organization_id", organizationId)
+        .not("client_id", "is", null)
+        .order("payment_date", { ascending: false })
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+      if (error) {
+        console.error("Error fetching LTV data:", error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+
+      if (data && data.length > 0) {
+        allPayments.push(...data);
+        hasMore = data.length === PAGE_SIZE; // Continue if we got a full page
+        page++;
+      } else {
+        hasMore = false;
+      }
+    }
+
+    const payments = allPayments;
 
     // DEBUG: Log payment count
     console.log(`🔍 LTV Report Debug:`);
     console.log(`   Org ID: ${organizationId}`);
-    console.log(`   Payments fetched: ${payments?.length || 0}`);
-    console.log(`   Total amount: £${payments?.reduce((sum, p) => sum + (Number(p.amount) || 0), 0).toFixed(2)}`);
-
-    if (error) {
-      console.error("Error fetching LTV data:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    console.log(`   Pages fetched: ${page}`);
+    console.log(`   Payments fetched: ${payments.length}`);
+    console.log(
+      `   Total amount: £${payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0).toFixed(2)}`,
+    );
 
     // Calculate LTV per client
     const clientLTV: Record<
