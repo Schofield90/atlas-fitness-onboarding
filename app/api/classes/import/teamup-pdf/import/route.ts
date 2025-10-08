@@ -231,22 +231,22 @@ export async function POST(request: NextRequest) {
               const endTime = new Date(targetDate);
               endTime.setMinutes(targetDate.getMinutes() + (sessionDuration > 0 ? sessionDuration : 60));
 
-              // Create class session
+              // Create class session with ONLY fields that exist in production schema
+              const sessionData: any = {
+                organization_id: organizationId,
+                program_id: programData.id,
+                name: classData.name,
+                start_time: targetDate.toISOString(),
+                end_time: endTime.toISOString(),
+                description: `Imported from TeamUp schedule`,
+              };
+
+              // Add optional fields only if they exist in production schema
+              if (classData.location) sessionData.location = classData.location;
+
               const { error: sessionError } = await supabaseAdmin
                 .from("class_sessions")
-                .insert({
-                  organization_id: organizationId,
-                  program_id: programData.id,
-                  name: classData.name,
-                  instructor: classData.instructor || "TBD", // Use 'instructor' not 'instructor_name'
-                  start_time: targetDate.toISOString(),
-                  end_time: endTime.toISOString(), // Add required end_time field
-                  duration_minutes: sessionDuration > 0 ? sessionDuration : 60,
-                  max_capacity: classData.capacity || 20, // Use 'max_capacity' not 'capacity'
-                  current_bookings: 0,
-                  location: classData.location || "Main Studio",
-                  description: `Imported from TeamUp schedule`,
-                });
+                .insert(sessionData);
 
               if (sessionError) {
                 errors.push(
