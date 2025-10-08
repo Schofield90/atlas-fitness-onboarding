@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useOrganization } from "@/app/lib/hooks/useOrganization";
+import { useOrganization } from "@/app/hooks/useOrganization";
 
 /**
  * AI Agents redirect page
