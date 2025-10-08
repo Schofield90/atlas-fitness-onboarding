@@ -132,3 +132,4 @@ Fix reports page: Remove old revenue reports, add Monthly Turnover - Wed 8 Oct 2
 Force rebuild - Wed 8 Oct 2025 13:45:00 BST
 Add TeamUp to settings sidebar navigation - Wed 8 Oct 2025 14:00:00 BST
 Fix ESLint errors and add TeamUp to shared sidebar - Wed 8 Oct 2025 14:15:00 BST
+Fix 404: Add monthly turnover to shared /reports directory - Wed 8 Oct 2025 14:30:00 BST
