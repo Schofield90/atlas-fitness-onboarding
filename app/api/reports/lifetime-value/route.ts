@@ -47,6 +47,14 @@ export async function GET() {
       .order("payment_date", { ascending: false })
       .range(0, 999999); // Use range instead of limit to get all records
 
+    // DEBUG: Log payment count
+    console.log(`🔍 LTV Report Debug:`);
+    console.log(`   Org ID: ${organizationId}`);
+    console.log(`   Payments fetched: ${payments?.length || 0}`);
+    console.log(
+      `   Total amount: £${payments?.reduce((sum, p) => sum + (Number(p.amount) || 0), 0).toFixed(2)}`,
+    );
+
     if (error) {
       console.error("Error fetching LTV data:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
