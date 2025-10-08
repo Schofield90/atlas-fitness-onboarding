@@ -135,3 +135,4 @@ Fix ESLint errors and add TeamUp to shared sidebar - Wed 8 Oct 2025 14:15:00 BST
 Fix 404: Add monthly turnover to shared /reports directory - Wed 8 Oct 2025 14:30:00 BST
 Fix 405: Add TeamUp PDF import API routes to shared /app/api - Wed 8 Oct 2025 14:45:00 BST
 Fix analyze route: Force add ignored file for TeamUp PDF AI extraction - Wed 8 Oct 2025 15:00:00 BST
+Fix build error: Add csv-parse dependency for all apps - Wed 8 Oct 2025 15:15:00 BST
