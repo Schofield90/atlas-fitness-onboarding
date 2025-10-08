@@ -101,21 +101,30 @@ export async function POST(request: NextRequest) {
             const durationMinutes =
               endHour * 60 + endMin - (startHour * 60 + startMin);
 
-            await supabaseAdmin.from("programs").insert({
-              organization_id: organizationId,
-              name: classData.name,
-              description: `Imported from TeamUp schedule`,
-              duration_minutes: durationMinutes > 0 ? durationMinutes : 60,
-              max_participants: classData.capacity,
-              default_capacity: classData.capacity,
-              price_pennies: 0,
-              is_active: true,
-              metadata: {
-                source: "teamup_pdf_import",
-                imported_at: new Date().toISOString(),
-                class_type_id: classTypeId,
-              },
-            });
+            const { data: newProgram, error: programError } =
+              await supabaseAdmin
+                .from("programs")
+                .insert({
+                  organization_id: organizationId,
+                  name: classData.name,
+                  description: `Imported from TeamUp schedule`,
+                  duration_minutes: durationMinutes > 0 ? durationMinutes : 60,
+                  max_participants: classData.capacity,
+                  default_capacity: classData.capacity,
+                  price_pennies: 0,
+                  is_active: true,
+                  metadata: {
+                    source: "teamup_pdf_import",
+                    imported_at: new Date().toISOString(),
+                    class_type_id: classTypeId,
+                  },
+                })
+                .select("id")
+                .single();
+
+            if (programError || !newProgram) {
+              console.error("Failed to create program:", programError);
+            }
           }
 
           classTypeMap.set(classData.name, classTypeId);
@@ -170,6 +179,78 @@ export async function POST(request: NextRequest) {
           );
         } else {
           schedulesCreated++;
+        }
+
+        // ALSO generate class_sessions for the next 4 weeks so they appear in the calendar
+        // Get the program we just created (or find existing one)
+        const { data: programData } = await supabaseAdmin
+          .from("programs")
+          .select("id")
+          .eq("organization_id", organizationId)
+          .eq("name", classData.name)
+          .single();
+
+        if (programData) {
+          const weeksToGenerate = 4;
+          const startDate = new Date();
+          startDate.setHours(0, 0, 0, 0);
+
+          for (let week = 0; week < weeksToGenerate; week++) {
+            // Calculate the date for this occurrence
+            const currentDate = new Date(startDate);
+            currentDate.setDate(startDate.getDate() + week * 7);
+
+            // Find the next occurrence of this day of the week
+            const daysUntilTarget = dayOfWeekNum - currentDate.getDay();
+            const targetDate = new Date(currentDate);
+            targetDate.setDate(currentDate.getDate() + daysUntilTarget);
+
+            // Skip if the date is in the past
+            if (targetDate < new Date()) continue;
+
+            // Set the time
+            const [hours, minutes] = classData.startTime.split(":").map(Number);
+            const [endHours, endMinutes] = classData.endTime
+              .split(":")
+              .map(Number);
+            targetDate.setHours(hours, minutes, 0, 0);
+
+            // Calculate duration
+            const sessionDuration =
+              endHours * 60 + endMinutes - (hours * 60 + minutes);
+
+            // Check if session already exists
+            const { data: existingSession } = await supabaseAdmin
+              .from("class_sessions")
+              .select("id")
+              .eq("program_id", programData.id)
+              .eq("start_time", targetDate.toISOString())
+              .maybeSingle();
+
+            if (!existingSession) {
+              // Create class session
+              const { error: sessionError } = await supabaseAdmin
+                .from("class_sessions")
+                .insert({
+                  organization_id: organizationId,
+                  program_id: programData.id,
+                  name: classData.name,
+                  instructor_name: classData.instructor || "TBD",
+                  start_time: targetDate.toISOString(),
+                  duration_minutes: sessionDuration > 0 ? sessionDuration : 60,
+                  capacity: classData.capacity || 20,
+                  location: classData.location || "Main Studio",
+                  description: `Imported from TeamUp schedule`,
+                });
+
+              if (sessionError) {
+                console.error(
+                  `Session creation error for ${classData.name}:`,
+                  sessionError,
+                );
+              }
+            }
+          }
         }
       } catch (error: any) {
         errors.push(`Error processing "${classData.name}": ${error.message}`);
