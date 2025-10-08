@@ -156,16 +156,20 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
+        // Insert with minimal fields - production table has limited schema
+        const insertData: any = {
+          class_type_id: classTypeId,
+          start_time: startDateTime.toISOString(),
+          end_time: endDateTime.toISOString(),
+        };
+
+        // Add optional fields only if they exist in schema
+        if (classData.instructor) insertData.instructor_name = classData.instructor;
+        if (classData.location) insertData.room_location = classData.location;
+
         const { error: scheduleError } = await supabaseAdmin
           .from("class_schedules")
-          .insert({
-            class_type_id: classTypeId,
-            title: classData.name,
-            start_time: startDateTime.toISOString(),
-            end_time: endDateTime.toISOString(),
-            instructor_name: classData.instructor || null,
-            room_location: classData.location || "Unknown",
-          });
+          .insert(insertData);
 
         if (scheduleError) {
           errors.push(
