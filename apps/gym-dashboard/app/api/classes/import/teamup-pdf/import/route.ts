@@ -189,14 +189,28 @@ export async function POST(request: NextRequest) {
 
         // ALSO generate class_sessions for the next 4 weeks so they appear in the calendar
         // Get the program we just created (or find existing one)
-        const { data: programData } = await supabaseAdmin
-          .from("programs")
-          .select("id")
-          .eq("organization_id", organizationId)
-          .eq("name", classData.name)
-          .single();
+        const { data: programData, error: programQueryError } =
+          await supabaseAdmin
+            .from("programs")
+            .select("id")
+            .eq("organization_id", organizationId)
+            .eq("name", classData.name)
+            .single();
+
+        if (programQueryError) {
+          console.log(
+            `Program query error for ${classData.name}:`,
+            programQueryError,
+          );
+          errors.push(
+            `No program found for "${classData.name}": ${programQueryError.message}`,
+          );
+        }
 
         if (programData) {
+          console.log(
+            `Generating sessions for ${classData.name}, program_id: ${programData.id}`,
+          );
           const weeksToGenerate = 4;
           const startDate = new Date();
           startDate.setHours(0, 0, 0, 0);
@@ -216,7 +230,16 @@ export async function POST(request: NextRequest) {
             targetDate.setDate(currentDate.getDate() + daysUntilTarget);
 
             // Skip if the date is in the past
-            if (targetDate < new Date()) continue;
+            if (targetDate < new Date()) {
+              console.log(
+                `Skipping past date: ${targetDate.toISOString()} for ${classData.name}`,
+              );
+              continue;
+            }
+
+            console.log(
+              `Attempting session: ${classData.name} on ${targetDate.toLocaleDateString()} at ${classData.startTime}`,
+            );
 
             // Set the time
             const [hours, minutes] = classData.startTime.split(":").map(Number);
@@ -270,9 +293,23 @@ export async function POST(request: NextRequest) {
                 );
               } else {
                 sessionsCreated++;
+                console.log(
+                  `✓ Session created: ${classData.name} on ${targetDate.toLocaleDateString()}`,
+                );
               }
+            } else {
+              console.log(
+                `Session already exists: ${classData.name} on ${targetDate.toLocaleDateString()}`,
+              );
             }
           }
+          console.log(
+            `Finished generating sessions for ${classData.name}. Total created so far: ${sessionsCreated}`,
+          );
+        } else {
+          console.log(
+            `No program found for ${classData.name}, skipping session generation`,
+          );
         }
       } catch (error: any) {
         errors.push(`Error processing "${classData.name}": ${error.message}`);
