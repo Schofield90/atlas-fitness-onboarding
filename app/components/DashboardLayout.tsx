@@ -10,6 +10,8 @@ import LocationSwitcher from "./LocationSwitcher";
 import OrganizationSwitcher from "./OrganizationSwitcher";
 import { Mail } from "lucide-react";
 import toast from "@/app/lib/toast";
+import OnboardingChecklist from "./onboarding/OnboardingChecklist";
+import OnboardingSupportBot from "./onboarding/OnboardingSupportBot";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -1251,6 +1253,10 @@ export default function DashboardLayout({
         {/* Page content */}
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
+
+      {/* Onboarding Components */}
+      <OnboardingChecklist />
+      <OnboardingSupportBot />
     </div>
   );
 }
