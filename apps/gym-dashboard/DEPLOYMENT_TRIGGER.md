@@ -160,3 +160,4 @@ FORCE MONTHLY TURNOVER CACHE CLEAR - Wed 8 Oct 2025 20:45:00 BST - revalidate=0
 TeamUp 4-step review workflow: Edit classes → Preview schedule → Import - Wed 8 Oct 2025 22:45:00 BST
 FORCE REBUILD: Ensure TeamUp 4-step workflow deploys correctly - Wed 8 Oct 2025 23:55:00 BST
 FIX: Increase AI max_tokens to 16384 for complete schedule extraction - Thu 9 Oct 2025 00:10:00 BST
+FIX: Use compact JSON format to fit 50+ classes within 8K token limit - Thu 9 Oct 2025 00:20:00 BST
