@@ -149,3 +149,4 @@ QA fixes: Add day_of_week + fix date calculation - Wed 8 Oct 2025 19:15:00 BST
 CRITICAL FIX: Correct class_sessions field names (instructor, max_capacity, end_time) - Wed 8 Oct 2025 20:00:00 BST
 CRITICAL FIX: Use minimal schema - remove instructor, max_capacity, etc - Wed 8 Oct 2025 20:15:00 BST
 Add debug logging to diagnose session generation - Wed 8 Oct 2025 20:30:00 BST
+FORCE MONTHLY TURNOVER CACHE CLEAR - Wed 8 Oct 2025 20:45:00 BST - revalidate=0
