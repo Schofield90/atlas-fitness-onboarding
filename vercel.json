@@ -25,6 +25,18 @@
       "maxDuration": 45,
       "memory": 1536
     },
+    "app/api/ai-agents/conversations/[id]/messages/route.ts": {
+      "maxDuration": 60,
+      "memory": 2048
+    },
+    "app/api/ai-agents/tasks/[id]/execute/route.ts": {
+      "maxDuration": 120,
+      "memory": 2048
+    },
+    "app/api/workflows/actions/execute-agent/route.ts": {
+      "maxDuration": 60,
+      "memory": 2048
+    },
     "app/api/cron/**/*.ts": {
       "maxDuration": 300,
       "memory": 2048
