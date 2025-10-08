@@ -9,11 +9,12 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@atlas-fitness/auth": "file:../../packages/auth",
+    "@atlas-fitness/database": "file:../../packages/database",
+    "@atlas-fitness/shared-ui": "file:../../packages/shared-ui",
+    "csv-parse": "^6.1.0",
     "next": "14.2.16",
     "react": "^18",
-    "react-dom": "^18",
-    "@atlas-fitness/shared-ui": "file:../../packages/shared-ui",
-    "@atlas-fitness/database": "file:../../packages/database",
-    "@atlas-fitness/auth": "file:../../packages/auth"
+    "react-dom": "^18"
   }
 }
