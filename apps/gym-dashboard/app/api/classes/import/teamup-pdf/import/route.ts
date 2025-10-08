@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     for (const classData of classes as ClassToImport[]) {
       try {
-        // 1. Get or create class type
+        // 1. Get or create class type (for class_schedules)
         let classTypeId = classTypeMap.get(classData.name);
 
         if (!classTypeId) {
@@ -92,6 +92,30 @@ export async function POST(request: NextRequest) {
 
             classTypeId = newType.id;
             classTypesCreated++;
+
+            // ALSO create in programs table (for classes page display)
+            const [startHour, startMin] = classData.startTime
+              .split(":")
+              .map(Number);
+            const [endHour, endMin] = classData.endTime.split(":").map(Number);
+            const durationMinutes =
+              endHour * 60 + endMin - (startHour * 60 + startMin);
+
+            await supabaseAdmin.from("programs").insert({
+              organization_id: organizationId,
+              name: classData.name,
+              description: `Imported from TeamUp schedule`,
+              duration_minutes: durationMinutes > 0 ? durationMinutes : 60,
+              max_participants: classData.capacity,
+              default_capacity: classData.capacity,
+              price_pennies: 0,
+              is_active: true,
+              metadata: {
+                source: "teamup_pdf_import",
+                imported_at: new Date().toISOString(),
+                class_type_id: classTypeId,
+              },
+            });
           }
 
           classTypeMap.set(classData.name, classTypeId);
