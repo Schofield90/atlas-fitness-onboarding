@@ -3,7 +3,7 @@
  * Calculates costs with 20% markup for billing
  */
 
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient } from '@/app/lib/supabase/admin';
 
 /**
  * Model pricing (in USD per 1K tokens)

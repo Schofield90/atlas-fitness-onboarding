@@ -4,13 +4,19 @@ import { createAdminClient } from "@/app/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-11-20.acacia",
-});
+function getStripeClient() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error("STRIPE_SECRET_KEY is not configured");
+  }
+  return new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: "2024-11-20.acacia",
+  });
+}
 
 const webhookSecret = process.env.STRIPE_CONNECT_WEBHOOK_SECRET!;
 
 export async function POST(request: NextRequest) {
+  const stripe = getStripeClient();
   try {
     const body = await request.text();
     const signature = request.headers.get("stripe-signature");

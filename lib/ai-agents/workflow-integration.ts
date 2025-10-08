@@ -3,7 +3,7 @@
  * Allows automation workflows to execute AI agent tasks
  */
 
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient } from '@/app/lib/supabase/admin';
 import { getOrchestrator, type TaskExecutionResult } from './orchestrator';
 import { logAIUsage, type CostCalculation } from './cost-tracker';
 import type { ExecutionContext, NodeExecutionResult } from '@/app/lib/workflow/types';

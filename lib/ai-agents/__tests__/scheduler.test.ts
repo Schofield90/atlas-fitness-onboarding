@@ -12,7 +12,7 @@ jest.mock('../task-queue', () => ({
   }
 }));
 
-jest.mock('@/lib/supabase/admin', () => ({
+jest.mock('@/app/lib/supabase/admin', () => ({
   createAdminClient: jest.fn().mockReturnValue({
     from: jest.fn().mockReturnValue({
       select: jest.fn().mockReturnThis(),

@@ -3,7 +3,7 @@
  * Seeds default agents for organizations
  */
 
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient } from '@/app/lib/supabase/admin';
 import { DEFAULT_AGENT_TEMPLATES } from './default-agents';
 
 export interface SeedAgentsOptions {

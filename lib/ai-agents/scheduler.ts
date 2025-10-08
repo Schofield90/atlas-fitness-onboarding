@@ -6,7 +6,7 @@
 import { parseExpression } from 'cron-parser';
 import cronstrue from 'cronstrue';
 import { agentTaskQueue } from './task-queue';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient } from '@/app/lib/supabase/admin';
 
 // Scheduler configuration
 const POLL_INTERVAL_MS = 60 * 1000; // Poll every 60 seconds

@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { agentScheduler } from "@/lib/ai-agents/scheduler";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient } from "@/app/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";

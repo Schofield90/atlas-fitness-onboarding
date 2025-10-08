@@ -3,7 +3,7 @@
  * Coordinates AI agent task execution and conversation management
  */
 
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient } from '@/app/lib/supabase/admin';
 import { OpenAIProvider } from './providers/openai-provider';
 import { AnthropicProvider } from './providers/anthropic-provider';
 import { ToolRegistry } from './tools/registry';

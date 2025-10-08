@@ -7,7 +7,7 @@ import { Queue, Worker, Job, QueueEvents } from 'bullmq';
 import { Redis } from 'ioredis';
 import * as cron from 'node-cron';
 import { agentOrchestrator } from './orchestrator';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient } from '@/app/lib/supabase/admin';
 
 // Queue configuration
 const QUEUE_NAME = 'ai-agent-tasks';
@@ -47,6 +47,12 @@ export class AgentTaskQueue {
   private isShuttingDown = false;
 
   constructor() {
+    // Skip initialization during build time
+    if (process.env.NEXT_PHASE === 'phase-production-build') {
+      console.log('[AgentTaskQueue] Skipping Redis initialization during build');
+      return;
+    }
+
     // Initialize Redis connection
     this.redis = new Redis({
       host: process.env.REDIS_HOST || 'localhost',

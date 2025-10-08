@@ -6,7 +6,7 @@
  */
 
 import { agentTaskQueue } from './task-queue';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient } from '@/app/lib/supabase/admin';
 
 /**
  * Example 1: Add an ad-hoc task to the queue
