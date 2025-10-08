@@ -90,7 +90,7 @@ Format your response as JSON with this structure:
 
     const message = await anthropic.messages.create({
       model: "claude-3-5-sonnet-20241022",
-      max_tokens: 8192, // Increased for multi-page PDFs with 40+ classes
+      max_tokens: 16384, // Maximum for Sonnet - ensures full extraction of 40-50 classes
       messages: [
         {
           role: "user",
@@ -110,7 +110,7 @@ Format your response as JSON with this structure:
           ],
         },
       ],
-      temperature: 0.3,
+      temperature: 0, // Zero for deterministic, consistent extraction
     });
 
     // Extract text content from Claude's response
