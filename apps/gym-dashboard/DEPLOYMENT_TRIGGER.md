@@ -139,3 +139,4 @@ Fix build error: Add csv-parse dependency for all apps - Wed 8 Oct 2025 15:15:00
 Fix Monthly Turnover date calculation: Use proper setMonth() instead of approximate 30-day calculation - Wed 8 Oct 2025 16:00:00 BST
 Fix class deletion: Add DELETE endpoint with admin client to bypass RLS - Wed 8 Oct 2025 16:30:00 BST
 Fix merge duplicates button: Exclude archived/inactive clients from duplicate detection - Wed 8 Oct 2025 17:00:00 BST
+Fix Monthly Turnover 1000 payment limit: Add .limit(100000) to bypass Supabase default - Wed 8 Oct 2025 17:30:00 BST

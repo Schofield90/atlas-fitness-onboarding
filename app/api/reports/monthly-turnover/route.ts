@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     startDate.setMonth(startDate.getMonth() - months);
     const startDateString = startDate.toISOString().split("T")[0];
 
-    // Get payment data
+    // Get payment data (set high limit to bypass default 1000 row limit)
     const result = await supabaseAdmin
       .from("payments")
       .select(
@@ -41,10 +41,12 @@ export async function GET(request: NextRequest) {
         amount,
         client_id
       `,
+        { count: "exact" },
       )
       .eq("organization_id", organizationId)
       .in("payment_status", ["paid_out", "succeeded", "confirmed"])
-      .gte("payment_date", startDateString);
+      .gte("payment_date", startDateString)
+      .limit(100000);
 
     if (result.error) throw result.error;
 
@@ -84,7 +86,7 @@ export async function GET(request: NextRequest) {
       }))
       .sort((a, b) => b.period.localeCompare(a.period));
 
-    // Get category breakdown
+    // Get category breakdown (set high limit to bypass default 1000 row limit)
     const categoryResult = await supabaseAdmin
       .from("payments")
       .select(
@@ -97,10 +99,12 @@ export async function GET(request: NextRequest) {
           )
         )
       `,
+        { count: "exact" },
       )
       .eq("organization_id", organizationId)
       .in("payment_status", ["paid_out", "succeeded", "confirmed"])
-      .gte("payment_date", startDateString);
+      .gte("payment_date", startDateString)
+      .limit(100000);
 
     // Process category data
     const categoryBreakdown = new Map<string, Map<string, any>>();
