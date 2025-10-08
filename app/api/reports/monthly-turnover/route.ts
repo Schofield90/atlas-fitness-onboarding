@@ -3,6 +3,7 @@ import { createAdminClient } from "@/app/lib/supabase/admin";
 import { requireAuth } from "@/app/lib/api/auth-check";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0; // Force no caching
 
 /**
  * GET /api/reports/monthly-turnover
