@@ -112,11 +112,19 @@ Format your response as JSON with this structure:
       throw new Error("No text response from Claude");
     }
 
-    // Parse JSON from response (Claude may wrap it in markdown code blocks)
+    // Parse JSON from response (handle multiple formats)
     let responseText = textContent.text;
-    const jsonMatch = responseText.match(/```json\n([\s\S]*?)\n```/);
-    if (jsonMatch) {
-      responseText = jsonMatch[1];
+
+    // Try to extract JSON from markdown code blocks first
+    const markdownMatch = responseText.match(/```json\n([\s\S]*?)\n```/);
+    if (markdownMatch) {
+      responseText = markdownMatch[1];
+    } else {
+      // Try to extract raw JSON object (handle conversational text before JSON)
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        responseText = jsonMatch[0];
+      }
     }
 
     const result = JSON.parse(responseText);
