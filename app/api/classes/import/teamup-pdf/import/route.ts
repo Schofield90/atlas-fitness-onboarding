@@ -154,35 +154,37 @@ export async function POST(request: NextRequest) {
           .eq("start_time", startTimeFormatted)
           .maybeSingle();
 
-        if (existingSchedule) {
-          // Schedule already exists, skip
-          continue;
-        }
+        if (!existingSchedule) {
+          // Schedule doesn't exist, create it
+          // Insert with minimal fields - production table has limited schema
+          const insertData: any = {
+            class_type_id: classTypeId,
+            day_of_week: dayOfWeekNum, // CRITICAL: Must include day_of_week
+            start_time: startTimeFormatted,
+            end_time: endTimeFormatted,
+          };
 
-        // Insert with minimal fields - production table has limited schema
-        const insertData: any = {
-          class_type_id: classTypeId,
-          day_of_week: dayOfWeekNum, // CRITICAL: Must include day_of_week
-          start_time: startTimeFormatted,
-          end_time: endTimeFormatted,
-        };
+          // Add optional fields only if they exist in schema
+          if (classData.instructor) insertData.instructor_name = classData.instructor;
+          if (classData.location) insertData.room_location = classData.location;
 
-        // Add optional fields only if they exist in schema
-        if (classData.instructor) insertData.instructor_name = classData.instructor;
-        if (classData.location) insertData.room_location = classData.location;
+          const { error: scheduleError } = await supabaseAdmin
+            .from("class_schedules")
+            .insert(insertData);
 
-        const { error: scheduleError } = await supabaseAdmin
-          .from("class_schedules")
-          .insert(insertData);
-
-        if (scheduleError) {
-          errors.push(
-            `Failed to create schedule for "${classData.name}" on ${classData.dayOfWeek}: ${scheduleError.message}`,
-          );
+          if (scheduleError) {
+            errors.push(
+              `Failed to create schedule for "${classData.name}" on ${classData.dayOfWeek}: ${scheduleError.message}`,
+            );
+          } else {
+            schedulesCreated++;
+            importLog.push(
+              `✓ Schedule: ${classData.name} - ${classData.dayOfWeek} ${startTimeFormatted}-${endTimeFormatted}`,
+            );
+          }
         } else {
-          schedulesCreated++;
-          importLog.push(
-            `✓ Schedule: ${classData.name} - ${classData.dayOfWeek} ${startTimeFormatted}-${endTimeFormatted}`,
+          console.log(
+            `Schedule already exists for ${classData.name} on ${classData.dayOfWeek}, skipping schedule creation but will generate sessions`,
           );
         }
 
