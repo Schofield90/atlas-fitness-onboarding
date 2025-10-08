@@ -91,25 +91,56 @@ function MonthlyTurnoverPageContent() {
   const { organizationId } = useOrganization();
 
   const [data, setData] = useState<TurnoverData | null>(null);
+  const [comparisonData, setComparisonData] = useState<TurnoverData | null>(
+    null,
+  );
   const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"graph" | "table">("graph");
-  const [timeRange, setTimeRange] = useState<"12" | "24" | "36">("12");
+  const [timeRange, setTimeRange] = useState<"12" | "24" | "36" | "custom">(
+    "12",
+  );
+  const [comparisonMode, setComparisonMode] = useState<
+    "none" | "yoy" | "mom" | "custom"
+  >("none");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
+  const [comparisonStartDate, setComparisonStartDate] = useState("");
+  const [comparisonEndDate, setComparisonEndDate] = useState("");
 
   useEffect(() => {
     if (!organizationId) return;
     fetchTurnoverData();
-  }, [organizationId, timeRange]);
+  }, [
+    organizationId,
+    timeRange,
+    customStartDate,
+    customEndDate,
+    comparisonMode,
+  ]);
 
   const fetchTurnoverData = async () => {
     try {
       setLoading(true);
       setError(null);
 
+      // Build query params
+      let queryParams = "";
+      if (timeRange === "custom" && customStartDate && customEndDate) {
+        queryParams = `startDate=${customStartDate}&endDate=${customEndDate}`;
+      } else if (timeRange !== "custom") {
+        queryParams = `months=${timeRange}`;
+      } else {
+        // Custom selected but dates not set yet
+        setLoading(false);
+        return;
+      }
+
+      // Fetch primary data
       const response = await fetch(
-        `/api/reports/monthly-turnover?months=${timeRange}`,
+        `/api/reports/monthly-turnover?${queryParams}`,
         {
           cache: "no-store",
           headers: {
@@ -125,11 +156,88 @@ function MonthlyTurnoverPageContent() {
       }
 
       setData(result.data);
+
+      // Fetch comparison data if needed
+      if (comparisonMode !== "none") {
+        await fetchComparisonData(result.data);
+      } else {
+        setComparisonData(null);
+      }
     } catch (err: any) {
       console.error("Fetch error:", err);
       setError(err.message || "Failed to load turnover data");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchComparisonData = async (primaryData: TurnoverData) => {
+    try {
+      let compQueryParams = "";
+
+      if (comparisonMode === "yoy") {
+        // Year-over-year: shift back 12 months
+        if (timeRange === "custom" && customStartDate && customEndDate) {
+          const start = new Date(customStartDate);
+          const end = new Date(customEndDate);
+          start.setFullYear(start.getFullYear() - 1);
+          end.setFullYear(end.getFullYear() - 1);
+          compQueryParams = `startDate=${start.toISOString().split("T")[0]}&endDate=${end.toISOString().split("T")[0]}`;
+        } else {
+          const monthsNum = parseInt(timeRange);
+          const start = new Date();
+          start.setMonth(start.getMonth() - monthsNum - 12);
+          const end = new Date();
+          end.setMonth(end.getMonth() - 12);
+          compQueryParams = `startDate=${start.toISOString().split("T")[0]}&endDate=${end.toISOString().split("T")[0]}`;
+        }
+      } else if (comparisonMode === "mom") {
+        // Month-over-month: shift back 1 month
+        if (timeRange === "custom" && customStartDate && customEndDate) {
+          const start = new Date(customStartDate);
+          const end = new Date(customEndDate);
+          start.setMonth(start.getMonth() - 1);
+          end.setMonth(end.getMonth() - 1);
+          compQueryParams = `startDate=${start.toISOString().split("T")[0]}&endDate=${end.toISOString().split("T")[0]}`;
+        } else {
+          const monthsNum = parseInt(timeRange);
+          const start = new Date();
+          start.setMonth(start.getMonth() - monthsNum - 1);
+          const end = new Date();
+          end.setMonth(end.getMonth() - 1);
+          compQueryParams = `startDate=${start.toISOString().split("T")[0]}&endDate=${end.toISOString().split("T")[0]}`;
+        }
+      } else if (
+        comparisonMode === "custom" &&
+        comparisonStartDate &&
+        comparisonEndDate
+      ) {
+        compQueryParams = `startDate=${comparisonStartDate}&endDate=${comparisonEndDate}`;
+      }
+
+      if (!compQueryParams) {
+        setComparisonData(null);
+        return;
+      }
+
+      const response = await fetch(
+        `/api/reports/monthly-turnover?${compQueryParams}`,
+        {
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+          },
+        },
+      );
+      const result = await response.json();
+
+      if (response.ok) {
+        setComparisonData(result.data);
+      }
+    } catch (err: any) {
+      console.error("Comparison fetch error:", err);
+      // Don't set error for comparison - just log it
     }
   };
 
@@ -180,17 +288,43 @@ function MonthlyTurnoverPageContent() {
     });
   };
 
-  // Prepare chart data
-  const chartData =
-    data?.periods
-      .slice()
-      .reverse()
-      .map((p) => ({
-        name: getMonthName(p.period),
-        revenue: p.total_revenue,
-        payments: p.payment_count,
-        customers: p.unique_customers,
-      })) || [];
+  // Prepare chart data with comparison support
+  const chartData = (() => {
+    if (!data?.periods) return [];
+
+    const primaryData =
+      data.periods
+        .slice()
+        .reverse()
+        .map((p) => ({
+          name: getMonthName(p.period),
+          revenue: p.total_revenue,
+          payments: p.payment_count,
+          customers: p.unique_customers,
+        })) || [];
+
+    // If no comparison data, return primary only
+    if (!comparisonData?.periods) {
+      return primaryData;
+    }
+
+    // Merge comparison data by matching period names
+    const comparisonMap = new Map();
+    comparisonData.periods.forEach((p) => {
+      const periodName = getMonthName(p.period);
+      comparisonMap.set(periodName, {
+        comparisonRevenue: p.total_revenue,
+        comparisonPayments: p.payment_count,
+        comparisonCustomers: p.unique_customers,
+      });
+    });
+
+    // Merge or append comparison data
+    return primaryData.map((item) => ({
+      ...item,
+      ...(comparisonMap.get(item.name) || {}),
+    }));
+  })();
 
   // Prepare category pie chart data
   const categoryTotals = new Map<string, number>();
@@ -262,13 +396,30 @@ function MonthlyTurnoverPageContent() {
               <select
                 value={timeRange}
                 onChange={(e) =>
-                  setTimeRange(e.target.value as "12" | "24" | "36")
+                  setTimeRange(e.target.value as "12" | "24" | "36" | "custom")
                 }
                 className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               >
                 <option value="12">Last 12 Months</option>
                 <option value="24">Last 24 Months</option>
                 <option value="36">Last 36 Months</option>
+                <option value="custom">Custom Range</option>
+              </select>
+
+              {/* Comparison Mode Selector */}
+              <select
+                value={comparisonMode}
+                onChange={(e) =>
+                  setComparisonMode(
+                    e.target.value as "none" | "yoy" | "mom" | "custom",
+                  )
+                }
+                className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              >
+                <option value="none">No Comparison</option>
+                <option value="yoy">Year-over-Year</option>
+                <option value="mom">Month-over-Month</option>
+                <option value="custom">Custom Comparison</option>
               </select>
 
               {/* View Mode Toggle */}
@@ -315,6 +466,56 @@ function MonthlyTurnoverPageContent() {
               </button>
             </div>
           </div>
+
+          {/* Custom Date Range Inputs */}
+          {(timeRange === "custom" || comparisonMode === "custom") && (
+            <div className="mt-4 space-y-3">
+              {timeRange === "custom" && (
+                <div className="flex items-center gap-3">
+                  <label className="text-sm text-gray-400 min-w-[140px]">
+                    Primary Period:
+                  </label>
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    placeholder="Start Date"
+                  />
+                  <span className="text-gray-400">to</span>
+                  <input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    placeholder="End Date"
+                  />
+                </div>
+              )}
+              {comparisonMode === "custom" && (
+                <div className="flex items-center gap-3">
+                  <label className="text-sm text-gray-400 min-w-[140px]">
+                    Comparison Period:
+                  </label>
+                  <input
+                    type="date"
+                    value={comparisonStartDate}
+                    onChange={(e) => setComparisonStartDate(e.target.value)}
+                    className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    placeholder="Start Date"
+                  />
+                  <span className="text-gray-400">to</span>
+                  <input
+                    type="date"
+                    value={comparisonEndDate}
+                    onChange={(e) => setComparisonEndDate(e.target.value)}
+                    className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    placeholder="End Date"
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Summary Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -505,7 +706,9 @@ function MonthlyTurnoverPageContent() {
                     labelStyle={{ color: "#F9FAFB" }}
                     formatter={(value: any, name: string) => {
                       if (name === "revenue")
-                        return [formatCurrency(value), "Revenue"];
+                        return [formatCurrency(value), "Current Revenue"];
+                      if (name === "comparisonRevenue")
+                        return [formatCurrency(value), "Comparison Revenue"];
                       if (name === "payments")
                         return [value.toLocaleString(), "Payments"];
                       if (name === "customers")
@@ -520,7 +723,19 @@ function MonthlyTurnoverPageContent() {
                     stroke="#F59E0B"
                     strokeWidth={2}
                     dot={{ fill: "#F59E0B" }}
+                    name="Current Revenue"
                   />
+                  {comparisonData && (
+                    <Line
+                      type="monotone"
+                      dataKey="comparisonRevenue"
+                      stroke="#3B82F6"
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      dot={{ fill: "#3B82F6" }}
+                      name="Comparison Revenue"
+                    />
+                  )}
                 </LineChart>
               </ResponsiveContainer>
             </div>

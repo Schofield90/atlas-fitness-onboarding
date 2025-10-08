@@ -11,6 +11,8 @@ export const revalidate = 0; // Force no caching
  * Query params:
  * - view: 'month' | 'year' (default: 'month')
  * - months: number of months to include (default: 12)
+ * - startDate: custom start date (YYYY-MM-DD)
+ * - endDate: custom end date (YYYY-MM-DD)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -20,6 +22,8 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams;
     const view = searchParams.get("view") || "month";
+    const customStartDate = searchParams.get("startDate");
+    const customEndDate = searchParams.get("endDate");
     const months = parseInt(searchParams.get("months") || "12");
 
     // Use admin client to bypass RLS
@@ -28,10 +32,21 @@ export async function GET(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
     );
 
-    // Calculate proper start date by going back N months
-    const startDate = new Date();
-    startDate.setMonth(startDate.getMonth() - months);
-    const startDateString = startDate.toISOString().split("T")[0];
+    // Calculate date range
+    let startDateString: string;
+    let endDateString: string;
+
+    if (customStartDate && customEndDate) {
+      // Use custom date range
+      startDateString = customStartDate;
+      endDateString = customEndDate;
+    } else {
+      // Calculate proper start date by going back N months
+      const startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - months);
+      startDateString = startDate.toISOString().split("T")[0];
+      endDateString = new Date().toISOString().split("T")[0];
+    }
 
     // Get payment data using pagination (Supabase enforces 1000 row max)
     let allPayments: any[] = [];
@@ -52,6 +67,7 @@ export async function GET(request: NextRequest) {
         .eq("organization_id", organizationId)
         .in("payment_status", ["paid_out", "succeeded", "confirmed"])
         .gte("payment_date", startDateString)
+        .lte("payment_date", endDateString)
         .order("payment_date", { ascending: false })
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
