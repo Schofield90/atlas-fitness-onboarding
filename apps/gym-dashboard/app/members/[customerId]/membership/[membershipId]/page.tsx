@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { createClient } from "@/app/lib/supabase/client";
 import { formatBritishCurrency } from "@/app/lib/utils/british-format";
 import { ChevronLeft, Edit2, Pause, X, ChevronDown } from "lucide-react";
 
@@ -67,55 +66,64 @@ export default function MembershipDetailPage() {
 
   const fetchMembershipDetails = async () => {
     try {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("customer_memberships")
-        .select(
-          `
-          *,
-          membership_plan:membership_plans(*),
-          client:clients(first_name, last_name, email)
-        `,
-        )
-        .eq("id", membershipId)
-        .single();
+      const response = await fetch(`/api/customer-memberships/${membershipId}`);
 
-      if (error) {
-        console.error("Error fetching membership:", error);
-        setError("Failed to load membership details. Please try refreshing the page.");
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Error fetching membership:", errorData);
+        setError(
+          errorData.error ||
+            "Failed to load membership details. Please try refreshing the page.",
+        );
         setLoading(false);
         return;
       }
-      setMembership(data);
+
+      const { membership } = await response.json();
+      setMembership(membership);
     } catch (error) {
       console.error("Error fetching membership:", error);
-      setError("Failed to load membership details. Please try refreshing the page.");
+      setError(
+        "Failed to load membership details. Please try refreshing the page.",
+      );
       setLoading(false);
     }
   };
 
   const fetchPayments = async () => {
     try {
-      const supabase = createClient();
+      const response = await fetch(`/api/customers/${customerId}/payments`);
 
-      // Fetch past payments (completed)
-      const { data: past } = await supabase
-        .from("payments")
-        .select("*")
-        .eq("client_id", customerId)
-        .in("payment_status", ["paid_out", "succeeded"])
-        .order("payment_date", { ascending: false });
+      if (!response.ok) {
+        console.error("Error fetching payments:", await response.text());
+        setLoading(false);
+        return;
+      }
+
+      const { payments } = await response.json();
+
+      // Filter into past and upcoming
+      const past = payments
+        .filter((p: Payment) =>
+          ["paid_out", "succeeded"].includes(p.payment_status),
+        )
+        .sort(
+          (a: Payment, b: Payment) =>
+            new Date(b.payment_date).getTime() -
+            new Date(a.payment_date).getTime(),
+        );
+
+      const upcoming = payments
+        .filter((p: Payment) =>
+          ["pending", "outstanding"].includes(p.payment_status),
+        )
+        .sort(
+          (a: Payment, b: Payment) =>
+            new Date(a.payment_date).getTime() -
+            new Date(b.payment_date).getTime(),
+        );
 
       setPastPayments(past || []);
-
-      // Fetch upcoming payments (pending/scheduled)
-      const { data: upcoming } = await supabase
-        .from("payments")
-        .select("*")
-        .eq("client_id", customerId)
-        .in("payment_status", ["pending", "outstanding"])
-        .order("payment_date", { ascending: true });
-
       setUpcomingPayments(upcoming || []);
       setLoading(false);
     } catch (error) {
