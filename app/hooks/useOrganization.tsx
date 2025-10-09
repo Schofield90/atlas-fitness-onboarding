@@ -11,12 +11,21 @@ import {
 import { useRouter } from "next/navigation";
 import { User } from "@supabase/supabase-js";
 
+interface Organization {
+  id: string;
+  name: string;
+  role?: string;
+  source?: string;
+}
+
 interface OrganizationContextType {
   organizationId: string | null;
   organization: any | null;
   isLoading: boolean;
   error: string | null;
   user: User | null;
+  availableOrganizations: Organization[];
+  switchOrganization: (organizationId: string) => Promise<void>;
   refreshOrganization: () => Promise<void>;
 }
 
@@ -26,6 +35,8 @@ const OrganizationContext = createContext<OrganizationContextType>({
   isLoading: true,
   error: null,
   user: null,
+  availableOrganizations: [],
+  switchOrganization: async () => {},
   refreshOrganization: async () => {},
 });
 
@@ -34,8 +45,52 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [organization, setOrganization] = useState<any | null>(null);
+  const [availableOrganizations, setAvailableOrganizations] = useState<Organization[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const switchOrganization = useCallback(async (newOrganizationId: string) => {
+    try {
+      setError(null);
+
+      // Save to localStorage for immediate UI update
+      if (typeof window !== "undefined") {
+        localStorage.setItem("selectedOrganizationId", newOrganizationId);
+      }
+
+      // Save to database for cross-device sync
+      const response = await fetch("/api/auth/switch-organization", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ organizationId: newOrganizationId }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to switch organization");
+      }
+
+      const result = await response.json();
+
+      // Update local state immediately
+      setOrganizationId(result.data.organizationId);
+      setOrganization(result.data.organization);
+
+      // Reload the page to fetch fresh data for the new organization
+      if (typeof window !== "undefined") {
+        window.location.reload();
+      }
+    } catch (err: any) {
+      console.error("Switch organization error:", err);
+      setError(err.message);
+      // Remove from localStorage on error
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("selectedOrganizationId");
+      }
+    }
+  }, []);
 
   const fetchOrganization = useCallback(
     async (retryCount = 0) => {
@@ -65,8 +120,38 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       try {
         setError(null);
 
+        // Fetch available organizations first
+        const orgsResponse = await fetch("/api/auth/user-organizations", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          cache: "no-cache",
+        });
+
+        if (orgsResponse.ok) {
+          const orgsResult = await orgsResponse.json();
+          if (orgsResult.success && orgsResult.data?.organizations) {
+            setAvailableOrganizations(orgsResult.data.organizations);
+          }
+        }
+
+        // Check localStorage for selected organization preference
+        let selectedOrgId: string | null = null;
+        if (typeof window !== "undefined") {
+          selectedOrgId = localStorage.getItem("selectedOrganizationId");
+        }
+
+        // If user has a preference and it's in their available orgs, use it
+        // Otherwise, use the API's default (most recent org)
+        let apiUrl = "/api/auth/get-organization";
+        if (selectedOrgId) {
+          apiUrl += `?preferredOrgId=${selectedOrgId}`;
+        }
+
         // Use the API endpoint that bypasses RLS issues
-        const response = await fetch("/api/auth/get-organization", {
+        const response = await fetch(apiUrl, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -125,6 +210,11 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
           );
           setOrganizationId(organizationId);
           setOrganization(organization);
+
+          // Save to localStorage for next time
+          if (typeof window !== "undefined") {
+            localStorage.setItem("selectedOrganizationId", organizationId);
+          }
         } else {
           console.log(
             "[useOrganization] No organization found, clearing state",
@@ -163,6 +253,8 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         isLoading,
         error,
         user,
+        availableOrganizations,
+        switchOrganization,
         refreshOrganization: fetchOrganization,
       }}
     >
