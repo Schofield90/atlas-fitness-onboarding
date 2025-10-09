@@ -57,6 +57,7 @@ export default function AgentChatPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [agent, setAgent] = useState<Agent | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [sending, setSending] = useState(false);
@@ -75,6 +76,7 @@ export default function AgentChatPage() {
   useEffect(() => {
     if (user && agentId) {
       loadAgent();
+      loadOrCreateConversation();
       loadTasks();
     }
   }, [user, agentId]);
@@ -113,6 +115,51 @@ export default function AgentChatPage() {
       }
     } catch (error) {
       console.error("Error loading agent:", error);
+    }
+  };
+
+  const loadOrCreateConversation = async () => {
+    try {
+      // First, try to get existing conversations for this agent
+      const response = await fetch(`/api/ai-agents/conversations?agent_id=${agentId}&limit=1`);
+      const result = await response.json();
+
+      if (result.success && result.conversations && result.conversations.length > 0) {
+        // Use existing conversation
+        const conv = result.conversations[0];
+        setConversationId(conv.id);
+        await loadMessages(conv.id);
+      } else {
+        // Create new conversation
+        const createResponse = await fetch('/api/ai-agents/conversations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            agent_id: agentId,
+            title: `Chat with ${agent?.name || 'Agent'}`,
+          }),
+        });
+
+        const createResult = await createResponse.json();
+        if (createResult.success) {
+          setConversationId(createResult.conversation.id);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading/creating conversation:", error);
+    }
+  };
+
+  const loadMessages = async (convId: string) => {
+    try {
+      const response = await fetch(`/api/ai-agents/conversations/${convId}/messages?limit=100`);
+      const result = await response.json();
+
+      if (result.success) {
+        setMessages(result.messages || []);
+      }
+    } catch (error) {
+      console.error("Error loading messages:", error);
     }
   };
 
@@ -189,7 +236,7 @@ export default function AgentChatPage() {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!inputMessage.trim() || sending) return;
+    if (!inputMessage.trim() || sending || !conversationId) return;
 
     const userMessage = inputMessage.trim();
     setInputMessage("");
@@ -205,19 +252,44 @@ export default function AgentChatPage() {
     setMessages((prev) => [...prev, tempUserMessage]);
 
     try {
-      // TODO: Replace with actual API call to send message to agent
-      // For now, simulate a response
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Send message to agent via API
+      const response = await fetch(`/api/ai-agents/conversations/${conversationId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: userMessage }),
+      });
 
-      const assistantMessage: Message = {
-        id: `temp-${Date.now()}-assistant`,
-        role: "assistant",
-        content: "This is a placeholder response. The AI agent chat functionality is not yet implemented. Please connect the agent orchestration system to enable real-time conversations.",
-        created_at: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
+      const result = await response.json();
+
+      if (result.success) {
+        // Replace temp user message with actual one and add assistant response
+        setMessages((prev) => {
+          const withoutTemp = prev.filter(m => m.id !== tempUserMessage.id);
+          return [
+            ...withoutTemp,
+            result.userMessage,
+            result.assistantMessage,
+          ];
+        });
+      } else {
+        // Show error
+        const errorMessage: Message = {
+          id: `error-${Date.now()}`,
+          role: "assistant",
+          content: `Error: ${result.error || 'Failed to send message'}`,
+          created_at: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+      }
     } catch (error) {
       console.error("Error sending message:", error);
+      const errorMessage: Message = {
+        id: `error-${Date.now()}`,
+        role: "assistant",
+        content: "Sorry, there was an error sending your message. Please try again.",
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setSending(false);
     }
