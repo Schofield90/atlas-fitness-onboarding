@@ -1,6 +1,6 @@
 {
   "framework": "nextjs",
-  "installCommand": "cd ../.. && npm ci --legacy-peer-deps",
+  "installCommand": "cd ../.. && npm install --legacy-peer-deps --prefer-offline",
   "buildCommand": "npm run prebuild && npm run build",
   "env": {
     "NEXT_PUBLIC_APP_TYPE": "gym",
