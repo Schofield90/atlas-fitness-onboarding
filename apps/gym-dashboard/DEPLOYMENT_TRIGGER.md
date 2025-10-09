@@ -167,3 +167,4 @@ Add bulk selection and category assignment - Wed 8 Oct 2025 23:30:00 BST
 Wed 8 Oct 2025 18:54:40 BST: Force monthly turnover enhancements deployment
 FIX: AI Agents redirect to org-scoped page - Wed 08 Oct 2025 19:34:49 BST
 ADD: Complete onboarding system Phase 1 (core infrastructure) - Wed 08 Oct 2025 19:41:18 BST
+AI Agent Prompt Generation deployed - Thu 9 Oct 2025 08:50:32 BST
