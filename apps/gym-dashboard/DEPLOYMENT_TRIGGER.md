@@ -246,3 +246,4 @@ Changes:
 ✅ Added "Back to Member Profile" button on error screen
 ✅ Ensured loading state resets on any error
 Commit: 431414d3
+Deployment triggered: Thu 9 Oct 2025 18:37:22 BST - Added Stripe Elements card payment integration

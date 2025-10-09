@@ -4,14 +4,6 @@ import { useState, useEffect } from "react";
 import { X, ArrowLeft } from "lucide-react";
 import { formatBritishCurrency } from "@/app/lib/utils/british-format";
 import { useOrganization } from "@/app/hooks/useOrganization";
-import { Elements } from "@stripe/react-stripe-js";
-import { loadStripe } from "@stripe/stripe-js";
-import StripePaymentForm from "./StripePaymentForm";
-
-// Initialize Stripe
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
-);
 
 interface AddMembershipModalProps {
   isOpen: boolean;
@@ -21,7 +13,7 @@ interface AddMembershipModalProps {
   onSuccess: () => void;
 }
 
-type CheckoutStep = "plan" | "payment" | "card_payment";
+type CheckoutStep = "plan" | "payment";
 type PaymentMethod = "cash" | "card" | "direct_debit";
 type CashStatus = "outstanding" | "received";
 
@@ -42,14 +34,8 @@ export default function AddMembershipModal({
     new Date().toISOString().split("T")[0],
   );
   const [notes, setNotes] = useState("");
-  const [discountCode, setDiscountCode] = useState("");
-  const [referralCode, setReferralCode] = useState("");
-  const [discountAmount, setDiscountAmount] = useState(0);
-  const [finalPrice, setFinalPrice] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
   const { organizationId } = useOrganization();
 
   useEffect(() => {
@@ -153,11 +139,6 @@ export default function AddMembershipModal({
     setCashStatus("outstanding");
     setStartDate(new Date().toISOString().split("T")[0]);
     setNotes("");
-    setDiscountCode("");
-    setReferralCode("");
-    setDiscountAmount(0);
-    setClientSecret(null);
-    setPaymentIntentId(null);
     setError("");
   };
 
@@ -167,35 +148,21 @@ export default function AddMembershipModal({
     selectedPlan?.price_pennies ||
     (selectedPlan?.price ? selectedPlan.price * 100 : 0);
 
-  const finalPriceInPennies = priceInPennies - discountAmount;
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            {(step === "payment" || step === "card_payment") && (
+            {step === "payment" && (
               <button
-                onClick={() => {
-                  if (step === "card_payment") {
-                    setStep("payment");
-                    setClientSecret(null);
-                    setPaymentIntentId(null);
-                  } else {
-                    setStep("plan");
-                  }
-                }}
+                onClick={() => setStep("plan")}
                 className="text-gray-400 hover:text-white"
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
             )}
             <h2 className="text-xl font-semibold text-white">
-              {step === "plan"
-                ? "Select Membership Plan"
-                : step === "card_payment"
-                  ? "Card Payment"
-                  : "Payment Details"}
+              {step === "plan" ? "Select Membership Plan" : "Payment Details"}
             </h2>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-white">
@@ -317,83 +284,16 @@ export default function AddMembershipModal({
               </button>
             </div>
           </form>
-        ) : step === "payment" ? (
+        ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Selected Plan Summary */}
             <div className="bg-gray-700 rounded-lg p-4">
               <p className="text-sm text-gray-400">Selected Plan</p>
               <p className="text-white font-medium">{selectedPlan?.name}</p>
-              {discountAmount > 0 ? (
-                <div>
-                  <p className="text-sm text-gray-400 line-through">
-                    {formatBritishCurrency(priceInPennies, true)}
-                  </p>
-                  <p className="text-lg font-semibold text-green-400">
-                    {formatBritishCurrency(finalPriceInPennies, true)}/
-                    {selectedPlan?.billing_period}
-                  </p>
-                  <p className="text-xs text-green-400 mt-1">
-                    Saved {formatBritishCurrency(discountAmount, true)}
-                  </p>
-                </div>
-              ) : (
-                <p className="text-lg font-semibold text-blue-400">
-                  {formatBritishCurrency(priceInPennies, true)}/
-                  {selectedPlan?.billing_period}
-                </p>
-              )}
-            </div>
-
-            {/* Discount & Referral Codes */}
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Discount Code (Optional)
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={discountCode}
-                    onChange={(e) =>
-                      setDiscountCode(e.target.value.toUpperCase())
-                    }
-                    placeholder="Enter discount code"
-                    className="flex-1 bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      // TODO: Validate discount code via API
-                      // For now, simulate 10% discount
-                      if (discountCode === "WELCOME10") {
-                        setDiscountAmount(Math.round(priceInPennies * 0.1));
-                        setError("");
-                      } else if (discountCode) {
-                        setError("Invalid discount code");
-                        setDiscountAmount(0);
-                      }
-                    }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    Apply
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Referral Code (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={referralCode}
-                  onChange={(e) =>
-                    setReferralCode(e.target.value.toUpperCase())
-                  }
-                  placeholder="Who referred this member?"
-                  className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+              <p className="text-lg font-semibold text-blue-400">
+                {formatBritishCurrency(priceInPennies, true)}/
+                {selectedPlan?.billing_period}
+              </p>
             </div>
 
             {/* Payment Method Selection */}
@@ -419,62 +319,16 @@ export default function AddMembershipModal({
 
                 <button
                   type="button"
-                  onClick={async () => {
-                    setPaymentMethod("card");
-                    setLoading(true);
-                    setError("");
-
-                    try {
-                      // Create Payment Intent
-                      const response = await fetch(
-                        "/api/stripe/create-payment-intent",
-                        {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            amount: finalPriceInPennies,
-                            customerId,
-                            customerEmail: "", // TODO: Get from customer data
-                            customerName,
-                            description: `${selectedPlan?.name} membership for ${customerName}`,
-                          }),
-                        },
-                      );
-
-                      const data = await response.json();
-
-                      if (!response.ok || !data.success) {
-                        setError(
-                          data.error ||
-                            "Failed to initialize card payment. Please try again.",
-                        );
-                        setPaymentMethod("cash");
-                        return;
-                      }
-
-                      setClientSecret(data.clientSecret);
-                      setPaymentIntentId(data.paymentIntentId);
-                      setStep("card_payment");
-                    } catch (err: any) {
-                      console.error("Error creating payment intent:", err);
-                      setError(
-                        "Failed to initialize card payment. Please try again.",
-                      );
-                      setPaymentMethod("cash");
-                    } finally {
-                      setLoading(false);
-                    }
-                  }}
-                  disabled={loading}
+                  onClick={() => setPaymentMethod("card")}
                   className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-colors ${
                     paymentMethod === "card"
                       ? "border-blue-500 bg-blue-600 bg-opacity-10"
                       : "border-gray-600 bg-gray-700 hover:border-gray-500"
-                  } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+                  }`}
                 >
                   <p className="font-medium text-white">Credit/Debit Card</p>
                   <p className="text-sm text-gray-400">
-                    {loading ? "Loading payment form..." : "Pay with card now"}
+                    Pay with card over the phone
                   </p>
                 </button>
 
@@ -528,6 +382,30 @@ export default function AddMembershipModal({
               </div>
             )}
 
+            {/* Card Payment Note */}
+            {paymentMethod === "card" && (
+              <div className="bg-blue-600 bg-opacity-10 border border-blue-500 rounded-lg p-3">
+                <p className="text-blue-400 text-sm font-medium mb-2">
+                  Card Payment - Next Steps:
+                </p>
+                <ul className="text-blue-400 text-sm space-y-1 list-disc list-inside">
+                  <li>
+                    Membership will be created with "Pending" payment status
+                  </li>
+                  <li>
+                    Contact the member to collect card details over the phone
+                  </li>
+                  <li>
+                    Process payment via your Stripe dashboard or payment
+                    terminal
+                  </li>
+                  <li>
+                    Payment status will update automatically once processed
+                  </li>
+                </ul>
+              </div>
+            )}
+
             {/* Direct Debit Note */}
             {paymentMethod === "direct_debit" && (
               <div className="bg-blue-600 bg-opacity-10 border border-blue-500 rounded-lg p-3">
@@ -573,108 +451,7 @@ export default function AddMembershipModal({
               </button>
             </div>
           </form>
-        ) : step === "card_payment" && clientSecret ? (
-          <div className="space-y-4">
-            {/* Selected Plan Summary */}
-            <div className="bg-gray-700 rounded-lg p-4">
-              <p className="text-sm text-gray-400">Selected Plan</p>
-              <p className="text-white font-medium">{selectedPlan?.name}</p>
-              {discountAmount > 0 ? (
-                <div>
-                  <p className="text-sm text-gray-400 line-through">
-                    {formatBritishCurrency(priceInPennies, true)}
-                  </p>
-                  <p className="text-lg font-semibold text-green-400">
-                    {formatBritishCurrency(finalPriceInPennies, true)}/
-                    {selectedPlan?.billing_period}
-                  </p>
-                  <p className="text-xs text-green-400 mt-1">
-                    Saved {formatBritishCurrency(discountAmount, true)}
-                  </p>
-                </div>
-              ) : (
-                <p className="text-lg font-semibold text-blue-400">
-                  {formatBritishCurrency(priceInPennies, true)}/
-                  {selectedPlan?.billing_period}
-                </p>
-              )}
-            </div>
-
-            {/* Stripe Elements Payment Form */}
-            <Elements
-              stripe={stripePromise}
-              options={{
-                clientSecret,
-                appearance: {
-                  theme: "night",
-                  variables: {
-                    colorPrimary: "#3b82f6",
-                    colorBackground: "#374151",
-                    colorText: "#ffffff",
-                    colorDanger: "#ef4444",
-                    fontFamily: "system-ui, sans-serif",
-                    spacingUnit: "4px",
-                    borderRadius: "8px",
-                  },
-                },
-              }}
-            >
-              <StripePaymentForm
-                amount={finalPriceInPennies}
-                onSuccess={async (paymentIntentId) => {
-                  // Payment successful - create membership
-                  setLoading(true);
-                  try {
-                    const response = await fetch("/api/customer-memberships", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        customerId,
-                        membershipPlanId: selectedPlanId,
-                        startDate,
-                        notes,
-                        paymentMethod: "card",
-                        paymentIntentId,
-                        discountCode: discountCode || undefined,
-                        referralCode: referralCode || undefined,
-                      }),
-                    });
-
-                    const data = await response.json();
-
-                    if (!response.ok) {
-                      setError(
-                        data.error ||
-                          "Payment succeeded but failed to create membership. Please contact support.",
-                      );
-                      return;
-                    }
-
-                    onSuccess();
-                    onClose();
-                    resetForm();
-                  } catch (error: any) {
-                    console.error("Error creating membership:", error);
-                    setError(
-                      "Payment succeeded but failed to create membership. Please contact support.",
-                    );
-                  } finally {
-                    setLoading(false);
-                  }
-                }}
-                onError={(error) => {
-                  setError(error);
-                }}
-                onCancel={() => {
-                  setStep("payment");
-                  setClientSecret(null);
-                  setPaymentIntentId(null);
-                  setPaymentMethod("cash");
-                }}
-              />
-            </Elements>
-          </div>
-        ) : null}
+        )}
       </div>
     </div>
   );

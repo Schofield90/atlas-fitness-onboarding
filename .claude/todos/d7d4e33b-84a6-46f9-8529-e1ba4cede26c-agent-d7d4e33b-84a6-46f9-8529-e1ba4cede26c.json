@@ -1,22 +1,22 @@
 [
   {
-    "content": "Fix membership detail page 406 error",
+    "content": "Fix AI agent system prompt with gym owner context",
     "status": "completed",
-    "activeForm": "Fixing membership detail page 406 error"
+    "activeForm": "Fixed AI agent system prompt with gym owner context"
   },
   {
-    "content": "Add payment record creation to membership API",
-    "status": "completed",
-    "activeForm": "Adding payment record creation to membership API"
+    "content": "Verify and fix chat history persistence",
+    "status": "pending",
+    "activeForm": "Verifying and fixing chat history persistence"
   },
   {
-    "content": "Add payment method guidance in modal",
+    "content": "Enable proper tools for gym owner agent",
     "status": "completed",
-    "activeForm": "Adding payment method guidance in modal"
+    "activeForm": "Enabled proper tools for gym owner agent"
   },
   {
-    "content": "Deploy payment processing updates",
-    "status": "in_progress",
-    "activeForm": "Deploying payment processing updates"
+    "content": "Add card payment processing to membership modal",
+    "status": "completed",
+    "activeForm": "Added card payment processing to membership modal"
   }
 ]
