@@ -247,3 +247,4 @@ Changes:
 ✅ Ensured loading state resets on any error
 Commit: 431414d3
 Deployment triggered: Thu 9 Oct 2025 18:37:22 BST - Added Stripe Elements card payment integration
+Trigger: Fix AI agents 404 - add redirect page Thu 9 Oct 2025 19:32:38 BST
