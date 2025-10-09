@@ -178,3 +178,5 @@ FIX OpenAI build error: Lazy-load client to prevent build-time API key requireme
 FIX AI Agents 404 error: Create root-level /ai-agents page to match navigation links - Thu 9 Oct 2025 18:15:00 BST
 
 ADD AI Agent chat interface: Create /ai-agents/chat/[id] page for agent conversations - Thu 9 Oct 2025 18:30:00 BST
+
+ADD Task management to AI agents: Recurring and one-off tasks with checklist - Thu 9 Oct 2025 18:45:00 BST
