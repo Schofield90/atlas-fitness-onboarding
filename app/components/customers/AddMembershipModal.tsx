@@ -18,6 +18,7 @@ interface AddMembershipModalProps {
   onClose: () => void;
   customerId: string;
   customerName: string;
+  customerEmail?: string;
   onSuccess: () => void;
 }
 
@@ -30,6 +31,7 @@ export default function AddMembershipModal({
   onClose,
   customerId,
   customerName,
+  customerEmail,
   onSuccess,
 }: AddMembershipModalProps) {
   const [membershipPlans, setMembershipPlans] = useState<any[]>([]);
@@ -45,6 +47,8 @@ export default function AddMembershipModal({
   const [discountCode, setDiscountCode] = useState("");
   const [referralCode, setReferralCode] = useState("");
   const [discountAmount, setDiscountAmount] = useState(0);
+  const [customPrice, setCustomPrice] = useState<string>("");
+  const [useCustomPrice, setUseCustomPrice] = useState(false);
   const [finalPrice, setFinalPrice] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -167,7 +171,11 @@ export default function AddMembershipModal({
     selectedPlan?.price_pennies ||
     (selectedPlan?.price ? selectedPlan.price * 100 : 0);
 
-  const finalPriceInPennies = priceInPennies - discountAmount;
+  // Calculate final price: custom price overrides plan price and discounts
+  const finalPriceInPennies =
+    useCustomPrice && customPrice
+      ? Math.round(parseFloat(customPrice) * 100)
+      : priceInPennies - discountAmount;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -323,7 +331,20 @@ export default function AddMembershipModal({
             <div className="bg-gray-700 rounded-lg p-4">
               <p className="text-sm text-gray-400">Selected Plan</p>
               <p className="text-white font-medium">{selectedPlan?.name}</p>
-              {discountAmount > 0 ? (
+              {useCustomPrice ? (
+                <div>
+                  <p className="text-sm text-gray-400 line-through">
+                    {formatBritishCurrency(priceInPennies, true)}
+                  </p>
+                  <p className="text-lg font-semibold text-orange-400">
+                    {formatBritishCurrency(finalPriceInPennies, true)}/
+                    {selectedPlan?.billing_period}
+                  </p>
+                  <p className="text-xs text-orange-400 mt-1">
+                    Custom price applied
+                  </p>
+                </div>
+              ) : discountAmount > 0 ? (
                 <div>
                   <p className="text-sm text-gray-400 line-through">
                     {formatBritishCurrency(priceInPennies, true)}
@@ -341,6 +362,46 @@ export default function AddMembershipModal({
                   {formatBritishCurrency(priceInPennies, true)}/
                   {selectedPlan?.billing_period}
                 </p>
+              )}
+
+              {/* Manual Price Adjustment Toggle */}
+              <div className="mt-4 pt-4 border-t border-gray-600">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={useCustomPrice}
+                    onChange={(e) => {
+                      setUseCustomPrice(e.target.checked);
+                      if (!e.target.checked) {
+                        setCustomPrice("");
+                      }
+                    }}
+                    className="w-4 h-4 text-orange-600 bg-gray-700 border-gray-600 rounded focus:ring-orange-500"
+                  />
+                  <span className="text-sm text-gray-300">
+                    Override with custom price
+                  </span>
+                </label>
+              </div>
+
+              {useCustomPrice && (
+                <div className="mt-3">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Custom Amount (£)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={customPrice}
+                    onChange={(e) => setCustomPrice(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full bg-gray-800 text-white rounded-lg px-4 py-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    This will override the plan price and any discounts
+                  </p>
+                </div>
               )}
             </div>
 
@@ -682,7 +743,8 @@ export default function AddMembershipModal({
             >
               <StripePaymentForm
                 amount={finalPriceInPennies}
-                onSuccess={async (paymentIntentId) => {
+                customerEmail={customerEmail}
+                onSuccess={async (paymentIntentId, saveCard) => {
                   // Payment successful - create membership
                   setLoading(true);
                   try {
@@ -698,6 +760,7 @@ export default function AddMembershipModal({
                         paymentIntentId,
                         discountCode: discountCode || undefined,
                         referralCode: referralCode || undefined,
+                        saveCard: saveCard || false,
                       }),
                     });
 
