@@ -1,5 +1,6 @@
 {
   "framework": "nextjs",
+  "installCommand": "cd ../.. && npm install --legacy-peer-deps",
   "ignoreCommand": "git diff HEAD^ HEAD --quiet .",
   "functions": {
     "app/api/**/*.ts": {

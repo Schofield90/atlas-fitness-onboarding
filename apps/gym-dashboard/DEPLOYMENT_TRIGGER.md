@@ -170,3 +170,5 @@ ADD: Complete onboarding system Phase 1 (core infrastructure) - Wed 08 Oct 2025 
 AI Agent Prompt Generation deployed - Thu 9 Oct 2025 08:50:32 BST
 
 Trial Period Banner & Navigation Fixes - Thu 9 Oct 2025 09:15:00 BST
+
+Fix npm install error: Add --legacy-peer-deps flag - Thu 9 Oct 2025 09:20:00 BST

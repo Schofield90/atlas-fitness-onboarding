@@ -1,5 +1,6 @@
 {
   "framework": "nextjs",
+  "installCommand": "cd ../.. && npm install --legacy-peer-deps",
   "ignoreCommand": "git diff HEAD^ HEAD --quiet .",
   "env": {
     "NEXT_PUBLIC_APP_TYPE": "admin",
