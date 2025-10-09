@@ -199,4 +199,11 @@ Features:
 - Full membership detail page with payment history tabs
   Commit: 4fcaf27c
 
+# FORCE REBUILD - Fix shared file copying for /members directory
+
+Date: Thu 9 Oct 2025 18:00:00 BST
+Reason: Added 'members' directory to copy-shared-to-app.js script
+Issue: UI changes weren't deploying because members pages weren't being copied
+Fix: Updated SHARED_DIRS to include 'members' directory
+
 This file is modified to trigger Vercel deployment when shared code changes.
