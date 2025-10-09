@@ -43,12 +43,12 @@ const nextConfig = {
     return [
       {
         // Apply security headers to all routes
-        source: '/:path*',
+        source: '/(.*)',
         headers: securityHeaders
       },
       {
         // API-specific headers
-        source: '/api/:path*',
+        source: '/api/(.*)',
         headers: [
           {
             key: 'Cache-Control',
@@ -66,7 +66,7 @@ const nextConfig = {
       },
       {
         // Static assets caching
-        source: '/_next/static/:path*',
+        source: '/_next/static/(.*)',
         headers: [
           {
             key: 'Cache-Control',
@@ -76,7 +76,7 @@ const nextConfig = {
       },
       {
         // Block access to sensitive files
-        source: '/:path*\\.(env|git|gitignore|dockerignore|md|lock|log)',
+        source: '/(.*)\\.(env|git|gitignore|dockerignore|md|lock|log)',
         headers: [
           {
             key: 'X-Robots-Tag',
@@ -97,31 +97,31 @@ const nextConfig = {
       },
       // Block access to .git directory
       {
-        source: '/.git/:path*',
+        source: '/.git/(.*)',
         destination: '/404',
         permanent: false,
       },
       // Block access to .env files
       {
-        source: '/.env:path*',
+        source: '/.env(.*)',
         destination: '/404',
         permanent: false,
       },
       // Block access to config files
       {
-        source: '/:path*.config.js',
+        source: '/(.*).config.js',
         destination: '/404',
         permanent: false,
       },
       // Block access to package files
       {
-        source: '/package:path*.json',
+        source: '/package(.*).json',
         destination: '/404',
         permanent: false,
       },
       // Block access to lock files
       {
-        source: '/:path*.lock',
+        source: '/(.*).lock',
         destination: '/404',
         permanent: false,
       }
@@ -133,32 +133,32 @@ const nextConfig = {
       beforeFiles: [
         // Block .git directory access
         {
-          source: '/.git/:path*',
+          source: '/.git/(.*)',
           destination: '/api/forbidden',
         },
         // Block environment files
         {
-          source: '/.env:path*',
+          source: '/.env(.*)',
           destination: '/api/forbidden',
         },
         // Block gitignore files
         {
-          source: '/:path*.gitignore',
+          source: '/(.*).gitignore',
           destination: '/api/forbidden',
         },
         // Block dockerignore files
         {
-          source: '/:path*.dockerignore',
+          source: '/(.*).dockerignore',
           destination: '/api/forbidden',
         },
         // Block env.local files
         {
-          source: '/:path*.env.local',
+          source: '/(.*).env.local',
           destination: '/api/forbidden',
         },
         // Block env.production files
         {
-          source: '/:path*.env.production',
+          source: '/(.*).env.production',
           destination: '/api/forbidden',
         }
       ]
