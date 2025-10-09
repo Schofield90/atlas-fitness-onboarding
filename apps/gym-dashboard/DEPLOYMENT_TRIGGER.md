@@ -174,3 +174,7 @@ Trial Period Banner & Navigation Fixes - Thu 9 Oct 2025 09:15:00 BST
 Fix npm install error: Add --legacy-peer-deps flag - Thu 9 Oct 2025 09:20:00 BST
 
 FIX OpenAI build error: Lazy-load client to prevent build-time API key requirement - Thu 9 Oct 2025 17:45:00 BST
+
+FIX AI Agents 404 error: Create root-level /ai-agents page to match navigation links - Thu 9 Oct 2025 18:15:00 BST
+
+ADD AI Agent chat interface: Create /ai-agents/chat/[id] page for agent conversations - Thu 9 Oct 2025 18:30:00 BST
