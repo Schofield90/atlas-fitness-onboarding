@@ -5,13 +5,22 @@ import { PayrollService } from "@/app/lib/services/xero/PayrollService";
 // Force dynamic rendering to handle cookies and request properties
 export const dynamic = "force-dynamic";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-);
+function getSupabaseClient() {
+  if (
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    !process.env.SUPABASE_SERVICE_ROLE_KEY
+  ) {
+    throw new Error("Supabase credentials not configured");
+  }
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+  );
+}
 
 // GET /api/payroll/batches - Get all payroll batches
 export async function GET(request: NextRequest) {
+  const supabase = getSupabaseClient();
   try {
     const { searchParams } = new URL(request.url);
     const organizationId = searchParams.get("organizationId");
@@ -59,6 +68,7 @@ export async function GET(request: NextRequest) {
 
 // POST /api/payroll/batches - Create new payroll batch
 export async function POST(request: NextRequest) {
+  const supabase = getSupabaseClient();
   try {
     const body = await request.json();
     const {

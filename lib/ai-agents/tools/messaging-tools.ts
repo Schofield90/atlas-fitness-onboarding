@@ -4,7 +4,7 @@
 
 import { z } from 'zod';
 import { BaseTool, ToolExecutionContext, ToolExecutionResult } from './types';
-import { createAdminClient } from '../../../app/lib/supabase/admin';
+import { createAdminClient } from '@/app/lib/supabase/admin';
 import { Resend } from 'resend';
 // Twilio will be imported at runtime where needed to avoid build-time issues
 

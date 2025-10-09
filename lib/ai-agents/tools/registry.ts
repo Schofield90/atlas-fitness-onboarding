@@ -9,7 +9,7 @@
  */
 
 import { AgentTool, ToolExecutionContext, ToolExecutionResult } from './types';
-import { createAdminClient } from '../../../app/lib/supabase/admin';
+import { createAdminClient } from '@/app/lib/supabase/admin';
 
 // Import all tool categories
 import { DATA_TOOLS } from './data-tools';

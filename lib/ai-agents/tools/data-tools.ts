@@ -5,7 +5,7 @@
 
 import { z } from 'zod';
 import { BaseTool, ToolExecutionContext, ToolExecutionResult } from './types';
-import { createAdminClient } from '../../../app/lib/supabase/admin';
+import { createAdminClient } from '@/app/lib/supabase/admin';
 
 /**
  * Search for clients by name, email, or phone

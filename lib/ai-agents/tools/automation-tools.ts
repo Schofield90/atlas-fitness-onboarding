@@ -4,7 +4,7 @@
 
 import { z } from 'zod';
 import { BaseTool, ToolExecutionContext, ToolExecutionResult } from './types';
-import { createAdminClient } from '../../../app/lib/supabase/admin';
+import { createAdminClient } from '@/app/lib/supabase/admin';
 
 /**
  * Trigger automation workflow

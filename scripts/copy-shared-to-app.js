@@ -33,8 +33,8 @@ const SHARED_DIRS = [
   'settings',
   'hooks',
   'types',
-  'org',     // Path-based multi-tenant routes
-  'members'  // Member profile pages
+  'org'     // Path-based multi-tenant routes
+  // Note: 'members' is NOT copied - each app has its own member pages
 ];
 
 // Function to copy directory recursively

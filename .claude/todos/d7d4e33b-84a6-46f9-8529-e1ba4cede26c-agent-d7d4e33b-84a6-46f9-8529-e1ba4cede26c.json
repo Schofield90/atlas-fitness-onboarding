@@ -1,22 +1,27 @@
 [
   {
-    "content": "Fix AI agent system prompt with gym owner context",
+    "content": "Fix Vercel deployment - routing conflicts resolved, environment variable issues remaining",
     "status": "completed",
-    "activeForm": "Fixed AI agent system prompt with gym owner context"
+    "activeForm": "Fixing Vercel deployment - routing conflicts resolved, environment variable issues remaining"
   },
   {
-    "content": "Verify and fix chat history persistence",
+    "content": "Create discount code validation API",
     "status": "pending",
-    "activeForm": "Verifying and fixing chat history persistence"
+    "activeForm": "Creating discount code validation API"
   },
   {
-    "content": "Enable proper tools for gym owner agent",
-    "status": "completed",
-    "activeForm": "Enabled proper tools for gym owner agent"
+    "content": "Implement referral code processing and credit system",
+    "status": "pending",
+    "activeForm": "Implementing referral code processing and credit system"
   },
   {
-    "content": "Add card payment processing to membership modal",
-    "status": "completed",
-    "activeForm": "Added card payment processing to membership modal"
+    "content": "Fix chat history persistence with URL-based conversation storage",
+    "status": "pending",
+    "activeForm": "Fixing chat history persistence with URL-based conversation storage"
+  },
+  {
+    "content": "Add payment confirmation email after successful payment",
+    "status": "pending",
+    "activeForm": "Adding payment confirmation email after successful payment"
   }
 ]

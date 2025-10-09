@@ -1,19 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@/app/lib/supabase/server";
-import { requireAuth } from "@/app/lib/auth-helpers";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-12-18.acacia",
-});
+import { requireAuth } from "@/app/lib/api/auth-check";
 
 export async function POST(request: NextRequest) {
   try {
     // Authenticate user
-    const { user, error: authError } = await requireAuth();
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const user = await requireAuth();
+
+    // Lazy-load Stripe client at runtime
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return NextResponse.json(
+        {
+          error:
+            "Payment processing is not configured. Please contact support.",
+        },
+        { status: 503 },
+      );
     }
+
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: "2024-12-18.acacia",
+    });
 
     // Parse request body
     const body = await request.json();
@@ -27,26 +35,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get organization's Stripe account ID
-    const supabase = await createClient();
-    const { data: orgData } = await supabase
-      .from("user_organizations")
-      .select("organization_id")
-      .eq("user_id", user.id)
-      .single();
-
-    if (!orgData) {
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 404 },
-      );
-    }
-
     // Check if organization has Stripe Connect
+    const supabase = await createClient();
     const { data: stripeAccount } = await supabase
       .from("stripe_connect_accounts")
       .select("stripe_account_id, access_token")
-      .eq("organization_id", orgData.organization_id)
+      .eq("organization_id", user.organizationId)
       .maybeSingle();
 
     // Create Payment Intent
@@ -60,7 +54,7 @@ export async function POST(request: NextRequest) {
         customer_id: customerId || "",
         customer_email: customerEmail || "",
         customer_name: customerName || "",
-        organization_id: orgData.organization_id,
+        organization_id: user.organizationId,
       },
       description: description || "Membership Payment",
     };
