@@ -9,3 +9,4 @@ Modify this file to force a rebuild.
 
 - Fixed owner-login to use redirect parameter for admin portal
   AI Agent Prompt Generation deployed - Thu 9 Oct 2025 08:50:32 BST
+  Trial Period Banner & Navigation Fixes - Thu 9 Oct 2025 09:15:00 BST
