@@ -13,17 +13,45 @@ export default function AIAgentsRedirect() {
         const response = await fetch("/api/auth/get-organization");
 
         if (!response.ok) {
+          console.error("API returned error:", response.status);
           // Not authenticated or error
           router.push("/owner-login?redirect=/ai-agents");
           return;
         }
 
-        const data = await response.json();
+        const result = await response.json();
+        console.log("Organization API response:", result);
 
-        if (data.organization?.slug) {
-          router.push(`/org/${data.organization.slug}/ai-agents`);
+        // Check if we have organization data
+        if (result.success && result.data?.organization?.slug) {
+          console.log(
+            "Redirecting to:",
+            `/org/${result.data.organization.slug}/ai-agents`,
+          );
+          router.push(`/org/${result.data.organization.slug}/ai-agents`);
+        } else if (result.data?.organization?.id) {
+          // Has org but no slug - shouldn't happen but handle it
+          console.warn(
+            "Organization has no slug, using ID:",
+            result.data.organization.id,
+          );
+          // Fetch the organization to get slug
+          const orgResponse = await fetch(
+            `/api/organizations/${result.data.organization.id}`,
+          );
+          if (orgResponse.ok) {
+            const orgData = await orgResponse.json();
+            if (orgData.slug) {
+              router.push(`/org/${orgData.slug}/ai-agents`);
+              return;
+            }
+          }
+          // Fallback to first available org route
+          router.push("/dashboard");
         } else {
           // No organization found
+          console.log("No organization found, redirecting to onboarding");
+          console.log("Result data:", result.data);
           router.push("/onboarding/create-organization");
         }
       } catch (error) {
