@@ -158,18 +158,53 @@ export default function AddMembershipModal({
               required
             >
               <option value="">Select a plan</option>
-              {membershipPlans.map((plan) => {
-                // If price_pennies exists and is not 0, use it
-                // Otherwise if price exists, convert pounds to pennies
-                const priceInPennies =
-                  plan.price_pennies || (plan.price ? plan.price * 100 : 0);
-                return (
-                  <option key={plan.id} value={plan.id}>
-                    {plan.name} - {formatBritishCurrency(priceInPennies, true)}/
-                    {plan.billing_period}
-                  </option>
+              {(() => {
+                // Group plans by category
+                const groupedPlans = membershipPlans.reduce(
+                  (acc, plan) => {
+                    const category = plan.category || "Uncategorized";
+                    if (!acc[category]) acc[category] = [];
+                    acc[category].push(plan);
+                    return acc;
+                  },
+                  {} as Record<string, any[]>,
                 );
-              })}
+
+                // Sort categories alphabetically
+                const sortedCategories = Object.keys(groupedPlans).sort(
+                  (a, b) => {
+                    // "Uncategorized" always goes last
+                    if (a === "Uncategorized") return 1;
+                    if (b === "Uncategorized") return -1;
+                    return a.localeCompare(b);
+                  },
+                );
+
+                // Sort plans within each category alphabetically
+                sortedCategories.forEach((category) => {
+                  groupedPlans[category].sort((a, b) =>
+                    a.name.localeCompare(b.name),
+                  );
+                });
+
+                // Render optgroups
+                return sortedCategories.map((category) => (
+                  <optgroup key={category} label={category}>
+                    {groupedPlans[category].map((plan) => {
+                      const priceInPennies =
+                        plan.price_pennies ||
+                        (plan.price ? plan.price * 100 : 0);
+                      return (
+                        <option key={plan.id} value={plan.id}>
+                          {plan.name} -{" "}
+                          {formatBritishCurrency(priceInPennies, true)}/
+                          {plan.billing_period}
+                        </option>
+                      );
+                    })}
+                  </optgroup>
+                ));
+              })()}
             </select>
           </div>
 

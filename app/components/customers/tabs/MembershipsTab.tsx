@@ -1,23 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  CreditCard,
-  Calendar,
-  Clock,
-  PauseCircle,
-  PlayCircle,
-  XCircle,
-  ArrowUpRight,
-  ChevronDown,
-  ChevronUp,
-  Edit3,
-} from "lucide-react";
-import {
-  formatBritishDate,
-  formatBritishCurrency,
-} from "@/app/lib/utils/british-format";
+import { formatBritishCurrency } from "@/app/lib/utils/british-format";
 import AddMembershipModal from "../AddMembershipModal";
+import { createClient } from "@/app/lib/supabase/client";
 
 interface MembershipsTabProps {
   customerId: string;
@@ -28,45 +14,23 @@ export default function MembershipsTab({ customerId }: MembershipsTabProps) {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [customerName, setCustomerName] = useState("");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editTarget, setEditTarget] = useState<any | null>(null);
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [upgradeTarget, setUpgradeTarget] = useState<any | null>(null);
-  const [membershipPlans, setMembershipPlans] = useState<any[]>([]);
 
   useEffect(() => {
     fetchMemberships();
     fetchCustomerName();
-    fetchMembershipPlans();
   }, [customerId]);
 
   const fetchCustomerName = async () => {
     try {
-      // Try clients table first, then leads table
-      let { data, error } = await supabase
+      const supabase = createClient();
+      const { data } = await supabase
         .from("clients")
         .select("first_name, last_name")
         .eq("id", customerId)
         .single();
 
-      if (!error && data) {
+      if (data) {
         const name = `${data.first_name || ""} ${data.last_name || ""}`.trim();
-        setCustomerName(name || "Unknown Member");
-        return;
-      }
-
-      // Fallback to leads table
-      const leadResult = await supabase
-        .from("leads")
-        .select("name, first_name, last_name")
-        .eq("id", customerId)
-        .single();
-
-      if (!leadResult.error && leadResult.data) {
-        const name =
-          leadResult.data.name ||
-          `${leadResult.data.first_name || ""} ${leadResult.data.last_name || ""}`.trim();
         setCustomerName(name || "Unknown Member");
       }
     } catch (error) {
@@ -83,8 +47,6 @@ export default function MembershipsTab({ customerId }: MembershipsTabProps) {
       );
 
       if (!response.ok) {
-        const error = await response.json();
-        console.error("Error fetching memberships:", error);
         setMemberships([]);
         return;
       }
@@ -93,111 +55,34 @@ export default function MembershipsTab({ customerId }: MembershipsTabProps) {
       setMemberships(result.memberships || []);
     } catch (error) {
       console.error("Error fetching memberships:", error);
-      setMemberships([]); // Set empty array on error to prevent UI issues
+      setMemberships([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchMembershipPlans = async () => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
+  const getUsageText = (membership: any) => {
+    if (!membership.end_date) return "Never Expires.";
 
-      const { data: userOrg } = await supabase
-        .from("user_organizations")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .single();
+    const endDate = new Date(membership.end_date);
+    const today = new Date();
+    const diffTime = endDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      if (!userOrg) return;
-
-      const { data } = await supabase
-        .from("membership_plans")
-        .select("*")
-        .eq("organization_id", userOrg.organization_id)
-        .eq("is_active", true)
-        .order("price", { ascending: true });
-
-      setMembershipPlans(data || []);
-    } catch (error) {
-      console.error("Error fetching membership plans:", error);
-    }
+    if (diffDays < 0) return "Expired";
+    if (diffDays === 0) return "Expires today";
+    if (diffDays === 1) return "1 day left";
+    return `${diffDays} days left`;
   };
 
-  const updateMembership = async (id: string, updates: any) => {
-    const { error } = await supabase
-      .from("customer_memberships")
-      .update({ ...updates })
-      .eq("id", id);
-    if (error) throw error;
-  };
-
-  const handlePauseResume = async (membership: any) => {
-    try {
-      const newStatus = membership.status === "paused" ? "active" : "paused";
-      await updateMembership(membership.id, { status: newStatus });
-      await fetchMemberships();
-    } catch (error) {
-      console.error("Error updating status:", error);
-    }
-  };
-
-  const handleCancel = async (membership: any) => {
-    try {
-      if (
-        !confirm(
-          "Delete this membership permanently? This cannot be undone.\n\nClick OK to delete, or Cancel to keep it.",
-        )
-      )
-        return;
-
-      const response = await fetch(
-        `/api/customer-memberships?id=${membership.id}`,
-        {
-          method: "DELETE",
-        },
-      );
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to delete membership");
-      }
-
-      await fetchMemberships();
-    } catch (error) {
-      console.error("Error deleting membership:", error);
-      alert(
-        error instanceof Error ? error.message : "Failed to delete membership",
-      );
-    }
-  };
-
-  const openEdit = (membership: any) => {
-    setEditTarget(membership);
-    setShowEditModal(true);
-  };
-
-  const openUpgrade = (membership: any) => {
-    setUpgradeTarget(membership);
-    setShowUpgradeModal(true);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "active":
-        return "bg-green-600";
-      case "paused":
-        return "bg-yellow-600";
-      case "cancelled":
-        return "bg-red-600";
-      case "expired":
-        return "bg-gray-600";
-      default:
-        return "bg-gray-600";
-    }
+  const getStatusBadge = (status: string) => {
+    const styles: Record<string, string> = {
+      active: "bg-green-600 text-white",
+      paused: "bg-yellow-600 text-white",
+      cancelled: "bg-red-600 text-white",
+      expired: "bg-gray-600 text-white",
+    };
+    return styles[status] || styles.expired;
   };
 
   if (loading) {
@@ -207,6 +92,9 @@ export default function MembershipsTab({ customerId }: MembershipsTabProps) {
       </div>
     );
   }
+
+  const activeMemberships = memberships.filter((m) => m.status === "active");
+  const inactiveMemberships = memberships.filter((m) => m.status !== "active");
 
   return (
     <div>
@@ -220,192 +108,161 @@ export default function MembershipsTab({ customerId }: MembershipsTabProps) {
         </button>
       </div>
 
-      {memberships.length === 0 ? (
-        <div className="text-center py-12 bg-gray-800 rounded-lg">
-          <CreditCard className="h-12 w-12 text-gray-600 mx-auto mb-4" />
-          <p className="text-gray-400">No active memberships</p>
-          <p className="text-sm text-gray-500 mt-2">
-            Add a membership to get started
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {memberships.map((membership) => (
-            <div key={membership.id} className="bg-gray-800 rounded-lg">
-              <button
-                className="w-full p-4 flex items-start justify-between text-left"
-                onClick={() =>
-                  setExpandedId(
-                    expandedId === membership.id ? null : membership.id,
-                  )
-                }
-              >
-                <div>
-                  <h4 className="font-medium text-white flex items-center gap-2">
-                    {membership.membership_plan?.name || "Membership"}
-                    {expandedId === membership.id ? (
-                      <ChevronUp className="h-4 w-4 text-gray-400" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 text-gray-400" />
-                    )}
-                  </h4>
-                  <div className="flex items-center gap-4 mt-2 text-sm text-gray-400">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="h-4 w-4" />
-                      Started {formatBritishDate(membership.start_date)}
-                    </span>
-                    {membership.end_date && (
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-4 w-4" />
-                        Ends {formatBritishDate(membership.end_date)}
-                      </span>
-                    )}
-                  </div>
+      {/* Active Memberships Section */}
+      <div className="mb-8">
+        <h4 className="text-md font-semibold text-white mb-4">
+          Active ({activeMemberships.length})
+        </h4>
+        {activeMemberships.length === 0 ? (
+          <div className="text-center py-8 bg-gray-800 rounded-lg">
+            <p className="text-gray-400">No active memberships</p>
+          </div>
+        ) : (
+          <div className="bg-gray-800 rounded-lg overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-700">
+                <tr>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-300">
+                    Name
+                  </th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-300">
+                    Start Date
+                  </th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-300">
+                    Cost
+                  </th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-300">
+                    Usage
+                  </th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-300">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {activeMemberships.map((membership) => {
+                  const priceInPennies =
+                    membership.membership_plan?.price_pennies ||
+                    (membership.membership_plan?.price
+                      ? membership.membership_plan.price * 100
+                      : 0);
 
-                  <div className="mt-2">
-                    <span className="text-lg font-semibold text-white">
-                      {formatBritishCurrency(
-                        membership.membership_plan?.price_pennies ||
-                          (membership.membership_plan?.price
-                            ? membership.membership_plan.price * 100
-                            : 0),
-                        true,
-                      )}
-                    </span>
-                    <span className="text-sm text-gray-400 ml-1">
-                      /{membership.membership_plan?.billing_period || "month"}
-                    </span>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <span
-                    className={`px-3 py-1 text-xs text-white rounded-full ${getStatusColor(membership.status)}`}
-                  >
-                    {membership.status}
-                  </span>
-                </div>
-              </button>
-
-              {expandedId === membership.id && (
-                <div className="px-4 pb-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-gray-900 rounded-lg p-4">
-                      <p className="text-xs text-gray-400">Plan</p>
-                      <p className="text-white">
-                        {membership.membership_plan?.name || "—"}
-                      </p>
-                      <p className="text-xs text-gray-400 mt-2">Billing</p>
-                      <p className="text-white">
-                        {formatBritishCurrency(
-                          membership.membership_plan?.price_pennies ||
-                            (membership.membership_plan?.price
-                              ? membership.membership_plan.price * 100
-                              : 0),
-                          true,
-                        )}{" "}
-                        /{" "}
+                  return (
+                    <tr
+                      key={membership.id}
+                      className="border-t border-gray-700 hover:bg-gray-750"
+                    >
+                      <td className="py-3 px-4">
+                        <a
+                          href={`/members/${customerId}/membership/${membership.id}`}
+                          className="text-blue-400 hover:underline cursor-pointer"
+                        >
+                          {membership.membership_plan?.name || "Membership"}
+                        </a>
+                      </td>
+                      <td className="py-3 px-4 text-gray-300">
+                        {new Date(membership.start_date).toLocaleDateString(
+                          "en-GB",
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-gray-300">
+                        {formatBritishCurrency(priceInPennies, true)}/
                         {membership.membership_plan?.billing_period || "month"}
-                      </p>
-                    </div>
-                    <div className="bg-gray-900 rounded-lg p-4">
-                      <p className="text-xs text-gray-400">Start Date</p>
-                      <p className="text-white">
-                        {formatBritishDate(membership.start_date)}
-                      </p>
-                      <p className="text-xs text-gray-400 mt-2">End Date</p>
-                      <p className="text-white">
-                        {membership.end_date
-                          ? formatBritishDate(membership.end_date)
-                          : "—"}
-                      </p>
-                    </div>
-                    <div className="bg-gray-900 rounded-lg p-4">
-                      <p className="text-xs text-gray-400">Next Billing</p>
-                      <p className="text-white">
-                        {membership.next_billing_date
-                          ? formatBritishDate(membership.next_billing_date)
-                          : "—"}
-                      </p>
-                      <p className="text-xs text-gray-400 mt-2">Notes</p>
-                      <p className="text-white whitespace-pre-wrap">
-                        {membership.notes || "—"}
-                      </p>
-                    </div>
-                  </div>
+                      </td>
+                      <td className="py-3 px-4 text-gray-400">
+                        {getUsageText(membership)}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs ${getStatusBadge(membership.status)}`}
+                        >
+                          {membership.status.charAt(0).toUpperCase() +
+                            membership.status.slice(1)}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
-                  {membership.membership_plan?.features && (
-                    <div className="mt-4 pt-4 border-t border-gray-700">
-                      <p className="text-sm font-medium text-gray-400 mb-2">
-                        Includes:
-                      </p>
-                      <ul className="text-sm text-gray-300 space-y-1">
-                        {Object.entries(
-                          membership.membership_plan.features,
-                        ).map(([key, value]) => (
-                          <li key={key}>
-                            • {key}: {String(value)}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+      {/* Inactive Memberships Section */}
+      {inactiveMemberships.length > 0 && (
+        <div>
+          <h4 className="text-md font-semibold text-white mb-4">
+            Inactive ({inactiveMemberships.length})
+          </h4>
+          <div className="bg-gray-800 rounded-lg overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-700">
+                <tr>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-300">
+                    Name
+                  </th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-300">
+                    Start Date
+                  </th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-300">
+                    Cost
+                  </th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-300">
+                    Usage
+                  </th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-300">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {inactiveMemberships.map((membership) => {
+                  const priceInPennies =
+                    membership.membership_plan?.price_pennies ||
+                    (membership.membership_plan?.price
+                      ? membership.membership_plan.price * 100
+                      : 0);
 
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <button
-                      className="px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 flex items-center gap-2"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditTarget(membership);
-                        setShowEditModal(true);
-                      }}
+                  return (
+                    <tr
+                      key={membership.id}
+                      className="border-t border-gray-700 hover:bg-gray-750"
                     >
-                      <Edit3 className="h-4 w-4" /> Edit
-                    </button>
-                    {membership.status === "paused" ? (
-                      <button
-                        className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handlePauseResume(membership);
-                        }}
-                      >
-                        <PlayCircle className="h-4 w-4" /> Resume
-                      </button>
-                    ) : (
-                      <button
-                        className="px-3 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 flex items-center gap-2"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handlePauseResume(membership);
-                        }}
-                      >
-                        <PauseCircle className="h-4 w-4" /> Pause
-                      </button>
-                    )}
-                    <button
-                      className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCancel(membership);
-                      }}
-                    >
-                      <XCircle className="h-4 w-4" /> Delete
-                    </button>
-                    <button
-                      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setUpgradeTarget(membership);
-                        setShowUpgradeModal(true);
-                      }}
-                    >
-                      <ArrowUpRight className="h-4 w-4" /> Upgrade
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
+                      <td className="py-3 px-4">
+                        <a
+                          href={`/members/${customerId}/membership/${membership.id}`}
+                          className="text-blue-400 hover:underline cursor-pointer"
+                        >
+                          {membership.membership_plan?.name || "Membership"}
+                        </a>
+                      </td>
+                      <td className="py-3 px-4 text-gray-300">
+                        {new Date(membership.start_date).toLocaleDateString(
+                          "en-GB",
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-gray-300">
+                        {formatBritishCurrency(priceInPennies, true)}/
+                        {membership.membership_plan?.billing_period || "month"}
+                      </td>
+                      <td className="py-3 px-4 text-gray-400">
+                        {getUsageText(membership)}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs ${getStatusBadge(membership.status)}`}
+                        >
+                          {membership.status.charAt(0).toUpperCase() +
+                            membership.status.slice(1)}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -419,265 +276,6 @@ export default function MembershipsTab({ customerId }: MembershipsTabProps) {
           setShowAddModal(false);
         }}
       />
-      {showEditModal && editTarget && (
-        <EditMembershipModal
-          membership={editTarget}
-          onClose={() => {
-            setShowEditModal(false);
-            setEditTarget(null);
-          }}
-          onSaved={async () => {
-            await fetchMemberships();
-            setShowEditModal(false);
-            setEditTarget(null);
-          }}
-        />
-      )}
-      {showUpgradeModal && upgradeTarget && (
-        <UpgradeMembershipModal
-          membership={upgradeTarget}
-          plans={membershipPlans}
-          onClose={() => {
-            setShowUpgradeModal(false);
-            setUpgradeTarget(null);
-          }}
-          onSaved={async () => {
-            await fetchMemberships();
-            setShowUpgradeModal(false);
-            setUpgradeTarget(null);
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
-function EditMembershipModal({
-  membership,
-  onClose,
-  onSaved,
-}: {
-  membership: any;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const supabase = createClient();
-  const [endDate, setEndDate] = useState<string>(membership.end_date || "");
-  const [nextBilling, setNextBilling] = useState<string>(
-    membership.next_billing_date || "",
-  );
-  const [notes, setNotes] = useState<string>(membership.notes || "");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    setError("");
-    try {
-      const updates: any = {
-        end_date: endDate || null,
-        next_billing_date: nextBilling || null,
-        notes: notes || null,
-      };
-      const { error } = await supabase
-        .from("customer_memberships")
-        .update(updates)
-        .eq("id", membership.id);
-      if (error) throw error;
-      await onSaved();
-    } catch (err: any) {
-      setError(err.message || "Failed to save");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-white">Edit Membership</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">
-            ✕
-          </button>
-        </div>
-        <form onSubmit={handleSave} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              End Date
-            </label>
-            <input
-              type="date"
-              value={endDate || ""}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Next Billing Date
-            </label>
-            <input
-              type="date"
-              value={nextBilling || ""}
-              onChange={(e) => setNextBilling(e.target.value)}
-              className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Notes
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-              className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          {error && (
-            <div className="bg-red-600 bg-opacity-20 border border-red-600 rounded-lg p-3">
-              <p className="text-red-400 text-sm">{error}</p>
-            </div>
-          )}
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600"
-              disabled={saving}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-              disabled={saving}
-            >
-              {saving ? "Saving..." : "Save Changes"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-function UpgradeMembershipModal({
-  membership,
-  plans,
-  onClose,
-  onSaved,
-}: {
-  membership: any;
-  plans: any[];
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const supabase = createClient();
-  const [planId, setPlanId] = useState<string>(
-    membership.membership_plan_id || "",
-  );
-  const [effectiveDate, setEffectiveDate] = useState<string>(
-    new Date().toISOString().split("T")[0],
-  );
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-
-  const handleUpgrade = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!planId) {
-      setError("Please select a plan");
-      return;
-    }
-    setSaving(true);
-    setError("");
-    try {
-      const updates: any = {
-        membership_plan_id: planId,
-        start_date: effectiveDate,
-      };
-      const { error } = await supabase
-        .from("customer_memberships")
-        .update(updates)
-        .eq("id", membership.id);
-      if (error) throw error;
-      await onSaved();
-    } catch (err: any) {
-      setError(err.message || "Failed to upgrade");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-white">
-            Upgrade Membership
-          </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">
-            ✕
-          </button>
-        </div>
-        <form onSubmit={handleUpgrade} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              New Plan *
-            </label>
-            <select
-              value={planId}
-              onChange={(e) => setPlanId(e.target.value)}
-              className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            >
-              <option value="">Select a plan</option>
-              {plans.map((plan) => (
-                <option key={plan.id} value={plan.id}>
-                  {plan.name} - {formatBritishCurrency(plan.price || 0)}/
-                  {plan.billing_period || "month"}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Effective From *
-            </label>
-            <input
-              type="date"
-              value={effectiveDate}
-              onChange={(e) => setEffectiveDate(e.target.value)}
-              className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-          </div>
-          {error && (
-            <div className="bg-red-600 bg-opacity-20 border border-red-600 rounded-lg p-3">
-              <p className="text-red-400 text-sm">{error}</p>
-            </div>
-          )}
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600"
-              disabled={saving}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-              disabled={saving}
-            >
-              {saving ? "Upgrading..." : "Confirm Upgrade"}
-            </button>
-          </div>
-        </form>
-      </div>
     </div>
   );
 }

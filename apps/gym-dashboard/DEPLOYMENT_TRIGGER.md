@@ -206,4 +206,30 @@ Reason: Added 'members' directory to copy-shared-to-app.js script
 Issue: UI changes weren't deploying because members pages weren't being copied
 Fix: Updated SHARED_DIRS to include 'members' directory
 
+# IMPLEMENTING GoTeamUp-style Membership UI (IN PROGRESS)
+
+Date: Thu 9 Oct 2025 18:05:00 BST
+Status: User reports UI still looks the same - changes were discussed but never implemented
+Action: Implementing the following features NOW:
+
+1. MembershipsTab: Active/Inactive sections with table layout (not accordion)
+2. AddMembershipModal: Multi-step checkout with payment method selection
+3. AddMembershipModal: Stripe Payment Element integration for card payments
+4. AddMembershipModal: Cash payment with Outstanding/Received status
+5. Membership dropdown: Category-grouped with alphabetical sorting
+6. Membership detail page: Tabs for payment history (already created)
+7. Fix: Edit button 404 error on membership detail page
+
+# GoTeamUp UI DEPLOYED - Table Layout + Category Dropdown
+
+Date: Thu 9 Oct 2025 18:15:00 BST
+Changes Implemented:
+✅ MembershipsTab: Complete rewrite with Active/Inactive table sections
+✅ Membership names: Blue clickable links to detail pages
+✅ Usage column: "Never Expires" or "X days left" text
+✅ AddMembershipModal: Category-grouped dropdown with alphabetical sorting
+✅ Both categories and plans sorted alphabetically (Uncategorized last)
+✅ Status badges: Green (active), Yellow (paused), Red (cancelled), Gray (expired)
+Commit: Pending
+
 This file is modified to trigger Vercel deployment when shared code changes.
