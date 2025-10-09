@@ -33,7 +33,8 @@ const SHARED_DIRS = [
   'settings',
   'hooks',
   'types',
-  'org'     // Path-based multi-tenant routes
+  'org',          // Path-based multi-tenant routes
+  'ai-agents'     // AI agents redirect page
   // Note: 'members' is NOT copied - each app has its own member pages
 ];
 
