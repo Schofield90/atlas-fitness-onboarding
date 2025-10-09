@@ -183,7 +183,15 @@ const nextConfig = {
   },
   
   // Webpack configuration to handle SSR issues
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, dev }) => {
+    // Disable minification to work around Next.js 15.5.4 webpack bug
+    if (!dev && !isServer) {
+      config.optimization = {
+        ...config.optimization,
+        minimize: false,
+      };
+    }
+
     if (isServer) {
       // Don't bundle these packages on the server
       config.externals.push(
@@ -197,7 +205,7 @@ const nextConfig = {
         'jsdom'
       );
     }
-    
+
     // Ignore missing modules in server builds
     config.resolve.fallback = {
       ...config.resolve.fallback,
@@ -211,14 +219,14 @@ const nextConfig = {
       stream: false,
       path: false,
     };
-    
+
     // Handle OpenAI module resolution
     config.resolve.alias = {
       ...config.resolve.alias,
       // Ensure OpenAI uses Node.js version on server
       'openai$': require.resolve('openai'),
     };
-    
+
     return config;
   }
 };

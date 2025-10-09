@@ -1029,10 +1029,12 @@ User created membership categories and wanted an easy way to select multiple mem
    - Clears selection after successful update
 
 **Files Changed:**
+
 - `app/memberships/page.tsx` - Added bulk selection UI and logic
 - `apps/gym-dashboard/DEPLOYMENT_TRIGGER.md` - Trigger deployment
 
 **State Management:**
+
 ```typescript
 const [selectedPlans, setSelectedPlans] = useState<Set<string>>(new Set());
 const [bulkCategory, setBulkCategory] = useState<string>("");
@@ -1040,12 +1042,14 @@ const [updatingBulk, setUpdatingBulk] = useState(false);
 ```
 
 **Key Functions:**
+
 - `handleToggleSelection(planId)` - Toggle individual checkbox
 - `handleSelectAll()` - Select all filtered plans
 - `handleClearSelection()` - Clear all selections
 - `handleBulkCategoryAssign()` - Perform bulk update
 
 **Security Audit:** ✅ PASSED
+
 - Authentication: Uses existing `requireAuth()` middleware
 - Authorization: Organization ownership validated by PUT endpoint
 - Input Validation: Only updates `category_id` field
@@ -1056,6 +1060,7 @@ const [updatingBulk, setUpdatingBulk] = useState(false);
 **Commit:** `434bc21b`
 
 **User Journey:**
+
 1. User creates categories via "Manage Categories" button
 2. User selects memberships by clicking checkboxes
 3. OR user clicks "Select All Visible" to select filtered memberships
@@ -1068,6 +1073,7 @@ const [updatingBulk, setUpdatingBulk] = useState(false);
 10. Page refreshes to show updated categories
 
 **Testing:**
+
 - Test URL: `https://login.gymleadhub.co.uk/memberships`
 - Select multiple memberships with checkboxes
 - Use "Select All Visible" with filters active
@@ -1105,14 +1111,14 @@ const [updatingBulk, setUpdatingBulk] = useState(false);
      - Missing error state in UI
      - OpenAI API key or rate limit issue
 
-2. **Verification After Deployment**
+3. **Verification After Deployment**
    - [ ] Monthly turnover report shows data through October 2025
    - [ ] 36-month view shows correct historical data (2022-2024)
    - [ ] Total payments calculates correctly for all timeframes
    - [ ] Class deletion successfully removes class types and sessions
    - [ ] Merge duplicates button disappears after merging
 
-3. **Future Improvements**
+4. **Future Improvements**
    - Add loading state to AI Insights button
    - Add error toast notifications to all API calls
    - Consider adding optimistic UI updates for delete operations
@@ -1120,13 +1126,97 @@ const [updatingBulk, setUpdatingBulk] = useState(false);
 
 ---
 
-_Last Updated: October 8, 2025 23:30 BST_
-_Review Type: Automated Design & Accessibility_
-_Diff Policy: Minimal changes only_
+## Deployment Issues (October 9, 2025) - IN PROGRESS ⚠️
+
+### 🔴 CRITICAL: Next.js 15.5.4 Build Failures
+
+**Issue**: Vercel deployments failing with webpack minification errors since ~10:00 AM BST
+
+**Error Messages:**
+
+```
+HookWebpackError: _webpack.WebpackError is not a constructor
+    at buildError (/vercel/path0/node_modules/next/dist/build/webpack/plugins/minify-webpack-plugin/src/index.js:24:16)
+```
+
+**Root Cause**: Next.js 15.5.4 has a bug in the webpack minify plugin where it tries to construct `_webpack.WebpackError` but the constructor doesn't exist.
+
+**Attempted Fixes:**
+
+1. ❌ Downgraded to Next.js 15.5.3 - same error
+2. ❌ Downgraded to Next.js 14.2.26 - different terser error
+3. ❌ Fixed routing conflicts (`/[org]` vs `/org/[orgSlug]`) - helped but didn't solve webpack issue
+4. ❌ Removed Storybook dependencies - no change
+5. ✅ **WORKING FIX**: Disabled webpack minification in `next.config.js`
+
+**Current Solution (TEMPORARY):**
+
+File: `/next.config.js` (lines 186-193)
+
+```javascript
+webpack: (config, { isServer, dev }) => {
+  // Disable minification to work around Next.js 15.5.4 webpack bug
+  if (!dev && !isServer) {
+    config.optimization = {
+      ...config.optimization,
+      minimize: false,
+    };
+  }
+  // ... rest of config
+};
+```
+
+**New Build Error** (after webpack fix):
+
+```
+Error: The OPENAI_API_KEY environment variable is missing or empty
+    at /api/ai-agents/generate-prompt/route.js
+```
+
+**Status**: Build now passes webpack compilation but fails during "collecting page data" phase because AI agent routes require OpenAI API key at build time.
+
+**Next Steps:**
+
+1. Add OpenAI API key to Vercel environment variables for all 3 projects:
+   - `atlas-gym-dashboard` (main)
+   - `atlas-member-portal`
+   - `atlas-admin-portal`
+
+2. OR modify `/app/api/ai-agents/generate-prompt/route.ts` to handle missing API key gracefully during build
+
+3. Once build succeeds, RE-ENABLE minification and find proper fix for Next.js webpack issue
+
+**Commits:**
+
+- `be18e303` - Fixed routing conflicts (`:path*` → `(.*)` in next.config.js)
+- `1d005c96` - Renamed `/app/[org]` → `/app/gym/[org]`
+- `f832153d` - Reverted to Next.js 15.5.4 after testing
+- Current changes (uncommitted) - Disabled webpack minification + removed Storybook
+
+**Files Modified:**
+
+- `/next.config.js` - Disabled minification (lines 186-193)
+- `/package.json` - Removed Storybook packages
+- Deleted: `/app/ai-agents/page.tsx` (conflicted with `/app/org/[orgSlug]/ai-agents/`)
+- Moved: `/app/[org]/*` → `/app/gym/[org]/*`
+
+**Testing After Fix:**
+
+1. Verify Vercel deployment succeeds
+2. Test all 3 apps build successfully
+3. Confirm bundle sizes (unminified will be larger)
+4. Plan to re-enable minification once Next.js patches the bug
+
+---
+
+_Last Updated: October 9, 2025 10:30 BST_
+_Status: Build partially fixed, OpenAI env var issue remaining_
+_Review Type: Emergency Deployment Fixes_
 
 ## Session Handoff Notes (October 8, 2025 - Evening)
 
 ### Completed This Session ✅
+
 1. **Bulk Membership Category Assignment** - DEPLOYED
    - Checkbox selection on each membership card
    - Select All button for filtered memberships
@@ -1136,9 +1226,11 @@ _Diff Policy: Minimal changes only_
    - Commit: `434bc21b`
 
 ### Ready for Next Session 🚀
+
 **Monthly Turnover Enhancements** - All research complete, ready to implement:
 
 **Task Breakdown:**
+
 1. Add custom date range picker (HTML5 date inputs or date picker library)
 2. Add comparison mode selector dropdown (None, Year-over-Year, Month-over-Month, Custom)
 3. Modify `/api/reports/monthly-turnover` to accept custom date parameters
@@ -1152,6 +1244,7 @@ _Diff Policy: Minimal changes only_
    - Deeper actionable insights
 
 **Current State:**
+
 - Monthly Turnover page: `/app/reports/monthly-turnover/page.tsx`
 - AI Analysis API: `/app/api/reports/monthly-turnover/analyze/route.ts`
 - Graph library: Recharts (LineChart component)
@@ -1159,6 +1252,7 @@ _Diff Policy: Minimal changes only_
 - User quote: "I want it to use the AI to act as a financial expert reviewing growth, seasonality and providing key insights into the overall finances of the business, it can compare upfront payments to recurring payments to front end memberships to back end memberships and use its knowledge of the industry average to provide deep analysis. it should be like an expert in their back pocket"
 
 **Files to Modify:**
+
 - `/app/reports/monthly-turnover/page.tsx` (Lines 99, 136-165, 494-525)
 - `/app/api/reports/monthly-turnover/analyze/route.ts` (Lines 61-98)
 - `/app/api/reports/monthly-turnover/route.ts` (Add custom date support)
