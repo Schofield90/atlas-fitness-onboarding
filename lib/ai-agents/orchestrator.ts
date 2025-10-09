@@ -8,6 +8,7 @@ import { OpenAIProvider } from './providers/openai-provider';
 import { AnthropicProvider } from './providers/anthropic-provider';
 import { ToolRegistry } from './tools/registry';
 import { calculateCost, logAIUsage, type CostCalculation } from './cost-tracker';
+import { checkGlobalRateLimit, checkOrgRateLimit, checkAgentRateLimit } from './rate-limiter';
 
 export interface AgentTask {
   id: string;
@@ -147,12 +148,13 @@ export class AgentOrchestrator {
         };
       }
 
-      // 3. Get conversation history
+      // 3. Get conversation history (limit to last 100 messages to prevent unbounded growth)
       const { data: messageHistory, error: historyError } = await this.supabase
         .from("ai_agent_messages")
         .select("*")
         .eq("conversation_id", conversationId)
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: false })
+        .limit(100);
 
       if (historyError) {
         return {
@@ -161,6 +163,9 @@ export class AgentOrchestrator {
           cost: this.emptyCost(),
         };
       }
+
+      // Reverse to chronological order (oldest first) for provider execution
+      const messages = (messageHistory || []).reverse();
 
       // 4. Get allowed tools for agent
       const allowedTools = agent.allowed_tools || [];
@@ -171,7 +176,7 @@ export class AgentOrchestrator {
       // 5. Execute with appropriate provider
       const executionResult = await this.executeConversation(
         agent,
-        messageHistory || [],
+        messages,
         tools
       );
 
@@ -448,6 +453,12 @@ export class AgentOrchestrator {
     let costUsd = 0;
 
     try {
+      // Check global rate limit first
+      const globalOk = await checkGlobalRateLimit();
+      if (!globalOk) {
+        throw new Error('Global rate limit exceeded. System is at capacity.');
+      }
+
       // Fetch task details
       const { data: task, error: taskError } = await this.supabase
         .from('ai_agent_tasks')
@@ -459,6 +470,12 @@ export class AgentOrchestrator {
         throw new Error(`Task not found: ${taskId}`);
       }
 
+      // Check organization-specific rate limit
+      const orgOk = await checkOrgRateLimit(task.organization_id);
+      if (!orgOk) {
+        throw new Error('Organization rate limit exceeded. Please try again in 1 minute.');
+      }
+
       // Fetch agent details
       const { data: agent, error: agentError } = await this.supabase
         .from('ai_agents')
@@ -468,6 +485,12 @@ export class AgentOrchestrator {
 
       if (agentError || !agent) {
         throw new Error(`Agent not found: ${task.agent_id}`);
+      }
+
+      // Check agent-specific rate limit
+      const agentOk = await checkAgentRateLimit(agent.id);
+      if (!agentOk) {
+        throw new Error(`Agent rate limit exceeded for ${agent.name}. Please try again in 1 minute.`);
       }
 
       // Update task status to running

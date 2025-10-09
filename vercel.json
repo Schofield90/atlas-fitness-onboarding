@@ -50,6 +50,10 @@
     {
       "path": "/api/cron/weekly-brief",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/agent-scheduler",
+      "schedule": "*/5 * * * *"
     }
   ],
   "headers": [
