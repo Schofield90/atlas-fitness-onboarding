@@ -180,3 +180,11 @@ FIX AI Agents 404 error: Create root-level /ai-agents page to match navigation l
 ADD AI Agent chat interface: Create /ai-agents/chat/[id] page for agent conversations - Thu 9 Oct 2025 18:30:00 BST
 
 ADD Task management to AI agents: Recurring and one-off tasks with checklist - Thu 9 Oct 2025 18:45:00 BST
+
+# Deployment Trigger - Demo Org Fix
+
+Date: Thu 9 Oct 2025 15:49:36 BST
+Reason: Deploy API fix for organization selection (ORDER BY created_at DESC)
+Commit: a7e29e83
+
+This file is modified to trigger Vercel deployment when shared code changes.
