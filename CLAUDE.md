@@ -1173,17 +1173,52 @@ Error: The OPENAI_API_KEY environment variable is missing or empty
     at /api/ai-agents/generate-prompt/route.js
 ```
 
-**Status**: Build now passes webpack compilation but fails during "collecting page data" phase because AI agent routes require OpenAI API key at build time.
+**Root Cause**: OpenAI client was instantiated at module level (build time), requiring API key even when route isn't called.
+
+**✅ FIXED**: Lazy-load OpenAI client
+
+Modified both:
+
+- `/app/api/ai-agents/generate-prompt/route.ts`
+- `/apps/gym-dashboard/app/api/ai-agents/generate-prompt/route.ts`
+
+Changed from:
+
+```typescript
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY }); // Build-time error
+
+export async function POST(request: NextRequest) {
+  // ... use openai
+}
+```
+
+To:
+
+```typescript
+export async function POST(request: NextRequest) {
+  // Check for API key at runtime
+  if (!process.env.OPENAI_API_KEY) {
+    return NextResponse.json(
+      {
+        error:
+          "AI prompt generation is not configured. Please contact support.",
+      },
+      { status: 503 },
+    );
+  }
+
+  // Lazy-load only when route is called
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  // ... use openai
+}
+```
+
+**Status**: Build should now succeed. Still needs OpenAI API key in Vercel env vars for the feature to work at runtime.
 
 **Next Steps:**
 
-1. Add OpenAI API key to Vercel environment variables for all 3 projects:
-   - `atlas-gym-dashboard` (main)
-   - `atlas-member-portal`
-   - `atlas-admin-portal`
-
-2. OR modify `/app/api/ai-agents/generate-prompt/route.ts` to handle missing API key gracefully during build
-
+1. Verify Vercel deployment succeeds (build should complete)
+2. Add `OPENAI_API_KEY` to Vercel environment variables to enable AI prompt generation feature
 3. Once build succeeds, RE-ENABLE minification and find proper fix for Next.js webpack issue
 
 **Commits:**
@@ -1191,26 +1226,30 @@ Error: The OPENAI_API_KEY environment variable is missing or empty
 - `be18e303` - Fixed routing conflicts (`:path*` → `(.*)` in next.config.js)
 - `1d005c96` - Renamed `/app/[org]` → `/app/gym/[org]`
 - `f832153d` - Reverted to Next.js 15.5.4 after testing
-- Current changes (uncommitted) - Disabled webpack minification + removed Storybook
+- `1966e4b8` - Disabled webpack minification + documented deployment issues
+- Current changes (uncommitted) - Fixed OpenAI lazy-load for build success
 
 **Files Modified:**
 
 - `/next.config.js` - Disabled minification (lines 186-193)
 - `/package.json` - Removed Storybook packages
+- `/app/api/ai-agents/generate-prompt/route.ts` - Lazy-load OpenAI client (lines 5-31)
+- `/apps/gym-dashboard/app/api/ai-agents/generate-prompt/route.ts` - Same fix
 - Deleted: `/app/ai-agents/page.tsx` (conflicted with `/app/org/[orgSlug]/ai-agents/`)
 - Moved: `/app/[org]/*` → `/app/gym/[org]/*`
 
 **Testing After Fix:**
 
-1. Verify Vercel deployment succeeds
-2. Test all 3 apps build successfully
-3. Confirm bundle sizes (unminified will be larger)
-4. Plan to re-enable minification once Next.js patches the bug
+1. ✅ Build should now complete successfully (OpenAI lazy-loaded)
+2. Test all 3 apps deploy successfully on Vercel
+3. Add `OPENAI_API_KEY` to Vercel env vars to enable AI prompt generation
+4. Confirm bundle sizes (unminified will be larger)
+5. Plan to re-enable minification once Next.js patches the bug
 
 ---
 
-_Last Updated: October 9, 2025 10:30 BST_
-_Status: Build partially fixed, OpenAI env var issue remaining_
+_Last Updated: October 9, 2025 17:45 BST_
+_Status: Build fixes complete, ready for deployment testing_
 _Review Type: Emergency Deployment Fixes_
 
 ## Session Handoff Notes (October 8, 2025 - Evening)

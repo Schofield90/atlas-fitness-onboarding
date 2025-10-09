@@ -2,10 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/app/lib/api/auth-check";
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 export async function POST(request: NextRequest) {
   try {
     // Require authentication
@@ -19,6 +15,23 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+
+    // Check for API key at runtime
+    if (!process.env.OPENAI_API_KEY) {
+      console.error("[Generate Prompt] OpenAI API key not configured");
+      return NextResponse.json(
+        {
+          error:
+            "AI prompt generation is not configured. Please contact support.",
+        },
+        { status: 503 },
+      );
+    }
+
+    // Lazy-load OpenAI client only when route is called
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
 
     // Generate detailed system prompt using GPT-4
     const completion = await openai.chat.completions.create({
