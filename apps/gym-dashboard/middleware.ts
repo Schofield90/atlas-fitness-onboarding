@@ -60,6 +60,7 @@ const adminRoutes = [
   '/memberships',
   '/members',
   '/ai-config',
+  '/ai-agents',
   '/classes',
   '/customers',
   '/integrations'
