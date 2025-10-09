@@ -7,30 +7,35 @@ import SettingsHeader from '@/app/components/settings/SettingsHeader'
 import TwilioConfiguration from '@/app/components/settings/integrations/phone/TwilioConfiguration'
 import PhoneNumberSettings from '@/app/components/settings/integrations/phone/PhoneNumberSettings'
 import SMSTestPanel from '@/app/components/settings/integrations/phone/SMSTestPanel'
-import { useOrganization } from '@/app/hooks/useOrganization'
 
 export default function PhoneIntegrationPage() {
   const [settings, setSettings] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const supabase = createClient()
-  const { organizationId } = useOrganization()
 
   useEffect(() => {
-    if (organizationId) {
-      fetchSettings()
-    }
-  }, [organizationId])
+    fetchSettings()
+  }, [])
 
   const fetchSettings = async () => {
     try {
-      if (!organizationId) return
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: userOrg } = await supabase
+        .from('user_organizations')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single()
+
+      if (!userOrg) return
 
       // Get phone/SMS integration settings
       const { data: phoneSettings } = await supabase
         .from('integration_settings')
         .select('*')
-        .eq('organization_id', organizationId)
+        .eq('organization_id', userOrg.organization_id)
         .eq('integration_type', 'phone')
         .single()
 
@@ -39,7 +44,7 @@ export default function PhoneIntegrationPage() {
       } else {
         // Create default settings
         const defaultSettings = {
-          organization_id: organizationId,
+          organization_id: userOrg.organization_id,
           integration_type: 'phone',
           enabled: false,
           config: {
@@ -63,10 +68,11 @@ export default function PhoneIntegrationPage() {
   }
 
   const handleSave = async () => {
-    if (!organizationId) return
-
     setSaving(true)
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
       if (settings.id) {
         // Update existing settings
         const { error } = await supabase
@@ -77,7 +83,6 @@ export default function PhoneIntegrationPage() {
             updated_at: new Date().toISOString()
           })
           .eq('id', settings.id)
-          .eq('organization_id', organizationId) // Security: ensure we only update OUR org's settings
 
         if (error) throw error
       } else {
@@ -87,7 +92,7 @@ export default function PhoneIntegrationPage() {
           .insert(settings)
 
         if (error) throw error
-
+        
         // Refetch to get the created record with ID
         await fetchSettings()
       }

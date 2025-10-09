@@ -9,30 +9,35 @@ import SMTPConfiguration from '@/app/components/settings/integrations/email/SMTP
 import SendgridConfiguration from '@/app/components/settings/integrations/email/SendgridConfiguration'
 import MailgunConfiguration from '@/app/components/settings/integrations/email/MailgunConfiguration'
 import EmailTestPanel from '@/app/components/settings/integrations/email/EmailTestPanel'
-import { useOrganization } from '@/app/hooks/useOrganization'
 
 export default function EmailIntegrationPage() {
   const [settings, setSettings] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const supabase = createClient()
-  const { organizationId } = useOrganization()
 
   useEffect(() => {
-    if (organizationId) {
-      fetchSettings()
-    }
-  }, [organizationId])
+    fetchSettings()
+  }, [])
 
   const fetchSettings = async () => {
     try {
-      if (!organizationId) return
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: userOrg } = await supabase
+        .from('user_organizations')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single()
+
+      if (!userOrg) return
 
       // Get email integration settings
       const { data: emailSettings } = await supabase
         .from('integration_settings')
         .select('*')
-        .eq('organization_id', organizationId)
+        .eq('organization_id', userOrg.organization_id)
         .eq('integration_type', 'email')
         .single()
 
@@ -41,7 +46,7 @@ export default function EmailIntegrationPage() {
       } else {
         // Create default settings
         const defaultSettings = {
-          organization_id: organizationId,
+          organization_id: userOrg.organization_id,
           integration_type: 'email',
           enabled: false,
           config: {
@@ -61,10 +66,22 @@ export default function EmailIntegrationPage() {
   }
 
   const handleSave = async () => {
-    if (!organizationId) return
-
     setSaving(true)
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: userOrg } = await supabase
+        .from('user_organizations')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single()
+
+      if (!userOrg) {
+        console.error('No organization found for user')
+        return
+      }
+
       if (settings.id) {
         // Update existing settings
         const { data, error } = await supabase
@@ -75,7 +92,6 @@ export default function EmailIntegrationPage() {
             updated_at: new Date().toISOString()
           })
           .eq('id', settings.id)
-          .eq('organization_id', organizationId) // Security: ensure we only update OUR org's settings
           .select()
           .single()
 
@@ -90,7 +106,7 @@ export default function EmailIntegrationPage() {
         const { data, error } = await supabase
           .from('integration_settings')
           .insert({
-            organization_id: organizationId,
+            organization_id: userOrg.organization_id,
             integration_type: 'email',
             enabled: settings.enabled,
             config: settings.config
@@ -102,7 +118,7 @@ export default function EmailIntegrationPage() {
           console.error('Error creating settings:', error)
           throw error
         }
-
+        
         setSettings(data)
       }
 

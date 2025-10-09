@@ -152,13 +152,14 @@ export async function GET(request: NextRequest) {
       console.log("Checking user_organizations for user:", user.id);
       const { data: userOrgData, error: userOrgError } = await admin
         .from("user_organizations")
-        .select("organization_id, role")
+        .select("organization_id, role, created_at")
         .eq("user_id", user.id)
-        .limit(1); // Use limit instead of single to handle multiple records
+        .order("created_at", { ascending: false })
+        .limit(1); // Get the most recent organization link
 
       if (userOrgData && userOrgData.length > 0) {
         console.log(
-          "✅ Found organization via user_organizations:",
+          "✅ Found organization via user_organizations (most recent):",
           userOrgData[0],
         );
         orgId = userOrgData[0].organization_id;
@@ -173,13 +174,14 @@ export async function GET(request: NextRequest) {
       console.log("Checking organization_staff for user:", user.id);
       const { data: staffData, error: staffError } = await admin
         .from("organization_staff")
-        .select("organization_id")
+        .select("organization_id, created_at")
         .eq("user_id", user.id)
-        .limit(1);
+        .order("created_at", { ascending: false })
+        .limit(1); // Get the most recent staff link
 
       if (staffData && staffData.length > 0) {
         console.log(
-          "✅ Found organization via organization_staff:",
+          "✅ Found organization via organization_staff (most recent):",
           staffData[0],
         );
         orgId = staffData[0].organization_id;

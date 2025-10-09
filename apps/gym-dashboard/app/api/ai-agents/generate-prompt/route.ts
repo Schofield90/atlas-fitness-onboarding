@@ -20,7 +20,10 @@ export async function POST(request: NextRequest) {
     if (!process.env.OPENAI_API_KEY) {
       console.error("[Generate Prompt] OpenAI API key not configured");
       return NextResponse.json(
-        { error: "AI prompt generation is not configured. Please contact support." },
+        {
+          error:
+            "AI prompt generation is not configured. Please contact support.",
+        },
         { status: 503 },
       );
     }
