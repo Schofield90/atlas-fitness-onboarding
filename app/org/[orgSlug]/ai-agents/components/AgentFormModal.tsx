@@ -12,7 +12,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/app/components/ui/dialog";
-import { Bot, Loader2 } from "lucide-react";
+import { Bot, Loader2, Sparkles } from "lucide-react";
 
 const agentFormSchema = z.object({
   name: z
@@ -23,7 +23,7 @@ const agentFormSchema = z.object({
     .string()
     .min(1, "Description is required")
     .max(500, "Description must be less than 500 characters"),
-  role: z.enum(["customer_support", "financial", "social_media", "custom"]),
+  role: z.string().default("custom"),
   system_prompt: z.string().min(1, "System prompt is required"),
   model: z.enum([
     "gpt-4o",
@@ -66,6 +66,7 @@ export function AgentFormModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [availableTools, setAvailableTools] = useState<any[]>([]);
+  const [generatingPrompt, setGeneratingPrompt] = useState(false);
 
   const {
     register,
@@ -169,6 +170,37 @@ export function AgentFormModal({
     setValue("allowed_tools", updatedTools);
   };
 
+  const handleGeneratePrompt = async () => {
+    const description = watch("description");
+    if (!description) {
+      setError("Please enter a description first");
+      return;
+    }
+
+    setGeneratingPrompt(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/ai-agents/generate-prompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to generate prompt");
+      }
+
+      setValue("system_prompt", result.prompt);
+    } catch (err: any) {
+      setError(err.message || "Failed to generate prompt");
+    } finally {
+      setGeneratingPrompt(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent
@@ -197,39 +229,17 @@ export function AgentFormModal({
           )}
 
           {/* Basic Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Name *</label>
-              <input
-                {...register("name")}
-                type="text"
-                placeholder="e.g., Support Agent"
-                className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
-              />
-              {errors.name && (
-                <p className="text-red-400 text-sm mt-1">
-                  {errors.name.message}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">Role *</label>
-              <select
-                {...register("role")}
-                className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
-              >
-                <option value="custom">Custom</option>
-                <option value="customer_support">Customer Support</option>
-                <option value="financial">Financial</option>
-                <option value="social_media">Social Media</option>
-              </select>
-              {errors.role && (
-                <p className="text-red-400 text-sm mt-1">
-                  {errors.role.message}
-                </p>
-              )}
-            </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Name *</label>
+            <input
+              {...register("name")}
+              type="text"
+              placeholder="Customer support Agent"
+              className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
+            />
+            {errors.name && (
+              <p className="text-red-400 text-sm mt-1">{errors.name.message}</p>
+            )}
           </div>
 
           <div>
@@ -318,13 +328,33 @@ export function AgentFormModal({
 
           {/* System Prompt */}
           <div>
-            <label className="block text-sm font-medium mb-2">
-              System Prompt *
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium">
+                System Prompt *
+              </label>
+              <button
+                type="button"
+                onClick={handleGeneratePrompt}
+                disabled={generatingPrompt || !watch("description")}
+                className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {generatingPrompt ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    AI Generate
+                  </>
+                )}
+              </button>
+            </div>
             <textarea
               {...register("system_prompt")}
               rows={6}
-              placeholder="You are a helpful AI assistant for a fitness gym. Your role is to..."
+              placeholder="Click 'AI Generate' to create a detailed system prompt from your description..."
               className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none font-mono text-sm"
             />
             {errors.system_prompt && (
@@ -332,6 +362,10 @@ export function AgentFormModal({
                 {errors.system_prompt.message}
               </p>
             )}
+            <p className="text-xs text-gray-400 mt-1">
+              💡 Tip: Enter a description above, then click "AI Generate" to
+              create a comprehensive system prompt
+            </p>
           </div>
 
           {/* Allowed Tools */}
