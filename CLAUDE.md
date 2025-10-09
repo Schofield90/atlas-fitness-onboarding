@@ -1543,6 +1543,180 @@ _Last Updated: October 9, 2025 17:45 BST_
 _Status: Build fixes complete, ready for deployment testing_
 _Review Type: Emergency Deployment Fixes_
 
+## Demo Account Setup (October 9, 2025) - COMPLETED ✅
+
+### 🎯 Demo Environment for Client Showcases
+
+**Purpose**: Fully populated demo account to showcase Atlas Fitness CRM features and AI agents to prospective clients.
+
+**Login Credentials:**
+
+- URL: `https://login.gymleadhub.co.uk`
+- Email: `test@test.co.uk`
+- Password: `Test123`
+- User ID: `bb9e8f7d-fc7e-45e6-9d29-d43e866d3b5b`
+- Organization: Demo Fitness Studio (`c762845b-34fc-41ea-9e01-f70b81c44ff7`)
+
+### 📊 Demo Data Created
+
+**50 Clients** (42 active, 8 paused/cancelled)
+
+- Realistic names from common UK naming patterns
+- Valid email addresses (firstname.lastname@gmail.com)
+- UK phone numbers (07xxx format)
+- Lead scores: 10-95 (distributed across high/medium/low engagement)
+- Diverse statuses: active, paused, cancelled
+- Tagged appropriately: 'member', 'active', 'lead'
+
+**42 Active Memberships** across 5 tiers:
+
+- Trial Pass: £20 (one-time, 1-week trial)
+- Basic Monthly: £49 (4 classes/month)
+- Premium Monthly: £89 (12 classes/month)
+- Elite Unlimited: £129 (unlimited classes)
+- VIP Annual: £1200 (unlimited + PT sessions)
+
+**8 Class Types** with realistic configurations:
+
+- Yoga Flow (60 min, capacity 20)
+- HIIT Training (45 min, capacity 15)
+- Strength Training (60 min, capacity 12)
+- Spin Class (45 min, capacity 20)
+- Boxing Bootcamp (50 min, capacity 15)
+- Pilates (60 min, capacity 15)
+- CrossFit (60 min, capacity 15)
+- Zumba (45 min, capacity 25)
+
+**125 Class Sessions** (4-week schedule):
+
+- 1 week past + 3 weeks future
+- 5 time slots daily: 6am, 9am, 12pm, 5pm, 7pm
+- Skip Sundays (realistic gym schedule)
+- 5 rotating instructors: Sarah Johnson, Mike Chen, Emma Wilson, Tom Davies, Lisa Martinez
+- Sessions marked 'completed' or 'scheduled' based on time
+
+**507 Class Bookings** with realistic attendance:
+
+- 191 attended (~80% attendance rate)
+- No-shows included (~5%)
+- Cancelled bookings
+- Only sessions within 7 days (past/future)
+- Realistic capacity: 5-15 bookings per session
+
+**108 Payments** (6 months history):
+
+- 96 successful (status: 'paid_out')
+- 12 failed payments (for testing dunning flows)
+- Monthly recurring from membership start dates
+- Realistic amounts matching membership tiers
+- Stripe provider
+- Metadata includes `{"demo_data": true}`
+
+### 🔧 Critical Auth Issue Fixed
+
+**Problem**: Production authentication completely broken
+
+- All signup/login attempts failed with 500 errors
+- Error: "Database error querying schema" / "Database error checking email"
+- Affected ALL users, not just demo account
+
+**Root Cause**: `supabase_auth_admin` role had NO permissions on auth schema tables
+
+**Solution Applied**:
+
+```sql
+GRANT ALL ON auth.users TO supabase_auth_admin;
+GRANT ALL ON auth.identities TO supabase_auth_admin;
+GRANT ALL ON auth.sessions TO supabase_auth_admin;
+GRANT ALL ON auth.refresh_tokens TO supabase_auth_admin;
+GRANT USAGE ON SCHEMA auth TO supabase_auth_admin;
+GRANT ALL ON ALL TABLES IN SCHEMA auth TO supabase_auth_admin;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA auth TO supabase_auth_admin;
+```
+
+**Status**: ✅ Authentication now working, signup/login functional
+
+### 📁 Demo Setup Scripts
+
+**Created Files**:
+
+- `/Users/Sam/scripts/quick-demo-setup.sql` - Membership plans and class types
+- `/Users/Sam/scripts/complete-demo-setup.py` - 50 clients via Python/psycopg2
+- `/Users/Sam/scripts/finish-demo-data.sql` - Memberships, sessions, bookings, payments
+- `/Users/Sam/scripts/fix-test-user.mjs` - Test user password management
+- `/Users/Sam/scripts/test-login.mjs` - Authentication testing
+
+**Schema Corrections Made**:
+
+- `clients` table: Uses `org_id` not `organization_id`
+- `clients.status`: Must be 'active', 'paused', 'cancelled', or 'expired'
+- `class_sessions`: Uses `session_status` not `status`, no `class_type_id` column
+- `customer_memberships`: Uses `membership_plan_id` not `plan_id`, no `billing_period`
+- `organization_staff`: Uses `name` not `first_name`/`last_name`
+- `payments`: No `currency` column
+- JSONB columns: Must wrap Python dicts with `Json()` from psycopg2.extras
+
+### 🎬 Demo Features Showcased
+
+**Client Management**:
+
+- Full client list with filters (active/paused/cancelled)
+- Lead scoring visualization (10-95 range)
+- Engagement tracking (high/medium/low)
+- Client lifecycle demonstration
+
+**Membership Management**:
+
+- Multiple tier pricing (trial to VIP)
+- Active subscription tracking
+- Membership status transitions
+- Renewal/cancellation flows
+
+**Class Scheduling**:
+
+- 4-week calendar view
+- Multiple class types
+- Instructor assignments
+- Capacity management
+
+**Attendance Tracking**:
+
+- Booking confirmations
+- Attendance marking (attended/no-show)
+- Historical attendance data
+- Booking cancellations
+
+**Payment Processing**:
+
+- 6-month payment history
+- Success/failure scenarios
+- Recurring billing patterns
+- Dunning management demo (failed payments)
+
+**AI Agent Capabilities**:
+
+- Lead scoring with real data
+- Engagement pattern analysis
+- Payment failure predictions
+- Attendance trends
+
+### ✅ Verification Checklist
+
+- [x] Test user created and email confirmed
+- [x] Test user linked to Demo Fitness Studio organization
+- [x] 50 clients created with realistic profiles
+- [x] 42 memberships assigned across 5 tiers
+- [x] 8 class types configured
+- [x] 125 class sessions scheduled (past + future)
+- [x] 507 bookings with attendance data
+- [x] 108 payments with success/failure scenarios
+- [x] Auth permissions fixed for production signup/login
+- [x] All data accessible via login.gymleadhub.co.uk
+
+**Ready for client demos!** 🚀
+
+---
+
 ## Session Handoff Notes (October 8, 2025 - Evening)
 
 ### Completed This Session ✅
