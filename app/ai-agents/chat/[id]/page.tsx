@@ -600,14 +600,44 @@ interface TaskFormModalProps {
 
 function TaskFormModal({ agentId, task, onClose, onSuccess }: TaskFormModalProps) {
   const [submitting, setSubmitting] = useState(false);
+  const [scheduleType, setScheduleType] = useState<'daily' | 'weekly' | 'custom'>('daily');
+  const [scheduleTime, setScheduleTime] = useState('09:00');
+  const [scheduleDays, setScheduleDays] = useState<string[]>(['MON']);
+
   const [formData, setFormData] = useState({
     title: task?.title || '',
     description: task?.description || '',
     task_type: task?.task_type || 'adhoc',
     schedule_cron: task?.schedule_cron || '',
-    schedule_timezone: task?.schedule_timezone || 'UTC',
+    schedule_timezone: task?.schedule_timezone || 'Europe/London',
     priority: task?.priority || 0,
   });
+
+  // Convert time and days to cron expression
+  const generateCronExpression = () => {
+    if (formData.task_type !== 'scheduled') return '';
+
+    if (scheduleType === 'custom') {
+      return formData.schedule_cron;
+    }
+
+    const [hours, minutes] = scheduleTime.split(':');
+
+    if (scheduleType === 'daily') {
+      return `${minutes} ${hours} * * *`; // Every day at specified time
+    }
+
+    if (scheduleType === 'weekly') {
+      const dayMap: Record<string, string> = {
+        'SUN': '0', 'MON': '1', 'TUE': '2', 'WED': '3',
+        'THU': '4', 'FRI': '5', 'SAT': '6'
+      };
+      const days = scheduleDays.map(d => dayMap[d]).join(',');
+      return `${minutes} ${hours} * * ${days}`; // Specified days at specified time
+    }
+
+    return '';
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -619,9 +649,12 @@ function TaskFormModal({ agentId, task, onClose, onSuccess }: TaskFormModalProps
         : '/api/ai-agents/tasks';
       const method = task ? 'PUT' : 'POST';
 
+      // Generate cron expression from UI selections
+      const cronExpression = generateCronExpression();
+
       const payload = task
-        ? formData
-        : { ...formData, agent_id: agentId };
+        ? { ...formData, schedule_cron: cronExpression }
+        : { ...formData, agent_id: agentId, schedule_cron: cronExpression };
 
       const response = await fetch(url, {
         method,
@@ -700,26 +733,121 @@ function TaskFormModal({ agentId, task, onClose, onSuccess }: TaskFormModalProps
             </p>
           </div>
 
-          {/* Cron Schedule (only for scheduled tasks) */}
+          {/* Schedule Options (only for scheduled tasks) */}
           {formData.task_type === 'scheduled' && (
             <>
+              {/* Schedule Type */}
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  Cron Expression <span className="text-red-500">*</span>
+                  Frequency <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  required={formData.task_type === 'scheduled'}
-                  value={formData.schedule_cron}
-                  onChange={(e) => setFormData({ ...formData, schedule_cron: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
-                  placeholder="0 9 * * 1"
-                />
-                <p className="text-xs text-gray-400 mt-1">
-                  Examples: <code>0 9 * * 1</code> (Every Monday at 9am), <code>0 */6 * * *</code> (Every 6 hours)
-                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setScheduleType('daily')}
+                    className={`px-4 py-2 rounded-lg border transition-colors ${
+                      scheduleType === 'daily'
+                        ? 'bg-orange-600 border-orange-600 text-white'
+                        : 'bg-gray-900 border-gray-700 text-gray-300 hover:border-gray-600'
+                    }`}
+                  >
+                    Daily
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScheduleType('weekly')}
+                    className={`px-4 py-2 rounded-lg border transition-colors ${
+                      scheduleType === 'weekly'
+                        ? 'bg-orange-600 border-orange-600 text-white'
+                        : 'bg-gray-900 border-gray-700 text-gray-300 hover:border-gray-600'
+                    }`}
+                  >
+                    Weekly
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScheduleType('custom')}
+                    className={`px-4 py-2 rounded-lg border transition-colors ${
+                      scheduleType === 'custom'
+                        ? 'bg-orange-600 border-orange-600 text-white'
+                        : 'bg-gray-900 border-gray-700 text-gray-300 hover:border-gray-600'
+                    }`}
+                  >
+                    Custom
+                  </button>
+                </div>
               </div>
 
+              {/* Time Selection */}
+              {scheduleType !== 'custom' && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Time <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="time"
+                    value={scheduleTime}
+                    onChange={(e) => setScheduleTime(e.target.value)}
+                    className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  />
+                </div>
+              )}
+
+              {/* Day Selection (for weekly) */}
+              {scheduleType === 'weekly' && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Days <span className="text-red-500">*</span>
+                  </label>
+                  <div className="grid grid-cols-7 gap-2">
+                    {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((day) => (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => {
+                          if (scheduleDays.includes(day)) {
+                            setScheduleDays(scheduleDays.filter(d => d !== day));
+                          } else {
+                            setScheduleDays([...scheduleDays, day]);
+                          }
+                        }}
+                        className={`px-2 py-2 text-sm rounded-lg border transition-colors ${
+                          scheduleDays.includes(day)
+                            ? 'bg-orange-600 border-orange-600 text-white'
+                            : 'bg-gray-900 border-gray-700 text-gray-300 hover:border-gray-600'
+                        }`}
+                      >
+                        {day}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Select one or more days
+                  </p>
+                </div>
+              )}
+
+              {/* Custom Cron Expression */}
+              {scheduleType === 'custom' && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Cron Expression <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required={scheduleType === 'custom'}
+                    value={formData.schedule_cron}
+                    onChange={(e) => setFormData({ ...formData, schedule_cron: e.target.value })}
+                    className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
+                    placeholder="0 9 * * 1"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Examples: <code>0 9 * * 1</code> (Every Monday at 9am), <code>0 */6 * * *</code> (Every 6 hours)
+                  </p>
+                </div>
+              )}
+
+              {/* Timezone */}
               <div>
                 <label className="block text-sm font-medium mb-2">Timezone</label>
                 <select
@@ -727,16 +855,28 @@ function TaskFormModal({ agentId, task, onClose, onSuccess }: TaskFormModalProps
                   onChange={(e) => setFormData({ ...formData, schedule_timezone: e.target.value })}
                   className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
                 >
+                  <option value="Europe/London">London (UK)</option>
                   <option value="UTC">UTC</option>
-                  <option value="America/New_York">Eastern Time</option>
-                  <option value="America/Chicago">Central Time</option>
-                  <option value="America/Denver">Mountain Time</option>
-                  <option value="America/Los_Angeles">Pacific Time</option>
-                  <option value="Europe/London">London</option>
-                  <option value="Europe/Paris">Paris</option>
-                  <option value="Asia/Tokyo">Tokyo</option>
+                  <option value="America/New_York">Eastern Time (US)</option>
+                  <option value="America/Chicago">Central Time (US)</option>
+                  <option value="America/Denver">Mountain Time (US)</option>
+                  <option value="America/Los_Angeles">Pacific Time (US)</option>
+                  <option value="Europe/Paris">Paris (CET)</option>
+                  <option value="Asia/Tokyo">Tokyo (JST)</option>
                 </select>
               </div>
+
+              {/* Preview Cron Expression */}
+              {scheduleType !== 'custom' && (
+                <div className="bg-gray-900 border border-gray-700 rounded-lg p-3">
+                  <p className="text-xs text-gray-400 mb-1">Schedule Preview:</p>
+                  <code className="text-sm text-orange-400">{generateCronExpression()}</code>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {scheduleType === 'daily' && `Every day at ${scheduleTime}`}
+                    {scheduleType === 'weekly' && `Every ${scheduleDays.join(', ')} at ${scheduleTime}`}
+                  </p>
+                </div>
+              )}
             </>
           )}
 
