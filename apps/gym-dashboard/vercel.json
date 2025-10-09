@@ -1,7 +1,7 @@
 {
   "framework": "nextjs",
-  "installCommand": "cd ../.. && npm ci --legacy-peer-deps || npm install --legacy-peer-deps",
-  "buildCommand": "npm run prebuild && npm run build",
+  "installCommand": "echo 'Skipping default install - will install in buildCommand'",
+  "buildCommand": "cd ../.. && npm install --force && cd apps/gym-dashboard && npm run prebuild && npm run build",
   "env": {
     "NEXT_PUBLIC_APP_TYPE": "gym",
     "NEXT_PUBLIC_BASE_URL": "https://login.gymleadhub.co.uk"
