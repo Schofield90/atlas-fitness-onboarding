@@ -480,16 +480,77 @@ export default function AddMembershipModal({
 
                 <button
                   type="button"
-                  onClick={() => setPaymentMethod("direct_debit")}
+                  onClick={async () => {
+                    setPaymentMethod("direct_debit");
+                    setLoading(true);
+                    setError("");
+
+                    try {
+                      // Create GoCardless redirect flow
+                      const response = await fetch(
+                        "/api/gocardless/create-redirect-flow",
+                        {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            customerId,
+                            customerEmail: "", // TODO: Get from customer data
+                            customerName,
+                            membershipData: {
+                              membership_plan_id: selectedPlan?.id,
+                              start_date: startDate,
+                              end_date: endDate,
+                              billing_period: billingPeriod,
+                              amount: finalPriceInPennies / 100,
+                              discount_code: discountCode,
+                              discount_amount: discountAmount,
+                              plan_name: selectedPlan?.name,
+                              charge_immediately:
+                                billingPeriod === "one_time" ||
+                                billingPeriod === "upfront",
+                            },
+                          }),
+                        },
+                      );
+
+                      const data = await response.json();
+
+                      if (!response.ok || !data.success) {
+                        setError(
+                          data.error ||
+                            "Failed to initialize Direct Debit. Please try again.",
+                        );
+                        setPaymentMethod("cash");
+                        return;
+                      }
+
+                      // Redirect to GoCardless authorization page
+                      window.location.href = data.redirectUrl;
+                    } catch (err: any) {
+                      console.error(
+                        "Error creating GoCardless redirect flow:",
+                        err,
+                      );
+                      setError(
+                        "Failed to initialize Direct Debit. Please try again.",
+                      );
+                      setPaymentMethod("cash");
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  disabled={loading}
                   className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-colors ${
                     paymentMethod === "direct_debit"
                       ? "border-blue-500 bg-blue-600 bg-opacity-10"
                       : "border-gray-600 bg-gray-700 hover:border-gray-500"
-                  }`}
+                  } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
                   <p className="font-medium text-white">Direct Debit</p>
                   <p className="text-sm text-gray-400">
-                    Set up recurring payments
+                    {loading
+                      ? "Setting up Direct Debit..."
+                      : "Set up recurring payments"}
                   </p>
                 </button>
               </div>

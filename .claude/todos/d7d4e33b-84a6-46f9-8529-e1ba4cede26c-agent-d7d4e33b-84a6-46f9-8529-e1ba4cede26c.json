@@ -1,8 +1,13 @@
 [
   {
-    "content": "Fix Edit button and Stripe Connect error",
+    "content": "Fix AI agents 404 error - check routing",
     "status": "completed",
-    "activeForm": "Fixing Edit button and Stripe Connect error"
+    "activeForm": "Fixed AI agents 404 error"
+  },
+  {
+    "content": "Implement GoCardless Direct Debit billing request flow",
+    "status": "in_progress",
+    "activeForm": "Implementing GoCardless Direct Debit flow"
   },
   {
     "content": "Create discount code validation API",
@@ -12,16 +17,16 @@
   {
     "content": "Implement referral code processing and credit system",
     "status": "pending",
-    "activeForm": "Implementing referral code processing and credit system"
+    "activeForm": "Implementing referral code processing"
   },
   {
     "content": "Fix chat history persistence with URL-based conversation storage",
     "status": "pending",
-    "activeForm": "Fixing chat history persistence with URL-based conversation storage"
+    "activeForm": "Fixing chat history persistence"
   },
   {
     "content": "Add payment confirmation email after successful payment",
     "status": "pending",
-    "activeForm": "Adding payment confirmation email after successful payment"
+    "activeForm": "Adding payment confirmation email"
   }
 ]
