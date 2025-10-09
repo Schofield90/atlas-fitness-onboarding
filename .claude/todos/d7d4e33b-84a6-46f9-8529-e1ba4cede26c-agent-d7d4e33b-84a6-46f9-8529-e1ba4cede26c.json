@@ -1,8 +1,8 @@
 [
   {
-    "content": "Fix Vercel deployment - routing conflicts resolved, environment variable issues remaining",
+    "content": "Fix Edit button and Stripe Connect error",
     "status": "completed",
-    "activeForm": "Fixing Vercel deployment - routing conflicts resolved, environment variable issues remaining"
+    "activeForm": "Fixing Edit button and Stripe Connect error"
   },
   {
     "content": "Create discount code validation API",

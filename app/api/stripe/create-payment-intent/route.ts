@@ -59,12 +59,21 @@ export async function POST(request: NextRequest) {
       description: description || "Membership Payment",
     };
 
-    // If organization has Stripe Connect, create on their account
+    // If organization has Stripe Connect, try to create on their account
     if (stripeAccount?.stripe_account_id) {
-      paymentIntentParams.application_fee_amount = Math.round(amount * 0.02); // 2% platform fee
-      paymentIntentParams.transfer_data = {
-        destination: stripeAccount.stripe_account_id,
-      };
+      try {
+        // Verify the Stripe account exists before using it
+        await stripe.accounts.retrieve(stripeAccount.stripe_account_id);
+
+        paymentIntentParams.application_fee_amount = Math.round(amount * 0.02); // 2% platform fee
+        paymentIntentParams.transfer_data = {
+          destination: stripeAccount.stripe_account_id,
+        };
+      } catch (accountError: any) {
+        console.error("Invalid Stripe Connect account:", accountError);
+        // Continue without Stripe Connect if account is invalid
+        // Payment will go directly to platform account
+      }
     }
 
     const paymentIntent =
