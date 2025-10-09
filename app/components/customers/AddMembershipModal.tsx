@@ -385,20 +385,45 @@ export default function AddMembershipModal({
             {/* Card Payment Note */}
             {paymentMethod === "card" && (
               <div className="bg-blue-600 bg-opacity-10 border border-blue-500 rounded-lg p-3">
-                <p className="text-blue-400 text-sm">
-                  Card payment will be processed over the phone. The membership
-                  will be activated once payment is confirmed.
+                <p className="text-blue-400 text-sm font-medium mb-2">
+                  Card Payment - Next Steps:
                 </p>
+                <ul className="text-blue-400 text-sm space-y-1 list-disc list-inside">
+                  <li>
+                    Membership will be created with "Pending" payment status
+                  </li>
+                  <li>
+                    Contact the member to collect card details over the phone
+                  </li>
+                  <li>
+                    Process payment via your Stripe dashboard or payment
+                    terminal
+                  </li>
+                  <li>
+                    Payment status will update automatically once processed
+                  </li>
+                </ul>
               </div>
             )}
 
             {/* Direct Debit Note */}
             {paymentMethod === "direct_debit" && (
               <div className="bg-blue-600 bg-opacity-10 border border-blue-500 rounded-lg p-3">
-                <p className="text-blue-400 text-sm">
-                  Direct Debit mandate will be set up separately. The membership
-                  will be activated once the mandate is confirmed.
+                <p className="text-blue-400 text-sm font-medium mb-2">
+                  Direct Debit - Next Steps:
                 </p>
+                <ul className="text-blue-400 text-sm space-y-1 list-disc list-inside">
+                  <li>
+                    Membership will be created with "Pending" payment status
+                  </li>
+                  <li>Send Direct Debit mandate form to the member</li>
+                  <li>
+                    Set up recurring payment via your GoCardless dashboard
+                  </li>
+                  <li>
+                    Payment will process automatically on the billing date
+                  </li>
+                </ul>
               </div>
             )}
 

@@ -56,11 +56,25 @@ export async function POST(request: NextRequest) {
     const supabase = createAdminClient();
     const body = await request.json();
 
-    const { customerId, membershipPlanId, startDate, notes } = body;
+    const {
+      customerId,
+      membershipPlanId,
+      startDate,
+      notes,
+      paymentMethod,
+      cashStatus,
+    } = body;
 
     if (!customerId || !membershipPlanId || !startDate) {
       return NextResponse.json(
         { error: "Missing required fields" },
+        { status: 400 },
+      );
+    }
+
+    if (!paymentMethod) {
+      return NextResponse.json(
+        { error: "Payment method is required" },
         { status: 400 },
       );
     }
@@ -129,6 +143,54 @@ export async function POST(request: NextRequest) {
         { error: error.message || "Failed to create membership" },
         { status: 500 },
       );
+    }
+
+    // Get the plan price for the initial payment
+    const { data: planDetails } = await supabase
+      .from("membership_plans")
+      .select("price_pennies, price, name")
+      .eq("id", membershipPlanId)
+      .single();
+
+    if (!planDetails) {
+      console.error("Could not fetch plan details for payment record");
+      return NextResponse.json({ success: true, membership });
+    }
+
+    const priceInPennies = planDetails.price_pennies || planDetails.price * 100;
+
+    // Create initial payment record based on payment method
+    let paymentStatus = "pending";
+    if (paymentMethod === "cash") {
+      paymentStatus = cashStatus === "received" ? "succeeded" : "outstanding";
+    } else if (paymentMethod === "direct_debit") {
+      paymentStatus = "pending"; // Will be confirmed once mandate is set up
+    } else if (paymentMethod === "card") {
+      paymentStatus = "pending"; // Will be confirmed once card is charged
+    }
+
+    const paymentData = {
+      organization_id: user.organizationId,
+      client_id: isClient ? customerId : null,
+      amount: priceInPennies,
+      payment_date: startDate,
+      payment_status: paymentStatus,
+      payment_provider: paymentMethod, // 'cash', 'card', or 'direct_debit'
+      description: `${planDetails.name} - Initial payment`,
+      metadata: {
+        membership_id: membership.id,
+        payment_method: paymentMethod,
+        cash_status: paymentMethod === "cash" ? cashStatus : undefined,
+      },
+    };
+
+    const { error: paymentError } = await supabase
+      .from("payments")
+      .insert(paymentData);
+
+    if (paymentError) {
+      console.error("Error creating payment record:", paymentError);
+      // Don't fail the whole request - membership was created successfully
     }
 
     return NextResponse.json({ success: true, membership });

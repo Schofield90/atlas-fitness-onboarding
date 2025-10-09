@@ -1,1 +1,22 @@
-[]
+[
+  {
+    "content": "Fix membership detail page 406 error",
+    "status": "completed",
+    "activeForm": "Fixing membership detail page 406 error"
+  },
+  {
+    "content": "Add payment record creation to membership API",
+    "status": "completed",
+    "activeForm": "Adding payment record creation to membership API"
+  },
+  {
+    "content": "Add payment method guidance in modal",
+    "status": "completed",
+    "activeForm": "Adding payment method guidance in modal"
+  },
+  {
+    "content": "Deploy payment processing updates",
+    "status": "in_progress",
+    "activeForm": "Deploying payment processing updates"
+  }
+]
