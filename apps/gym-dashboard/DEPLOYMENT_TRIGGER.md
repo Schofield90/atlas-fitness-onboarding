@@ -250,3 +250,4 @@ Deployment triggered: Thu 9 Oct 2025 18:37:22 BST - Added Stripe Elements card p
 Trigger: Fix AI agents 404 - add redirect page Thu 9 Oct 2025 19:32:38 BST
 Trigger: Add GoCardless Direct Debit integration Thu 9 Oct 2025 19:38:26 BST
 Trigger: Add custom price adjustment & save card details Thu 9 Oct 2025 20:00:00 BST
+FIX AI AGENTS 404: Move to shared /app directory + add to SHARED_DIRS - Thu 9 Oct 2025 20:15:00 BST
