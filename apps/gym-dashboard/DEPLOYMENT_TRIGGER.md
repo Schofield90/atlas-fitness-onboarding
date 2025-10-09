@@ -187,4 +187,16 @@ Date: Thu 9 Oct 2025 15:49:36 BST
 Reason: Deploy API fix for organization selection (ORDER BY created_at DESC)
 Commit: a7e29e83
 
+# Deployment Trigger - Membership Management GoTeamUp Features
+
+Date: Thu 9 Oct 2025 17:50:00 BST
+Reason: Deploy membership checkout, layout updates, and detail page
+Features:
+
+- Staff checkout modal with Stripe Payment Element
+- Active/Inactive membership layout (GoTeamUp style)
+- Category-grouped membership dropdown
+- Full membership detail page with payment history tabs
+  Commit: 4fcaf27c
+
 This file is modified to trigger Vercel deployment when shared code changes.
