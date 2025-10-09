@@ -1,95 +1,97 @@
-'use client'
+"use client";
 
-import { useState, useEffect, use } from 'react'
-import { useRouter } from 'next/navigation'
-import { createClient } from '@/app/lib/supabase/client'
-import { ArrowLeft, Check, Loader2 } from 'lucide-react'
-import Link from 'next/link'
+import { useState, useEffect, use } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/app/lib/supabase/client";
+import { ArrowLeft, Check, Loader2 } from "lucide-react";
+import Link from "next/link";
 
 interface PageProps {
-  params: Promise<{ org: string }>
-  searchParams: Promise<{ program?: string }>
+  params: Promise<{ org: string }>;
+  searchParams: Promise<{ program?: string }>;
 }
 
 export default function JoinPage(props: PageProps) {
-  const params = use(props.params)
-  const searchParams = use(props.searchParams)
-  const router = useRouter()
-  const supabase = createClient()
-  
-  const [organization, setOrganization] = useState<any>(null)
-  const [programs, setPrograms] = useState<any[]>([])
-  const [selectedProgram, setSelectedProgram] = useState(searchParams.program || '')
-  const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
-  
+  const params = use(props.params);
+  const searchParams = use(props.searchParams);
+  const router = useRouter();
+  const supabase = createClient();
+
+  const [organization, setOrganization] = useState<any>(null);
+  const [programs, setPrograms] = useState<any[]>([]);
+  const [selectedProgram, setSelectedProgram] = useState(
+    searchParams.program || "",
+  );
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    password: '',
-    confirmPassword: '',
-    emergencyContact: '',
-    emergencyPhone: '',
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    password: "",
+    confirmPassword: "",
+    emergencyContact: "",
+    emergencyPhone: "",
     marketingConsent: false,
-    termsAccepted: false
-  })
+    termsAccepted: false,
+  });
 
   useEffect(() => {
-    fetchOrganizationData()
-  }, [params.org])
+    fetchOrganizationData();
+  }, [params.org]);
 
   const fetchOrganizationData = async () => {
     try {
       // Fetch organization
       const { data: org } = await supabase
-        .from('organizations')
-        .select('*')
-        .or(`slug.eq.${params.org},name.ilike.${params.org.replace('-', ' ')}`)
-        .single()
+        .from("organizations")
+        .select("*")
+        .or(`slug.eq.${params.org},name.ilike.${params.org.replace("-", " ")}`)
+        .single();
 
       if (!org) {
-        router.push('/404')
-        return
+        router.push("/404");
+        return;
       }
 
-      setOrganization(org)
+      setOrganization(org);
 
       // Fetch programs
       const { data: progs } = await supabase
-        .from('programs')
-        .select('*')
-        .eq('organization_id', org.id)
-        .eq('is_active', true)
+        .from("programs")
+        .select("*")
+        .eq("organization_id", org.id)
+        .eq("is_active", true);
 
-      setPrograms(progs || [])
-      
+      setPrograms(progs || []);
+
       // Set default program if not specified
       if (!selectedProgram && progs && progs.length > 0) {
-        setSelectedProgram(progs[0].id)
+        setSelectedProgram(progs[0].id);
       }
     } catch (error) {
-      console.error('Error fetching data:', error)
+      console.error("Error fetching data:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
+    e.preventDefault();
+
     if (!formData.termsAccepted) {
-      alert('Please accept the terms and conditions')
-      return
+      alert("Please accept the terms and conditions");
+      return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match')
-      return
+      alert("Passwords do not match");
+      return;
     }
 
-    setSubmitting(true)
+    setSubmitting(true);
 
     try {
       // Create user account
@@ -100,54 +102,52 @@ export default function JoinPage(props: PageProps) {
           data: {
             first_name: formData.firstName,
             last_name: formData.lastName,
-            phone: formData.phone
-          }
-        }
-      })
+            phone: formData.phone,
+          },
+        },
+      });
 
-      if (authError) throw authError
+      if (authError) throw authError;
 
       // Create client record
-      const { error: clientError } = await supabase
-        .from('clients')
-        .insert({
-          organization_id: organization.id,
-          user_id: authData.user?.id,
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          email: formData.email,
-          phone: formData.phone,
-          emergency_contact_name: formData.emergencyContact,
-          emergency_contact_phone: formData.emergencyPhone,
-          marketing_consent: formData.marketingConsent,
-          status: 'active'
-        })
+      const { error: clientError } = await supabase.from("clients").insert({
+        organization_id: organization.id,
+        user_id: authData.user?.id,
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        emergency_contact_name: formData.emergencyContact,
+        emergency_contact_phone: formData.emergencyPhone,
+        marketing_consent: formData.marketingConsent,
+        status: "active",
+      });
 
-      if (clientError) throw clientError
+      if (clientError) throw clientError;
 
       // Redirect to payment or success page
-      router.push(`/${params.org}/welcome?program=${selectedProgram}`)
+      router.push(`/${params.org}/welcome?program=${selectedProgram}`);
     } catch (error: any) {
-      console.error('Signup error:', error)
-      alert(error.message || 'Failed to create account')
+      console.error("Signup error:", error);
+      alert(error.message || "Failed to create account");
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-gray-600" />
       </div>
-    )
+    );
   }
 
   if (!organization) {
-    return null
+    return null;
   }
 
-  const selectedProgramData = programs.find(p => p.id === selectedProgram)
+  const selectedProgramData = programs.find((p) => p.id === selectedProgram);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -189,20 +189,24 @@ export default function JoinPage(props: PageProps) {
                         key={program.id}
                         className={`border rounded-lg p-4 cursor-pointer transition ${
                           selectedProgram === program.id
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-gray-200 hover:border-gray-300"
                         }`}
                         onClick={() => setSelectedProgram(program.id)}
                       >
                         <div className="flex items-center justify-between">
                           <div>
                             <h3 className="font-semibold">{program.name}</h3>
-                            <p className="text-sm text-gray-600">{program.description}</p>
+                            <p className="text-sm text-gray-600">
+                              {program.description}
+                            </p>
                           </div>
                           <div className="text-right">
                             <p className="text-2xl font-bold">
                               £{(program.price_pennies / 100).toFixed(0)}
-                              <span className="text-sm font-normal text-gray-600">/month</span>
+                              <span className="text-sm font-normal text-gray-600">
+                                /month
+                              </span>
                             </p>
                           </div>
                         </div>
@@ -222,7 +226,9 @@ export default function JoinPage(props: PageProps) {
                     type="text"
                     required
                     value={formData.firstName}
-                    onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                    onChange={(e) =>
+                      setFormData({ ...formData, firstName: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
@@ -234,7 +240,9 @@ export default function JoinPage(props: PageProps) {
                     type="text"
                     required
                     value={formData.lastName}
-                    onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                    onChange={(e) =>
+                      setFormData({ ...formData, lastName: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
@@ -249,7 +257,9 @@ export default function JoinPage(props: PageProps) {
                     type="email"
                     required
                     value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    onChange={(e) =>
+                      setFormData({ ...formData, email: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
@@ -261,7 +271,9 @@ export default function JoinPage(props: PageProps) {
                     type="tel"
                     required
                     value={formData.phone}
-                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                    onChange={(e) =>
+                      setFormData({ ...formData, phone: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
@@ -278,7 +290,9 @@ export default function JoinPage(props: PageProps) {
                     required
                     minLength={8}
                     value={formData.password}
-                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    onChange={(e) =>
+                      setFormData({ ...formData, password: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
@@ -290,7 +304,12 @@ export default function JoinPage(props: PageProps) {
                     type="password"
                     required
                     value={formData.confirmPassword}
-                    onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        confirmPassword: e.target.value,
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
@@ -298,7 +317,9 @@ export default function JoinPage(props: PageProps) {
 
               {/* Emergency Contact */}
               <div className="border-t pt-6">
-                <h3 className="font-medium text-gray-900 mb-4">Emergency Contact</h3>
+                <h3 className="font-medium text-gray-900 mb-4">
+                  Emergency Contact
+                </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -308,7 +329,12 @@ export default function JoinPage(props: PageProps) {
                       type="text"
                       required
                       value={formData.emergencyContact}
-                      onChange={(e) => setFormData({...formData, emergencyContact: e.target.value})}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          emergencyContact: e.target.value,
+                        })
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
@@ -320,7 +346,12 @@ export default function JoinPage(props: PageProps) {
                       type="tel"
                       required
                       value={formData.emergencyPhone}
-                      onChange={(e) => setFormData({...formData, emergencyPhone: e.target.value})}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          emergencyPhone: e.target.value,
+                        })
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
@@ -333,29 +364,46 @@ export default function JoinPage(props: PageProps) {
                   <input
                     type="checkbox"
                     checked={formData.marketingConsent}
-                    onChange={(e) => setFormData({...formData, marketingConsent: e.target.checked})}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        marketingConsent: e.target.checked,
+                      })
+                    }
                     className="mt-1 mr-3"
                   />
                   <span className="text-sm text-gray-600">
-                    I agree to receive marketing communications about offers, events, and updates
+                    I agree to receive marketing communications about offers,
+                    events, and updates
                   </span>
                 </label>
-                
+
                 <label className="flex items-start">
                   <input
                     type="checkbox"
                     required
                     checked={formData.termsAccepted}
-                    onChange={(e) => setFormData({...formData, termsAccepted: e.target.checked})}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        termsAccepted: e.target.checked,
+                      })
+                    }
                     className="mt-1 mr-3"
                   />
                   <span className="text-sm text-gray-600">
-                    I agree to the{' '}
-                    <Link href="/terms" className="text-blue-600 hover:text-blue-700">
+                    I agree to the{" "}
+                    <Link
+                      href="/terms"
+                      className="text-blue-600 hover:text-blue-700"
+                    >
                       Terms of Service
-                    </Link>
-                    {' '}and{' '}
-                    <Link href="/privacy" className="text-blue-600 hover:text-blue-700">
+                    </Link>{" "}
+                    and{" "}
+                    <Link
+                      href="/privacy"
+                      className="text-blue-600 hover:text-blue-700"
+                    >
                       Privacy Policy
                     </Link>
                   </span>
@@ -369,10 +417,13 @@ export default function JoinPage(props: PageProps) {
                   <div className="flex justify-between items-center">
                     <div>
                       <p className="font-medium">{selectedProgramData.name}</p>
-                      <p className="text-sm text-gray-600">{selectedProgramData.description}</p>
+                      <p className="text-sm text-gray-600">
+                        {selectedProgramData.description}
+                      </p>
                     </div>
                     <p className="text-2xl font-bold">
-                      £{(selectedProgramData.price_pennies / 100).toFixed(2)}/month
+                      £{(selectedProgramData.price_pennies / 100).toFixed(2)}
+                      /month
                     </p>
                   </div>
                 </div>
@@ -390,7 +441,7 @@ export default function JoinPage(props: PageProps) {
                     Creating Account...
                   </>
                 ) : (
-                  'Continue to Payment'
+                  "Continue to Payment"
                 )}
               </button>
             </form>
@@ -398,5 +449,5 @@ export default function JoinPage(props: PageProps) {
         </div>
       </div>
     </div>
-  )
+  );
 }

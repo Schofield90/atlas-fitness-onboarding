@@ -1,28 +1,28 @@
-'use client'
+"use client";
 
-import { useEffect, use } from 'react'
-import { useRouter } from 'next/navigation'
-import { CheckCircle, Calendar, MessageSquare, Activity } from 'lucide-react'
-import Link from 'next/link'
+import { useEffect, use } from "react";
+import { useRouter } from "next/navigation";
+import { CheckCircle, Calendar, MessageSquare, Activity } from "lucide-react";
+import Link from "next/link";
 
 interface PageProps {
-  params: Promise<{ org: string }>
-  searchParams: Promise<{ program?: string }>
+  params: Promise<{ org: string }>;
+  searchParams: Promise<{ program?: string }>;
 }
 
 export default function WelcomePage(props: PageProps) {
-  const params = use(props.params)
-  const searchParams = use(props.searchParams)
-  const router = useRouter()
+  const params = use(props.params);
+  const searchParams = use(props.searchParams);
+  const router = useRouter();
 
   useEffect(() => {
     // Auto-redirect to client dashboard after 10 seconds
     const timeout = setTimeout(() => {
-      router.push('/client/dashboard')
-    }, 10000)
+      router.push("/client/dashboard");
+    }, 10000);
 
-    return () => clearTimeout(timeout)
-  }, [router])
+    return () => clearTimeout(timeout);
+  }, [router]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -31,13 +31,14 @@ export default function WelcomePage(props: PageProps) {
           <div className="flex justify-center mb-6">
             <CheckCircle className="h-20 w-20 text-green-500" />
           </div>
-          
+
           <h1 className="text-3xl font-bold text-gray-900 mb-4">
             Welcome to the Family! 🎉
           </h1>
-          
+
           <p className="text-xl text-gray-600 mb-8">
-            Your account has been created successfully. Get ready to transform your fitness journey!
+            Your account has been created successfully. Get ready to transform
+            your fitness journey!
           </p>
 
           <div className="bg-blue-50 rounded-lg p-6 mb-8">
@@ -74,7 +75,7 @@ export default function WelcomePage(props: PageProps) {
             >
               Book Your First Class
             </Link>
-            
+
             <Link
               href="/client/dashboard"
               className="block w-full bg-gray-200 text-gray-800 py-3 px-6 rounded-md font-semibold hover:bg-gray-300 transition"
@@ -84,7 +85,8 @@ export default function WelcomePage(props: PageProps) {
           </div>
 
           <p className="text-sm text-gray-500 mt-6">
-            You'll be automatically redirected to your dashboard in a few seconds...
+            You'll be automatically redirected to your dashboard in a few
+            seconds...
           </p>
         </div>
 
@@ -115,5 +117,5 @@ export default function WelcomePage(props: PageProps) {
         </div>
       </div>
     </div>
-  )
+  );
 }

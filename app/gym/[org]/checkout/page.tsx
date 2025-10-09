@@ -1,78 +1,87 @@
-'use client'
+"use client";
 
-import { useState, useEffect, use } from 'react'
-import { useRouter } from 'next/navigation'
-import { createClient } from '@/app/lib/supabase/client'
-import { loadStripe } from '@stripe/stripe-js'
-import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
-import { ArrowLeft, Lock, CreditCard, Loader2 } from 'lucide-react'
-import Link from 'next/link'
-import { formatBritishCurrency } from '@/app/lib/utils/british-format'
+import { useState, useEffect, use } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/app/lib/supabase/client";
+import { loadStripe } from "@stripe/stripe-js";
+import {
+  Elements,
+  CardElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
+import { ArrowLeft, Lock, CreditCard, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { formatBritishCurrency } from "@/app/lib/utils/british-format";
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+const stripePromise = loadStripe(
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
+);
 
 interface PageProps {
-  params: Promise<{ org: string }>
-  searchParams: Promise<{ program?: string }>
+  params: Promise<{ org: string }>;
+  searchParams: Promise<{ program?: string }>;
 }
 
 function CheckoutForm({ organization, program, clientId }: any) {
-  const stripe = useStripe()
-  const elements = useElements()
-  const router = useRouter()
-  const [processing, setProcessing] = useState(false)
-  const [error, setError] = useState('')
-  const [succeeded, setSucceeded] = useState(false)
+  const stripe = useStripe();
+  const elements = useElements();
+  const router = useRouter();
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState("");
+  const [succeeded, setSucceeded] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
-    if (!stripe || !elements) return
+    if (!stripe || !elements) return;
 
-    setProcessing(true)
-    setError('')
+    setProcessing(true);
+    setError("");
 
     try {
       // Create payment intent on connected account
-      const response = await fetch('/api/payments/create-intent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/payments/create-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount: program.price_pennies,
           programId: program.id,
           clientId: clientId,
-          organizationId: organization.id
-        })
-      })
+          organizationId: organization.id,
+        }),
+      });
 
       if (!response.ok) {
-        throw new Error('Failed to create payment intent')
+        throw new Error("Failed to create payment intent");
       }
 
-      const { clientSecret } = await response.json()
+      const { clientSecret } = await response.json();
 
       // Confirm the payment
       const result = await stripe.confirmCardPayment(clientSecret, {
         payment_method: {
           card: elements.getElement(CardElement)!,
-        }
-      })
+        },
+      });
 
       if (result.error) {
-        setError(result.error.message || 'Payment failed')
+        setError(result.error.message || "Payment failed");
       } else {
-        setSucceeded(true)
+        setSucceeded(true);
         // Redirect to success page
         setTimeout(() => {
-          router.push(`/${organization.slug || organization.name.toLowerCase().replace(/\s+/g, '-')}/welcome`)
-        }, 2000)
+          router.push(
+            `/${organization.slug || organization.name.toLowerCase().replace(/\s+/g, "-")}/welcome`,
+          );
+        }, 2000);
       }
     } catch (err: any) {
-      setError(err.message || 'An error occurred')
+      setError(err.message || "An error occurred");
     } finally {
-      setProcessing(false)
+      setProcessing(false);
     }
-  }
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -85,14 +94,14 @@ function CheckoutForm({ organization, program, clientId }: any) {
             options={{
               style: {
                 base: {
-                  fontSize: '16px',
-                  color: '#424770',
-                  '::placeholder': {
-                    color: '#aab7c4',
+                  fontSize: "16px",
+                  color: "#424770",
+                  "::placeholder": {
+                    color: "#aab7c4",
                   },
                 },
                 invalid: {
-                  color: '#9e2146',
+                  color: "#9e2146",
                 },
               },
             }}
@@ -137,101 +146,103 @@ function CheckoutForm({ organization, program, clientId }: any) {
         <span>Secure payment powered by Stripe</span>
       </div>
     </form>
-  )
+  );
 }
 
 export default function CheckoutPage(props: PageProps) {
-  const params = use(props.params)
-  const searchParams = use(props.searchParams)
-  const router = useRouter()
-  const supabase = createClient()
-  
-  const [organization, setOrganization] = useState<any>(null)
-  const [program, setProgram] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [clientId, setClientId] = useState<string | null>(null)
+  const params = use(props.params);
+  const searchParams = use(props.searchParams);
+  const router = useRouter();
+  const supabase = createClient();
+
+  const [organization, setOrganization] = useState<any>(null);
+  const [program, setProgram] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [clientId, setClientId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchData()
-  }, [params.org, searchParams.program])
+    fetchData();
+  }, [params.org, searchParams.program]);
 
   const fetchData = async () => {
     try {
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
-        router.push(`/${params.org}/join?program=${searchParams.program}`)
-        return
+        router.push(`/${params.org}/join?program=${searchParams.program}`);
+        return;
       }
 
       // Fetch organization
       const { data: org } = await supabase
-        .from('organizations')
-        .select('*')
-        .or(`slug.eq.${params.org},name.ilike.${params.org.replace('-', ' ')}`)
-        .single()
+        .from("organizations")
+        .select("*")
+        .or(`slug.eq.${params.org},name.ilike.${params.org.replace("-", " ")}`)
+        .single();
 
       if (!org) {
-        router.push('/404')
-        return
+        router.push("/404");
+        return;
       }
 
-      setOrganization(org)
+      setOrganization(org);
 
       // Get client record
       const { data: client } = await supabase
-        .from('clients')
-        .select('id')
-        .eq('organization_id', org.id)
-        .eq('user_id', user.id)
-        .single()
+        .from("clients")
+        .select("id")
+        .eq("organization_id", org.id)
+        .eq("user_id", user.id)
+        .single();
 
       if (!client) {
         // User is not a client of this organization
-        router.push(`/${params.org}/join?program=${searchParams.program}`)
-        return
+        router.push(`/${params.org}/join?program=${searchParams.program}`);
+        return;
       }
 
-      setClientId(client.id)
+      setClientId(client.id);
 
       // Fetch program
       if (searchParams.program) {
         const { data: prog } = await supabase
-          .from('programs')
-          .select('*')
-          .eq('id', searchParams.program)
-          .eq('organization_id', org.id)
-          .single()
+          .from("programs")
+          .select("*")
+          .eq("id", searchParams.program)
+          .eq("organization_id", org.id)
+          .single();
 
         if (!prog) {
-          router.push(`/${params.org}`)
-          return
+          router.push(`/${params.org}`);
+          return;
         }
 
-        setProgram(prog)
+        setProgram(prog);
       } else {
         // No program specified, redirect to membership page
-        router.push(`/${params.org}#membership`)
-        return
+        router.push(`/${params.org}#membership`);
+        return;
       }
     } catch (error) {
-      console.error('Error fetching data:', error)
-      router.push(`/${params.org}`)
+      console.error("Error fetching data:", error);
+      router.push(`/${params.org}`);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-gray-600" />
       </div>
-    )
+    );
   }
 
   if (!organization || !program) {
-    return null
+    return null;
   }
 
   return (
@@ -255,8 +266,10 @@ export default function CheckoutPage(props: PageProps) {
         <div className="grid md:grid-cols-2 gap-8">
           {/* Order Summary */}
           <div className="bg-white rounded-lg shadow-lg p-6 h-fit">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Order Summary</h2>
-            
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Order Summary
+            </h2>
+
             <div className="space-y-4">
               <div>
                 <h3 className="font-semibold">{program.name}</h3>
@@ -272,7 +285,11 @@ export default function CheckoutPage(props: PageProps) {
                 </div>
                 <div className="flex justify-between items-center text-sm text-gray-500">
                   <span>Platform fee (3%)</span>
-                  <span>{formatBritishCurrency(Math.round(program.price_pennies * 0.03))}</span>
+                  <span>
+                    {formatBritishCurrency(
+                      Math.round(program.price_pennies * 0.03),
+                    )}
+                  </span>
                 </div>
               </div>
 
@@ -290,11 +307,13 @@ export default function CheckoutPage(props: PageProps) {
 
           {/* Payment Form */}
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Payment Details</h2>
-            
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Payment Details
+            </h2>
+
             <Elements stripe={stripePromise}>
-              <CheckoutForm 
-                organization={organization} 
+              <CheckoutForm
+                organization={organization}
                 program={program}
                 clientId={clientId}
               />
@@ -303,5 +322,5 @@ export default function CheckoutPage(props: PageProps) {
         </div>
       </div>
     </div>
-  )
+  );
 }

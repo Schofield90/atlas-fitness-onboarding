@@ -1,30 +1,40 @@
-import { notFound } from 'next/navigation'
-import { createAdminClient } from '@/app/lib/supabase/admin'
-import Image from 'next/image'
-import Link from 'next/link'
-import { MapPin, Phone, Mail, Clock, Users, Activity, Calendar } from 'lucide-react'
-import { TRIAL_CTA_TEXT } from '@/app/lib/constants'
+import { notFound } from "next/navigation";
+import { createAdminClient } from "@/app/lib/supabase/admin";
+import Image from "next/image";
+import Link from "next/link";
+import {
+  MapPin,
+  Phone,
+  Mail,
+  Clock,
+  Users,
+  Activity,
+  Calendar,
+} from "lucide-react";
+import { TRIAL_CTA_TEXT } from "@/app/lib/constants";
 
 interface PageProps {
-  params: Promise<{ org: string }>
+  params: Promise<{ org: string }>;
 }
 
 export default async function OrganizationLandingPage({ params }: PageProps) {
-  const { org: orgSlug } = await params
-  const adminSupabase = createAdminClient()
-  
+  const { org: orgSlug } = await params;
+  const adminSupabase = createAdminClient();
+
   // Fetch organization by slug or name
   const { data: organization } = await adminSupabase
-    .from('organizations')
-    .select(`
+    .from("organizations")
+    .select(
+      `
       *,
       organization_settings (*)
-    `)
-    .or(`slug.eq.${orgSlug},name.ilike.${orgSlug.replace('-', ' ')}`)
-    .single()
+    `,
+    )
+    .or(`slug.eq.${orgSlug},name.ilike.${orgSlug.replace("-", " ")}`)
+    .single();
 
   if (!organization) {
-    notFound()
+    notFound();
   }
 
   // Fetch additional organization data
@@ -32,32 +42,32 @@ export default async function OrganizationLandingPage({ params }: PageProps) {
     { data: locations },
     { data: classTypes },
     { data: programs },
-    { data: staff }
+    { data: staff },
   ] = await Promise.all([
     adminSupabase
-      .from('locations')
-      .select('*')
-      .eq('organization_id', organization.id)
-      .eq('is_active', true),
+      .from("locations")
+      .select("*")
+      .eq("organization_id", organization.id)
+      .eq("is_active", true),
     adminSupabase
-      .from('class_types')
-      .select('*')
-      .eq('organization_id', organization.id)
+      .from("class_types")
+      .select("*")
+      .eq("organization_id", organization.id)
       .limit(6),
     adminSupabase
-      .from('programs')
-      .select('*')
-      .eq('organization_id', organization.id)
-      .eq('is_active', true),
+      .from("programs")
+      .select("*")
+      .eq("organization_id", organization.id)
+      .eq("is_active", true),
     adminSupabase
-      .from('organization_staff')
-      .select('*')
-      .eq('organization_id', organization.id)
-      .eq('is_featured', true)
-      .limit(4)
-  ])
+      .from("organization_staff")
+      .select("*")
+      .eq("organization_id", organization.id)
+      .eq("is_featured", true)
+      .limit(4),
+  ]);
 
-  const settings = organization.organization_settings?.[0] || {}
+  const settings = organization.organization_settings?.[0] || {};
 
   return (
     <div className="min-h-screen bg-white">
@@ -75,14 +85,27 @@ export default async function OrganizationLandingPage({ params }: PageProps) {
                   className="h-10 w-auto"
                 />
               ) : (
-                <h1 className="text-2xl font-bold text-gray-900">{organization.name}</h1>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  {organization.name}
+                </h1>
               )}
             </div>
             <nav className="hidden md:flex space-x-8">
-              <a href="#classes" className="text-gray-700 hover:text-gray-900">Classes</a>
-              <a href="#membership" className="text-gray-700 hover:text-gray-900">Membership</a>
-              <a href="#trainers" className="text-gray-700 hover:text-gray-900">Trainers</a>
-              <a href="#contact" className="text-gray-700 hover:text-gray-900">Contact</a>
+              <a href="#classes" className="text-gray-700 hover:text-gray-900">
+                Classes
+              </a>
+              <a
+                href="#membership"
+                className="text-gray-700 hover:text-gray-900"
+              >
+                Membership
+              </a>
+              <a href="#trainers" className="text-gray-700 hover:text-gray-900">
+                Trainers
+              </a>
+              <a href="#contact" className="text-gray-700 hover:text-gray-900">
+                Contact
+              </a>
             </nav>
             <div className="flex items-center space-x-4">
               <Link
@@ -120,7 +143,8 @@ export default async function OrganizationLandingPage({ params }: PageProps) {
               {organization.tagline || `Welcome to ${organization.name}`}
             </h1>
             <p className="text-xl md:text-2xl mb-8 text-gray-200">
-              {organization.description || 'Transform your fitness journey with our expert trainers and state-of-the-art facilities.'}
+              {organization.description ||
+                "Transform your fitness journey with our expert trainers and state-of-the-art facilities."}
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Link
@@ -148,7 +172,8 @@ export default async function OrganizationLandingPage({ params }: PageProps) {
               <Users className="h-12 w-12 text-blue-600 mx-auto mb-4" />
               <h3 className="text-xl font-semibold mb-2">Expert Trainers</h3>
               <p className="text-gray-600">
-                Certified professionals dedicated to helping you achieve your goals
+                Certified professionals dedicated to helping you achieve your
+                goals
               </p>
             </div>
             <div className="text-center">
@@ -173,17 +198,26 @@ export default async function OrganizationLandingPage({ params }: PageProps) {
       {classTypes && classTypes.length > 0 && (
         <section id="classes" className="py-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-3xl font-bold text-center mb-12">Our Classes</h2>
+            <h2 className="text-3xl font-bold text-center mb-12">
+              Our Classes
+            </h2>
             <div className="grid md:grid-cols-3 gap-8">
               {classTypes.map((classType) => (
-                <div key={classType.id} className="bg-white rounded-lg shadow-lg overflow-hidden">
-                  <div 
+                <div
+                  key={classType.id}
+                  className="bg-white rounded-lg shadow-lg overflow-hidden"
+                >
+                  <div
                     className="h-4 w-full"
-                    style={{ backgroundColor: classType.color || '#3B82F6' }}
+                    style={{ backgroundColor: classType.color || "#3B82F6" }}
                   />
                   <div className="p-6">
-                    <h3 className="text-xl font-semibold mb-2">{classType.name}</h3>
-                    <p className="text-gray-600 mb-4">{classType.description}</p>
+                    <h3 className="text-xl font-semibold mb-2">
+                      {classType.name}
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      {classType.description}
+                    </p>
                     <div className="flex justify-between text-sm text-gray-500">
                       <span>{classType.duration} mins</span>
                       <span>Max {classType.max_capacity} people</span>
@@ -208,15 +242,24 @@ export default async function OrganizationLandingPage({ params }: PageProps) {
       {programs && programs.length > 0 && (
         <section id="membership" className="py-16 bg-gray-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-3xl font-bold text-center mb-12">Membership Options</h2>
+            <h2 className="text-3xl font-bold text-center mb-12">
+              Membership Options
+            </h2>
             <div className="grid md:grid-cols-3 gap-8">
               {programs.map((program) => (
-                <div key={program.id} className="bg-white rounded-lg shadow-lg p-8">
-                  <h3 className="text-2xl font-semibold mb-2">{program.name}</h3>
+                <div
+                  key={program.id}
+                  className="bg-white rounded-lg shadow-lg p-8"
+                >
+                  <h3 className="text-2xl font-semibold mb-2">
+                    {program.name}
+                  </h3>
                   <p className="text-gray-600 mb-6">{program.description}</p>
                   <div className="text-3xl font-bold mb-6">
                     £{(program.price_pennies / 100).toFixed(0)}
-                    <span className="text-lg font-normal text-gray-600">/month</span>
+                    <span className="text-lg font-normal text-gray-600">
+                      /month
+                    </span>
                   </div>
                   <Link
                     href={`/${orgSlug}/join?program=${program.id}`}
@@ -235,7 +278,9 @@ export default async function OrganizationLandingPage({ params }: PageProps) {
       {staff && staff.length > 0 && (
         <section id="trainers" className="py-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-3xl font-bold text-center mb-12">Meet Our Trainers</h2>
+            <h2 className="text-3xl font-bold text-center mb-12">
+              Meet Our Trainers
+            </h2>
             <div className="grid md:grid-cols-4 gap-8">
               {staff.map((member) => (
                 <div key={member.id} className="text-center">
@@ -253,7 +298,9 @@ export default async function OrganizationLandingPage({ params }: PageProps) {
                   <h4 className="text-lg font-semibold">{member.name}</h4>
                   <p className="text-gray-600">{member.role}</p>
                   {member.specialties && (
-                    <p className="text-sm text-gray-500 mt-2">{member.specialties.join(', ')}</p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      {member.specialties.join(", ")}
+                    </p>
                   )}
                 </div>
               ))}
@@ -266,12 +313,14 @@ export default async function OrganizationLandingPage({ params }: PageProps) {
       <section id="contact" className="py-16 bg-gray-900 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-center mb-12">Get In Touch</h2>
-          
+
           {locations && locations.length > 0 ? (
             <div className="grid md:grid-cols-2 gap-8 mb-8">
               {locations.map((location) => (
                 <div key={location.id} className="bg-gray-800 rounded-lg p-6">
-                  <h3 className="text-xl font-semibold mb-4">{location.name}</h3>
+                  <h3 className="text-xl font-semibold mb-4">
+                    {location.name}
+                  </h3>
                   <div className="space-y-3">
                     <div className="flex items-start">
                       <MapPin className="h-5 w-5 text-blue-400 mr-3 flex-shrink-0 mt-0.5" />
@@ -280,7 +329,10 @@ export default async function OrganizationLandingPage({ params }: PageProps) {
                     {location.phone && (
                       <div className="flex items-center">
                         <Phone className="h-5 w-5 text-blue-400 mr-3" />
-                        <a href={`tel:${location.phone}`} className="hover:text-blue-400">
+                        <a
+                          href={`tel:${location.phone}`}
+                          className="hover:text-blue-400"
+                        >
                           {location.phone}
                         </a>
                       </div>
@@ -290,7 +342,9 @@ export default async function OrganizationLandingPage({ params }: PageProps) {
                         <Clock className="h-5 w-5 text-blue-400 mr-3 flex-shrink-0 mt-0.5" />
                         <div>
                           <p className="font-semibold mb-1">Opening Hours</p>
-                          <pre className="text-sm text-gray-300">{location.opening_hours}</pre>
+                          <pre className="text-sm text-gray-300">
+                            {location.opening_hours}
+                          </pre>
                         </div>
                       </div>
                     )}
@@ -302,13 +356,19 @@ export default async function OrganizationLandingPage({ params }: PageProps) {
             <div className="text-center mb-8">
               <div className="flex items-center justify-center space-x-6">
                 {organization.phone && (
-                  <a href={`tel:${organization.phone}`} className="flex items-center hover:text-blue-400">
+                  <a
+                    href={`tel:${organization.phone}`}
+                    className="flex items-center hover:text-blue-400"
+                  >
                     <Phone className="h-5 w-5 mr-2" />
                     {organization.phone}
                   </a>
                 )}
                 {organization.email && (
-                  <a href={`mailto:${organization.email}`} className="flex items-center hover:text-blue-400">
+                  <a
+                    href={`mailto:${organization.email}`}
+                    className="flex items-center hover:text-blue-400"
+                  >
                     <Mail className="h-5 w-5 mr-2" />
                     {organization.email}
                   </a>
@@ -339,7 +399,8 @@ export default async function OrganizationLandingPage({ params }: PageProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-gray-400">
-              © {new Date().getFullYear()} {organization.name}. All rights reserved.
+              © {new Date().getFullYear()} {organization.name}. All rights
+              reserved.
             </p>
             <div className="flex space-x-6 mt-4 md:mt-0">
               <Link href="/privacy" className="text-gray-400 hover:text-white">
@@ -353,18 +414,18 @@ export default async function OrganizationLandingPage({ params }: PageProps) {
         </div>
       </footer>
     </div>
-  )
+  );
 }
 
 // Generate static params for known organizations
 export async function generateStaticParams() {
-  const adminSupabase = createAdminClient()
+  const adminSupabase = createAdminClient();
   const { data: organizations } = await adminSupabase
-    .from('organizations')
-    .select('slug, name')
-    .limit(100)
+    .from("organizations")
+    .select("slug, name")
+    .limit(100);
 
   return (organizations || []).map((org) => ({
-    org: org.slug || org.name.toLowerCase().replace(/\s+/g, '-')
-  }))
+    org: org.slug || org.name.toLowerCase().replace(/\s+/g, "-"),
+  }));
 }

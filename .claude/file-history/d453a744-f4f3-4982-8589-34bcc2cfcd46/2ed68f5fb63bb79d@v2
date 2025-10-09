@@ -1,0 +1,15 @@
+{
+  "framework": "nextjs",
+  "installCommand": "cd ../.. && npm install --legacy-peer-deps",
+  "ignoreCommand": "git diff HEAD^ HEAD --quiet .",
+  "functions": {
+    "app/api/**/*.ts": {
+      "maxDuration": 30,
+      "memory": 1024
+    }
+  },
+  "env": {
+    "NEXT_PUBLIC_APP_TYPE": "member",
+    "NEXT_PUBLIC_BASE_URL": "https://members.gymleadhub.co.uk"
+  }
+}
