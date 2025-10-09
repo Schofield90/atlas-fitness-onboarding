@@ -103,26 +103,25 @@ export async function POST(request: NextRequest) {
             const durationMinutes =
               endHour * 60 + endMin - (startHour * 60 + startMin);
 
-            const { data: newProgram, error: programError } =
-              await supabaseAdmin
-                .from("programs")
-                .insert({
-                  organization_id: organizationId,
-                  name: classData.name,
-                  description: `Imported from TeamUp schedule`,
-                  duration_minutes: durationMinutes > 0 ? durationMinutes : 60,
-                  max_participants: classData.capacity,
-                  default_capacity: classData.capacity,
-                  price_pennies: 0,
-                  is_active: true,
-                  metadata: {
-                    source: "teamup_pdf_import",
-                    imported_at: new Date().toISOString(),
-                    class_type_id: classTypeId,
-                  },
-                })
-                .select("id")
-                .single();
+            const { data: newProgram, error: programError} = await supabaseAdmin
+              .from("programs")
+              .insert({
+                organization_id: organizationId,
+                name: classData.name,
+                description: `Imported from TeamUp schedule`,
+                duration_minutes: durationMinutes > 0 ? durationMinutes : 60,
+                max_participants: classData.capacity,
+                default_capacity: classData.capacity,
+                price_pennies: 0,
+                is_active: true,
+                metadata: {
+                  source: "teamup_pdf_import",
+                  imported_at: new Date().toISOString(),
+                  class_type_id: classTypeId,
+                },
+              })
+              .select("id")
+              .single();
 
             if (programError || !newProgram) {
               console.error("Failed to create program:", programError);

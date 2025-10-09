@@ -18,6 +18,10 @@ export interface MembershipPlan {
   created_at: string;
   updated_at: string;
   organization_id: string;
+  stats?: {
+    active_members: number;
+    total_revenue: number;
+  };
 }
 
 export async function getMembershipPlans(): Promise<{
@@ -25,8 +29,8 @@ export async function getMembershipPlans(): Promise<{
   error: string | null;
 }> {
   try {
-    // Use API route with proper authentication
-    const response = await fetch("/api/membership-plans");
+    // Use API route with proper authentication and request stats
+    const response = await fetch("/api/membership-plans?include_stats=true");
     const result = await response.json();
 
     if (!response.ok) {

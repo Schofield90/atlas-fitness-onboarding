@@ -1,0 +1,71 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { migrationService } from '@/app/lib/services/migration-service';
+import { getCurrentUser } from '@/app/lib/auth/organization';
+import { createAdminClient } from '@/app/lib/supabase/admin';
+
+/**
+ * POST /api/migration/jobs/[id]/analyze
+ * Start AI analysis for a migration job
+ */
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const jobId = params.id;
+
+    // Get current user
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Verify job exists and user has access
+    const supabase = createAdminClient();
+    const { data: job, error: jobError } = await supabase
+      .from('migration_jobs')
+      .select('organization_id, status')
+      .eq('id', jobId)
+      .single();
+
+    if (jobError || !job) {
+      return NextResponse.json(
+        { success: false, error: 'Migration job not found' },
+        { status: 404 }
+      );
+    }
+
+    if (job.organization_id !== user.organization_id) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Check if analysis can be started
+    if (!['processing', 'pending'].includes(job.status)) {
+      return NextResponse.json(
+        { success: false, error: 'Job is not in a state that allows analysis' },
+        { status: 400 }
+      );
+    }
+
+    // Start AI analysis
+    await migrationService.startDataAnalysis(jobId);
+
+    return NextResponse.json({
+      success: true,
+      message: 'Analysis started'
+    });
+
+  } catch (error) {
+    console.error('Analysis start error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to start analysis' },
+      { status: 500 }
+    );
+  }
+}

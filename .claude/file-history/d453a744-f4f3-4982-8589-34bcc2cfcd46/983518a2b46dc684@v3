@@ -1,0 +1,93 @@
+{
+  "framework": "nextjs",
+  "outputDirectory": ".next",
+  "buildCommand": "rm -rf .next && npm run build:fast",
+  "devCommand": "npm run dev:turbo",
+  "installCommand": "npm install",
+  "functions": {
+    "app/api/**/*.ts": {
+      "maxDuration": 30,
+      "memory": 1024
+    },
+    "app/api/migration/jobs/[id]/import-attendance/route.ts": {
+      "maxDuration": 300,
+      "memory": 2048
+    },
+    "app/api/import/goteamup/route.ts": {
+      "maxDuration": 300,
+      "memory": 2048
+    },
+    "app/api/calendar/sync/route.ts": {
+      "maxDuration": 60,
+      "memory": 1536
+    },
+    "app/api/ai/**/*.ts": {
+      "maxDuration": 45,
+      "memory": 1536
+    },
+    "app/api/ai-agents/conversations/[id]/messages/route.ts": {
+      "maxDuration": 60,
+      "memory": 2048
+    },
+    "app/api/ai-agents/tasks/[id]/execute/route.ts": {
+      "maxDuration": 120,
+      "memory": 2048
+    },
+    "app/api/workflows/actions/execute-agent/route.ts": {
+      "maxDuration": 60,
+      "memory": 2048
+    },
+    "app/api/cron/**/*.ts": {
+      "maxDuration": 300,
+      "memory": 2048
+    },
+    "app/api/saas-admin/weekly-brief/**/*.ts": {
+      "maxDuration": 60,
+      "memory": 1536
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/weekly-brief",
+      "schedule": "0 * * * *"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-DNS-Prefetch-Control",
+          "value": "on"
+        }
+      ]
+    },
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/_next/static/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ],
+  "github": {
+    "silent": true,
+    "autoJobCancelation": true
+  },
+  "env": {
+    "NEXT_TELEMETRY_DISABLED": "1",
+    "NODE_OPTIONS": "--max-old-space-size=4096",
+    "FORCE_REBUILD": "2024-09-17-v3"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "@atlas-fitness/gym-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "prebuild": "node ../../scripts/copy-shared-to-app.js gym-dashboard",
+    "build": "NODE_OPTIONS='--max-old-space-size=4096' next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@atlas-fitness/auth": "file:../../packages/auth",
+    "@atlas-fitness/database": "file:../../packages/database",
+    "@atlas-fitness/redis": "file:../../packages/redis",
+    "@atlas-fitness/shared-ui": "file:../../packages/shared-ui",
+    "csv-parse": "^6.1.0",
+    "next": "14.2.16",
+    "react": "^18",
+    "react-dom": "^18"
+  }
+}

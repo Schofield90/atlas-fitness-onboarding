@@ -5,10 +5,6 @@ import Anthropic from "@anthropic-ai/sdk";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
-
 export interface ExtractedClass {
   name: string;
   dayOfWeek: string;
@@ -38,58 +34,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const prompt = `You are analyzing a TeamUp class schedule PDF. This document contains MULTIPLE PAGES (typically 4 pages).
+    // Initialize Anthropic client
+    const anthropic = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    });
 
-CRITICAL INSTRUCTIONS:
-1. Process the ENTIRE DOCUMENT - ALL PAGES, not just the first page
-2. Extract EVERY SINGLE CLASS SLOT from EVERY PAGE
-3. Same class name at different times = separate entries (e.g., "Yoga" at 6am + "Yoga" at 7am = 2 entries)
-4. Different days also = separate entries (e.g., "Yoga" on Monday + "Yoga" on Tuesday = 2 entries)
+    const prompt = `Extract ALL classes from this TeamUp PDF (ENTIRE document, ALL pages).
 
-For each class, extract:
-- Class name (e.g., "Strength and Combat Fitness", "Group Personal Training Session")
-- Day of week (Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday)
-- Start time (24-hour format HH:MM)
-- End time (24-hour format HH:MM)
-- Instructor name (if visible)
-- Location (extract [YO] York or [HG] Harrogate from class title, or look for venue indicators)
-- Capacity (number from "X / Y" format - use Y as capacity)
+For EACH class slot, extract:
+- name: Class name (remove [YO]/[HG] prefixes)
+- day: Mon|Tue|Wed|Thu|Fri|Sat|Sun
+- start: HH:MM (24hr)
+- end: HH:MM (24hr)
+- instructor: Name (if visible)
+- location: York|Harrogate (from [YO]/[HG] prefix)
+- capacity: Number from "X/Y" format (use Y)
 
-Important notes:
-- **PROCESS ALL PAGES** - Don't stop after the first page, continue through the entire document
-- Each class should be treated as RECURRING (weekly)
-- If you see "[YO]" in the class name, location is "York"
-- If you see "[HG]" in the class name, location is "Harrogate"
-- Extract the actual class name WITHOUT the location prefix
-- Capacity is the SECOND number in the "X / Y" format (e.g., "4 / 12" means capacity is 12)
-- Typical TeamUp PDFs have 40-50 classes across multiple pages - make sure you've captured them all
+Return COMPACT JSON (no whitespace, short keys):
+{"c":[{"n":"Class","d":"Mon","s":"06:00","e":"07:00","i":"Name","l":"York","cap":12}],"t":50}
 
-Format your response as JSON with this structure:
-{
-  "classes": [
-    {
-      "name": "class name without location prefix",
-      "dayOfWeek": "Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday",
-      "startTime": "HH:MM",
-      "endTime": "HH:MM",
-      "instructor": "instructor name",
-      "location": "York|Harrogate",
-      "capacity": 12,
-      "recurring": true
-    }
-  ],
-  "summary": {
-    "totalClasses": 0,
-    "uniqueClassTypes": 0,
-    "locations": ["York", "Harrogate"],
-    "instructors": ["list of instructor names"],
-    "weekCoverage": "October 5-11, 2025"
-  }
-}`;
+Keys: n=name, d=day, s=start, e=end, i=instructor, l=location, cap=capacity, t=total count
+Process ALL pages. Same class at different times/days = separate entries.`;
 
     const message = await anthropic.messages.create({
       model: "claude-3-5-sonnet-20241022",
-      max_tokens: 8192, // Increased for multi-page PDFs with 40+ classes
+      max_tokens: 8192, // Compact format allows 50+ classes within 8K limit
       messages: [
         {
           role: "user",
@@ -109,7 +78,7 @@ Format your response as JSON with this structure:
           ],
         },
       ],
-      temperature: 0.3,
+      temperature: 0, // Zero for deterministic, consistent extraction
     });
 
     // Extract text content from Claude's response
@@ -133,13 +102,41 @@ Format your response as JSON with this structure:
       }
     }
 
-    const result = JSON.parse(responseText);
+    const compactResult = JSON.parse(responseText);
+
+    // Transform compact format to full format
+    const dayMap: Record<string, string> = {
+      Mon: "Monday",
+      Tue: "Tuesday",
+      Wed: "Wednesday",
+      Thu: "Thursday",
+      Fri: "Friday",
+      Sat: "Saturday",
+      Sun: "Sunday",
+    };
+
+    const classes = (compactResult.c || []).map((c: any) => ({
+      name: c.n,
+      dayOfWeek: dayMap[c.d] || c.d,
+      startTime: c.s,
+      endTime: c.e,
+      instructor: c.i,
+      location: c.l,
+      capacity: c.cap,
+      recurring: true,
+    }));
 
     return NextResponse.json({
       success: true,
       data: {
-        classes: result.classes || [],
-        summary: result.summary || {},
+        classes,
+        summary: {
+          totalClasses: compactResult.t || classes.length,
+          uniqueClassTypes: new Set(classes.map((c: any) => c.name)).size,
+          locations: [...new Set(classes.map((c: any) => c.location).filter(Boolean))],
+          instructors: [...new Set(classes.map((c: any) => c.instructor).filter(Boolean))],
+          weekCoverage: "Recurring weekly",
+        },
         analyzedAt: new Date().toISOString(),
         filename,
       },
