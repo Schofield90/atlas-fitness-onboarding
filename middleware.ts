@@ -176,6 +176,11 @@ export async function middleware(request: NextRequest) {
     return res
   }
 
+  // Special handling for admin bypass routes (before session check)
+  if (pathname === '/setup-account' || pathname.startsWith('/api/admin/link-sam-account') || pathname.startsWith('/api/admin/setup-sam-account') || pathname.startsWith('/api/admin/reset-demo-user')) {
+    return res
+  }
+
   // Create supabase client
   const supabase = createMiddlewareClient(request, res)
 
@@ -257,11 +262,6 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/simple-login', request.url))
     }
 
-    return res
-  }
-
-  // Special handling for setup-account route (bypasses org check)
-  if (pathname === '/setup-account' || pathname.startsWith('/api/admin/link-sam-account') || pathname.startsWith('/api/admin/setup-sam-account')) {
     return res
   }
 
