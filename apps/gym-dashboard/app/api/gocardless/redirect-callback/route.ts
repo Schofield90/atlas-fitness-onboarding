@@ -68,41 +68,80 @@ export async function GET(request: NextRequest) {
     // Get full mandate details
     const mandateDetails = await gcService.getMandate(mandateId);
 
-    // Create membership with Direct Debit payment method
+    // Create or update membership with Direct Debit payment method
     const membershipData = session.membership_data as any;
 
-    const { data: membership, error: membershipError } = await supabaseAdmin
-      .from("customer_memberships")
-      .insert({
-        client_id: session.customer_id,
-        organization_id: session.organization_id,
-        membership_plan_id: membershipData.membership_plan_id,
-        status: "active",
-        payment_method: "direct_debit",
-        start_date: membershipData.start_date,
-        end_date: membershipData.end_date,
-        billing_period: membershipData.billing_period,
-        amount: membershipData.amount,
-        discount_code: membershipData.discount_code,
-        discount_amount: membershipData.discount_amount,
-        payment_provider: "gocardless",
-        provider_mandate_id: mandateId,
-        metadata: {
-          gocardless_customer_id: mandateDetails.mandates.links.customer,
-          gocardless_bank_account_id:
-            mandateDetails.mandates.links.customer_bank_account,
-          mandate_reference: mandateDetails.mandates.reference,
-          mandate_scheme: mandateDetails.mandates.scheme,
-        },
-      })
-      .select()
-      .single();
+    let membership;
+    let membershipError;
 
-    if (membershipError) {
-      console.error("Failed to create membership:", membershipError);
-      return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_APP_URL}/members?error=membership_creation_failed`,
-      );
+    // Check if this is updating an existing membership
+    if (membershipData.membership_id) {
+      // UPDATE existing membership with new mandate
+      const { data, error } = await supabaseAdmin
+        .from("customer_memberships")
+        .update({
+          payment_method: "direct_debit",
+          payment_provider: "gocardless",
+          provider_mandate_id: mandateId,
+          metadata: {
+            gocardless_customer_id: mandateDetails.mandates.links.customer,
+            gocardless_bank_account_id:
+              mandateDetails.mandates.links.customer_bank_account,
+            mandate_reference: mandateDetails.mandates.reference,
+            mandate_scheme: mandateDetails.mandates.scheme,
+          },
+        })
+        .eq("id", membershipData.membership_id)
+        .select()
+        .single();
+
+      membership = data;
+      membershipError = error;
+
+      if (membershipError) {
+        console.error("Failed to update membership:", membershipError);
+        return NextResponse.redirect(
+          `${process.env.NEXT_PUBLIC_APP_URL}/members?error=membership_update_failed`,
+        );
+      }
+    } else {
+      // INSERT new membership
+      const { data, error } = await supabaseAdmin
+        .from("customer_memberships")
+        .insert({
+          client_id: session.customer_id,
+          organization_id: session.organization_id,
+          membership_plan_id: membershipData.membership_plan_id,
+          status: "active",
+          payment_method: "direct_debit",
+          start_date: membershipData.start_date,
+          end_date: membershipData.end_date,
+          billing_period: membershipData.billing_period,
+          amount: membershipData.amount,
+          discount_code: membershipData.discount_code,
+          discount_amount: membershipData.discount_amount,
+          payment_provider: "gocardless",
+          provider_mandate_id: mandateId,
+          metadata: {
+            gocardless_customer_id: mandateDetails.mandates.links.customer,
+            gocardless_bank_account_id:
+              mandateDetails.mandates.links.customer_bank_account,
+            mandate_reference: mandateDetails.mandates.reference,
+            mandate_scheme: mandateDetails.mandates.scheme,
+          },
+        })
+        .select()
+        .single();
+
+      membership = data;
+      membershipError = error;
+
+      if (membershipError) {
+        console.error("Failed to create membership:", membershipError);
+        return NextResponse.redirect(
+          `${process.env.NEXT_PUBLIC_APP_URL}/members?error=membership_creation_failed`,
+        );
+      }
     }
 
     // Create first payment if needed (for upfront or first recurring payment)
