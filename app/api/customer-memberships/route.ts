@@ -63,6 +63,9 @@ export async function POST(request: NextRequest) {
       notes,
       paymentMethod,
       cashStatus,
+      discountCodeId,
+      discountAmount,
+      referralCode,
     } = body;
 
     if (!customerId || !membershipPlanId || !startDate) {
@@ -143,6 +146,23 @@ export async function POST(request: NextRequest) {
         { error: error.message || "Failed to create membership" },
         { status: 500 },
       );
+    }
+
+    // Record discount code usage if provided
+    if (discountCodeId && discountAmount) {
+      const { error: usageError } = await supabase
+        .from("discount_code_usage")
+        .insert({
+          discount_code_id: discountCodeId,
+          customer_id: customerId,
+          membership_id: membership.id,
+          amount_discounted: discountAmount,
+        });
+
+      if (usageError) {
+        console.error("Error recording discount code usage:", usageError);
+        // Don't fail the request - membership was created successfully
+      }
     }
 
     // Get the plan price for the initial payment

@@ -47,6 +47,8 @@ export default function AddMembershipModal({
   const [discountCode, setDiscountCode] = useState("");
   const [referralCode, setReferralCode] = useState("");
   const [discountAmount, setDiscountAmount] = useState(0);
+  const [validatingCode, setValidatingCode] = useState(false);
+  const [validatedDiscountCode, setValidatedDiscountCode] = useState<any>(null);
   const [customPrice, setCustomPrice] = useState<string>("");
   const [useCustomPrice, setUseCustomPrice] = useState(false);
   const [finalPrice, setFinalPrice] = useState(0);
@@ -424,19 +426,52 @@ export default function AddMembershipModal({
                   <button
                     type="button"
                     onClick={async () => {
-                      // TODO: Validate discount code via API
-                      // For now, simulate 10% discount
-                      if (discountCode === "WELCOME10") {
-                        setDiscountAmount(Math.round(priceInPennies * 0.1));
+                      if (!discountCode) return;
+
+                      try {
+                        setValidatingCode(true);
                         setError("");
-                      } else if (discountCode) {
-                        setError("Invalid discount code");
+
+                        const response = await fetch(
+                          "/api/discount-codes/validate",
+                          {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              code: discountCode,
+                              customerId,
+                              membershipPlanId: selectedPlanId,
+                              purchaseAmount: priceInPennies,
+                            }),
+                          },
+                        );
+
+                        const data = await response.json();
+
+                        if (!response.ok || !data.success) {
+                          setError(data.error || "Invalid discount code");
+                          setDiscountAmount(0);
+                          setValidatedDiscountCode(null);
+                          return;
+                        }
+
+                        // Valid discount code
+                        setDiscountAmount(data.data.discountAmount);
+                        setValidatedDiscountCode(data.data.discountCode);
+                        setError("");
+                      } catch (err: any) {
+                        console.error("Error validating discount code:", err);
+                        setError("Failed to validate discount code");
                         setDiscountAmount(0);
+                        setValidatedDiscountCode(null);
+                      } finally {
+                        setValidatingCode(false);
                       }
                     }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    disabled={!discountCode || validatingCode}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Apply
+                    {validatingCode ? "Validating..." : "Apply"}
                   </button>
                 </div>
               </div>
@@ -758,7 +793,8 @@ export default function AddMembershipModal({
                         notes,
                         paymentMethod: "card",
                         paymentIntentId,
-                        discountCode: discountCode || undefined,
+                        discountCodeId: validatedDiscountCode?.id || undefined,
+                        discountAmount: discountAmount || 0,
                         referralCode: referralCode || undefined,
                         saveCard: saveCard || false,
                       }),
