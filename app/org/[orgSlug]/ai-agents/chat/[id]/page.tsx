@@ -67,6 +67,7 @@ export default function AgentChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
 
   // Task management state
   const [activeTab, setActiveTab] = useState<"chat" | "tasks">("chat");
@@ -82,8 +83,8 @@ export default function AgentChatPage() {
   useEffect(() => {
     if (user && agentId) {
       loadAgent();
-      loadOrCreateConversation();
       loadTasks();
+      loadOrCreateConversation();
     }
   }, [user, agentId]);
 
@@ -124,57 +125,6 @@ export default function AgentChatPage() {
     }
   };
 
-  const loadOrCreateConversation = async () => {
-    try {
-      // First, try to get existing active conversation
-      const listResponse = await fetch(
-        `/api/ai-agents/conversations?agentId=${agentId}&status=active&limit=1`,
-      );
-      const listResult = await listResponse.json();
-
-      if (listResult.success && listResult.conversations?.length > 0) {
-        const conv = listResult.conversations[0];
-        setConversationId(conv.id);
-        await loadMessages(conv.id);
-        return;
-      }
-
-      // No active conversation, create one
-      const createResponse = await fetch("/api/ai-agents/conversations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          agent_id: agentId,
-          title: `Chat with ${agent?.name || "AI Agent"}`,
-        }),
-      });
-
-      const createResult = await createResponse.json();
-
-      if (createResult.success && createResult.conversation) {
-        setConversationId(createResult.conversation.id);
-        // New conversation has no messages yet
-      }
-    } catch (error) {
-      console.error("Error loading/creating conversation:", error);
-    }
-  };
-
-  const loadMessages = async (convId: string) => {
-    try {
-      const response = await fetch(
-        `/api/ai-agents/conversations/${convId}/messages?limit=100`,
-      );
-      const result = await response.json();
-
-      if (result.success) {
-        setMessages(result.messages || []);
-      }
-    } catch (error) {
-      console.error("Error loading messages:", error);
-    }
-  };
-
   const loadTasks = async () => {
     setLoadingTasks(true);
     try {
@@ -190,6 +140,64 @@ export default function AgentChatPage() {
       console.error("Error loading tasks:", error);
     } finally {
       setLoadingTasks(false);
+    }
+  };
+
+  const loadOrCreateConversation = async () => {
+    try {
+      // First, try to find an existing conversation for this agent
+      const listResponse = await fetch(
+        `/api/ai-agents/conversations?agent_id=${agentId}&limit=1`,
+      );
+      const listResult = await listResponse.json();
+
+      let convId: string;
+
+      if (listResult.success && listResult.conversations?.length > 0) {
+        // Use existing conversation
+        convId = listResult.conversations[0].id;
+      } else {
+        // Create new conversation
+        const createResponse = await fetch(`/api/ai-agents/conversations`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            agent_id: agentId,
+            title: "Chat with AI Agent",
+          }),
+        });
+        const createResult = await createResponse.json();
+
+        if (!createResult.success) {
+          console.error("Failed to create conversation");
+          return;
+        }
+        convId = createResult.conversation.id;
+      }
+
+      setConversationId(convId);
+      // Load messages for this conversation
+      await loadMessages(convId);
+    } catch (error) {
+      console.error("Error loading/creating conversation:", error);
+    }
+  };
+
+  const loadMessages = async (convId: string) => {
+    setLoadingMessages(true);
+    try {
+      const response = await fetch(
+        `/api/ai-agents/conversations/${convId}/messages?limit=100`,
+      );
+      const result = await response.json();
+
+      if (result.success) {
+        setMessages(result.messages || []);
+      }
+    } catch (error) {
+      console.error("Error loading messages:", error);
+    } finally {
+      setLoadingMessages(false);
     }
   };
 
@@ -266,7 +274,7 @@ export default function AgentChatPage() {
     setMessages((prev) => [...prev, tempUserMessage]);
 
     try {
-      // Send message to agent via orchestrator
+      // Send message to AI agent via API
       const response = await fetch(
         `/api/ai-agents/conversations/${conversationId}/messages`,
         {
@@ -278,30 +286,18 @@ export default function AgentChatPage() {
 
       const result = await response.json();
 
-      if (!result.success) {
-        throw new Error(result.error || "Failed to send message");
+      if (result.success) {
+        // Reload messages to get the real user message + AI response
+        await loadMessages(conversationId);
+      } else {
+        console.error("Failed to send message:", result.error);
+        // Remove optimistic message on error
+        setMessages((prev) => prev.filter((m) => m.id !== tempUserMessage.id));
       }
-
-      // Remove temp message and add real messages from API
-      setMessages((prev) =>
-        prev
-          .filter((m) => m.id !== tempUserMessage.id)
-          .concat([result.userMessage, result.assistantMessage]),
-      );
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error sending message:", error);
-
-      // Remove optimistic message and show error
+      // Remove optimistic message on error
       setMessages((prev) => prev.filter((m) => m.id !== tempUserMessage.id));
-
-      // Add error message
-      const errorMessage: Message = {
-        id: `error-${Date.now()}`,
-        role: "assistant",
-        content: `Sorry, I encountered an error: ${error.message}. Please try again.`,
-        created_at: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setSending(false);
     }
@@ -739,12 +735,12 @@ function TaskFormModal({
             </p>
           </div>
 
-          {/* Natural Language Schedule (only for scheduled tasks) */}
+          {/* Cron Schedule (only for scheduled tasks) */}
           {formData.task_type === "scheduled" && (
             <>
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  When should this run? <span className="text-red-500">*</span>
+                  Cron Expression <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -753,12 +749,12 @@ function TaskFormModal({
                   onChange={(e) =>
                     setFormData({ ...formData, schedule_cron: e.target.value })
                   }
-                  className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  placeholder="Every Monday at 9am"
+                  className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
+                  placeholder="0 9 * * 1"
                 />
                 <p className="text-xs text-gray-400 mt-1">
-                  Examples: "Every Monday at 9am", "Every day at 6pm", "Every
-                  week on Friday at 3pm"
+                  Examples: <code>0 9 * * 1</code> (Every Monday at 9am),{" "}
+                  <code>0 */6 * * *</code> (Every 6 hours)
                 </p>
               </div>
 

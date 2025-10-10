@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/app/lib/api/auth-check";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 import { z } from "zod";
-import parseExpression from "cron-parser";
+import { parseExpression } from "cron-parser";
 
 // Validation schemas
 const createTaskSchema = z.object({
