@@ -74,17 +74,17 @@ export default function StaffManagementPage() {
       }
 
       const data = await response.json()
-
-      if (data.success && data.staff) {
-        const formattedStaff = data.staff.map((member: any) => ({
+      
+      if (data.success && data.data) {
+        const formattedStaff = data.data.map((member: any) => ({
           id: member.id,
-          full_name: member.name || `${member.first_name || ''} ${member.last_name || ''}`.trim(),
+          full_name: `${member.first_name} ${member.last_name}`,
           email: member.email,
           phone: member.phone_number,
           role: member.role || 'coach',
           availability: defaultAvailability, // Use default for now
           created_at: member.created_at,
-          status: member.is_available !== false ? 'active' : 'inactive'
+          status: member.status === 'active' ? 'active' : 'inactive'
         }))
         setStaff(formattedStaff)
       } else {
@@ -116,11 +116,14 @@ export default function StaffManagementPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          name: newStaff.full_name,
+          first_name: firstName,
+          last_name: lastName,
           email: newStaff.email,
           phone_number: newStaff.phone || null,
-          role: newStaff.role,
-          hourly_rate: 0
+          position: newStaff.role === 'admin' ? 'Manager' : 'Coach',
+          hire_date: new Date().toISOString().split('T')[0],
+          employment_type: 'full_time',
+          status: 'active'
         })
       })
 
@@ -134,10 +137,10 @@ export default function StaffManagementPage() {
         // Add to local state
         setStaff([...staff, {
           id: data.data.id,
-          full_name: data.data.name || newStaff.full_name,
+          full_name: `${data.data.first_name} ${data.data.last_name}`,
           email: data.data.email,
           phone: data.data.phone_number,
-          role: data.data.role,
+          role: newStaff.role,
           availability: defaultAvailability,
           created_at: data.data.created_at,
           status: 'active'

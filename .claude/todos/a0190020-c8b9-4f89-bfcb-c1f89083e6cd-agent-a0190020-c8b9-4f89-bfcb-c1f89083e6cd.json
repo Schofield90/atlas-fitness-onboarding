@@ -1,12 +1,17 @@
 [
   {
     "content": "Fix AI agent gym owner context detection",
-    "status": "in_progress",
+    "status": "completed",
     "activeForm": "Fixing AI agent gym owner context detection"
   },
   {
-    "content": "Debug landing page builder error (not urgent)",
+    "content": "Debug landing page builder error",
     "status": "pending",
     "activeForm": "Debugging landing page builder error"
+  },
+  {
+    "content": "Fix staff member creation error (role and email validation issue)",
+    "status": "in_progress",
+    "activeForm": "Fixing staff member creation error"
   }
 ]
