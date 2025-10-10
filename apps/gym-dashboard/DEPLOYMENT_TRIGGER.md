@@ -280,3 +280,8 @@ Reason: Update AI agent model dropdown to GPT-5 and Claude Sonnet 4.5
 # Deployment Trigger - Fri 10 Oct 2025 00:30:00 BST
 
 Reason: Add month selector to upcoming billing report (Oct-Apr 2026)
+
+# Deployment Trigger - Fri 10 Oct 2025 19:05:00 BST
+
+Reason: Force cache refresh for AI agent model dropdown (GPT-5, Claude Sonnet 4.5)
+Note: Code was already updated in commit 131c008c, forcing rebuild to clear CDN cache
