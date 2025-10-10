@@ -379,6 +379,11 @@ ${agent.system_prompt}`;
     while (iteration < MAX_TOOL_ITERATIONS) {
       iteration++;
 
+      console.log(`[Orchestrator OpenAI] Iteration ${iteration}, calling with ${tools.length} tools`);
+      if (tools.length > 0) {
+        console.log('[Orchestrator OpenAI] Tool names:', tools.map((t: any) => t.function.name));
+      }
+
       const result = await provider.execute(messages, {
         model: agent.model,
         temperature: agent.temperature ?? 0.7,
@@ -386,6 +391,8 @@ ${agent.system_prompt}`;
         tools: tools.length > 0 ? tools : undefined,
         tool_choice: tools.length > 0 ? "auto" : undefined,
       });
+
+      console.log('[Orchestrator OpenAI] Response has tool calls?', !!result.toolCalls, result.toolCalls?.length || 0);
 
       // Accumulate costs
       totalCost = {
