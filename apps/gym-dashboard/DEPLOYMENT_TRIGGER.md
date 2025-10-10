@@ -304,6 +304,14 @@ Reason: Fix AI agent form validation - update enum to match new model names
 Fix: Updated zod schema to accept gpt-5, gpt-5-mini, claude-sonnet-4-20250514
 Error: "Invalid enum value. Expected 'gpt-4o' | 'gpt-4o-mini' | 'claude-3-5-sonnet-20241022' | 'claude-3-5-haiku-20241022', received 'gpt-5-mini'"
 
+# Deployment Trigger - Fri 10 Oct 2025 20:50:00 BST
+
+Reason: Fix AI landing page builder - update deprecated OpenAI model
+Fix: Changed gpt-4-turbo-preview → gpt-4o (current stable model)
+Error: 500 Internal Server Error with "Unexpected end of JSON input"
+Root Cause: OpenAI deprecated gpt-4-turbo-preview model
+Files: /app/api/landing-pages/ai-build/route.ts (line 96)
+
 # Deployment Trigger - Fri 10 Oct 2025 19:30:00 BST
 
 Reason: Fix API validation - update POST /api/ai-agents to accept new model names

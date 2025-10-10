@@ -93,7 +93,7 @@ Make the content relevant to the description. Use realistic, engaging copy. Incl
 Return ONLY valid JSON, no additional text or markdown.`;
 
     const response = await getOpenAI().chat.completions.create({
-      model: "gpt-4-turbo-preview",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
