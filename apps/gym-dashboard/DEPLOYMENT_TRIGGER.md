@@ -297,3 +297,9 @@ Reason: Fix landing pages AI builder RLS policy violation
 Fix: Use admin client in /api/landing-pages/ai-build after authentication
 Migration: 20251010_add_landing_pages_rls.sql (5 policies added)
 Issue: Users unable to generate landing pages (RLS error)
+
+# Deployment Trigger - Fri 10 Oct 2025 19:25:00 BST
+
+Reason: Fix AI agent form validation - update enum to match new model names
+Fix: Updated zod schema to accept gpt-5, gpt-5-mini, claude-sonnet-4-20250514
+Error: "Invalid enum value. Expected 'gpt-4o' | 'gpt-4o-mini' | 'claude-3-5-sonnet-20241022' | 'claude-3-5-haiku-20241022', received 'gpt-5-mini'"
