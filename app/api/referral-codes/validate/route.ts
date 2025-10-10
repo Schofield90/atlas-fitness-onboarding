@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { requireAuth } from "@/lib/auth";
+import { createAdminClient } from "@/app/lib/supabase/admin";
+import { requireAuth } from "@/app/lib/api/auth-check";
 
 /**
  * POST /api/referral-codes/validate
@@ -23,8 +23,8 @@ import { requireAuth } from "@/lib/auth";
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { user, organization } = await requireAuth(supabase);
+    const user = await requireAuth();
+    const supabase = createAdminClient();
 
     const body = await request.json();
     const { code, refereeClientId } = body;
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     const { data: referralCode, error: fetchError } = await supabase
       .from("referral_codes")
       .select("*")
-      .eq("organization_id", organization.id)
+      .eq("organization_id", user.organizationId)
       .eq("code", code.toUpperCase())
       .single();
 

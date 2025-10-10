@@ -519,8 +519,11 @@ function EditMembershipModal({
 }: EditMembershipModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [step, setStep] = useState<"select" | "card_payment">("select");
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    payment_method: "cash" as "cash" | "direct_debit" | "card",
+    payment_method:
+      membership.payment_method || ("cash" as "cash" | "direct_debit" | "card"),
     notes: membership.notes || "",
   });
 
@@ -594,29 +597,90 @@ function EditMembershipModal({
 
               <button
                 type="button"
-                onClick={() =>
-                  setFormData({ ...formData, payment_method: "direct_debit" })
-                }
+                onClick={async () => {
+                  setFormData({ ...formData, payment_method: "direct_debit" });
+                  setLoading(true);
+                  setError("");
+
+                  try {
+                    // Create GoCardless redirect flow
+                    const response = await fetch(
+                      "/api/gocardless/create-redirect-flow",
+                      {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          customerId: membership.client_id,
+                          customerEmail: membership.client.email,
+                          customerName: `${membership.client.first_name} ${membership.client.last_name}`,
+                          membershipData: {
+                            membership_id: membership.id,
+                            membership_plan_id: membership.membership_plan_id,
+                            plan_name: membership.membership_plan.name,
+                            amount: 0, // Updating payment method, not charging
+                            charge_immediately: false,
+                          },
+                        }),
+                      },
+                    );
+
+                    const data = await response.json();
+
+                    if (!response.ok || !data.success) {
+                      setError(
+                        data.error || "Failed to initialize Direct Debit",
+                      );
+                      setFormData({ ...formData, payment_method: "cash" });
+                      return;
+                    }
+
+                    // Redirect to GoCardless authorization page
+                    window.location.href = data.redirectUrl;
+                  } catch (err: any) {
+                    console.error(
+                      "Error creating GoCardless redirect flow:",
+                      err,
+                    );
+                    setError(
+                      "Failed to initialize Direct Debit. Please try again.",
+                    );
+                    setFormData({ ...formData, payment_method: "cash" });
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading}
                 className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-colors ${
                   formData.payment_method === "direct_debit"
                     ? "border-blue-500 bg-blue-600 bg-opacity-10"
                     : "border-gray-600 bg-gray-700 hover:border-gray-500"
-                }`}
+                } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 <p className="font-medium">Direct Debit (GoCardless)</p>
-                <p className="text-sm text-gray-400">Automatic bank transfer</p>
+                <p className="text-sm text-gray-400">
+                  {loading && formData.payment_method === "direct_debit"
+                    ? "Setting up Direct Debit..."
+                    : "Automatic bank transfer"}
+                </p>
               </button>
 
               <button
                 type="button"
-                onClick={() =>
-                  setFormData({ ...formData, payment_method: "card" })
-                }
+                onClick={() => {
+                  setFormData({ ...formData, payment_method: "card" });
+                  setStep("card_payment");
+                  // Note: Card payment setup would go here
+                  // For now, this just changes the payment method
+                  setError(
+                    "Card payment setup for existing memberships coming soon. Please use Add Membership for card payments.",
+                  );
+                }}
+                disabled={loading}
                 className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-colors ${
                   formData.payment_method === "card"
                     ? "border-blue-500 bg-blue-600 bg-opacity-10"
                     : "border-gray-600 bg-gray-700 hover:border-gray-500"
-                }`}
+                } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 <p className="font-medium">Credit/Debit Card (Stripe)</p>
                 <p className="text-sm text-gray-400">Pay with card</p>

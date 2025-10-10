@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { requireAuth } from "@/lib/auth";
+import { createAdminClient } from "@/app/lib/supabase/admin";
+import { requireAuth } from "@/app/lib/api/auth-check";
 
 /**
  * POST /api/discount-codes/validate
@@ -26,8 +26,8 @@ import { requireAuth } from "@/lib/auth";
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { user, organization } = await requireAuth(supabase);
+    const user = await requireAuth();
+    const supabase = createAdminClient();
 
     const body = await request.json();
     const { code, customerId, membershipPlanId, purchaseAmount } = body;
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     const { data: discountCode, error: fetchError } = await supabase
       .from("discount_codes")
       .select("*")
-      .eq("organization_id", organization.id)
+      .eq("organization_id", user.organizationId)
       .eq("code", code.toUpperCase())
       .single();
 

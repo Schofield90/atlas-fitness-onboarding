@@ -1,28 +1,8 @@
 [
   {
-    "content": "Fix AI agents 404 error - check routing",
+    "content": "Fix build errors in discount and referral code validation routes",
     "status": "completed",
-    "activeForm": "Fixed AI agents 404 error"
-  },
-  {
-    "content": "Implement GoCardless Direct Debit billing request flow",
-    "status": "in_progress",
-    "activeForm": "Implementing GoCardless Direct Debit flow"
-  },
-  {
-    "content": "Create discount code validation API",
-    "status": "pending",
-    "activeForm": "Creating discount code validation API"
-  },
-  {
-    "content": "Implement referral code processing and credit system",
-    "status": "pending",
-    "activeForm": "Implementing referral code processing"
-  },
-  {
-    "content": "Fix chat history persistence with URL-based conversation storage",
-    "status": "pending",
-    "activeForm": "Fixing chat history persistence"
+    "activeForm": "Fixed build errors in validation routes"
   },
   {
     "content": "Add payment confirmation email after successful payment",

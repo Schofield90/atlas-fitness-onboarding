@@ -7,17 +7,16 @@ export const dynamic = "force-dynamic";
 
 const ADMIN_EMAILS = ["sam@atlas-gyms.co.uk", "sam@gymleadhub.co.uk"];
 
-// Use service role key for admin operations
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-);
-
-// Configure SendGrid
-sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
-
 export async function POST(request: NextRequest) {
   try {
+    // Use service role key for admin operations (instantiate at runtime)
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    );
+
+    // Configure SendGrid (at runtime)
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
     // Check authentication
     const {
       data: { user },
