@@ -1,8 +1,38 @@
 [
   {
-    "content": "Fix build errors in discount and referral code validation routes",
+    "content": "Phase 1.1: Integrate TipTap rich text editor for inline editing",
     "status": "completed",
-    "activeForm": "Fixed build errors in validation routes"
+    "activeForm": "Integrated TipTap rich text editor"
+  },
+  {
+    "content": "Phase 1.1: Add inline style controls (color picker, font size slider)",
+    "status": "in_progress",
+    "activeForm": "Adding inline style controls"
+  },
+  {
+    "content": "Phase 1.2: Implement image upload to Supabase Storage",
+    "status": "pending",
+    "activeForm": "Implementing image upload"
+  },
+  {
+    "content": "Phase 2.1: Build AI copywriting assistant (AICopilot component)",
+    "status": "pending",
+    "activeForm": "Building AI copywriting assistant"
+  },
+  {
+    "content": "Phase 2.1: Create AI copywrite API endpoint",
+    "status": "pending",
+    "activeForm": "Creating AI copywrite API"
+  },
+  {
+    "content": "Phase 3.1: Design 10 fitness industry templates",
+    "status": "pending",
+    "activeForm": "Designing fitness templates"
+  },
+  {
+    "content": "Phase 3.2: Build global theme system with brand colors",
+    "status": "pending",
+    "activeForm": "Building theme system"
   },
   {
     "content": "Add payment confirmation email after successful payment",
