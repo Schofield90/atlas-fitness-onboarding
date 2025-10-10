@@ -16,6 +16,8 @@ async function getPrograms(request: NextRequest) {
   const userWithOrg = await requireAuth();
   const supabase = await createClient();
 
+  console.log("[Programs API] User organization:", userWithOrg.organizationId);
+
   const { searchParams } = new URL(request.url);
   const programId = searchParams.get("id");
 
@@ -48,6 +50,12 @@ async function getPrograms(request: NextRequest) {
     .select(`*`)
     .eq("organization_id", userWithOrg.organizationId)
     .order("created_at", { ascending: false });
+
+  console.log("[Programs API] Class types query result:", {
+    count: classTypes?.length || 0,
+    error: classTypesError?.message,
+    organizationId: userWithOrg.organizationId,
+  });
 
   // If class_types has data, return it transformed to match programs structure
   if (classTypes && classTypes.length > 0) {
