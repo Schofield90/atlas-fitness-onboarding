@@ -268,3 +268,4 @@ DEPLOY: Enhanced AI agent tool execution logging - track OpenAI responses & tool
 Fri 10 Oct 2025 15:11:12 BST: Fixed cron-parser import in AI agent task API routes
 Fri 10 Oct 2025 15:45:55 BST: Fixed edit task validation - allow empty schedule_cron for one-off tasks
 Fri 10 Oct 2025 17:21:26 BST: AI agent task scheduler UI update - added natural language schedule picker
+Deployment 20251010-172954: Tool sync endpoint added
