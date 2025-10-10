@@ -756,6 +756,33 @@ function WorkflowBuilderInner({
 
   // Save workflow
   const handleSave = useCallback(async () => {
+    // Debug logging
+    console.log("[WorkflowBuilder] handleSave called", {
+      hasOnSave: !!onSave,
+      hasWorkflowState: !!workflowState,
+      isSaving,
+      nodesCount: nodes.length,
+      workflowName,
+    });
+
+    if (!onSave) {
+      console.error("[WorkflowBuilder] No onSave callback provided");
+      setSaveMessage({
+        type: "error",
+        text: "Save handler not configured. Please refresh the page.",
+      });
+      return;
+    }
+
+    if (!workflowState) {
+      console.error("[WorkflowBuilder] No workflow state available");
+      setSaveMessage({
+        type: "error",
+        text: "Workflow state is missing. Please refresh the page.",
+      });
+      return;
+    }
+
     if (onSave && workflowState) {
       setIsSaving(true);
       setSaveMessage(null);
