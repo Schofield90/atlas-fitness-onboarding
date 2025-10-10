@@ -8,6 +8,17 @@ import { syncToolsToDatabase, getRegistryStats } from '@/lib/ai-agents/tools/reg
 
 export async function POST(request: NextRequest) {
   try {
+    // Simple security check - require sync key or super admin email
+    const syncKey = request.headers.get('x-sync-key');
+    const validSyncKey = process.env.TOOL_SYNC_KEY || 'atlas-fitness-sync-2025';
+
+    if (syncKey !== validSyncKey) {
+      return NextResponse.json({
+        success: false,
+        error: 'Unauthorized - valid sync key required'
+      }, { status: 401 });
+    }
+
     console.log('[Tool Sync] Starting tool synchronization...');
 
     // Get stats before sync
