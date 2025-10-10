@@ -309,3 +309,9 @@ Error: "Invalid enum value. Expected 'gpt-4o' | 'gpt-4o-mini' | 'claude-3-5-sonn
 Reason: Fix API validation - update POST /api/ai-agents to accept new model names
 Fix: Updated createAgentSchema enum (lines 11-16) to match frontend dropdown
 Error: 400 Bad Request when creating agents with new models
+
+# Deployment Trigger - Fri 10 Oct 2025 19:40:00 BST
+
+Reason: REVERT - GPT-5 and Claude Sonnet 4 don't exist yet, back to GPT-4o/Claude 3.5
+Issue: AI chat messages disappearing - OpenAI rejecting "gpt-5-mini" model (doesn't exist)
+Fix: Reverted all model names to actual working models (gpt-4o, gpt-4o-mini, claude-3-5-sonnet-20241022)

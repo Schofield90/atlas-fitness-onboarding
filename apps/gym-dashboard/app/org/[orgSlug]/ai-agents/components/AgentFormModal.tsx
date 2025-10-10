@@ -26,9 +26,9 @@ const agentFormSchema = z.object({
   role: z.string().default("custom"),
   system_prompt: z.string().min(1, "System prompt is required"),
   model: z.enum([
-    "gpt-5",
-    "gpt-5-mini",
-    "claude-sonnet-4-20250514",
+    "gpt-4o",
+    "gpt-4o-mini",
+    "claude-3-5-sonnet-20241022",
     "claude-3-5-haiku-20241022",
   ]),
   temperature: z.number().min(0).max(2),
@@ -82,7 +82,7 @@ export function AgentFormModal({
       description: "",
       role: "custom",
       system_prompt: "",
-      model: "gpt-5-mini",
+      model: "gpt-4o-mini",
       temperature: 0.7,
       max_tokens: 4000,
       allowed_tools: [],
@@ -267,13 +267,13 @@ export function AgentFormModal({
                 {...register("model")}
                 className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
               >
-                <option value="gpt-5-mini">GPT-5 Mini (Fast & Cheap)</option>
-                <option value="gpt-5">GPT-5 (Advanced)</option>
+                <option value="gpt-4o-mini">GPT-4o Mini (Fast & Cheap)</option>
+                <option value="gpt-4o">GPT-4o (Advanced)</option>
                 <option value="claude-3-5-haiku-20241022">
                   Claude 3.5 Haiku (Fast)
                 </option>
-                <option value="claude-sonnet-4-20250514">
-                  Claude Sonnet 4.5 (Most Advanced)
+                <option value="claude-3-5-sonnet-20241022">
+                  Claude 3.5 Sonnet (Most Advanced)
                 </option>
               </select>
               {errors.model && (

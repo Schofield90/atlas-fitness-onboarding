@@ -9,9 +9,9 @@ const createAgentSchema = z.object({
   role: z.enum(["customer_support", "financial", "social_media", "custom"]),
   system_prompt: z.string().min(1),
   model: z.enum([
-    "gpt-5",
-    "gpt-5-mini",
-    "claude-sonnet-4-20250514",
+    "gpt-4o",
+    "gpt-4o-mini",
+    "claude-3-5-sonnet-20241022",
     "claude-3-5-haiku-20241022",
   ]),
   temperature: z.number().min(0).max(2).optional(),
