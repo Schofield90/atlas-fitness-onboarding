@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/app/lib/api/auth-check-org";
 import { createClient } from "@/app/lib/supabase/server";
 import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import * as cheerio from "cheerio";
 
-// Lazy load OpenAI client to avoid browser environment errors during build
+// Lazy load AI clients to avoid browser environment errors during build
 let openai: OpenAI | null = null;
+let anthropic: Anthropic | null = null;
 
 function getOpenAI(): OpenAI {
   if (!openai) {
@@ -14,6 +16,15 @@ function getOpenAI(): OpenAI {
     });
   }
   return openai;
+}
+
+function getAnthropic(): Anthropic {
+  if (!anthropic) {
+    anthropic = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    });
+  }
+  return anthropic;
 }
 
 // Force dynamic rendering for this route
@@ -165,7 +176,8 @@ async function fetchAndParseWebpage(url: string) {
   }
 }
 
-// Function to analyze structure and generate components using OpenAI
+// Function to analyze structure and generate components using AI
+// Primary: Claude Sonnet 4.5, Fallback: GPT-5
 async function analyzeAndGenerateComponents(pageStructure: any, url: string) {
   const prompt = `
 Analyze this webpage structure and generate a landing page component configuration.
@@ -217,32 +229,67 @@ Make sure props match these component interfaces:
 Return ONLY valid JSON, no additional text.
 `;
 
+  // Try Claude Sonnet 4.5 first
   try {
-    const response = await getOpenAI().chat.completions.create({
-      model: "gpt-4-turbo-preview",
+    console.log("[Landing Page AI] Using Claude Sonnet 4.5 (primary)");
+    const response = await getAnthropic().messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 4096,
+      temperature: 0.7,
+      system:
+        "You are an expert at analyzing web pages and creating landing page templates. Always return valid JSON.",
       messages: [
-        {
-          role: "system",
-          content:
-            "You are an expert at analyzing web pages and creating landing page templates. Always return valid JSON.",
-        },
         {
           role: "user",
           content: prompt,
         },
       ],
-      temperature: 0.7,
-      max_tokens: 4000,
-      response_format: { type: "json_object" },
     });
 
-    const content = response.choices[0]?.message?.content;
-    if (!content) throw new Error("No response from AI");
+    const content = response.content[0];
+    if (content.type !== "text") throw new Error("Unexpected response type");
 
-    return JSON.parse(content);
-  } catch (error) {
-    console.error("Error with OpenAI:", error);
-    throw new Error("Failed to analyze page structure");
+    return JSON.parse(content.text);
+  } catch (anthropicError: any) {
+    console.error(
+      "Claude Sonnet 4.5 failed, falling back to GPT-5:",
+      anthropicError,
+    );
+
+    // Fallback to GPT-5
+    try {
+      console.log("[Landing Page AI] Using GPT-5 (fallback)");
+      const response = await getOpenAI().chat.completions.create({
+        model: "gpt-5",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are an expert at analyzing web pages and creating landing page templates. Always return valid JSON.",
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        temperature: 0.7,
+        max_tokens: 4000,
+        response_format: { type: "json_object" },
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) throw new Error("No response from GPT-5");
+
+      return JSON.parse(content);
+    } catch (openaiError) {
+      console.error("Both AI providers failed:", {
+        anthropicError,
+        openaiError,
+      });
+      throw new Error(
+        "Failed to analyze page structure with both Claude and GPT-5",
+      );
+    }
   }
 }
 
@@ -273,7 +320,7 @@ export async function POST(request: NextRequest) {
         source_url: url,
         status: "processing",
         created_by: userId,
-        ai_model: "gpt-4-turbo-preview",
+        ai_model: "claude-sonnet-4-20250514", // Primary model, may fallback to gpt-5
       })
       .select()
       .single();
