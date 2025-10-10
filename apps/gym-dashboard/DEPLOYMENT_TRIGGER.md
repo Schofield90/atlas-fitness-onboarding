@@ -325,3 +325,9 @@ Fix: GPT-5 models only support temperature: 1 (default), custom values rejected
 Error: "400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the default (1) value is supported."
 Files: /lib/ai-agents/providers/openai-provider.ts (lines 84, 158)
 Previous Fix: max_completion_tokens parameter (lines 78-90, 151-164, 200-203)
+# Deployment Trigger - Fri 10 Oct 2025 21:30:00 BST
+
+Reason: Fix agent update validation - add GPT-5 and Claude Sonnet 4.5 to model enum
+Fix: Updated updateAgentSchema to accept new model names
+Error: 400 Validation error when saving agent with gpt-5 or claude-sonnet-4-20250514
+Files: /app/api/ai-agents/[id]/route.ts (lines 11-19)
