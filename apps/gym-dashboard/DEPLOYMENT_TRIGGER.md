@@ -254,3 +254,4 @@ FIX AI AGENTS 404: Move to shared /app directory + add to SHARED_DIRS - Thu 9 Oc
 FIX AI AGENTS AUTH: Use API endpoint instead of browser auth (prevents logout) - Thu 9 Oct 2025 20:30:00 BST
 DEBUG AI AGENTS: Add console logging to diagnose organization lookup - Thu 9 Oct 2025 20:45:00 BST
 Deployment triggered: Edit Membership Direct Debit - Fri 10 Oct 2025 06:31:00 BST
+Deployment triggered: Discount codes & referral system - Fri 10 Oct 2025 06:38:42 BST
