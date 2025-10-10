@@ -48,7 +48,9 @@ export default function AddMembershipModal({
   const [referralCode, setReferralCode] = useState("");
   const [discountAmount, setDiscountAmount] = useState(0);
   const [validatingCode, setValidatingCode] = useState(false);
+  const [validatingReferral, setValidatingReferral] = useState(false);
   const [validatedDiscountCode, setValidatedDiscountCode] = useState<any>(null);
+  const [validatedReferralCode, setValidatedReferralCode] = useState<any>(null);
   const [customPrice, setCustomPrice] = useState<string>("");
   const [useCustomPrice, setUseCustomPrice] = useState(false);
   const [finalPrice, setFinalPrice] = useState(0);
@@ -480,15 +482,68 @@ export default function AddMembershipModal({
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Referral Code (Optional)
                 </label>
-                <input
-                  type="text"
-                  value={referralCode}
-                  onChange={(e) =>
-                    setReferralCode(e.target.value.toUpperCase())
-                  }
-                  placeholder="Who referred this member?"
-                  className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={referralCode}
+                    onChange={(e) =>
+                      setReferralCode(e.target.value.toUpperCase())
+                    }
+                    placeholder="Who referred this member?"
+                    className="flex-1 bg-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!referralCode) return;
+
+                      try {
+                        setValidatingReferral(true);
+                        setError("");
+
+                        const response = await fetch(
+                          "/api/referral-codes/validate",
+                          {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              code: referralCode,
+                              refereeClientId: customerId,
+                            }),
+                          },
+                        );
+
+                        const data = await response.json();
+
+                        if (!response.ok || !data.success) {
+                          setError(data.error || "Invalid referral code");
+                          setValidatedReferralCode(null);
+                          return;
+                        }
+
+                        // Valid referral code
+                        setValidatedReferralCode(data.data.referralCode);
+                        setError("");
+                      } catch (err: any) {
+                        console.error("Error validating referral code:", err);
+                        setError("Failed to validate referral code");
+                        setValidatedReferralCode(null);
+                      } finally {
+                        setValidatingReferral(false);
+                      }
+                    }}
+                    disabled={!referralCode || validatingReferral}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {validatingReferral ? "Validating..." : "Apply"}
+                  </button>
+                </div>
+                {validatedReferralCode && (
+                  <p className="text-sm text-green-400 mt-2">
+                    ✓ Valid referral code! Referrer will receive £
+                    {validatedReferralCode.credit_amount} credit
+                  </p>
+                )}
               </div>
             </div>
 
@@ -795,7 +850,7 @@ export default function AddMembershipModal({
                         paymentIntentId,
                         discountCodeId: validatedDiscountCode?.id || undefined,
                         discountAmount: discountAmount || 0,
-                        referralCode: referralCode || undefined,
+                        referralCodeId: validatedReferralCode?.id || undefined,
                         saveCard: saveCard || false,
                       }),
                     });

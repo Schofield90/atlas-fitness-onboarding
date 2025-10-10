@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       cashStatus,
       discountCodeId,
       discountAmount,
-      referralCode,
+      referralCodeId,
     } = body;
 
     if (!customerId || !membershipPlanId || !startDate) {
@@ -162,6 +162,38 @@ export async function POST(request: NextRequest) {
       if (usageError) {
         console.error("Error recording discount code usage:", usageError);
         // Don't fail the request - membership was created successfully
+      }
+    }
+
+    // Record referral credit if provided
+    if (referralCodeId) {
+      // Get referral code details to calculate credit
+      const { data: referralCode } = await supabase
+        .from("referral_codes")
+        .select("referrer_client_id, credit_amount, credit_type")
+        .eq("id", referralCodeId)
+        .single();
+
+      if (referralCode) {
+        // Calculate credit amount (for now, only fixed amounts are supported)
+        const creditAmount = referralCode.credit_amount;
+
+        const { error: creditError } = await supabase
+          .from("referral_credits")
+          .insert({
+            organization_id: user.organizationId,
+            referrer_client_id: referralCode.referrer_client_id,
+            referee_client_id: customerId,
+            referral_code_id: referralCodeId,
+            membership_id: membership.id,
+            credit_amount: creditAmount,
+            credit_status: "pending", // Can be approved later by staff
+          });
+
+        if (creditError) {
+          console.error("Error recording referral credit:", creditError);
+          // Don't fail the request - membership was created successfully
+        }
       }
     }
 
