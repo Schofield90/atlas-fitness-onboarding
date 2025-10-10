@@ -261,3 +261,4 @@ Deployment trigger: Fri 10 Oct 2025 10:48:57 BST
 Deployment trigger: Fri 10 Oct 2025 10:54:18 BST
 DEPLOY: AI agent tool execution limit + class analytics - Fri 10 Oct 2025 11:05:00 BST
 DEPLOY: Fix classes page - query class_types instead of programs - Fri 10 Oct 2025 11:20:00 BST
+DEPLOY: Add debug endpoint for org membership troubleshooting - Fri 10 Oct 2025 11:30:00 BST
