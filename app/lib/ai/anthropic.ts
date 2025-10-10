@@ -1,76 +1,82 @@
-import Anthropic from '@anthropic-ai/sdk'
-import { fetchActiveFeedback, formatFeedbackExamples } from './feedback'
+import Anthropic from "@anthropic-ai/sdk";
+import { fetchActiveFeedback, formatFeedbackExamples } from "./feedback";
 
 // Debug: Check if API key is loaded
-if (typeof process !== 'undefined' && process.env) {
-  console.log('Anthropic API Key status:', {
+if (typeof process !== "undefined" && process.env) {
+  console.log("Anthropic API Key status:", {
     exists: !!process.env.ANTHROPIC_API_KEY,
     length: process.env.ANTHROPIC_API_KEY?.length || 0,
-    prefix: process.env.ANTHROPIC_API_KEY?.substring(0, 10) || 'NOT_SET'
-  })
+    prefix: process.env.ANTHROPIC_API_KEY?.substring(0, 10) || "NOT_SET",
+  });
 }
 
 // Lazy initialization - only create client when needed
-let anthropic: Anthropic | null = null
+let anthropic: Anthropic | null = null;
 
 function getAnthropicClient(): Anthropic | null {
-  if (anthropic) return anthropic
-  
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (anthropic) return anthropic;
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    console.error('ANTHROPIC_API_KEY is not set')
-    return null
+    console.error("ANTHROPIC_API_KEY is not set");
+    return null;
   }
-  
+
   try {
     anthropic = new Anthropic({
       apiKey: apiKey,
-    })
-    return anthropic
+    });
+    return anthropic;
   } catch (error) {
-    console.error('Failed to initialize Anthropic:', error)
-    return null
+    console.error("Failed to initialize Anthropic:", error);
+    return null;
   }
 }
 
 export interface AIResponse {
-  message: string
-  shouldBookAppointment?: boolean
+  message: string;
+  shouldBookAppointment?: boolean;
   extractedInfo?: {
-    name?: string
-    email?: string
-    phone?: string
-    preferredTime?: string
-  }
+    name?: string;
+    email?: string;
+    phone?: string;
+    preferredTime?: string;
+  };
 }
 
 export async function generateAIResponse(
   userMessage: string,
   phoneNumber: string,
   knowledgeContext: string,
-  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string; timestamp?: string }>,
-  contactInfo?: any // Add contact info parameter
+  conversationHistory?: Array<{
+    role: "user" | "assistant";
+    content: string;
+    timestamp?: string;
+  }>,
+  contactInfo?: any, // Add contact info parameter
 ): Promise<{ response: string; extractedInfo?: any; bookingIntent?: boolean }> {
   try {
     // Fetch training feedback examples
-    const feedbackExamples = await fetchActiveFeedback()
-    const feedbackContext = formatFeedbackExamples(feedbackExamples)
-    
+    const feedbackExamples = await fetchActiveFeedback();
+    const feedbackContext = formatFeedbackExamples(feedbackExamples);
+
     // Format contact info if available
-    const contactContext = contactInfo ? `
+    const contactContext = contactInfo
+      ? `
 CUSTOMER INFORMATION (from database):
-- Name: ${contactInfo.first_name || ''} ${contactInfo.last_name || ''}
+- Name: ${contactInfo.first_name || ""} ${contactInfo.last_name || ""}
 - Phone: ${contactInfo.phone || phoneNumber}
-- Email: ${contactInfo.email || 'Not provided'}
-- Status: ${contactInfo.status || contactInfo.membership_status || 'New contact'}
-- Notes: ${contactInfo.notes || 'None'}
-- AI Score: ${contactInfo.ai_score || 'Not scored'}
-- Previous interactions: ${contactInfo.ai_insights ? JSON.stringify(contactInfo.ai_insights) : 'None recorded'}
-- Member since: ${contactInfo.created_at ? new Date(contactInfo.created_at).toLocaleDateString() : 'N/A'}
+- Email: ${contactInfo.email || "Not provided"}
+- Status: ${contactInfo.status || contactInfo.membership_status || "New contact"}
+- Notes: ${contactInfo.notes || "None"}
+- AI Score: ${contactInfo.ai_score || "Not scored"}
+- Previous interactions: ${contactInfo.ai_insights ? JSON.stringify(contactInfo.ai_insights) : "None recorded"}
+- Member since: ${contactInfo.created_at ? new Date(contactInfo.created_at).toLocaleDateString() : "N/A"}
 
 Use this information to personalize your responses. If you know their name, use it naturally in conversation.
-` : ''
-    
+`
+      : "";
+
     const systemPrompt = `You are a professional gym business WhatsApp sales assistant for Atlas Fitness. Your role is to engage with potential and existing gym members, answer their questions, and guide them towards booking a trial or membership.
 
 IMPORTANT: The following is REAL GYM DATA that you MUST use in your responses:
@@ -111,69 +117,80 @@ RESPONSE FORMAT:
 - End with a question or clear call-to-action
 - Be conversational and mobile-friendly
 
-DOUBLE-CHECK: Before responding, verify you're using REAL data from the knowledge section above, not generic placeholders.`
+DOUBLE-CHECK: Before responding, verify you're using REAL data from the knowledge section above, not generic placeholders.`;
 
-    console.log('AI Request details:', {
-      modelUsed: 'claude-3-5-sonnet-20241022',
+    console.log("AI Request details:", {
+      modelUsed: "claude-sonnet-4-20250514",
       systemPromptLength: systemPrompt.length,
       userMessageLength: userMessage.length,
-      knowledgeContextLength: knowledgeContext.length
-    })
+      knowledgeContextLength: knowledgeContext.length,
+    });
 
     // Build messages array with conversation history
-    const messages: Array<{ role: 'user' | 'assistant'; content: string }> = []
-    
+    const messages: Array<{ role: "user" | "assistant"; content: string }> = [];
+
     // Add conversation history if provided
     if (conversationHistory && conversationHistory.length > 0) {
       // Include last 10 messages for context (5 exchanges)
-      const recentHistory = conversationHistory.slice(-10)
-      recentHistory.forEach(msg => {
+      const recentHistory = conversationHistory.slice(-10);
+      recentHistory.forEach((msg) => {
         messages.push({
           role: msg.role,
-          content: msg.content
-        })
-      })
+          content: msg.content,
+        });
+      });
     }
-    
+
     // Add current message
     messages.push({
-      role: 'user',
-      content: userMessage
-    })
-    
-    console.log('AI conversation context:', {
+      role: "user",
+      content: userMessage,
+    });
+
+    console.log("AI conversation context:", {
       historyLength: conversationHistory?.length || 0,
       messagesIncluded: messages.length,
-      currentMessage: userMessage
-    })
+      currentMessage: userMessage,
+    });
 
-    const client = getAnthropicClient()
+    const client = getAnthropicClient();
     if (!client) {
-      throw new Error('Anthropic not initialized')
+      throw new Error("Anthropic not initialized");
     }
-    
+
     const response = await client.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
+      model: "claude-sonnet-4-20250514",
       max_tokens: 300,
       temperature: 0.7,
       system: systemPrompt,
       messages: messages,
-    })
+    });
 
-    const aiMessage = response.content[0].type === 'text' 
-      ? response.content[0].text 
-      : 'I can help you with your fitness journey! What would you like to know?'
+    const aiMessage =
+      response.content[0].type === "text"
+        ? response.content[0].text
+        : "I can help you with your fitness journey! What would you like to know?";
 
     // Check if we should trigger booking flow
-    const bookingKeywords = ['book', 'trial', 'tour', 'visit', 'appointment', 'come in', 'sign up', 'join']
-    const shouldBook = bookingKeywords.some(keyword => 
-      userMessage.toLowerCase().includes(keyword) || 
-      aiMessage.toLowerCase().includes(keyword)
-    )
+    const bookingKeywords = [
+      "book",
+      "trial",
+      "tour",
+      "visit",
+      "appointment",
+      "come in",
+      "sign up",
+      "join",
+    ];
+    const shouldBook = bookingKeywords.some(
+      (keyword) =>
+        userMessage.toLowerCase().includes(keyword) ||
+        aiMessage.toLowerCase().includes(keyword),
+    );
 
     // Extract any contact information
-    const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/
-    const extractedEmail = userMessage.match(emailRegex)?.[0]
+    const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/;
+    const extractedEmail = userMessage.match(emailRegex)?.[0];
 
     return {
       response: aiMessage,
@@ -182,86 +199,109 @@ DOUBLE-CHECK: Before responding, verify you're using REAL data from the knowledg
         email: extractedEmail,
         phone: phoneNumber,
       },
-    }
+    };
   } catch (error) {
-    console.error('Error generating AI response:', error)
-    
+    console.error("Error generating AI response:", error);
+
     // Log more details about the error
     if (error instanceof Error) {
-      console.error('Error details:', {
+      console.error("Error details:", {
         message: error.message,
         name: error.name,
         stack: error.stack,
         // If it's an Anthropic API error, it might have more details
-        details: (error as any).response?.data || (error as any).details || 'No additional details'
-      })
+        details:
+          (error as any).response?.data ||
+          (error as any).details ||
+          "No additional details",
+      });
     }
-    
+
     // Fallback response
     return {
-      response: "Thanks for your message! I'm having a technical moment. Please text 'HELP' or call us at 01234 567890. We'd love to help you start your fitness journey! 💪",
+      response:
+        "Thanks for your message! I'm having a technical moment. Please text 'HELP' or call us at 01234 567890. We'd love to help you start your fitness journey! 💪",
       bookingIntent: false,
-    }
+    };
   }
 }
 
 // Generate knowledge context from database records
 export function formatKnowledgeContext(knowledgeRecords: any[]): string {
   if (!knowledgeRecords || knowledgeRecords.length === 0) {
-    console.warn('WARNING: No knowledge records provided to AI')
-    return 'No specific knowledge available. Use general gym industry knowledge.'
+    console.warn("WARNING: No knowledge records provided to AI");
+    return "No specific knowledge available. Use general gym industry knowledge.";
   }
 
-  console.log('Formatting knowledge context from', knowledgeRecords.length, 'records')
+  console.log(
+    "Formatting knowledge context from",
+    knowledgeRecords.length,
+    "records",
+  );
 
   // Priority order for knowledge types
-  const priorityOrder = ['sop', 'faq', 'pricing', 'services', 'schedule', 'policies', 'style']
-  
-  // Group and sort by priority
-  const grouped = knowledgeRecords.reduce((acc, record) => {
-    if (!acc[record.type]) {
-      acc[record.type] = []
-    }
-    acc[record.type].push(record.content)
-    return acc
-  }, {} as Record<string, string[]>)
+  const priorityOrder = [
+    "sop",
+    "faq",
+    "pricing",
+    "services",
+    "schedule",
+    "policies",
+    "style",
+  ];
 
-  let context = 'IMPORTANT GYM INFORMATION (USE THIS DATA IN YOUR RESPONSES):\n\n'
-  
+  // Group and sort by priority
+  const grouped = knowledgeRecords.reduce(
+    (acc, record) => {
+      if (!acc[record.type]) {
+        acc[record.type] = [];
+      }
+      acc[record.type].push(record.content);
+      return acc;
+    },
+    {} as Record<string, string[]>,
+  );
+
+  let context =
+    "IMPORTANT GYM INFORMATION (USE THIS DATA IN YOUR RESPONSES):\n\n";
+
   // Add knowledge in priority order
-  priorityOrder.forEach(type => {
+  priorityOrder.forEach((type) => {
     if (grouped[type] && grouped[type].length > 0) {
-      const typeLabel = type.toUpperCase().replace('_', ' ')
-      context += `=== ${typeLabel} ===\n`
-      const contentArray = grouped[type] as string[]
+      const typeLabel = type.toUpperCase().replace("_", " ");
+      context += `=== ${typeLabel} ===\n`;
+      const contentArray = grouped[type] as string[];
       contentArray.forEach((content: string, index: number) => {
-        context += `${index + 1}. ${content}\n`
-      })
-      context += '\n'
+        context += `${index + 1}. ${content}\n`;
+      });
+      context += "\n";
     }
-  })
+  });
 
   // Add any remaining types not in priority order
   Object.entries(grouped).forEach(([type, contents]) => {
     if (!priorityOrder.includes(type)) {
-      const typeLabel = type.toUpperCase().replace('_', ' ')
-      context += `=== ${typeLabel} ===\n`
-      const contentArray = contents as string[]
+      const typeLabel = type.toUpperCase().replace("_", " ");
+      context += `=== ${typeLabel} ===\n`;
+      const contentArray = contents as string[];
       contentArray.forEach((content: string, index: number) => {
-        context += `${index + 1}. ${content}\n`
-      })
-      context += '\n'
+        context += `${index + 1}. ${content}\n`;
+      });
+      context += "\n";
     }
-  })
+  });
 
   // Log what information we're providing to the AI
-  console.log('Knowledge context summary:', {
+  console.log("Knowledge context summary:", {
     totalLength: context.length,
     typesIncluded: Object.keys(grouped),
-    hasLocationInfo: context.includes('Harrogate') || context.includes('York') || context.includes('Claro Court'),
-    hasPricingInfo: context.includes('£') || context.includes('price'),
-    preview: context.substring(0, 200) + '...'
-  })
+    hasLocationInfo:
+      context.includes("Harrogate") ||
+      context.includes("York") ||
+      context.includes("Claro Court"),
+    hasPricingInfo: context.includes("£") || context.includes("price"),
+    preview: context.substring(0, 200) + "...",
+  });
 
-  return context
+  return context;
 }
