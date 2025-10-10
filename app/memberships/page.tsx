@@ -13,7 +13,19 @@ import {
   getMembershipPlans,
   type MembershipPlan,
 } from "@/app/lib/services/membership-service";
-import { Settings, MoreVertical, Edit, Users, Copy, Trash, FolderKanban, Tag, CheckSquare, Square, X } from "lucide-react";
+import {
+  Settings,
+  MoreVertical,
+  Edit,
+  Users,
+  Copy,
+  Trash,
+  FolderKanban,
+  Tag,
+  CheckSquare,
+  Square,
+  X,
+} from "lucide-react";
 import toast from "@/app/lib/toast";
 import { useRouter } from "next/navigation";
 
@@ -32,6 +44,8 @@ export default function MembershipsPage() {
   const [selectedPlans, setSelectedPlans] = useState<Set<string>>(new Set());
   const [bulkCategory, setBulkCategory] = useState<string>("");
   const [updatingBulk, setUpdatingBulk] = useState(false);
+  const [activeMembers, setActiveMembers] = useState<any[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
   const router = useRouter();
 
   const handleNewPlan = () => {
@@ -79,10 +93,37 @@ export default function MembershipsPage() {
     }
   };
 
+  const fetchActiveMembers = async () => {
+    setLoadingMembers(true);
+    try {
+      const response = await fetch("/api/memberships/active-members");
+      const result = await response.json();
+
+      if (response.ok) {
+        setActiveMembers(result.members || []);
+      } else {
+        console.error("Error fetching active members:", result.error);
+        toast.error("Failed to load active members");
+      }
+    } catch (error) {
+      console.error("Error fetching active members:", error);
+      toast.error("Failed to load active members");
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
+
   useEffect(() => {
     fetchMembershipPlans();
     fetchCategories();
   }, []);
+
+  // Fetch active members when switching to active tab
+  useEffect(() => {
+    if (activeTab === "active") {
+      fetchActiveMembers();
+    }
+  }, [activeTab]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -238,13 +279,13 @@ export default function MembershipsPage() {
           body: JSON.stringify({
             category_id: bulkCategory === "none" ? null : bulkCategory,
           }),
-        })
+        }),
       );
 
       await Promise.all(updatePromises);
 
       toast.success(
-        `Updated ${selectedPlans.size} membership${selectedPlans.size !== 1 ? "s" : ""} successfully`
+        `Updated ${selectedPlans.size} membership${selectedPlans.size !== 1 ? "s" : ""} successfully`,
       );
       handleClearSelection();
       fetchMembershipPlans();
@@ -404,7 +445,8 @@ export default function MembershipsPage() {
                     .filter((plan) => {
                       // Provider filter
                       if (providerFilter !== "all") {
-                        const planProvider = (plan as any).payment_provider || "manual";
+                        const planProvider =
+                          (plan as any).payment_provider || "manual";
                         if (planProvider !== providerFilter) return false;
                       }
 
@@ -421,7 +463,8 @@ export default function MembershipsPage() {
                       return true;
                     })
                     .map((plan) => {
-                      const provider = (plan as any).payment_provider || "manual";
+                      const provider =
+                        (plan as any).payment_provider || "manual";
                       const providerBadgeColors = {
                         stripe: "bg-purple-600",
                         gocardless: "bg-blue-600",
@@ -433,209 +476,226 @@ export default function MembershipsPage() {
                         manual: "Manual",
                       };
                       const planCategoryId = (plan as any).category_id;
-                      const planCategory = categories.find((c) => c.id === planCategoryId);
+                      const planCategory = categories.find(
+                        (c) => c.id === planCategoryId,
+                      );
 
                       const isSelected = selectedPlans.has(plan.id);
 
                       return (
-                    <div
-                      key={plan.id}
-                      className={`bg-gray-800 rounded-lg p-6 hover:bg-gray-750 transition-all relative ${isSelected ? 'ring-2 ring-orange-500' : ''}`}
-                    >
-                      {/* Checkbox */}
-                      <button
-                        onClick={() => handleToggleSelection(plan.id)}
-                        className="absolute top-4 left-4 z-10 p-1 hover:bg-gray-700 rounded transition-colors"
-                      >
-                        {isSelected ? (
-                          <CheckSquare className="h-5 w-5 text-orange-500" />
-                        ) : (
-                          <Square className="h-5 w-5 text-gray-400" />
-                        )}
-                      </button>
-
-                      <div className="flex justify-between items-start mb-4 pl-8">
-                        <div className="flex-1">
-                          <h3 className="text-xl font-semibold">{plan.name}</h3>
-                          {planCategory && (
-                            <div className="flex items-center gap-1 mt-1">
-                              <Tag className="h-3 w-3 text-gray-400" />
-                              <span
-                                className="text-xs px-2 py-0.5 rounded"
-                                style={{ backgroundColor: planCategory.color + '30', color: planCategory.color }}
-                              >
-                                {planCategory.name}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`px-2 py-1 text-xs rounded ${
-                              providerBadgeColors[
-                                provider as keyof typeof providerBadgeColors
-                              ]
-                            }`}
+                        <div
+                          key={plan.id}
+                          className={`bg-gray-800 rounded-lg p-6 hover:bg-gray-750 transition-all relative ${isSelected ? "ring-2 ring-orange-500" : ""}`}
+                        >
+                          {/* Checkbox */}
+                          <button
+                            onClick={() => handleToggleSelection(plan.id)}
+                            className="absolute top-4 left-4 z-10 p-1 hover:bg-gray-700 rounded transition-colors"
                           >
-                            {providerLabels[provider as keyof typeof providerLabels]}
-                          </span>
-                          <span
-                            className={`px-2 py-1 text-xs rounded ${plan.is_active ? "bg-green-600" : "bg-gray-600"}`}
-                          >
-                            {plan.is_active ? "Active" : "Inactive"}
-                          </span>
-                          <div className="relative">
-                            <button
-                              onClick={() =>
-                                setOpenDropdown(
-                                  openDropdown === plan.id ? null : plan.id,
-                                )
-                              }
-                              className="p-1 hover:bg-gray-700 rounded transition-colors"
-                            >
-                              <MoreVertical className="h-4 w-4 text-gray-400" />
-                            </button>
-
-                            {openDropdown === plan.id && (
-                              <div className="absolute right-0 mt-2 w-56 bg-gray-800 rounded-md shadow-lg border border-gray-600 z-10">
-                                <div className="py-1">
-                                  <button
-                                    onClick={() => handleEditPlan(plan)}
-                                    className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors flex items-center gap-2"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                    <div>
-                                      <div className="font-medium">
-                                        Edit Details
-                                      </div>
-                                      <div className="text-gray-500 text-xs">
-                                        name, price, features
-                                      </div>
-                                    </div>
-                                  </button>
-                                  <button
-                                    onClick={() => handleViewMembers(plan)}
-                                    className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors flex items-center gap-2"
-                                  >
-                                    <Users className="h-4 w-4" />
-                                    <div>
-                                      <div className="font-medium">
-                                        View Members
-                                      </div>
-                                      <div className="text-gray-500 text-xs">
-                                        see who's on this plan
-                                      </div>
-                                    </div>
-                                  </button>
-                                  <button
-                                    onClick={() => handleDuplicatePlan(plan)}
-                                    className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors flex items-center gap-2"
-                                  >
-                                    <Copy className="h-4 w-4" />
-                                    <div>
-                                      <div className="font-medium">
-                                        Duplicate Plan
-                                      </div>
-                                      <div className="text-gray-500 text-xs">
-                                        create a copy
-                                      </div>
-                                    </div>
-                                  </button>
-                                  <button
-                                    onClick={() => handleEditPlan(plan)}
-                                    className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors flex items-center gap-2"
-                                  >
-                                    <Settings className="h-4 w-4" />
-                                    <div>
-                                      <div className="font-medium">
-                                        Plan Settings
-                                      </div>
-                                      <div className="text-gray-500 text-xs">
-                                        availability, limits
-                                      </div>
-                                    </div>
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeletePlan(plan)}
-                                    className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-700 transition-colors flex items-center gap-2"
-                                  >
-                                    <Trash className="h-4 w-4" />
-                                    <div>
-                                      <div className="font-medium">
-                                        Delete Plan
-                                      </div>
-                                      <div className="text-gray-500 text-xs">
-                                        permanently remove
-                                      </div>
-                                    </div>
-                                  </button>
-                                </div>
-                              </div>
+                            {isSelected ? (
+                              <CheckSquare className="h-5 w-5 text-orange-500" />
+                            ) : (
+                              <Square className="h-5 w-5 text-gray-400" />
                             )}
+                          </button>
+
+                          <div className="flex justify-between items-start mb-4 pl-8">
+                            <div className="flex-1">
+                              <h3 className="text-xl font-semibold">
+                                {plan.name}
+                              </h3>
+                              {planCategory && (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <Tag className="h-3 w-3 text-gray-400" />
+                                  <span
+                                    className="text-xs px-2 py-0.5 rounded"
+                                    style={{
+                                      backgroundColor:
+                                        planCategory.color + "30",
+                                      color: planCategory.color,
+                                    }}
+                                  >
+                                    {planCategory.name}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`px-2 py-1 text-xs rounded ${
+                                  providerBadgeColors[
+                                    provider as keyof typeof providerBadgeColors
+                                  ]
+                                }`}
+                              >
+                                {
+                                  providerLabels[
+                                    provider as keyof typeof providerLabels
+                                  ]
+                                }
+                              </span>
+                              <span
+                                className={`px-2 py-1 text-xs rounded ${plan.is_active ? "bg-green-600" : "bg-gray-600"}`}
+                              >
+                                {plan.is_active ? "Active" : "Inactive"}
+                              </span>
+                              <div className="relative">
+                                <button
+                                  onClick={() =>
+                                    setOpenDropdown(
+                                      openDropdown === plan.id ? null : plan.id,
+                                    )
+                                  }
+                                  className="p-1 hover:bg-gray-700 rounded transition-colors"
+                                >
+                                  <MoreVertical className="h-4 w-4 text-gray-400" />
+                                </button>
+
+                                {openDropdown === plan.id && (
+                                  <div className="absolute right-0 mt-2 w-56 bg-gray-800 rounded-md shadow-lg border border-gray-600 z-10">
+                                    <div className="py-1">
+                                      <button
+                                        onClick={() => handleEditPlan(plan)}
+                                        className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors flex items-center gap-2"
+                                      >
+                                        <Edit className="h-4 w-4" />
+                                        <div>
+                                          <div className="font-medium">
+                                            Edit Details
+                                          </div>
+                                          <div className="text-gray-500 text-xs">
+                                            name, price, features
+                                          </div>
+                                        </div>
+                                      </button>
+                                      <button
+                                        onClick={() => handleViewMembers(plan)}
+                                        className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors flex items-center gap-2"
+                                      >
+                                        <Users className="h-4 w-4" />
+                                        <div>
+                                          <div className="font-medium">
+                                            View Members
+                                          </div>
+                                          <div className="text-gray-500 text-xs">
+                                            see who's on this plan
+                                          </div>
+                                        </div>
+                                      </button>
+                                      <button
+                                        onClick={() =>
+                                          handleDuplicatePlan(plan)
+                                        }
+                                        className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors flex items-center gap-2"
+                                      >
+                                        <Copy className="h-4 w-4" />
+                                        <div>
+                                          <div className="font-medium">
+                                            Duplicate Plan
+                                          </div>
+                                          <div className="text-gray-500 text-xs">
+                                            create a copy
+                                          </div>
+                                        </div>
+                                      </button>
+                                      <button
+                                        onClick={() => handleEditPlan(plan)}
+                                        className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors flex items-center gap-2"
+                                      >
+                                        <Settings className="h-4 w-4" />
+                                        <div>
+                                          <div className="font-medium">
+                                            Plan Settings
+                                          </div>
+                                          <div className="text-gray-500 text-xs">
+                                            availability, limits
+                                          </div>
+                                        </div>
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeletePlan(plan)}
+                                        className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-700 transition-colors flex items-center gap-2"
+                                      >
+                                        <Trash className="h-4 w-4" />
+                                        <div>
+                                          <div className="font-medium">
+                                            Delete Plan
+                                          </div>
+                                          <div className="text-gray-500 text-xs">
+                                            permanently remove
+                                          </div>
+                                        </div>
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <p className="text-gray-400 text-sm mb-4">
+                            {plan.description}
+                          </p>
+
+                          <div className="mb-4">
+                            <p className="text-3xl font-bold">
+                              {formatBritishCurrency(plan.price_pennies, true)}
+                              <span className="text-sm text-gray-400 font-normal">
+                                /
+                                {plan.billing_period === "monthly"
+                                  ? "month"
+                                  : plan.billing_period === "yearly"
+                                    ? "year"
+                                    : "one-time"}
+                              </span>
+                            </p>
+                          </div>
+
+                          {plan.features && plan.features.length > 0 && (
+                            <ul className="space-y-2 mb-4">
+                              {plan.features
+                                .slice(0, 3)
+                                .map((feature, index) => (
+                                  <li
+                                    key={index}
+                                    className="text-sm text-gray-400 flex items-center"
+                                  >
+                                    <svg
+                                      className="w-4 h-4 mr-2 text-green-500"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M5 13l4 4L19 7"
+                                      />
+                                    </svg>
+                                    {feature}
+                                  </li>
+                                ))}
+                              {plan.features.length > 3 && (
+                                <li className="text-sm text-gray-500 ml-6">
+                                  +{plan.features.length - 3} more
+                                </li>
+                              )}
+                            </ul>
+                          )}
+
+                          <div className="flex justify-between items-center pt-4 border-t border-gray-700">
+                            <span className="text-sm text-gray-400">
+                              {plan.stats?.active_members || 0} active member
+                              {plan.stats?.active_members !== 1 ? "s" : ""}
+                            </span>
+                            <span
+                              className={`text-sm ${plan.is_active ? "text-green-400" : "text-gray-500"}`}
+                            >
+                              {plan.is_active ? "● Active" : "● Inactive"}
+                            </span>
                           </div>
                         </div>
-                      </div>
-
-                      <p className="text-gray-400 text-sm mb-4">
-                        {plan.description}
-                      </p>
-
-                      <div className="mb-4">
-                        <p className="text-3xl font-bold">
-                          {formatBritishCurrency(plan.price_pennies, true)}
-                          <span className="text-sm text-gray-400 font-normal">
-                            /
-                            {plan.billing_period === "monthly"
-                              ? "month"
-                              : plan.billing_period === "yearly"
-                                ? "year"
-                                : "one-time"}
-                          </span>
-                        </p>
-                      </div>
-
-                      {plan.features && plan.features.length > 0 && (
-                        <ul className="space-y-2 mb-4">
-                          {plan.features.slice(0, 3).map((feature, index) => (
-                            <li
-                              key={index}
-                              className="text-sm text-gray-400 flex items-center"
-                            >
-                              <svg
-                                className="w-4 h-4 mr-2 text-green-500"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M5 13l4 4L19 7"
-                                />
-                              </svg>
-                              {feature}
-                            </li>
-                          ))}
-                          {plan.features.length > 3 && (
-                            <li className="text-sm text-gray-500 ml-6">
-                              +{plan.features.length - 3} more
-                            </li>
-                          )}
-                        </ul>
-                      )}
-
-                      <div className="flex justify-between items-center pt-4 border-t border-gray-700">
-                        <span className="text-sm text-gray-400">
-                          {plan.stats?.active_members || 0} active member{plan.stats?.active_members !== 1 ? 's' : ''}
-                        </span>
-                        <span
-                          className={`text-sm ${plan.is_active ? "text-green-400" : "text-gray-500"}`}
-                        >
-                          {plan.is_active ? "● Active" : "● Inactive"}
-                        </span>
-                      </div>
-                    </div>
                       );
                     })}
                 </div>
@@ -645,9 +705,124 @@ export default function MembershipsPage() {
 
           {activeTab === "active" && (
             <div className="bg-gray-800 rounded-lg p-6">
-              <p className="text-gray-400">
-                Active members list will be displayed here...
-              </p>
+              {loadingMembers ? (
+                <div className="text-center py-12">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+                  <p className="text-gray-400 mt-4">
+                    Loading active members...
+                  </p>
+                </div>
+              ) : activeMembers.length === 0 ? (
+                <div className="text-center py-12">
+                  <Users className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-400">No active members found</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-700">
+                        <th className="text-left py-3 px-4 text-gray-300 font-medium">
+                          Member
+                        </th>
+                        <th className="text-left py-3 px-4 text-gray-300 font-medium">
+                          Membership Plan
+                        </th>
+                        <th className="text-left py-3 px-4 text-gray-300 font-medium">
+                          Status
+                        </th>
+                        <th className="text-left py-3 px-4 text-gray-300 font-medium">
+                          Start Date
+                        </th>
+                        <th className="text-left py-3 px-4 text-gray-300 font-medium">
+                          Next Billing
+                        </th>
+                        <th className="text-left py-3 px-4 text-gray-300 font-medium">
+                          Amount
+                        </th>
+                        <th className="text-right py-3 px-4 text-gray-300 font-medium">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeMembers.map((member) => (
+                        <tr
+                          key={member.id}
+                          className="border-b border-gray-700 hover:bg-gray-750"
+                        >
+                          <td className="py-4 px-4">
+                            <div>
+                              <p className="text-white font-medium">
+                                {member.first_name} {member.last_name}
+                              </p>
+                              <p className="text-sm text-gray-400">
+                                {member.email}
+                              </p>
+                            </div>
+                          </td>
+                          <td className="py-4 px-4">
+                            <div>
+                              <p className="text-white">{member.plan_name}</p>
+                              {member.category_name && (
+                                <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded-full bg-blue-900 text-blue-200">
+                                  {member.category_name}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-4 px-4">
+                            <span
+                              className={`inline-block px-3 py-1 rounded-full text-sm ${
+                                member.membership_status === "active"
+                                  ? "bg-green-900 text-green-200"
+                                  : member.membership_status === "paused"
+                                    ? "bg-yellow-900 text-yellow-200"
+                                    : "bg-gray-700 text-gray-300"
+                              }`}
+                            >
+                              {member.membership_status === "active"
+                                ? "Active"
+                                : member.membership_status === "paused"
+                                  ? "Paused"
+                                  : member.membership_status || "Unknown"}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4 text-gray-300">
+                            {member.start_date
+                              ? formatBritishDate(member.start_date)
+                              : "-"}
+                          </td>
+                          <td className="py-4 px-4 text-gray-300">
+                            {member.next_billing_date
+                              ? formatBritishDate(member.next_billing_date)
+                              : "-"}
+                          </td>
+                          <td className="py-4 px-4 text-gray-300">
+                            {member.price_pennies
+                              ? formatBritishCurrency(member.price_pennies)
+                              : "-"}
+                          </td>
+                          <td className="py-4 px-4 text-right">
+                            <button
+                              onClick={() =>
+                                router.push(`/members/${member.client_id}`)
+                              }
+                              className="text-blue-400 hover:text-blue-300 text-sm"
+                            >
+                              View Profile
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className="mt-4 text-sm text-gray-400">
+                    Showing {activeMembers.length} active member
+                    {activeMembers.length !== 1 ? "s" : ""}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
