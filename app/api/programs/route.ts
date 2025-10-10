@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 
 async function getPrograms(request: NextRequest) {
   const userWithOrg = await requireAuth();
-  const supabase = await createClient();
+  const supabase = createAdminClient(); // Use admin client to bypass RLS
 
   console.log("[Programs API] User organization:", userWithOrg.organizationId);
 
@@ -98,7 +98,7 @@ async function getPrograms(request: NextRequest) {
 
 async function createProgram(request: NextRequest) {
   const userWithOrg = await requireAuth();
-  const supabase = await createClient();
+  const supabase = createAdminClient(); // Use admin client to bypass RLS
   const body = await request.json();
 
   // Validate required fields
