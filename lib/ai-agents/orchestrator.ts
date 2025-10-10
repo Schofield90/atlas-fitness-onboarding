@@ -411,6 +411,7 @@ ${agent.system_prompt}`;
       });
 
       console.log('[Orchestrator OpenAI] Response has tool calls?', !!result.toolCalls, result.toolCalls?.length || 0);
+      console.log('[Orchestrator OpenAI] Response content:', result.message?.content?.substring(0, 200));
 
       // Accumulate costs
       totalCost = {
@@ -449,10 +450,13 @@ ${agent.system_prompt}`;
       });
 
       // Execute each tool and add results
+      console.log(`[Orchestrator OpenAI] Executing ${result.toolCalls.length} tool calls...`);
       for (const toolCall of result.toolCalls) {
         try {
           const toolName = toolCall.function.name;
           const toolArgs = JSON.parse(toolCall.function.arguments || "{}");
+
+          console.log(`[Orchestrator OpenAI] Executing tool: ${toolName} with args:`, toolArgs);
 
           // Execute tool via registry
           const toolResult = await this.toolRegistry.executeTool(
@@ -464,6 +468,8 @@ ${agent.system_prompt}`;
               userId: "system", // Tool calls are system-initiated
             }
           );
+
+          console.log(`[Orchestrator OpenAI] Tool ${toolName} result:`, toolResult.success ? 'SUCCESS' : 'FAILED', toolResult.error || '');
 
           // Add tool result message
           messages.push({
