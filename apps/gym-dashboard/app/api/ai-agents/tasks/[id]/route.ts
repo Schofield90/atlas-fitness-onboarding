@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/app/lib/api/auth-check";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 import { z } from "zod";
-import parseExpression from "cron-parser";
+import { parseExpression } from "cron-parser";
 
 // Validation schema
 const updateTaskSchema = z.object({
@@ -112,7 +112,7 @@ export async function PUT(
     }
 
     // Handle cron expression update
-    if (validatedData.schedule_cron !== undefined) {
+    if (validatedData.schedule_cron !== undefined && validatedData.schedule_cron !== null && validatedData.schedule_cron.trim() !== "") {
       if (existingTask.task_type !== "scheduled") {
         return NextResponse.json(
           {
