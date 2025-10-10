@@ -290,3 +290,10 @@ Note: Code was already updated in commit 131c008c, forcing rebuild to clear CDN 
 
 Reason: Fix AI prompt generation - revert to GPT-4o-mini (GPT-5 not released yet)
 Error: 500 Internal Server Error when generating prompts with gpt-5-mini model
+
+# Deployment Trigger - Fri 10 Oct 2025 19:20:00 BST
+
+Reason: Fix landing pages AI builder RLS policy violation
+Fix: Use admin client in /api/landing-pages/ai-build after authentication
+Migration: 20251010_add_landing_pages_rls.sql (5 policies added)
+Issue: Users unable to generate landing pages (RLS error)
