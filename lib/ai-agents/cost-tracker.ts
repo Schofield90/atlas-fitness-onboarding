@@ -61,10 +61,26 @@ const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
  * Updated October 2025: Latest model versions
  */
 const DEFAULT_PRICING: Record<string, ModelPricing> = {
+  'gpt-5': {
+    id: 'gpt-5',
+    provider: 'openai',
+    name: 'GPT-5 (Latest)',
+    costPer1kInputTokens: 0.0030,
+    costPer1kOutputTokens: 0.0120,
+    contextWindow: 200000
+  },
+  'gpt-5-mini': {
+    id: 'gpt-5-mini',
+    provider: 'openai',
+    name: 'GPT-5 Mini',
+    costPer1kInputTokens: 0.0002,
+    costPer1kOutputTokens: 0.0008,
+    contextWindow: 200000
+  },
   'gpt-4o': {
     id: 'gpt-4o',
     provider: 'openai',
-    name: 'GPT-4o (Latest)',
+    name: 'GPT-4o (Legacy)',
     costPer1kInputTokens: 0.0025,
     costPer1kOutputTokens: 0.0100,
     contextWindow: 128000
@@ -72,7 +88,7 @@ const DEFAULT_PRICING: Record<string, ModelPricing> = {
   'gpt-4o-mini': {
     id: 'gpt-4o-mini',
     provider: 'openai',
-    name: 'GPT-4o Mini',
+    name: 'GPT-4o Mini (Legacy)',
     costPer1kInputTokens: 0.000150,
     costPer1kOutputTokens: 0.000600,
     contextWindow: 128000
