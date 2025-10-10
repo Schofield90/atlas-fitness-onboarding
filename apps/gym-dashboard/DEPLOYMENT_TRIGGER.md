@@ -317,3 +317,10 @@ Files: /app/api/landing-pages/ai-build/route.ts (line 96)
 Reason: Fix API validation - update POST /api/ai-agents to accept new model names
 Fix: Updated createAgentSchema enum (lines 11-16) to match frontend dropdown
 Error: 400 Bad Request when creating agents with new models
+
+# Deployment Trigger - Fri 10 Oct 2025 20:55:00 BST
+
+Reason: Fix GPT-5 chat execution - update OpenAI provider to use max_completion_tokens
+Fix: GPT-5 models require max_completion_tokens instead of max_tokens parameter
+Error: "400 Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."
+Files: /lib/ai-agents/providers/openai-provider.ts (lines 78-90, 151-164, 200-203)
