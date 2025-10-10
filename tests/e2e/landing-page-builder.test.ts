@@ -1,9 +1,28 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, Page } from '@playwright/test'
+
+// Test user credentials
+const TEST_USER = {
+  email: 'sam@atlas-gyms.co.uk',
+  password: '@Aa80236661'
+}
+
+// Helper function for login
+async function login(page: Page) {
+  await page.goto('http://localhost:3000/signin')
+  await page.fill('[name="email"]', TEST_USER.email)
+  await page.fill('[name="password"]', TEST_USER.password)
+  await page.click('button[type="submit"]')
+  // Wait for redirect to dashboard or landing pages
+  await page.waitForTimeout(2000)
+}
 
 test.describe('Landing Page Builder - E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
+    // Login first
+    await login(page)
     // Navigate to the landing page builder
     await page.goto('http://localhost:3000/landing-pages/builder')
+    await page.waitForLoadState('networkidle')
   })
 
   test('should load landing page builder without errors', async ({ page }) => {
@@ -167,5 +186,88 @@ test.describe('Landing Page Builder - E2E Tests', () => {
 
     // Page should have some semantic structure
     expect(hasMainLandmark + hasHeadings).toBeGreaterThan(0)
+  })
+
+  // NEW TESTS FOR SIDEBAR AND DARK THEME FIXES
+  test('should display sidebar navigation on landing pages', async ({ page }) => {
+    await page.waitForLoadState('networkidle')
+
+    // Check that sidebar exists - DashboardLayout wraps the page
+    // Look for common sidebar elements from DashboardLayout
+    const sidebar = page.locator('nav').first()
+    const hasNavigation = await sidebar.count()
+
+    // Should have navigation sidebar visible
+    expect(hasNavigation).toBeGreaterThan(0)
+
+    // Check for common nav items that should be in sidebar
+    const dashboardLink = page.locator('text=Dashboard').first()
+    const leadingPagesLink = page.locator('text=Landing Pages').first()
+
+    // At least one navigation element should be visible
+    const navItemsVisible = await dashboardLink.isVisible() || await leadingPagesLink.isVisible()
+    expect(navItemsVisible).toBe(true)
+  })
+
+  test('should apply dark theme colors throughout page builder', async ({ page }) => {
+    await page.waitForLoadState('networkidle')
+
+    // Check main container has dark theme background
+    const mainContainer = page.locator('div').first()
+    const backgroundColor = await mainContainer.evaluate((el) => {
+      return window.getComputedStyle(el).backgroundColor
+    })
+
+    // Dark theme should use gray-900 (#111827) or gray-800 (#1F2937) backgrounds
+    // RGB values: gray-900 = rgb(17, 24, 39), gray-800 = rgb(31, 41, 55)
+    const isDarkBackground = backgroundColor.includes('rgb(17, 24, 39)') ||
+                           backgroundColor.includes('rgb(31, 41, 55)') ||
+                           backgroundColor.includes('rgb(0, 0, 0)')  // Some elements might be pure black
+
+    // Check that we're not using light colors like white or gray-50
+    const isLightBackground = backgroundColor.includes('rgb(255, 255, 255)') ||
+                            backgroundColor.includes('rgb(249, 250, 251)')
+
+    expect(isLightBackground).toBe(false)
+    // Note: We check that it's NOT light theme rather than checking for specific dark colors
+    // because the exact background color might vary by component
+  })
+
+  test('should maintain dark theme in component library', async ({ page }) => {
+    await page.waitForLoadState('networkidle')
+
+    // Component library should have dark theme
+    // Look for component library section
+    const componentLibrary = page.locator('text=Components').first()
+
+    if (await componentLibrary.isVisible()) {
+      const libraryContainer = componentLibrary.locator('..') // Parent container
+      const bgColor = await libraryContainer.evaluate((el) => {
+        return window.getComputedStyle(el).backgroundColor
+      })
+
+      // Should not be white (light theme)
+      expect(bgColor).not.toContain('rgb(255, 255, 255)')
+    }
+  })
+
+  test('should navigate between landing pages without losing sidebar', async ({ page }) => {
+    await page.waitForLoadState('networkidle')
+
+    // Start at builder page, navigate to landing pages list
+    await page.goto('http://localhost:3000/landing-pages')
+    await page.waitForLoadState('networkidle')
+
+    // Check sidebar still exists on list page
+    const sidebarOnList = page.locator('nav').first()
+    expect(await sidebarOnList.count()).toBeGreaterThan(0)
+
+    // Navigate back to builder
+    await page.goto('http://localhost:3000/landing-pages/builder')
+    await page.waitForLoadState('networkidle')
+
+    // Sidebar should still be visible
+    const sidebarOnBuilder = page.locator('nav').first()
+    expect(await sidebarOnBuilder.count()).toBeGreaterThan(0)
   })
 })

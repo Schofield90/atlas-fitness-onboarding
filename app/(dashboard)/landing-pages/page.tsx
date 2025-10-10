@@ -1,107 +1,118 @@
-'use client'
+"use client";
 
-import { Suspense, useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { Plus, Eye, Edit, Trash2, Copy, ExternalLink, MoreVertical, Wand2 } from 'lucide-react'
-import { AITemplateImport } from '@/app/components/landing-builder/AITemplateImport'
-import DashboardLayout from '@/app/components/DashboardLayout'
+import { Suspense, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import {
+  Plus,
+  Eye,
+  Edit,
+  Trash2,
+  Copy,
+  ExternalLink,
+  MoreVertical,
+  Wand2,
+} from "lucide-react";
+import { AITemplateImport } from "@/app/components/landing-builder/AITemplateImport";
+import DashboardLayout from "@/app/components/DashboardLayout";
 
 interface LandingPage {
-  id: string
-  name: string
-  slug: string
-  title: string
-  description: string
-  status: 'draft' | 'published' | 'archived'
-  views_count: number
-  conversions_count: number
-  conversion_rate: number
-  published_at: string | null
-  created_at: string
-  updated_at: string
+  id: string;
+  name: string;
+  slug: string;
+  title: string;
+  description: string;
+  status: "draft" | "published" | "archived";
+  views_count: number;
+  conversions_count: number;
+  conversion_rate: number;
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 function LandingPagesContent() {
-  const [pages, setPages] = useState<LandingPage[]>([])
-  const [loading, setLoading] = useState(true)
-  const [showAIImport, setShowAIImport] = useState(false)
-  const router = useRouter()
+  const [pages, setPages] = useState<LandingPage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAIImport, setShowAIImport] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
-    fetchPages()
-  }, [])
+    fetchPages();
+  }, []);
 
   const fetchPages = async () => {
     try {
-      const response = await fetch('/api/landing-pages')
-      if (!response.ok) throw new Error('Failed to fetch pages')
-      const { data } = await response.json()
-      setPages(data || [])
+      const response = await fetch("/api/landing-pages");
+      if (!response.ok) throw new Error("Failed to fetch pages");
+      const { data } = await response.json();
+      setPages(data || []);
     } catch (error) {
-      console.error('Error fetching pages:', error)
+      console.error("Error fetching pages:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this landing page?')) return
-    
+    if (!confirm("Are you sure you want to delete this landing page?")) return;
+
     try {
       const response = await fetch(`/api/landing-pages/${id}`, {
-        method: 'DELETE'
-      })
-      if (!response.ok) throw new Error('Failed to delete page')
-      fetchPages()
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to delete page");
+      fetchPages();
     } catch (error) {
-      console.error('Error deleting page:', error)
+      console.error("Error deleting page:", error);
     }
-  }
+  };
 
   const handlePublish = async (id: string) => {
     try {
       const response = await fetch(`/api/landing-pages/${id}/publish`, {
-        method: 'POST'
-      })
-      if (!response.ok) throw new Error('Failed to publish page')
-      fetchPages()
+        method: "POST",
+      });
+      if (!response.ok) throw new Error("Failed to publish page");
+      fetchPages();
     } catch (error) {
-      console.error('Error publishing page:', error)
+      console.error("Error publishing page:", error);
     }
-  }
+  };
 
   const handleUnpublish = async (id: string) => {
     try {
       const response = await fetch(`/api/landing-pages/${id}/publish`, {
-        method: 'DELETE'
-      })
-      if (!response.ok) throw new Error('Failed to unpublish page')
-      fetchPages()
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to unpublish page");
+      fetchPages();
     } catch (error) {
-      console.error('Error unpublishing page:', error)
+      console.error("Error unpublishing page:", error);
     }
-  }
+  };
 
   const getStatusBadge = (status: string) => {
     const styles = {
-      draft: 'bg-gray-700 text-gray-300',
-      published: 'bg-green-900 text-green-300',
-      archived: 'bg-red-900 text-red-300'
-    }
+      draft: "bg-gray-700 text-gray-300",
+      published: "bg-green-900 text-green-300",
+      archived: "bg-red-900 text-red-300",
+    };
     return (
-      <span className={`px-2 py-1 text-xs font-medium rounded-full ${styles[status as keyof typeof styles]}`}>
+      <span
+        className={`px-2 py-1 text-xs font-medium rounded-full ${styles[status as keyof typeof styles]}`}
+      >
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </span>
-    )
-  }
+    );
+  };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
-    )
+    );
   }
 
   return (
@@ -109,7 +120,9 @@ function LandingPagesContent() {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-white">Landing Pages</h1>
-          <p className="text-gray-400 mt-1">Create and manage your landing pages</p>
+          <p className="text-gray-400 mt-1">
+            Create and manage your landing pages
+          </p>
         </div>
         <div className="flex gap-2">
           <button
@@ -131,10 +144,10 @@ function LandingPagesContent() {
 
       {showAIImport && (
         <div className="mb-8">
-          <AITemplateImport 
+          <AITemplateImport
             onImportComplete={(id) => {
-              setShowAIImport(false)
-              router.push(`/landing-pages/builder/${id}`)
+              setShowAIImport(false);
+              router.push(`/landing-pages/builder/${id}`);
             }}
           />
         </div>
@@ -145,8 +158,12 @@ function LandingPagesContent() {
           <div className="w-20 h-20 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
             <Copy className="w-10 h-10 text-gray-500" />
           </div>
-          <h3 className="text-lg font-medium text-white mb-2">No landing pages yet</h3>
-          <p className="text-gray-400 mb-6">Create your first landing page to get started</p>
+          <h3 className="text-lg font-medium text-white mb-2">
+            No landing pages yet
+          </h3>
+          <p className="text-gray-400 mb-6">
+            Create your first landing page to get started
+          </p>
           <Link
             href="/landing-pages/builder"
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 inline-flex items-center gap-2"
@@ -158,7 +175,10 @@ function LandingPagesContent() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {pages.map((page) => (
-            <div key={page.id} className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden hover:border-gray-600 transition-colors">
+            <div
+              key={page.id}
+              className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden hover:border-gray-600 transition-colors"
+            >
               {/* Page Preview */}
               <div className="h-48 bg-gradient-to-br from-gray-700 to-gray-800 relative">
                 <div className="absolute inset-0 flex items-center justify-center">
@@ -168,14 +188,14 @@ function LandingPagesContent() {
                   {getStatusBadge(page.status)}
                 </div>
               </div>
-              
+
               {/* Page Info */}
               <div className="p-4">
                 <h3 className="font-semibold text-white mb-1">{page.name}</h3>
                 <p className="text-sm text-gray-400 mb-3 line-clamp-2">
-                  {page.description || 'No description'}
+                  {page.description || "No description"}
                 </p>
-                
+
                 {/* Stats */}
                 <div className="flex items-center justify-between text-sm text-gray-400 mb-3">
                   <span className="flex items-center gap-1">
@@ -184,7 +204,7 @@ function LandingPagesContent() {
                   </span>
                   <span>{page.conversion_rate || 0}% conversion</span>
                 </div>
-                
+
                 {/* Actions */}
                 <div className="flex items-center gap-2">
                   <Link
@@ -193,8 +213,8 @@ function LandingPagesContent() {
                   >
                     Edit
                   </Link>
-                  
-                  {page.status === 'published' ? (
+
+                  {page.status === "published" ? (
                     <>
                       <a
                         href={`/l/${page.slug}`}
@@ -220,7 +240,7 @@ function LandingPagesContent() {
                       Publish
                     </button>
                   )}
-                  
+
                   <button
                     onClick={() => handleDelete(page.id)}
                     className="p-1.5 text-red-500 hover:bg-red-900/20 rounded transition-colors"
@@ -234,7 +254,7 @@ function LandingPagesContent() {
         </div>
       )}
     </div>
-  )
+  );
 }
 
 export default function LandingPagesPage() {
@@ -250,5 +270,5 @@ export default function LandingPagesPage() {
         <LandingPagesContent />
       </Suspense>
     </DashboardLayout>
-  )
+  );
 }
