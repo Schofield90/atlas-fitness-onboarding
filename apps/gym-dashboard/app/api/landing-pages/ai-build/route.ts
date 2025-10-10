@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
   if (!description || description.trim().length < 10) {
     return NextResponse.json(
       { error: "Please provide a description (at least 10 characters)" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
   const { createAdminClient } = await import("@/app/lib/supabase/server");
   const supabase = createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
   try {
@@ -153,7 +153,7 @@ Return ONLY valid JSON, no additional text or markdown.`;
       {
         error: error.message || "Failed to generate landing page",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

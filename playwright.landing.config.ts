@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: 'tests',
-  testMatch: ['tests/e2e/landing_builder_components.spec.ts'],
+  testMatch: ['tests/e2e/landing-pages-ai-builder.spec.ts'],
   fullyParallel: false,
   retries: 0,
   workers: 1,

@@ -38,20 +38,13 @@ const getMonthPresets = (): DatePreset[] => {
 
   for (let i = 0; i < 7; i++) {
     const monthDate = new Date(now.getFullYear(), now.getMonth() + i, 1);
-    const monthName = monthDate.toLocaleDateString("en-US", {
-      month: "long",
-      year: "numeric",
-    });
+    const monthName = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
     presets.push({
       label: monthName,
       getValue: () => {
         const from = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
-        const to = new Date(
-          monthDate.getFullYear(),
-          monthDate.getMonth() + 1,
-          0,
-        ); // Last day of month
+        const to = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0); // Last day of month
         to.setHours(23, 59, 59, 999);
         return { from, to };
       },

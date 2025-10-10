@@ -276,3 +276,7 @@ Deployment trigger: Fri 10 Oct 2025 18:41:34 BST
 # Deployment Trigger - Fri 10 Oct 2025 00:15:00 BST
 
 Reason: Update AI agent model dropdown to GPT-5 and Claude Sonnet 4.5
+
+# Deployment Trigger - Fri 10 Oct 2025 00:30:00 BST
+
+Reason: Add month selector to upcoming billing report (Oct-Apr 2026)
