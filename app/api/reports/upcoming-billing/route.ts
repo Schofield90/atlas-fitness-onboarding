@@ -194,6 +194,42 @@ export async function GET(request: NextRequest) {
         Math.round(summary.next_week_amount_cents) / 100;
     }
 
+    // Calculate monthly breakdown for chart
+    const monthlyBreakdown: Record<
+      string,
+      { month: string; amount: number; count: number }
+    > = {};
+
+    if (summaryData) {
+      summaryData.forEach((item) => {
+        const dueDate = new Date(item.due_at);
+        const monthKey = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, "0")}`;
+        const monthLabel = dueDate.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+        });
+
+        if (!monthlyBreakdown[monthKey]) {
+          monthlyBreakdown[monthKey] = {
+            month: monthLabel,
+            amount: 0,
+            count: 0,
+          };
+        }
+
+        if (item.status !== "paused") {
+          monthlyBreakdown[monthKey].amount +=
+            Math.round(item.amount_cents || 0) / 100;
+          monthlyBreakdown[monthKey].count += 1;
+        }
+      });
+    }
+
+    // Sort monthly breakdown by date
+    const sortedMonthlyData = Object.entries(monthlyBreakdown)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([_, data]) => data);
+
     return NextResponse.json({
       success: true,
       data: {
@@ -205,6 +241,7 @@ export async function GET(request: NextRequest) {
           total_pages: Math.ceil((count || 0) / pageSize),
         },
         summary,
+        monthly_breakdown: sortedMonthlyData,
       },
     });
   } catch (error: any) {

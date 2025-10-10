@@ -94,6 +94,13 @@ export async function GET(request: NextRequest) {
             href: "/reports/monthly-turnover",
             enabled: true,
           },
+          {
+            name: "Upcoming Billing",
+            description:
+              "Projected income from upcoming membership renewals with monthly breakdown and cash flow forecasting",
+            href: "/reports/upcoming-billing",
+            enabled: true,
+          },
         ],
       },
     ];
