@@ -209,11 +209,29 @@ ${agent.system_prompt}`;
       // 4. Get allowed tools for agent
       const allowedTools = agent.allowed_tools || [];
       console.log('[Orchestrator] Agent allowed_tools:', allowedTools);
-      console.log('[Orchestrator] All registered tools:', this.toolRegistry.getAllTools().map(t => t.id));
+
+      const allRegisteredTools = this.toolRegistry.getAllTools();
+      console.log('[Orchestrator] All registered tools:', allRegisteredTools.length, 'total');
+      console.log('[Orchestrator] Registered tool IDs:', allRegisteredTools.map(t => t.id).join(', '));
+
       const tools = agent.model.startsWith('gpt-')
         ? this.toolRegistry.getToolsForOpenAI(allowedTools)
         : this.toolRegistry.getToolsForAnthropic(allowedTools);
       console.log('[Orchestrator] Converted tools for AI:', tools.length, 'tools');
+
+      // Log to database for debugging (temporary)
+      await this.supabase.from('ai_agent_activity_log').insert({
+        agent_id: agent.id,
+        organization_id: organizationId,
+        action_type: 'tool_registry_debug',
+        metadata: {
+          allowed_tools: allowedTools,
+          registered_tools_count: allRegisteredTools.length,
+          registered_tool_ids: allRegisteredTools.map(t => t.id),
+          converted_tools_count: tools.length,
+          model: agent.model
+        }
+      });
 
       // 5. Execute with appropriate provider
       const executionResult = await this.executeConversation(
