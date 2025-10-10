@@ -285,3 +285,8 @@ Reason: Add month selector to upcoming billing report (Oct-Apr 2026)
 
 Reason: Force cache refresh for AI agent model dropdown (GPT-5, Claude Sonnet 4.5)
 Note: Code was already updated in commit 131c008c, forcing rebuild to clear CDN cache
+
+# Deployment Trigger - Fri 10 Oct 2025 19:10:00 BST
+
+Reason: Fix AI prompt generation - revert to GPT-4o-mini (GPT-5 not released yet)
+Error: 500 Internal Server Error when generating prompts with gpt-5-mini model

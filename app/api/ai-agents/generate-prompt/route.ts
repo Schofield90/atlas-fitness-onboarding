@@ -33,9 +33,9 @@ export async function POST(request: NextRequest) {
       apiKey: process.env.OPENAI_API_KEY,
     });
 
-    // Generate detailed system prompt using GPT-5
+    // Generate detailed system prompt using GPT-4o-mini
     const completion = await openai.chat.completions.create({
-      model: "gpt-5-mini",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
