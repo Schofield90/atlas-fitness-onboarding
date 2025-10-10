@@ -5,8 +5,8 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
-import TextStyle from "@tiptap/extension-text-style";
-import Color from "@tiptap/extension-color";
+import { Color } from "@tiptap/extension-color";
+import { TextStyle } from "@tiptap/extension-text-style";
 import {
   Bold,
   Italic,
@@ -14,9 +14,9 @@ import {
   Heading1,
   Heading2,
   Heading3,
-  Palette,
   Sparkles,
 } from "lucide-react";
+import { StyleControls } from "./StyleControls";
 
 interface InlineTextEditorProps {
   content: string;
@@ -80,11 +80,9 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
     }
   };
 
-  const setColor = () => {
-    const color = window.prompt("Enter color (hex):");
-    if (color) {
-      editor.chain().focus().setColor(color).run();
-    }
+  // Get current text color from editor
+  const getCurrentColor = () => {
+    return editor.getAttributes("textStyle").color || "#374151";
   };
 
   return (
@@ -163,13 +161,17 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
               <LinkIcon className="w-4 h-4" />
             </button>
 
-            <button
-              onClick={setColor}
-              className="p-2 rounded hover:bg-gray-700 transition-colors"
-              title="Text Color"
-            >
-              <Palette className="w-4 h-4" />
-            </button>
+            <div className="w-px h-6 bg-gray-600" />
+
+            {/* Style Controls */}
+            <StyleControls
+              currentColor={getCurrentColor()}
+              onColorChange={(color) => {
+                editor.chain().focus().setColor(color).run();
+              }}
+              position="floating"
+              className="flex items-center gap-1"
+            />
 
             {onAIRewrite && (
               <>
