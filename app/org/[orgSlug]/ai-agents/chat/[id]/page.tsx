@@ -735,54 +735,19 @@ function TaskFormModal({
             </p>
           </div>
 
-          {/* Cron Schedule (only for scheduled tasks) */}
+          {/* Schedule Configuration (only for scheduled tasks) */}
           {formData.task_type === "scheduled" && (
-            <>
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Cron Expression <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required={formData.task_type === "scheduled"}
-                  value={formData.schedule_cron}
-                  onChange={(e) =>
-                    setFormData({ ...formData, schedule_cron: e.target.value })
-                  }
-                  className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
-                  placeholder="0 9 * * 1"
-                />
-                <p className="text-xs text-gray-400 mt-1">
-                  Examples: <code>0 9 * * 1</code> (Every Monday at 9am),{" "}
-                  <code>0 */6 * * *</code> (Every 6 hours)
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Timezone
-                </label>
-                <select
-                  value={formData.schedule_timezone}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      schedule_timezone: e.target.value,
-                    })
-                  }
-                  className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
-                >
-                  <option value="UTC">UTC</option>
-                  <option value="America/New_York">Eastern Time</option>
-                  <option value="America/Chicago">Central Time</option>
-                  <option value="America/Denver">Mountain Time</option>
-                  <option value="America/Los_Angeles">Pacific Time</option>
-                  <option value="Europe/London">London</option>
-                  <option value="Europe/Paris">Paris</option>
-                  <option value="Asia/Tokyo">Tokyo</option>
-                </select>
-              </div>
-            </>
+            <SchedulePicker
+              value={formData.schedule_cron}
+              timezone={formData.schedule_timezone}
+              onChange={(cron, timezone) =>
+                setFormData({
+                  ...formData,
+                  schedule_cron: cron,
+                  schedule_timezone: timezone,
+                })
+              }
+            />
           )}
 
           {/* Priority */}
@@ -825,6 +790,216 @@ function TaskFormModal({
           </div>
         </form>
       </div>
+    </div>
+  );
+}
+
+// Schedule Picker Component
+interface SchedulePickerProps {
+  value: string;
+  timezone: string;
+  onChange: (cron: string, timezone: string) => void;
+}
+
+function SchedulePicker({ value, timezone, onChange }: SchedulePickerProps) {
+  const [frequency, setFrequency] = useState<"daily" | "weekly" | "custom">(
+    "weekly",
+  );
+  const [time, setTime] = useState("09:00");
+  const [selectedDays, setSelectedDays] = useState<number[]>([1]); // Default to Monday
+
+  const daysOfWeek = [
+    { label: "SUN", value: 0 },
+    { label: "MON", value: 1 },
+    { label: "TUE", value: 2 },
+    { label: "WED", value: 3 },
+    { label: "THU", value: 4 },
+    { label: "FRI", value: 5 },
+    { label: "SAT", value: 6 },
+  ];
+
+  // Parse existing cron to initialize state
+  useEffect(() => {
+    if (value) {
+      const parts = value.split(" ");
+      if (parts.length >= 5) {
+        const [minute, hour, , , dayOfWeek] = parts;
+        setTime(`${hour.padStart(2, "0")}:${minute.padStart(2, "0")}`);
+
+        if (dayOfWeek === "*") {
+          setFrequency("daily");
+        } else if (dayOfWeek.includes(",") || /^\d$/.test(dayOfWeek)) {
+          setFrequency("weekly");
+          const days = dayOfWeek.split(",").map((d) => parseInt(d));
+          setSelectedDays(days);
+        } else {
+          setFrequency("custom");
+        }
+      }
+    }
+  }, [value]);
+
+  // Generate cron expression from UI state
+  useEffect(() => {
+    if (frequency === "custom") return; // Don't auto-generate for custom
+
+    const [hour, minute] = time.split(":");
+    let cronExpression = "";
+
+    if (frequency === "daily") {
+      cronExpression = `${minute} ${hour} * * *`;
+    } else if (frequency === "weekly") {
+      const days = selectedDays.sort((a, b) => a - b).join(",");
+      cronExpression = `${minute} ${hour} * * ${days}`;
+    }
+
+    if (cronExpression && cronExpression !== value) {
+      onChange(cronExpression, timezone);
+    }
+  }, [frequency, time, selectedDays, timezone]);
+
+  const toggleDay = (day: number) => {
+    if (selectedDays.includes(day)) {
+      setSelectedDays(selectedDays.filter((d) => d !== day));
+    } else {
+      setSelectedDays([...selectedDays, day]);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Frequency Selector */}
+      <div>
+        <label className="block text-sm font-medium mb-2">
+          Frequency <span className="text-red-500">*</span>
+        </label>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setFrequency("daily")}
+            className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
+              frequency === "daily"
+                ? "bg-orange-600 text-white"
+                : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+            }`}
+          >
+            Daily
+          </button>
+          <button
+            type="button"
+            onClick={() => setFrequency("weekly")}
+            className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
+              frequency === "weekly"
+                ? "bg-orange-600 text-white"
+                : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+            }`}
+          >
+            Weekly
+          </button>
+          <button
+            type="button"
+            onClick={() => setFrequency("custom")}
+            className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
+              frequency === "custom"
+                ? "bg-orange-600 text-white"
+                : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+            }`}
+          >
+            Custom
+          </button>
+        </div>
+      </div>
+
+      {/* Day Selector (only for weekly) */}
+      {frequency === "weekly" && (
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            Days of Week <span className="text-red-500">*</span>
+          </label>
+          <div className="flex gap-2">
+            {daysOfWeek.map((day) => (
+              <button
+                key={day.value}
+                type="button"
+                onClick={() => toggleDay(day.value)}
+                className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  selectedDays.includes(day.value)
+                    ? "bg-orange-600 text-white"
+                    : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                }`}
+              >
+                {day.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-gray-400 mt-1">
+            Select one or more days
+          </p>
+        </div>
+      )}
+
+      {/* Time Picker */}
+      {(frequency === "daily" || frequency === "weekly") && (
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            Time <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="time"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+          />
+        </div>
+      )}
+
+      {/* Custom Cron Expression */}
+      {frequency === "custom" && (
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            Cron Expression <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            required
+            value={value}
+            onChange={(e) => onChange(e.target.value, timezone)}
+            className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
+            placeholder="0 9 * * 1"
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            Examples: <code>0 9 * * 1</code> (Every Monday at 9am),{" "}
+            <code>0 */6 * * *</code> (Every 6 hours)
+          </p>
+        </div>
+      )}
+
+      {/* Timezone Selector */}
+      <div>
+        <label className="block text-sm font-medium mb-2">Timezone</label>
+        <select
+          value={timezone}
+          onChange={(e) => onChange(value, e.target.value)}
+          className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+        >
+          <option value="UTC">UTC</option>
+          <option value="America/New_York">Eastern Time</option>
+          <option value="America/Chicago">Central Time</option>
+          <option value="America/Denver">Mountain Time</option>
+          <option value="America/Los_Angeles">Pacific Time</option>
+          <option value="Europe/London">London</option>
+          <option value="Europe/Paris">Paris</option>
+          <option value="Asia/Tokyo">Tokyo</option>
+        </select>
+      </div>
+
+      {/* Cron Preview */}
+      {value && (
+        <div className="p-3 bg-gray-900 border border-gray-700 rounded-lg">
+          <p className="text-xs text-gray-400 mb-1">Cron Expression:</p>
+          <code className="text-sm text-orange-400">{value}</code>
+        </div>
+      )}
     </div>
   );
 }

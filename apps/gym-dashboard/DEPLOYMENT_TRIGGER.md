@@ -267,3 +267,4 @@ DEPLOY: Debug AI agent tool execution - detailed logging for tool registry - Fri
 DEPLOY: Enhanced AI agent tool execution logging - track OpenAI responses & tool calls - Fri 10 Oct 2025 19:00:00 BST
 Fri 10 Oct 2025 15:11:12 BST: Fixed cron-parser import in AI agent task API routes
 Fri 10 Oct 2025 15:45:55 BST: Fixed edit task validation - allow empty schedule_cron for one-off tasks
+Fri 10 Oct 2025 17:21:26 BST: AI agent task scheduler UI update - added natural language schedule picker

@@ -16,7 +16,7 @@ import {
   CheckCircle2,
   Circle,
   Clock,
-  RepeatIcon
+  RepeatIcon,
 } from "lucide-react";
 
 interface Message {
@@ -38,12 +38,18 @@ interface Task {
   agent_id: string;
   title: string;
   description?: string;
-  task_type: 'adhoc' | 'scheduled' | 'automation';
+  task_type: "adhoc" | "scheduled" | "automation";
   schedule_cron?: string;
   schedule_timezone?: string;
   next_run_at?: string;
   last_run_at?: string;
-  status: 'pending' | 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+  status:
+    | "pending"
+    | "queued"
+    | "running"
+    | "completed"
+    | "failed"
+    | "cancelled";
   priority: number;
   created_at: string;
 }
@@ -64,7 +70,7 @@ export default function AgentChatPage() {
   const [loadingMessages, setLoadingMessages] = useState(false);
 
   // Task management state
-  const [activeTab, setActiveTab] = useState<'chat' | 'tasks'>('chat');
+  const [activeTab, setActiveTab] = useState<"chat" | "tasks">("chat");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
@@ -122,7 +128,9 @@ export default function AgentChatPage() {
   const loadTasks = async () => {
     setLoadingTasks(true);
     try {
-      const response = await fetch(`/api/ai-agents/tasks?agent_id=${agentId}&limit=100`);
+      const response = await fetch(
+        `/api/ai-agents/tasks?agent_id=${agentId}&limit=100`,
+      );
       const result = await response.json();
 
       if (result.success) {
@@ -138,7 +146,9 @@ export default function AgentChatPage() {
   const loadOrCreateConversation = async () => {
     try {
       // First, try to find an existing conversation for this agent
-      const listResponse = await fetch(`/api/ai-agents/conversations?agent_id=${agentId}&limit=1`);
+      const listResponse = await fetch(
+        `/api/ai-agents/conversations?agent_id=${agentId}&limit=1`,
+      );
       const listResult = await listResponse.json();
 
       let convId: string;
@@ -149,11 +159,11 @@ export default function AgentChatPage() {
       } else {
         // Create new conversation
         const createResponse = await fetch(`/api/ai-agents/conversations`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             agent_id: agentId,
-            title: 'Chat with AI Agent',
+            title: "Chat with AI Agent",
           }),
         });
         const createResult = await createResponse.json();
@@ -176,7 +186,9 @@ export default function AgentChatPage() {
   const loadMessages = async (convId: string) => {
     setLoadingMessages(true);
     try {
-      const response = await fetch(`/api/ai-agents/conversations/${convId}/messages?limit=100`);
+      const response = await fetch(
+        `/api/ai-agents/conversations/${convId}/messages?limit=100`,
+      );
       const result = await response.json();
 
       if (result.success) {
@@ -191,11 +203,11 @@ export default function AgentChatPage() {
 
   const handleToggleTaskComplete = async (task: Task) => {
     try {
-      const newStatus = task.status === 'completed' ? 'pending' : 'completed';
+      const newStatus = task.status === "completed" ? "pending" : "completed";
 
       const response = await fetch(`/api/ai-agents/tasks/${task.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
 
@@ -208,11 +220,11 @@ export default function AgentChatPage() {
   };
 
   const handleDeleteTask = async (taskId: string) => {
-    if (!confirm('Are you sure you want to delete this task?')) return;
+    if (!confirm("Are you sure you want to delete this task?")) return;
 
     try {
       const response = await fetch(`/api/ai-agents/tasks/${taskId}`, {
-        method: 'DELETE',
+        method: "DELETE",
       });
 
       if (response.ok) {
@@ -263,11 +275,14 @@ export default function AgentChatPage() {
 
     try {
       // Send message to AI agent via API
-      const response = await fetch(`/api/ai-agents/conversations/${conversationId}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: userMessage }),
-      });
+      const response = await fetch(
+        `/api/ai-agents/conversations/${conversationId}/messages`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: userMessage }),
+        },
+      );
 
       const result = await response.json();
 
@@ -277,12 +292,12 @@ export default function AgentChatPage() {
       } else {
         console.error("Failed to send message:", result.error);
         // Remove optimistic message on error
-        setMessages((prev) => prev.filter(m => m.id !== tempUserMessage.id));
+        setMessages((prev) => prev.filter((m) => m.id !== tempUserMessage.id));
       }
     } catch (error) {
       console.error("Error sending message:", error);
       // Remove optimistic message on error
-      setMessages((prev) => prev.filter(m => m.id !== tempUserMessage.id));
+      setMessages((prev) => prev.filter((m) => m.id !== tempUserMessage.id));
     } finally {
       setSending(false);
     }
@@ -319,7 +334,9 @@ export default function AgentChatPage() {
                   <Bot className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-semibold">{agent?.name || "AI Agent"}</h1>
+                  <h1 className="text-lg font-semibold">
+                    {agent?.name || "AI Agent"}
+                  </h1>
                   <p className="text-sm text-gray-400">{agent?.description}</p>
                 </div>
               </div>
@@ -328,22 +345,22 @@ export default function AgentChatPage() {
             {/* Tab Switcher */}
             <div className="flex gap-2 bg-gray-900 rounded-lg p-1">
               <button
-                onClick={() => setActiveTab('chat')}
+                onClick={() => setActiveTab("chat")}
                 className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
-                  activeTab === 'chat'
-                    ? 'bg-orange-600 text-white'
-                    : 'text-gray-400 hover:text-gray-300'
+                  activeTab === "chat"
+                    ? "bg-orange-600 text-white"
+                    : "text-gray-400 hover:text-gray-300"
                 }`}
               >
                 <MessageSquare className="h-4 w-4" />
                 Chat
               </button>
               <button
-                onClick={() => setActiveTab('tasks')}
+                onClick={() => setActiveTab("tasks")}
                 className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
-                  activeTab === 'tasks'
-                    ? 'bg-orange-600 text-white'
-                    : 'text-gray-400 hover:text-gray-300'
+                  activeTab === "tasks"
+                    ? "bg-orange-600 text-white"
+                    : "text-gray-400 hover:text-gray-300"
                 }`}
               >
                 <ListTodo className="h-4 w-4" />
@@ -359,14 +376,16 @@ export default function AgentChatPage() {
         </div>
 
         {/* Content Area - Chat or Tasks */}
-        {activeTab === 'chat' ? (
+        {activeTab === "chat" ? (
           <>
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               {messages.length === 0 ? (
                 <div className="text-center text-gray-400 mt-8">
                   <Bot className="h-16 w-16 mx-auto mb-4 text-gray-600" />
-                  <p className="text-lg font-semibold mb-2">Start a conversation</p>
+                  <p className="text-lg font-semibold mb-2">
+                    Start a conversation
+                  </p>
                   <p className="text-sm">Ask me anything! I'm here to help.</p>
                 </div>
               ) : (
@@ -390,7 +409,9 @@ export default function AgentChatPage() {
                       <p className="whitespace-pre-wrap">{message.content}</p>
                       <p
                         className={`text-xs mt-2 ${
-                          message.role === "user" ? "text-orange-200" : "text-gray-500"
+                          message.role === "user"
+                            ? "text-orange-200"
+                            : "text-gray-500"
                         }`}
                       >
                         {new Date(message.created_at).toLocaleTimeString()}
@@ -437,7 +458,9 @@ export default function AgentChatPage() {
               <div className="flex justify-between items-center mb-6">
                 <div>
                   <h2 className="text-xl font-semibold">Task List</h2>
-                  <p className="text-sm text-gray-400">Manage recurring and one-off tasks</p>
+                  <p className="text-sm text-gray-400">
+                    Manage recurring and one-off tasks
+                  </p>
                 </div>
                 <button
                   onClick={handleAddTask}
@@ -482,7 +505,7 @@ export default function AgentChatPage() {
                           onClick={() => handleToggleTaskComplete(task)}
                           className="mt-1 flex-shrink-0"
                         >
-                          {task.status === 'completed' ? (
+                          {task.status === "completed" ? (
                             <CheckCircle2 className="h-5 w-5 text-green-500" />
                           ) : (
                             <Circle className="h-5 w-5 text-gray-500 hover:text-orange-500" />
@@ -494,9 +517,9 @@ export default function AgentChatPage() {
                           <div className="flex items-start justify-between gap-2 mb-2">
                             <h3
                               className={`font-semibold ${
-                                task.status === 'completed'
-                                  ? 'line-through text-gray-500'
-                                  : 'text-white'
+                                task.status === "completed"
+                                  ? "line-through text-gray-500"
+                                  : "text-white"
                               }`}
                             >
                               {task.title}
@@ -518,18 +541,21 @@ export default function AgentChatPage() {
                           </div>
 
                           {task.description && (
-                            <p className="text-sm text-gray-400 mb-2">{task.description}</p>
+                            <p className="text-sm text-gray-400 mb-2">
+                              {task.description}
+                            </p>
                           )}
 
                           {/* Task Metadata */}
                           <div className="flex items-center gap-4 text-xs text-gray-500">
-                            {task.task_type === 'scheduled' && task.schedule_cron && (
-                              <div className="flex items-center gap-1">
-                                <RepeatIcon className="h-3 w-3" />
-                                <span>Recurring</span>
-                              </div>
-                            )}
-                            {task.task_type === 'adhoc' && (
+                            {task.task_type === "scheduled" &&
+                              task.schedule_cron && (
+                                <div className="flex items-center gap-1">
+                                  <RepeatIcon className="h-3 w-3" />
+                                  <span>Recurring</span>
+                                </div>
+                              )}
+                            {task.task_type === "adhoc" && (
                               <div className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
                                 <span>One-off</span>
@@ -537,23 +563,25 @@ export default function AgentChatPage() {
                             )}
                             {task.next_run_at && (
                               <span>
-                                Next: {new Date(task.next_run_at).toLocaleString()}
+                                Next:{" "}
+                                {new Date(task.next_run_at).toLocaleString()}
                               </span>
                             )}
                             {task.last_run_at && (
                               <span>
-                                Last: {new Date(task.last_run_at).toLocaleString()}
+                                Last:{" "}
+                                {new Date(task.last_run_at).toLocaleString()}
                               </span>
                             )}
                             <span
                               className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                task.status === 'completed'
-                                  ? 'bg-green-900 text-green-300'
-                                  : task.status === 'running'
-                                  ? 'bg-blue-900 text-blue-300'
-                                  : task.status === 'failed'
-                                  ? 'bg-red-900 text-red-300'
-                                  : 'bg-gray-700 text-gray-300'
+                                task.status === "completed"
+                                  ? "bg-green-900 text-green-300"
+                                  : task.status === "running"
+                                    ? "bg-blue-900 text-blue-300"
+                                    : task.status === "failed"
+                                      ? "bg-red-900 text-red-300"
+                                      : "bg-gray-700 text-gray-300"
                               }`}
                             >
                               {task.status}
@@ -591,14 +619,19 @@ interface TaskFormModalProps {
   onSuccess: () => void;
 }
 
-function TaskFormModal({ agentId, task, onClose, onSuccess }: TaskFormModalProps) {
+function TaskFormModal({
+  agentId,
+  task,
+  onClose,
+  onSuccess,
+}: TaskFormModalProps) {
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    title: task?.title || '',
-    description: task?.description || '',
-    task_type: task?.task_type || 'adhoc',
-    schedule_cron: task?.schedule_cron || '',
-    schedule_timezone: task?.schedule_timezone || 'UTC',
+    title: task?.title || "",
+    description: task?.description || "",
+    task_type: task?.task_type || "adhoc",
+    schedule_cron: task?.schedule_cron || "",
+    schedule_timezone: task?.schedule_timezone || "UTC",
     priority: task?.priority || 0,
   });
 
@@ -609,16 +642,14 @@ function TaskFormModal({ agentId, task, onClose, onSuccess }: TaskFormModalProps
     try {
       const url = task
         ? `/api/ai-agents/tasks/${task.id}`
-        : '/api/ai-agents/tasks';
-      const method = task ? 'PUT' : 'POST';
+        : "/api/ai-agents/tasks";
+      const method = task ? "PUT" : "POST";
 
-      const payload = task
-        ? formData
-        : { ...formData, agent_id: agentId };
+      const payload = task ? formData : { ...formData, agent_id: agentId };
 
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
@@ -626,11 +657,11 @@ function TaskFormModal({ agentId, task, onClose, onSuccess }: TaskFormModalProps
         onSuccess();
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to save task');
+        alert(error.error || "Failed to save task");
       }
     } catch (error) {
-      console.error('Error saving task:', error);
-      alert('Failed to save task');
+      console.error("Error saving task:", error);
+      alert("Failed to save task");
     } finally {
       setSubmitting(false);
     }
@@ -641,7 +672,7 @@ function TaskFormModal({ agentId, task, onClose, onSuccess }: TaskFormModalProps
       <div className="bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-gray-700">
           <h2 className="text-2xl font-bold">
-            {task ? 'Edit Task' : 'Add New Task'}
+            {task ? "Edit Task" : "Add New Task"}
           </h2>
         </div>
 
@@ -655,7 +686,9 @@ function TaskFormModal({ agentId, task, onClose, onSuccess }: TaskFormModalProps
               type="text"
               required
               value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, title: e.target.value })
+              }
               className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
               placeholder="e.g., Send weekly newsletter"
             />
@@ -663,10 +696,14 @@ function TaskFormModal({ agentId, task, onClose, onSuccess }: TaskFormModalProps
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium mb-2">Description</label>
+            <label className="block text-sm font-medium mb-2">
+              Description
+            </label>
             <textarea
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
               rows={3}
               className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
               placeholder="Describe the task..."
@@ -680,57 +717,37 @@ function TaskFormModal({ agentId, task, onClose, onSuccess }: TaskFormModalProps
             </label>
             <select
               value={formData.task_type}
-              onChange={(e) => setFormData({ ...formData, task_type: e.target.value as 'adhoc' | 'scheduled' })}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  task_type: e.target.value as "adhoc" | "scheduled",
+                })
+              }
               className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
             >
               <option value="adhoc">One-off Task</option>
               <option value="scheduled">Recurring Task</option>
             </select>
             <p className="text-xs text-gray-400 mt-1">
-              {formData.task_type === 'adhoc'
-                ? 'Task will run once when triggered'
-                : 'Task will run on a schedule'}
+              {formData.task_type === "adhoc"
+                ? "Task will run once when triggered"
+                : "Task will run on a schedule"}
             </p>
           </div>
 
-          {/* Cron Schedule (only for scheduled tasks) */}
-          {formData.task_type === 'scheduled' && (
-            <>
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Cron Expression <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required={formData.task_type === 'scheduled'}
-                  value={formData.schedule_cron}
-                  onChange={(e) => setFormData({ ...formData, schedule_cron: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
-                  placeholder="0 9 * * 1"
-                />
-                <p className="text-xs text-gray-400 mt-1">
-                  Examples: <code>0 9 * * 1</code> (Every Monday at 9am), <code>0 */6 * * *</code> (Every 6 hours)
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Timezone</label>
-                <select
-                  value={formData.schedule_timezone}
-                  onChange={(e) => setFormData({ ...formData, schedule_timezone: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
-                >
-                  <option value="UTC">UTC</option>
-                  <option value="America/New_York">Eastern Time</option>
-                  <option value="America/Chicago">Central Time</option>
-                  <option value="America/Denver">Mountain Time</option>
-                  <option value="America/Los_Angeles">Pacific Time</option>
-                  <option value="Europe/London">London</option>
-                  <option value="Europe/Paris">Paris</option>
-                  <option value="Asia/Tokyo">Tokyo</option>
-                </select>
-              </div>
-            </>
+          {/* Schedule Configuration (only for scheduled tasks) */}
+          {formData.task_type === "scheduled" && (
+            <SchedulePicker
+              value={formData.schedule_cron}
+              timezone={formData.schedule_timezone}
+              onChange={(cron, timezone) =>
+                setFormData({
+                  ...formData,
+                  schedule_cron: cron,
+                  schedule_timezone: timezone,
+                })
+              }
+            />
           )}
 
           {/* Priority */}
@@ -743,7 +760,9 @@ function TaskFormModal({ agentId, task, onClose, onSuccess }: TaskFormModalProps
               min="0"
               max="10"
               value={formData.priority}
-              onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) })}
+              onChange={(e) =>
+                setFormData({ ...formData, priority: parseInt(e.target.value) })
+              }
               className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
             <p className="text-xs text-gray-400 mt-1">
@@ -766,11 +785,221 @@ function TaskFormModal({ agentId, task, onClose, onSuccess }: TaskFormModalProps
               disabled={submitting}
               className="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors disabled:opacity-50"
             >
-              {submitting ? 'Saving...' : task ? 'Update Task' : 'Create Task'}
+              {submitting ? "Saving..." : task ? "Update Task" : "Create Task"}
             </button>
           </div>
         </form>
       </div>
+    </div>
+  );
+}
+
+// Schedule Picker Component
+interface SchedulePickerProps {
+  value: string;
+  timezone: string;
+  onChange: (cron: string, timezone: string) => void;
+}
+
+function SchedulePicker({ value, timezone, onChange }: SchedulePickerProps) {
+  const [frequency, setFrequency] = useState<"daily" | "weekly" | "custom">(
+    "weekly",
+  );
+  const [time, setTime] = useState("09:00");
+  const [selectedDays, setSelectedDays] = useState<number[]>([1]); // Default to Monday
+
+  const daysOfWeek = [
+    { label: "SUN", value: 0 },
+    { label: "MON", value: 1 },
+    { label: "TUE", value: 2 },
+    { label: "WED", value: 3 },
+    { label: "THU", value: 4 },
+    { label: "FRI", value: 5 },
+    { label: "SAT", value: 6 },
+  ];
+
+  // Parse existing cron to initialize state
+  useEffect(() => {
+    if (value) {
+      const parts = value.split(" ");
+      if (parts.length >= 5) {
+        const [minute, hour, , , dayOfWeek] = parts;
+        setTime(`${hour.padStart(2, "0")}:${minute.padStart(2, "0")}`);
+
+        if (dayOfWeek === "*") {
+          setFrequency("daily");
+        } else if (dayOfWeek.includes(",") || /^\d$/.test(dayOfWeek)) {
+          setFrequency("weekly");
+          const days = dayOfWeek.split(",").map((d) => parseInt(d));
+          setSelectedDays(days);
+        } else {
+          setFrequency("custom");
+        }
+      }
+    }
+  }, [value]);
+
+  // Generate cron expression from UI state
+  useEffect(() => {
+    if (frequency === "custom") return; // Don't auto-generate for custom
+
+    const [hour, minute] = time.split(":");
+    let cronExpression = "";
+
+    if (frequency === "daily") {
+      cronExpression = `${minute} ${hour} * * *`;
+    } else if (frequency === "weekly") {
+      const days = selectedDays.sort((a, b) => a - b).join(",");
+      cronExpression = `${minute} ${hour} * * ${days}`;
+    }
+
+    if (cronExpression && cronExpression !== value) {
+      onChange(cronExpression, timezone);
+    }
+  }, [frequency, time, selectedDays, timezone]);
+
+  const toggleDay = (day: number) => {
+    if (selectedDays.includes(day)) {
+      setSelectedDays(selectedDays.filter((d) => d !== day));
+    } else {
+      setSelectedDays([...selectedDays, day]);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Frequency Selector */}
+      <div>
+        <label className="block text-sm font-medium mb-2">
+          Frequency <span className="text-red-500">*</span>
+        </label>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setFrequency("daily")}
+            className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
+              frequency === "daily"
+                ? "bg-orange-600 text-white"
+                : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+            }`}
+          >
+            Daily
+          </button>
+          <button
+            type="button"
+            onClick={() => setFrequency("weekly")}
+            className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
+              frequency === "weekly"
+                ? "bg-orange-600 text-white"
+                : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+            }`}
+          >
+            Weekly
+          </button>
+          <button
+            type="button"
+            onClick={() => setFrequency("custom")}
+            className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
+              frequency === "custom"
+                ? "bg-orange-600 text-white"
+                : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+            }`}
+          >
+            Custom
+          </button>
+        </div>
+      </div>
+
+      {/* Day Selector (only for weekly) */}
+      {frequency === "weekly" && (
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            Days of Week <span className="text-red-500">*</span>
+          </label>
+          <div className="flex gap-2">
+            {daysOfWeek.map((day) => (
+              <button
+                key={day.value}
+                type="button"
+                onClick={() => toggleDay(day.value)}
+                className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  selectedDays.includes(day.value)
+                    ? "bg-orange-600 text-white"
+                    : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                }`}
+              >
+                {day.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-gray-400 mt-1">
+            Select one or more days
+          </p>
+        </div>
+      )}
+
+      {/* Time Picker */}
+      {(frequency === "daily" || frequency === "weekly") && (
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            Time <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="time"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+          />
+        </div>
+      )}
+
+      {/* Custom Cron Expression */}
+      {frequency === "custom" && (
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            Cron Expression <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            required
+            value={value}
+            onChange={(e) => onChange(e.target.value, timezone)}
+            className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
+            placeholder="0 9 * * 1"
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            Examples: <code>0 9 * * 1</code> (Every Monday at 9am),{" "}
+            <code>0 */6 * * *</code> (Every 6 hours)
+          </p>
+        </div>
+      )}
+
+      {/* Timezone Selector */}
+      <div>
+        <label className="block text-sm font-medium mb-2">Timezone</label>
+        <select
+          value={timezone}
+          onChange={(e) => onChange(value, e.target.value)}
+          className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+        >
+          <option value="UTC">UTC</option>
+          <option value="America/New_York">Eastern Time</option>
+          <option value="America/Chicago">Central Time</option>
+          <option value="America/Denver">Mountain Time</option>
+          <option value="America/Los_Angeles">Pacific Time</option>
+          <option value="Europe/London">London</option>
+          <option value="Europe/Paris">Paris</option>
+          <option value="Asia/Tokyo">Tokyo</option>
+        </select>
+      </div>
+
+      {/* Cron Preview */}
+      {value && (
+        <div className="p-3 bg-gray-900 border border-gray-700 rounded-lg">
+          <p className="text-xs text-gray-400 mb-1">Cron Expression:</p>
+          <code className="text-sm text-orange-400">{value}</code>
+        </div>
+      )}
     </div>
   );
 }
