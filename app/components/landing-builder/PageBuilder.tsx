@@ -869,8 +869,14 @@ const getDefaultProps = (type: string): any => {
   switch (type) {
     case COMPONENT_TYPES.HEADER:
       return {
-        logo: "Your Logo",
-        menuItems: ["Home", "Features", "Pricing", "Contact"],
+        logoText: "Your Brand",
+        menuItems: [
+          { label: "Home", href: "#home" },
+          { label: "Features", href: "#features" },
+          { label: "Pricing", href: "#pricing" },
+          { label: "Contact", href: "#contact" },
+        ],
+        ctaButton: { label: "Get Started", href: "#get-started" },
       };
     case COMPONENT_TYPES.HERO:
       return {
