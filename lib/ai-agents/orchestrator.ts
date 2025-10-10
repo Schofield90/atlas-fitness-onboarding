@@ -127,6 +127,45 @@ export class AgentOrchestrator {
 
       const agent = conversation.agent as any;
 
+      // Check if user is gym owner/staff (not a client)
+      const { data: userRole } = await this.supabase
+        .from('organization_staff')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('organization_id', organizationId)
+        .maybeSingle();
+
+      const { data: userOrgRole } = await this.supabase
+        .from('user_organizations')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('organization_id', organizationId)
+        .maybeSingle();
+
+      const isGymOwner = !!(userRole || userOrgRole);
+      const staffRole = userRole?.role || userOrgRole?.role || 'client';
+
+      // Inject gym owner context into system prompt if applicable
+      if (isGymOwner && agent.system_prompt) {
+        const contextPrefix = `
+**IMPORTANT CONTEXT: You are speaking with a gym ${staffRole} (not a client).**
+
+The person you're chatting with is authorized staff who manages this fitness business. They need help with:
+- Viewing client/member data and analytics
+- Running reports and business intelligence queries
+- Managing operations (bookings, payments, memberships)
+- Executing administrative tasks
+
+You should respond professionally and help them accomplish business tasks.
+
+---
+
+${agent.system_prompt}`;
+
+        // Temporarily override system prompt with context
+        agent.system_prompt = contextPrefix;
+      }
+
       // 2. Save user message
       const { data: userMsg, error: userMsgError } = await this.supabase
         .from("ai_agent_messages")

@@ -256,3 +256,5 @@ DEBUG AI AGENTS: Add console logging to diagnose organization lookup - Thu 9 Oct
 Deployment triggered: Edit Membership Direct Debit - Fri 10 Oct 2025 06:31:00 BST
 Deployment triggered: Discount codes & referral system - Fri 10 Oct 2025 06:38:42 BST
 Deployment triggered: AI agent chat connected - Fri 10 Oct 2025 06:44:50 BST
+Fri 10 Oct 2025 10:31:37 BST: AI agent analytics tools deployed
+Deployment trigger: Fri 10 Oct 2025 10:48:57 BST

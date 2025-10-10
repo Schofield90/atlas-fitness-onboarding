@@ -127,6 +127,45 @@ export class AgentOrchestrator {
 
       const agent = conversation.agent as any;
 
+      // Check if user is gym owner/staff (not a client)
+      const { data: userRole } = await this.supabase
+        .from('organization_staff')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('organization_id', organizationId)
+        .maybeSingle();
+
+      const { data: userOrgRole } = await this.supabase
+        .from('user_organizations')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('organization_id', organizationId)
+        .maybeSingle();
+
+      const isGymOwner = !!(userRole || userOrgRole);
+      const staffRole = userRole?.role || userOrgRole?.role || 'client';
+
+      // Inject gym owner context into system prompt if applicable
+      if (isGymOwner && agent.system_prompt) {
+        const contextPrefix = `
+**IMPORTANT CONTEXT: You are speaking with a gym ${staffRole} (not a client).**
+
+The person you're chatting with is authorized staff who manages this fitness business. They need help with:
+- Viewing client/member data and analytics
+- Running reports and business intelligence queries
+- Managing operations (bookings, payments, memberships)
+- Executing administrative tasks
+
+You should respond professionally and help them accomplish business tasks.
+
+---
+
+${agent.system_prompt}`;
+
+        // Temporarily override system prompt with context
+        agent.system_prompt = contextPrefix;
+      }
+
       // 2. Save user message
       const { data: userMsg, error: userMsgError } = await this.supabase
         .from("ai_agent_messages")
@@ -305,7 +344,7 @@ export class AgentOrchestrator {
   }
 
   /**
-   * Execute conversation with OpenAI
+   * Execute conversation with OpenAI (with tool execution loop)
    */
   private async executeConversationOpenAI(
     agent: any,
@@ -319,8 +358,11 @@ export class AgentOrchestrator {
     error?: string;
   }> {
     const provider = new OpenAIProvider();
+    const MAX_TOOL_ITERATIONS = 5; // Prevent infinite loops
+    let iteration = 0;
+    let totalCost: CostCalculation = this.emptyCost();
 
-    const messages = [
+    const messages: any[] = [
       { role: "system" as const, content: agent.system_prompt },
       ...messageHistory.map((msg) => ({
         role: msg.role as "user" | "assistant" | "system" | "tool",
@@ -330,32 +372,100 @@ export class AgentOrchestrator {
       })),
     ];
 
-    const result = await provider.execute(messages, {
-      model: agent.model,
-      temperature: agent.temperature ?? 0.7,
-      max_tokens: agent.max_tokens ?? 4096,
-      tools: tools.length > 0 ? tools : undefined,
-      tool_choice: tools.length > 0 ? "auto" : undefined,
-    });
+    // Tool execution loop: keep calling until no more tool calls or max iterations
+    while (iteration < MAX_TOOL_ITERATIONS) {
+      iteration++;
 
-    if (!result.success) {
-      return {
-        success: false,
-        error: result.error,
-        cost: result.cost,
+      const result = await provider.execute(messages, {
+        model: agent.model,
+        temperature: agent.temperature ?? 0.7,
+        max_tokens: agent.max_tokens ?? 4096,
+        tools: tools.length > 0 ? tools : undefined,
+        tool_choice: tools.length > 0 ? "auto" : undefined,
+      });
+
+      // Accumulate costs
+      totalCost = {
+        model: result.cost.model || totalCost.model,
+        inputTokens: totalCost.inputTokens + result.cost.inputTokens,
+        outputTokens: totalCost.outputTokens + result.cost.outputTokens,
+        totalTokens: totalCost.totalTokens + result.cost.totalTokens,
+        costBaseCents: totalCost.costBaseCents + result.cost.costBaseCents,
+        costBilledCents: totalCost.costBilledCents + result.cost.costBilledCents,
+        markupPercentage: result.cost.markupPercentage || totalCost.markupPercentage,
       };
+
+      if (!result.success) {
+        return {
+          success: false,
+          error: result.error,
+          cost: totalCost,
+        };
+      }
+
+      // If no tool calls, we're done
+      if (!result.toolCalls || result.toolCalls.length === 0) {
+        return {
+          success: true,
+          content: result.message?.content || "",
+          tool_calls: undefined,
+          cost: totalCost,
+        };
+      }
+
+      // Add assistant message with tool calls
+      messages.push({
+        role: "assistant",
+        content: result.message?.content || null,
+        tool_calls: result.toolCalls,
+      });
+
+      // Execute each tool and add results
+      for (const toolCall of result.toolCalls) {
+        try {
+          const toolName = toolCall.function.name;
+          const toolArgs = JSON.parse(toolCall.function.arguments || "{}");
+
+          // Execute tool via registry
+          const toolResult = await this.toolRegistry.executeTool(
+            toolName,
+            toolArgs,
+            {
+              organizationId: agent.organization_id,
+              agentId: agent.id,
+              userId: "system", // Tool calls are system-initiated
+            }
+          );
+
+          // Add tool result message
+          messages.push({
+            role: "tool",
+            content: JSON.stringify(toolResult.data || { error: toolResult.error }),
+            tool_call_id: toolCall.id,
+          });
+        } catch (error: any) {
+          // Add error as tool result
+          messages.push({
+            role: "tool",
+            content: JSON.stringify({ error: error.message || "Tool execution failed" }),
+            tool_call_id: toolCall.id,
+          });
+        }
+      }
+
+      // Continue loop to get final response
     }
 
+    // Max iterations reached
     return {
-      success: true,
-      content: result.message?.content || "",
-      tool_calls: result.toolCalls,
-      cost: result.cost,
+      success: false,
+      error: `Max tool execution iterations (${MAX_TOOL_ITERATIONS}) reached`,
+      cost: totalCost,
     };
   }
 
   /**
-   * Execute conversation with Anthropic
+   * Execute conversation with Anthropic (with tool execution loop)
    */
   private async executeConversationAnthropic(
     agent: any,
@@ -369,8 +479,11 @@ export class AgentOrchestrator {
     error?: string;
   }> {
     const provider = new AnthropicProvider();
+    const MAX_TOOL_ITERATIONS = 5; // Prevent infinite loops
+    let iteration = 0;
+    let totalCost: CostCalculation = this.emptyCost();
 
-    const messages = messageHistory
+    const messages: any[] = messageHistory
       .filter((msg) => msg.role !== "system")
       .map((msg) => {
         if (msg.role === "tool") {
@@ -392,40 +505,114 @@ export class AgentOrchestrator {
         };
       });
 
-    const result = await provider.execute(messages, {
-      model: agent.model,
-      temperature: agent.temperature ?? 0.7,
-      max_tokens: agent.max_tokens ?? 4096,
-      system: agent.system_prompt,
-      tools: tools.length > 0 ? tools : undefined,
-    });
+    // Tool execution loop: keep calling until no more tool calls or max iterations
+    while (iteration < MAX_TOOL_ITERATIONS) {
+      iteration++;
 
-    if (!result.success) {
-      return {
-        success: false,
-        error: result.error,
-        cost: result.cost,
+      const result = await provider.execute(messages, {
+        model: agent.model,
+        temperature: agent.temperature ?? 0.7,
+        max_tokens: agent.max_tokens ?? 4096,
+        system: agent.system_prompt,
+        tools: tools.length > 0 ? tools : undefined,
+      });
+
+      // Accumulate costs
+      totalCost = {
+        model: result.cost.model || totalCost.model,
+        inputTokens: totalCost.inputTokens + result.cost.inputTokens,
+        outputTokens: totalCost.outputTokens + result.cost.outputTokens,
+        totalTokens: totalCost.totalTokens + result.cost.totalTokens,
+        costBaseCents: totalCost.costBaseCents + result.cost.costBaseCents,
+        costBilledCents: totalCost.costBilledCents + result.cost.costBilledCents,
+        markupPercentage: result.cost.markupPercentage || totalCost.markupPercentage,
       };
+
+      if (!result.success) {
+        return {
+          success: false,
+          error: result.error,
+          cost: totalCost,
+        };
+      }
+
+      const textContent = result.content
+        ?.filter((block: any) => block.type === "text")
+        .map((block: any) => block.text)
+        .join("") || "";
+
+      const toolUses = result.content
+        ?.filter((block: any) => block.type === "tool_use")
+        .map((block: any) => ({
+          id: block.id,
+          name: block.name,
+          input: block.input,
+        })) || [];
+
+      // If no tool calls, we're done
+      if (toolUses.length === 0) {
+        return {
+          success: true,
+          content: textContent,
+          tool_calls: undefined,
+          cost: totalCost,
+        };
+      }
+
+      // Add assistant message with tool uses in Anthropic format
+      messages.push({
+        role: "assistant",
+        content: result.content, // Full content blocks including tool_use
+      });
+
+      // Execute each tool and add results as user messages
+      const toolResults: any[] = [];
+      for (const toolUse of toolUses) {
+        try {
+          const toolName = toolUse.name;
+          const toolArgs = toolUse.input;
+
+          // Execute tool via registry
+          const toolResult = await this.toolRegistry.executeTool(
+            toolName,
+            toolArgs,
+            {
+              organizationId: agent.organization_id,
+              agentId: agent.id,
+              userId: "system", // Tool calls are system-initiated
+            }
+          );
+
+          // Add tool result in Anthropic format
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: toolUse.id,
+            content: JSON.stringify(toolResult.data || { error: toolResult.error }),
+          });
+        } catch (error: any) {
+          // Add error as tool result
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: toolUse.id,
+            content: JSON.stringify({ error: error.message || "Tool execution failed" }),
+          });
+        }
+      }
+
+      // Add tool results as a user message
+      messages.push({
+        role: "user",
+        content: toolResults,
+      });
+
+      // Continue loop to get final response
     }
 
-    const textContent = result.content
-      ?.filter((block: any) => block.type === "text")
-      .map((block: any) => block.text)
-      .join("") || "";
-
-    const toolUses = result.content
-      ?.filter((block: any) => block.type === "tool_use")
-      .map((block: any) => ({
-        id: block.id,
-        name: block.name,
-        input: block.input,
-      })) || [];
-
+    // Max iterations reached
     return {
-      success: true,
-      content: textContent,
-      tool_calls: toolUses.length > 0 ? toolUses : undefined,
-      cost: result.cost,
+      success: false,
+      error: `Max tool execution iterations (${MAX_TOOL_ITERATIONS}) reached`,
+      cost: totalCost,
     };
   }
 
