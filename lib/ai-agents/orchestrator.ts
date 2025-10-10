@@ -208,9 +208,12 @@ ${agent.system_prompt}`;
 
       // 4. Get allowed tools for agent
       const allowedTools = agent.allowed_tools || [];
+      console.log('[Orchestrator] Agent allowed_tools:', allowedTools);
+      console.log('[Orchestrator] All registered tools:', this.toolRegistry.getAllTools().map(t => t.id));
       const tools = agent.model.startsWith('gpt-')
         ? this.toolRegistry.getToolsForOpenAI(allowedTools)
         : this.toolRegistry.getToolsForAnthropic(allowedTools);
+      console.log('[Orchestrator] Converted tools for AI:', tools.length, 'tools');
 
       // 5. Execute with appropriate provider
       const executionResult = await this.executeConversation(
