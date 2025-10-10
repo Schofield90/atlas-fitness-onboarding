@@ -112,7 +112,11 @@ export async function PUT(
     }
 
     // Handle cron expression update
-    if (validatedData.schedule_cron !== undefined) {
+    if (
+      validatedData.schedule_cron !== undefined &&
+      validatedData.schedule_cron !== null &&
+      validatedData.schedule_cron.trim() !== ""
+    ) {
       if (existingTask.task_type !== "scheduled") {
         return NextResponse.json(
           {
