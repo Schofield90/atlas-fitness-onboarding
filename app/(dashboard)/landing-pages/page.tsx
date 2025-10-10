@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, Eye, Edit, Trash2, Copy, ExternalLink, MoreVertical, Wand2 } from 'lucide-react'
 import { AITemplateImport } from '@/app/components/landing-builder/AITemplateImport'
+import DashboardLayout from '@/app/components/DashboardLayout'
 
 interface LandingPage {
   id: string
@@ -21,7 +22,7 @@ interface LandingPage {
   updated_at: string
 }
 
-export default function LandingPagesPage() {
+function LandingPagesContent() {
   const [pages, setPages] = useState<LandingPage[]>([])
   const [loading, setLoading] = useState(true)
   const [showAIImport, setShowAIImport] = useState(false)
@@ -233,5 +234,21 @@ export default function LandingPagesPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function LandingPagesPage() {
+  return (
+    <DashboardLayout userData={null}>
+      <Suspense
+        fallback={
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+          </div>
+        }
+      >
+        <LandingPagesContent />
+      </Suspense>
+    </DashboardLayout>
   )
 }

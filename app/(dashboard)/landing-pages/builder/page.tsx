@@ -1,17 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import PageBuilder from '@/app/components/landing-builder/PageBuilder'
 import { AITemplateImport } from '@/app/components/landing-builder/AITemplateImport'
+import AIPageBuilder from '@/app/components/landing-builder/AIPageBuilder'
 import { ArrowLeft, Wand2, Edit } from 'lucide-react'
 import Link from 'next/link'
+import DashboardLayout from '@/app/components/DashboardLayout'
 
-export default function LandingPageBuilderPage() {
+function LandingPageBuilderContent() {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [showAIImport, setShowAIImport] = useState(false)
   const [showBuilder, setShowBuilder] = useState(false)
+  const [aiGenerating, setAiGenerating] = useState(false)
 
   const handleSave = async (content: any[]) => {
     // Prompt for page details first; abort if user cancels at any step
@@ -62,6 +65,33 @@ export default function LandingPageBuilderPage() {
     await handleSave(content)
   }
 
+  const handleAIGenerate = async (description: string) => {
+    setAiGenerating(true)
+    try {
+      const response = await fetch('/api/landing-pages/ai-build', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ description })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to generate page')
+      }
+
+      const { data } = await response.json()
+      alert('Page generated successfully!')
+      router.push(`/landing-pages/builder/${data.id}`)
+    } catch (error: any) {
+      console.error('Error generating page:', error)
+      alert(error.message || 'Failed to generate page')
+    } finally {
+      setAiGenerating(false)
+    }
+  }
+
   if (!showBuilder && !showAIImport) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -82,10 +112,10 @@ export default function LandingPageBuilderPage() {
             How would you like to create your landing page?
           </h2>
           <p className="text-gray-600 mb-8">
-            Choose to start from scratch or let AI generate a template from an existing website
+            Choose to start from scratch, let AI generate from a description, or import from an existing website
           </p>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Start from scratch */}
             <button
               onClick={() => setShowBuilder(true)}
@@ -106,7 +136,26 @@ export default function LandingPageBuilderPage() {
                 <br />• Real-time preview
               </div>
             </button>
-            
+
+            {/* AI Build from Description */}
+            <div className="p-6 bg-white border-2 border-gray-200 rounded-lg">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-purple-100 rounded-lg">
+                  <Wand2 className="w-6 h-6 text-purple-600" />
+                </div>
+                <h3 className="text-lg font-semibold">AI Build from Description</h3>
+              </div>
+              <p className="text-gray-600 mb-4">
+                Describe what you want and let AI create a complete landing page tailored to your needs.
+              </p>
+              <div className="text-sm text-gray-500 mb-4">
+                • Describe your page in plain English
+                <br />• AI generates complete layout
+                <br />• Fully editable result
+              </div>
+              <AIPageBuilder onGenerate={handleAIGenerate} loading={aiGenerating} />
+            </div>
+
             {/* AI Import */}
             <button
               onClick={() => setShowAIImport(true)}
@@ -190,5 +239,21 @@ export default function LandingPageBuilderPage() {
         />
       </div>
     </div>
+  )
+}
+
+export default function LandingPageBuilderPage() {
+  return (
+    <DashboardLayout userData={null}>
+      <Suspense
+        fallback={
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+          </div>
+        }
+      >
+        <LandingPageBuilderContent />
+      </Suspense>
+    </DashboardLayout>
   )
 }

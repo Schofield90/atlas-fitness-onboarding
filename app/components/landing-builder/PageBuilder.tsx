@@ -274,7 +274,7 @@ const PageBuilder: React.FC<PageBuilderProps> = ({
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <div className="flex h-screen bg-gray-50">
+      <div className="flex h-screen bg-gray-900">
         {/* Component Library */}
         <ComponentLibrary
           show={showComponentLibrary}
@@ -298,7 +298,7 @@ const PageBuilder: React.FC<PageBuilderProps> = ({
           />
 
           {/* Canvas Area */}
-          <div className="flex-1 overflow-auto bg-white">
+          <div className="flex-1 overflow-auto bg-gray-800">
             <CanvasContainer
               onDropNewComponent={(type) => addComponent(type)}
               onDropNewComponentAtIndex={(index, type) =>
@@ -410,12 +410,12 @@ const ComponentLibrary: React.FC<{
   ];
 
   return (
-    <div className="w-64 bg-white border-r border-gray-200 overflow-y-auto">
+    <div className="w-64 bg-gray-800 border-r border-gray-700 overflow-y-auto">
       <div className="p-4">
-        <h3 className="font-semibold text-gray-900 mb-4">Components</h3>
+        <h3 className="font-semibold text-white mb-4">Components</h3>
         {componentGroups.map((group) => (
           <div key={group.name} className="mb-6">
-            <h4 className="text-sm font-medium text-gray-600 mb-2">
+            <h4 className="text-sm font-medium text-gray-400 mb-2">
               {group.name}
             </h4>
             <div className="grid grid-cols-2 gap-2">
@@ -453,10 +453,10 @@ const LibraryItem: React.FC<{
       ref={drag}
       data-testid={`palette-${comp.type}`}
       onClick={() => onAddComponent(comp.type)}
-      className={`p-3 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors ${isDragging ? "opacity-50" : ""}`}
+      className={`p-3 border border-gray-700 rounded-lg hover:bg-gray-700 hover:border-gray-600 transition-colors ${isDragging ? "opacity-50" : ""}`}
     >
-      <comp.icon className="w-5 h-5 mx-auto mb-1 text-gray-600" />
-      <span className="text-xs text-gray-600">{comp.label}</span>
+      <comp.icon className="w-5 h-5 mx-auto mb-1 text-gray-400" />
+      <span className="text-xs text-gray-300">{comp.label}</span>
     </button>
   );
 };
@@ -619,7 +619,7 @@ const Toolbar: React.FC<{
   onToggleProperties,
 }) => {
   return (
-    <div className="bg-white border-b border-gray-200 px-4 py-2">
+    <div className="bg-gray-800 border-b border-gray-700 px-4 py-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <button
@@ -688,10 +688,10 @@ const PropertiesPanel: React.FC<{
   if (!component) return null;
 
   return (
-    <div className="w-80 bg-white border-l border-gray-200 overflow-y-auto">
-      <div className="p-4 border-b border-gray-200">
+    <div className="w-80 bg-gray-800 border-l border-gray-700 overflow-y-auto">
+      <div className="p-4 border-b border-gray-700">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900">Properties</h3>
+          <h3 className="font-semibold text-white">Properties</h3>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600"

@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import PageBuilder from '@/app/components/landing-builder/PageBuilder'
 import { ArrowLeft, Save, Eye } from 'lucide-react'
 import Link from 'next/link'
+import DashboardLayout from '@/app/components/DashboardLayout'
 
-export default function EditLandingPageBuilderPage({ params }: { params: { id: string } }) {
+function EditLandingPageBuilderContent({ params }: { params: { id: string } }) {
   const router = useRouter()
   const [page, setPage] = useState<any>(null)
   const [saving, setSaving] = useState(false)
@@ -156,5 +157,21 @@ export default function EditLandingPageBuilderPage({ params }: { params: { id: s
         />
       </div>
     </div>
+  )
+}
+
+export default function EditLandingPageBuilderPage({ params }: { params: { id: string } }) {
+  return (
+    <DashboardLayout userData={null}>
+      <Suspense
+        fallback={
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+          </div>
+        }
+      >
+        <EditLandingPageBuilderContent params={params} />
+      </Suspense>
+    </DashboardLayout>
   )
 }
