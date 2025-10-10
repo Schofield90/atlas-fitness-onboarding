@@ -57,9 +57,11 @@ export default function AgentChatPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [agent, setAgent] = useState<Agent | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
 
   // Task management state
   const [activeTab, setActiveTab] = useState<'chat' | 'tasks'>('chat');
@@ -76,6 +78,7 @@ export default function AgentChatPage() {
     if (user && agentId) {
       loadAgent();
       loadTasks();
+      loadOrCreateConversation();
     }
   }, [user, agentId]);
 
@@ -129,6 +132,60 @@ export default function AgentChatPage() {
       console.error("Error loading tasks:", error);
     } finally {
       setLoadingTasks(false);
+    }
+  };
+
+  const loadOrCreateConversation = async () => {
+    try {
+      // First, try to find an existing conversation for this agent
+      const listResponse = await fetch(`/api/ai-agents/conversations?agent_id=${agentId}&limit=1`);
+      const listResult = await listResponse.json();
+
+      let convId: string;
+
+      if (listResult.success && listResult.conversations?.length > 0) {
+        // Use existing conversation
+        convId = listResult.conversations[0].id;
+      } else {
+        // Create new conversation
+        const createResponse = await fetch(`/api/ai-agents/conversations`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            agent_id: agentId,
+            title: 'Chat with AI Agent',
+          }),
+        });
+        const createResult = await createResponse.json();
+
+        if (!createResult.success) {
+          console.error("Failed to create conversation");
+          return;
+        }
+        convId = createResult.conversation.id;
+      }
+
+      setConversationId(convId);
+      // Load messages for this conversation
+      await loadMessages(convId);
+    } catch (error) {
+      console.error("Error loading/creating conversation:", error);
+    }
+  };
+
+  const loadMessages = async (convId: string) => {
+    setLoadingMessages(true);
+    try {
+      const response = await fetch(`/api/ai-agents/conversations/${convId}/messages?limit=100`);
+      const result = await response.json();
+
+      if (result.success) {
+        setMessages(result.messages || []);
+      }
+    } catch (error) {
+      console.error("Error loading messages:", error);
+    } finally {
+      setLoadingMessages(false);
     }
   };
 
@@ -189,7 +246,7 @@ export default function AgentChatPage() {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!inputMessage.trim() || sending) return;
+    if (!inputMessage.trim() || sending || !conversationId) return;
 
     const userMessage = inputMessage.trim();
     setInputMessage("");
@@ -205,19 +262,27 @@ export default function AgentChatPage() {
     setMessages((prev) => [...prev, tempUserMessage]);
 
     try {
-      // TODO: Replace with actual API call to send message to agent
-      // For now, simulate a response
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Send message to AI agent via API
+      const response = await fetch(`/api/ai-agents/conversations/${conversationId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: userMessage }),
+      });
 
-      const assistantMessage: Message = {
-        id: `temp-${Date.now()}-assistant`,
-        role: "assistant",
-        content: "This is a placeholder response. The AI agent chat functionality is not yet implemented. Please connect the agent orchestration system to enable real-time conversations.",
-        created_at: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
+      const result = await response.json();
+
+      if (result.success) {
+        // Reload messages to get the real user message + AI response
+        await loadMessages(conversationId);
+      } else {
+        console.error("Failed to send message:", result.error);
+        // Remove optimistic message on error
+        setMessages((prev) => prev.filter(m => m.id !== tempUserMessage.id));
+      }
     } catch (error) {
       console.error("Error sending message:", error);
+      // Remove optimistic message on error
+      setMessages((prev) => prev.filter(m => m.id !== tempUserMessage.id));
     } finally {
       setSending(false);
     }
