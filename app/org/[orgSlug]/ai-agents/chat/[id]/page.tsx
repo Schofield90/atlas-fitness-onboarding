@@ -739,12 +739,12 @@ function TaskFormModal({
             </p>
           </div>
 
-          {/* Cron Schedule (only for scheduled tasks) */}
+          {/* Natural Language Schedule (only for scheduled tasks) */}
           {formData.task_type === "scheduled" && (
             <>
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  Cron Expression <span className="text-red-500">*</span>
+                  When should this run? <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -753,12 +753,12 @@ function TaskFormModal({
                   onChange={(e) =>
                     setFormData({ ...formData, schedule_cron: e.target.value })
                   }
-                  className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
-                  placeholder="0 9 * * 1"
+                  className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  placeholder="Every Monday at 9am"
                 />
                 <p className="text-xs text-gray-400 mt-1">
-                  Examples: <code>0 9 * * 1</code> (Every Monday at 9am),{" "}
-                  <code>0 */6 * * *</code> (Every 6 hours)
+                  Examples: "Every Monday at 9am", "Every day at 6pm", "Every
+                  week on Friday at 3pm"
                 </p>
               </div>
 
