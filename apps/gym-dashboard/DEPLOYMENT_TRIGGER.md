@@ -318,9 +318,10 @@ Reason: Fix API validation - update POST /api/ai-agents to accept new model name
 Fix: Updated createAgentSchema enum (lines 11-16) to match frontend dropdown
 Error: 400 Bad Request when creating agents with new models
 
-# Deployment Trigger - Fri 10 Oct 2025 20:55:00 BST
+# Deployment Trigger - Fri 10 Oct 2025 21:15:00 BST
 
-Reason: Fix GPT-5 chat execution - update OpenAI provider to use max_completion_tokens
-Fix: GPT-5 models require max_completion_tokens instead of max_tokens parameter
-Error: "400 Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."
-Files: /lib/ai-agents/providers/openai-provider.ts (lines 78-90, 151-164, 200-203)
+Reason: Fix GPT-5 temperature parameter - exclude custom temperature for GPT-5 models
+Fix: GPT-5 models only support temperature: 1 (default), custom values rejected
+Error: "400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the default (1) value is supported."
+Files: /lib/ai-agents/providers/openai-provider.ts (lines 84, 158)
+Previous Fix: max_completion_tokens parameter (lines 78-90, 151-164, 200-203)

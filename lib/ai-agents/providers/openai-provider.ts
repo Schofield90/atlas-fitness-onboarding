@@ -76,11 +76,12 @@ export class OpenAIProvider {
 
       // Call OpenAI API
       // Note: GPT-5 models use max_completion_tokens instead of max_tokens
+      // Note: GPT-5 models only support temperature: 1 (default)
       const isGPT5 = options.model.startsWith('gpt-5');
       const completion = await this.client.chat.completions.create({
         model: options.model,
         messages: openaiMessages,
-        temperature: options.temperature ?? 0.7,
+        ...(isGPT5 ? {} : { temperature: options.temperature ?? 0.7 }),
         ...(isGPT5
           ? { max_completion_tokens: options.max_tokens ?? 4096 }
           : { max_tokens: options.max_tokens ?? 4096 }
@@ -149,11 +150,12 @@ export class OpenAIProvider {
     })) as ChatCompletionMessageParam[];
 
     // Note: GPT-5 models use max_completion_tokens instead of max_tokens
+    // Note: GPT-5 models only support temperature: 1 (default)
     const isGPT5 = options.model.startsWith('gpt-5');
     const stream = await this.client.chat.completions.create({
       model: options.model,
       messages: openaiMessages,
-      temperature: options.temperature ?? 0.7,
+      ...(isGPT5 ? {} : { temperature: options.temperature ?? 0.7 }),
       ...(isGPT5
         ? { max_completion_tokens: options.max_tokens ?? 4096 }
         : { max_tokens: options.max_tokens ?? 4096 }
