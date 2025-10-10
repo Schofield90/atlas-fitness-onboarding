@@ -358,7 +358,7 @@ ${agent.system_prompt}`;
     error?: string;
   }> {
     const provider = new OpenAIProvider();
-    const MAX_TOOL_ITERATIONS = 5; // Prevent infinite loops
+    const MAX_TOOL_ITERATIONS = 10; // Allow complex multi-step analyses (was 5)
     let iteration = 0;
     let totalCost: CostCalculation = this.emptyCost();
 
@@ -479,7 +479,7 @@ ${agent.system_prompt}`;
     error?: string;
   }> {
     const provider = new AnthropicProvider();
-    const MAX_TOOL_ITERATIONS = 5; // Prevent infinite loops
+    const MAX_TOOL_ITERATIONS = 10; // Allow complex multi-step analyses (was 5)
     let iteration = 0;
     let totalCost: CostCalculation = this.emptyCost();
 
