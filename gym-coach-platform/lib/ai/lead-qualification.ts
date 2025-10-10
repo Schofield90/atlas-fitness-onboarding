@@ -212,7 +212,7 @@ Focus on actionable insights for improving lead quality and conversion rates.
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-5-mini',
       messages: [
         {
           role: 'system',
@@ -269,7 +269,7 @@ Make it friendly, professional, and focused on fitness/gym membership benefits.
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-5-mini',
       messages: [
         {
           role: 'system',

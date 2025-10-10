@@ -68,7 +68,7 @@ Return a JSON array of question objects with this exact structure:
 Generate meaningful questions that dive deeper into their specific situation.`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5-mini",
       messages: [
         {
           role: "system",
