@@ -63,6 +63,7 @@ export default function AgentChatPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [agent, setAgent] = useState<Agent | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [sending, setSending] = useState(false);
@@ -81,6 +82,7 @@ export default function AgentChatPage() {
   useEffect(() => {
     if (user && agentId) {
       loadAgent();
+      loadOrCreateConversation();
       loadTasks();
     }
   }, [user, agentId]);
@@ -119,6 +121,57 @@ export default function AgentChatPage() {
       }
     } catch (error) {
       console.error("Error loading agent:", error);
+    }
+  };
+
+  const loadOrCreateConversation = async () => {
+    try {
+      // First, try to get existing active conversation
+      const listResponse = await fetch(
+        `/api/ai-agents/conversations?agentId=${agentId}&status=active&limit=1`,
+      );
+      const listResult = await listResponse.json();
+
+      if (listResult.success && listResult.conversations?.length > 0) {
+        const conv = listResult.conversations[0];
+        setConversationId(conv.id);
+        await loadMessages(conv.id);
+        return;
+      }
+
+      // No active conversation, create one
+      const createResponse = await fetch("/api/ai-agents/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          agent_id: agentId,
+          title: `Chat with ${agent?.name || "AI Agent"}`,
+        }),
+      });
+
+      const createResult = await createResponse.json();
+
+      if (createResult.success && createResult.conversation) {
+        setConversationId(createResult.conversation.id);
+        // New conversation has no messages yet
+      }
+    } catch (error) {
+      console.error("Error loading/creating conversation:", error);
+    }
+  };
+
+  const loadMessages = async (convId: string) => {
+    try {
+      const response = await fetch(
+        `/api/ai-agents/conversations/${convId}/messages?limit=100`,
+      );
+      const result = await response.json();
+
+      if (result.success) {
+        setMessages(result.messages || []);
+      }
+    } catch (error) {
+      console.error("Error loading messages:", error);
     }
   };
 
@@ -197,7 +250,7 @@ export default function AgentChatPage() {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!inputMessage.trim() || sending) return;
+    if (!inputMessage.trim() || sending || !conversationId) return;
 
     const userMessage = inputMessage.trim();
     setInputMessage("");
@@ -213,20 +266,42 @@ export default function AgentChatPage() {
     setMessages((prev) => [...prev, tempUserMessage]);
 
     try {
-      // TODO: Replace with actual API call to send message to agent
-      // For now, simulate a response
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Send message to agent via orchestrator
+      const response = await fetch(
+        `/api/ai-agents/conversations/${conversationId}/messages`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: userMessage }),
+        },
+      );
 
-      const assistantMessage: Message = {
-        id: `temp-${Date.now()}-assistant`,
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to send message");
+      }
+
+      // Remove temp message and add real messages from API
+      setMessages((prev) =>
+        prev
+          .filter((m) => m.id !== tempUserMessage.id)
+          .concat([result.userMessage, result.assistantMessage]),
+      );
+    } catch (error: any) {
+      console.error("Error sending message:", error);
+
+      // Remove optimistic message and show error
+      setMessages((prev) => prev.filter((m) => m.id !== tempUserMessage.id));
+
+      // Add error message
+      const errorMessage: Message = {
+        id: `error-${Date.now()}`,
         role: "assistant",
-        content:
-          "This is a placeholder response. The AI agent chat functionality is not yet implemented. Please connect the agent orchestration system to enable real-time conversations.",
+        content: `Sorry, I encountered an error: ${error.message}. Please try again.`,
         created_at: new Date().toISOString(),
       };
-      setMessages((prev) => [...prev, assistantMessage]);
-    } catch (error) {
-      console.error("Error sending message:", error);
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setSending(false);
     }
