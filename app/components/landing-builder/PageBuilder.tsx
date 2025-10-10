@@ -104,7 +104,7 @@ const ComponentRenderer: React.FC<{
         <div className="py-8" style={{ height: props.height || "64px" }} />
       );
     case COMPONENT_TYPES.DIVIDER:
-      return <hr className="my-8 border-gray-200" />;
+      return <hr className="my-8 border-gray-700" />;
     case COMPONENT_TYPES.COUNTDOWN:
       return <Components.CountdownComponent {...props} />;
     case COMPONENT_TYPES.SOCIAL:
@@ -113,7 +113,7 @@ const ComponentRenderer: React.FC<{
       return <Components.HTMLComponent {...props} />;
     default:
       return (
-        <div className="p-8 bg-gray-100 text-center text-gray-500">
+        <div className="p-8 bg-gray-800 text-center text-gray-500">
           Component type "{type}" not implemented
         </div>
       );
@@ -555,8 +555,8 @@ const DraggableComponent: React.FC<{
     >
       {/* Component Controls */}
       <div className="absolute -top-2 -left-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-        <div className="flex items-center bg-white border border-gray-200 rounded-lg shadow-sm">
-          <button className="p-1.5 hover:bg-gray-50 cursor-move" ref={preview}>
+        <div className="flex items-center bg-gray-800 border border-gray-700 rounded-lg shadow-sm">
+          <button className="p-1.5 hover:bg-gray-700 cursor-move" ref={preview}>
             <GripVertical className="w-4 h-4 text-gray-400" />
           </button>
           <button
@@ -564,7 +564,7 @@ const DraggableComponent: React.FC<{
               e.stopPropagation();
               duplicateComponent(component.id);
             }}
-            className="p-1.5 hover:bg-gray-50"
+            className="p-1.5 hover:bg-gray-700"
           >
             <Copy className="w-4 h-4 text-gray-400" />
           </button>
@@ -573,7 +573,7 @@ const DraggableComponent: React.FC<{
               e.stopPropagation();
               deleteComponent(component.id);
             }}
-            className="p-1.5 hover:bg-gray-50"
+            className="p-1.5 hover:bg-gray-700"
           >
             <Trash2 className="w-4 h-4 text-red-400" />
           </button>
@@ -694,7 +694,7 @@ const PropertiesPanel: React.FC<{
           <h3 className="font-semibold text-white">Properties</h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
+            className="text-gray-400 hover:text-gray-200"
           >
             <ChevronDown className="w-4 h-4" />
           </button>
@@ -733,7 +733,7 @@ const ComponentProperties: React.FC<{
       if (isLongText) {
         return (
           <textarea
-            className="w-full px-3 py-2 border border-gray-300 rounded"
+            className="w-full px-3 py-2 border border-gray-700 rounded bg-gray-900 text-gray-300"
             rows={4}
             value={value}
             onChange={(e) => updateProp(key, e.target.value)}
@@ -742,7 +742,7 @@ const ComponentProperties: React.FC<{
       }
       return (
         <input
-          className="w-full px-3 py-2 border border-gray-300 rounded"
+          className="w-full px-3 py-2 border border-gray-700 rounded bg-gray-900 text-gray-300"
           value={value}
           onChange={(e) => updateProp(key, e.target.value)}
         />
@@ -752,7 +752,7 @@ const ComponentProperties: React.FC<{
       return (
         <input
           type="number"
-          className="w-full px-3 py-2 border border-gray-300 rounded"
+          className="w-full px-3 py-2 border border-gray-700 rounded bg-gray-900 text-gray-300"
           value={value}
           onChange={(e) => updateProp(key, Number(e.target.value))}
         />
@@ -766,14 +766,14 @@ const ComponentProperties: React.FC<{
             checked={value}
             onChange={(e) => updateProp(key, e.target.checked)}
           />
-          <span className="text-sm text-gray-700">Enabled</span>
+          <span className="text-sm text-gray-300">Enabled</span>
         </label>
       );
     }
     // Fallback for arrays/objects
     return (
       <textarea
-        className="w-full px-3 py-2 border border-gray-300 rounded font-mono text-xs"
+        className="w-full px-3 py-2 border border-gray-700 rounded bg-gray-900 text-gray-300 font-mono text-xs"
         rows={6}
         value={JSON.stringify(value, null, 2)}
         onChange={(e) => {
@@ -791,20 +791,20 @@ const ComponentProperties: React.FC<{
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-gray-400 mb-1">
           Component Type
         </label>
         <input
           type="text"
           value={component.type}
           disabled
-          className="w-full px-3 py-2 border border-gray-300 rounded bg-gray-50"
+          className="w-full px-3 py-2 border border-gray-700 rounded bg-gray-900 text-gray-500"
         />
       </div>
 
       {Object.keys(props).map((key) => (
         <div key={key} className="space-y-1">
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-gray-400">
             {key}
           </label>
           {renderEditor(key, props[key])}
