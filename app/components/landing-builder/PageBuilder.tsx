@@ -146,6 +146,7 @@ const PageBuilder: React.FC<PageBuilderProps> = ({
   const [historyIndex, setHistoryIndex] = useState(0);
   const [showComponentLibrary, setShowComponentLibrary] = useState(true);
   const [showProperties, setShowProperties] = useState(true);
+  const [showPreview, setShowPreview] = useState(false);
 
   // Add component to canvas
   const addComponent = useCallback(
@@ -295,6 +296,7 @@ const PageBuilder: React.FC<PageBuilderProps> = ({
               setShowComponentLibrary(!showComponentLibrary)
             }
             onToggleProperties={() => setShowProperties(!showProperties)}
+            onTogglePreview={() => setShowPreview(!showPreview)}
           />
 
           {/* Canvas Area */}
@@ -345,6 +347,36 @@ const PageBuilder: React.FC<PageBuilderProps> = ({
             onUpdate={(updates) => updateComponent(selectedComponent, updates)}
             onClose={() => setSelectedComponent(null)}
           />
+        )}
+
+        {/* Preview Modal */}
+        {showPreview && (
+          <div className="fixed inset-0 z-50 bg-black bg-opacity-75 flex items-center justify-center">
+            <div className="bg-white w-full h-full overflow-auto">
+              {/* Preview Header */}
+              <div className="sticky top-0 bg-gray-900 border-b border-gray-700 px-4 py-3 flex justify-between items-center z-10">
+                <h2 className="text-lg font-semibold text-white">Preview</h2>
+                <button
+                  onClick={() => setShowPreview(false)}
+                  className="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600 transition"
+                >
+                  Close Preview
+                </button>
+              </div>
+
+              {/* Preview Content */}
+              <div className="preview-content bg-white">
+                {components.map((component, index) => (
+                  <div key={component.id}>
+                    <ComponentRenderer
+                      component={component}
+                      isEditing={false}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </DndProvider>
@@ -608,6 +640,7 @@ const Toolbar: React.FC<{
   onPublish?: () => void;
   onToggleLibrary: () => void;
   onToggleProperties: () => void;
+  onTogglePreview: () => void;
 }> = ({
   onUndo,
   onRedo,
@@ -617,6 +650,7 @@ const Toolbar: React.FC<{
   onPublish,
   onToggleLibrary,
   onToggleProperties,
+  onTogglePreview,
 }) => {
   return (
     <div className="bg-gray-800 border-b border-gray-700 px-4 py-2">
@@ -624,16 +658,16 @@ const Toolbar: React.FC<{
         <div className="flex items-center space-x-2">
           <button
             onClick={onToggleLibrary}
-            className="p-2 hover:bg-gray-100 rounded"
+            className="p-2 hover:bg-gray-700 rounded text-gray-300"
             title="Toggle Component Library"
           >
             <Plus className="w-4 h-4" />
           </button>
-          <div className="w-px h-6 bg-gray-300" />
+          <div className="w-px h-6 bg-gray-600" />
           <button
             onClick={onUndo}
             disabled={!canUndo}
-            className="p-2 hover:bg-gray-100 rounded disabled:opacity-50"
+            className="p-2 hover:bg-gray-700 rounded disabled:opacity-50 text-gray-300"
             title="Undo"
           >
             <Undo className="w-4 h-4" />
@@ -641,7 +675,7 @@ const Toolbar: React.FC<{
           <button
             onClick={onRedo}
             disabled={!canRedo}
-            className="p-2 hover:bg-gray-100 rounded disabled:opacity-50"
+            className="p-2 hover:bg-gray-700 rounded disabled:opacity-50 text-gray-300"
             title="Redo"
           >
             <Redo className="w-4 h-4" />
@@ -649,17 +683,21 @@ const Toolbar: React.FC<{
         </div>
 
         <div className="flex items-center space-x-2">
-          <button className="p-2 hover:bg-gray-100 rounded" title="Preview">
+          <button
+            onClick={onTogglePreview}
+            className="p-2 hover:bg-gray-700 rounded text-gray-300"
+            title="Preview"
+          >
             <Eye className="w-4 h-4" />
           </button>
           <button
             onClick={onToggleProperties}
-            className="p-2 hover:bg-gray-100 rounded"
+            className="p-2 hover:bg-gray-700 rounded text-gray-300"
             title="Properties"
           >
             <Settings className="w-4 h-4" />
           </button>
-          <div className="w-px h-6 bg-gray-300" />
+          <div className="w-px h-6 bg-gray-600" />
           <button
             onClick={onSave}
             className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
