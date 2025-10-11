@@ -1,414 +1,109 @@
-import { NextRequest, NextResponse } from "next/server";
-import { requireAuthWithOrg } from "@/app/lib/api/auth-check-org";
-import { createClient } from "@/app/lib/supabase/server";
-import OpenAI from "openai";
-import Anthropic from "@anthropic-ai/sdk";
-import * as cheerio from "cheerio";
+import { NextRequest, NextResponse } from 'next/server';
+import { AnthropicProvider } from '@/app/lib/ai-agents/providers/anthropic-provider';
+import { createClient } from '@/app/lib/supabase/server';
 
-// Lazy load AI clients to avoid browser environment errors during build
-let openai: OpenAI | null = null;
-let anthropic: Anthropic | null = null;
-
-function getOpenAI(): OpenAI {
-  if (!openai) {
-    openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-  }
-  return openai;
-}
-
-function getAnthropic(): Anthropic {
-  if (!anthropic) {
-    anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
-  }
-  return anthropic;
-}
-
-// Force dynamic rendering for this route
-export const dynamic = "force-dynamic";
-
-// Function to fetch and parse webpage
-async function fetchAndParseWebpage(url: string) {
-  try {
-    const response = await fetch(url);
-    const html = await response.text();
-    const $ = cheerio.load(html);
-
-    // Extract page structure
-    const pageStructure = {
-      title: $("title").text(),
-      metaDescription: $('meta[name="description"]').attr("content"),
-      headers: [] as any[],
-      sections: [] as any[],
-      forms: [] as any[],
-      images: [] as any[],
-      buttons: [] as any[],
-      text: [] as any[],
-    };
-
-    // Extract headers
-    $('header, nav, .header, .navbar, [class*="header"], [class*="nav"]').each(
-      (i, el) => {
-        const $el = $(el);
-        pageStructure.headers.push({
-          html: $el.html()?.substring(0, 500),
-          text: $el.text().trim().substring(0, 200),
-          links: $el
-            .find("a")
-            .map((i, a) => $(a).text().trim())
-            .get(),
-        });
-      },
-    );
-
-    // Extract hero sections
-    $(
-      '[class*="hero"], [class*="banner"], .jumbotron, section:first-child',
-    ).each((i, el) => {
-      const $el = $(el);
-      pageStructure.sections.push({
-        type: "hero",
-        heading: $el.find("h1, h2").first().text().trim(),
-        subheading: $el.find("p").first().text().trim(),
-        buttons: $el
-          .find('a.btn, button, [class*="button"]')
-          .map((i, btn) => $(btn).text().trim())
-          .get(),
-        backgroundImage:
-          $el.css("background-image") || $el.find("img").first().attr("src"),
-      });
-    });
-
-    // Extract features sections
-    $('[class*="features"], [class*="services"], .features, .services').each(
-      (i, el) => {
-        const $el = $(el);
-        const features = $el
-          .find('[class*="feature"], [class*="service"], .col, .card')
-          .map((i, feat) => {
-            const $feat = $(feat);
-            return {
-              title: $feat.find("h3, h4, h5").first().text().trim(),
-              description: $feat.find("p").first().text().trim(),
-              icon: $feat.find('i, svg, [class*="icon"]').length > 0,
-            };
-          })
-          .get();
-
-        if (features.length > 0) {
-          pageStructure.sections.push({
-            type: "features",
-            title: $el.find("h2, h3").first().text().trim(),
-            features: features,
-          });
-        }
-      },
-    );
-
-    // Extract CTA sections
-    $('[class*="cta"], [class*="call-to-action"], .cta').each((i, el) => {
-      const $el = $(el);
-      pageStructure.sections.push({
-        type: "cta",
-        heading: $el.find("h2, h3").first().text().trim(),
-        description: $el.find("p").first().text().trim(),
-        buttons: $el
-          .find("a, button")
-          .map((i, btn) => $(btn).text().trim())
-          .get(),
-      });
-    });
-
-    // Extract forms
-    $("form").each((i, el) => {
-      const $el = $(el);
-      const fields = $el
-        .find("input, textarea, select")
-        .map((i, field) => {
-          const $field = $(field);
-          return {
-            type: $field.prop("type") || $field.prop("tagName").toLowerCase(),
-            name: $field.attr("name"),
-            placeholder: $field.attr("placeholder"),
-            label: $(`label[for="${$field.attr("id")}"]`)
-              .text()
-              .trim(),
-          };
-        })
-        .get();
-
-      pageStructure.forms.push({
-        action: $el.attr("action"),
-        method: $el.attr("method"),
-        fields: fields,
-      });
-    });
-
-    // Extract main text content
-    $("p, h1, h2, h3, h4, h5, h6").each((i, el) => {
-      const text = $(el).text().trim();
-      if (text.length > 20 && text.length < 500) {
-        pageStructure.text.push(text);
-      }
-    });
-
-    // Extract images
-    $("img").each((i, el) => {
-      const $el = $(el);
-      const src = $el.attr("src");
-      if (src && !src.includes("data:image")) {
-        pageStructure.images.push({
-          src: src,
-          alt: $el.attr("alt"),
-          width: $el.attr("width"),
-          height: $el.attr("height"),
-        });
-      }
-    });
-
-    return pageStructure;
-  } catch (error) {
-    console.error("Error fetching webpage:", error);
-    throw new Error("Failed to fetch and parse webpage");
-  }
-}
-
-// Function to analyze structure and generate components using AI
-// Primary: Claude Sonnet 4.5, Fallback: GPT-5
-async function analyzeAndGenerateComponents(pageStructure: any, url: string) {
-  const prompt = `
-Analyze this webpage structure and generate a landing page component configuration.
-
-URL: ${url}
-Page Structure: ${JSON.stringify(pageStructure, null, 2)}
-
-Based on the extracted structure, create a JSON configuration for a landing page builder with these component types:
-- HEADER (navigation)
-- HERO (main banner section)
-- TEXT (text blocks)
-- FEATURES (feature grid)
-- FORM (contact/lead forms)
-- CTA (call-to-action sections)
-- IMAGE (image blocks)
-- BUTTON (action buttons)
-
-Return a JSON object with:
-{
-  "name": "Generated from [domain]",
-  "description": "Brief description of the page",
-  "components": [
-    {
-      "type": "COMPONENT_TYPE",
-      "props": { /* component-specific props */ }
-    }
-  ],
-  "styles": {
-    "primaryColor": "#hex",
-    "secondaryColor": "#hex",
-    "fontFamily": "font-name"
-  },
-  "meta": {
-    "title": "page title",
-    "description": "meta description"
-  }
-}
-
-Make sure props match these component interfaces:
-- HEADER: { logoText, menuItems: [{label, href}], ctaButton: {label, href} }
-- HERO: { title, subtitle, description, primaryButton: {label, href}, backgroundColor }
-- TEXT: { content, fontSize, textAlign }
-- FEATURES: { title, subtitle, features: [{icon, title, description}] }
-- FORM: { title, description, fields: [{id, type, label, required}], submitLabel }
-- CTA: { title, description, primaryButton: {label, href} }
-- IMAGE: { src, alt, caption }
-- BUTTON: { label, href, variant, size }
-
-Return ONLY valid JSON, no additional text.
-`;
-
-  // Try Claude Sonnet 4.5 first
-  try {
-    console.log("[Landing Page AI] Using Claude Sonnet 4.5 (primary)");
-    const response = await getAnthropic().messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 4096,
-      temperature: 0.7,
-      system:
-        "You are an expert at analyzing web pages and creating landing page templates. Always return valid JSON.",
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-    });
-
-    const content = response.content[0];
-    if (content.type !== "text") throw new Error("Unexpected response type");
-
-    return JSON.parse(content.text);
-  } catch (anthropicError: any) {
-    console.error(
-      "Claude Sonnet 4.5 failed, falling back to GPT-5:",
-      anthropicError,
-    );
-
-    // Fallback to GPT-5
-    try {
-      console.log("[Landing Page AI] Using GPT-5 (fallback)");
-      const response = await getOpenAI().chat.completions.create({
-        model: "gpt-5",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are an expert at analyzing web pages and creating landing page templates. Always return valid JSON.",
-          },
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-        temperature: 0.7,
-        max_tokens: 4000,
-        response_format: { type: "json_object" },
-      });
-
-      const content = response.choices[0]?.message?.content;
-      if (!content) throw new Error("No response from GPT-5");
-
-      return JSON.parse(content);
-    } catch (openaiError) {
-      console.error("Both AI providers failed:", {
-        anthropicError,
-        openaiError,
-      });
-      throw new Error(
-        "Failed to analyze page structure with both Claude and GPT-5",
-      );
-    }
-  }
-}
-
-// POST - Generate landing page from URL
 export async function POST(request: NextRequest) {
-  let authUser;
   try {
-    authUser = await requireAuthWithOrg();
-  } catch (error) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+    const body = await request.json();
+    const { description } = body;
 
-  const { id: userId, organizationId } = authUser;
-  const { url } = await request.json();
+    if (!description) {
+      return NextResponse.json({ error: 'Missing description' }, { status: 400 });
+    }
 
-  if (!url) {
-    return NextResponse.json({ error: "URL is required" }, { status: 400 });
-  }
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-  const supabase = await createClient();
+    // Get organization
+    const { data: orgData } = await supabase
+      .from('user_organizations')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .single();
 
-  try {
-    // Create AI generation record
-    const { data: generation, error: genError } = await supabase
-      .from("ai_template_generations")
+    if (!orgData) {
+      return NextResponse.json({ error: 'No organization found' }, { status: 400 });
+    }
+
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return NextResponse.json({ error: 'AI not configured' }, { status: 503 });
+    }
+
+    const anthropic = new AnthropicProvider(process.env.ANTHROPIC_API_KEY);
+
+    const systemPrompt = 'You are an expert landing page designer. Generate a complete landing page as JSON array of components. Use these types: hero, features, testimonials, cta. Return ONLY valid JSON, no markdown.';
+
+    const userPrompt = `Create landing page for: ${description}
+
+Return JSON array like:
+[{"id":"hero-1","type":"hero","props":{"title":"...","subtitle":"...","description":"...","primaryButton":{"label":"Get Started","href":"#"},"backgroundColor":"#3B82F6","textColor":"#ffffff","alignment":"center","height":"large"}}]`;
+
+    const result = await anthropic.execute([{ role: 'user', content: userPrompt }], {
+      model: 'claude-sonnet-4-20250514',
+      temperature: 0.9,
+      max_tokens: 8000,
+      system: systemPrompt
+    });
+
+    if (!result.success || !result.content) {
+      return NextResponse.json({ error: 'Generation failed' }, { status: 500 });
+    }
+
+    const textContent = result.content.find(c => c.type === 'text');
+    if (!textContent?.text) {
+      return NextResponse.json({ error: 'No content' }, { status: 500 });
+    }
+
+    let components;
+    try {
+      let jsonText = textContent.text;
+      const match = jsonText.match(/```(?:json)?\s*(\[[\s\S]*\])\s*```/);
+      if (match) jsonText = match[1];
+      components = JSON.parse(jsonText);
+      if (!Array.isArray(components)) throw new Error('Not an array');
+      components = components.map((c, i) => ({ ...c, id: c.id || `c-${Date.now()}-${i}` }));
+    } catch (e) {
+      console.error('Parse error:', e);
+      return NextResponse.json({ error: 'Parse failed' }, { status: 500 });
+    }
+
+    // Extract title from first hero component for page name
+    const heroComponent = components.find(c => c.type === 'hero');
+    const pageTitle = heroComponent?.props?.title || 'AI Generated Page';
+
+    // Save to database
+    const slug = `ai-${Date.now()}`;
+    const { data: newPage, error: dbError } = await supabase
+      .from('landing_pages')
       .insert({
-        organization_id: organizationId,
-        source_url: url,
-        status: "processing",
-        created_by: userId,
-        ai_model: "claude-sonnet-4-20250514", // Primary model, may fallback to gpt-5
+        organization_id: orgData.organization_id,
+        name: pageTitle.substring(0, 100),
+        slug,
+        title: pageTitle,
+        description: description.substring(0, 500),
+        content: components,
+        status: 'draft',
       })
       .select()
       .single();
 
-    if (genError) {
-      throw new Error(genError.message);
+    if (dbError || !newPage) {
+      console.error('DB error:', dbError);
+      return NextResponse.json({ error: 'Failed to save page' }, { status: 500 });
     }
-
-    // Fetch and parse the webpage
-    const pageStructure = await fetchAndParseWebpage(url);
-
-    // Generate components using AI
-    const generatedTemplate = await analyzeAndGenerateComponents(
-      pageStructure,
-      url,
-    );
-
-    // Update generation record with result
-    await supabase
-      .from("ai_template_generations")
-      .update({
-        generated_content: generatedTemplate.components,
-        generated_styles: generatedTemplate.styles,
-        status: "completed",
-      })
-      .eq("id", generation.id);
-
-    // Create the landing page
-    const { data: landingPage, error: pageError } = await supabase
-      .from("landing_pages")
-      .insert({
-        organization_id: organizationId,
-        name:
-          generatedTemplate.name || `Generated from ${new URL(url).hostname}`,
-        slug: `generated-${Date.now()}`,
-        title: generatedTemplate.meta?.title || generatedTemplate.name,
-        description:
-          generatedTemplate.meta?.description || generatedTemplate.description,
-        content: generatedTemplate.components,
-        styles: generatedTemplate.styles,
-        settings: {},
-        meta_title: generatedTemplate.meta?.title,
-        meta_description: generatedTemplate.meta?.description,
-        status: "draft",
-        created_by: userId,
-        updated_by: userId,
-      })
-      .select()
-      .single();
-
-    if (pageError) {
-      throw new Error(pageError.message);
-    }
-
-    // Update generation with landing page reference
-    await supabase
-      .from("ai_template_generations")
-      .update({
-        landing_page_id: landingPage.id,
-      })
-      .eq("id", generation.id);
 
     return NextResponse.json({
       success: true,
-      data: landingPage,
-      generation: generation,
-      message: `Successfully generated landing page from ${url}`,
+      data: newPage,
+      components,
+      cost: result.cost
     });
-  } catch (error: any) {
-    console.error("AI generation error:", error);
-
-    // Update generation record with error
-    const generation = (error as any).generation;
-    if (generation?.id) {
-      await supabase
-        .from("ai_template_generations")
-        .update({
-          status: "failed",
-          error_message: error.message,
-        })
-        .eq("id", generation.id);
-    }
-
-    return NextResponse.json(
-      {
-        error: error.message || "Failed to generate landing page from URL",
-      },
-      { status: 500 },
-    );
+  } catch (error) {
+    console.error('Error:', error);
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 }
