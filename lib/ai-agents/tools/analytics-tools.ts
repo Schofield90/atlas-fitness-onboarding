@@ -48,7 +48,7 @@ export class GenerateRevenueReportTool extends BaseTool {
           client_id,
           description
         `)
-        .eq('organization_id', context.organizationId)
+        .eq('org_id', context.organizationId)
         .in('payment_status', ['paid_out', 'succeeded', 'confirmed', 'completed'])
         .gte('payment_date', startDate)
         .lte('payment_date', endDate)
@@ -202,7 +202,7 @@ export class GenerateChurnReportTool extends BaseTool {
           cancellation_reason,
           membership_plans(name, category)
         `)
-        .eq('organization_id', context.organizationId)
+        .eq('org_id', context.organizationId)
         .or(`start_date.gte.${startDate},end_date.gte.${startDate}`)
         .lte('start_date', endDate);
 
@@ -310,7 +310,7 @@ export class GenerateLTVReportTool extends BaseTool {
           source,
           payments(amount, payment_date, payment_status)
         `)
-        .eq('organization_id', context.organizationId);
+        .eq('org_id', context.organizationId);
 
       if (error) throw error;
 
@@ -483,7 +483,7 @@ export class GenerateMonthlyTurnoverReportTool extends BaseTool {
             )
           )
         `)
-        .eq('organization_id', context.organizationId)
+        .eq('org_id', context.organizationId)
         .in('payment_status', ['paid_out', 'succeeded', 'confirmed'])
         .gte('payment_date', startDateString)
         .order('payment_date', { ascending: false });
@@ -597,7 +597,7 @@ export class CalculateMRRTool extends BaseTool {
           status,
           membership_plans(name, category, billing_period)
         `)
-        .eq('organization_id', context.organizationId)
+        .eq('org_id', context.organizationId)
         .eq('status', 'active')
         .lte('start_date', asOfDate)
         .or(`end_date.is.null,end_date.gt.${asOfDate}`);
@@ -679,7 +679,7 @@ export class CalculateARRTool extends BaseTool {
           start_date,
           membership_plans(name, category)
         `)
-        .eq('organization_id', context.organizationId)
+        .eq('org_id', context.organizationId)
         .eq('status', 'active')
         .lte('start_date', asOfDate)
         .or(`end_date.is.null,end_date.gt.${asOfDate}`);
@@ -698,7 +698,7 @@ export class CalculateARRTool extends BaseTool {
       const { data: lastYearMemberships } = await supabase
         .from('customer_memberships')
         .select('monthly_price')
-        .eq('organization_id', context.organizationId)
+        .eq('org_id', context.organizationId)
         .eq('status', 'active')
         .lte('start_date', lastYearDateString)
         .or(`end_date.is.null,end_date.gt.${lastYearDateString}`);
@@ -763,7 +763,7 @@ export class AnalyzePaymentTrendsTool extends BaseTool {
       const { data: payments, error } = await supabase
         .from('payments')
         .select('payment_date, amount, payment_method, payment_status, created_at')
-        .eq('organization_id', context.organizationId)
+        .eq('org_id', context.organizationId)
         .gte('payment_date', params.startDate)
         .lte('payment_date', params.endDate)
         .order('payment_date', { ascending: true });
@@ -872,7 +872,7 @@ export class AnalyzeClassAttendanceTool extends BaseTool {
           current_bookings,
           programs(name, program_type)
         `)
-        .eq('organization_id', context.organizationId)
+        .eq('org_id', context.organizationId)
         .gte('start_time', params.startDate)
         .lte('start_time', params.endDate);
 
@@ -1030,7 +1030,7 @@ export class AnalyzeMemberEngagementTool extends BaseTool {
             booking_status
           )
         `)
-        .eq('organization_id', context.organizationId)
+        .eq('org_id', context.organizationId)
         .gte('bookings.booking_time', params.startDate)
         .lte('bookings.booking_time', params.endDate);
 
@@ -1269,7 +1269,7 @@ export class IdentifyAtRiskMembersTool extends BaseTool {
             payment_status
           )
         `)
-        .eq('organization_id', context.organizationId)
+        .eq('org_id', context.organizationId)
         .eq('customer_memberships.status', 'active');
 
       if (error) throw error;
@@ -1397,7 +1397,7 @@ export class GenerateOperationsReportTool extends BaseTool {
         supabase
           .from('class_sessions')
           .select('id, start_time, max_capacity, current_bookings, session_status')
-          .eq('organization_id', context.organizationId)
+          .eq('org_id', context.organizationId)
           .gte('start_time', params.startDate)
           .lte('start_time', params.endDate),
 
@@ -1410,12 +1410,12 @@ export class GenerateOperationsReportTool extends BaseTool {
         supabase
           .from('clients')
           .select('id, created_at, status')
-          .eq('organization_id', context.organizationId),
+          .eq('org_id', context.organizationId),
 
         supabase
           .from('payments')
           .select('id, amount, payment_status, payment_date')
-          .eq('organization_id', context.organizationId)
+          .eq('org_id', context.organizationId)
           .gte('payment_date', params.startDate)
           .lte('payment_date', params.endDate),
       ]);

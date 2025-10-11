@@ -370,3 +370,11 @@ Deployment trigger: Fix revenue report tool - Sat 11 Oct 2025 08:00:38 BST
   Fix: Use "required" only on FIRST iteration, then switch to "auto" (orchestrator.ts:396-429)
   Logic: hasCalledTool flag tracks if tool was executed, subsequent iterations use "auto"
   Result: Agent calls tool once, then responds with text analysis (no more loops)
+
+2025-10-11 16:15:00 - CRITICAL DATABASE FIX: Wrong column name in analytics tools
+  Issue: Agent returns "no customers" despite 50 clients + 108 payments in database
+  Root Cause: All analytics tools query clients.organization_id but column is clients.org_id
+  Database Evidence: Query with organization_id returns 0 rows, org_id returns 50 rows
+  Fix: Changed 14 instances of .eq('organization_id', ...) to .eq('org_id', ...)
+  File: /lib/ai-agents/tools/analytics-tools.ts (lines 51, 205, 313, 486, 600, 682, 701, 766, 875, 1033, 1272, 1400, 1413, 1418)
+  Result: Agent can now query real data (£43.20 average LTV vs £0 before)
