@@ -117,8 +117,7 @@ export const AITemplateImport: React.FC<AITemplateImportProps> = ({
             </>
           )}
         </button>
-      </div>
-        
+
         {error && (
           <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
             <AlertCircle className="w-5 h-5 text-red-500 mt-0.5" />
@@ -128,7 +127,7 @@ export const AITemplateImport: React.FC<AITemplateImportProps> = ({
             </div>
           </div>
         )}
-        
+
         {success && (
           <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
             <p className="text-sm font-medium text-green-800">
@@ -139,61 +138,22 @@ export const AITemplateImport: React.FC<AITemplateImportProps> = ({
             </p>
           </div>
         )}
-        
+
         {loading && (
           <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
             <div className="flex items-center gap-3">
               <Loader2 className="w-5 h-5 text-purple-600 animate-spin" />
               <div className="flex-1">
                 <p className="text-sm font-medium text-purple-800">
-                  Analyzing website...
+                  AI Building Page...
                 </p>
                 <p className="text-xs text-purple-700 mt-1">
                   This may take up to 30 seconds
                 </p>
               </div>
             </div>
-            
-            <div className="mt-3 space-y-1">
-              <div className="text-xs text-purple-700 flex items-center gap-2">
-                <span className="w-2 h-2 bg-purple-600 rounded-full animate-pulse" />
-                Fetching webpage content...
-              </div>
-              <div className="text-xs text-purple-700 flex items-center gap-2">
-                <span className="w-2 h-2 bg-purple-600 rounded-full animate-pulse" />
-                Analyzing page structure...
-              </div>
-              <div className="text-xs text-purple-700 flex items-center gap-2">
-                <span className="w-2 h-2 bg-purple-600 rounded-full animate-pulse" />
-                Generating components...
-              </div>
-            </div>
           </div>
         )}
-        
-        <div className="pt-4 border-t border-gray-200">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">How it works:</h4>
-          <ol className="text-sm text-gray-600 space-y-1">
-            <li>1. Enter any website URL you want to replicate</li>
-            <li>2. AI analyzes the page structure and design</li>
-            <li>3. A customizable template is generated</li>
-            <li>4. Edit and customize using the drag-and-drop builder</li>
-          </ol>
-        </div>
-        
-        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex items-start gap-2">
-            <ExternalLink className="w-4 h-4 text-blue-600 mt-0.5" />
-            <div>
-              <p className="text-xs font-medium text-blue-800">
-                Pro tip: Works best with landing pages, marketing sites, and single-page websites.
-              </p>
-              <p className="text-xs text-blue-700 mt-1">
-                Complex web applications may not convert perfectly.
-              </p>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   )
