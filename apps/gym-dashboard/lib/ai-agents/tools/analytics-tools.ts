@@ -46,15 +46,10 @@ export class GenerateRevenueReportTool extends BaseTool {
           payment_status,
           payment_method,
           client_id,
-          customer_memberships(
-            membership_plans(
-              name,
-              category
-            )
-          )
+          description
         `)
         .eq('organization_id', context.organizationId)
-        .in('payment_status', ['paid_out', 'succeeded', 'confirmed'])
+        .in('payment_status', ['paid_out', 'succeeded', 'confirmed', 'completed'])
         .gte('payment_date', startDate)
         .lte('payment_date', endDate)
         .order('payment_date', { ascending: true });
@@ -116,8 +111,8 @@ export class GenerateRevenueReportTool extends BaseTool {
         const method = payment.payment_method || 'unknown';
         group.paymentMethods.set(method, (group.paymentMethods.get(method) || 0) + amount);
 
-        // Track categories
-        const category = (payment.customer_memberships as any)?.membership_plans?.category || 'Uncategorized';
+        // Track categories by description (e.g., "Membership", "Class Pass", etc.)
+        const category = payment.description || 'Other';
         group.categories.set(category, (group.categories.get(category) || 0) + amount);
       });
 
@@ -875,8 +870,7 @@ export class AnalyzeClassAttendanceTool extends BaseTool {
           start_time,
           max_capacity,
           current_bookings,
-          programs(name, program_type),
-          bookings(id, booking_status, attended_at)
+          programs(name, program_type)
         `)
         .eq('organization_id', context.organizationId)
         .gte('start_time', params.startDate)
@@ -889,6 +883,43 @@ export class AnalyzeClassAttendanceTool extends BaseTool {
       const { data: sessions, error } = await query;
 
       if (error) throw error;
+
+      // Fetch bookings from both tables for all sessions
+      const sessionIds = sessions?.map(s => s.id) || [];
+
+      const [bookingsResult, classBookingsResult] = await Promise.all([
+        supabase
+          .from('bookings')
+          .select('id, class_session_id, status, attended_at')
+          .in('class_session_id', sessionIds),
+        supabase
+          .from('class_bookings')
+          .select('id, class_session_id, booking_status, attended_at')
+          .in('class_session_id', sessionIds)
+      ]);
+
+      // Combine bookings from both tables
+      const allBookings = new Map<string, any[]>();
+      bookingsResult.data?.forEach(b => {
+        if (!allBookings.has(b.class_session_id)) {
+          allBookings.set(b.class_session_id, []);
+        }
+        allBookings.get(b.class_session_id)!.push({
+          id: b.id,
+          status: b.status,
+          attended_at: b.attended_at
+        });
+      });
+      classBookingsResult.data?.forEach(b => {
+        if (!allBookings.has(b.class_session_id)) {
+          allBookings.set(b.class_session_id, []);
+        }
+        allBookings.get(b.class_session_id)!.push({
+          id: b.id,
+          status: b.booking_status,
+          attended_at: b.attended_at
+        });
+      });
 
       // Analyze attendance
       let totalCapacity = 0;
@@ -903,12 +934,13 @@ export class AnalyzeClassAttendanceTool extends BaseTool {
 
       sessions?.forEach(session => {
         const capacity = session.max_capacity || 0;
-        const bookings = (session.bookings as any[])?.length || 0;
-        const attended = (session.bookings as any[])?.filter(b => b.attended_at).length || 0;
+        const sessionBookings = allBookings.get(session.id) || [];
+        const bookingCount = sessionBookings.length;
+        const attended = sessionBookings.filter(b => b.attended_at || b.status === 'attended').length;
         const program = (session.programs as any)?.name || 'Unknown';
 
         totalCapacity += capacity;
-        totalBookings += bookings;
+        totalBookings += bookingCount;
         totalAttended += attended;
 
         if (!programStats.has(program)) {
@@ -917,7 +949,7 @@ export class AnalyzeClassAttendanceTool extends BaseTool {
         const stats = programStats.get(program)!;
         stats.sessions++;
         stats.capacity += capacity;
-        stats.bookings += bookings;
+        stats.bookings += bookingCount;
         stats.attended += attended;
       });
 
@@ -1449,6 +1481,174 @@ export class GenerateOperationsReportTool extends BaseTool {
 }
 
 /**
+ * Get Client Count
+ * Simple tool to answer "how many clients do we have?"
+ */
+export class GetClientCountTool extends BaseTool {
+  id = 'get_client_count';
+  name = 'Get Client Count';
+  description = 'Get the total number of clients/members, optionally filtered by status (active, inactive, all)';
+  category: 'analytics' = 'analytics';
+
+  parametersSchema = z.object({
+    status: z.enum(['active', 'inactive', 'all']).default('active').describe('Filter by client status (default: active)'),
+  });
+
+  requiresPermission = 'clients:read';
+
+  async execute(
+    params: z.infer<typeof this.parametersSchema>,
+    context: ToolExecutionContext
+  ): Promise<ToolExecutionResult> {
+    const startTime = Date.now();
+
+    try {
+      const supabase = createAdminClient();
+
+      let query = supabase
+        .from('clients')
+        .select('id', { count: 'exact', head: true })
+        .eq('org_id', context.organizationId);
+
+      if (params.status !== 'all') {
+        query = query.eq('status', params.status);
+      }
+
+      const { count, error } = await query;
+
+      if (error) throw error;
+
+      return {
+        success: true,
+        data: {
+          count: count || 0,
+          status: params.status,
+          message: `You have ${count || 0} ${params.status === 'all' ? '' : params.status} client${count === 1 ? '' : 's'}`,
+        },
+        metadata: {
+          executionTimeMs: Date.now() - startTime,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get client count',
+      };
+    }
+  }
+}
+
+/**
+ * Get Client Attendance Summary
+ * Simple tool to check a client's attendance
+ */
+export class GetClientAttendanceTool extends BaseTool {
+  id = 'get_client_attendance';
+  name = 'Get Client Attendance';
+  description = 'Get attendance summary for a specific client by their name, email, or ID';
+  category: 'analytics' = 'analytics';
+
+  parametersSchema = z.object({
+    clientIdentifier: z.string().describe('Client name, email, or UUID'),
+    periodDays: z.number().default(30).describe('Number of days to look back (default: 30)'),
+  });
+
+  requiresPermission = 'bookings:read';
+
+  async execute(
+    params: z.infer<typeof this.parametersSchema>,
+    context: ToolExecutionContext
+  ): Promise<ToolExecutionResult> {
+    const startTime = Date.now();
+
+    try {
+      const supabase = createAdminClient();
+
+      // First, find the client
+      const searchPattern = `%${params.clientIdentifier}%`;
+      const { data: clients, error: clientError } = await supabase
+        .from('clients')
+        .select('id, first_name, last_name, email')
+        .eq('org_id', context.organizationId)
+        .or(
+          `id.eq.${params.clientIdentifier},` +
+          `first_name.ilike.${searchPattern},` +
+          `last_name.ilike.${searchPattern},` +
+          `email.ilike.${searchPattern}`
+        )
+        .limit(1);
+
+      if (clientError) throw clientError;
+      if (!clients || clients.length === 0) {
+        return {
+          success: false,
+          error: `Client not found: ${params.clientIdentifier}`,
+        };
+      }
+
+      const client = clients[0];
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - params.periodDays);
+
+      // Get attendance records
+      const { data: bookings, error: bookingsError } = await supabase
+        .from('class_bookings')
+        .select(`
+          id,
+          booking_status,
+          created_at,
+          class_sessions(
+            id,
+            start_time,
+            class_types(name)
+          )
+        `)
+        .eq('client_id', client.id)
+        .gte('created_at', startDate.toISOString())
+        .order('created_at', { ascending: false });
+
+      if (bookingsError) throw bookingsError;
+
+      const total = bookings?.length || 0;
+      const attended = bookings?.filter(b => b.booking_status === 'attended').length || 0;
+      const noShows = bookings?.filter(b => b.booking_status === 'no_show').length || 0;
+      const cancelled = bookings?.filter(b => b.booking_status === 'cancelled').length || 0;
+      const upcoming = bookings?.filter(b => b.booking_status === 'confirmed').length || 0;
+
+      return {
+        success: true,
+        data: {
+          client: {
+            id: client.id,
+            name: `${client.first_name} ${client.last_name}`,
+            email: client.email,
+          },
+          periodDays: params.periodDays,
+          attendance: {
+            total,
+            attended,
+            noShows,
+            cancelled,
+            upcoming,
+            attendanceRate: total > 0 ? Math.round((attended / total) * 100) : 0,
+          },
+          message: `${client.first_name} ${client.last_name} has attended ${attended} out of ${total} bookings in the last ${params.periodDays} days (${total > 0 ? Math.round((attended / total) * 100) : 0}% attendance rate)`,
+        },
+        metadata: {
+          recordsAffected: total,
+          executionTimeMs: Date.now() - startTime,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get client attendance',
+      };
+    }
+  }
+}
+
+/**
  * Export all analytics tools
  */
 export const ANALYTICS_TOOLS = [
@@ -1464,4 +1664,6 @@ export const ANALYTICS_TOOLS = [
   new AnalyzeNoShowRatesTool(),
   new IdentifyAtRiskMembersTool(),
   new GenerateOperationsReportTool(),
+  new GetClientCountTool(),
+  new GetClientAttendanceTool(),
 ];
