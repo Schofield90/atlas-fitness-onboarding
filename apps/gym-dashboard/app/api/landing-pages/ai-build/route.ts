@@ -98,28 +98,51 @@ Component prop interfaces (type names are lowercase):
 Make the content relevant to the description. Use realistic, engaging copy. Include at least 3-5 components.
 Return ONLY valid JSON, no additional text or markdown.`;
 
+    console.log('[AI Build] Starting GPT-4o generation...');
+    console.log('[AI Build] Description:', description);
+    console.log('[AI Build] Prompt length:', prompt.length);
+
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
           role: "system",
           content:
-            "You are an expert landing page builder. Create beautiful, conversion-focused landing pages. Always return valid JSON only.",
+            "You are an expert landing page builder. Create beautiful, conversion-focused landing pages with UNIQUE colors each time. Always return valid JSON only.",
         },
         {
           role: "user",
           content: prompt,
         },
       ],
-      temperature: 0.8,
+      temperature: 0.9, // Increased from 0.8 for more variety
       max_tokens: 4000,
       response_format: { type: "json_object" },
+    });
+
+    console.log('[AI Build] GPT-4o response received:', {
+      model: response.model,
+      tokens: response.usage?.total_tokens,
+      finishReason: response.choices[0]?.finish_reason
     });
 
     const content = response.choices[0]?.message?.content;
     if (!content) throw new Error("No response from AI");
 
+    console.log('[AI Build] Response length:', content.length);
+
     const generatedTemplate = JSON.parse(content);
+
+    // Log colors for debugging uniqueness
+    const colors = generatedTemplate.components
+      ?.map((c: any) => c.props?.backgroundColor)
+      .filter(Boolean) || [];
+
+    console.log('[AI Build] Generated components:', {
+      count: generatedTemplate.components?.length || 0,
+      types: generatedTemplate.components?.map((c: any) => c.type) || [],
+      colors: colors
+    });
 
     // Create the landing page
     const { data: landingPage, error: pageError } = await supabase
