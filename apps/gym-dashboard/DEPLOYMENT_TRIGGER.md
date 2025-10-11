@@ -345,3 +345,5 @@ Files: /app/api/ai-agents/[id]/route.ts (lines 11-19)
 # Trigger deployment after adding SUPABASE_SERVICE_ROLE_KEY env var - Sat 11 Oct 2025 05:54:27 BST
 
 # Fix revenue report tool - simplified payment query - Sat 11 Oct 2025 06:05:45 BST
+
+Deployment trigger: Fix revenue report tool - Sat 11 Oct 2025 08:00:38 BST
