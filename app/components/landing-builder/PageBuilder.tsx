@@ -4,6 +4,7 @@ import React, { useState, useCallback, useRef } from "react";
 import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import * as Components from "./components";
+import { PublishedComponentRenderer } from "./PublishedComponentRenderer";
 import {
   GripVertical,
   Trash2,
@@ -364,15 +365,13 @@ const PageBuilder: React.FC<PageBuilderProps> = ({
                 </button>
               </div>
 
-              {/* Preview Content */}
+              {/* Preview Content - Uses published component renderer for accurate styling */}
               <div className="preview-content bg-white">
-                {components.map((component, index) => (
-                  <div key={component.id}>
-                    <ComponentRenderer
-                      component={component}
-                      isEditing={false}
-                    />
-                  </div>
+                {components.map((component) => (
+                  <PublishedComponentRenderer
+                    key={component.id}
+                    component={component}
+                  />
                 ))}
               </div>
             </div>
