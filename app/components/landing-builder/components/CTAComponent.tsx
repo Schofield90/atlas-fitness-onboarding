@@ -11,6 +11,7 @@ interface CTAProps extends ComponentProps {
   backgroundColor?: string
   textColor?: string
   pattern?: 'none' | 'dots' | 'gradient'
+  isEditing?: boolean
 }
 
 export const CTAComponent: React.FC<CTAProps> = ({
@@ -21,7 +22,8 @@ export const CTAComponent: React.FC<CTAProps> = ({
   backgroundColor = '#1e40af',
   textColor = '#ffffff',
   pattern = 'none',
-  className = ''
+  className = '',
+  isEditing = false
 }) => {
   const patternStyles = {
     none: '',
