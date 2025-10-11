@@ -362,3 +362,11 @@ Deployment trigger: Fix revenue report tool - Sat 11 Oct 2025 08:00:38 BST
   Fix: Use "auto" for greetings, "required" for data questions (orchestrator.ts:405-423)
   Detection: Regex checks for greetings (hi/hey/hello) vs questions (what/how/show)
   Result: Greetings work normally, data questions force tool use (best of both)
+
+2025-10-11 16:00:00 - FINAL FIX: Prevent infinite tool calling loop
+  Issue: Agent stuck in 10-iteration loop, never responds with text
+  Logs: "Iteration 1-10", "Response content: undefined", calls tool repeatedly
+  Root Cause: tool_choice: "required" forces tool call EVERY iteration (infinite loop)
+  Fix: Use "required" only on FIRST iteration, then switch to "auto" (orchestrator.ts:396-429)
+  Logic: hasCalledTool flag tracks if tool was executed, subsequent iterations use "auto"
+  Result: Agent calls tool once, then responds with text analysis (no more loops)

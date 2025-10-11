@@ -393,6 +393,9 @@ ${agent.system_prompt}`;
       })),
     ];
 
+    // Track if we've already called a tool (to prevent infinite loops)
+    let hasCalledTool = false;
+
     // Tool execution loop: keep calling until no more tool calls or max iterations
     while (iteration < MAX_TOOL_ITERATIONS) {
       iteration++;
@@ -407,12 +410,22 @@ ${agent.system_prompt}`;
       const isGreeting = /^(hi|hey|hello|yo|sup|what's up|whats up|good morning|good afternoon|good evening)/i.test(lastUserMessage.trim());
       const isQuestion = lastUserMessage.includes('?') || /^(what|how|when|where|why|who|show|tell|give|calculate|analyze|get|fetch|find)/i.test(lastUserMessage);
 
-      // Use "auto" for greetings, "required" for data questions
-      const toolChoice = tools.length > 0
-        ? (isGreeting ? "auto" : "required")  // Greetings can skip tools, data questions must use them
-        : undefined;
+      // Smart tool_choice strategy:
+      // 1. Greetings: always "auto" (can skip tools)
+      // 2. First iteration of data question: "required" (force tool use)
+      // 3. After first tool call: "auto" (allow response without more tools)
+      let toolChoice: "auto" | "required" | undefined = undefined;
+      if (tools.length > 0) {
+        if (isGreeting) {
+          toolChoice = "auto";  // Greetings don't need tools
+        } else if (!hasCalledTool && iteration === 1) {
+          toolChoice = "required";  // Force tool on first iteration for data questions
+        } else {
+          toolChoice = "auto";  // After first tool, let agent decide (usually responds with text)
+        }
+      }
 
-      console.log('[Orchestrator OpenAI] Tool choice strategy:', { isGreeting, isQuestion, toolChoice });
+      console.log('[Orchestrator OpenAI] Tool choice strategy:', { iteration, hasCalledTool, isGreeting, isQuestion, toolChoice });
 
       const result = await provider.execute(messages, {
         model: agent.model,
@@ -463,6 +476,8 @@ ${agent.system_prompt}`;
 
       // Execute each tool and add results
       console.log(`[Orchestrator OpenAI] Executing ${result.toolCalls.length} tool calls...`);
+      hasCalledTool = true;  // Mark that we've executed at least one tool
+
       for (const toolCall of result.toolCalls) {
         try {
           const toolName = toolCall.function.name;
