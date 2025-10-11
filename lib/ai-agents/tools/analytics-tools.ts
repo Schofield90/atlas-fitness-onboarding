@@ -870,8 +870,7 @@ export class AnalyzeClassAttendanceTool extends BaseTool {
           start_time,
           max_capacity,
           current_bookings,
-          programs(name, program_type),
-          bookings(id, booking_status, attended_at)
+          programs(name, program_type)
         `)
         .eq('organization_id', context.organizationId)
         .gte('start_time', params.startDate)
@@ -884,6 +883,43 @@ export class AnalyzeClassAttendanceTool extends BaseTool {
       const { data: sessions, error } = await query;
 
       if (error) throw error;
+
+      // Fetch bookings from both tables for all sessions
+      const sessionIds = sessions?.map(s => s.id) || [];
+
+      const [bookingsResult, classBookingsResult] = await Promise.all([
+        supabase
+          .from('bookings')
+          .select('id, class_session_id, status, attended_at')
+          .in('class_session_id', sessionIds),
+        supabase
+          .from('class_bookings')
+          .select('id, class_session_id, booking_status, attended_at')
+          .in('class_session_id', sessionIds)
+      ]);
+
+      // Combine bookings from both tables
+      const allBookings = new Map<string, any[]>();
+      bookingsResult.data?.forEach(b => {
+        if (!allBookings.has(b.class_session_id)) {
+          allBookings.set(b.class_session_id, []);
+        }
+        allBookings.get(b.class_session_id)!.push({
+          id: b.id,
+          status: b.status,
+          attended_at: b.attended_at
+        });
+      });
+      classBookingsResult.data?.forEach(b => {
+        if (!allBookings.has(b.class_session_id)) {
+          allBookings.set(b.class_session_id, []);
+        }
+        allBookings.get(b.class_session_id)!.push({
+          id: b.id,
+          status: b.booking_status,
+          attended_at: b.attended_at
+        });
+      });
 
       // Analyze attendance
       let totalCapacity = 0;
@@ -898,12 +934,13 @@ export class AnalyzeClassAttendanceTool extends BaseTool {
 
       sessions?.forEach(session => {
         const capacity = session.max_capacity || 0;
-        const bookings = (session.bookings as any[])?.length || 0;
-        const attended = (session.bookings as any[])?.filter(b => b.attended_at).length || 0;
+        const sessionBookings = allBookings.get(session.id) || [];
+        const bookingCount = sessionBookings.length;
+        const attended = sessionBookings.filter(b => b.attended_at || b.status === 'attended').length;
         const program = (session.programs as any)?.name || 'Unknown';
 
         totalCapacity += capacity;
-        totalBookings += bookings;
+        totalBookings += bookingCount;
         totalAttended += attended;
 
         if (!programStats.has(program)) {
@@ -912,7 +949,7 @@ export class AnalyzeClassAttendanceTool extends BaseTool {
         const stats = programStats.get(program)!;
         stats.sessions++;
         stats.capacity += capacity;
-        stats.bookings += bookings;
+        stats.bookings += bookingCount;
         stats.attended += attended;
       });
 
