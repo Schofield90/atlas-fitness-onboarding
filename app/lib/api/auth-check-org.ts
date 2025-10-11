@@ -21,42 +21,90 @@ export interface AuthenticatedUser {
  */
 export async function requireAuthWithOrg(): Promise<AuthenticatedUser> {
   const supabase = await createClient()
-  
+
   // Get the current user session
   const { data: { user }, error } = await supabase.auth.getUser()
-  
+
   if (error || !user) {
     throw new AuthError('You must be logged in to access this resource', 401)
   }
-  
-  // Get the user's organization
-  // First, check if there's a direct user-organization relationship
-  const { data: userOrg, error: orgError } = await supabase
+
+  // Strategy 1: Check user_preferences for selected organization (multi-org support)
+  const { data: preference } = await supabase
+    .from('user_preferences')
+    .select('preference_value')
+    .eq('user_id', user.id)
+    .eq('preference_key', 'selected_organization_id')
+    .maybeSingle()
+
+  if (preference?.preference_value) {
+    return {
+      id: user.id,
+      email: user.email,
+      organizationId: preference.preference_value
+    }
+  }
+
+  // Strategy 2: Check user_organizations table (first org if multiple)
+  const { data: userOrg } = await supabase
     .from('user_organizations')
     .select('organization_id')
     .eq('user_id', user.id)
-    .single()
-  
-  if (orgError || !userOrg) {
-    // Fallback: Check if user has an organization in their metadata
-    const organizationId = user.user_metadata?.organization_id
-    
-    if (!organizationId) {
-      throw new AuthError('No organization found for this user', 403)
+    .limit(1)
+    .maybeSingle()
+
+  if (userOrg) {
+    return {
+      id: user.id,
+      email: user.email,
+      organizationId: userOrg.organization_id
     }
-    
+  }
+
+  // Strategy 3: Check organization_staff table (for staff members)
+  const { data: staffOrg } = await supabase
+    .from('organization_staff')
+    .select('organization_id')
+    .eq('user_id', user.id)
+    .limit(1)
+    .maybeSingle()
+
+  if (staffOrg) {
+    return {
+      id: user.id,
+      email: user.email,
+      organizationId: staffOrg.organization_id
+    }
+  }
+
+  // Strategy 4: Check if user owns any organizations
+  const { data: ownedOrg } = await supabase
+    .from('organizations')
+    .select('id')
+    .eq('owner_id', user.id)
+    .limit(1)
+    .maybeSingle()
+
+  if (ownedOrg) {
+    return {
+      id: user.id,
+      email: user.email,
+      organizationId: ownedOrg.id
+    }
+  }
+
+  // Strategy 5: Fallback to user metadata
+  const organizationId = user.user_metadata?.organization_id
+
+  if (organizationId) {
     return {
       id: user.id,
       email: user.email,
       organizationId: organizationId
     }
   }
-  
-  return {
-    id: user.id,
-    email: user.email,
-    organizationId: userOrg.organization_id
-  }
+
+  throw new AuthError('No organization found for this user', 403)
 }
 
 /**
