@@ -1,3 +1,15 @@
+# Deployment Trigger - Sat 11 Oct 2025 16:00:00 BST
+
+Reason: Fix 404 error on /ai-agents page
+Issue: User navigating to /ai-agents gets 404 Page Not Found
+Root Cause: ai-agents directory was excluded from SHARED_DIRS in copy-shared-to-app.js
+Comment said it "conflicts with /org/[orgSlug]/ai-agents routes" but they're different routes:
+
+- /ai-agents → Top-level agents list page
+- /org/[orgSlug]/ai-agents → Organization-specific AI agents page
+  Fix: Added 'ai-agents' to SHARED_DIRS array in scripts/copy-shared-to-app.js
+  Files: scripts/copy-shared-to-app.js (line 37)
+
 # Deployment Trigger - Fri 10 Oct 2025 21:15:00 BST
 
 Reason: Fix AI landing page builder - remove lazy-loading helper function
@@ -351,41 +363,41 @@ Deployment trigger: Fix revenue report tool - Sat 11 Oct 2025 08:00:38 BST
 2025-10-11 14:28:01 - Fixed CTAComponent isEditing prop
 2025-10-11 14:39:29 - Fixed TipTap className newlines
 2025-10-11 15:30:00 - CRITICAL FIX: Force tool calling in AI agents (tool_choice: "required")
-  Issue: Agents were hallucinating responses instead of using tools (LTV: £0, 0 customers)
-  Root Cause: tool_choice: "auto" allows OpenAI to skip tools and make up answers
-  Fix: Changed tool_choice from "auto" to "required" in orchestrator.ts:411
-  Result: Agent MUST call at least one tool before responding (no more hallucination)
+Issue: Agents were hallucinating responses instead of using tools (LTV: £0, 0 customers)
+Root Cause: tool_choice: "auto" allows OpenAI to skip tools and make up answers
+Fix: Changed tool_choice from "auto" to "required" in orchestrator.ts:411
+Result: Agent MUST call at least one tool before responding (no more hallucination)
 
 2025-10-11 15:45:00 - REFINED FIX: Smart tool_choice based on message type
-  Issue: "required" broke greetings (user says "hey", agent forced to call tool)
-  Root Cause: "required" is too strict for casual conversation
-  Fix: Use "auto" for greetings, "required" for data questions (orchestrator.ts:405-423)
-  Detection: Regex checks for greetings (hi/hey/hello) vs questions (what/how/show)
-  Result: Greetings work normally, data questions force tool use (best of both)
+Issue: "required" broke greetings (user says "hey", agent forced to call tool)
+Root Cause: "required" is too strict for casual conversation
+Fix: Use "auto" for greetings, "required" for data questions (orchestrator.ts:405-423)
+Detection: Regex checks for greetings (hi/hey/hello) vs questions (what/how/show)
+Result: Greetings work normally, data questions force tool use (best of both)
 
 2025-10-11 16:00:00 - FINAL FIX: Prevent infinite tool calling loop
-  Issue: Agent stuck in 10-iteration loop, never responds with text
-  Logs: "Iteration 1-10", "Response content: undefined", calls tool repeatedly
-  Root Cause: tool_choice: "required" forces tool call EVERY iteration (infinite loop)
-  Fix: Use "required" only on FIRST iteration, then switch to "auto" (orchestrator.ts:396-429)
-  Logic: hasCalledTool flag tracks if tool was executed, subsequent iterations use "auto"
-  Result: Agent calls tool once, then responds with text analysis (no more loops)
+Issue: Agent stuck in 10-iteration loop, never responds with text
+Logs: "Iteration 1-10", "Response content: undefined", calls tool repeatedly
+Root Cause: tool_choice: "required" forces tool call EVERY iteration (infinite loop)
+Fix: Use "required" only on FIRST iteration, then switch to "auto" (orchestrator.ts:396-429)
+Logic: hasCalledTool flag tracks if tool was executed, subsequent iterations use "auto"
+Result: Agent calls tool once, then responds with text analysis (no more loops)
 
 2025-10-11 16:15:00 - CRITICAL DATABASE FIX: Wrong column name in analytics tools
-  Issue: Agent returns "no customers" despite 50 clients + 108 payments in database
-  Root Cause: All analytics tools query clients.organization_id but column is clients.org_id
-  Database Evidence: Query with organization_id returns 0 rows, org_id returns 50 rows
-  Fix: Changed 14 instances of .eq('organization_id', ...) to .eq('org_id', ...)
-  File: /lib/ai-agents/tools/analytics-tools.ts (lines 51, 205, 313, 486, 600, 682, 701, 766, 875, 1033, 1272, 1400, 1413, 1418)
-  Result: Agent can now query real data (£43.20 average LTV vs £0 before)
+Issue: Agent returns "no customers" despite 50 clients + 108 payments in database
+Root Cause: All analytics tools query clients.organization_id but column is clients.org_id
+Database Evidence: Query with organization_id returns 0 rows, org_id returns 50 rows
+Fix: Changed 14 instances of .eq('organization_id', ...) to .eq('org_id', ...)
+File: /lib/ai-agents/tools/analytics-tools.ts (lines 51, 205, 313, 486, 600, 682, 701, 766, 875, 1033, 1272, 1400, 1413, 1418)
+Result: Agent can now query real data (£43.20 average LTV vs £0 before)
 
 2025-10-11 16:20:00 - FORCE REDEPLOY: Vercel build failed, retrying
-  Previous deployment: psrdw6cin (failed after 13+ minutes)
-  Triggering fresh deployment to clear build cache
+Previous deployment: psrdw6cin (failed after 13+ minutes)
+Triggering fresh deployment to clear build cache
 
 2025-10-11 16:45:00 - FIX: Revert payments table to organization_id
-  Issue: Monthly turnover tool timing out/stuck
-  Root Cause: payments table uses organization_id NOT org_id
-  Fix: Reverted 4 payments table queries back to organization_id (lines 51, 486, 766, 1418)
-  Context: clients table uses org_id, payments table uses organization_id
-  Result: Both LTV tool (clients) and turnover tool (payments) now work correctly
+Issue: Monthly turnover tool timing out/stuck
+Root Cause: payments table uses organization_id NOT org_id
+Fix: Reverted 4 payments table queries back to organization_id (lines 51, 486, 766, 1418)
+Context: clients table uses org_id, payments table uses organization_id
+Result: Both LTV tool (clients) and turnover tool (payments) now work correctly

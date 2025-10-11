@@ -33,9 +33,9 @@ const SHARED_DIRS = [
   'settings',
   'hooks',
   'types',
-  'org'          // Path-based multi-tenant routes
+  'org',          // Path-based multi-tenant routes
+  'ai-agents'     // Top-level AI agents list page
   // Note: 'members' is NOT copied - each app has its own member pages
-  // Note: 'ai-agents' is NOT copied - conflicts with /org/[orgSlug]/ai-agents routes
 ];
 
 // Function to copy directory recursively
