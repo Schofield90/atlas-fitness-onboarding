@@ -25,12 +25,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Use admin client to bypass RLS after auth/authorization check
-  const { createAdminClient } = await import("@/app/lib/supabase/server");
-  const supabase = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
+  // Use service role client to bypass RLS after auth/authorization check
+  const { createServiceRoleClient } = await import("@/app/lib/supabase/server");
+  const supabase = createServiceRoleClient();
 
   try {
     // Instantiate OpenAI client directly in function (avoid minification issues)
