@@ -341,3 +341,5 @@ Reason: Fix agent update validation - add GPT-5 and Claude Sonnet 4.5 to model e
 Fix: Updated updateAgentSchema to accept new model names
 Error: 400 Validation error when saving agent with gpt-5 or claude-sonnet-4-20250514
 Files: /app/api/ai-agents/[id]/route.ts (lines 11-19)
+
+# Trigger deployment after adding SUPABASE_SERVICE_ROLE_KEY env var - Sat 11 Oct 2025 05:54:27 BST
