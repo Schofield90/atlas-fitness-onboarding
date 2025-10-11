@@ -46,7 +46,7 @@ export class GenerateRevenueReportTool extends BaseTool {
           payment_status,
           payment_method,
           client_id,
-          membership_id
+          description
         `)
         .eq('organization_id', context.organizationId)
         .in('payment_status', ['paid_out', 'succeeded', 'confirmed', 'completed'])
@@ -111,8 +111,8 @@ export class GenerateRevenueReportTool extends BaseTool {
         const method = payment.payment_method || 'unknown';
         group.paymentMethods.set(method, (group.paymentMethods.get(method) || 0) + amount);
 
-        // Track categories (simplified - just track by membership for now)
-        const category = payment.membership_id ? 'Membership' : 'Other';
+        // Track categories by description (e.g., "Membership", "Class Pass", etc.)
+        const category = payment.description || 'Other';
         group.categories.set(category, (group.categories.get(category) || 0) + amount);
       });
 
