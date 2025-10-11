@@ -100,11 +100,7 @@ export const EditableTextComponent: React.FC<EditableTextProps> = ({
             onChange={handleContentChange}
             placeholder="Click to edit text..."
             onAIRewrite={onAIRewrite}
-            className={`
-              ${sizeMap[fontSize]}
-              ${weightMap[fontWeight]}
-              ${lineHeightMap[lineHeight]}
-            `}
+            className={`${sizeMap[fontSize]} ${weightMap[fontWeight]} ${lineHeightMap[lineHeight]}`}
           />
         ) : (
           <>
