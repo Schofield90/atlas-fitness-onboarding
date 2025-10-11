@@ -48,7 +48,7 @@ export class GenerateRevenueReportTool extends BaseTool {
           client_id,
           description
         `)
-        .eq('org_id', context.organizationId)
+        .eq('organization_id', context.organizationId)
         .in('payment_status', ['paid_out', 'succeeded', 'confirmed', 'completed'])
         .gte('payment_date', startDate)
         .lte('payment_date', endDate)
@@ -483,7 +483,7 @@ export class GenerateMonthlyTurnoverReportTool extends BaseTool {
             )
           )
         `)
-        .eq('org_id', context.organizationId)
+        .eq('organization_id', context.organizationId)
         .in('payment_status', ['paid_out', 'succeeded', 'confirmed'])
         .gte('payment_date', startDateString)
         .order('payment_date', { ascending: false });
@@ -763,10 +763,10 @@ export class AnalyzePaymentTrendsTool extends BaseTool {
       const { data: payments, error } = await supabase
         .from('payments')
         .select('payment_date, amount, payment_method, payment_status, created_at')
-        .eq('org_id', context.organizationId)
+        .eq('organization_id', context.organizationId)
         .gte('payment_date', params.startDate)
         .lte('payment_date', params.endDate)
-        .order('payment_date', { ascending: true });
+        .order('payment_date', { ascending: true});
 
       if (error) throw error;
 
@@ -1415,7 +1415,7 @@ export class GenerateOperationsReportTool extends BaseTool {
         supabase
           .from('payments')
           .select('id, amount, payment_status, payment_date')
-          .eq('org_id', context.organizationId)
+          .eq('organization_id', context.organizationId)
           .gte('payment_date', params.startDate)
           .lte('payment_date', params.endDate),
       ]);

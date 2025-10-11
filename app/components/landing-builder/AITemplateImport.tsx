@@ -36,11 +36,20 @@ export const AITemplateImport: React.FC<AITemplateImportProps> = ({
       })
       
       const result = await response.json()
-      
+
+      // DEBUG: Log the actual response to see what's being generated
+      console.log('🔍 AI GENERATION DEBUG:', {
+        status: response.status,
+        components: result.components?.length || 0,
+        colors: result.components?.map((c: any) => c.props?.backgroundColor).filter(Boolean) || [],
+        cost: result.cost,
+        pageId: result.data?.id
+      })
+
       if (!response.ok) {
         throw new Error(result.error || 'Failed to generate template')
       }
-      
+
       setSuccess(true)
       setDescription('')
 

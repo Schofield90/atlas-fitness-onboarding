@@ -382,3 +382,10 @@ Deployment trigger: Fix revenue report tool - Sat 11 Oct 2025 08:00:38 BST
 2025-10-11 16:20:00 - FORCE REDEPLOY: Vercel build failed, retrying
   Previous deployment: psrdw6cin (failed after 13+ minutes)
   Triggering fresh deployment to clear build cache
+
+2025-10-11 16:45:00 - FIX: Revert payments table to organization_id
+  Issue: Monthly turnover tool timing out/stuck
+  Root Cause: payments table uses organization_id NOT org_id
+  Fix: Reverted 4 payments table queries back to organization_id (lines 51, 486, 766, 1418)
+  Context: clients table uses org_id, payments table uses organization_id
+  Result: Both LTV tool (clients) and turnover tool (payments) now work correctly
