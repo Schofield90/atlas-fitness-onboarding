@@ -350,3 +350,8 @@ Deployment trigger: Fix revenue report tool - Sat 11 Oct 2025 08:00:38 BST
 2025-10-11 14:22:16 - Fixed landing page builder 404 by copying routes to gym-dashboard app
 2025-10-11 14:28:01 - Fixed CTAComponent isEditing prop
 2025-10-11 14:39:29 - Fixed TipTap className newlines
+2025-10-11 15:30:00 - CRITICAL FIX: Force tool calling in AI agents (tool_choice: "required")
+  Issue: Agents were hallucinating responses instead of using tools (LTV: £0, 0 customers)
+  Root Cause: tool_choice: "auto" allows OpenAI to skip tools and make up answers
+  Fix: Changed tool_choice from "auto" to "required" in orchestrator.ts:411
+  Result: Agent MUST call at least one tool before responding (no more hallucination)

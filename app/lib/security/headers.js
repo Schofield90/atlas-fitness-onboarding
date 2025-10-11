@@ -39,7 +39,7 @@ const securityHeaders = [
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.stripe.com https://*.googleapis.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com data:",
-      "img-src 'self' data: blob: https://*.supabase.co https://*.googleapis.com https://*.stripe.com",
+      "img-src 'self' data: blob: https: https://*.supabase.co https://*.googleapis.com https://*.stripe.com",
       "media-src 'self' https://*.supabase.co",
       "connect-src 'self' https://*.supabase.co https://*.stripe.com wss://*.supabase.co https://api.anthropic.com https://api.openai.com",
       "frame-src 'self' https://*.stripe.com https://*.supabase.co",

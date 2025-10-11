@@ -407,7 +407,8 @@ ${agent.system_prompt}`;
         temperature: agent.temperature ?? 0.7,
         max_tokens: agent.max_tokens ?? 4096,
         tools: tools.length > 0 ? tools : undefined,
-        tool_choice: tools.length > 0 ? "auto" : undefined,
+        // Force tool calling - agent MUST use tools instead of hallucinating
+        tool_choice: tools.length > 0 ? "required" : undefined,
       });
 
       console.log('[Orchestrator OpenAI] Response has tool calls?', !!result.toolCalls, result.toolCalls?.length || 0);
