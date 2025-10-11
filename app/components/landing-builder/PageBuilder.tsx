@@ -301,7 +301,7 @@ const PageBuilder: React.FC<PageBuilderProps> = ({
           />
 
           {/* Canvas Area */}
-          <div className="flex-1 overflow-auto bg-gray-800">
+          <div className="flex-1 overflow-auto bg-gray-100">
             <CanvasContainer
               onDropNewComponent={(type) => addComponent(type)}
               onDropNewComponentAtIndex={(index, type) =>
