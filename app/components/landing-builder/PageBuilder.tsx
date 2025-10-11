@@ -623,9 +623,39 @@ const DraggableComponent: React.FC<{
             props: { ...component.props, ...updates },
           })
         }
-        onAIRewrite={(field) => {
-          // TODO: Implement AI rewrite handler
-          console.log(`AI rewrite requested for ${component.type}.${field}`);
+        onAIRewrite={async (field) => {
+          try {
+            // Call AI rewrite API
+            const response = await fetch("/api/landing-pages/ai-rewrite", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                componentType: component.type,
+                field,
+                currentContent: component.props[field],
+                context: {
+                  businessName: "Fitness Studio", // TODO: Get from org
+                  targetAudience: "fitness enthusiasts",
+                  tone: "energetic and motivating",
+                },
+              }),
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.content) {
+              // Update component with AI-generated content
+              updateComponent(component.id, {
+                props: { ...component.props, [field]: data.content },
+              });
+            } else {
+              console.error("AI rewrite failed:", data.error);
+              alert(`AI generation failed: ${data.error || "Unknown error"}`);
+            }
+          } catch (error) {
+            console.error("AI rewrite error:", error);
+            alert("Failed to generate AI content. Please try again.");
+          }
         }}
       />
     </div>
