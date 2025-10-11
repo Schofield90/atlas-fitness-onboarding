@@ -27,8 +27,8 @@ export const AITemplateImport: React.FC<AITemplateImportProps> = ({
     setSuccess(false)
 
     try {
-      // Using ai-build for now (GPT-4o with color diversity)
-      const response = await fetch('/api/landing-pages/ai-build', {
+      // Using ai-generate (Claude Sonnet 4.5 with color diversity)
+      const response = await fetch('/api/landing-pages/ai-generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
