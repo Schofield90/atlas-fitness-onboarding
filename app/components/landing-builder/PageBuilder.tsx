@@ -919,8 +919,13 @@ const getDefaultProps = (type: string): any => {
       return {
         title: "Welcome to Our Platform",
         subtitle: "Build amazing landing pages in minutes",
-        buttonText: "Get Started",
-        buttonUrl: "#",
+        description: "Create beautiful, high-converting landing pages with our drag-and-drop builder",
+        primaryButton: { label: "Get Started", href: "#" },
+        secondaryButton: { label: "Learn More", href: "#" },
+        backgroundColor: "#3B82F6",
+        textColor: "#ffffff",
+        alignment: "center",
+        height: "large",
       };
     case COMPONENT_TYPES.TEXT:
       return {
@@ -1050,6 +1055,16 @@ const getDefaultProps = (type: string): any => {
           { label: "Terms", url: "#" },
           { label: "Contact", url: "#" },
         ],
+      };
+    case COMPONENT_TYPES.CTA:
+      return {
+        title: "Ready to Get Started?",
+        description: "Join thousands of satisfied customers using our product",
+        primaryButton: { label: "Get Started", href: "#" },
+        secondaryButton: { label: "Learn More", href: "#" },
+        backgroundColor: "#1e40af",
+        textColor: "#ffffff",
+        pattern: "none",
       };
     case COMPONENT_TYPES.COLUMNS:
       return {
