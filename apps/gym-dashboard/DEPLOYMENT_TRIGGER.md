@@ -378,3 +378,7 @@ Deployment trigger: Fix revenue report tool - Sat 11 Oct 2025 08:00:38 BST
   Fix: Changed 14 instances of .eq('organization_id', ...) to .eq('org_id', ...)
   File: /lib/ai-agents/tools/analytics-tools.ts (lines 51, 205, 313, 486, 600, 682, 701, 766, 875, 1033, 1272, 1400, 1413, 1418)
   Result: Agent can now query real data (£43.20 average LTV vs £0 before)
+
+2025-10-11 16:20:00 - FORCE REDEPLOY: Vercel build failed, retrying
+  Previous deployment: psrdw6cin (failed after 13+ minutes)
+  Triggering fresh deployment to clear build cache
