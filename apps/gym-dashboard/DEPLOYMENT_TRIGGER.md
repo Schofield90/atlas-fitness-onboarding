@@ -355,3 +355,10 @@ Deployment trigger: Fix revenue report tool - Sat 11 Oct 2025 08:00:38 BST
   Root Cause: tool_choice: "auto" allows OpenAI to skip tools and make up answers
   Fix: Changed tool_choice from "auto" to "required" in orchestrator.ts:411
   Result: Agent MUST call at least one tool before responding (no more hallucination)
+
+2025-10-11 15:45:00 - REFINED FIX: Smart tool_choice based on message type
+  Issue: "required" broke greetings (user says "hey", agent forced to call tool)
+  Root Cause: "required" is too strict for casual conversation
+  Fix: Use "auto" for greetings, "required" for data questions (orchestrator.ts:405-423)
+  Detection: Regex checks for greetings (hi/hey/hello) vs questions (what/how/show)
+  Result: Greetings work normally, data questions force tool use (best of both)

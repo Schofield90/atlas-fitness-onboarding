@@ -402,13 +402,24 @@ ${agent.system_prompt}`;
         console.log('[Orchestrator OpenAI] Tool names:', tools.map((t: any) => t.function.name));
       }
 
+      // Determine if we should force tool calling based on message content
+      const lastUserMessage = messages[messages.length - 1]?.content?.toLowerCase() || '';
+      const isGreeting = /^(hi|hey|hello|yo|sup|what's up|whats up|good morning|good afternoon|good evening)/i.test(lastUserMessage.trim());
+      const isQuestion = lastUserMessage.includes('?') || /^(what|how|when|where|why|who|show|tell|give|calculate|analyze|get|fetch|find)/i.test(lastUserMessage);
+
+      // Use "auto" for greetings, "required" for data questions
+      const toolChoice = tools.length > 0
+        ? (isGreeting ? "auto" : "required")  // Greetings can skip tools, data questions must use them
+        : undefined;
+
+      console.log('[Orchestrator OpenAI] Tool choice strategy:', { isGreeting, isQuestion, toolChoice });
+
       const result = await provider.execute(messages, {
         model: agent.model,
         temperature: agent.temperature ?? 0.7,
         max_tokens: agent.max_tokens ?? 4096,
         tools: tools.length > 0 ? tools : undefined,
-        // Force tool calling - agent MUST use tools instead of hallucinating
-        tool_choice: tools.length > 0 ? "required" : undefined,
+        tool_choice: toolChoice,
       });
 
       console.log('[Orchestrator OpenAI] Response has tool calls?', !!result.toolCalls, result.toolCalls?.length || 0);
