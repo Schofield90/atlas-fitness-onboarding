@@ -40,16 +40,18 @@ You are an expert landing page builder. Create a landing page configuration base
 
 "${description}"
 
+IMPORTANT: Component type names MUST be lowercase.
+
 Generate a landing page with these component types:
-- HEADER (navigation with logo and menu items)
-- HERO (main banner with headline, subtitle, CTA)
-- TEXT (text blocks)
-- FEATURES (feature grid with icons)
-- TESTIMONIALS (customer testimonials)
-- PRICING (pricing tiers)
-- FAQ (frequently asked questions)
-- CTA (call-to-action section)
-- FOOTER (footer with links and social)
+- header (navigation with logo and menu items)
+- hero (main banner with headline, subtitle, CTA)
+- text (text blocks)
+- features (feature grid with icons)
+- testimonials (customer testimonials)
+- pricing (pricing tiers)
+- faq (frequently asked questions)
+- cta (call-to-action section)
+- footer (footer with links and social)
 
 Return ONLY valid JSON with this structure:
 {
@@ -58,7 +60,7 @@ Return ONLY valid JSON with this structure:
   "components": [
     {
       "id": "component-unique-id",
-      "type": "COMPONENT_TYPE",
+      "type": "lowercase-component-type",
       "props": { /* component-specific props */ }
     }
   ],
@@ -68,16 +70,16 @@ Return ONLY valid JSON with this structure:
   }
 }
 
-Component prop interfaces:
-- HEADER: { logoText: string, menuItems: [{label, href}], ctaButton: {label, href} }
-- HERO: { title: string, subtitle: string, description: string, primaryButton: {label, href}, backgroundImage?: string }
-- TEXT: { content: string (HTML allowed), fontSize?: string, textAlign?: string }
-- FEATURES: { title: string, subtitle?: string, features: [{icon: string, title: string, description: string}] }
-- TESTIMONIALS: { title: string, testimonials: [{name: string, role: string, company: string, content: string, image?: string}] }
-- PRICING: { title: string, subtitle?: string, plans: [{name: string, price: string, period: string, features: string[], ctaText: string, ctaUrl: string, highlighted?: boolean}] }
-- FAQ: { title: string, faqs: [{question: string, answer: string}] }
-- CTA: { title: string, description: string, primaryButton: {label, href}, secondaryButton?: {label, href} }
-- FOOTER: { companyName: string, description?: string, links: [{title: string, items: [{label, href}]}], social?: [{platform: string, url: string}] }
+Component prop interfaces (type names are lowercase):
+- header: { logoText: string, menuItems: [{label, href}], ctaButton: {label, href} }
+- hero: { title: string, subtitle: string, description: string, primaryButton: {label, href}, backgroundImage?: string }
+- text: { content: string (HTML allowed), fontSize?: string, textAlign?: string }
+- features: { title: string, subtitle?: string, features: [{icon: string, title: string, description: string}] }
+- testimonials: { title: string, testimonials: [{name: string, role: string, company: string, content: string, image?: string}] }
+- pricing: { title: string, subtitle?: string, plans: [{name: string, price: string, period: string, features: string[], ctaText: string, ctaUrl: string, highlighted?: boolean}] }
+- faq: { title: string, faqs: [{question: string, answer: string}] }
+- cta: { title: string, description: string, primaryButton: {label, href}, secondaryButton?: {label, href} }
+- footer: { companyName: string, description?: string, links: [{title: string, items: [{label, href}]}], social?: [{platform: string, url: string}] }
 
 Make the content relevant to the description. Use realistic, engaging copy. Include at least 3-5 components.
 Return ONLY valid JSON, no additional text or markdown.`;
