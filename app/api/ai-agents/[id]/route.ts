@@ -9,8 +9,11 @@ const updateAgentSchema = z.object({
   system_prompt: z.string().min(1).optional(),
   model: z
     .enum([
+      "gpt-5",
+      "gpt-5-mini",
       "gpt-4o",
       "gpt-4o-mini",
+      "claude-sonnet-4-20250514",
       "claude-3-5-sonnet-20241022",
       "claude-3-5-haiku-20241022",
     ])

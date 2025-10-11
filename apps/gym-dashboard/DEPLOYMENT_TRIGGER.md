@@ -1,3 +1,12 @@
+# Deployment Trigger - Fri 10 Oct 2025 21:15:00 BST
+
+Reason: Fix AI landing page builder - remove lazy-loading helper function
+Fix: Instantiate OpenAI client directly in POST function instead of using getOpenAI() helper
+Error: TypeError: g is not a function (minification issue with helper function pattern)
+Root Cause: Webpack minification breaking the getOpenAI() lazy-loading pattern
+Files: /app/api/landing-pages/ai-build/route.ts (lines 36-39)
+Previous Fix: Updated deprecated gpt-4-turbo-preview → gpt-4o model
+
 # Trigger rebuild Wed 1 Oct 2025 12:30:00 BST - Fix staff view bookings
 
 # Trigger rebuild Wed 1 Oct 2025 12:45:00 BST - Update booking queries
@@ -325,6 +334,7 @@ Fix: GPT-5 models only support temperature: 1 (default), custom values rejected
 Error: "400 Unsupported value: 'temperature' does not support 0.7 with this model. Only the default (1) value is supported."
 Files: /lib/ai-agents/providers/openai-provider.ts (lines 84, 158)
 Previous Fix: max_completion_tokens parameter (lines 78-90, 151-164, 200-203)
+
 # Deployment Trigger - Fri 10 Oct 2025 21:30:00 BST
 
 Reason: Fix agent update validation - add GPT-5 and Claude Sonnet 4.5 to model enum

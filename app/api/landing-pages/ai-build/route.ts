@@ -3,18 +3,6 @@ import { requireAuthWithOrg } from "@/app/lib/api/auth-check-org";
 import { createClient } from "@/app/lib/supabase/server";
 import OpenAI from "openai";
 
-// Lazy load OpenAI client to avoid browser environment errors during build
-let openai: OpenAI | null = null;
-
-function getOpenAI(): OpenAI {
-  if (!openai) {
-    openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-  }
-  return openai;
-}
-
 // Force dynamic rendering for this route
 export const dynamic = "force-dynamic";
 
@@ -45,6 +33,11 @@ export async function POST(request: NextRequest) {
   );
 
   try {
+    // Instantiate OpenAI client directly in function (avoid minification issues)
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+
     const prompt = `
 You are an expert landing page builder. Create a landing page configuration based on this description:
 
@@ -92,7 +85,7 @@ Component prop interfaces:
 Make the content relevant to the description. Use realistic, engaging copy. Include at least 3-5 components.
 Return ONLY valid JSON, no additional text or markdown.`;
 
-    const response = await getOpenAI().chat.completions.create({
+    const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
