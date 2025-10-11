@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     if (authError || !user || !organizationId) {
       return NextResponse.json(
         { error: authError || "Unauthorized" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
             name
           )
         )
-      `
+      `,
       )
       .eq("clients.org_id", organizationId)
       .in("status", ["active", "paused"])
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
       console.error("Error fetching active members:", error);
       return NextResponse.json(
         { error: "Failed to fetch active members" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -73,7 +73,8 @@ export async function GET(request: NextRequest) {
       price_pennies: membership.membership_plans.price_pennies,
       billing_period: membership.membership_plans.billing_period,
       category_id: membership.membership_plans.category_id,
-      category_name: membership.membership_plans.membership_categories?.name || null,
+      category_name:
+        membership.membership_plans.membership_categories?.name || null,
       start_date: membership.start_date,
       end_date: membership.end_date,
       next_billing_date: membership.next_billing_date,
@@ -88,7 +89,7 @@ export async function GET(request: NextRequest) {
     console.error("Unexpected error:", error);
     return NextResponse.json(
       { error: "An unexpected error occurred" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

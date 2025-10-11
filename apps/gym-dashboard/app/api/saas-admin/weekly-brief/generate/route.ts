@@ -6,12 +6,6 @@ export const dynamic = "force-dynamic";
 
 const ADMIN_EMAILS = ["sam@atlas-gyms.co.uk", "sam@gymleadhub.co.uk"];
 
-// Use service role key for admin operations
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-);
-
 interface WeeklyBriefData {
   kpis: {
     mrr: { current: number; change: number; trend: "up" | "down" };
@@ -66,6 +60,12 @@ interface WeeklyBriefData {
 
 export async function POST(request: NextRequest) {
   try {
+    // Use service role key for admin operations (instantiate at runtime)
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    );
+
     // Check authentication
     const authHeader = request.headers.get("authorization");
     let user = null;

@@ -63,6 +63,9 @@ export async function POST(request: NextRequest) {
       notes,
       paymentMethod,
       cashStatus,
+      discountCodeId,
+      discountAmount,
+      referralCodeId,
     } = body;
 
     if (!customerId || !membershipPlanId || !startDate) {
@@ -143,6 +146,55 @@ export async function POST(request: NextRequest) {
         { error: error.message || "Failed to create membership" },
         { status: 500 },
       );
+    }
+
+    // Record discount code usage if provided
+    if (discountCodeId && discountAmount) {
+      const { error: usageError } = await supabase
+        .from("discount_code_usage")
+        .insert({
+          discount_code_id: discountCodeId,
+          customer_id: customerId,
+          membership_id: membership.id,
+          amount_discounted: discountAmount,
+        });
+
+      if (usageError) {
+        console.error("Error recording discount code usage:", usageError);
+        // Don't fail the request - membership was created successfully
+      }
+    }
+
+    // Record referral credit if provided
+    if (referralCodeId) {
+      // Get referral code details to calculate credit
+      const { data: referralCode } = await supabase
+        .from("referral_codes")
+        .select("referrer_client_id, credit_amount, credit_type")
+        .eq("id", referralCodeId)
+        .single();
+
+      if (referralCode) {
+        // Calculate credit amount (for now, only fixed amounts are supported)
+        const creditAmount = referralCode.credit_amount;
+
+        const { error: creditError } = await supabase
+          .from("referral_credits")
+          .insert({
+            organization_id: user.organizationId,
+            referrer_client_id: referralCode.referrer_client_id,
+            referee_client_id: customerId,
+            referral_code_id: referralCodeId,
+            membership_id: membership.id,
+            credit_amount: creditAmount,
+            credit_status: "pending", // Can be approved later by staff
+          });
+
+        if (creditError) {
+          console.error("Error recording referral credit:", creditError);
+          // Don't fail the request - membership was created successfully
+        }
+      }
     }
 
     // Get the plan price for the initial payment

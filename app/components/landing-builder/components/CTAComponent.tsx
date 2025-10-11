@@ -52,17 +52,19 @@ export const CTAComponent: React.FC<CTAProps> = ({
           <div className="flex gap-4 justify-center flex-wrap">
             {primaryButton && (
               <a
-                href={primaryButton.href}
-                className="bg-white text-blue-600 px-8 py-4 rounded-lg font-semibold hover:bg-gray-100 transition-colors inline-block"
+                href={isEditing ? undefined : primaryButton.href}
+                onClick={isEditing ? (e) => e.preventDefault() : undefined}
+                className="bg-white text-blue-600 px-8 py-4 rounded-lg font-semibold hover:bg-gray-100 transition-colors inline-block cursor-pointer"
               >
                 {primaryButton.label}
               </a>
             )}
-            
+
             {secondaryButton && (
               <a
-                href={secondaryButton.href}
-                className="border-2 border-white text-white px-8 py-4 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition-colors inline-block"
+                href={isEditing ? undefined : secondaryButton.href}
+                onClick={isEditing ? (e) => e.preventDefault() : undefined}
+                className="border-2 border-white text-white px-8 py-4 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition-colors inline-block cursor-pointer"
               >
                 {secondaryButton.label}
               </a>

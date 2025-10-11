@@ -16,6 +16,8 @@ async function getPrograms(request: NextRequest) {
   const userWithOrg = await requireAuth();
   const supabase = createAdminClient(); // Use admin client to bypass RLS
 
+  console.log("[Programs API] User organization:", userWithOrg.organizationId);
+
   const { searchParams } = new URL(request.url);
   const programId = searchParams.get("id");
 
@@ -41,7 +43,40 @@ async function getPrograms(request: NextRequest) {
     return NextResponse.json({ data });
   }
 
-  // Otherwise fetch all programs for this organization
+  // Otherwise fetch all programs/class types for this organization
+  // First try class_types table (newer structure)
+  const { data: classTypes, error: classTypesError } = await supabase
+    .from("class_types")
+    .select(`*`)
+    .eq("organization_id", userWithOrg.organizationId)
+    .order("created_at", { ascending: false });
+
+  console.log("[Programs API] Class types query result:", {
+    count: classTypes?.length || 0,
+    error: classTypesError?.message,
+    organizationId: userWithOrg.organizationId,
+  });
+
+  // If class_types has data, return it transformed to match programs structure
+  if (classTypes && classTypes.length > 0) {
+    const transformedData = classTypes.map((ct) => ({
+      id: ct.id,
+      organization_id: ct.organization_id,
+      name: ct.name,
+      description: ct.description,
+      duration_minutes: ct.duration_minutes || 60,
+      default_capacity: ct.default_capacity || 20,
+      max_participants: ct.default_capacity || 20,
+      is_active: true,
+      price_pennies: 0,
+      metadata: { color: ct.color, category: ct.category },
+      created_at: ct.created_at,
+      updated_at: ct.updated_at,
+    }));
+    return NextResponse.json({ data: transformedData });
+  }
+
+  // Fallback to programs table (legacy structure)
   const { data, error } = await supabase
     .from("programs")
     .select(`*`)

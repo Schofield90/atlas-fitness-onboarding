@@ -309,12 +309,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "URL is required" }, { status: 400 });
   }
 
-  // Use admin client to bypass RLS after auth/authorization check
-  const { createAdminClient } = await import("@/app/lib/supabase/server");
-  const supabase = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  const supabase = await createClient();
 
   try {
     // Create AI generation record

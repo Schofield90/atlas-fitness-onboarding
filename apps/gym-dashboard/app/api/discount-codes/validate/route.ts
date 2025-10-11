@@ -1,79 +1,182 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/app/lib/supabase/server";
+import { createAdminClient } from "@/app/lib/supabase/admin";
+import { requireAuth } from "@/app/lib/api/auth-check";
 
-// Force dynamic rendering to handle cookies and request properties
-export const dynamic = "force-dynamic";
-
+/**
+ * POST /api/discount-codes/validate
+ *
+ * Validates a discount code and returns discount details
+ *
+ * Request body:
+ * {
+ *   code: string
+ *   customerId: string
+ *   membershipPlanId: string
+ *   purchaseAmount: number (in pennies)
+ * }
+ *
+ * Response:
+ * {
+ *   success: true,
+ *   data: {
+ *     discountCode: { id, code, type, amount, description }
+ *     discountAmount: number (in pennies)
+ *   }
+ * }
+ */
 export async function POST(request: NextRequest) {
   try {
-    const { code, amount } = await request.json();
+    const user = await requireAuth();
+    const supabase = createAdminClient();
 
-    if (!code || !amount) {
+    const body = await request.json();
+    const { code, customerId, membershipPlanId, purchaseAmount } = body;
+
+    if (!code || typeof code !== "string") {
+      return NextResponse.json(
+        { success: false, error: "Discount code is required" },
+        { status: 400 },
+      );
+    }
+
+    // Fetch discount code
+    const { data: discountCode, error: fetchError } = await supabase
+      .from("discount_codes")
+      .select("*")
+      .eq("organization_id", user.organizationId)
+      .eq("code", code.toUpperCase())
+      .single();
+
+    if (fetchError || !discountCode) {
+      return NextResponse.json(
+        { success: false, error: "Invalid discount code" },
+        { status: 404 },
+      );
+    }
+
+    // Validate: Is active?
+    if (!discountCode.is_active) {
+      return NextResponse.json(
+        { success: false, error: "This discount code is no longer active" },
+        { status: 400 },
+      );
+    }
+
+    // Validate: Check expiration
+    if (discountCode.expires_at) {
+      const expiryDate = new Date(discountCode.expires_at);
+      if (expiryDate < new Date()) {
+        return NextResponse.json(
+          { success: false, error: "This discount code has expired" },
+          { status: 400 },
+        );
+      }
+    }
+
+    // Validate: Check start date
+    if (discountCode.starts_at) {
+      const startDate = new Date(discountCode.starts_at);
+      if (startDate > new Date()) {
+        return NextResponse.json(
+          { success: false, error: "This discount code is not yet valid" },
+          { status: 400 },
+        );
+      }
+    }
+
+    // Validate: Check max uses
+    if (
+      discountCode.max_uses !== null &&
+      discountCode.current_uses >= discountCode.max_uses
+    ) {
       return NextResponse.json(
         {
-          error: "Code and amount are required",
+          success: false,
+          error: "This discount code has reached its usage limit",
         },
         { status: 400 },
       );
     }
 
-    const supabase = await createClient();
+    // Validate: Check customer usage limit
+    if (customerId && discountCode.max_uses_per_customer) {
+      const { count: customerUses } = await supabase
+        .from("discount_code_usage")
+        .select("*", { count: "exact", head: true })
+        .eq("discount_code_id", discountCode.id)
+        .eq("customer_id", customerId);
 
-    // Get current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+      if (customerUses && customerUses >= discountCode.max_uses_per_customer) {
+        return NextResponse.json(
+          { success: false, error: "You have already used this discount code" },
+          { status: 400 },
+        );
+      }
     }
 
-    // Get user's organization
-    const { data: staffData } = await supabase
-      .from("organization_staff")
-      .select("organization_id")
-      .eq("user_id", user.id)
-      .single();
-
-    if (!staffData?.organization_id) {
-      return NextResponse.json(
-        { error: "No organization found" },
-        { status: 404 },
-      );
-    }
-
-    // Call the validate function
-    const { data, error } = await supabase.rpc("validate_discount_code", {
-      p_organization_id: staffData.organization_id,
-      p_code: code,
-      p_amount: amount,
-    });
-
-    if (error) {
-      console.error("Error validating discount code:", error);
+    // Validate: Check minimum purchase amount
+    if (
+      discountCode.min_purchase_amount &&
+      purchaseAmount < discountCode.min_purchase_amount * 100
+    ) {
       return NextResponse.json(
         {
-          error: "Failed to validate discount code",
+          success: false,
+          error: `Minimum purchase of £${discountCode.min_purchase_amount} required for this discount`,
         },
-        { status: 500 },
+        { status: 400 },
       );
     }
 
-    // The function returns an array, get the first result
-    const result = data[0];
+    // Validate: Check if applies to this membership plan
+    if (
+      discountCode.applies_to_plans &&
+      discountCode.applies_to_plans.length > 0
+    ) {
+      if (
+        !membershipPlanId ||
+        !discountCode.applies_to_plans.includes(membershipPlanId)
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "This discount code does not apply to the selected membership",
+          },
+          { status: 400 },
+        );
+      }
+    }
+
+    // Calculate discount amount
+    let discountAmount = 0;
+    if (discountCode.type === "percentage") {
+      discountAmount = Math.round(purchaseAmount * (discountCode.amount / 100));
+    } else if (discountCode.type === "fixed") {
+      discountAmount = Math.round(discountCode.amount * 100); // Convert to pennies
+      // Ensure discount doesn't exceed purchase amount
+      if (discountAmount > purchaseAmount) {
+        discountAmount = purchaseAmount;
+      }
+    }
 
     return NextResponse.json({
-      valid: result.is_valid,
-      discountAmount: result.discount_amount,
-      finalAmount: result.final_amount,
-      discountId: result.discount_id,
-      message: result.message,
+      success: true,
+      data: {
+        discountCode: {
+          id: discountCode.id,
+          code: discountCode.code,
+          type: discountCode.type,
+          amount: discountCode.amount,
+          description: discountCode.description,
+        },
+        discountAmount, // in pennies
+      },
     });
   } catch (error: any) {
-    console.error("Error:", error);
+    console.error("Error validating discount code:", error);
     return NextResponse.json(
-      {
-        error: error.message || "Failed to validate discount code",
-      },
+      { success: false, error: "Failed to validate discount code" },
       { status: 500 },
     );
   }

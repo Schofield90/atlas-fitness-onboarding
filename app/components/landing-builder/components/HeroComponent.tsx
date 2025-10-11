@@ -111,8 +111,9 @@ export const HeroComponent: React.FC<HeroProps> = ({
             <div className="flex gap-4 flex-wrap">
               {primaryButton && (
                 <a
-                  href={primaryButton.href}
-                  className="bg-blue-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors inline-block"
+                  href={isEditing ? undefined : primaryButton.href}
+                  onClick={isEditing ? (e) => e.preventDefault() : undefined}
+                  className="bg-blue-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors inline-block cursor-pointer"
                 >
                   {primaryButton.label}
                 </a>
@@ -120,8 +121,9 @@ export const HeroComponent: React.FC<HeroProps> = ({
 
               {secondaryButton && (
                 <a
-                  href={secondaryButton.href}
-                  className="border-2 border-current px-8 py-4 rounded-lg font-semibold hover:bg-white hover:text-gray-900 transition-colors inline-block"
+                  href={isEditing ? undefined : secondaryButton.href}
+                  onClick={isEditing ? (e) => e.preventDefault() : undefined}
+                  className="border-2 border-current px-8 py-4 rounded-lg font-semibold hover:bg-white hover:text-gray-900 transition-colors inline-block cursor-pointer"
                 >
                   {secondaryButton.label}
                 </a>
