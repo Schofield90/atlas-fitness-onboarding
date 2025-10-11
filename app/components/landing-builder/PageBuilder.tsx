@@ -57,13 +57,16 @@ const ComponentRenderer: React.FC<{
 }> = ({ component, isEditing = true, onUpdate, onAIRewrite }) => {
   const { type, props } = component;
 
+  // Merge default props with existing props to fill in missing values
+  const mergedProps = { ...getDefaultProps(type), ...props };
+
   switch (type) {
     case COMPONENT_TYPES.HEADER:
-      return <Components.HeaderComponent {...props} />;
+      return <Components.HeaderComponent {...mergedProps} />;
     case COMPONENT_TYPES.HERO:
       return (
         <Components.HeroComponent
-          {...props}
+          {...mergedProps}
           isEditing={isEditing}
           onUpdate={(field, value) => onUpdate?.({ [field]: value })}
           onAIRewrite={onAIRewrite}
@@ -72,46 +75,46 @@ const ComponentRenderer: React.FC<{
     case COMPONENT_TYPES.TEXT:
       return (
         <Components.EditableTextComponent
-          {...props}
+          {...mergedProps}
           isEditing={isEditing}
           onUpdate={(value) => onUpdate?.({ content: value })}
           onAIRewrite={() => onAIRewrite?.("content")}
         />
       );
     case COMPONENT_TYPES.IMAGE:
-      return <Components.ImageComponent {...props} />;
+      return <Components.ImageComponent {...mergedProps} />;
     case COMPONENT_TYPES.BUTTON:
-      return <Components.ButtonComponent {...props} />;
+      return <Components.ButtonComponent {...mergedProps} />;
     case COMPONENT_TYPES.FORM:
-      return <Components.FormComponent {...props} />;
+      return <Components.FormComponent {...mergedProps} />;
     case COMPONENT_TYPES.FEATURES:
-      return <Components.FeaturesComponent {...props} />;
+      return <Components.FeaturesComponent {...mergedProps} />;
     case COMPONENT_TYPES.TESTIMONIALS:
-      return <Components.TestimonialsComponent {...props} />;
+      return <Components.TestimonialsComponent {...mergedProps} />;
     case COMPONENT_TYPES.PRICING:
-      return <Components.PricingComponent {...props} />;
+      return <Components.PricingComponent {...mergedProps} />;
     case COMPONENT_TYPES.FAQ:
-      return <Components.FAQComponent {...props} />;
+      return <Components.FAQComponent {...mergedProps} />;
     case COMPONENT_TYPES.CTA:
-      return <Components.CTAComponent {...props} />;
+      return <Components.CTAComponent {...mergedProps} />;
     case COMPONENT_TYPES.VIDEO:
-      return <Components.VideoComponent {...props} />;
+      return <Components.VideoComponent {...mergedProps} />;
     case COMPONENT_TYPES.FOOTER:
-      return <Components.FooterComponent {...props} />;
+      return <Components.FooterComponent {...mergedProps} />;
     case COMPONENT_TYPES.COLUMNS:
-      return <Components.ColumnsComponent {...props} />;
+      return <Components.ColumnsComponent {...mergedProps} />;
     case COMPONENT_TYPES.SPACER:
       return (
-        <div className="py-8" style={{ height: props.height || "64px" }} />
+        <div className="py-8" style={{ height: mergedProps.height || "64px" }} />
       );
     case COMPONENT_TYPES.DIVIDER:
       return <hr className="my-8 border-gray-700" />;
     case COMPONENT_TYPES.COUNTDOWN:
-      return <Components.CountdownComponent {...props} />;
+      return <Components.CountdownComponent {...mergedProps} />;
     case COMPONENT_TYPES.SOCIAL:
-      return <Components.SocialIconsComponent {...props} />;
+      return <Components.SocialIconsComponent {...mergedProps} />;
     case COMPONENT_TYPES.HTML:
-      return <Components.HTMLComponent {...props} />;
+      return <Components.HTMLComponent {...mergedProps} />;
     default:
       return (
         <div className="p-8 bg-gray-800 text-center text-gray-500">
