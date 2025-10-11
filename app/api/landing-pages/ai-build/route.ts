@@ -36,9 +36,23 @@ export async function POST(request: NextRequest) {
     });
 
     const prompt = `
-You are an expert landing page builder. Create a landing page configuration based on this description:
+You are an expert landing page builder specializing in high-converting, visually diverse pages.
 
-"${description}"
+Create a UNIQUE landing page for: "${description}"
+
+CRITICAL RULES FOR UNIQUENESS:
+1. NEVER use the same colors twice - each page must have a unique color scheme
+2. Choose colors that reflect the business type (energetic = bold, calming = soft blues/greens, professional = navy/gray)
+3. Vary visual styles: gradients, dark themes, light themes, colored sections
+4. Add backgroundColor to ALL visual components (hero, features, testimonials, pricing, cta)
+5. Use engaging, specific copy - NO generic placeholder text
+
+Color palette options (choose 2-3 colors that work together):
+- Vibrant: #FF6B6B, #4ECDC4, #45B7D1, #FFA07A, #98D8C8
+- Professional: #2C3E50, #34495E, #16A085, #27AE60, #2980B9
+- Energetic: #E74C3C, #E67E22, #F39C12, #D35400, #C0392B
+- Modern: #8E44AD, #9B59B6, #3498DB, #1ABC9C, #F1C40F
+- Dark mode: #1A1A2E, #16213E, #0F3460, #533483, #E94560
 
 IMPORTANT: Component type names MUST be lowercase.
 
@@ -71,15 +85,15 @@ Return ONLY valid JSON with this structure:
 }
 
 Component prop interfaces (type names are lowercase):
-- header: { logoText: string, menuItems: [{label, href}], ctaButton: {label, href} }
-- hero: { title: string, subtitle: string, description: string, primaryButton: {label, href}, backgroundImage?: string }
-- text: { content: string (HTML allowed), fontSize?: string, textAlign?: string }
-- features: { title: string, subtitle?: string, features: [{icon: string, title: string, description: string}] }
-- testimonials: { title: string, testimonials: [{name: string, role: string, company: string, content: string, image?: string}] }
-- pricing: { title: string, subtitle?: string, plans: [{name: string, price: string, period: string, features: string[], ctaText: string, ctaUrl: string, highlighted?: boolean}] }
-- faq: { title: string, faqs: [{question: string, answer: string}] }
-- cta: { title: string, description: string, primaryButton: {label, href}, secondaryButton?: {label, href} }
-- footer: { companyName: string, description?: string, links: [{title: string, items: [{label, href}]}], social?: [{platform: string, url: string}] }
+- header: { logoText: string, menuItems: [{label, href}], ctaButton: {label, href}, backgroundColor?: string, textColor?: string }
+- hero: { title: string, subtitle: string, description: string, primaryButton: {label, href}, backgroundColor: string, textColor: string, backgroundImage?: string }
+- text: { content: string (HTML allowed), backgroundColor?: string, textColor?: string, fontSize?: string, textAlign?: string }
+- features: { title: string, subtitle?: string, backgroundColor: string, textColor?: string, features: [{icon: string, title: string, description: string}] }
+- testimonials: { title: string, backgroundColor: string, textColor?: string, testimonials: [{name: string, role: string, company: string, content: string, image?: string}] }
+- pricing: { title: string, subtitle?: string, backgroundColor: string, textColor?: string, plans: [{name: string, price: string, period: string, features: string[], ctaText: string, ctaUrl: string, highlighted?: boolean}] }
+- faq: { title: string, backgroundColor?: string, textColor?: string, faqs: [{question: string, answer: string}] }
+- cta: { title: string, description: string, backgroundColor: string, textColor: string, primaryButton: {label, href}, secondaryButton?: {label, href} }
+- footer: { companyName: string, description?: string, backgroundColor?: string, textColor?: string, links: [{title: string, items: [{label, href}]}], social?: [{platform: string, url: string}] }
 
 Make the content relevant to the description. Use realistic, engaging copy. Include at least 3-5 components.
 Return ONLY valid JSON, no additional text or markdown.`;
