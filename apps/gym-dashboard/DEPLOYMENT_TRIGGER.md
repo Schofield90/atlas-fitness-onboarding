@@ -347,3 +347,4 @@ Files: /app/api/ai-agents/[id]/route.ts (lines 11-19)
 # Fix revenue report tool - simplified payment query - Sat 11 Oct 2025 06:05:45 BST
 
 Deployment trigger: Fix revenue report tool - Sat 11 Oct 2025 08:00:38 BST
+2025-10-11 14:22:16 - Fixed landing page builder 404 by copying routes to gym-dashboard app
