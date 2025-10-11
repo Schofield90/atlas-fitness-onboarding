@@ -46,15 +46,10 @@ export class GenerateRevenueReportTool extends BaseTool {
           payment_status,
           payment_method,
           client_id,
-          customer_memberships(
-            membership_plans(
-              name,
-              category
-            )
-          )
+          membership_id
         `)
         .eq('organization_id', context.organizationId)
-        .in('payment_status', ['paid_out', 'succeeded', 'confirmed'])
+        .in('payment_status', ['paid_out', 'succeeded', 'confirmed', 'completed'])
         .gte('payment_date', startDate)
         .lte('payment_date', endDate)
         .order('payment_date', { ascending: true });
@@ -116,8 +111,8 @@ export class GenerateRevenueReportTool extends BaseTool {
         const method = payment.payment_method || 'unknown';
         group.paymentMethods.set(method, (group.paymentMethods.get(method) || 0) + amount);
 
-        // Track categories
-        const category = (payment.customer_memberships as any)?.membership_plans?.category || 'Uncategorized';
+        // Track categories (simplified - just track by membership for now)
+        const category = payment.membership_id ? 'Membership' : 'Other';
         group.categories.set(category, (group.categories.get(category) || 0) + amount);
       });
 
