@@ -1,6 +1,18 @@
+# Deployment Trigger - Sat 12 Oct 2025 08:45:00 BST
+
+Reason: Add /ai-agents redirect page (auto-redirect to org route)
+Issue: User expects /ai-agents to work but got 404
+Root Cause: AI agents page only existed at /org/[orgSlug]/ai-agents
+Solution: Created /app/ai-agents/page.tsx that:
+  1. Uses useOrganization hook to get current org slug
+  2. Shows loading spinner while fetching
+  3. Auto-redirects to /org/[orgSlug]/ai-agents
+Result: /ai-agents now works as expected - redirects to correct org route
+Files: app/ai-agents/page.tsx (NEW), scripts/copy-shared-to-app.js (line 37)
+
 # Deployment Trigger - Sat 11 Oct 2025 16:00:00 BST
 
-Reason: Fix 404 error on /ai-agents page
+Reason: Fix 404 error on /ai-agents page (ATTEMPTED - wrong approach)
 Issue: User navigating to /ai-agents gets 404 Page Not Found
 Root Cause: ai-agents directory was excluded from SHARED_DIRS in copy-shared-to-app.js
 Comment said it "conflicts with /org/[orgSlug]/ai-agents routes" but they're different routes:
@@ -9,6 +21,7 @@ Comment said it "conflicts with /org/[orgSlug]/ai-agents routes" but they're dif
 - /org/[orgSlug]/ai-agents → Organization-specific AI agents page
   Fix: Added 'ai-agents' to SHARED_DIRS array in scripts/copy-shared-to-app.js
   Files: scripts/copy-shared-to-app.js (line 37)
+  NOTE: This fix was incorrect - /app/ai-agents didn't exist. Fixed in next deployment.
 
 # Deployment Trigger - Fri 10 Oct 2025 21:15:00 BST
 
