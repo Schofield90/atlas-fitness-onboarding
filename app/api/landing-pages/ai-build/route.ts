@@ -36,24 +36,36 @@ export async function POST(request: NextRequest) {
 
     const anthropic = new AnthropicProvider(process.env.ANTHROPIC_API_KEY);
 
+    // Generate random seed for color selection to ensure variety
+    const colorSeed = Math.floor(Math.random() * 10);
+
     const prompt = `
 You are an expert landing page builder specializing in high-converting, visually diverse pages.
 
 Create a UNIQUE landing page for: "${description}"
 
 CRITICAL RULES FOR UNIQUENESS:
-1. NEVER use the same colors twice - each page must have a unique color scheme
-2. Choose colors that reflect the business type (energetic = bold, calming = soft blues/greens, professional = navy/gray)
-3. Vary visual styles: gradients, dark themes, light themes, colored sections
-4. Add backgroundColor to ALL visual components (hero, features, testimonials, pricing, cta)
-5. Use engaging, specific copy - NO generic placeholder text
+1. YOU MUST CREATE A COMPLETELY UNIQUE COLOR SCHEME - DO NOT repeat common patterns
+2. Each page MUST look visually different from the last - vary your color palette significantly
+3. Choose colors that reflect the business type but BE CREATIVE with combinations
+4. Mix color temperatures (warm + cool), use complementary colors, try monochromatic schemes
+5. Add backgroundColor to ALL visual components (hero, features, testimonials, pricing, cta)
+6. Use engaging, specific copy - NO generic placeholder text
 
-Color palette options (choose 2-3 colors that work together):
-- Vibrant: #FF6B6B, #4ECDC4, #45B7D1, #FFA07A, #98D8C8
-- Professional: #2C3E50, #34495E, #16A085, #27AE60, #2980B9
-- Energetic: #E74C3C, #E67E22, #F39C12, #D35400, #C0392B
-- Modern: #8E44AD, #9B59B6, #3498DB, #1ABC9C, #F1C40F
-- Dark mode: #1A1A2E, #16213E, #0F3460, #533483, #E94560
+RANDOM COLOR SEED: ${colorSeed}
+Based on this seed, choose ONE of these DIVERSE color schemes (DO NOT use the same scheme twice):
+
+Seed 0-1 (Ocean Blues): Primary #0077BE, Secondary #00A8E8, Accent #48CAE4, Dark #023E8A, Light #CAF0F8
+Seed 2 (Forest Green): Primary #2D6A4F, Secondary #40916C, Accent #52B788, Dark #1B4332, Light #D8F3DC
+Seed 3 (Sunset Coral): Primary #FF6B6B, Secondary #FFB4A2, Accent #FFC6AC, Dark #CC5252, Light #FFE5D9
+Seed 4 (Royal Purple): Primary #7209B7, Secondary #B5179E, Accent #F72585, Dark #560BAD, Light #E0AAFF
+Seed 5 (Midnight Dark): Primary #14213D, Secondary #1F2937, Accent #E5E7EB, Dark #0F172A, Light #F9FAFB
+Seed 6 (Sunny Yellow): Primary #FFB700, Secondary #FFCB47, Accent #FFD60A, Dark #9A7B00, Light #FFF4CC
+Seed 7 (Teal Mint): Primary #06B6D4, Secondary #14B8A6, Accent #2DD4BF, Dark #0E7490, Light #CCFBF1
+Seed 8 (Berry Pink): Primary #DB2777, Secondary #EC4899, Accent #F472B6, Dark #9F1239, Light #FCE7F3
+Seed 9 (Burnt Orange): Primary #EA580C, Secondary #FB923C, Accent #FDBA74, Dark #C2410C, Light #FED7AA
+
+USE THE SEED ${colorSeed} PALETTE EXCLUSIVELY - do not mix with other palettes
 
 IMPORTANT: Component type names MUST be lowercase.
 
@@ -101,9 +113,13 @@ Return ONLY valid JSON, no additional text or markdown.`;
 
     console.log('[AI Build] Starting Claude Sonnet 4.5 generation...');
     console.log('[AI Build] Description:', description);
+    console.log('[AI Build] Color Seed:', colorSeed);
     console.log('[AI Build] Prompt length:', prompt.length);
 
-    const systemPrompt = "You are an expert landing page builder. Create beautiful, conversion-focused landing pages with UNIQUE colors each time. Always return valid JSON only.";
+    const systemPrompt = `You are an expert landing page builder who creates visually diverse, high-converting pages.
+CRITICAL: You MUST use the exact color palette specified by the seed number in the prompt. Never deviate from the assigned palette.
+Every page you create should look completely different from the previous one due to the randomized color scheme.
+Always return valid JSON only, no additional text.`;
 
     const result = await anthropic.execute([{ role: 'user', content: prompt }], {
       model: 'claude-sonnet-4-20250514',

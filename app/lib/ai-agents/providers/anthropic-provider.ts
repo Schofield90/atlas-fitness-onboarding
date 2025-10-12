@@ -59,6 +59,7 @@ export class AnthropicProvider {
   constructor(apiKey?: string) {
     this.client = new Anthropic({
       apiKey: apiKey || process.env.ANTHROPIC_API_KEY,
+      dangerouslyAllowBrowser: true, // Safe: only used in server-side API routes
     });
   }
 

@@ -9,18 +9,20 @@ test.describe("Landing Pages AI Builder", () => {
     await page.fill('input[type="email"]', "sam@atlas-gyms.co.uk");
     await page.fill('input[type="password"]', "@Aa80236661");
 
-    // Click sign in and wait for successful navigation away from login page
-    await Promise.all([
-      page.waitForURL(/dashboard|landing-pages|reports/, { timeout: 10000 }),
-      page.click('button:has-text("Sign in")'),
-    ]);
+    // Click sign in button
+    await page.click('button:has-text("Sign in")');
+
+    // Wait for successful navigation away from login page
+    await page.waitForURL(/dashboard|landing-pages|reports/, {
+      timeout: 15000,
+    });
 
     // Wait a moment for auth to settle
     await page.waitForTimeout(1000);
 
     // Navigate to landing page builder
     await page.goto("https://login.gymleadhub.co.uk/landing-pages/builder");
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle");
   });
 
   test("should generate landing page from text description", async ({

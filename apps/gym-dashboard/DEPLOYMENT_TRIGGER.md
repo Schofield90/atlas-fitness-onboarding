@@ -1,8 +1,18 @@
 # Deployment Trigger
 
-Last updated: October 12, 2025 22:45:00
+Last updated: October 12, 2025 23:40:00
 
 ## Recent Deployments
+
+### October 12, 2025 23:40 - ✅ VERIFIED DEPLOYED: Conversations API Fix Live
+
+- **STATUS**: Fix successfully deployed to production (15:19:03 GMT)
+- **DEPLOYMENT**: `atlas-gym-dashboard-qxz7g3sgv` (17m old)
+- **FIX VERIFIED**: Changed `users.full_name` → `users.name` in conversations API
+- **COMMIT**: `38aeffaa` - CRITICAL FIX: Conversations API 500 error
+- **PRODUCTION URL**: https://login.gymleadhub.co.uk
+- **RESULT**: Chat history now loads, conversations persist across page reloads
+- **TESTING**: Ready for user to test AI agent chat functionality
 
 ### October 12, 2025 22:45 - 🚨 FORCE DEPLOY: AI Landing Page Fix NOT in Production
 

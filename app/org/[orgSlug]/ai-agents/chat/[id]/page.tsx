@@ -300,9 +300,22 @@ export default function AgentChatPage() {
       console.log("[DEBUG] Send message result:", result);
 
       if (result.success) {
-        // Reload messages to get the real user message + AI response
-        console.log("[DEBUG] Message sent successfully, reloading messages");
-        await loadMessages(conversationId);
+        // Replace optimistic message with real messages from server
+        console.log("[DEBUG] Message sent successfully, updating messages");
+
+        // Fetch updated messages
+        const messagesResponse = await fetch(
+          `/api/ai-agents/conversations/${conversationId}/messages?limit=100`,
+        );
+        const messagesResult = await messagesResponse.json();
+
+        if (messagesResult.success && messagesResult.messages) {
+          setMessages(messagesResult.messages);
+          console.log("[DEBUG] Updated messages count:", messagesResult.messages.length);
+        } else {
+          console.error("[DEBUG] Failed to reload messages:", messagesResult.error);
+          // Keep optimistic message if reload fails
+        }
       } else {
         console.error("Failed to send message:", result.error);
         // Remove optimistic message on error
