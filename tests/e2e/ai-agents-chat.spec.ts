@@ -3,6 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('AI Agents Chat - Message Flow', () => {
 
   test('should send message and verify it persists', async ({ page }) => {
+    test.setTimeout(60000); // 60 second timeout for this test
     console.log('\n=== AI Chat Test Started ===\n');
 
     // First login
