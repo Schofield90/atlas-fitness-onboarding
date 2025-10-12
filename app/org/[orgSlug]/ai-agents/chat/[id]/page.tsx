@@ -298,6 +298,15 @@ export default function AgentChatPage() {
 
       const result = await response.json();
       console.log("[DEBUG] Send message result:", result);
+      console.log("[DEBUG] Response status:", response.status);
+      console.log("[DEBUG] Response ok:", response.ok);
+
+      if (!response.ok) {
+        console.error("[DEBUG] HTTP error:", response.status, result);
+        setMessages((prev) => prev.filter((m) => m.id !== tempUserMessage.id));
+        alert(`Failed to send message: ${result.error || 'Unknown error'}`);
+        return;
+      }
 
       if (result.success) {
         // Replace optimistic message with real messages from server
@@ -308,6 +317,7 @@ export default function AgentChatPage() {
           `/api/ai-agents/conversations/${conversationId}/messages?limit=100`,
         );
         const messagesResult = await messagesResponse.json();
+        console.log("[DEBUG] Messages reload result:", messagesResult);
 
         if (messagesResult.success && messagesResult.messages) {
           setMessages(messagesResult.messages);
@@ -315,16 +325,19 @@ export default function AgentChatPage() {
         } else {
           console.error("[DEBUG] Failed to reload messages:", messagesResult.error);
           // Keep optimistic message if reload fails
+          alert(`Warning: Message sent but failed to reload: ${messagesResult.error}`);
         }
       } else {
         console.error("Failed to send message:", result.error);
         // Remove optimistic message on error
         setMessages((prev) => prev.filter((m) => m.id !== tempUserMessage.id));
+        alert(`Failed to send message: ${result.error}`);
       }
     } catch (error) {
       console.error("Error sending message:", error);
       // Remove optimistic message on error
       setMessages((prev) => prev.filter((m) => m.id !== tempUserMessage.id));
+      alert(`Error sending message: ${error}`);
     } finally {
       setSending(false);
     }
