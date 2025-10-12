@@ -38,7 +38,11 @@ export async function POST(request: NextRequest) {
 
     // Generate random seed for color selection to ensure variety
     // But respect user's color preferences if mentioned in description
+    console.log('[DEBUG] Route file: /apps/gym-dashboard/app/api/landing-pages/ai-build/route.ts');
+    console.log('[DEBUG] Raw description:', description);
+
     const descriptionLower = description.toLowerCase();
+    console.log('[DEBUG] Lowercase description:', descriptionLower);
 
     let colorSeed: number;
     if (descriptionLower.includes('blue') || descriptionLower.includes('ocean')) {
@@ -49,16 +53,16 @@ export async function POST(request: NextRequest) {
       colorSeed = 3; // Sunset Coral
     } else if (descriptionLower.includes('purple') || descriptionLower.includes('violet') || descriptionLower.includes('royal')) {
       colorSeed = 4; // Royal Purple
-    } else if (descriptionLower.includes('dark') || descriptionLower.includes('midnight') || descriptionLower.includes('black')) {
-      colorSeed = 5; // Midnight Dark
+    } else if (descriptionLower.includes('orange') || descriptionLower.includes('burnt')) {
+      colorSeed = 9; // Burnt Orange
     } else if (descriptionLower.includes('yellow') || descriptionLower.includes('sunny') || descriptionLower.includes('gold')) {
       colorSeed = 6; // Sunny Yellow
     } else if (descriptionLower.includes('teal') || descriptionLower.includes('mint') || descriptionLower.includes('cyan')) {
       colorSeed = 7; // Teal Mint
     } else if (descriptionLower.includes('pink') || descriptionLower.includes('berry') || descriptionLower.includes('magenta')) {
       colorSeed = 8; // Berry Pink
-    } else if (descriptionLower.includes('orange') || descriptionLower.includes('burnt')) {
-      colorSeed = 9; // Burnt Orange
+    } else if (descriptionLower.includes('dark') || descriptionLower.includes('midnight') || descriptionLower.includes('black')) {
+      colorSeed = 5; // Midnight Dark
     } else {
       // No color preference - random selection
       colorSeed = Math.floor(Math.random() * 10);
