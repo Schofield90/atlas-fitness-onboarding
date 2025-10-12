@@ -64,33 +64,43 @@ export async function POST(request: NextRequest) {
       colorSeed = Math.floor(Math.random() * 10);
     }
 
+    // Map colorSeed to actual palette
+    const colorPalettes = {
+      0: { name: 'Ocean Blues', primary: '#0077BE', secondary: '#00A8E8', accent: '#48CAE4', dark: '#023E8A', light: '#CAF0F8' },
+      1: { name: 'Ocean Blues', primary: '#0077BE', secondary: '#00A8E8', accent: '#48CAE4', dark: '#023E8A', light: '#CAF0F8' },
+      2: { name: 'Forest Green', primary: '#2D6A4F', secondary: '#40916C', accent: '#52B788', dark: '#1B4332', light: '#D8F3DC' },
+      3: { name: 'Sunset Coral', primary: '#FF6B6B', secondary: '#FFB4A2', accent: '#FFC6AC', dark: '#CC5252', light: '#FFE5D9' },
+      4: { name: 'Royal Purple', primary: '#7209B7', secondary: '#B5179E', accent: '#F72585', dark: '#560BAD', light: '#E0AAFF' },
+      5: { name: 'Midnight Dark', primary: '#14213D', secondary: '#1F2937', accent: '#E5E7EB', dark: '#0F172A', light: '#F9FAFB' },
+      6: { name: 'Sunny Yellow', primary: '#FFB700', secondary: '#FFCB47', accent: '#FFD60A', dark: '#9A7B00', light: '#FFF4CC' },
+      7: { name: 'Teal Mint', primary: '#06B6D4', secondary: '#14B8A6', accent: '#2DD4BF', dark: '#0E7490', light: '#CCFBF1' },
+      8: { name: 'Berry Pink', primary: '#DB2777', secondary: '#EC4899', accent: '#F472B6', dark: '#9F1239', light: '#FCE7F3' },
+      9: { name: 'Burnt Orange', primary: '#EA580C', secondary: '#FB923C', accent: '#FDBA74', dark: '#C2410C', light: '#FED7AA' }
+    };
+
+    const palette = colorPalettes[colorSeed as keyof typeof colorPalettes];
+
     const prompt = `
 You are an expert landing page builder specializing in high-converting, visually diverse pages.
 
 Create a UNIQUE landing page for: "${description}"
 
-CRITICAL RULES FOR UNIQUENESS:
-1. YOU MUST CREATE A COMPLETELY UNIQUE COLOR SCHEME - DO NOT repeat common patterns
-2. Each page MUST look visually different from the last - vary your color palette significantly
-3. Choose colors that reflect the business type but BE CREATIVE with combinations
-4. Mix color temperatures (warm + cool), use complementary colors, try monochromatic schemes
-5. Add backgroundColor to ALL visual components (hero, features, testimonials, pricing, cta)
-6. Use engaging, specific copy - NO generic placeholder text
+🎨 MANDATORY COLOR PALETTE - YOU MUST USE THESE EXACT COLORS:
+Theme: ${palette.name}
+- Primary: ${palette.primary} (use for main CTAs, important buttons)
+- Secondary: ${palette.secondary} (use for secondary elements, hover states)
+- Accent: ${palette.accent} (use for highlights, borders, icons)
+- Dark: ${palette.dark} (use for text on light backgrounds)
+- Light: ${palette.light} (use for backgrounds, light sections)
 
-RANDOM COLOR SEED: ${colorSeed}
-Based on this seed, choose ONE of these DIVERSE color schemes (DO NOT use the same scheme twice):
-
-Seed 0-1 (Ocean Blues): Primary #0077BE, Secondary #00A8E8, Accent #48CAE4, Dark #023E8A, Light #CAF0F8
-Seed 2 (Forest Green): Primary #2D6A4F, Secondary #40916C, Accent #52B788, Dark #1B4332, Light #D8F3DC
-Seed 3 (Sunset Coral): Primary #FF6B6B, Secondary #FFB4A2, Accent #FFC6AC, Dark #CC5252, Light #FFE5D9
-Seed 4 (Royal Purple): Primary #7209B7, Secondary #B5179E, Accent #F72585, Dark #560BAD, Light #E0AAFF
-Seed 5 (Midnight Dark): Primary #14213D, Secondary #1F2937, Accent #E5E7EB, Dark #0F172A, Light #F9FAFB
-Seed 6 (Sunny Yellow): Primary #FFB700, Secondary #FFCB47, Accent #FFD60A, Dark #9A7B00, Light #FFF4CC
-Seed 7 (Teal Mint): Primary #06B6D4, Secondary #14B8A6, Accent #2DD4BF, Dark #0E7490, Light #CCFBF1
-Seed 8 (Berry Pink): Primary #DB2777, Secondary #EC4899, Accent #F472B6, Dark #9F1239, Light #FCE7F3
-Seed 9 (Burnt Orange): Primary #EA580C, Secondary #FB923C, Accent #FDBA74, Dark #C2410C, Light #FED7AA
-
-USE THE SEED ${colorSeed} PALETTE EXCLUSIVELY - do not mix with other palettes
+CRITICAL RULES:
+1. EVERY component MUST have a backgroundColor from the palette above
+2. Use Primary color for at least 2 components
+3. Use Secondary color for at least 2 components
+4. Use Light color for at least 2 components
+5. Mix Dark and Light text colors based on background (Dark text on Light bg, Light text on Dark bg)
+6. NO default colors allowed - every component needs explicit backgroundColor and textColor
+7. Vary the component layout and structure - don't use the same pattern every time
 
 IMPORTANT: Component type names MUST be lowercase.
 
@@ -142,9 +152,15 @@ Return ONLY valid JSON, no additional text or markdown.`;
     console.log('[AI Build] Prompt length:', prompt.length);
 
     const systemPrompt = `You are an expert landing page builder who creates visually diverse, high-converting pages.
-CRITICAL: You MUST use the exact color palette specified by the seed number in the prompt. Never deviate from the assigned palette.
-Every page you create should look completely different from the previous one due to the randomized color scheme.
-Always return valid JSON only, no additional text.`;
+
+CRITICAL MANDATORY RULES:
+1. You MUST use ONLY the 5 colors provided in the mandatory color palette (Primary, Secondary, Accent, Dark, Light)
+2. EVERY single component must have an explicit backgroundColor property set to one of the palette colors
+3. EVERY single component must have an explicit textColor property
+4. DO NOT use any colors outside the provided palette
+5. DO NOT use generic colors like "#FFFFFF" or "#000000" unless they match the palette
+6. Each page must look completely different due to the unique color combinations
+7. Return ONLY valid JSON, no markdown, no explanations`;
 
     const result = await anthropic.execute([{ role: 'user', content: prompt }], {
       model: 'claude-sonnet-4-20250514',
