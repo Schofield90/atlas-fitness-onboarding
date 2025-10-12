@@ -395,6 +395,8 @@ ${agent.system_prompt}`;
 
     // Track if we've already called a tool (to prevent infinite loops)
     let hasCalledTool = false;
+    // Track tool calls that were made (to save to database)
+    let executedToolCalls: any[] | undefined = undefined;
 
     // Tool execution loop: keep calling until no more tool calls or max iterations
     while (iteration < MAX_TOOL_ITERATIONS) {
@@ -462,7 +464,7 @@ ${agent.system_prompt}`;
         return {
           success: true,
           content: result.message?.content || "",
-          tool_calls: undefined,
+          tool_calls: executedToolCalls,  // Return tool calls that were executed earlier
           cost: totalCost,
         };
       }
@@ -473,6 +475,9 @@ ${agent.system_prompt}`;
         content: result.message?.content || null,
         tool_calls: result.toolCalls,
       });
+
+      // Save tool calls for database persistence
+      executedToolCalls = result.toolCalls;
 
       // Execute each tool and add results
       console.log(`[Orchestrator OpenAI] Executing ${result.toolCalls.length} tool calls...`);
