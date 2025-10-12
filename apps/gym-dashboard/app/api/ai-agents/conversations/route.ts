@@ -46,7 +46,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         `
         *,
         agent:ai_agents!inner(id, name, role, avatar_url),
-        user:users(id, email, full_name)
+        user:users(id, email, name)
       `,
         { count: "exact" },
       )

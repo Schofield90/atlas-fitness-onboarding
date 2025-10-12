@@ -1,10 +1,12 @@
 # Deployment Trigger
 
-Last updated: October 12, 2025 15:00:12
+Last updated: October 12, 2025 15:05:42
 
 ## Recent Deployments
 
-### October 12, 2025 15:00 - Conversations API Debug Logging
-- Added comprehensive console logging to conversations API endpoint
-- Logs authentication, query params, database operations, errors
-- Will help identify root cause of 500 errors from browser
+### October 12, 2025 15:05 - CRITICAL FIX: Conversations API 500 Error
+- **ROOT CAUSE**: Query referenced `users.full_name` column which doesn't exist
+- **FIX**: Changed to `users.name` (actual column name)
+- PostgreSQL error code 42703 was causing 500 Internal Server Error
+- Query now works: returns 32 conversations successfully
+- This fixes: chat history not loading, second messages disappearing
