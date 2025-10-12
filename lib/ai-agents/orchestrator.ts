@@ -383,9 +383,38 @@ ${agent.system_prompt}`;
     let iteration = 0;
     let totalCost: CostCalculation = this.emptyCost();
 
+    // Filter message history to remove incomplete tool call sequences
+    // If an assistant message has tool_calls, we need following tool messages
+    const filteredHistory: any[] = [];
+    for (let i = 0; i < messageHistory.length; i++) {
+      const msg = messageHistory[i];
+
+      // If this is an assistant message with tool_calls
+      if (msg.role === 'assistant' && msg.tool_calls && Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0) {
+        // Check if the next messages include tool responses
+        const toolCallIds = msg.tool_calls.map((tc: any) => tc.id);
+        const nextMessages = messageHistory.slice(i + 1);
+        const toolResponses = nextMessages.filter((m: any) => m.role === 'tool' && toolCallIds.includes(m.tool_call_id));
+
+        // Only include if we have all tool responses
+        if (toolResponses.length === toolCallIds.length) {
+          filteredHistory.push(msg);
+        } else {
+          console.log('[Orchestrator] Skipping incomplete tool call sequence from history');
+          // Skip this message and any partial tool responses
+          const skipUntil = nextMessages.findIndex((m: any) => m.role !== 'tool');
+          if (skipUntil > 0) {
+            i += skipUntil;
+          }
+        }
+      } else {
+        filteredHistory.push(msg);
+      }
+    }
+
     const messages: any[] = [
       { role: "system" as const, content: agent.system_prompt },
-      ...messageHistory.map((msg) => ({
+      ...filteredHistory.map((msg) => ({
         role: msg.role as "user" | "assistant" | "system" | "tool",
         content: msg.content || null,
         tool_calls: msg.tool_calls,
