@@ -522,6 +522,9 @@ ${agent.system_prompt}`;
       console.log(`[Orchestrator OpenAI] Executing ${result.toolCalls.length} tool calls...`);
       hasCalledTool = true;  // Mark that we've executed at least one tool
 
+      // Collect tool results for database storage
+      const toolResultsForDB: any[] = [];
+
       for (const toolCall of result.toolCalls) {
         try {
           const toolName = toolCall.function.name;
@@ -551,21 +554,12 @@ ${agent.system_prompt}`;
             tool_call_id: toolCall.id,
           });
 
-          // Save tool response to database for conversation history
-          const { error: toolSaveError } = await this.supabase
-            .from("ai_agent_messages")
-            .insert({
-              conversation_id: conversationId,
-              role: "tool",
-              content: toolResponse,
-              tool_call_id: toolCall.id,
-              tokens_used: 0, // Tool responses don't consume tokens
-              cost_usd: 0,
-            });
-
-          if (toolSaveError) {
-            console.error('[Orchestrator OpenAI] Failed to save tool response:', toolSaveError);
-          }
+          // Collect tool result for database storage
+          toolResultsForDB.push({
+            tool_call_id: toolCall.id,
+            tool_name: toolName,
+            result: toolResult.data || { error: toolResult.error },
+          });
 
         } catch (error: any) {
           const errorResponse = JSON.stringify({ error: error.message || "Tool execution failed" });
@@ -577,23 +571,27 @@ ${agent.system_prompt}`;
             tool_call_id: toolCall.id,
           });
 
-          // Save tool error to database
-          const { error: toolErrorSaveError } = await this.supabase
-            .from("ai_agent_messages")
-            .insert({
-              conversation_id: conversationId,
-              role: "tool",
-              content: errorResponse,
-              tool_call_id: toolCall.id,
-              tokens_used: 0,
-              cost_usd: 0,
-            });
-
-          if (toolErrorSaveError) {
-            console.error('[Orchestrator OpenAI] Failed to save tool error:', toolErrorSaveError);
-          }
+          // Collect error for database storage
+          toolResultsForDB.push({
+            tool_call_id: toolCall.id,
+            tool_name: toolCall.function.name,
+            result: { error: error.message || "Tool execution failed" },
+          });
         }
       }
+
+      // Save tool results to database as JSONB for this iteration
+      // This will be attached to the next assistant message or saved separately
+      await this.supabase
+        .from("ai_agent_messages")
+        .insert({
+          conversation_id: conversationId,
+          role: "tool",
+          content: null,
+          tool_results: toolResultsForDB,
+          tokens_used: 0,
+          cost_usd: 0,
+        });
 
       // Continue loop to get final response
     }
@@ -735,21 +733,8 @@ ${agent.system_prompt}`;
             content: toolResponse,
           });
 
-          // Save tool response to database for conversation history
-          const { error: toolSaveError } = await this.supabase
-            .from("ai_agent_messages")
-            .insert({
-              conversation_id: conversationId,
-              role: "tool",
-              content: toolResponse,
-              tool_call_id: toolUse.id,
-              tokens_used: 0,
-              cost_usd: 0,
-            });
-
-          if (toolSaveError) {
-            console.error('[Orchestrator Anthropic] Failed to save tool response:', toolSaveError);
-          }
+          // Note: Tool responses for Anthropic are saved as part of the conversation flow
+          // They don't need separate database rows
 
         } catch (error: any) {
           const errorResponse = JSON.stringify({ error: error.message || "Tool execution failed" });
@@ -761,21 +746,8 @@ ${agent.system_prompt}`;
             content: errorResponse,
           });
 
-          // Save tool error to database
-          const { error: toolErrorSaveError } = await this.supabase
-            .from("ai_agent_messages")
-            .insert({
-              conversation_id: conversationId,
-              role: "tool",
-              content: errorResponse,
-              tool_call_id: toolUse.id,
-              tokens_used: 0,
-              cost_usd: 0,
-            });
-
-          if (toolErrorSaveError) {
-            console.error('[Orchestrator Anthropic] Failed to save tool error:', toolErrorSaveError);
-          }
+          // Note: Tool errors are also included in the conversation flow
+          // They don't need separate database storage
         }
       }
 
