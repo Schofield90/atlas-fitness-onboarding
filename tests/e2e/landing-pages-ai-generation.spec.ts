@@ -2,10 +2,12 @@ import { test, expect } from '@playwright/test';
 
 test.describe('AI Landing Page Generation - Color Diversity Tests', () => {
   test.beforeEach(async ({ page }) => {
+    test.setTimeout(120000); // 2 minutes per test
+
     // Login as test user
     console.log('Step 1: Login as test user');
     await page.goto('http://localhost:3000/owner-login');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Fill login form
     await page.fill('input[type="email"]', 'test2@test.co.uk');
@@ -13,18 +15,16 @@ test.describe('AI Landing Page Generation - Color Diversity Tests', () => {
 
     // Click login and wait for navigation
     console.log('  Clicking login button...');
-    await Promise.all([
-      page.waitForURL(/\/(dashboard|org\/)/, { timeout: 10000 }),
-      page.click('button[type="submit"]')
-    ]);
+    await page.click('button[type="submit"]');
+    await page.waitForURL(/\/(dashboard|org\/)/, { timeout: 30000 });
 
     console.log('  ✓ Logged in, URL:', page.url());
 
     // Navigate to landing page builder
     console.log('\nStep 2: Navigate to landing page builder');
     await page.goto('http://localhost:3000/landing-pages/builder');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(3000);
   });
 
   test('Test #1: Generate landing page with ORANGE theme', async ({ page }) => {

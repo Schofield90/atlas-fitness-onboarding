@@ -400,12 +400,12 @@ ${agent.system_prompt}`;
         if (toolResponses.length === toolCallIds.length) {
           filteredHistory.push(msg);
         } else {
-          console.log('[Orchestrator] Skipping incomplete tool call sequence from history');
-          // Skip this message and any partial tool responses
-          const skipUntil = nextMessages.findIndex((m: any) => m.role !== 'tool');
-          if (skipUntil > 0) {
-            i += skipUntil;
-          }
+          console.log('[Orchestrator] Skipping incomplete tool call sequence from history, removing tool_calls from message');
+          // Include the message but strip tool_calls to prevent OpenAI error
+          filteredHistory.push({
+            ...msg,
+            tool_calls: null
+          });
         }
       } else {
         filteredHistory.push(msg);
