@@ -19,6 +19,9 @@ interface FormProps extends ComponentProps {
   submitLabel?: string
   successMessage?: string
   layout?: 'single' | 'double'
+  backgroundColor?: string
+  textColor?: string
+  buttonColor?: string // NEW: Color for submit button
 }
 
 export const FormComponent: React.FC<FormProps> = ({
@@ -32,7 +35,10 @@ export const FormComponent: React.FC<FormProps> = ({
   submitLabel = 'Submit',
   successMessage = 'Thank you! Your submission has been received.',
   layout = 'single',
-  className = ''
+  className = '',
+  backgroundColor = '#ffffff',
+  textColor = '#111827',
+  buttonColor // NEW: Extract buttonColor prop
 }) => {
   const [formData, setFormData] = useState<Record<string, string | boolean>>({})
   const [submitted, setSubmitted] = useState(false)
@@ -147,7 +153,11 @@ export const FormComponent: React.FC<FormProps> = ({
         
         <button
           type="submit"
-          className="mt-6 w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+          className="mt-6 w-full py-3 px-6 rounded-lg font-semibold transition-colors"
+          style={{
+            backgroundColor: buttonColor || '#3B82F6',
+            color: '#FFFFFF'
+          }}
         >
           {submitLabel}
         </button>

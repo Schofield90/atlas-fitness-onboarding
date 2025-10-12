@@ -580,24 +580,10 @@ ${agent.system_prompt}`;
         }
       }
 
-      // Save tool results to database as JSONB for this iteration
-      console.log('[Orchestrator OpenAI] Saving tool results to database:', toolResultsForDB.length, 'results');
-      const { error: toolSaveError } = await this.supabase
-        .from("ai_agent_messages")
-        .insert({
-          conversation_id: conversationId,
-          role: "tool",
-          content: null,
-          tool_results: toolResultsForDB,
-          tokens_used: 0,
-          cost_usd: 0,
-        });
-
-      if (toolSaveError) {
-        console.error('[Orchestrator OpenAI] CRITICAL: Failed to save tool results to database:', toolSaveError);
-      } else {
-        console.log('[Orchestrator OpenAI] Successfully saved tool results to database');
-      }
+      // Note: Tool results will be saved with the final assistant response
+      // OpenAI requires tool messages to follow assistant messages with tool_calls
+      // So we can't save them as separate messages without breaking the conversation flow
+      console.log('[Orchestrator OpenAI] Tool results collected:', toolResultsForDB.length, 'results');
 
       // Continue loop to get final response
     }

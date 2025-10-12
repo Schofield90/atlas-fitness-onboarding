@@ -133,14 +133,14 @@ Return ONLY valid JSON with this structure:
 }
 
 Component prop interfaces (type names are lowercase):
-- header: { logoText: string, menuItems: [{label, href}], ctaButton: {label, href}, backgroundColor?: string, textColor?: string }
+- header: { logoText: string, menuItems: [{label, href}], ctaButton: {label, href}, backgroundColor?: string, textColor?: string, buttonColor?: string }
 - hero: { title: string, subtitle: string, description: string, primaryButton: {label, href}, backgroundColor: string, textColor: string, buttonColor: string, backgroundImage?: string }
 - text: { content: string (HTML allowed), backgroundColor?: string, textColor?: string, fontSize?: string, textAlign?: string }
 - features: { title: string, subtitle?: string, backgroundColor: string, textColor?: string, features: [{icon: string, title: string, description: string}] }
 - testimonials: { title: string, backgroundColor: string, textColor?: string, testimonials: [{name: string, role: string, company: string, content: string, image?: string}] }
-- pricing: { title: string, subtitle?: string, backgroundColor: string, textColor?: string, plans: [{name: string, price: string, period: string, features: string[], ctaText: string, ctaUrl: string, highlighted?: boolean}] }
+- pricing: { title: string, subtitle?: string, backgroundColor: string, textColor?: string, buttonColor?: string, plans: [{name: string, price: string, period: string, features: string[], ctaText: string, ctaUrl: string, highlighted?: boolean}] }
 - faq: { title: string, backgroundColor?: string, textColor?: string, faqs: [{question: string, answer: string}] }
-- cta: { title: string, description: string, backgroundColor: string, textColor: string, primaryButton: {label, href}, secondaryButton?: {label, href} }
+- cta: { title: string, description: string, backgroundColor: string, textColor: string, buttonColor?: string, primaryButton: {label, href}, secondaryButton?: {label, href} }
 - footer: { companyName: string, description?: string, backgroundColor?: string, textColor?: string, links: [{title: string, items: [{label, href}]}], social?: [{platform: string, url: string}] }
 
 Make the content relevant to the description. Use realistic, engaging copy. Include at least 3-5 components.

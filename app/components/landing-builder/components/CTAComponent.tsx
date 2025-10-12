@@ -10,6 +10,7 @@ interface CTAProps extends ComponentProps {
   secondaryButton?: { label: string; href: string }
   backgroundColor?: string
   textColor?: string
+  buttonColor?: string // NEW: Color for buttons
   pattern?: 'none' | 'dots' | 'gradient'
   isEditing?: boolean
 }
@@ -21,21 +22,23 @@ export const CTAComponent: React.FC<CTAProps> = ({
   secondaryButton,
   backgroundColor = '#1e40af',
   textColor = '#ffffff',
+  buttonColor, // NEW: Extract buttonColor prop
   pattern = 'none',
   className = '',
   isEditing = false
 }) => {
+  // Remove gradient pattern since we're using dynamic colors
   const patternStyles = {
     none: '',
     dots: 'bg-dots-pattern',
-    gradient: 'bg-gradient-to-br from-blue-600 to-purple-600'
+    gradient: '' // Changed from hardcoded gradient
   }
 
   return (
     <section
       className={`py-16 ${patternStyles[pattern]} ${className}`}
       style={{
-        backgroundColor: pattern === 'none' ? backgroundColor : undefined,
+        backgroundColor: backgroundColor,
         color: textColor
       }}
     >
@@ -56,7 +59,11 @@ export const CTAComponent: React.FC<CTAProps> = ({
               <a
                 href={isEditing ? undefined : primaryButton.href}
                 onClick={isEditing ? (e) => e.preventDefault() : undefined}
-                className="bg-white text-blue-600 px-8 py-4 rounded-lg font-semibold hover:bg-gray-100 transition-colors inline-block cursor-pointer"
+                className="px-8 py-4 rounded-lg font-semibold transition-colors inline-block cursor-pointer"
+                style={{
+                  backgroundColor: buttonColor || '#FFFFFF',
+                  color: backgroundColor || '#1e40af'
+                }}
               >
                 {primaryButton.label}
               </a>
@@ -66,7 +73,11 @@ export const CTAComponent: React.FC<CTAProps> = ({
               <a
                 href={isEditing ? undefined : secondaryButton.href}
                 onClick={isEditing ? (e) => e.preventDefault() : undefined}
-                className="border-2 border-white text-white px-8 py-4 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition-colors inline-block cursor-pointer"
+                className="border-2 px-8 py-4 rounded-lg font-semibold transition-colors inline-block cursor-pointer"
+                style={{
+                  borderColor: buttonColor || textColor,
+                  color: buttonColor || textColor
+                }}
               >
                 {secondaryButton.label}
               </a>

@@ -10,6 +10,9 @@ interface HeaderProps extends ComponentProps {
   menuItems?: Array<{ label: string; href: string }>
   ctaButton?: { label: string; href: string }
   style?: 'minimal' | 'centered' | 'split'
+  backgroundColor?: string
+  textColor?: string
+  buttonColor?: string // NEW: Color for CTA button
 }
 
 export const HeaderComponent: React.FC<HeaderProps> = ({
@@ -18,7 +21,10 @@ export const HeaderComponent: React.FC<HeaderProps> = ({
   menuItems = [],
   ctaButton,
   style = 'split',
-  className = ''
+  className = '',
+  backgroundColor = '#ffffff',
+  textColor = '#111827',
+  buttonColor
 }) => {
   const headerStyles = {
     minimal: 'justify-between',
@@ -27,7 +33,7 @@ export const HeaderComponent: React.FC<HeaderProps> = ({
   }
 
   return (
-    <header className={`w-full bg-white shadow-sm ${className}`}>
+    <header className={`w-full shadow-sm ${className}`} style={{ backgroundColor }}>
       <div className="container mx-auto px-4 py-4">
         <div className={`flex items-center ${headerStyles[style]}`}>
           {/* Logo */}
@@ -35,7 +41,7 @@ export const HeaderComponent: React.FC<HeaderProps> = ({
             {logo ? (
               <img src={logo} alt={logoText} className="h-10" />
             ) : (
-              <span className="text-2xl font-bold text-gray-900">{logoText}</span>
+              <span className="text-2xl font-bold" style={{ color: textColor }}>{logoText}</span>
             )}
           </div>
 
@@ -46,7 +52,8 @@ export const HeaderComponent: React.FC<HeaderProps> = ({
                 <Link
                   key={index}
                   href={item.href}
-                  className="text-gray-700 hover:text-blue-600 transition-colors"
+                  className="hover:opacity-80 transition-colors"
+                  style={{ color: textColor }}
                 >
                   {item.label}
                 </Link>
@@ -58,14 +65,18 @@ export const HeaderComponent: React.FC<HeaderProps> = ({
           {ctaButton && (
             <Link
               href={ctaButton.href}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              className="px-6 py-2 rounded-lg transition-colors"
+              style={{
+                backgroundColor: buttonColor || '#3B82F6',
+                color: '#FFFFFF'
+              }}
             >
               {ctaButton.label}
             </Link>
           )}
 
           {/* Mobile menu button */}
-          <button className="md:hidden">
+          <button className="md:hidden" style={{ color: textColor }}>
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
