@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/app/lib/api/auth-check-org";
 import { createClient } from "@/app/lib/supabase/server";
-import OpenAI from "openai";
+import { AnthropicProvider } from '@/app/lib/ai-agents/providers/anthropic-provider';
 
 // Force dynamic rendering for this route
 export const dynamic = "force-dynamic";
@@ -30,10 +30,11 @@ export async function POST(request: NextRequest) {
   const supabase = createServiceRoleClient();
 
   try {
-    // Instantiate OpenAI client directly in function (avoid minification issues)
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return NextResponse.json({ error: 'AI not configured' }, { status: 503 });
+    }
+
+    const anthropic = new AnthropicProvider(process.env.ANTHROPIC_API_KEY);
 
     const prompt = `
 You are an expert landing page builder specializing in high-converting, visually diverse pages.
@@ -98,38 +99,46 @@ Component prop interfaces (type names are lowercase):
 Make the content relevant to the description. Use realistic, engaging copy. Include at least 3-5 components.
 Return ONLY valid JSON, no additional text or markdown.`;
 
-    console.log('[AI Build] Starting GPT-4o generation...');
+    console.log('[AI Build] Starting Claude Sonnet 4.5 generation...');
     console.log('[AI Build] Description:', description);
     console.log('[AI Build] Prompt length:', prompt.length);
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are an expert landing page builder. Create beautiful, conversion-focused landing pages with UNIQUE colors each time. Always return valid JSON only.",
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      temperature: 0.9, // Increased from 0.8 for more variety
-      max_tokens: 4000,
-      response_format: { type: "json_object" },
+    const systemPrompt = "You are an expert landing page builder. Create beautiful, conversion-focused landing pages with UNIQUE colors each time. Always return valid JSON only.";
+
+    const result = await anthropic.execute([{ role: 'user', content: prompt }], {
+      model: 'claude-sonnet-4-20250514',
+      temperature: 0.9,
+      max_tokens: 16000,
+      system: systemPrompt
     });
 
-    console.log('[AI Build] GPT-4o response received:', {
-      model: response.model,
-      tokens: response.usage?.total_tokens,
-      finishReason: response.choices[0]?.finish_reason
+    console.log('[AI Build] Claude response received:', {
+      success: result.success,
+      stopReason: result.stopReason,
+      tokens: result.cost?.totalTokens,
+      costCents: result.cost?.costBilledCents
     });
 
-    const content = response.choices[0]?.message?.content;
-    if (!content) throw new Error("No response from AI");
+    if (!result.success || !result.content) {
+      console.error('[AI Build] Generation failed:', result.error);
+      throw new Error('Generation failed');
+    }
 
-    console.log('[AI Build] Response length:', content.length);
+    const textContent = result.content.find(c => c.type === 'text');
+    if (!textContent?.text) {
+      throw new Error("No text content in response");
+    }
+
+    console.log('[AI Build] Response length:', textContent.text.length);
+
+    let content = textContent.text;
+
+    // Claude may return JSON wrapped in markdown code blocks - extract if needed
+    const jsonMatch = content.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
+    if (jsonMatch) {
+      content = jsonMatch[1];
+      console.log('[AI Build] Extracted JSON from markdown code block');
+    }
 
     const generatedTemplate = JSON.parse(content);
 
