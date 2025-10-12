@@ -414,3 +414,4 @@ Root Cause: payments table uses organization_id NOT org_id
 Fix: Reverted 4 payments table queries back to organization_id (lines 51, 486, 766, 1418)
 Context: clients table uses org_id, payments table uses organization_id
 Result: Both LTV tool (clients) and turnover tool (payments) now work correctly
+# Force deployment Sun 12 Oct 2025 08:48:18 BST
