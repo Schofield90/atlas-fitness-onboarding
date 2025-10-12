@@ -68,7 +68,7 @@ function LandingPageBuilderContent() {
   const handleAIGenerate = async (description: string) => {
     setAiGenerating(true);
     try {
-      const response = await fetch("/api/landing-pages/ai-build", {
+      const response = await fetch("/api/landing-pages/ai-generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
