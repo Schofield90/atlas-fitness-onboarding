@@ -146,18 +146,22 @@ export default function AgentChatPage() {
   const loadOrCreateConversation = async () => {
     try {
       // First, try to find an existing conversation for this agent
+      console.log("[DEBUG] Fetching conversations for agent:", agentId);
       const listResponse = await fetch(
         `/api/ai-agents/conversations?agent_id=${agentId}&limit=1`,
       );
       const listResult = await listResponse.json();
+      console.log("[DEBUG] List conversations result:", listResult);
 
       let convId: string;
 
       if (listResult.success && listResult.conversations?.length > 0) {
         // Use existing conversation
         convId = listResult.conversations[0].id;
+        console.log("[DEBUG] Reusing existing conversation:", convId);
       } else {
         // Create new conversation
+        console.log("[DEBUG] No existing conversation found, creating new one");
         const createResponse = await fetch(`/api/ai-agents/conversations`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -167,6 +171,7 @@ export default function AgentChatPage() {
           }),
         });
         const createResult = await createResponse.json();
+        console.log("[DEBUG] Create conversation result:", createResult);
 
         if (!createResult.success) {
           console.error("Failed to create conversation");
@@ -176,6 +181,7 @@ export default function AgentChatPage() {
       }
 
       setConversationId(convId);
+      console.log("[DEBUG] Set conversationId to:", convId);
       // Load messages for this conversation
       await loadMessages(convId);
     } catch (error) {
@@ -186,13 +192,18 @@ export default function AgentChatPage() {
   const loadMessages = async (convId: string) => {
     setLoadingMessages(true);
     try {
+      console.log("[DEBUG] Loading messages for conversation:", convId);
       const response = await fetch(
         `/api/ai-agents/conversations/${convId}/messages?limit=100`,
       );
       const result = await response.json();
+      console.log("[DEBUG] Load messages result:", result);
 
       if (result.success) {
         setMessages(result.messages || []);
+        console.log("[DEBUG] Set messages count:", result.messages?.length || 0);
+      } else {
+        console.error("[DEBUG] Failed to load messages:", result.error);
       }
     } catch (error) {
       console.error("Error loading messages:", error);
@@ -272,6 +283,7 @@ export default function AgentChatPage() {
       created_at: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, tempUserMessage]);
+    console.log("[DEBUG] Sending message to conversation:", conversationId);
 
     try {
       // Send message to AI agent via API
@@ -285,9 +297,11 @@ export default function AgentChatPage() {
       );
 
       const result = await response.json();
+      console.log("[DEBUG] Send message result:", result);
 
       if (result.success) {
         // Reload messages to get the real user message + AI response
+        console.log("[DEBUG] Message sent successfully, reloading messages");
         await loadMessages(conversationId);
       } else {
         console.error("Failed to send message:", result.error);
