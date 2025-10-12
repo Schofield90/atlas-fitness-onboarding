@@ -35,8 +35,11 @@ export class OpenAIProvider {
   private client: OpenAI;
 
   constructor(apiKey?: string) {
+    // OpenAI SDK has browser detection that can trigger in Next.js API routes
+    // We explicitly allow this since we're only using it server-side in API routes
     this.client = new OpenAI({
-      apiKey: apiKey || process.env.OPENAI_API_KEY
+      apiKey: apiKey || process.env.OPENAI_API_KEY,
+      dangerouslyAllowBrowser: true, // Safe because we only use this in server-side API routes
     });
   }
 

@@ -13,10 +13,14 @@ test.describe('AI Agents Chat - Message Flow', () => {
     // Fill login form
     await page.fill('input[type="email"]', 'test2@test.co.uk');
     await page.fill('input[type="password"]', 'Test123');
-    await page.click('button[type="submit"]');
 
-    // Wait for redirect
-    await page.waitForTimeout(3000);
+    // Click login and wait for navigation
+    console.log('  Clicking login button...');
+    await Promise.all([
+      page.waitForURL(/\/(dashboard|org\/)/, { timeout: 10000 }),
+      page.click('button[type="submit"]')
+    ]);
+
     console.log('  ✓ Logged in, URL:', page.url());
 
     // Navigate to chat page

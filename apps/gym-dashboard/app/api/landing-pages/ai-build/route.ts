@@ -37,7 +37,32 @@ export async function POST(request: NextRequest) {
     const anthropic = new AnthropicProvider(process.env.ANTHROPIC_API_KEY);
 
     // Generate random seed for color selection to ensure variety
-    const colorSeed = Math.floor(Math.random() * 10);
+    // But respect user's color preferences if mentioned in description
+    const descriptionLower = description.toLowerCase();
+
+    let colorSeed: number;
+    if (descriptionLower.includes('blue') || descriptionLower.includes('ocean')) {
+      colorSeed = Math.random() < 0.5 ? 0 : 1; // Ocean Blues
+    } else if (descriptionLower.includes('green') || descriptionLower.includes('forest') || descriptionLower.includes('nature')) {
+      colorSeed = 2; // Forest Green
+    } else if (descriptionLower.includes('coral') || descriptionLower.includes('sunset') || descriptionLower.includes('peach')) {
+      colorSeed = 3; // Sunset Coral
+    } else if (descriptionLower.includes('purple') || descriptionLower.includes('violet') || descriptionLower.includes('royal')) {
+      colorSeed = 4; // Royal Purple
+    } else if (descriptionLower.includes('dark') || descriptionLower.includes('midnight') || descriptionLower.includes('black')) {
+      colorSeed = 5; // Midnight Dark
+    } else if (descriptionLower.includes('yellow') || descriptionLower.includes('sunny') || descriptionLower.includes('gold')) {
+      colorSeed = 6; // Sunny Yellow
+    } else if (descriptionLower.includes('teal') || descriptionLower.includes('mint') || descriptionLower.includes('cyan')) {
+      colorSeed = 7; // Teal Mint
+    } else if (descriptionLower.includes('pink') || descriptionLower.includes('berry') || descriptionLower.includes('magenta')) {
+      colorSeed = 8; // Berry Pink
+    } else if (descriptionLower.includes('orange') || descriptionLower.includes('burnt')) {
+      colorSeed = 9; // Burnt Orange
+    } else {
+      // No color preference - random selection
+      colorSeed = Math.floor(Math.random() * 10);
+    }
 
     const prompt = `
 You are an expert landing page builder specializing in high-converting, visually diverse pages.
