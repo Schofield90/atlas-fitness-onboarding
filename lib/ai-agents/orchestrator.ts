@@ -422,6 +422,13 @@ ${agent.system_prompt}`;
       })),
     ];
 
+    console.log('[Orchestrator] Message history:', {
+      originalCount: messageHistory.length,
+      filteredCount: filteredHistory.length,
+      finalMessageCount: messages.length,
+      lastThreeMessages: messages.slice(-3).map(m => ({ role: m.role, content: m.content?.substring(0, 50) }))
+    });
+
     // Track if we've already called a tool (to prevent infinite loops)
     let hasCalledTool = false;
     // Track tool calls that were made (to save to database)
