@@ -186,10 +186,22 @@ Return ONLY valid JSON, no additional text or markdown.`;
     });
   } catch (error: any) {
     console.error("AI build error:", error);
+    console.error("Error stack:", error.stack);
+    console.error("Error name:", error.name);
+
+    // Return detailed error in development, generic in production
+    const errorMessage = error.message || "Failed to generate landing page";
+    const errorDetails = process.env.NODE_ENV === 'development' ? {
+      stack: error.stack,
+      name: error.name,
+      cause: error.cause
+    } : undefined;
 
     return NextResponse.json(
       {
-        error: error.message || "Failed to generate landing page",
+        error: errorMessage,
+        details: errorDetails,
+        timestamp: new Date().toISOString()
       },
       { status: 500 },
     );
