@@ -237,7 +237,8 @@ ${agent.system_prompt}`;
       const executionResult = await this.executeConversation(
         agent,
         messages,
-        tools
+        tools,
+        conversationId
       );
 
       if (!executionResult.success) {
@@ -340,7 +341,8 @@ ${agent.system_prompt}`;
   private async executeConversation(
     agent: any,
     messageHistory: any[],
-    tools: any[]
+    tools: any[],
+    conversationId: string
   ): Promise<{
     success: boolean;
     content?: string;
@@ -352,9 +354,9 @@ ${agent.system_prompt}`;
 
     // Determine provider from model
     if (model.startsWith("gpt-")) {
-      return this.executeConversationOpenAI(agent, messageHistory, tools);
+      return this.executeConversationOpenAI(agent, messageHistory, tools, conversationId);
     } else if (model.startsWith("claude-")) {
-      return this.executeConversationAnthropic(agent, messageHistory, tools);
+      return this.executeConversationAnthropic(agent, messageHistory, tools, conversationId);
     } else {
       return {
         success: false,
@@ -370,7 +372,8 @@ ${agent.system_prompt}`;
   private async executeConversationOpenAI(
     agent: any,
     messageHistory: any[],
-    tools: any[]
+    tools: any[],
+    conversationId: string
   ): Promise<{
     success: boolean;
     content?: string;
@@ -539,19 +542,48 @@ ${agent.system_prompt}`;
 
           console.log(`[Orchestrator OpenAI] Tool ${toolName} result:`, toolResult.success ? 'SUCCESS' : 'FAILED', toolResult.error || '');
 
-          // Add tool result message
+          const toolResponse = JSON.stringify(toolResult.data || { error: toolResult.error });
+
+          // Add tool result message to conversation array
           messages.push({
             role: "tool",
-            content: JSON.stringify(toolResult.data || { error: toolResult.error }),
+            content: toolResponse,
             tool_call_id: toolCall.id,
           });
+
+          // Save tool response to database for conversation history
+          await this.supabase
+            .from("ai_agent_messages")
+            .insert({
+              conversation_id: conversationId,
+              role: "tool",
+              content: toolResponse,
+              tool_call_id: toolCall.id,
+              tokens_used: 0, // Tool responses don't consume tokens
+              cost_usd: 0,
+            });
+
         } catch (error: any) {
-          // Add error as tool result
+          const errorResponse = JSON.stringify({ error: error.message || "Tool execution failed" });
+
+          // Add error as tool result to conversation array
           messages.push({
             role: "tool",
-            content: JSON.stringify({ error: error.message || "Tool execution failed" }),
+            content: errorResponse,
             tool_call_id: toolCall.id,
           });
+
+          // Save tool error to database
+          await this.supabase
+            .from("ai_agent_messages")
+            .insert({
+              conversation_id: conversationId,
+              role: "tool",
+              content: errorResponse,
+              tool_call_id: toolCall.id,
+              tokens_used: 0,
+              cost_usd: 0,
+            });
         }
       }
 
@@ -572,7 +604,8 @@ ${agent.system_prompt}`;
   private async executeConversationAnthropic(
     agent: any,
     messageHistory: any[],
-    tools: any[]
+    tools: any[],
+    conversationId: string
   ): Promise<{
     success: boolean;
     content?: string;
@@ -685,19 +718,48 @@ ${agent.system_prompt}`;
             }
           );
 
+          const toolResponse = JSON.stringify(toolResult.data || { error: toolResult.error });
+
           // Add tool result in Anthropic format
           toolResults.push({
             type: "tool_result",
             tool_use_id: toolUse.id,
-            content: JSON.stringify(toolResult.data || { error: toolResult.error }),
+            content: toolResponse,
           });
+
+          // Save tool response to database for conversation history
+          await this.supabase
+            .from("ai_agent_messages")
+            .insert({
+              conversation_id: conversationId,
+              role: "tool",
+              content: toolResponse,
+              tool_call_id: toolUse.id,
+              tokens_used: 0,
+              cost_usd: 0,
+            });
+
         } catch (error: any) {
+          const errorResponse = JSON.stringify({ error: error.message || "Tool execution failed" });
+
           // Add error as tool result
           toolResults.push({
             type: "tool_result",
             tool_use_id: toolUse.id,
-            content: JSON.stringify({ error: error.message || "Tool execution failed" }),
+            content: errorResponse,
           });
+
+          // Save tool error to database
+          await this.supabase
+            .from("ai_agent_messages")
+            .insert({
+              conversation_id: conversationId,
+              role: "tool",
+              content: errorResponse,
+              tool_call_id: toolUse.id,
+              tokens_used: 0,
+              cost_usd: 0,
+            });
         }
       }
 
