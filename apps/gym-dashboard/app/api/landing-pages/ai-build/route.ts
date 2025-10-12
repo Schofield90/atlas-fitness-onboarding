@@ -134,7 +134,7 @@ Return ONLY valid JSON with this structure:
 
 Component prop interfaces (type names are lowercase):
 - header: { logoText: string, menuItems: [{label, href}], ctaButton: {label, href}, backgroundColor?: string, textColor?: string }
-- hero: { title: string, subtitle: string, description: string, primaryButton: {label, href}, backgroundColor: string, textColor: string, backgroundImage?: string }
+- hero: { title: string, subtitle: string, description: string, primaryButton: {label, href}, backgroundColor: string, textColor: string, buttonColor: string, backgroundImage?: string }
 - text: { content: string (HTML allowed), backgroundColor?: string, textColor?: string, fontSize?: string, textAlign?: string }
 - features: { title: string, subtitle?: string, backgroundColor: string, textColor?: string, features: [{icon: string, title: string, description: string}] }
 - testimonials: { title: string, backgroundColor: string, textColor?: string, testimonials: [{name: string, role: string, company: string, content: string, image?: string}] }

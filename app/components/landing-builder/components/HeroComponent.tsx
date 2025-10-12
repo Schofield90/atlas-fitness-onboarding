@@ -13,6 +13,7 @@ interface HeroProps extends ComponentProps {
   backgroundImage?: string;
   backgroundColor?: string;
   textColor?: string;
+  buttonColor?: string; // NEW: Color for CTA buttons
   alignment?: "left" | "center" | "right";
   height?: "small" | "medium" | "large" | "full";
   isEditing?: boolean;
@@ -29,6 +30,7 @@ export const HeroComponent: React.FC<HeroProps> = ({
   backgroundImage,
   backgroundColor = "#f3f4f6",
   textColor = "#111827",
+  buttonColor, // NEW: Extract buttonColor prop
   alignment = "center",
   height = "large",
   className = "",
@@ -113,7 +115,11 @@ export const HeroComponent: React.FC<HeroProps> = ({
                 <a
                   href={isEditing ? undefined : primaryButton.href}
                   onClick={isEditing ? (e) => e.preventDefault() : undefined}
-                  className="bg-blue-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors inline-block cursor-pointer"
+                  className="px-8 py-4 rounded-lg font-semibold transition-colors inline-block cursor-pointer"
+                  style={{
+                    backgroundColor: buttonColor || "#3B82F6",
+                    color: "#FFFFFF",
+                  }}
                 >
                   {primaryButton.label}
                 </a>
@@ -123,7 +129,11 @@ export const HeroComponent: React.FC<HeroProps> = ({
                 <a
                   href={isEditing ? undefined : secondaryButton.href}
                   onClick={isEditing ? (e) => e.preventDefault() : undefined}
-                  className="border-2 border-current px-8 py-4 rounded-lg font-semibold hover:bg-white hover:text-gray-900 transition-colors inline-block cursor-pointer"
+                  className="border-2 px-8 py-4 rounded-lg font-semibold transition-colors inline-block cursor-pointer"
+                  style={{
+                    borderColor: buttonColor || textColor,
+                    color: textColor,
+                  }}
                 >
                   {secondaryButton.label}
                 </a>
