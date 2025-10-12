@@ -552,7 +552,7 @@ ${agent.system_prompt}`;
           });
 
           // Save tool response to database for conversation history
-          await this.supabase
+          const { error: toolSaveError } = await this.supabase
             .from("ai_agent_messages")
             .insert({
               conversation_id: conversationId,
@@ -562,6 +562,10 @@ ${agent.system_prompt}`;
               tokens_used: 0, // Tool responses don't consume tokens
               cost_usd: 0,
             });
+
+          if (toolSaveError) {
+            console.error('[Orchestrator OpenAI] Failed to save tool response:', toolSaveError);
+          }
 
         } catch (error: any) {
           const errorResponse = JSON.stringify({ error: error.message || "Tool execution failed" });
@@ -574,7 +578,7 @@ ${agent.system_prompt}`;
           });
 
           // Save tool error to database
-          await this.supabase
+          const { error: toolErrorSaveError } = await this.supabase
             .from("ai_agent_messages")
             .insert({
               conversation_id: conversationId,
@@ -584,6 +588,10 @@ ${agent.system_prompt}`;
               tokens_used: 0,
               cost_usd: 0,
             });
+
+          if (toolErrorSaveError) {
+            console.error('[Orchestrator OpenAI] Failed to save tool error:', toolErrorSaveError);
+          }
         }
       }
 
@@ -728,7 +736,7 @@ ${agent.system_prompt}`;
           });
 
           // Save tool response to database for conversation history
-          await this.supabase
+          const { error: toolSaveError } = await this.supabase
             .from("ai_agent_messages")
             .insert({
               conversation_id: conversationId,
@@ -738,6 +746,10 @@ ${agent.system_prompt}`;
               tokens_used: 0,
               cost_usd: 0,
             });
+
+          if (toolSaveError) {
+            console.error('[Orchestrator Anthropic] Failed to save tool response:', toolSaveError);
+          }
 
         } catch (error: any) {
           const errorResponse = JSON.stringify({ error: error.message || "Tool execution failed" });
@@ -750,7 +762,7 @@ ${agent.system_prompt}`;
           });
 
           // Save tool error to database
-          await this.supabase
+          const { error: toolErrorSaveError } = await this.supabase
             .from("ai_agent_messages")
             .insert({
               conversation_id: conversationId,
@@ -760,6 +772,10 @@ ${agent.system_prompt}`;
               tokens_used: 0,
               cost_usd: 0,
             });
+
+          if (toolErrorSaveError) {
+            console.error('[Orchestrator Anthropic] Failed to save tool error:', toolErrorSaveError);
+          }
         }
       }
 
