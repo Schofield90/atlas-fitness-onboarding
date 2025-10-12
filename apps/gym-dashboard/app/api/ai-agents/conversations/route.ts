@@ -21,13 +21,20 @@ const conversationsQuerySchema = z.object({
  * List conversations for user's organization with filtering and pagination
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  console.log("[Conversations API] Starting GET request");
   try {
+    console.log("[Conversations API] Checking authentication...");
     const { organizationId, id: userId } = await requireAuth();
+    console.log("[Conversations API] Auth successful, orgId:", organizationId, "userId:", userId);
+
     const supabase = createAdminClient();
+    console.log("[Conversations API] Admin client created");
 
     // Parse query parameters
     const searchParams = Object.fromEntries(request.nextUrl.searchParams);
+    console.log("[Conversations API] Query params:", searchParams);
     const query = conversationsQuerySchema.parse(searchParams);
+    console.log("[Conversations API] Validated query:", query);
 
     const { agent_id, status, user_id, page, limit } = query;
     const offset = (page - 1) * limit;
@@ -62,6 +69,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // Apply ordering and pagination
+    console.log("[Conversations API] Executing database query with pagination:", { offset, limit });
     const {
       data: conversations,
       error,
@@ -72,12 +80,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       .range(offset, offset + limit - 1);
 
     if (error) {
-      console.error("Error fetching conversations:", error);
+      console.error("[Conversations API] Database query error:", error);
       return NextResponse.json(
         { success: false, error: "Failed to fetch conversations" },
         { status: 500 },
       );
     }
+
+    console.log("[Conversations API] Query successful, found", conversations?.length || 0, "conversations");
 
     return NextResponse.json({
       success: true,
@@ -88,9 +98,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       hasMore: (count || 0) > offset + limit,
     });
   } catch (error: any) {
-    console.error("Error in GET /api/ai-agents/conversations:", error);
+    console.error("[Conversations API] Caught error:", error);
+    console.error("[Conversations API] Error stack:", error?.stack);
 
     if (error instanceof z.ZodError) {
+      console.error("[Conversations API] Zod validation error:", error.errors);
       return NextResponse.json(
         {
           success: false,
@@ -101,6 +113,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
+    console.error("[Conversations API] Returning 500 error response");
     return NextResponse.json(
       { success: false, error: error.message || "Internal server error" },
       { status: error.status || 500 },
