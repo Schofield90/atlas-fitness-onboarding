@@ -106,6 +106,9 @@ export function AgentFormModal({
           allowed_tools: agent.allowed_tools || [],
         });
       } else {
+        // For new agents, default to all tools selected
+        // User can deselect tools they don't want
+        const allToolIds = availableTools.map((t) => t.id);
         reset({
           name: "",
           description: "",
@@ -114,12 +117,12 @@ export function AgentFormModal({
           model: "gpt-4o-mini",
           temperature: 0.7,
           max_tokens: 4000,
-          allowed_tools: [],
+          allowed_tools: allToolIds, // Enable all tools by default
         });
       }
       setError(null);
     }
-  }, [open, agent, reset]);
+  }, [open, agent, reset, availableTools]);
 
   const loadAvailableTools = async () => {
     try {
