@@ -115,3 +115,8 @@ docker-compose.override.yml
 !.playwright/.gitkeep
 scripts/check-prod-clients.js
 DELETE_*.sql
+# Root-level test/debug scripts with hardcoded credentials
+/*.js
+\!next.config.js
+\!postcss.config.js
+\!tailwind.config.js
