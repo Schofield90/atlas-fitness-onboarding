@@ -340,7 +340,7 @@ export class SendMessageToClientTool extends BaseTool {
       // Fetch client details
       const { data: client, error: clientError } = await supabase
         .from('clients')
-        .select('id, name, email, phone')
+        .select('id, name, first_name, last_name, email, phone')
         .eq('id', validated.clientId)
         .eq('organization_id', context.organizationId)
         .single();
@@ -348,6 +348,9 @@ export class SendMessageToClientTool extends BaseTool {
       if (clientError || !client) {
         return { success: false, error: 'Client not found' };
       }
+
+      // Use name field if populated, otherwise concatenate first_name + last_name
+      const clientName = client.name || `${client.first_name || ''} ${client.last_name || ''}`.trim() || 'Client';
 
       // Validate contact info
       if (validated.channel === 'email' && !client.email) {
@@ -362,7 +365,7 @@ export class SendMessageToClientTool extends BaseTool {
       // in_app messages don't require additional validation
 
       // Replace {clientName} with actual name
-      const personalizedMessage = validated.message.replace(/{clientName}/g, client.name);
+      const personalizedMessage = validated.message.replace(/{clientName}/g, clientName);
 
       // Log message to database
       const { data: loggedMessage, error: logError } = await supabase
