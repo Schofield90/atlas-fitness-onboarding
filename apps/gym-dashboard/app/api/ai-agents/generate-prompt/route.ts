@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/app/lib/api/auth-check";
 import OpenAI from "openai";
 
+// Force Node.js runtime (not Edge) for OpenAI SDK compatibility
+export const runtime = 'nodejs';
+
 export async function POST(request: NextRequest) {
   try {
     // Require authentication
@@ -29,8 +32,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Lazy-load OpenAI client only when route is called
+    // dangerouslyAllowBrowser is safe here because this code runs server-side only
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
+      dangerouslyAllowBrowser: true, // Safe: This is a server-side API route, not browser code
     });
 
     // Generate detailed system prompt using GPT-4o-mini
