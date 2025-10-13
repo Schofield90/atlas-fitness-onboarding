@@ -129,22 +129,25 @@ export class ScheduleTaskTool extends BaseTool {
     try {
       const supabase = createAdminClient();
 
+      // Calculate next_run_at from executeAt or current time for cron tasks
+      const nextRunAt = validated.executeAt || new Date().toISOString();
+
       const { data: task, error } = await supabase
-        .from('scheduled_tasks')
+        .from('ai_agent_tasks')
         .insert({
+          agent_id: context.agentId,
           organization_id: context.organizationId,
           title: validated.title,
           description: validated.description,
-          task_type: validated.taskType,
-          execute_at: validated.executeAt,
-          cron_expression: validated.cronExpression,
-          is_recurring: !!validated.cronExpression,
-          task_data: validated.taskData || {},
+          task_type: validated.cronExpression ? 'recurring' : 'adhoc',
           status: 'pending',
-          created_by_agent: context.agentId,
+          next_run_at: nextRunAt,
+          schedule: validated.cronExpression || null,
+          parameters: validated.taskData || {},
           metadata: {
             conversation_id: context.conversationId,
-            task_id: context.taskId
+            original_task_type: validated.taskType,
+            created_by_tool: 'schedule_task'
           }
         })
         .select()
