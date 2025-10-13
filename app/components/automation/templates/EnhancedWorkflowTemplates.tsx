@@ -1,12 +1,12 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { 
-  Search, 
-  Filter, 
-  Copy, 
-  Eye, 
-  Star, 
+import {
+  Search,
+  Filter,
+  Copy,
+  Eye,
+  Star,
   Download,
   Upload,
   Plus,
@@ -18,6 +18,7 @@ import {
   Zap,
   Calendar,
   MessageSquare,
+  AlertCircle,
   Mail,
   Target,
   RefreshCw,

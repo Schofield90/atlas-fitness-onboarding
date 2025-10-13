@@ -749,54 +749,11 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
   const [loadingForms, setLoadingForms] = useState(false)
   const [userPhone, setUserPhone] = useState('')
   const [userWhatsApp, setUserWhatsApp] = useState('')
-  
+
   // Feature flags
   const useControlledConfig = useFeatureFlag('automationBuilderControlledConfig')
 
-  // Validate node exists and has required properties
-  if (!node) {
-    console.error('DynamicConfigPanelEnhanced: No node provided')
-    toast.error('Configuration error: No node selected')
-    onClose()
-    return null
-  }
-  
-  if (!node.id || !node.type) {
-    console.error('DynamicConfigPanelEnhanced: Invalid node data', node)
-    toast.error('Configuration error: Invalid node data')
-    onClose()
-    return null
-  }
-  
-  console.log('DynamicConfigPanelEnhanced: Opening config for node', { id: node.id, type: node.type, data: node.data })
-  
-  // Add safety check for node.data
-  if (!node.data) {
-    node.data = { config: {} }
-  }
-  
-  // CRITICAL FIX: Sync config state when node changes
-  useEffect(() => {
-    // Reset config to the new node's config when node changes
-    const newConfig = node.data?.config || {}
-    setConfig(newConfig)
-    setErrors({}) // Clear errors for new node
-    setIsValid(false) // Reset validation state
-    
-    // Also update node.data fields if they exist
-    if (node.data?.label) {
-      setConfig(prev => ({ ...prev, label: node.data.label }))
-    }
-    if (node.data?.description) {
-      setConfig(prev => ({ ...prev, description: node.data.description }))
-    }
-  }, [node.id, node.data]) // Re-run when node or its data changes
-  
-  // Fetch user phone numbers
-  useEffect(() => {
-    fetchUserDetails()
-  }, [])
-  
+  // Define functions before hooks that use them
   const fetchUserDetails = async () => {
     try {
       const response = await fetch('/api/user/profile')
@@ -809,7 +766,7 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
       console.error('Error fetching user details:', error)
     }
   }
-  
+
   // Fetch Facebook data
   const fetchFacebookData = async () => {
     console.log('fetchFacebookData called')
@@ -819,11 +776,11 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
       // Fetch pages with organization context
       const pagesResponse = await fetch('/api/integrations/facebook/pages')
       console.log('Facebook pages API response status:', pagesResponse.status)
-      
+
       if (pagesResponse.ok) {
         const pagesData = await pagesResponse.json()
         console.log('Facebook pages data:', pagesData)
-        
+
         if (!pagesData.hasConnection) {
           // No Facebook connection
           console.log('No Facebook connection found')
@@ -833,7 +790,7 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
           toast.error('Please connect your Facebook account first in Settings > Integrations')
           return
         }
-        
+
         if (pagesData.pages && pagesData.pages.length > 0) {
           const pageOptions = pagesData.pages.map((page: any) => ({
             value: page.id,
@@ -841,26 +798,26 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
           }))
           setFacebookPages(pageOptions)
           setLoadingFacebookPages(false)
-          
+
           // Now fetch forms for ALL pages using the lead-forms endpoint
           const pageIds = pagesData.pages.map((p: any) => p.id).join(',')
           console.log('Fetching lead forms for pages:', pageIds)
-          
+
           try {
             setLoadingFacebookForms(true)
             const formsResponse = await fetch(`/api/integrations/facebook/lead-forms?pageIds=${pageIds}`)
             if (formsResponse.ok) {
               const formsData = await formsResponse.json()
               console.log('Lead forms response:', formsData)
-              
+
               const allForms: Array<{ value: string; label: string; pageId: string }> = []
-              
+
               if (formsData.forms && formsData.forms.length > 0) {
                 formsData.forms.forEach((form: any) => {
                   // Find which page this form belongs to
                   const page = pagesData.pages.find((p: any) => p.id === form.pageId)
                   const pageName = page?.name || 'Unknown Page'
-                  
+
                   allForms.push({
                     value: form.id,
                     label: `${form.name} (${pageName})`,
@@ -868,7 +825,7 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
                   })
                 })
               }
-              
+
               console.log('Processed forms for workflow:', allForms)
               setFacebookForms(allForms)
             } else {
@@ -901,7 +858,7 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
       toast.error('Failed to load Facebook data. Please check your Facebook integration.')
     }
   }
-  
+
   // Fetch forms
   const fetchForms = async () => {
     setLoadingForms(true)
@@ -931,37 +888,16 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
       setLoadingForms(false)
     }
   }
-  
-  // Fetch data based on node type
-  useEffect(() => {
-    if (node.type === 'trigger' && node.data?.actionType === 'facebook_lead_form') {
-      console.log('Facebook Lead Form trigger detected, fetching Facebook data...')
-      console.log('Current config:', config)
-      fetchFacebookData()
-    }
-    if (node.type === 'trigger' && (node.data?.actionType === 'form_submitted' || node.data?.actionType === 'website_form' || config?.subtype === 'form_submitted')) {
-      fetchForms()
-    }
-  }, [node.type, node.data?.actionType, config?.subtype]) // Removed fetchFacebookData and fetchForms from deps to prevent infinite loop
-  
-  // Load saved config on mount
-  useEffect(() => {
-    if (node.data?.config && Object.keys(config).length === 0) {
-      console.log('Loading saved node config:', node.data.config)
-      setConfig(node.data.config)
-    }
-  }, [])
-  
+
   // Test send functions
   const sendTestEmail = async (config: any) => {
     if (!config.testEmail) {
       toast.error('Please enter a test email address')
       return
     }
-    
-    // Show loading toast
+
     const loadingToast = toast.loading('Sending test email...')
-    
+
     try {
       const response = await fetch('/api/automations/test/email', {
         method: 'POST',
@@ -973,9 +909,9 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
           from: config.from
         })
       })
-      
+
       toast.dismiss(loadingToast)
-      
+
       if (response.ok) {
         const data = await response.json()
         toast.success(
@@ -1010,15 +946,15 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
       )
     }
   }
-  
+
   const sendTestSMS = async (config: any) => {
     if (!config.testPhone) {
       toast.error('Please enter a test phone number')
       return
     }
-    
+
     const loadingToast = toast.loading('Sending test SMS...')
-    
+
     try {
       const response = await fetch('/api/automations/test/sms', {
         method: 'POST',
@@ -1029,9 +965,9 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
           from: config.from
         })
       })
-      
+
       toast.dismiss(loadingToast)
-      
+
       if (response.ok) {
         toast.success(
           <div>
@@ -1058,15 +994,15 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
       toast.error('Failed to connect to SMS service')
     }
   }
-  
+
   const sendTestWhatsApp = async (config: any) => {
     if (!config.testWhatsApp) {
       toast.error('Please enter a test WhatsApp number')
       return
     }
-    
+
     const loadingToast = toast.loading('Sending test WhatsApp message...')
-    
+
     try {
       const response = await fetch('/api/automations/test/whatsapp', {
         method: 'POST',
@@ -1077,9 +1013,9 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
           from: config.from
         })
       })
-      
+
       toast.dismiss(loadingToast)
-      
+
       if (response.ok) {
         toast.success(
           <div>
@@ -1106,10 +1042,10 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
       toast.error('Failed to connect to WhatsApp service')
     }
   }
-  
-  const formSchema = getNodeConfigSchema(node, { 
-    facebookPages, 
-    facebookForms, 
+
+  const formSchema = getNodeConfigSchema(node, {
+    facebookPages,
+    facebookForms,
     loadingFacebookPages,
     loadingFacebookForms,
     config,
@@ -1122,17 +1058,17 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
     onSendTestSMS: sendTestSMS,
     onSendTestWhatsApp: sendTestWhatsApp
   })
-  
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
     let valid = true
-    
+
     formSchema.forEach(field => {
       if (field.required && !config[field.key]) {
         newErrors[field.key] = `${field.label} is required`
         valid = false
       }
-      
+
       if (field.validation?.custom) {
         const error = field.validation.custom(config[field.key])
         if (error) {
@@ -1141,32 +1077,28 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
         }
       }
     })
-    
+
     setErrors(newErrors)
     setIsValid(valid)
   }
-  
-  useEffect(() => {
-    validateForm()
-  }, [config])
-  
+
   const handleFieldChange = (key: string, value: any) => {
     // Defensive: ensure config is an object
     const safeConfig = config || {}
     const newConfig = { ...safeConfig, [key]: value }
-    
+
     // When Facebook page changes, reset form selection
     if (key === 'pageId' && node.type === 'trigger' && node.data?.actionType === 'facebook_lead_form') {
       newConfig.formSelection = 'all'
       newConfig.formIds = []
     }
-    
+
     setConfig(newConfig)
     if (onChange) {
       onChange(newConfig)
     }
   }
-  
+
   // Helper function to safely get config values
   const getConfigValue = (key: string, defaultValue: any = '') => {
     if (!config || typeof config !== 'object') {
@@ -1174,7 +1106,7 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
     }
     return config[key] !== undefined ? config[key] : defaultValue
   }
-  
+
   const handleSave = () => {
     if (isValid) {
       // Ensure all config values are preserved
@@ -1188,24 +1120,24 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
         // Preserve any other node-specific settings
         ...config
       }
-      
+
       console.log('Saving node config:', {
         nodeId: node.id,
         nodeType: node.type,
         actionType: node.data?.actionType,
         config: updatedConfig
       })
-      
+
       onSave(node.id, updatedConfig)
       onClose()
     }
   }
-  
+
   const renderField = (field: FormField) => {
     if (field.showWhen && !field.showWhen(config)) {
       return null
     }
-    
+
     if (field.type === 'button') {
       return (
         <div key={field.key} className="mt-4">
@@ -1222,7 +1154,7 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
         </div>
       )
     }
-    
+
     if (field.type === 'rich-text') {
       return (
         <div key={field.key} className="space-y-2">
@@ -1239,7 +1171,7 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
         </div>
       )
     }
-    
+
     // Render other field types...
     return (
       <div key={field.key} className="space-y-2">
@@ -1247,7 +1179,7 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
           {field.label}
           {field.required && <span className="text-red-500 ml-1">*</span>}
         </label>
-        
+
         {field.type === 'select' && (
           <select
             value={getConfigValue(field.key, '')}
@@ -1263,7 +1195,7 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
             ))}
           </select>
         )}
-        
+
         {field.type === 'multi-select' && (
           <div className="space-y-2 bg-gray-800 border border-gray-700 rounded-lg p-3">
             {field.options?.map(option => (
@@ -1285,7 +1217,7 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
             ))}
           </div>
         )}
-        
+
         {['text', 'email', 'tel', 'url', 'number', 'date', 'time', 'datetime-local'].includes(field.type) && (
           <input
             type={field.type}
@@ -1296,7 +1228,7 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
             required={field.required}
           />
         )}
-        
+
         {field.type === 'textarea' && (
           <textarea
             value={getConfigValue(field.key, '')}
@@ -1307,7 +1239,7 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
             required={field.required}
           />
         )}
-        
+
         {field.type === 'boolean' && (
           <label className="flex items-center space-x-2">
             <input
@@ -1319,18 +1251,93 @@ export default function DynamicConfigPanelEnhanced({ node, onClose, onSave, onCh
             <span className="text-gray-200">Enable</span>
           </label>
         )}
-        
+
         {errors[field.key] && (
           <p className="text-red-500 text-sm">{errors[field.key]}</p>
         )}
-        
+
         {field.description && !errors[field.key] && (
           <p className="text-gray-400 text-sm">{field.description}</p>
         )}
       </div>
     )
   }
-  
+
+  // All useEffect hooks BEFORE any conditional returns
+  // CRITICAL FIX: Sync config state when node changes
+  useEffect(() => {
+    if (!node?.data) return
+
+    // Reset config to the new node's config when node changes
+    const newConfig = node.data?.config || {}
+    setConfig(newConfig)
+    setErrors({}) // Clear errors for new node
+    setIsValid(false) // Reset validation state
+
+    // Also update node.data fields if they exist
+    if (node.data?.label) {
+      setConfig(prev => ({ ...prev, label: node.data.label }))
+    }
+    if (node.data?.description) {
+      setConfig(prev => ({ ...prev, description: node.data.description }))
+    }
+  }, [node?.id, node?.data]) // Re-run when node or its data changes
+
+  // Fetch user phone numbers
+  useEffect(() => {
+    fetchUserDetails()
+  }, [])
+
+  // Fetch data based on node type
+  useEffect(() => {
+    if (!node?.type || !node?.data) return
+
+    if (node.type === 'trigger' && node.data?.actionType === 'facebook_lead_form') {
+      console.log('Facebook Lead Form trigger detected, fetching Facebook data...')
+      console.log('Current config:', config)
+      fetchFacebookData()
+    }
+    if (node.type === 'trigger' && (node.data?.actionType === 'form_submitted' || node.data?.actionType === 'website_form' || config?.subtype === 'form_submitted')) {
+      fetchForms()
+    }
+  }, [node?.type, node?.data?.actionType, config?.subtype]) // Removed fetchFacebookData and fetchForms from deps to prevent infinite loop
+
+  // Load saved config on mount
+  useEffect(() => {
+    if (!node?.data?.config) return
+
+    if (node.data.config && Object.keys(config).length === 0) {
+      console.log('Loading saved node config:', node.data.config)
+      setConfig(node.data.config)
+    }
+  }, [])
+
+  useEffect(() => {
+    validateForm()
+  }, [config])
+
+  // Validate node exists and has required properties AFTER all hooks
+  if (!node) {
+    console.error('DynamicConfigPanelEnhanced: No node provided')
+    toast.error('Configuration error: No node selected')
+    onClose()
+    return null
+  }
+
+  if (!node.id || !node.type) {
+    console.error('DynamicConfigPanelEnhanced: Invalid node data', node)
+    toast.error('Configuration error: Invalid node data')
+    onClose()
+    return null
+  }
+
+  console.log('DynamicConfigPanelEnhanced: Opening config for node', { id: node.id, type: node.type, data: node.data })
+
+  // Add safety check for node.data
+  if (!node.data) {
+    node.data = { config: {} }
+  }
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-900 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
