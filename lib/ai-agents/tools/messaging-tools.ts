@@ -338,11 +338,12 @@ export class SendMessageToClientTool extends BaseTool {
       const supabase = createAdminClient();
 
       // Fetch client details
+      // Check both org_id and organization_id (schema has both columns)
       const { data: client, error: clientError } = await supabase
         .from('clients')
-        .select('id, name, first_name, last_name, email, phone')
+        .select('id, name, first_name, last_name, email, phone, org_id, organization_id')
         .eq('id', validated.clientId)
-        .eq('organization_id', context.organizationId)
+        .or(`org_id.eq.${context.organizationId},organization_id.eq.${context.organizationId}`)
         .single();
 
       if (clientError || !client) {
