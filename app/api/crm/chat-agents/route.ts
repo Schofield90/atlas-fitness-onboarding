@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
-import { requireAuth } from "@/app/lib/auth/require-auth";
+import { requireAuth } from "@/app/lib/api/auth-check";
 
 /**
  * GET /api/crm/chat-agents
