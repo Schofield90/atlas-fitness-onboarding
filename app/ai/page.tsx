@@ -3,27 +3,33 @@
 import { useEffect, useState } from 'react'
 import DashboardLayout from '@/app/components/DashboardLayout'
 import { AIDashboard } from '@/app/components/ai/AIDashboard'
-import { getCurrentUserOrganization } from '@/app/lib/organization-client'
 import { Loader2 } from 'lucide-react'
 
 export default function AIPage() {
   const [organizationId, setOrganizationId] = useState<string | null>(null)
   const [isInitializing, setIsInitializing] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  
+
   useEffect(() => {
     initializeAI()
   }, [])
-  
+
   const initializeAI = async () => {
     try {
-      // Get organization
-      const { organizationId: orgId, error: orgError } = await getCurrentUserOrganization()
-      if (orgError || !orgId) {
+      // Get organization using API endpoint (checks both user_organizations and organization_staff)
+      const orgResponse = await fetch('/api/auth/get-organization')
+      if (!orgResponse.ok) {
         setError('Failed to get organization')
         return
       }
-      
+
+      const orgData = await orgResponse.json()
+      if (!orgData.success || !orgData.data?.organization?.id) {
+        setError('No organization found')
+        return
+      }
+
+      const orgId = orgData.data.organization.id
       setOrganizationId(orgId)
       
       // Initialize AI brain
