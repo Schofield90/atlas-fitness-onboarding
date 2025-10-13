@@ -59,7 +59,7 @@ export async function DELETE() {
     await supabase.auth.signOut();
 
     // Clear all auth cookies
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const authCookies = [
       "sb-lzlrojoaxrqvmhempnkn-auth-token",
       "sb-lzlrojoaxrqvmhempnkn-auth-token.0",

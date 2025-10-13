@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.redirect(new URL(sessionToken.redirect_url));
 
     // Set Supabase auth cookies properly
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
 
     // The key is to set the cookies in the exact format Supabase expects
     const cookieOptions = {

@@ -148,7 +148,7 @@ export async function startImpersonation(
     });
 
     // 8. Set secure cookie
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     cookieStore.set("admin-impersonation", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -188,7 +188,7 @@ export async function stopImpersonation(): Promise<{
   error?: string;
 }> {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const token = cookieStore.get("admin-impersonation")?.value;
 
     if (!token) {
@@ -259,7 +259,7 @@ export async function stopImpersonation(): Promise<{
  */
 export async function getImpersonationSession(): Promise<ImpersonationToken | null> {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const token = cookieStore.get("admin-impersonation")?.value;
 
     if (!token) {
@@ -286,7 +286,7 @@ export async function getImpersonationSession(): Promise<ImpersonationToken | nu
     return impersonation;
   } catch (error) {
     // Invalid or expired token
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     cookieStore.delete("admin-impersonation");
     return null;
   }

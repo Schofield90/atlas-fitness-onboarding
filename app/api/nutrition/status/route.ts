@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 // Public endpoint to check nutrition system status
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient(cookies());
+    const supabase = createClient(await cookies());
 
     // This is a public status check - no auth required
     const status = {
