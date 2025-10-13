@@ -1025,14 +1025,13 @@ export class AnalyzeMemberEngagementTool extends BaseTool {
           status,
           bookings!inner(
             id,
-            booking_time,
-            attended_at,
-            booking_status
+            created_at,
+            status
           )
         `)
         .eq('org_id', context.organizationId)
-        .gte('bookings.booking_time', params.startDate)
-        .lte('bookings.booking_time', params.endDate);
+        .gte('bookings.created_at', params.startDate)
+        .lte('bookings.created_at', params.endDate);
 
       if (error) throw error;
 
@@ -1046,7 +1045,7 @@ export class AnalyzeMemberEngagementTool extends BaseTool {
 
       const clientEngagement = clients?.map(client => {
         const bookings = (client.bookings as any[]) || [];
-        const attended = bookings.filter(b => b.attended_at).length;
+        const attended = bookings.filter(b => b.status === 'attended').length;
 
         let level: keyof typeof engagementLevels;
         if (attended >= 8) level = 'high';
@@ -1136,18 +1135,17 @@ export class AnalyzeNoShowRatesTool extends BaseTool {
         .from('bookings')
         .select(`
           id,
-          customer_id,
-          booking_time,
-          attended_at,
-          booking_status,
+          client_id,
+          created_at,
+          status,
           class_sessions!inner(
             start_time,
-            programs(name)
+            name
           )
         `)
-        .eq('booking_status', 'confirmed')
-        .gte('booking_time', params.startDate)
-        .lte('booking_time', params.endDate);
+        .eq('organization_id', context.organizationId)
+        .gte('created_at', params.startDate)
+        .lte('created_at', params.endDate);
 
       if (error) throw error;
 
@@ -1158,33 +1156,33 @@ export class AnalyzeNoShowRatesTool extends BaseTool {
       ) || [];
 
       const totalBookings = pastBookings.length;
-      const noShows = pastBookings.filter(b => !b.attended_at).length;
+      const noShows = pastBookings.filter(b => b.status === 'no_show').length;
       const noShowRate = totalBookings > 0 ? (noShows / totalBookings) * 100 : 0;
 
       // Identify repeat offenders
-      const customerNoShows = new Map<string, number>();
+      const clientNoShows = new Map<string, number>();
       pastBookings.forEach(booking => {
-        if (!booking.attended_at) {
-          const count = customerNoShows.get(booking.customer_id) || 0;
-          customerNoShows.set(booking.customer_id, count + 1);
+        if (booking.status === 'no_show') {
+          const count = clientNoShows.get(booking.client_id) || 0;
+          clientNoShows.set(booking.client_id, count + 1);
         }
       });
 
-      const repeatOffenders = Array.from(customerNoShows.entries())
+      const repeatOffenders = Array.from(clientNoShows.entries())
         .filter(([_, count]) => count >= 3)
-        .map(([customerId, count]) => ({ customerId, noShowCount: count }))
+        .map(([clientId, count]) => ({ clientId, noShowCount: count }))
         .sort((a, b) => b.noShowCount - a.noShowCount);
 
-      // No-shows by program
-      const programNoShows = new Map<string, { total: number; noShows: number }>();
+      // No-shows by class type
+      const classTypeNoShows = new Map<string, { total: number; noShows: number }>();
       pastBookings.forEach(booking => {
-        const program = (booking.class_sessions as any)?.programs?.name || 'Unknown';
-        if (!programNoShows.has(program)) {
-          programNoShows.set(program, { total: 0, noShows: 0 });
+        const className = (booking.class_sessions as any)?.name || 'Unknown';
+        if (!classTypeNoShows.has(className)) {
+          classTypeNoShows.set(className, { total: 0, noShows: 0 });
         }
-        const stats = programNoShows.get(program)!;
+        const stats = classTypeNoShows.get(className)!;
         stats.total++;
-        if (!booking.attended_at) stats.noShows++;
+        if (booking.status === 'no_show') stats.noShows++;
       });
 
       return {
@@ -1197,8 +1195,8 @@ export class AnalyzeNoShowRatesTool extends BaseTool {
             noShowRate,
             attendanceRate: 100 - noShowRate,
           },
-          byProgram: Array.from(programNoShows.entries()).map(([program, stats]) => ({
-            program,
+          byClassType: Array.from(classTypeNoShows.entries()).map(([className, stats]) => ({
+            className,
             totalBookings: stats.total,
             noShows: stats.noShows,
             noShowRate: stats.total > 0 ? (stats.noShows / stats.total) * 100 : 0,
@@ -1260,8 +1258,8 @@ export class IdentifyAtRiskMembersTool extends BaseTool {
           ),
           bookings(
             id,
-            booking_time,
-            attended_at
+            created_at,
+            status
           ),
           payments(
             id,
@@ -1282,11 +1280,11 @@ export class IdentifyAtRiskMembersTool extends BaseTool {
         const payments = (client.payments as any[]) || [];
 
         const recentBookings = bookings.filter(b =>
-          new Date(b.booking_time) >= cutoffDate
+          new Date(b.created_at) >= cutoffDate
         );
 
         const recentAttendance = bookings.filter(b =>
-          b.attended_at && new Date(b.attended_at) >= cutoffDate
+          b.status === 'attended' && new Date(b.created_at) >= cutoffDate
         );
 
         const recentPayments = payments.filter(p =>
@@ -1324,7 +1322,7 @@ export class IdentifyAtRiskMembersTool extends BaseTool {
           riskLevel: riskScore >= 70 ? 'high' : riskScore >= 40 ? 'medium' : 'low',
           reasons,
           lastActivity: Math.max(
-            ...bookings.map(b => new Date(b.booking_time).getTime()),
+            ...bookings.map(b => new Date(b.created_at).getTime()),
             0
           ),
           recentBookings: recentBookings.length,
@@ -1403,9 +1401,10 @@ export class GenerateOperationsReportTool extends BaseTool {
 
         supabase
           .from('bookings')
-          .select('id, booking_status, attended_at, booking_time')
-          .gte('booking_time', params.startDate)
-          .lte('booking_time', params.endDate),
+          .select('id, status, created_at')
+          .eq('organization_id', context.organizationId)
+          .gte('created_at', params.startDate)
+          .lte('created_at', params.endDate),
 
         supabase
           .from('clients')
@@ -1425,9 +1424,9 @@ export class GenerateOperationsReportTool extends BaseTool {
       const totalBookings = sessions?.reduce((sum, s) => sum + (s.current_bookings || 0), 0) || 0;
       const utilizationRate = totalCapacity > 0 ? (totalBookings / totalCapacity) * 100 : 0;
 
-      const confirmedBookings = bookings?.filter(b => b.booking_status === 'confirmed').length || 0;
-      const attended = bookings?.filter(b => b.attended_at).length || 0;
-      const attendanceRate = confirmedBookings > 0 ? (attended / confirmedBookings) * 100 : 0;
+      const totalBookingsCount = bookings?.length || 0;
+      const attended = bookings?.filter(b => b.status === 'attended').length || 0;
+      const attendanceRate = totalBookingsCount > 0 ? (attended / totalBookingsCount) * 100 : 0;
 
       const newMembers = members?.filter(m =>
         new Date(m.created_at) >= new Date(params.startDate) &&
@@ -1590,17 +1589,17 @@ export class GetClientAttendanceTool extends BaseTool {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - params.periodDays);
 
-      // Get attendance records
+      // Get attendance records - use bookings table (primary), not class_bookings
       const { data: bookings, error: bookingsError } = await supabase
-        .from('class_bookings')
+        .from('bookings')
         .select(`
           id,
-          booking_status,
+          status,
           created_at,
           class_sessions(
             id,
             start_time,
-            class_types(name)
+            name
           )
         `)
         .eq('client_id', client.id)
@@ -1610,10 +1609,10 @@ export class GetClientAttendanceTool extends BaseTool {
       if (bookingsError) throw bookingsError;
 
       const total = bookings?.length || 0;
-      const attended = bookings?.filter(b => b.booking_status === 'attended').length || 0;
-      const noShows = bookings?.filter(b => b.booking_status === 'no_show').length || 0;
-      const cancelled = bookings?.filter(b => b.booking_status === 'cancelled').length || 0;
-      const upcoming = bookings?.filter(b => b.booking_status === 'confirmed').length || 0;
+      const attended = bookings?.filter(b => b.status === 'attended').length || 0;
+      const noShows = bookings?.filter(b => b.status === 'no_show').length || 0;
+      const cancelled = bookings?.filter(b => b.status === 'cancelled').length || 0;
+      const upcoming = bookings?.filter(b => b.status === 'confirmed').length || 0;
 
       return {
         success: true,

@@ -396,11 +396,8 @@ export class CreateRetentionCampaignTool extends BaseTool {
           status: 'active',
           start_date: validated.startDate,
           end_date: validated.endDate,
-          target_audience: validated.targetAudience,
-          ai_insights: {
-            created_by_agent: context.agentId,
-            created_at: new Date().toISOString()
-          }
+          target_audience: validated.targetAudience
+          // ai_insights column doesn't exist yet - removed to prevent schema error
         })
         .select('id, name, status')
         .single();

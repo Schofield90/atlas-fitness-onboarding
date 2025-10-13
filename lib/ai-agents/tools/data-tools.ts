@@ -43,7 +43,7 @@ export class SearchClientsTool extends BaseTool {
         .from('clients')
         .select(`
           id, first_name, last_name, email, phone,
-          status, created_at, metadata, membership_tier
+          status, created_at, metadata
         `)
         .eq('org_id', context.organizationId)
         .limit(Math.min(validated.limit, 50));
@@ -53,14 +53,29 @@ export class SearchClientsTool extends BaseTool {
         query = query.eq('status', validated.status);
       }
 
-      // Search filter (name, email, or phone)
-      const searchPattern = `%${validated.query}%`;
-      query = query.or(
-        `first_name.ilike.${searchPattern},` +
-        `last_name.ilike.${searchPattern},` +
-        `email.ilike.${searchPattern},` +
-        `phone.ilike.${searchPattern}`
-      );
+      // Smart search: handle full names (e.g., "John Doe") vs single terms
+      const queryWords = validated.query.trim().split(/\s+/);
+
+      if (queryWords.length >= 2) {
+        // Multi-word query: assume "FirstName LastName" pattern
+        const firstName = queryWords[0];
+        const lastName = queryWords.slice(1).join(' ');
+
+        query = query.or(
+          `and(first_name.ilike.%${firstName}%,last_name.ilike.%${lastName}%),` +
+          `email.ilike.%${validated.query}%,` +
+          `phone.ilike.%${validated.query}%`
+        );
+      } else {
+        // Single word: search across all fields
+        const searchPattern = `%${validated.query}%`;
+        query = query.or(
+          `first_name.ilike.${searchPattern},` +
+          `last_name.ilike.${searchPattern},` +
+          `email.ilike.${searchPattern},` +
+          `phone.ilike.${searchPattern}`
+        );
+      }
 
       const { data, error } = await query;
 
@@ -188,10 +203,8 @@ export class ViewClientBookingsTool extends BaseTool {
         .from('bookings')
         .select(`
           id, status, created_at, cancelled_at, attended_at, metadata,
-          session:class_sessions(
-            id, start_at, end_at, status,
-            class:classes(id, name, category, duration_minutes)
-          )
+          class_session_id,
+          class_sessions(id, start_time, name, instructor_name)
         `)
         .eq('org_id', context.organizationId)
         .eq('client_id', validated.clientId)
