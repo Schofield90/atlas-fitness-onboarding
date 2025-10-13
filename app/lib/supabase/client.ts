@@ -100,27 +100,8 @@ export function createClient(forceNew = false) {
         }
       });
 
-      // Add error handling for Realtime connection issues
-      // This prevents alerts from showing when Realtime fails to authenticate
-      if (typeof window !== "undefined" && browserClient.realtime) {
-        try {
-          browserClient.realtime.onError((error: any) => {
-            // Silently log Realtime errors instead of showing alerts
-            console.warn("[Client] Realtime connection error (non-critical):", error?.message || error);
-          });
-
-          browserClient.realtime.onDisconnect(() => {
-            console.info("[Client] Realtime disconnected");
-          });
-
-          browserClient.realtime.onConnect(() => {
-            console.info("[Client] Realtime connected successfully");
-          });
-        } catch (realtimeError) {
-          // If Realtime setup fails, log but don't block page load
-          console.warn("[Client] Failed to configure Realtime handlers:", realtimeError);
-        }
-      }
+      // Note: Realtime error handlers are not available in Supabase JS SDK v2+
+      // Errors are already suppressed via window.alert override above
     }
 
     // Restore original alert function after initialization

@@ -4,6 +4,10 @@ import { createAdminClient } from "@/app/lib/supabase/admin";
 import { AgentOrchestrator } from "@/lib/ai-agents/orchestrator";
 import { z } from "zod";
 
+// Increase timeout for AI processing (default is 30s)
+export const maxDuration = 60; // 60 seconds
+export const runtime = "nodejs";
+
 const sendMessageSchema = z.object({
   content: z.string().min(1, "Message content is required"),
 });
