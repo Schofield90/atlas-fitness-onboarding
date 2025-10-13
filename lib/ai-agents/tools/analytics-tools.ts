@@ -446,7 +446,7 @@ export class GenerateLTVReportTool extends BaseTool {
 export class GenerateMonthlyTurnoverReportTool extends BaseTool {
   id = 'generate_monthly_turnover_report';
   name = 'Generate Monthly Turnover Report';
-  description = 'Generate detailed monthly turnover report with category breakdown, trends, and year-over-year comparisons';
+  description = 'Generate detailed monthly turnover report showing ACTUAL completed payments (historical) and ACTUAL scheduled payments (future) from the database. This is NOT an AI prediction - all revenue numbers come directly from payment records. Use completedRevenue for past months and scheduledRevenue for future months.';
   category: 'analytics' = 'analytics';
 
   parametersSchema = z.object({
@@ -470,25 +470,31 @@ export class GenerateMonthlyTurnoverReportTool extends BaseTool {
       startDate.setMonth(startDate.getMonth() - params.months);
       const startDateString = startDate.toISOString().split('T')[0];
 
-      // Fetch payments
-      const { data: payments, error } = await supabase
+      // Fetch completed payments for historical data
+      const { data: completedPayments, error: completedError } = await supabase
         .from('payments')
-        .select(`
-          payment_date,
-          amount,
-          client_id,
-          customer_memberships(
-            membership_plans(
-              category
-            )
-          )
-        `)
+        .select('payment_date, amount, client_id, description, metadata')
         .eq('organization_id', context.organizationId)
         .in('payment_status', ['paid_out', 'succeeded', 'confirmed'])
         .gte('payment_date', startDateString)
         .order('payment_date', { ascending: false });
 
-      if (error) throw error;
+      if (completedError) throw completedError;
+
+      // Fetch scheduled payments for future revenue forecast
+      const today = new Date().toISOString().split('T')[0];
+      const { data: scheduledPayments, error: scheduledError } = await supabase
+        .from('payments')
+        .select('payment_date, amount, client_id, description, metadata')
+        .eq('organization_id', context.organizationId)
+        .eq('payment_status', 'scheduled')
+        .gte('payment_date', today)
+        .order('payment_date');
+
+      if (scheduledError) throw scheduledError;
+
+      // Combine completed + scheduled payments
+      const payments = [...(completedPayments || []), ...(scheduledPayments || [])];
 
       // Group by month
       const grouped = new Map<string, {
@@ -519,11 +525,20 @@ export class GenerateMonthlyTurnoverReportTool extends BaseTool {
         group.paymentCount++;
         if (payment.client_id) group.uniqueCustomers.add(payment.client_id);
 
-        const category = (payment.customer_memberships as any)?.membership_plans?.category || 'Uncategorized';
+        // Categorize based on description or default to 'Membership'
+        let category = 'Membership';
+        if (payment.description) {
+          if (/trial|intro|guest/i.test(payment.description)) category = 'Trial';
+          else if (/class|session|drop.?in/i.test(payment.description)) category = 'Classes';
+          else if (/pt|personal.?training/i.test(payment.description)) category = 'Personal Training';
+          else if (/retail|merchandise|product/i.test(payment.description)) category = 'Retail';
+        }
         group.categories.set(category, (group.categories.get(category) || 0) + amount);
       });
 
-      // Convert to array
+      // Convert to array and mark scheduled vs completed
+      const currentPeriod = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+
       const periods = Array.from(grouped.values())
         .map(g => ({
           period: g.period,
@@ -531,12 +546,19 @@ export class GenerateMonthlyTurnoverReportTool extends BaseTool {
           paymentCount: g.paymentCount,
           uniqueCustomers: g.uniqueCustomers.size,
           categoryBreakdown: Object.fromEntries(g.categories),
+          isScheduled: g.period > currentPeriod, // Future months have scheduled payments
+          status: g.period > currentPeriod ? 'scheduled' : 'completed', // Clear status
         }))
-        .sort((a, b) => b.period.localeCompare(a.period));
+        .sort((a, b) => a.period.localeCompare(b.period)); // Chronological order
 
-      // Calculate metrics
+      // Calculate metrics (split completed vs scheduled)
+      const completedPeriods = periods.filter(p => !p.isScheduled);
+      const scheduledPeriods = periods.filter(p => p.isScheduled);
+
       const totalRevenue = periods.reduce((sum, p) => sum + p.revenue, 0);
-      const avgMonthlyRevenue = periods.length > 0 ? totalRevenue / periods.length : 0;
+      const completedRevenue = completedPeriods.reduce((sum, p) => sum + p.revenue, 0);
+      const scheduledRevenue = scheduledPeriods.reduce((sum, p) => sum + p.revenue, 0);
+      const avgMonthlyRevenue = completedPeriods.length > 0 ? completedRevenue / completedPeriods.length : 0;
 
       return {
         success: true,
@@ -544,13 +566,20 @@ export class GenerateMonthlyTurnoverReportTool extends BaseTool {
           periods,
           summary: {
             totalRevenue,
+            completedRevenue,
+            scheduledRevenue,
             avgMonthlyRevenue,
             totalPayments: periods.reduce((sum, p) => sum + p.paymentCount, 0),
+            completedMonths: completedPeriods.length,
+            scheduledMonths: scheduledPeriods.length,
             months: params.months,
           },
+          note: 'Scheduled revenue is based on actual scheduled payments in the database, not AI predictions.',
         },
         metadata: {
           recordsAffected: payments?.length || 0,
+          completedPayments: completedPayments?.length || 0,
+          scheduledPayments: scheduledPayments?.length || 0,
           executionTimeMs: Date.now() - startTime,
         },
       };
