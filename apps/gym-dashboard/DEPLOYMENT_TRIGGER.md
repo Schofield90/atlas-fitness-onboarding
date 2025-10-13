@@ -1,8 +1,18 @@
 # Deployment Trigger
 
-Last updated: October 12, 2025 23:40:00
+Last updated: October 13, 2025 23:50:00
 
 ## Recent Deployments
+
+### October 13, 2025 23:50 - 🚀 NEW FEATURE: AI Chat Agents Navigation Added
+
+- **FEATURE**: Added "AI Chat Agents" link to navigation menu
+- **LOCATION**: Main sidebar under "AI Agents"
+- **ROUTE**: `/crm/ai-chat-agents`
+- **WHAT IT DOES**: Manages GoHighLevel webhook integration for AI-powered lead follow-ups
+- **FILES CHANGED**:
+  - `/apps/gym-dashboard/app/components/DashboardLayout.tsx` (lines 520-538, 853-871)
+- **INCLUDES**: Full GoHighLevel integration system (webhook handler, API endpoints, docs)
 
 ### October 12, 2025 23:40 - ✅ VERIFIED DEPLOYED: Conversations API Fix Live
 
