@@ -98,11 +98,11 @@ export default function CreateAgentPage() {
       return;
     }
 
-    // Super admins must select an organization
-    if (isSuperAdmin && !formData.organization_id) {
-      alert("Please select an organization");
-      return;
-    }
+    // Organization is optional - can be null for baseline/template agents
+    // if (isSuperAdmin && !formData.organization_id) {
+    //   alert("Please select an organization");
+    //   return;
+    // }
 
     try {
       setSaving(true);
@@ -187,9 +187,9 @@ export default function CreateAgentPage() {
             {isSuperAdmin && (
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Organization *
+                  Organization (Optional)
                   <span className="ml-2 text-xs text-purple-400">
-                    (Super Admin Only)
+                    Leave empty for baseline/template agents
                   </span>
                 </label>
                 <select
@@ -198,9 +198,8 @@ export default function CreateAgentPage() {
                     setFormData({ ...formData, organization_id: e.target.value })
                   }
                   className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  required
                 >
-                  <option value="">Select organization...</option>
+                  <option value="">None (Baseline/Template Agent)</option>
                   {organizations.map((org) => (
                     <option key={org.id} value={org.id}>
                       {org.name}
