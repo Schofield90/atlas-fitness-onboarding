@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/app/lib/supabase/admin";
-import { executeAgentTask } from "@/app/lib/ai-agents/orchestrator";
+import { getOrchestrator } from "@/app/lib/ai-agents/orchestrator";
 import crypto from "crypto";
 
 /**
@@ -219,22 +219,12 @@ export async function POST(
     // 5. Execute the AI agent to generate a response
     console.log(`[GHL Webhook] Executing agent ${agentId} for conversation ${conversationId}`);
 
-    const agentResponse = await executeAgentTask({
-      agentId,
+    const orchestrator = getOrchestrator();
+    const agentResponse = await orchestrator.executeConversationMessage({
+      conversationId,
       organizationId: agent.organization_id,
       userId: agent.created_by,
-      conversationId,
-      taskId: null,
-      input: {
-        userMessage: payload.message,
-        leadContext: {
-          id: leadId,
-          name: payload.contact_name || "Unknown",
-          email: payload.contact_email,
-          phone: payload.contact_phone,
-          source: "gohighlevel",
-        },
-      },
+      userMessage: payload.message,
     });
 
     if (!agentResponse.success) {
@@ -245,24 +235,8 @@ export async function POST(
       );
     }
 
-    // 6. Store the AI response
-    const aiMessage = agentResponse.output?.message || agentResponse.output;
-
-    const { error: aiMessageError } = await supabase
-      .from("ai_agent_messages")
-      .insert({
-        conversation_id: conversationId,
-        role: "assistant",
-        content: aiMessage,
-        metadata: {
-          execution_time_ms: agentResponse.executionTimeMs,
-          tokens_used: agentResponse.tokensUsed,
-        },
-      });
-
-    if (aiMessageError) {
-      console.error("[GHL Webhook] Failed to store AI message:", aiMessageError);
-    }
+    // 6. Get the AI response message (already stored by orchestrator)
+    const aiMessage = agentResponse.message;
 
     // 7. Send response back to GoHighLevel (if configured)
     if (agent.ghl_api_key && payload.conversation_id) {
@@ -310,7 +284,8 @@ export async function POST(
       conversationId,
       leadId,
       message: aiMessage,
-      executionTimeMs: agentResponse.executionTimeMs,
+      tokensUsed: agentResponse.tokensUsed,
+      costUsd: agentResponse.costUsd,
     });
 
   } catch (error: any) {
