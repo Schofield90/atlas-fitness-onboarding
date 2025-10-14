@@ -240,6 +240,11 @@ export async function middleware(request: NextRequest) {
       loginUrl = '/simple-login'  // Client routes always use simple-login
     }
 
+    // Check if this is admin/saas-admin route - use /signin
+    if (pathname.startsWith('/admin') || pathname.startsWith('/saas-admin') || pathname.startsWith('/ai-chat-agents')) {
+      loginUrl = '/signin'  // Admin routes use /signin
+    }
+
     const redirectUrl = new URL(loginUrl, request.url)
     redirectUrl.searchParams.set('redirect', pathname)
     return NextResponse.redirect(redirectUrl)
