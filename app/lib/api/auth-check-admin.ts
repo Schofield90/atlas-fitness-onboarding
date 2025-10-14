@@ -57,15 +57,12 @@ export async function requireAuthWithOptionalOrg(organizationId?: string) {
     throw new Error('Unauthorized - Please log in');
   }
 
-  // Super admins must provide organization ID
+  // Super admins can optionally provide organization ID
+  // If null, creates a baseline/template agent not tied to any org
   if (isSuperAdmin(user.email)) {
-    if (!organizationId) {
-      throw new Error('Organization ID required for super admin operations');
-    }
-
     return {
       user,
-      organizationId,
+      organizationId: organizationId || null, // Can be null for baseline agents
       isSuperAdmin: true,
     };
   }
