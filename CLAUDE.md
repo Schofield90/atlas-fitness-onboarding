@@ -6,6 +6,85 @@ Atlas Fitness Onboarding - Multi-tenant SaaS platform for gym management with AI
 
 ---
 
+## GoHighLevel Webhook Integration (October 14, 2025) - IN PROGRESS ⚠️
+
+### Session Summary
+
+Setting up AI agent webhook integration with GoHighLevel for automated lead response via SMS.
+
+### ✅ Completed
+
+1. **Database Migration Applied** - `lead_id` and `channel` columns added to `ai_agent_conversations`
+2. **Webhook Endpoint Fixed** - Updated to use orchestrator class instead of standalone function
+3. **Payload Parsing Fixed** - Correctly extracts `customData.message`, `full_name`, `email`, `phone`
+4. **OpenAI Parameter Fix** - Added support for `max_completion_tokens` for GPT-4o/GPT-5 models
+5. **Agent Model Updated** - Changed from non-existent "gpt-5" to actual `gpt-5` model name
+6. **Webhook Execution Working** - End-to-end flow executes successfully
+
+### ❌ Known Issue - GPT-5 Response Content Not Saving
+
+**Problem**: GPT-5 executes and uses tokens (1036 tokens) but response content is NULL/EMPTY in database
+
+**Evidence**:
+
+- Webhook returns `success: true`
+- Conversation and lead created successfully
+- Tokens used: 1036 (GPT-5 reasoning model)
+- Database shows `content: NULL` for assistant message
+- Production logs show `"AI response: undefined"`
+
+**Root Cause**: GPT-5 is a reasoning model (like o1) with invisible "reasoning tokens" - the response format is different from regular GPT models. The orchestrator likely extracts content from wrong field.
+
+**Next Steps**:
+
+1. Debug OpenAI response format for GPT-5 reasoning models
+2. Update orchestrator's `executeConversationOpenAI()` to handle reasoning model responses
+3. Check if response content is in different field (e.g., `message.content` vs `choices[0].text`)
+4. Test with GPT-5-mini or regular GPT-5-chat-latest if reasoning format is incompatible
+
+### Agent Configuration
+
+- **Agent ID**: `1b44af8e-d29d-4fdf-98a8-ab586a289e5e`
+- **Name**: "Aimees Place"
+- **Model**: `gpt-5` (OpenAI reasoning model)
+- **Temperature**: `1` (required for GPT-5)
+- **Organization**: GymLeadHub (`0ef8a082-4458-400a-8c50-75b47e461f91`)
+- **Webhook URL**: `https://login.gymleadhub.co.uk/api/webhooks/ghl/1b44af8e-d29d-4fdf-98a8-ab586a289e5e`
+
+### Files Modified
+
+- `app/api/webhooks/ghl/[agentId]/route.ts` - Fixed orchestrator integration and payload parsing
+- `app/lib/ai-agents/providers/openai-provider.ts` - Added GPT-5 parameter support
+- `supabase/migrations/20251014_add_ghl_webhook_columns.sql` - Applied migration
+
+### Test Payload
+
+Test file: `/tmp/test-ghl-webhook.json`
+
+```json
+{
+  "contact_id": "test_contact_123",
+  "full_name": "Test User",
+  "email": "test@example.com",
+  "phone": "+447700900000",
+  "customData": {
+    "message": "Hello, I would like to know more about your gym membership options"
+  }
+}
+```
+
+### Testing
+
+```bash
+curl -X POST https://login.gymleadhub.co.uk/api/webhooks/ghl/1b44af8e-d29d-4fdf-98a8-ab586a289e5e \
+  -H "Content-Type: application/json" \
+  -d @/tmp/test-ghl-webhook.json
+```
+
+**Current Result**: `{"success":true,"conversationId":"...","leadId":"..."}`
+
+---
+
 ## Recent Fixes (December 13, 2025) - COMPLETED ✅
 
 ### Supabase Alert Suppression & OpenAI Integration Fixes
@@ -15,17 +94,20 @@ Atlas Fitness Onboarding - Multi-tenant SaaS platform for gym management with AI
 #### 1. Supabase Realtime Authentication Alert - FIXED ✅
 
 **Issue**: Blocking alert dialog appearing on landing page load with error:
+
 ```
 Failed to send message: Could not resolve authentication method.
 Expected either apiKey or authToken to be set.
 ```
 
 **Root Cause**:
+
 - Supabase Realtime WebSocket attempting to authenticate before client initialization complete
 - Authentication flow race condition where tokens aren't ready
 - Supabase library code calling `window.alert()` with error message
 
 **Solution Implemented**:
+
 - Added alert suppression via temporary `window.alert` override during initialization
 - Filters Supabase-specific authentication errors while allowing other alerts
 - Added Realtime configuration with `eventsPerSecond: 10` rate limiting
@@ -33,11 +115,13 @@ Expected either apiKey or authToken to be set.
 - Alert suppression restored after 1 second timeout
 
 **Files Modified**:
+
 - `app/lib/supabase/client.ts:20-35` - Alert suppression logic
 - `app/lib/supabase/client.ts:71-76` - Realtime configuration
 - `app/lib/supabase/client.ts:103-123` - Error handlers
 
 **Code Changes**:
+
 ```typescript
 // Suppress Supabase Realtime alerts by temporarily overriding window.alert
 const originalAlert = window.alert;
@@ -64,6 +148,7 @@ setTimeout(() => {
 ```
 
 **Testing**:
+
 - Landing page loads successfully with HTTP 200 status
 - No alert dialogs appear
 - Errors logged to console instead of showing alerts
@@ -71,30 +156,35 @@ setTimeout(() => {
 #### 2. OpenAI Browser Environment Error - FIXED ✅
 
 **Issue**: AI agent creation modal showed error when clicking "AI Generate" button:
+
 ```
 It looks like you're running in a browser-like environment.
 This is disabled by default, as it risks exposing your secret API credentials to attackers.
 ```
 
 **Root Cause**:
+
 - OpenAI SDK detects "browser-like" environment even in server-side Next.js API routes
 - Webpack bundling causing runtime detection to fail
 - `export const runtime = 'nodejs'` directive not effective due to bundling
 
 **Solution Implemented**:
+
 - Added `dangerouslyAllowBrowser: true` flag to OpenAI client initialization
 - **This is safe** because code runs server-side in `/api/` routes, not in user's browser
 - Protected by `requireAuth()` middleware
 - API key never exposed to browsers
 
 **Files Modified**:
+
 - `app/api/ai-agents/generate-prompt/route.ts:6,38`
 - `apps/gym-dashboard/app/api/ai-agents/generate-prompt/route.ts:6,38`
 
 **Code Changes**:
+
 ```typescript
 // Force Node.js runtime (not Edge) for OpenAI SDK compatibility
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   // ...authentication checks...
@@ -115,14 +205,17 @@ export async function POST(request: NextRequest) {
 **Issue**: Missing `OPENAI_API_KEY` environment variable causing AI prompt generation to fail with 503 error.
 
 **Solution**:
+
 - Pulled environment variables from Vercel using `npx vercel env pull`
 - Updated `.env.development.local` with production OpenAI API key
 - Dev server automatically reloaded environment variables
 
 **Files Modified**:
+
 - `.env.development.local:19` - Added OPENAI_API_KEY
 
 **Environment Variables Added**:
+
 ```bash
 # OpenAI API Key for AI Agent prompt generation
 OPENAI_API_KEY="sk-proj-pXfZ..." # (full key from Vercel)
@@ -131,6 +224,7 @@ OPENAI_API_KEY="sk-proj-pXfZ..." # (full key from Vercel)
 #### Testing & Verification
 
 **Landing Page** (Supabase Alert Fix):
+
 ```bash
 # Test command
 node test-landing.mjs
@@ -141,6 +235,7 @@ node test-landing.mjs
 ```
 
 **AI Agent Creation** (OpenAI Fix):
+
 1. Navigate to http://localhost:3001/org/demo-fitness/ai-agents
 2. Click "Create New AI Agent"
 3. Fill in Name: "Customer Support Agent"
@@ -149,6 +244,7 @@ node test-landing.mjs
 6. ✅ System prompt generated successfully by GPT-4o-mini
 
 **Dev Server Status**:
+
 - Running on http://localhost:3001
 - Environment variables reloaded successfully
 - All features operational
@@ -156,23 +252,27 @@ node test-landing.mjs
 ### 📁 Files Changed This Session
 
 **Modified Files**:
+
 - `app/lib/supabase/client.ts` - Alert suppression & error handling
 - `app/api/ai-agents/generate-prompt/route.ts` - OpenAI browser fix
 - `apps/gym-dashboard/app/api/ai-agents/generate-prompt/route.ts` - OpenAI browser fix
 - `.env.development.local` - OpenAI API key
 
 **Test Files Created**:
+
 - `test-alert-detection.mjs` - Visual browser test for alert detection
 - `test-landing.mjs` - Automated landing page load test
 
 ### 🎯 Impact
 
 **Before Fixes**:
+
 - ❌ Landing page showed blocking alert dialog
 - ❌ AI agent creation failed with browser environment error
 - ❌ AI prompt generation returned 503 error
 
 **After Fixes**:
+
 - ✅ Landing page loads cleanly without alerts
 - ✅ AI agent creation modal opens successfully
 - ✅ AI Generate button creates system prompts using GPT-4o-mini
@@ -181,12 +281,14 @@ node test-landing.mjs
 ### 🔐 Security Notes
 
 **Alert Suppression**:
+
 - Only suppresses Supabase-specific authentication errors
 - Other alerts still function normally
 - Temporary override (1 second) during initialization only
 - Original `window.alert` restored after setup
 
 **OpenAI API Key**:
+
 - Stored server-side only (never exposed to browser)
 - Protected by authentication middleware
 - `dangerouslyAllowBrowser` safe because code runs in Next.js API routes
@@ -211,12 +313,14 @@ Completed comprehensive audit and production deployment of AI Agent system with 
 #### 1. Database Migrations (All Applied Successfully)
 
 **Migration 1: Task Idempotency** (`20251009_add_task_idempotency.sql`)
+
 - Added `idempotency_key` column for API request deduplication
 - Added `execution_started_at` for tracking
 - Created unique index preventing concurrent execution: `idx_ai_agent_tasks_running_unique`
 - Ensures only ONE task can be in 'running' or 'queued' state at a time
 
 **Migration 2: Agent Versioning** (`20251009_add_agent_versioning.sql`)
+
 - Created `ai_agent_versions` table for version history
 - Links tasks to specific agent versions via `agent_version_id`
 - Helper function: `create_agent_version_from_current(agent_id, user_id)`
@@ -224,6 +328,7 @@ Completed comprehensive audit and production deployment of AI Agent system with 
 - RLS policies for organization isolation
 
 **Migration 3: Agent Reports** (`20251009_add_agent_reports.sql`)
+
 - Created `ai_agent_reports` table for automated reporting
 - Created `ai_agent_report_templates` with predefined templates
 - Seeded 2 default templates:
@@ -234,6 +339,7 @@ Completed comprehensive audit and production deployment of AI Agent system with 
 #### 2. Code Deployments
 
 **Rate Limiting System** (`/lib/ai-agents/rate-limiter.ts`)
+
 - Token bucket implementation with in-memory storage
 - Three-tier protection:
   - Global: 400 calls/minute (buffer under OpenAI Tier 1: 500 RPM)
@@ -243,6 +349,7 @@ Completed comprehensive audit and production deployment of AI Agent system with 
 - Prevents API exhaustion and ensures fair resource allocation
 
 **Automated Task Scheduler** (`/app/api/cron/agent-scheduler/route.ts`)
+
 - Vercel cron job runs every 5 minutes (`*/5 * * * *`)
 - Polls `ai_agent_tasks` for tasks where `next_run_at <= NOW()` and `status = 'pending'`
 - Processes max 50 tasks per run (timeout protection)
@@ -251,12 +358,14 @@ Completed comprehensive audit and production deployment of AI Agent system with 
 - Added to vercel.json cron configuration
 
 **Conversation History Limit** (`/lib/ai-agents/orchestrator.ts:151-168`)
+
 - Limits conversation history to last 100 messages
 - Prevents unbounded memory growth
 - Fetches in DESC order, reverses for chronological execution
 - Reduces token costs and improves response time
 
 **AI Chat Connection** (`/app/ai-agents/chat/[id]/page.tsx`)
+
 - Connected chat UI to orchestrator API
 - Loads/creates conversation on mount
 - Fetches message history from `/api/ai-agents/conversations/[id]/messages`
@@ -265,6 +374,7 @@ Completed comprehensive audit and production deployment of AI Agent system with 
 - Error handling for API failures
 
 **Natural Language Task Scheduler** (`/app/ai-agents/chat/[id]/page.tsx:601-880`)
+
 - User-friendly task scheduling UI
 - Frequency selector: Daily, Weekly, Custom
 - Time picker (HTML5 `<input type="time">`)
@@ -277,6 +387,7 @@ Completed comprehensive audit and production deployment of AI Agent system with 
 #### 3. Vercel Configuration
 
 **Updated `/vercel.json`:**
+
 ```json
 "crons": [
   {
@@ -291,6 +402,7 @@ Completed comprehensive audit and production deployment of AI Agent system with 
 ```
 
 **Function Timeouts:**
+
 - Agent scheduler: 300s (5 minutes max)
 - Task execution: 120s (2 minutes max)
 - Conversation messages: 60s (1 minute max)
@@ -298,6 +410,7 @@ Completed comprehensive audit and production deployment of AI Agent system with 
 ### 📊 System Status
 
 **Active Features:**
+
 - ✅ Real-time AI chat with OpenAI/Anthropic
 - ✅ Automated task scheduling (every 5 minutes)
 - ✅ Rate limiting (3-tier protection)
@@ -308,6 +421,7 @@ Completed comprehensive audit and production deployment of AI Agent system with 
 - ✅ Natural language task scheduler UI
 
 **Database Tables:**
+
 - `ai_agents` - Agent definitions
 - `ai_agent_tasks` - Task queue with scheduling
 - `ai_agent_conversations` - Chat conversations
@@ -321,6 +435,7 @@ Completed comprehensive audit and production deployment of AI Agent system with 
 - `ai_agent_report_templates` - Report definitions (NEW)
 
 **API Endpoints:**
+
 - `GET /api/ai-agents` - List agents
 - `GET /api/ai-agents/[id]` - Get agent details
 - `POST /api/ai-agents` - Create agent
@@ -338,6 +453,7 @@ Completed comprehensive audit and production deployment of AI Agent system with 
 ### 🧪 Testing Guide
 
 #### Test 1: AI Chat (Real Responses)
+
 ```
 URL: https://login.gymleadhub.co.uk/ai-agents/chat/[agent-id]
 Action: Type "What can you help me with?"
@@ -345,6 +461,7 @@ Expected: Real AI response from OpenAI/Anthropic (not placeholder)
 ```
 
 #### Test 2: Task Scheduler UI
+
 ```
 1. Click "Tasks" tab in agent chat
 2. Click "Add Task"
@@ -358,6 +475,7 @@ Expected: Real AI response from OpenAI/Anthropic (not placeholder)
 ```
 
 #### Test 3: Automated Execution
+
 ```
 Create test task:
   INSERT INTO ai_agent_tasks (
@@ -375,6 +493,7 @@ Expected: status = 'completed' or 'failed' (not 'pending')
 ```
 
 #### Test 4: Verify Cron Job
+
 ```
 Vercel Dashboard → Logs
 Filter: /api/cron/agent-scheduler
@@ -385,6 +504,7 @@ Look for (every 5 minutes):
 ```
 
 #### Test 5: Rate Limiting
+
 ```
 Create 60 tasks due immediately (exceeds 50/min agent limit):
   INSERT INTO ai_agent_tasks (agent_id, organization_id, title, task_type, status, next_run_at)
@@ -402,11 +522,13 @@ Expected: Some tasks failed with "rate limit exceeded" error
 ### 📁 Key File Locations
 
 **Database Migrations:**
+
 - `/supabase/migrations/20251009_add_task_idempotency.sql`
 - `/supabase/migrations/20251009_add_agent_versioning.sql`
 - `/supabase/migrations/20251009_add_agent_reports.sql`
 
 **Core System Files:**
+
 - `/lib/ai-agents/orchestrator.ts` - Main execution engine
 - `/lib/ai-agents/rate-limiter.ts` - Rate limiting
 - `/lib/ai-agents/cost-tracker.ts` - Token usage tracking
@@ -415,35 +537,42 @@ Expected: Some tasks failed with "rate limit exceeded" error
 - `/lib/ai-agents/tools/registry.ts` - Tool definitions
 
 **API Routes:**
+
 - `/app/api/cron/agent-scheduler/route.ts` - Automated scheduler
 - `/app/api/ai-agents/conversations/[id]/messages/route.ts` - Chat endpoint
 - `/app/api/ai-agents/tasks/[id]/execute/route.ts` - Manual execution
 
 **UI Components:**
+
 - `/app/ai-agents/chat/[id]/page.tsx` - Chat interface with task scheduler
 
 **Documentation:**
+
 - `/AI_AGENT_DEPLOYMENT_GUIDE.md` - Complete deployment guide
 
 ### ⚠️ Important Notes
 
 **Rate Limiter Storage:**
+
 - Currently uses in-memory Map (simple, fast)
 - ⚠️ Does NOT persist across Vercel function restarts
 - ⚠️ Not shared across multiple Vercel instances
 - For production scale (>100 organizations), migrate to Redis
 
 **Cron Job Security:**
+
 - No authentication required (Vercel internal trigger)
 - Uses admin client (bypasses RLS)
 - Only processes tasks in user's organization
 
 **Conversation History:**
+
 - Limited to 100 messages per conversation
 - Older messages not deleted, just not loaded
 - Reduce limit to 50 if costs too high
 
 **Agent Versioning:**
+
 - Version snapshots created manually via `create_agent_version_from_current()`
 - Tasks link to version via `agent_version_id`
 - Update UI to create versions on agent updates (future)
@@ -451,18 +580,21 @@ Expected: Some tasks failed with "rate limit exceeded" error
 ### 🔄 Next Steps / Future Improvements
 
 **Immediate:**
+
 1. Test chat with real agent once deployment completes
 2. Verify cron job executes tasks every 5 minutes
 3. Monitor Vercel function logs for errors
 4. Check token usage and costs in `ai_usage_billing` table
 
 **Short-term:**
+
 1. Add UI for creating agent versions before updates
 2. Implement report generation scheduled tasks
 3. Add email notifications for completed reports
 4. Create agent performance dashboard
 
 **Long-term:**
+
 1. Migrate rate limiting to Redis for multi-instance support
 2. Implement retry queue with exponential backoff
 3. Add webhook notifications for task completion
@@ -472,11 +604,13 @@ Expected: Some tasks failed with "rate limit exceeded" error
 ### 🐛 Known Issues
 
 **ESLint Pre-commit Hook:**
+
 - Error: Cannot find package '@eslint/eslintrc'
 - Workaround: Use `git commit --no-verify` to bypass
 - Fix: Run `npm install @eslint/eslintrc` or update eslint config
 
 **Husky Deprecation:**
+
 - Warning: husky.sh deprecated in v10.0.0
 - Non-blocking, can be ignored for now
 - Fix: Update .husky/pre-commit to remove deprecated lines
@@ -1960,6 +2094,7 @@ GRANT ALL ON ALL SEQUENCES IN SCHEMA auth TO supabase_auth_admin;
 ## Multi-Organization Staff Access System (October 9, 2025) - DEPLOYED ✅
 
 ### 🎯 Purpose
+
 Enable staff to work for multiple gyms (e.g., Gym A and Gym B) and easily switch between organizations using a dropdown menu. Similar to GoTeamUp's organization switcher.
 
 **Commit**: `3eb99aeb` - "Add multi-organization switching with super admin support"
@@ -1969,6 +2104,7 @@ Enable staff to work for multiple gyms (e.g., Gym A and Gym B) and easily switch
 #### 1. API Endpoints Created
 
 **`GET /api/auth/user-organizations`** - Fetch all accessible organizations
+
 - Returns organizations from 3 sources:
   - Owned organizations (via `organizations.owner_id`)
   - User organization links (via `user_organizations` table)
@@ -1978,6 +2114,7 @@ Enable staff to work for multiple gyms (e.g., Gym A and Gym B) and easily switch
 - Includes role information: `owner`, `admin`, `staff`, `superadmin`
 
 **Response Format**:
+
 ```json
 {
   "success": true,
@@ -1992,12 +2129,13 @@ Enable staff to work for multiple gyms (e.g., Gym A and Gym B) and easily switch
       }
     ],
     "total": 5,
-    "superadmin": true  // if super admin
+    "superadmin": true // if super admin
   }
 }
 ```
 
 **`POST /api/auth/switch-organization`** - Switch active organization
+
 - Request body: `{ "organizationId": "uuid" }`
 - Validates user has access to requested organization
 - **Super Admin Bypass**: Super admins can switch to ANY organization without membership check
@@ -2007,6 +2145,7 @@ Enable staff to work for multiple gyms (e.g., Gym A and Gym B) and easily switch
 - Returns organization details for immediate UI update
 
 **Security**:
+
 - Both endpoints use `createAdminClient()` to bypass RLS
 - Authentication validated BEFORE admin operations
 - Access validation checks all 3 membership sources
@@ -2017,13 +2156,17 @@ Enable staff to work for multiple gyms (e.g., Gym A and Gym B) and easily switch
 **File**: `/app/hooks/useOrganization.tsx`
 
 **New State**:
+
 ```typescript
-const [availableOrganizations, setAvailableOrganizations] = useState<Organization[]>([]);
+const [availableOrganizations, setAvailableOrganizations] = useState<
+  Organization[]
+>([]);
 ```
 
 **New Functions**:
 
 **`switchOrganization(organizationId)`**:
+
 - Saves to localStorage immediately (instant UX feedback)
 - Calls `/api/auth/switch-organization` API
 - Updates local state with response
@@ -2031,12 +2174,14 @@ const [availableOrganizations, setAvailableOrganizations] = useState<Organizatio
 - On error: removes from localStorage, shows error
 
 **`fetchOrganization()` enhancements**:
+
 - Fetches available organizations via `/api/auth/user-organizations`
 - Checks localStorage for `selectedOrganizationId` preference
 - Passes preferred org ID to `/api/auth/get-organization?preferredOrgId=...`
 - Saves selected org to localStorage after successful load
 
 **Dual Persistence Strategy**:
+
 1. **localStorage**: For immediate UI updates, persists across page reloads
 2. **Database** (`user_preferences`): For cross-device sync, persists across computers
 
@@ -2045,6 +2190,7 @@ const [availableOrganizations, setAvailableOrganizations] = useState<Organizatio
 **File**: `/apps/gym-dashboard/app/components/OrganizationSwitcher.tsx`
 
 **Key Changes**:
+
 - Now uses `useOrganization()` hook instead of direct Supabase queries
 - Displays current organization name with role badge
 - Dropdown shows all accessible organizations
@@ -2053,18 +2199,21 @@ const [availableOrganizations, setAvailableOrganizations] = useState<Organizatio
 - "Create New Organization" button at bottom
 
 **Role Badges**:
+
 - **Purple** (`bg-purple-600`): Owner
 - **Red** (`bg-red-600`): Super Admin
 - **Blue** (`bg-blue-600`): Admin
 - **Gray** (`bg-gray-600`): Staff
 
 **UI States**:
+
 - Loading: Shows spinner + "Loading..."
 - Switching: Disables button, shows spinner
 - Dropdown open: Shows all orgs with check mark on current
 - Super admin: Shows organization count at bottom
 
 **Already Integrated**:
+
 - Component is already imported and used in `DashboardLayout.tsx` at line 1186
 - Positioned in top bar next to `LocationSwitcher`
 - Only shows if user has 2+ organizations
@@ -2072,11 +2221,13 @@ const [availableOrganizations, setAvailableOrganizations] = useState<Organizatio
 #### 4. Super Admin Access
 
 **Super Admin Emails**:
+
 - `sam@gymleadhub.co.uk`
 - Any email ending in `@gymleadhub.co.uk`
 - Any email ending in `@atlas-gyms.co.uk`
 
 **Super Admin Privileges**:
+
 - Can see ALL organizations (no membership required)
 - Can switch to ANY organization (access validation bypassed)
 - Organization switcher shows total count
@@ -2084,6 +2235,7 @@ const [availableOrganizations, setAvailableOrganizations] = useState<Organizatio
 - Useful for support, debugging, and helping with gym setup
 
 **Implementation Check**:
+
 ```typescript
 const isSuperAdmin =
   user.email?.endsWith("@gymleadhub.co.uk") ||
@@ -2093,6 +2245,7 @@ const isSuperAdmin =
 ### 🔧 How It Works
 
 **User Flow**:
+
 1. Staff member added to multiple gyms via staffing section
 2. Both Gym A and Gym B add staff via Settings → Staff Management
 3. Staff logs into `login.gymleadhub.co.uk`
@@ -2102,6 +2255,7 @@ const isSuperAdmin =
 7. All dashboard data now scoped to selected organization
 
 **Technical Flow**:
+
 1. **On Mount**: `useOrganization` hook calls `/api/auth/user-organizations`
 2. **Available Orgs**: Stored in `availableOrganizations` state
 3. **User Preference**: Checks localStorage for `selectedOrganizationId`
@@ -2114,6 +2268,7 @@ const isSuperAdmin =
 **No new tables created** - uses existing infrastructure:
 
 **`user_preferences` table** (cross-device sync):
+
 ```sql
 user_preferences (
   user_id UUID,
@@ -2125,6 +2280,7 @@ user_preferences (
 ```
 
 **Organization membership checked via**:
+
 1. `organizations.owner_id = user.id` (owned orgs)
 2. `user_organizations.user_id = user.id` (user org links)
 3. `organization_staff.user_id = user.id` (staff org links)
@@ -2132,19 +2288,23 @@ user_preferences (
 ### 📁 Files Modified
 
 **New Files**:
+
 - `/app/api/auth/user-organizations/route.ts` - Fetch accessible orgs
 - `/app/api/auth/switch-organization/route.ts` - Switch org endpoint
 
 **Modified Files**:
+
 - `/app/hooks/useOrganization.tsx` - Added switching logic
 - `/apps/gym-dashboard/app/components/OrganizationSwitcher.tsx` - Updated to use hook
 
 **Already Integrated**:
+
 - `/apps/gym-dashboard/app/components/DashboardLayout.tsx` - Switcher at line 1186
 
 ### 🧪 Testing
 
 **Test Scenario 1: Multi-Org Staff**
+
 1. Create test staff account: `teststaff@example.com`
 2. Add staff to Gym A via Settings → Staff Management
 3. Add staff to Gym B via Settings → Staff Management
@@ -2155,6 +2315,7 @@ user_preferences (
 8. Check localStorage: `selectedOrganizationId` should be Gym B UUID
 
 **Test Scenario 2: Super Admin**
+
 1. Login as `sam@gymleadhub.co.uk`
 2. Organization switcher should show ALL organizations
 3. Role badges should show "Super Admin" in red
@@ -2162,6 +2323,7 @@ user_preferences (
 5. Can switch to any organization without membership
 
 **Test Scenario 3: Settings Pages**
+
 1. Switch to Organization A
 2. Navigate to Settings → Integrations → Email
 3. Configure Twilio settings
@@ -2174,17 +2336,20 @@ user_preferences (
 ### 🔒 Security Validation
 
 **Authentication**:
+
 - ✅ Both API endpoints validate `auth.getUser()` first
 - ✅ Returns 401 if not authenticated
 - ✅ Admin client only used after auth validation
 
 **Authorization**:
+
 - ✅ `/user-organizations` only returns orgs user has access to
 - ✅ `/switch-organization` validates membership before switching
 - ✅ Super admins explicitly logged with `superadmin: true` flag
 - ✅ All 3 membership sources checked (owner, user_organizations, organization_staff)
 
 **Data Isolation**:
+
 - ✅ RLS policies on all tables
 - ✅ Settings pages use `useOrganization()` hook for org context
 - ✅ October 6 fix: Email/phone integration pages now scoped correctly
@@ -2193,6 +2358,7 @@ user_preferences (
 ### 🐛 Known Issues
 
 **ESLint Pre-commit Hook**:
+
 - Workaround used: `git commit --no-verify`
 - Issue: Cannot find package '@eslint/eslintrc'
 - Non-blocking, documented in CLAUDE.md
@@ -2200,6 +2366,7 @@ user_preferences (
 ### 📊 Related Fixes (From Previous Session)
 
 **October 6, 2025 - Settings Security Fix**:
+
 - Fixed `/apps/gym-dashboard/app/settings/integrations/phone/page.tsx`
 - Fixed `/apps/gym-dashboard/app/settings/integrations/email/page.tsx`
 - Both now use `useOrganization()` hook instead of direct Supabase queries
@@ -2207,6 +2374,7 @@ user_preferences (
 - Commit: `f69c7db0`
 
 **Root Cause of Previous Issue**:
+
 - Settings pages queried `user_organizations.single()` without ORDER BY
 - Returned random organization when user belonged to multiple orgs
 - New gym accounts showed pre-populated data from OTHER gyms
@@ -2214,12 +2382,14 @@ user_preferences (
 ### 🚀 Next Steps
 
 **Immediate**:
+
 1. Test multi-org switching with real staff accounts
 2. Verify settings pages maintain organization isolation
 3. Test super admin access with `sam@gymleadhub.co.uk`
 4. Monitor for any org context leaks in other pages
 
 **Future Enhancements**:
+
 1. Add recent organizations list (quick switch to last 3 orgs)
 2. Add organization search/filter for super admins (when >20 orgs)
 3. Add keyboard shortcuts for org switching (Cmd+K menu)
@@ -2229,17 +2399,20 @@ user_preferences (
 ### 💡 Key Design Decisions
 
 **Why Page Reload After Switch?**
+
 - Ensures all data is fresh for new organization context
 - Simpler than tracking all organization-dependent state
 - Prevents stale data bugs
 - Similar to GoTeamUp's behavior
 
 **Why Dual Persistence (localStorage + Database)?**
+
 - localStorage: Instant UX, works offline, persists across page reloads
 - Database: Cross-device sync, persists when localStorage cleared
 - Best of both worlds: fast UX + reliable persistence
 
 **Why Super Admin Access?**
+
 - Support needs: Help gyms set up integrations, debug issues
 - Sales demos: Switch between client accounts without logging in/out
 - Data analysis: Compare configurations across multiple gyms
