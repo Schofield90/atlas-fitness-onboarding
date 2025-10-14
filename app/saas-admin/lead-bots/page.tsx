@@ -12,6 +12,7 @@ import {
   XCircleIcon,
   SparklesIcon,
   Cog8ToothIcon,
+  DocumentTextIcon,
 } from "@heroicons/react/24/outline";
 
 interface Stats {
@@ -155,7 +156,7 @@ export default function LeadBotsPage() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         <Link
           href="/saas-admin/lead-bots/conversations"
           className="bg-gray-800 hover:bg-gray-700 rounded-lg p-6 border border-gray-700 transition-colors"
@@ -172,6 +173,15 @@ export default function LeadBotsPage() {
           <PhoneIcon className="h-8 w-8 text-purple-500 mb-3" />
           <h3 className="text-lg font-semibold text-white mb-1">Call Bookings</h3>
           <p className="text-sm text-gray-400">Manage scheduled calls</p>
+        </Link>
+
+        <Link
+          href="/saas-admin/lead-bots/sops"
+          className="bg-gray-800 hover:bg-gray-700 rounded-lg p-6 border border-gray-700 transition-colors"
+        >
+          <DocumentTextIcon className="h-8 w-8 text-blue-400 mb-3" />
+          <h3 className="text-lg font-semibold text-white mb-1">AI SOPs</h3>
+          <p className="text-sm text-gray-400">Manage AI instructions</p>
         </Link>
 
         <Link

@@ -25,6 +25,7 @@ const publicRoutes = [
   '/meta-review',
   '/claim',
   '/admin', // Admin routes handle their own auth in layout
+  '/saas-admin', // SaaS admin portal handles its own auth (email whitelist)
   // Public API endpoints
   '/api/auth',
   '/api/client-portal',

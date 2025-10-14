@@ -369,25 +369,27 @@ export class SendMessageToClientTool extends BaseTool {
       const personalizedMessage = validated.message.replace(/{clientName}/g, clientName);
 
       // Log message to database
+      const messageData: any = {
+        organization_id: context.organizationId,
+        client_id: client.id,
+        type: validated.channel,
+        channel: validated.channel,
+        direction: 'outbound',
+        status: 'pending',
+        body: personalizedMessage,
+        content: personalizedMessage,
+        sender_type: 'coach', // Database only accepts 'coach' or 'client'
+        sender_name: `AI Agent (${context.agentId})`,
+        metadata: {
+          conversationId: context.conversationId,
+          taskId: context.taskId,
+          ...(validated.subject && { subject: validated.subject }), // Store subject in metadata for emails
+        },
+      };
+
       const { data: loggedMessage, error: logError } = await supabase
         .from('messages')
-        .insert({
-          organization_id: context.organizationId,
-          client_id: client.id,
-          type: validated.channel,
-          channel: validated.channel,
-          direction: 'outbound',
-          status: 'pending',
-          subject: validated.subject,
-          body: personalizedMessage,
-          content: personalizedMessage,
-          sender_type: 'coach', // Database only accepts 'coach' or 'client'
-          sender_name: `AI Agent (${context.agentId})`,
-          metadata: {
-            conversationId: context.conversationId,
-            taskId: context.taskId,
-          },
-        })
+        .insert(messageData)
         .select()
         .single();
 
@@ -517,21 +519,25 @@ export class SendMessageToLeadTool extends BaseTool {
       const personalizedMessage = validated.message.replace(/{leadName}/g, lead.name);
 
       // Log message
+      const leadMessageData: any = {
+        organization_id: context.organizationId,
+        lead_id: lead.id,
+        type: validated.channel,
+        channel: validated.channel,
+        direction: 'outbound',
+        status: 'sent',
+        body: personalizedMessage,
+        content: personalizedMessage,
+        sender_type: 'coach', // Database only accepts 'coach' or 'client'
+        sender_name: `AI Agent (${context.agentId})`,
+        metadata: {
+          ...(validated.subject && { subject: validated.subject }), // Store subject in metadata for emails
+        },
+      };
+
       const { data: loggedMessage } = await supabase
         .from('messages')
-        .insert({
-          organization_id: context.organizationId,
-          lead_id: lead.id,
-          type: validated.channel,
-          channel: validated.channel,
-          direction: 'outbound',
-          status: 'sent',
-          subject: validated.subject,
-          body: personalizedMessage,
-          content: personalizedMessage,
-          sender_type: 'coach', // Database only accepts 'coach' or 'client'
-          sender_name: `AI Agent (${context.agentId})`,
-        })
+        .insert(leadMessageData)
         .select()
         .single();
 
@@ -845,7 +851,7 @@ export class SendBulkMessageTool extends BaseTool {
             : validated.message;
 
           // Log message
-          await supabase.from('messages').insert({
+          const bulkMessageData: any = {
             organization_id: context.organizationId,
             client_id: recipient.type === 'client' ? entity.id : null,
             lead_id: recipient.type === 'lead' ? entity.id : null,
@@ -853,12 +859,16 @@ export class SendBulkMessageTool extends BaseTool {
             channel: validated.channel,
             direction: 'outbound',
             status: 'sent',
-            subject: validated.subject,
             body: personalizedMessage,
             content: personalizedMessage,
             sender_type: 'ai',
             sender_name: 'Bulk Campaign',
-          });
+            metadata: {
+              ...(validated.subject && { subject: validated.subject }), // Store subject in metadata for emails
+            },
+          };
+
+          await supabase.from('messages').insert(bulkMessageData);
 
           sent++;
 

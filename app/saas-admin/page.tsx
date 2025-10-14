@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/app/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { 
-  Building2, 
-  Users, 
+import {
+  Building2,
+  Users,
   Activity,
   TrendingUp,
   Shield,
@@ -17,6 +17,11 @@ import {
   FileText,
   Settings
 } from 'lucide-react'
+import AdminKPITiles from './components/AdminKPITiles'
+import AdminOrganizationsTable from './components/AdminOrganizationsTable'
+import AdminActivityFeed from './components/AdminActivityFeed'
+import AdminSystemHealth from './components/AdminSystemHealth'
+import AdminSidebar from './components/AdminSidebar'
 
 export default function SaasAdminDashboard() {
   const [stats, setStats] = useState<any>({
@@ -26,21 +31,55 @@ export default function SaasAdminDashboard() {
     isAuthorized: false,
     authError: null
   })
+  const [metrics, setMetrics] = useState<any>(null)
+  const [recentActivity, setRecentActivity] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
+    let mounted = true
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('[SaaS Admin] Auth state changed:', event, session?.user?.email)
+
+      if (mounted && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+        // Small delay to ensure session is fully loaded
+        setTimeout(() => {
+          if (mounted) {
+            checkAuthAndFetchData()
+          }
+        }, 100)
+      }
+    })
+
+    // Also check immediately in case session already exists
     checkAuthAndFetchData()
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
-  const checkAuthAndFetchData = async () => {
+  const checkAuthAndFetchData = async (retryCount = 0) => {
     try {
-      // Get current user - DO NOT REDIRECT IF NOT LOGGED IN
+      // Get current user - with retry mechanism for session loading
       const { data: { user }, error } = await supabase.auth.getUser()
-      
+
       if (error || !user) {
+        // Retry up to 3 times with increasing delays (100ms, 300ms, 500ms)
+        if (retryCount < 3) {
+          const delay = 100 + (retryCount * 200)
+          console.log(`[SaaS Admin] User not found, retrying in ${delay}ms (attempt ${retryCount + 1}/3)...`)
+          await new Promise(resolve => setTimeout(resolve, delay))
+          return checkAuthAndFetchData(retryCount + 1)
+        }
+
+        // All retries exhausted
+        console.log('[SaaS Admin] User not found after 3 retries')
         setStats({
           ...stats,
           authError: 'Not logged in. Please login first.',
@@ -50,11 +89,13 @@ export default function SaasAdminDashboard() {
         return
       }
 
+      console.log('[SaaS Admin] User found:', { userId: user.id, email: user.email })
       setUser(user)
 
       // Check authorization by email ONLY
       const authorizedEmails = ['sam@atlas-gyms.co.uk', 'sam@gymleadhub.co.uk']
       const isAuthorizedByEmail = authorizedEmails.includes(user.email?.toLowerCase() || '')
+      console.log('[SaaS Admin] Authorization check:', { email: user.email, isAuthorized: isAuthorizedByEmail })
 
       if (!isAuthorizedByEmail) {
         setStats({
@@ -66,12 +107,13 @@ export default function SaasAdminDashboard() {
         return
       }
 
-      // User is authorized - fetch stats
+      // User is authorized - fetch stats and metrics
       try {
-        const [orgsResult, usersResult, leadsResult] = await Promise.all([
+        const [orgsResult, usersResult, leadsResult, metricsResult] = await Promise.all([
           supabase.from('organizations').select('id, name, created_at'),
           supabase.from('users').select('id'),
-          supabase.from('leads').select('id')
+          supabase.from('leads').select('id'),
+          fetch('/api/saas-admin/metrics').then(r => r.json())
         ])
 
         setStats({
@@ -82,6 +124,12 @@ export default function SaasAdminDashboard() {
           recentOrgs: orgsResult.data?.slice(0, 5) || [],
           authError: null
         })
+
+        // Set financial metrics and activity feed
+        if (metricsResult.success) {
+          setMetrics(metricsResult.metrics)
+          setRecentActivity(metricsResult.recentActivity)
+        }
       } catch (fetchError: any) {
         console.error('Error fetching stats:', fetchError)
         setStats({
@@ -109,11 +157,8 @@ export default function SaasAdminDashboard() {
   }
 
   const handleLogin = () => {
-    // Store intended destination
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('redirectAfterLogin', '/saas-admin')
-    }
-    router.push('/login')
+    // Redirect to dedicated admin signin page
+    router.push('/signin?redirect=/saas-admin')
   }
 
   if (loading) {
@@ -135,7 +180,7 @@ export default function SaasAdminDashboard() {
           <Shield className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-white mb-2">Login Required</h1>
           <p className="text-gray-400 mb-6">Please login with an authorized admin account.</p>
-          <p className="text-sm text-gray-500 mb-6">Authorized: sam@atlas-gyms.co.uk</p>
+          <p className="text-sm text-gray-500 mb-6">Authorized: sam@gymleadhub.co.uk</p>
           <button
             onClick={handleLogin}
             className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
@@ -179,144 +224,68 @@ export default function SaasAdminDashboard() {
 
   // Authorized - show dashboard
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-purple-500">SaaS Admin Dashboard</h1>
-            <p className="text-sm text-gray-400">Platform administration (Standalone)</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-400">
-              {user?.email}
-            </span>
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors text-sm"
-            >
-              Gym Dashboard
-            </button>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600 rounded-lg hover:bg-red-700 transition-colors text-sm"
-            >
-              <LogOut className="h-4 w-4" />
-              Logout
-            </button>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gray-900 flex">
+      {/* Sidebar */}
+      <AdminSidebar />
 
-      {/* Stats Grid */}
-      <div className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-gray-800 rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 rounded-lg bg-blue-500/10">
-                <Building2 className="w-6 h-6 text-blue-500" />
-              </div>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <header className="bg-gray-800 border-b border-gray-700 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-orange-500">Admin HQ</h1>
+              <p className="text-sm text-gray-400">Platform overview and management console</p>
             </div>
-            <div className="text-3xl font-bold mb-1">{stats.totalOrgs}</div>
-            <div className="text-sm text-gray-400">Total Organizations</div>
-          </div>
-
-          <div className="bg-gray-800 rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 rounded-lg bg-purple-500/10">
-                <Users className="w-6 h-6 text-purple-500" />
-              </div>
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-gray-300">
+                {user?.email}
+              </span>
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors text-sm text-white"
+              >
+                Gym Dashboard
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 rounded-lg hover:bg-red-700 transition-colors text-sm text-white"
+              >
+                <LogOut className="h-4 w-4" />
+                Logout
+              </button>
             </div>
-            <div className="text-3xl font-bold mb-1">{stats.totalUsers}</div>
-            <div className="text-sm text-gray-400">Total Users</div>
           </div>
+        </header>
 
-          <div className="bg-gray-800 rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 rounded-lg bg-orange-500/10">
-                <TrendingUp className="w-6 h-6 text-orange-500" />
-              </div>
+        {/* Main Content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Financial KPI Tiles */}
+          <AdminKPITiles metrics={metrics} />
+
+          {/* Two Column Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Organizations Table - 2 columns */}
+            <div className="lg:col-span-2">
+              <AdminOrganizationsTable />
             </div>
-            <div className="text-3xl font-bold mb-1">{stats.totalLeads}</div>
-            <div className="text-sm text-gray-400">Total Leads</div>
-          </div>
-        </div>
 
-        {/* Recent Organizations */}
-        <div className="bg-gray-800 rounded-lg p-6 mb-6">
-          <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-blue-500" />
-            Recent Organizations
-          </h2>
-          {stats.recentOrgs && stats.recentOrgs.length > 0 ? (
-            <div className="space-y-2">
-              {stats.recentOrgs.map((org: any) => (
-                <div key={org.id} className="flex justify-between items-center py-2 border-b border-gray-700">
-                  <div>
-                    <div className="font-medium">{org.name}</div>
-                    <div className="text-xs text-gray-400">
-                      {new Date(org.created_at).toLocaleDateString()}
-                    </div>
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    ID: {org.id.slice(0, 8)}...
-                  </div>
-                </div>
-              ))}
+            {/* Right Sidebar - 1 column */}
+            <div className="space-y-6">
+              {/* System Health */}
+              <AdminSystemHealth />
+
+              {/* Activity Feed */}
+              <AdminActivityFeed activities={recentActivity} />
             </div>
-          ) : (
-            <p className="text-gray-500">No organizations found</p>
-          )}
-        </div>
-
-        {/* Quick Actions */}
-        <div className="bg-gray-800 rounded-lg p-6">
-          <h2 className="text-lg font-bold mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <button
-              onClick={() => router.push('/saas-admin/weekly-brief')}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors text-sm"
-            >
-              <FileText className="h-4 w-4" />
-              Weekly Brief
-            </button>
-            <button
-              onClick={() => router.push('/saas-admin/tenants')}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors text-sm"
-            >
-              <Building2 className="h-4 w-4" />
-              Manage Tenants
-            </button>
-            <button
-              onClick={() => router.push('/saas-admin/plans')}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 rounded-lg hover:bg-green-700 transition-colors text-sm"
-            >
-              <Settings className="h-4 w-4" />
-              Manage Plans
-            </button>
-            <button
-              onClick={() => window.location.reload()}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors text-sm"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Refresh Stats
-            </button>
-            <button
-              onClick={() => router.push('/admin-debug')}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors text-sm"
-            >
-              <Database className="h-4 w-4" />
-              Debug Info
-            </button>
           </div>
-        </div>
 
-        {/* Info Box */}
-        <div className="mt-6 bg-blue-900/30 border border-blue-700 rounded-lg p-4">
-          <p className="text-sm text-blue-300">
-            ℹ️ This is a standalone admin dashboard that bypasses middleware checks. 
-            It uses email-based authorization only.
-          </p>
+          {/* Info Box */}
+          <div className="bg-orange-900/20 border border-orange-700 rounded-lg p-4">
+            <p className="text-sm text-orange-300">
+              ℹ️ SaaS platform admin dashboard - Authorized: {user?.email}
+            </p>
+          </div>
         </div>
       </div>
     </div>

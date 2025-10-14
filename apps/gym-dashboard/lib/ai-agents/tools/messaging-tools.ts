@@ -4,7 +4,7 @@
 
 import { z } from 'zod';
 import { BaseTool, ToolExecutionContext, ToolExecutionResult } from './types';
-import { createAdminClient } from '../../../app/lib/supabase/admin';
+import { createAdminClient } from '@/app/lib/supabase/admin';
 import { Resend } from 'resend';
 // Twilio will be imported at runtime where needed to avoid build-time issues
 
@@ -322,7 +322,7 @@ export class SendMessageToClientTool extends BaseTool {
 
   parametersSchema = z.object({
     clientId: z.string().uuid().describe('Client ID to send message to'),
-    channel: z.enum(['sms', 'email', 'whatsapp']).describe('Communication channel'),
+    channel: z.enum(['sms', 'email', 'whatsapp', 'in_app']).describe('Communication channel'),
     message: z.string().min(1).describe('Message content'),
     subject: z.string().optional().describe('Email subject (required for email)'),
     variables: z.record(z.any()).optional().describe('Template variables for personalization'),
@@ -338,16 +338,20 @@ export class SendMessageToClientTool extends BaseTool {
       const supabase = createAdminClient();
 
       // Fetch client details
+      // Check both org_id and organization_id (schema has both columns)
       const { data: client, error: clientError } = await supabase
         .from('clients')
-        .select('id, name, email, phone')
+        .select('id, name, first_name, last_name, email, phone, org_id, organization_id')
         .eq('id', validated.clientId)
-        .eq('organization_id', context.organizationId)
+        .or(`org_id.eq.${context.organizationId},organization_id.eq.${context.organizationId}`)
         .single();
 
       if (clientError || !client) {
         return { success: false, error: 'Client not found' };
       }
+
+      // Use name field if populated, otherwise concatenate first_name + last_name
+      const clientName = client.name || `${client.first_name || ''} ${client.last_name || ''}`.trim() || 'Client';
 
       // Validate contact info
       if (validated.channel === 'email' && !client.email) {
@@ -359,30 +363,33 @@ export class SendMessageToClientTool extends BaseTool {
       if (validated.channel === 'email' && !validated.subject) {
         return { success: false, error: 'Email subject is required' };
       }
+      // in_app messages don't require additional validation
 
       // Replace {clientName} with actual name
-      const personalizedMessage = validated.message.replace(/{clientName}/g, client.name);
+      const personalizedMessage = validated.message.replace(/{clientName}/g, clientName);
 
       // Log message to database
+      const messageData: any = {
+        organization_id: context.organizationId,
+        client_id: client.id,
+        type: validated.channel,
+        channel: validated.channel,
+        direction: 'outbound',
+        status: 'pending',
+        body: personalizedMessage,
+        content: personalizedMessage,
+        sender_type: 'coach', // Database only accepts 'coach' or 'client'
+        sender_name: `AI Agent (${context.agentId})`,
+        metadata: {
+          conversationId: context.conversationId,
+          taskId: context.taskId,
+          ...(validated.subject && { subject: validated.subject }), // Store subject in metadata for emails
+        },
+      };
+
       const { data: loggedMessage, error: logError } = await supabase
         .from('messages')
-        .insert({
-          organization_id: context.organizationId,
-          client_id: client.id,
-          type: validated.channel,
-          channel: validated.channel,
-          direction: 'outbound',
-          status: 'pending',
-          subject: validated.subject,
-          body: personalizedMessage,
-          content: personalizedMessage,
-          sender_type: 'ai',
-          sender_name: `AI Agent (${context.agentId})`,
-          metadata: {
-            conversationId: context.conversationId,
-            taskId: context.taskId,
-          },
-        })
+        .insert(messageData)
         .select()
         .single();
 
@@ -391,7 +398,11 @@ export class SendMessageToClientTool extends BaseTool {
       // Send via appropriate channel
       let sendResult: any = null;
 
-      if (validated.channel === 'email' && process.env.RESEND_API_KEY) {
+      if (validated.channel === 'in_app') {
+        // In-app messages are already logged to database and marked as sent
+        // No additional action needed - message is already visible in database
+        sendResult = { success: true };
+      } else if (validated.channel === 'email' && process.env.RESEND_API_KEY) {
         const resend = new Resend(process.env.RESEND_API_KEY);
         sendResult = await resend.emails.send({
           from: process.env.RESEND_FROM_EMAIL || 'Atlas Fitness <noreply@atlas-fitness.com>',
@@ -508,21 +519,25 @@ export class SendMessageToLeadTool extends BaseTool {
       const personalizedMessage = validated.message.replace(/{leadName}/g, lead.name);
 
       // Log message
+      const leadMessageData: any = {
+        organization_id: context.organizationId,
+        lead_id: lead.id,
+        type: validated.channel,
+        channel: validated.channel,
+        direction: 'outbound',
+        status: 'sent',
+        body: personalizedMessage,
+        content: personalizedMessage,
+        sender_type: 'coach', // Database only accepts 'coach' or 'client'
+        sender_name: `AI Agent (${context.agentId})`,
+        metadata: {
+          ...(validated.subject && { subject: validated.subject }), // Store subject in metadata for emails
+        },
+      };
+
       const { data: loggedMessage } = await supabase
         .from('messages')
-        .insert({
-          organization_id: context.organizationId,
-          lead_id: lead.id,
-          type: validated.channel,
-          channel: validated.channel,
-          direction: 'outbound',
-          status: 'sent',
-          subject: validated.subject,
-          body: personalizedMessage,
-          content: personalizedMessage,
-          sender_type: 'ai',
-          sender_name: `AI Agent (${context.agentId})`,
-        })
+        .insert(leadMessageData)
         .select()
         .single();
 
@@ -836,7 +851,7 @@ export class SendBulkMessageTool extends BaseTool {
             : validated.message;
 
           // Log message
-          await supabase.from('messages').insert({
+          const bulkMessageData: any = {
             organization_id: context.organizationId,
             client_id: recipient.type === 'client' ? entity.id : null,
             lead_id: recipient.type === 'lead' ? entity.id : null,
@@ -844,12 +859,16 @@ export class SendBulkMessageTool extends BaseTool {
             channel: validated.channel,
             direction: 'outbound',
             status: 'sent',
-            subject: validated.subject,
             body: personalizedMessage,
             content: personalizedMessage,
             sender_type: 'ai',
             sender_name: 'Bulk Campaign',
-          });
+            metadata: {
+              ...(validated.subject && { subject: validated.subject }), // Store subject in metadata for emails
+            },
+          };
+
+          await supabase.from('messages').insert(bulkMessageData);
 
           sent++;
 

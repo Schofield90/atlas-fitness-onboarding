@@ -16,6 +16,7 @@ import { DATA_TOOLS } from './data-tools';
 import { ANALYTICS_TOOLS } from './analytics-tools';
 import { MESSAGING_TOOLS } from './messaging-tools';
 import { AUTOMATION_TOOLS } from './automation-tools';
+import { BOOKING_TOOLS } from './booking-tools';
 
 /**
  * Tool Registry Class
@@ -37,7 +38,8 @@ export class ToolRegistry {
       ...DATA_TOOLS,
       ...ANALYTICS_TOOLS,
       ...MESSAGING_TOOLS,
-      ...AUTOMATION_TOOLS
+      ...AUTOMATION_TOOLS,
+      ...BOOKING_TOOLS
     ];
 
     allTools.forEach(tool => this.registerTool(tool));
@@ -432,6 +434,7 @@ export function getRegistryStats() {
         analytics: toolRegistry.getToolsByCategory('analytics').map(t => t.id),
         messaging: toolRegistry.getToolsByCategory('messaging').map(t => t.id),
         automation: toolRegistry.getToolsByCategory('automation').map(t => t.id),
+        booking: toolRegistry.getToolsByCategory('booking').map(t => t.id),
         crm: toolRegistry.getToolsByCategory('crm').map(t => t.id),
         reports: toolRegistry.getToolsByCategory('reports').map(t => t.id)
       }

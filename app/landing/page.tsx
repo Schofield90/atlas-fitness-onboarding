@@ -46,6 +46,14 @@ export default function LandingPage() {
         try {
           const supabase = createClient();
 
+          // Check if Supabase is properly initialized
+          if (!supabase) {
+            console.warn("Supabase client not available, skipping magic link processing");
+            window.history.replaceState({}, document.title, "/landing");
+            setProcessing(false);
+            return;
+          }
+
           // Set the session with the tokens
           const { data, error } = await supabase.auth.setSession({
             access_token: accessToken,

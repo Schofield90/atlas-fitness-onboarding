@@ -387,7 +387,12 @@ export async function requireAdminAccess(): Promise<{
       user.id,
     );
 
-    const { data: staffUser, error: staffError } = await supabase
+    // Use admin client to bypass RLS when querying staff table
+    // This is safe because we've already verified the user is authenticated
+    const { createAdminClient } = await import("@/app/lib/supabase/admin");
+    const adminClient = createAdminClient();
+
+    const { data: staffUser, error: staffError } = await adminClient
       .from("staff")
       .select("*")
       .eq("user_id", user.id)

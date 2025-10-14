@@ -58,8 +58,8 @@ function SignInForm() {
           return;
         }
 
-        // Successful login - redirect to admin or requested page
-        router.push(redirect);
+        // Successful login - use full page reload to ensure session is loaded
+        window.location.href = redirect;
       }
     } catch (err: any) {
       setError("An unexpected error occurred");

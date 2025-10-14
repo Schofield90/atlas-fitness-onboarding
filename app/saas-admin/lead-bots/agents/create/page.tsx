@@ -5,39 +5,90 @@ import { useRouter } from "next/navigation";
 import { SparklesIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
 
+interface Organization {
+  id: string;
+  name: string;
+}
+
 export default function CreateAgentPage() {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [webhookUrl, setWebhookUrl] = useState<string | null>(null);
+  const [sops, setSops] = useState<any[]>([]);
+  const [selectedSOPs, setSelectedSOPs] = useState<Set<string>>(new Set());
+  const [loadingSOPs, setLoadingSOPs] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    systemPrompt: `You are a friendly AI assistant for a fitness facility.
-
-Your role is to qualify leads and book them for discovery calls. You should:
-
-1. **Greet warmly** - Welcome them and thank them for their interest
-2. **Ask about their goals** - What are they hoping to achieve? (weight loss, strength, fitness, etc.)
-3. **Understand their experience** - Have they worked out before? Any injuries or limitations?
-4. **Discover their budget** - What investment level are they comfortable with for their health?
-5. **Check availability** - When would be the best time for a quick 15-minute discovery call?
-6. **Book the call** - If qualified, schedule them for a call with our team
-
-**Qualification Criteria:**
-- Budget: Should be willing to invest £50-200/month
-- Commitment: Looking to join within next 2-4 weeks
-- Goals: Clear fitness goals that align with our programs
-
-**Tone:** Friendly, helpful, enthusiastic but not pushy
-**Response Length:** Keep messages short (2-3 sentences max)
-**Speed:** Respond promptly when leads message`,
+    organization_id: "", // For super admins to select
     ghlLocationId: "",
     ghlApiKey: "",
-    model: "gpt-4o",
-    temperature: 0.7,
-    maxTokens: 500,
   });
 
+  // Check if user is super admin and fetch organizations
+  useEffect(() => {
+    async function checkAuth() {
+      try {
+        const response = await fetch("/api/auth/user");
+        if (response.ok) {
+          const { user } = await response.json();
+          const superAdmin =
+            user.email === "sam@gymleadhub.co.uk" ||
+            user.email?.endsWith("@gymleadhub.co.uk");
+
+          setIsSuperAdmin(superAdmin);
+
+          if (superAdmin) {
+            // Fetch all organizations for super admin
+            const orgsResponse = await fetch("/api/admin/organizations");
+            if (orgsResponse.ok) {
+              const { organizations } = await orgsResponse.json();
+              setOrganizations(organizations || []);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error checking auth:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    checkAuth();
+  }, []);
+
+  // Fetch SOPs on mount (global SOPs available to all)
+  useEffect(() => {
+    fetchSOPs();
+  }, []);
+
+  async function fetchSOPs() {
+    try {
+      setLoadingSOPs(true);
+      const response = await fetch('/api/saas-admin/lead-bots/sops');
+      if (response.ok) {
+        const { sops } = await response.json();
+        setSops(sops || []);
+      }
+    } catch (error) {
+      console.error("Error fetching SOPs:", error);
+    } finally {
+      setLoadingSOPs(false);
+    }
+  }
+
+  function handleToggleSOP(sopId: string) {
+    const newSelected = new Set(selectedSOPs);
+    if (newSelected.has(sopId)) {
+      newSelected.delete(sopId);
+    } else {
+      newSelected.add(sopId);
+    }
+    setSelectedSOPs(newSelected);
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,40 +98,64 @@ Your role is to qualify leads and book them for discovery calls. You should:
       return;
     }
 
+    // Super admins must select an organization
+    if (isSuperAdmin && !formData.organization_id) {
+      alert("Please select an organization");
+      return;
+    }
+
     try {
       setSaving(true);
+      const payload: any = {
+        name: formData.name,
+        description: formData.description,
+        role: "lead_qualification",
+        system_prompt: "", // Empty for now, will be generated from SOPs
+        sop_ids: Array.from(selectedSOPs), // Send selected SOP IDs
+        model: "gpt-5", // Hardcoded
+        temperature: 0.7, // Hardcoded
+        max_tokens: 500, // Hardcoded
+        enabled: true,
+        metadata: {
+          gohighlevel_location_id: formData.ghlLocationId,
+          gohighlevel_api_key: formData.ghlApiKey,
+          integration_type: "gohighlevel_plugin",
+        },
+      };
+
+      // Super admins pass organization_id explicitly
+      if (isSuperAdmin) {
+        payload.organization_id = formData.organization_id;
+      }
+
       const response = await fetch("/api/saas-admin/lead-bots/agents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formData.name,
-          description: formData.description,
-          role: "lead_qualification",
-          system_prompt: formData.systemPrompt,
-          model: formData.model,
-          temperature: formData.temperature,
-          max_tokens: formData.maxTokens,
-          enabled: true,
-          metadata: {
-            gohighlevel_location_id: formData.ghlLocationId,
-            gohighlevel_api_key: formData.ghlApiKey,
-            integration_type: "gohighlevel_plugin",
-          },
-        }),
+        body: JSON.stringify(payload),
       });
 
-      if (!response.ok) throw new Error("Failed to create agent");
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.details || "Failed to create agent");
+      }
 
       const data = await response.json();
       setWebhookUrl(data.agent.webhookUrl);
-      alert("AI Agent created successfully! Copy the webhook URL to connect to GoHighLevel.");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating agent:", error);
-      alert("Failed to create agent");
+      alert(`Failed to create agent: ${error.message}`);
     } finally {
       setSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
@@ -104,14 +179,50 @@ Your role is to qualify leads and book them for discovery calls. You should:
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Basic Info */}
         <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Basic Information</h3>
+          <h3 className="text-lg font-semibold text-white mb-4">
+            Basic Information
+          </h3>
           <div className="space-y-4">
+            {/* Super Admin: Organization Selector */}
+            {isSuperAdmin && (
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Organization *
+                  <span className="ml-2 text-xs text-purple-400">
+                    (Super Admin Only)
+                  </span>
+                </label>
+                <select
+                  value={formData.organization_id}
+                  onChange={(e) =>
+                    setFormData({ ...formData, organization_id: e.target.value })
+                  }
+                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  required
+                >
+                  <option value="">Select organization...</option>
+                  {organizations.map((org) => (
+                    <option key={org.id} value={org.id}>
+                      {org.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Select which gym this agent belongs to
+                </p>
+              </div>
+            )}
+
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Agent Name *</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Agent Name *
+              </label>
               <input
                 type="text"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
                 className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
                 placeholder="e.g., Lead Qualification Bot"
                 required
@@ -119,10 +230,14 @@ Your role is to qualify leads and book them for discovery calls. You should:
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Description</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Description
+              </label>
               <textarea
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
                 rows={2}
                 className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
                 placeholder="Brief description of what this agent does"
@@ -133,9 +248,12 @@ Your role is to qualify leads and book them for discovery calls. You should:
 
         {/* GoHighLevel Connection */}
         <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-          <h3 className="text-lg font-semibold text-white mb-2">GoHighLevel Connection</h3>
+          <h3 className="text-lg font-semibold text-white mb-2">
+            GoHighLevel Connection
+          </h3>
           <p className="text-sm text-gray-400 mb-4">
-            Connect this agent to your GoHighLevel account. The agent will be triggered by GHL automations.
+            Connect this agent to your GoHighLevel account. The agent will be
+            triggered by GHL automations.
           </p>
           <div className="space-y-4">
             <div>
@@ -145,7 +263,9 @@ Your role is to qualify leads and book them for discovery calls. You should:
               <input
                 type="text"
                 value={formData.ghlLocationId}
-                onChange={(e) => setFormData({ ...formData, ghlLocationId: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, ghlLocationId: e.target.value })
+                }
                 className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
                 placeholder="e.g., nwQfHCknxxxxxxxxxxxxx"
                 required
@@ -162,7 +282,9 @@ Your role is to qualify leads and book them for discovery calls. You should:
               <input
                 type="password"
                 value={formData.ghlApiKey}
-                onChange={(e) => setFormData({ ...formData, ghlApiKey: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, ghlApiKey: e.target.value })
+                }
                 className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
                 placeholder="sk_xxxxxxxxxxxxxxxxxxxxxxxx"
                 required
@@ -174,81 +296,118 @@ Your role is to qualify leads and book them for discovery calls. You should:
           </div>
         </div>
 
-        {/* AI Configuration */}
+        {/* AI Instructions (SOPs) */}
         <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">AI Configuration</h3>
-          <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Model</label>
-                <select
-                  value={formData.model}
-                  onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
-                >
-                  <option value="gpt-5">GPT-5 (Latest)</option>
-                  <option value="gpt-4o">GPT-4o (Best)</option>
-                  <option value="gpt-4o-mini">GPT-4o Mini (Fast)</option>
-                  <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                  <option value="gpt-4">GPT-4</option>
-                  <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Cheap)</option>
-                </select>
-              </div>
+          <h3 className="text-lg font-semibold text-white mb-2">
+            AI Instructions (SOPs)
+          </h3>
+          <p className="text-sm text-gray-400 mb-4">
+            Select Standard Operating Procedures to define how this agent behaves.
+            All agents use GPT-5 for best performance.
+          </p>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Temperature</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="2"
-                  step="0.1"
-                  value={formData.temperature}
-                  onChange={(e) => setFormData({ ...formData, temperature: parseFloat(e.target.value) })}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
-                />
-                <p className="text-xs text-gray-500 mt-1">0-2 (higher = creative)</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Max Tokens</label>
-                <input
-                  type="number"
-                  min="50"
-                  max="2000"
-                  step="50"
-                  value={formData.maxTokens}
-                  onChange={(e) => setFormData({ ...formData, maxTokens: parseInt(e.target.value) })}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
-                />
-              </div>
+          {loadingSOPs ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+              <span className="ml-2 text-gray-400">Loading SOPs...</span>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                System Prompt (AI Instructions)
-              </label>
-              <textarea
-                value={formData.systemPrompt}
-                onChange={(e) => setFormData({ ...formData, systemPrompt: e.target.value })}
-                rows={20}
-                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-                required
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Customize how the AI behaves and qualifies leads
+          ) : sops.length === 0 ? (
+            <div className="bg-blue-900 bg-opacity-20 border border-blue-700 rounded-lg p-6 text-center">
+              <h4 className="text-lg font-semibold text-blue-200 mb-2">
+                No SOPs Available
+              </h4>
+              <p className="text-sm text-blue-100 mb-4">
+                You need to create Standard Operating Procedures before creating agents.
+              </p>
+              <div className="flex gap-3 justify-center">
+                <a
+                  href="/saas-admin/lead-bots/sops"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                >
+                  Create SOP Now
+                </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Allow creating agent without SOPs (will need to add later)
+                  }}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors"
+                >
+                  Create SOPs Later
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 mt-3">
+                Agents without SOPs will have no instructions and won't function properly
               </p>
             </div>
-          </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-3">
+                Select SOPs (check all that apply)
+              </label>
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {sops.map((sop) => (
+                  <div
+                    key={sop.id}
+                    className={`p-4 rounded-lg border cursor-pointer transition-colors ${
+                      selectedSOPs.has(sop.id)
+                        ? "bg-orange-900 bg-opacity-20 border-orange-500"
+                        : "bg-gray-700 border-gray-600 hover:border-gray-500"
+                    }`}
+                    onClick={() => handleToggleSOP(sop.id)}
+                  >
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedSOPs.has(sop.id)}
+                        onChange={() => handleToggleSOP(sop.id)}
+                        className="mt-1 h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium text-white">{sop.name}</div>
+                        {sop.description && (
+                          <div className="text-sm text-gray-400 mt-1">
+                            {sop.description}
+                          </div>
+                        )}
+                        <div className="text-xs text-gray-500 mt-2">
+                          {sop.content.substring(0, 150)}
+                          {sop.content.length > 150 ? "..." : ""}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-3">
+                Selected SOPs will be combined in order to create the agent's system prompt.{" "}
+                <a
+                  href="/saas-admin/lead-bots/sops"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:text-blue-300 underline"
+                >
+                  Manage SOPs
+                </a>
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Integration Instructions */}
         <div className="bg-blue-900 bg-opacity-20 border border-blue-700 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-blue-200 mb-2">📋 Setup Instructions</h3>
+          <h3 className="text-lg font-semibold text-blue-200 mb-2">
+            📋 Setup Instructions
+          </h3>
           <ol className="text-sm text-blue-100 space-y-2 list-decimal list-inside">
             <li>Create this agent to get your unique webhook URL</li>
             <li>In GoHighLevel, create a workflow automation</li>
             <li>Add a "Webhook" action in your workflow</li>
-            <li>Paste the webhook URL you'll receive after creating this agent</li>
+            <li>
+              Paste the webhook URL you'll receive after creating this agent
+            </li>
             <li>The AI will handle the conversation and return data to GHL</li>
           </ol>
         </div>
@@ -286,8 +445,12 @@ Your role is to qualify leads and book them for discovery calls. You should:
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 rounded-lg max-w-2xl w-full border border-gray-700">
             <div className="p-6 border-b border-gray-700">
-              <h3 className="text-2xl font-bold text-white">Agent Created Successfully!</h3>
-              <p className="text-sm text-gray-400 mt-1">Your AI agent is ready to connect to GoHighLevel</p>
+              <h3 className="text-2xl font-bold text-white">
+                Agent Created Successfully!
+              </h3>
+              <p className="text-sm text-gray-400 mt-1">
+                Your AI agent is ready to connect to GoHighLevel
+              </p>
             </div>
 
             <div className="p-6 space-y-6">
@@ -315,14 +478,22 @@ Your role is to qualify leads and book them for discovery calls. You should:
               </div>
 
               <div className="bg-blue-900 bg-opacity-20 border border-blue-700 rounded-lg p-6">
-                <h4 className="text-lg font-semibold text-blue-200 mb-2">Next Steps</h4>
+                <h4 className="text-lg font-semibold text-blue-200 mb-2">
+                  Next Steps
+                </h4>
                 <ol className="text-sm text-blue-100 space-y-2 list-decimal list-inside">
                   <li>Copy the webhook URL above</li>
                   <li>Go to GoHighLevel and create a new workflow automation</li>
                   <li>Add a "Webhook" action to your workflow</li>
                   <li>Paste the webhook URL</li>
-                  <li>Configure the trigger (e.g., when a lead is created or messages)</li>
-                  <li>The AI will automatically handle conversations and return data to GHL</li>
+                  <li>
+                    Configure the trigger (e.g., when a lead is created or
+                    messages)
+                  </li>
+                  <li>
+                    The AI will automatically handle conversations and return
+                    data to GHL
+                  </li>
                 </ol>
               </div>
             </div>

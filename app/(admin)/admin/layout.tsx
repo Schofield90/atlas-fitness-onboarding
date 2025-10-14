@@ -16,8 +16,8 @@ export default async function AdminLayout({
   const { isAdmin, adminUser, error } = await requireAdminAccess();
 
   if (!isAdmin) {
-    // Redirect to main dashboard instead of login to avoid loops
-    redirect("/dashboard-direct");
+    // Redirect to login page for non-admin users
+    redirect("/owner-login");
   }
 
   return (

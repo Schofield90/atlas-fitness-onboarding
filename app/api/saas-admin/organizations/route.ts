@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/app/lib/supabase/server";
+import { createAdminClient } from "@/app/lib/supabase/admin";
 
 // Force dynamic rendering to handle cookies and request properties
 export const dynamic = "force-dynamic";
@@ -97,6 +98,63 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error(
       "Unexpected error in GET /api/saas-admin/organizations:",
+      error,
+    );
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
+// POST /api/saas-admin/organizations - Create a new organization
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const authCheck = await checkAdminAuth(supabase);
+
+    if (!authCheck.authorized) {
+      return NextResponse.json({ error: authCheck.error }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { name, email, phone } = body;
+
+    if (!name) {
+      return NextResponse.json(
+        { error: "Organization name is required" },
+        { status: 400 },
+      );
+    }
+
+    const { data: organization, error } = await supabase
+      .from("organizations")
+      .insert({
+        name,
+        email: email || null,
+        phone: phone || null,
+      })
+      .select("id, name, email, phone, created_at")
+      .single();
+
+    if (error) {
+      console.error("Error creating organization:", error);
+      return NextResponse.json(
+        { error: "Failed to create organization" },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json(
+      {
+        organization,
+        message: "Organization created successfully",
+      },
+      { status: 201 },
+    );
+  } catch (error) {
+    console.error(
+      "Unexpected error in POST /api/saas-admin/organizations:",
       error,
     );
     return NextResponse.json(

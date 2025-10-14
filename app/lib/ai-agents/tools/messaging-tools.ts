@@ -2,48 +2,33 @@
  * Messaging Tools - Communication and Notifications
  */
 
-import { z } from "zod";
-import { BaseTool, ToolExecutionContext, ToolExecutionResult } from "./types";
-import { createAdminClient } from "@/app/lib/supabase/admin";
-import { Resend } from "resend";
+import { z } from 'zod';
+import { BaseTool, ToolExecutionContext, ToolExecutionResult } from './types';
+import { createAdminClient } from '@/app/lib/supabase/admin';
+import { Resend } from 'resend';
 // Twilio will be imported at runtime where needed to avoid build-time issues
 
 /**
  * Send email to client(s)
  */
 export class SendEmailTool extends BaseTool {
-  id = "send_email";
-  name = "Send Email";
-  description =
-    "Send an email to one or more clients. Supports templates and personalization.";
-  category = "messaging" as const;
+  id = 'send_email';
+  name = 'Send Email';
+  description = 'Send an email to one or more clients. Supports templates and personalization.';
+  category = 'messaging' as const;
 
   parametersSchema = z.object({
-    to: z
-      .array(z.string().email())
-      .describe("Array of recipient email addresses"),
-    subject: z.string().describe("Email subject line"),
-    body: z.string().describe("Email body content (supports HTML)"),
-    templateId: z
-      .string()
-      .optional()
-      .describe("Optional email template ID to use"),
-    variables: z
-      .record(z.any())
-      .optional()
-      .describe("Template variables for personalization"),
-    scheduleAt: z
-      .string()
-      .optional()
-      .describe("Optional scheduled send time (ISO 8601 format)"),
+    to: z.array(z.string().email()).describe('Array of recipient email addresses'),
+    subject: z.string().describe('Email subject line'),
+    body: z.string().describe('Email body content (supports HTML)'),
+    templateId: z.string().optional().describe('Optional email template ID to use'),
+    variables: z.record(z.any()).optional().describe('Template variables for personalization'),
+    scheduleAt: z.string().optional().describe('Optional scheduled send time (ISO 8601 format)')
   });
 
-  requiresPermission = "messages:send";
+  requiresPermission = 'messages:send';
 
-  async execute(
-    params: any,
-    context: ToolExecutionContext,
-  ): Promise<ToolExecutionResult> {
+  async execute(params: any, context: ToolExecutionContext): Promise<ToolExecutionResult> {
     const startTime = Date.now();
     const validated = this.parametersSchema.parse(params);
 
@@ -51,25 +36,25 @@ export class SendEmailTool extends BaseTool {
       const supabase = createAdminClient();
 
       // Create email records in database
-      const emailRecords = validated.to.map((email) => ({
+      const emailRecords = validated.to.map(email => ({
         organization_id: context.organizationId,
         to_email: email,
         subject: validated.subject,
         body: validated.body,
         template_id: validated.templateId,
         variables: validated.variables || {},
-        status: validated.scheduleAt ? "scheduled" : "pending",
+        status: validated.scheduleAt ? 'scheduled' : 'pending',
         scheduled_at: validated.scheduleAt,
         created_by: context.userId,
         metadata: {
           sent_by_agent: context.agentId,
           conversation_id: context.conversationId,
-          task_id: context.taskId,
-        },
+          task_id: context.taskId
+        }
       }));
 
       const { data, error } = await supabase
-        .from("email_queue")
+        .from('email_queue')
         .insert(emailRecords)
         .select();
 
@@ -78,23 +63,23 @@ export class SendEmailTool extends BaseTool {
       return {
         success: true,
         data: {
-          emailIds: data?.map((e) => e.id) || [],
+          emailIds: data?.map(e => e.id) || [],
           recipientCount: validated.to.length,
           scheduled: !!validated.scheduleAt,
-          scheduledAt: validated.scheduleAt,
+          scheduledAt: validated.scheduleAt
         },
         metadata: {
           recordsAffected: data?.length || 0,
-          executionTimeMs: Date.now() - startTime,
-        },
+          executionTimeMs: Date.now() - startTime
+        }
       };
     } catch (error: any) {
       return {
         success: false,
         error: error.message,
         metadata: {
-          executionTimeMs: Date.now() - startTime,
-        },
+          executionTimeMs: Date.now() - startTime
+        }
       };
     }
   }
@@ -104,32 +89,20 @@ export class SendEmailTool extends BaseTool {
  * Send SMS to client(s)
  */
 export class SendSMSTool extends BaseTool {
-  id = "send_sms";
-  name = "Send SMS";
-  description =
-    "Send an SMS message to one or more clients. Message must be under 160 characters for single SMS.";
-  category = "messaging" as const;
+  id = 'send_sms';
+  name = 'Send SMS';
+  description = 'Send an SMS message to one or more clients. Message must be under 160 characters for single SMS.';
+  category = 'messaging' as const;
 
   parametersSchema = z.object({
-    to: z
-      .array(z.string())
-      .describe("Array of recipient phone numbers (E.164 format)"),
-    message: z
-      .string()
-      .max(1600)
-      .describe("SMS message content (max 1600 chars = 10 SMS)"),
-    scheduleAt: z
-      .string()
-      .optional()
-      .describe("Optional scheduled send time (ISO 8601 format)"),
+    to: z.array(z.string()).describe('Array of recipient phone numbers (E.164 format)'),
+    message: z.string().max(1600).describe('SMS message content (max 1600 chars = 10 SMS)'),
+    scheduleAt: z.string().optional().describe('Optional scheduled send time (ISO 8601 format)')
   });
 
-  requiresPermission = "messages:send";
+  requiresPermission = 'messages:send';
 
-  async execute(
-    params: any,
-    context: ToolExecutionContext,
-  ): Promise<ToolExecutionResult> {
+  async execute(params: any, context: ToolExecutionContext): Promise<ToolExecutionResult> {
     const startTime = Date.now();
     const validated = this.parametersSchema.parse(params);
 
@@ -137,23 +110,23 @@ export class SendSMSTool extends BaseTool {
       const supabase = createAdminClient();
 
       // Validate phone numbers and create SMS records
-      const smsRecords = validated.to.map((phone) => ({
+      const smsRecords = validated.to.map(phone => ({
         organization_id: context.organizationId,
         to_phone: phone,
         message: validated.message,
-        status: validated.scheduleAt ? "scheduled" : "pending",
+        status: validated.scheduleAt ? 'scheduled' : 'pending',
         scheduled_at: validated.scheduleAt,
         created_by: context.userId,
         metadata: {
           sent_by_agent: context.agentId,
           conversation_id: context.conversationId,
           task_id: context.taskId,
-          segment_count: Math.ceil(validated.message.length / 160),
-        },
+          segment_count: Math.ceil(validated.message.length / 160)
+        }
       }));
 
       const { data, error } = await supabase
-        .from("sms_queue")
+        .from('sms_queue')
         .insert(smsRecords)
         .select();
 
@@ -162,24 +135,24 @@ export class SendSMSTool extends BaseTool {
       return {
         success: true,
         data: {
-          smsIds: data?.map((s) => s.id) || [],
+          smsIds: data?.map(s => s.id) || [],
           recipientCount: validated.to.length,
           scheduled: !!validated.scheduleAt,
           scheduledAt: validated.scheduleAt,
-          estimatedSegments: Math.ceil(validated.message.length / 160),
+          estimatedSegments: Math.ceil(validated.message.length / 160)
         },
         metadata: {
           recordsAffected: data?.length || 0,
-          executionTimeMs: Date.now() - startTime,
-        },
+          executionTimeMs: Date.now() - startTime
+        }
       };
     } catch (error: any) {
       return {
         success: false,
         error: error.message,
         metadata: {
-          executionTimeMs: Date.now() - startTime,
-        },
+          executionTimeMs: Date.now() - startTime
+        }
       };
     }
   }
@@ -189,43 +162,23 @@ export class SendSMSTool extends BaseTool {
  * Create support ticket
  */
 export class CreateSupportTicketTool extends BaseTool {
-  id = "create_support_ticket";
-  name = "Create Support Ticket";
-  description =
-    "Create a support ticket for follow-up by human staff. Use this when issues require human intervention.";
-  category = "messaging" as const;
+  id = 'create_support_ticket';
+  name = 'Create Support Ticket';
+  description = 'Create a support ticket for follow-up by human staff. Use this when issues require human intervention.';
+  category = 'messaging' as const;
 
   parametersSchema = z.object({
-    clientId: z
-      .string()
-      .uuid()
-      .optional()
-      .describe("Optional client ID associated with ticket"),
-    title: z.string().describe("Ticket title/subject"),
-    description: z.string().describe("Detailed description of the issue"),
-    priority: z
-      .enum(["low", "medium", "high", "urgent"])
-      .optional()
-      .default("medium")
-      .describe("Ticket priority level"),
-    category: z
-      .enum(["billing", "technical", "booking", "general", "complaint"])
-      .optional()
-      .default("general")
-      .describe("Ticket category"),
-    assignTo: z
-      .string()
-      .uuid()
-      .optional()
-      .describe("Optional staff user ID to assign ticket to"),
+    clientId: z.string().uuid().optional().describe('Optional client ID associated with ticket'),
+    title: z.string().describe('Ticket title/subject'),
+    description: z.string().describe('Detailed description of the issue'),
+    priority: z.enum(['low', 'medium', 'high', 'urgent']).optional().default('medium').describe('Ticket priority level'),
+    category: z.enum(['billing', 'technical', 'booking', 'general', 'complaint']).optional().default('general').describe('Ticket category'),
+    assignTo: z.string().uuid().optional().describe('Optional staff user ID to assign ticket to')
   });
 
-  requiresPermission = "tickets:create";
+  requiresPermission = 'tickets:create';
 
-  async execute(
-    params: any,
-    context: ToolExecutionContext,
-  ): Promise<ToolExecutionResult> {
+  async execute(params: any, context: ToolExecutionContext): Promise<ToolExecutionResult> {
     const startTime = Date.now();
     const validated = this.parametersSchema.parse(params);
 
@@ -233,7 +186,7 @@ export class CreateSupportTicketTool extends BaseTool {
       const supabase = createAdminClient();
 
       const { data: ticket, error } = await supabase
-        .from("support_tickets")
+        .from('support_tickets')
         .insert({
           organization_id: context.organizationId,
           client_id: validated.clientId,
@@ -242,12 +195,12 @@ export class CreateSupportTicketTool extends BaseTool {
           priority: validated.priority,
           category: validated.category,
           assigned_to: validated.assignTo,
-          status: "open",
+          status: 'open',
           created_by_agent: context.agentId,
           metadata: {
             conversation_id: context.conversationId,
-            task_id: context.taskId,
-          },
+            task_id: context.taskId
+          }
         })
         .select()
         .single();
@@ -259,16 +212,16 @@ export class CreateSupportTicketTool extends BaseTool {
         data: ticket,
         metadata: {
           recordsAffected: 1,
-          executionTimeMs: Date.now() - startTime,
-        },
+          executionTimeMs: Date.now() - startTime
+        }
       };
     } catch (error: any) {
       return {
         success: false,
         error: error.message,
         metadata: {
-          executionTimeMs: Date.now() - startTime,
-        },
+          executionTimeMs: Date.now() - startTime
+        }
       };
     }
   }
@@ -278,36 +231,22 @@ export class CreateSupportTicketTool extends BaseTool {
  * Send notification to staff
  */
 export class NotifyStaffTool extends BaseTool {
-  id = "notify_staff";
-  name = "Notify Staff";
-  description =
-    "Send in-app notification to staff members. Use for urgent matters requiring immediate attention.";
-  category = "messaging" as const;
+  id = 'notify_staff';
+  name = 'Notify Staff';
+  description = 'Send in-app notification to staff members. Use for urgent matters requiring immediate attention.';
+  category = 'messaging' as const;
 
   parametersSchema = z.object({
-    userIds: z
-      .array(z.string().uuid())
-      .optional()
-      .describe("Specific user IDs to notify (omit to notify all staff)"),
-    title: z.string().describe("Notification title"),
-    message: z.string().describe("Notification message"),
-    priority: z
-      .enum(["low", "medium", "high"])
-      .optional()
-      .default("medium")
-      .describe("Notification priority"),
-    actionUrl: z
-      .string()
-      .optional()
-      .describe("Optional URL to navigate to when notification is clicked"),
+    userIds: z.array(z.string().uuid()).optional().describe('Specific user IDs to notify (omit to notify all staff)'),
+    title: z.string().describe('Notification title'),
+    message: z.string().describe('Notification message'),
+    priority: z.enum(['low', 'medium', 'high']).optional().default('medium').describe('Notification priority'),
+    actionUrl: z.string().optional().describe('Optional URL to navigate to when notification is clicked')
   });
 
-  requiresPermission = "notifications:send";
+  requiresPermission = 'notifications:send';
 
-  async execute(
-    params: any,
-    context: ToolExecutionContext,
-  ): Promise<ToolExecutionResult> {
+  async execute(params: any, context: ToolExecutionContext): Promise<ToolExecutionResult> {
     const startTime = Date.now();
     const validated = this.parametersSchema.parse(params);
 
@@ -318,16 +257,16 @@ export class NotifyStaffTool extends BaseTool {
       let userIds = validated.userIds;
       if (!userIds || userIds.length === 0) {
         const { data: staffUsers } = await supabase
-          .from("user_organizations")
-          .select("user_id")
-          .eq("organization_id", context.organizationId)
-          .eq("role", "staff");
+          .from('user_organizations')
+          .select('user_id')
+          .eq('organization_id', context.organizationId)
+          .eq('role', 'staff');
 
-        userIds = staffUsers?.map((u) => u.user_id) || [];
+        userIds = staffUsers?.map(u => u.user_id) || [];
       }
 
       // Create notifications
-      const notifications = userIds.map((userId) => ({
+      const notifications = userIds.map(userId => ({
         user_id: userId,
         organization_id: context.organizationId,
         title: validated.title,
@@ -338,12 +277,12 @@ export class NotifyStaffTool extends BaseTool {
         metadata: {
           sent_by_agent: context.agentId,
           conversation_id: context.conversationId,
-          task_id: context.taskId,
-        },
+          task_id: context.taskId
+        }
       }));
 
       const { data, error } = await supabase
-        .from("notifications")
+        .from('notifications')
         .insert(notifications)
         .select();
 
@@ -352,21 +291,21 @@ export class NotifyStaffTool extends BaseTool {
       return {
         success: true,
         data: {
-          notificationIds: data?.map((n) => n.id) || [],
-          recipientCount: userIds.length,
+          notificationIds: data?.map(n => n.id) || [],
+          recipientCount: userIds.length
         },
         metadata: {
           recordsAffected: data?.length || 0,
-          executionTimeMs: Date.now() - startTime,
-        },
+          executionTimeMs: Date.now() - startTime
+        }
       };
     } catch (error: any) {
       return {
         success: false,
         error: error.message,
         metadata: {
-          executionTimeMs: Date.now() - startTime,
-        },
+          executionTimeMs: Date.now() - startTime
+        }
       };
     }
   }
@@ -376,34 +315,22 @@ export class NotifyStaffTool extends BaseTool {
  * Send message to a specific client
  */
 export class SendMessageToClientTool extends BaseTool {
-  id = "send_message_to_client";
-  name = "Send Message to Client";
-  description =
-    "Send a personalized message (SMS, email, or WhatsApp) to a specific client via their preferred channel";
-  category = "messaging" as const;
+  id = 'send_message_to_client';
+  name = 'Send Message to Client';
+  description = 'Send a personalized message (SMS, email, or WhatsApp) to a specific client via their preferred channel';
+  category = 'messaging' as const;
 
   parametersSchema = z.object({
-    clientId: z.string().uuid().describe("Client ID to send message to"),
-    channel: z
-      .enum(["sms", "email", "whatsapp"])
-      .describe("Communication channel"),
-    message: z.string().min(1).describe("Message content"),
-    subject: z
-      .string()
-      .optional()
-      .describe("Email subject (required for email)"),
-    variables: z
-      .record(z.any())
-      .optional()
-      .describe("Template variables for personalization"),
+    clientId: z.string().uuid().describe('Client ID to send message to'),
+    channel: z.enum(['sms', 'email', 'whatsapp', 'in_app']).describe('Communication channel'),
+    message: z.string().min(1).describe('Message content'),
+    subject: z.string().optional().describe('Email subject (required for email)'),
+    variables: z.record(z.any()).optional().describe('Template variables for personalization'),
   });
 
-  requiresPermission = "messages:send";
+  requiresPermission = 'messages:send';
 
-  async execute(
-    params: any,
-    context: ToolExecutionContext,
-  ): Promise<ToolExecutionResult> {
+  async execute(params: any, context: ToolExecutionContext): Promise<ToolExecutionResult> {
     const startTime = Date.now();
     const validated = this.parametersSchema.parse(params);
 
@@ -411,57 +338,58 @@ export class SendMessageToClientTool extends BaseTool {
       const supabase = createAdminClient();
 
       // Fetch client details
+      // Check both org_id and organization_id (schema has both columns)
       const { data: client, error: clientError } = await supabase
-        .from("clients")
-        .select("id, name, email, phone")
-        .eq("id", validated.clientId)
-        .eq("organization_id", context.organizationId)
+        .from('clients')
+        .select('id, name, first_name, last_name, email, phone, org_id, organization_id')
+        .eq('id', validated.clientId)
+        .or(`org_id.eq.${context.organizationId},organization_id.eq.${context.organizationId}`)
         .single();
 
       if (clientError || !client) {
-        return { success: false, error: "Client not found" };
+        return { success: false, error: 'Client not found' };
       }
+
+      // Use name field if populated, otherwise concatenate first_name + last_name
+      const clientName = client.name || `${client.first_name || ''} ${client.last_name || ''}`.trim() || 'Client';
 
       // Validate contact info
-      if (validated.channel === "email" && !client.email) {
-        return { success: false, error: "Client has no email address" };
+      if (validated.channel === 'email' && !client.email) {
+        return { success: false, error: 'Client has no email address' };
       }
-      if (
-        (validated.channel === "sms" || validated.channel === "whatsapp") &&
-        !client.phone
-      ) {
-        return { success: false, error: "Client has no phone number" };
+      if ((validated.channel === 'sms' || validated.channel === 'whatsapp') && !client.phone) {
+        return { success: false, error: 'Client has no phone number' };
       }
-      if (validated.channel === "email" && !validated.subject) {
-        return { success: false, error: "Email subject is required" };
+      if (validated.channel === 'email' && !validated.subject) {
+        return { success: false, error: 'Email subject is required' };
       }
+      // in_app messages don't require additional validation
 
       // Replace {clientName} with actual name
-      const personalizedMessage = validated.message.replace(
-        /{clientName}/g,
-        client.name,
-      );
+      const personalizedMessage = validated.message.replace(/{clientName}/g, clientName);
 
       // Log message to database
+      const messageData: any = {
+        organization_id: context.organizationId,
+        client_id: client.id,
+        type: validated.channel,
+        channel: validated.channel,
+        direction: 'outbound',
+        status: 'pending',
+        body: personalizedMessage,
+        content: personalizedMessage,
+        sender_type: 'coach', // Database only accepts 'coach' or 'client'
+        sender_name: `AI Agent (${context.agentId})`,
+        metadata: {
+          conversationId: context.conversationId,
+          taskId: context.taskId,
+          ...(validated.subject && { subject: validated.subject }), // Store subject in metadata for emails
+        },
+      };
+
       const { data: loggedMessage, error: logError } = await supabase
-        .from("messages")
-        .insert({
-          organization_id: context.organizationId,
-          client_id: client.id,
-          type: validated.channel,
-          channel: validated.channel,
-          direction: "outbound",
-          status: "pending",
-          subject: validated.subject,
-          body: personalizedMessage,
-          content: personalizedMessage,
-          sender_type: "ai",
-          sender_name: `AI Agent (${context.agentId})`,
-          metadata: {
-            conversationId: context.conversationId,
-            taskId: context.taskId,
-          },
-        })
+        .from('messages')
+        .insert(messageData)
         .select()
         .single();
 
@@ -470,43 +398,37 @@ export class SendMessageToClientTool extends BaseTool {
       // Send via appropriate channel
       let sendResult: any = null;
 
-      if (validated.channel === "email" && process.env.RESEND_API_KEY) {
+      if (validated.channel === 'in_app') {
+        // In-app messages are already logged to database and marked as sent
+        // No additional action needed - message is already visible in database
+        sendResult = { success: true };
+      } else if (validated.channel === 'email' && process.env.RESEND_API_KEY) {
         const resend = new Resend(process.env.RESEND_API_KEY);
         sendResult = await resend.emails.send({
-          from:
-            process.env.RESEND_FROM_EMAIL ||
-            "Atlas Fitness <noreply@atlas-fitness.com>",
+          from: process.env.RESEND_FROM_EMAIL || 'Atlas Fitness <noreply@atlas-fitness.com>',
           to: client.email!,
           subject: validated.subject!,
-          html: `<div style="font-family: Arial, sans-serif;">${personalizedMessage.replace(/\n/g, "<br>")}</div>`,
+          html: `<div style="font-family: Arial, sans-serif;">${personalizedMessage.replace(/\n/g, '<br>')}</div>`,
         });
 
         if (sendResult.data?.id) {
           await supabase
-            .from("messages")
-            .update({ status: "sent", sent_at: new Date().toISOString() })
-            .eq("id", loggedMessage.id);
+            .from('messages')
+            .update({ status: 'sent', sent_at: new Date().toISOString() })
+            .eq('id', loggedMessage.id);
         }
-      } else if (
-        (validated.channel === "sms" || validated.channel === "whatsapp") &&
-        process.env.TWILIO_ACCOUNT_SID &&
-        process.env.TWILIO_AUTH_TOKEN
-      ) {
-        const twilio = (await import("twilio")).default;
-        const twilioClient = twilio(
-          process.env.TWILIO_ACCOUNT_SID,
-          process.env.TWILIO_AUTH_TOKEN,
-        );
+      } else if ((validated.channel === 'sms' || validated.channel === 'whatsapp') &&
+                 process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+        const twilio = (await import('twilio')).default;
+        const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
-        const fromNumber =
-          validated.channel === "whatsapp"
-            ? `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER}`
-            : process.env.TWILIO_PHONE_NUMBER;
+        const fromNumber = validated.channel === 'whatsapp'
+          ? `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER}`
+          : process.env.TWILIO_PHONE_NUMBER;
 
-        const toNumber =
-          validated.channel === "whatsapp"
-            ? `whatsapp:${client.phone}`
-            : client.phone;
+        const toNumber = validated.channel === 'whatsapp'
+          ? `whatsapp:${client.phone}`
+          : client.phone;
 
         sendResult = await twilioClient.messages.create({
           body: personalizedMessage,
@@ -516,9 +438,9 @@ export class SendMessageToClientTool extends BaseTool {
 
         if (sendResult.sid) {
           await supabase
-            .from("messages")
-            .update({ status: "sent", sent_at: new Date().toISOString() })
-            .eq("id", loggedMessage.id);
+            .from('messages')
+            .update({ status: 'sent', sent_at: new Date().toISOString() })
+            .eq('id', loggedMessage.id);
         }
       }
 
@@ -529,12 +451,13 @@ export class SendMessageToClientTool extends BaseTool {
           clientId: client.id,
           clientName: client.name,
           channel: validated.channel,
-          status: "sent",
+          status: 'sent',
         },
         metadata: {
           executionTimeMs: Date.now() - startTime,
         },
       };
+
     } catch (error: any) {
       return {
         success: false,
@@ -551,30 +474,21 @@ export class SendMessageToClientTool extends BaseTool {
  * Send message to a lead/prospect
  */
 export class SendMessageToLeadTool extends BaseTool {
-  id = "send_message_to_lead";
-  name = "Send Message to Lead";
-  description =
-    "Send a personalized message to a lead/prospect to nurture them through the sales funnel";
-  category = "messaging" as const;
+  id = 'send_message_to_lead';
+  name = 'Send Message to Lead';
+  description = 'Send a personalized message to a lead/prospect to nurture them through the sales funnel';
+  category = 'messaging' as const;
 
   parametersSchema = z.object({
-    leadId: z.string().uuid().describe("Lead ID to send message to"),
-    channel: z
-      .enum(["sms", "email", "whatsapp"])
-      .describe("Communication channel"),
-    message: z.string().min(1).describe("Message content"),
-    subject: z
-      .string()
-      .optional()
-      .describe("Email subject (required for email)"),
+    leadId: z.string().uuid().describe('Lead ID to send message to'),
+    channel: z.enum(['sms', 'email', 'whatsapp']).describe('Communication channel'),
+    message: z.string().min(1).describe('Message content'),
+    subject: z.string().optional().describe('Email subject (required for email)'),
   });
 
-  requiresPermission = "messages:send";
+  requiresPermission = 'messages:send';
 
-  async execute(
-    params: any,
-    context: ToolExecutionContext,
-  ): Promise<ToolExecutionResult> {
+  async execute(params: any, context: ToolExecutionContext): Promise<ToolExecutionResult> {
     const startTime = Date.now();
     const validated = this.parametersSchema.parse(params);
 
@@ -583,49 +497,47 @@ export class SendMessageToLeadTool extends BaseTool {
 
       // Fetch lead details
       const { data: lead, error: leadError } = await supabase
-        .from("leads")
-        .select("id, name, email, phone")
-        .eq("id", validated.leadId)
-        .eq("organization_id", context.organizationId)
+        .from('leads')
+        .select('id, name, email, phone')
+        .eq('id', validated.leadId)
+        .eq('organization_id', context.organizationId)
         .single();
 
       if (leadError || !lead) {
-        return { success: false, error: "Lead not found" };
+        return { success: false, error: 'Lead not found' };
       }
 
       // Validate contact info
-      if (validated.channel === "email" && !lead.email) {
-        return { success: false, error: "Lead has no email address" };
+      if (validated.channel === 'email' && !lead.email) {
+        return { success: false, error: 'Lead has no email address' };
       }
-      if (
-        (validated.channel === "sms" || validated.channel === "whatsapp") &&
-        !lead.phone
-      ) {
-        return { success: false, error: "Lead has no phone number" };
+      if ((validated.channel === 'sms' || validated.channel === 'whatsapp') && !lead.phone) {
+        return { success: false, error: 'Lead has no phone number' };
       }
 
       // Personalize message
-      const personalizedMessage = validated.message.replace(
-        /{leadName}/g,
-        lead.name,
-      );
+      const personalizedMessage = validated.message.replace(/{leadName}/g, lead.name);
 
       // Log message
+      const leadMessageData: any = {
+        organization_id: context.organizationId,
+        lead_id: lead.id,
+        type: validated.channel,
+        channel: validated.channel,
+        direction: 'outbound',
+        status: 'sent',
+        body: personalizedMessage,
+        content: personalizedMessage,
+        sender_type: 'coach', // Database only accepts 'coach' or 'client'
+        sender_name: `AI Agent (${context.agentId})`,
+        metadata: {
+          ...(validated.subject && { subject: validated.subject }), // Store subject in metadata for emails
+        },
+      };
+
       const { data: loggedMessage } = await supabase
-        .from("messages")
-        .insert({
-          organization_id: context.organizationId,
-          lead_id: lead.id,
-          type: validated.channel,
-          channel: validated.channel,
-          direction: "outbound",
-          status: "sent",
-          subject: validated.subject,
-          body: personalizedMessage,
-          content: personalizedMessage,
-          sender_type: "ai",
-          sender_name: `AI Agent (${context.agentId})`,
-        })
+        .from('messages')
+        .insert(leadMessageData)
         .select()
         .single();
 
@@ -641,6 +553,7 @@ export class SendMessageToLeadTool extends BaseTool {
           executionTimeMs: Date.now() - startTime,
         },
       };
+
     } catch (error: any) {
       return {
         success: false,
@@ -657,35 +570,21 @@ export class SendMessageToLeadTool extends BaseTool {
  * Send retention campaign message
  */
 export class SendRetentionMessageTool extends BaseTool {
-  id = "send_retention_message";
-  name = "Send Retention Message";
-  description =
-    "Send targeted retention messages to prevent churn (win-back campaigns, renewal reminders, milestone celebrations)";
-  category = "messaging" as const;
+  id = 'send_retention_message';
+  name = 'Send Retention Message';
+  description = 'Send targeted retention messages to prevent churn (win-back campaigns, renewal reminders, milestone celebrations)';
+  category = 'messaging' as const;
 
   parametersSchema = z.object({
-    clientId: z
-      .string()
-      .uuid()
-      .describe("Client ID to send retention message to"),
-    campaignType: z
-      .enum(["winback", "renewal_reminder", "milestone", "engagement"])
-      .describe("Type of retention campaign"),
-    channel: z
-      .enum(["sms", "email", "whatsapp"])
-      .describe("Communication channel"),
-    customMessage: z
-      .string()
-      .optional()
-      .describe("Custom message override (uses template if not provided)"),
+    clientId: z.string().uuid().describe('Client ID to send retention message to'),
+    campaignType: z.enum(['winback', 'renewal_reminder', 'milestone', 'engagement']).describe('Type of retention campaign'),
+    channel: z.enum(['sms', 'email', 'whatsapp']).describe('Communication channel'),
+    customMessage: z.string().optional().describe('Custom message override (uses template if not provided)'),
   });
 
-  requiresPermission = "campaigns:send";
+  requiresPermission = 'campaigns:send';
 
-  async execute(
-    params: any,
-    context: ToolExecutionContext,
-  ): Promise<ToolExecutionResult> {
+  async execute(params: any, context: ToolExecutionContext): Promise<ToolExecutionResult> {
     const startTime = Date.now();
     const validated = this.parametersSchema.parse(params);
 
@@ -694,14 +593,14 @@ export class SendRetentionMessageTool extends BaseTool {
 
       // Fetch client
       const { data: client } = await supabase
-        .from("clients")
-        .select("id, name, email, phone")
-        .eq("id", validated.clientId)
-        .eq("organization_id", context.organizationId)
+        .from('clients')
+        .select('id, name, email, phone')
+        .eq('id', validated.clientId)
+        .eq('organization_id', context.organizationId)
         .single();
 
       if (!client) {
-        return { success: false, error: "Client not found" };
+        return { success: false, error: 'Client not found' };
       }
 
       // Get retention message template
@@ -712,21 +611,19 @@ export class SendRetentionMessageTool extends BaseTool {
         engagement: `Hey {clientName}! Haven't seen you in a while. Need help getting back on track?`,
       };
 
-      const message =
-        validated.customMessage ||
-        templates[validated.campaignType].replace(/{clientName}/g, client.name);
+      const message = validated.customMessage || templates[validated.campaignType].replace(/{clientName}/g, client.name);
 
       // Log campaign message
-      await supabase.from("messages").insert({
+      await supabase.from('messages').insert({
         organization_id: context.organizationId,
         client_id: client.id,
         type: validated.channel,
         channel: validated.channel,
-        direction: "outbound",
-        status: "sent",
+        direction: 'outbound',
+        status: 'sent',
         body: message,
         content: message,
-        sender_type: "ai",
+        sender_type: 'ai',
         sender_name: `Retention Campaign`,
         metadata: {
           campaignType: validated.campaignType,
@@ -744,6 +641,7 @@ export class SendRetentionMessageTool extends BaseTool {
           executionTimeMs: Date.now() - startTime,
         },
       };
+
     } catch (error: any) {
       return {
         success: false,
@@ -760,51 +658,39 @@ export class SendRetentionMessageTool extends BaseTool {
  * Send report via email
  */
 export class SendReportEmailTool extends BaseTool {
-  id = "send_report_email";
-  name = "Send Report Email";
-  description =
-    "Send formatted reports via email (monthly stats, analytics, custom reports)";
-  category = "messaging" as const;
+  id = 'send_report_email';
+  name = 'Send Report Email';
+  description = 'Send formatted reports via email (monthly stats, analytics, custom reports)';
+  category = 'messaging' as const;
 
   parametersSchema = z.object({
-    to: z.array(z.string().email()).describe("Recipient email addresses"),
-    reportType: z
-      .enum(["monthly_stats", "weekly_summary", "custom"])
-      .describe("Type of report"),
-    reportData: z.record(z.any()).describe("Report data to include"),
-    subject: z
-      .string()
-      .optional()
-      .describe("Custom subject (auto-generated if not provided)"),
+    to: z.array(z.string().email()).describe('Recipient email addresses'),
+    reportType: z.enum(['monthly_stats', 'weekly_summary', 'custom']).describe('Type of report'),
+    reportData: z.record(z.any()).describe('Report data to include'),
+    subject: z.string().optional().describe('Custom subject (auto-generated if not provided)'),
   });
 
-  requiresPermission = "reports:send";
+  requiresPermission = 'reports:send';
 
-  async execute(
-    params: any,
-    context: ToolExecutionContext,
-  ): Promise<ToolExecutionResult> {
+  async execute(params: any, context: ToolExecutionContext): Promise<ToolExecutionResult> {
     const startTime = Date.now();
     const validated = this.parametersSchema.parse(params);
 
     try {
       if (!process.env.RESEND_API_KEY) {
-        return { success: false, error: "Email service not configured" };
+        return { success: false, error: 'Email service not configured' };
       }
 
       const resend = new Resend(process.env.RESEND_API_KEY);
 
-      const subject =
-        validated.subject || `Fitness Report - ${validated.reportType}`;
+      const subject = validated.subject || `Fitness Report - ${validated.reportType}`;
       const htmlContent = `
-        <h1>Your ${validated.reportType.replace("_", " ")} Report</h1>
+        <h1>Your ${validated.reportType.replace('_', ' ')} Report</h1>
         <pre>${JSON.stringify(validated.reportData, null, 2)}</pre>
       `;
 
       const result = await resend.emails.send({
-        from:
-          process.env.RESEND_FROM_EMAIL ||
-          "Atlas Fitness <noreply@atlas-fitness.com>",
+        from: process.env.RESEND_FROM_EMAIL || 'Atlas Fitness <noreply@atlas-fitness.com>',
         to: validated.to,
         subject,
         html: htmlContent,
@@ -821,6 +707,7 @@ export class SendReportEmailTool extends BaseTool {
           executionTimeMs: Date.now() - startTime,
         },
       };
+
     } catch (error: any) {
       return {
         success: false,
@@ -837,64 +724,45 @@ export class SendReportEmailTool extends BaseTool {
  * Schedule follow-up message
  */
 export class ScheduleFollowUpTool extends BaseTool {
-  id = "schedule_follow_up";
-  name = "Schedule Follow-up";
-  description =
-    "Schedule a follow-up message to be sent at a specific future time";
-  category = "messaging" as const;
+  id = 'schedule_follow_up';
+  name = 'Schedule Follow-up';
+  description = 'Schedule a follow-up message to be sent at a specific future time';
+  category = 'messaging' as const;
 
   parametersSchema = z.object({
-    clientId: z
-      .string()
-      .uuid()
-      .optional()
-      .describe("Client ID (if following up with client)"),
-    leadId: z
-      .string()
-      .uuid()
-      .optional()
-      .describe("Lead ID (if following up with lead)"),
-    channel: z
-      .enum(["sms", "email", "whatsapp"])
-      .describe("Communication channel"),
-    message: z.string().min(1).describe("Message to send"),
-    scheduledFor: z
-      .string()
-      .describe("ISO timestamp when to send (e.g., 2025-10-15T10:00:00Z)"),
+    clientId: z.string().uuid().optional().describe('Client ID (if following up with client)'),
+    leadId: z.string().uuid().optional().describe('Lead ID (if following up with lead)'),
+    channel: z.enum(['sms', 'email', 'whatsapp']).describe('Communication channel'),
+    message: z.string().min(1).describe('Message to send'),
+    scheduledFor: z.string().describe('ISO timestamp when to send (e.g., 2025-10-15T10:00:00Z)'),
   });
 
-  requiresPermission = "messages:schedule";
+  requiresPermission = 'messages:schedule';
 
-  async execute(
-    params: any,
-    context: ToolExecutionContext,
-  ): Promise<ToolExecutionResult> {
+  async execute(params: any, context: ToolExecutionContext): Promise<ToolExecutionResult> {
     const startTime = Date.now();
     const validated = this.parametersSchema.parse(params);
 
     try {
       if (!validated.clientId && !validated.leadId) {
-        return {
-          success: false,
-          error: "Either clientId or leadId must be provided",
-        };
+        return { success: false, error: 'Either clientId or leadId must be provided' };
       }
 
       const supabase = createAdminClient();
 
       // Create scheduled task
       const { data: task, error } = await supabase
-        .from("ai_agent_tasks")
+        .from('ai_agent_tasks')
         .insert({
           agent_id: context.agentId,
           organization_id: context.organizationId,
           title: `Follow-up: ${validated.message.substring(0, 50)}...`,
           description: validated.message,
-          task_type: "scheduled",
-          status: "pending",
+          task_type: 'scheduled',
+          status: 'pending',
           next_run_at: validated.scheduledFor,
           context: {
-            type: "follow_up",
+            type: 'follow_up',
             clientId: validated.clientId,
             leadId: validated.leadId,
             channel: validated.channel,
@@ -917,6 +785,7 @@ export class ScheduleFollowUpTool extends BaseTool {
           executionTimeMs: Date.now() - startTime,
         },
       };
+
     } catch (error: any) {
       return {
         success: false,
@@ -933,42 +802,25 @@ export class ScheduleFollowUpTool extends BaseTool {
  * Send bulk messages
  */
 export class SendBulkMessageTool extends BaseTool {
-  id = "send_bulk_message";
-  name = "Send Bulk Message";
-  description =
-    "Send the same message to multiple clients or leads (max 100 recipients per request)";
-  category = "messaging" as const;
+  id = 'send_bulk_message';
+  name = 'Send Bulk Message';
+  description = 'Send the same message to multiple clients or leads (max 100 recipients per request)';
+  category = 'messaging' as const;
 
   parametersSchema = z.object({
-    recipients: z
-      .array(
-        z.object({
-          id: z.string().uuid(),
-          type: z.enum(["client", "lead"]),
-        }),
-      )
-      .max(100)
-      .describe("List of recipients (max 100)"),
-    channel: z
-      .enum(["sms", "email", "whatsapp"])
-      .describe("Communication channel"),
-    message: z.string().min(1).describe("Message to send"),
-    subject: z
-      .string()
-      .optional()
-      .describe("Email subject (required for email)"),
-    personalizeWithName: z
-      .boolean()
-      .default(true)
-      .describe("Replace {name} with recipient name"),
+    recipients: z.array(z.object({
+      id: z.string().uuid(),
+      type: z.enum(['client', 'lead']),
+    })).max(100).describe('List of recipients (max 100)'),
+    channel: z.enum(['sms', 'email', 'whatsapp']).describe('Communication channel'),
+    message: z.string().min(1).describe('Message to send'),
+    subject: z.string().optional().describe('Email subject (required for email)'),
+    personalizeWithName: z.boolean().default(true).describe('Replace {name} with recipient name'),
   });
 
-  requiresPermission = "messages:bulk_send";
+  requiresPermission = 'messages:bulk_send';
 
-  async execute(
-    params: any,
-    context: ToolExecutionContext,
-  ): Promise<ToolExecutionResult> {
+  async execute(params: any, context: ToolExecutionContext): Promise<ToolExecutionResult> {
     const startTime = Date.now();
     const validated = this.parametersSchema.parse(params);
 
@@ -981,12 +833,12 @@ export class SendBulkMessageTool extends BaseTool {
       // Process recipients
       for (const recipient of validated.recipients) {
         try {
-          const table = recipient.type === "client" ? "clients" : "leads";
+          const table = recipient.type === 'client' ? 'clients' : 'leads';
           const { data: entity } = await supabase
             .from(table)
-            .select("id, name, email, phone")
-            .eq("id", recipient.id)
-            .eq("organization_id", context.organizationId)
+            .select('id, name, email, phone')
+            .eq('id', recipient.id)
+            .eq('organization_id', context.organizationId)
             .single();
 
           if (!entity) {
@@ -999,22 +851,27 @@ export class SendBulkMessageTool extends BaseTool {
             : validated.message;
 
           // Log message
-          await supabase.from("messages").insert({
+          const bulkMessageData: any = {
             organization_id: context.organizationId,
-            client_id: recipient.type === "client" ? entity.id : null,
-            lead_id: recipient.type === "lead" ? entity.id : null,
+            client_id: recipient.type === 'client' ? entity.id : null,
+            lead_id: recipient.type === 'lead' ? entity.id : null,
             type: validated.channel,
             channel: validated.channel,
-            direction: "outbound",
-            status: "sent",
-            subject: validated.subject,
+            direction: 'outbound',
+            status: 'sent',
             body: personalizedMessage,
             content: personalizedMessage,
-            sender_type: "ai",
-            sender_name: "Bulk Campaign",
-          });
+            sender_type: 'ai',
+            sender_name: 'Bulk Campaign',
+            metadata: {
+              ...(validated.subject && { subject: validated.subject }), // Store subject in metadata for emails
+            },
+          };
+
+          await supabase.from('messages').insert(bulkMessageData);
 
           sent++;
+
         } catch (err) {
           failed++;
         }
@@ -1032,6 +889,7 @@ export class SendBulkMessageTool extends BaseTool {
           executionTimeMs: Date.now() - startTime,
         },
       };
+
     } catch (error: any) {
       return {
         success: false,
