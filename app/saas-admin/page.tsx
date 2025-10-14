@@ -92,9 +92,12 @@ export default function SaasAdminDashboard() {
       console.log('[SaaS Admin] User found:', { userId: user.id, email: user.email })
       setUser(user)
 
-      // Check authorization by email ONLY
-      const authorizedEmails = ['sam@atlas-gyms.co.uk', 'sam@gymleadhub.co.uk']
-      const isAuthorizedByEmail = authorizedEmails.includes(user.email?.toLowerCase() || '')
+      // Check authorization by email ONLY - allow @gymleadhub.co.uk or @atlas-gyms.co.uk
+      const userEmail = user.email?.toLowerCase() || ''
+      const isAuthorizedByEmail =
+        userEmail === 'sam@gymleadhub.co.uk' ||
+        userEmail.endsWith('@gymleadhub.co.uk') ||
+        userEmail.endsWith('@atlas-gyms.co.uk')
       console.log('[SaaS Admin] Authorization check:', { email: user.email, isAuthorized: isAuthorizedByEmail })
 
       if (!isAuthorizedByEmail) {
