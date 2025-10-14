@@ -47,6 +47,12 @@ export default function CreateAgentPage() {
             if (orgsResponse.ok) {
               const { organizations } = await orgsResponse.json();
               setOrganizations(organizations || []);
+
+              // Default to GymLeadHub organization for baseline agents
+              const gymleadhubOrg = organizations.find((org: Organization) => org.id === '0ef8a082-4458-400a-8c50-75b47e461f91');
+              if (gymleadhubOrg) {
+                setFormData(prev => ({ ...prev, organization_id: gymleadhubOrg.id }));
+              }
             }
           }
         }
@@ -187,9 +193,9 @@ export default function CreateAgentPage() {
             {isSuperAdmin && (
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Organization (Optional)
+                  Organization
                   <span className="ml-2 text-xs text-purple-400">
-                    Leave empty for baseline/template agents
+                    Defaults to GymLeadHub for baseline agents
                   </span>
                 </label>
                 <select
@@ -199,15 +205,14 @@ export default function CreateAgentPage() {
                   }
                   className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
-                  <option value="">None (Baseline/Template Agent)</option>
                   {organizations.map((org) => (
                     <option key={org.id} value={org.id}>
-                      {org.name}
+                      {org.name} {org.id === '0ef8a082-4458-400a-8c50-75b47e461f91' ? '(Default - Internal)' : ''}
                     </option>
                   ))}
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
-                  Select which gym this agent belongs to
+                  GymLeadHub org is used for baseline/template agents. Change to assign to a specific gym.
                 </p>
               </div>
             )}
