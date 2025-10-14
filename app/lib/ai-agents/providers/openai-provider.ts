@@ -84,11 +84,19 @@ export class OpenAIProvider {
       );
 
       // Call OpenAI API
+      // Note: GPT-4o and newer models use max_completion_tokens instead of max_tokens
+      const isNewerModel =
+        options.model.startsWith("gpt-4o") ||
+        options.model.startsWith("gpt-5") ||
+        options.model.startsWith("o1");
+
       const completion = await this.client.chat.completions.create({
         model: options.model,
         messages: openaiMessages,
         temperature: options.temperature ?? 0.7,
-        max_tokens: options.max_tokens ?? 4096,
+        ...(isNewerModel
+          ? { max_completion_tokens: options.max_tokens ?? 4096 }
+          : { max_tokens: options.max_tokens ?? 4096 }),
         tools: options.tools,
         tool_choice: options.tool_choice,
       });
@@ -154,11 +162,19 @@ export class OpenAIProvider {
       }),
     ) as ChatCompletionMessageParam[];
 
+    // Note: GPT-4o and newer models use max_completion_tokens instead of max_tokens
+    const isNewerModel =
+      options.model.startsWith("gpt-4o") ||
+      options.model.startsWith("gpt-5") ||
+      options.model.startsWith("o1");
+
     const stream = await this.client.chat.completions.create({
       model: options.model,
       messages: openaiMessages,
       temperature: options.temperature ?? 0.7,
-      max_tokens: options.max_tokens ?? 4096,
+      ...(isNewerModel
+        ? { max_completion_tokens: options.max_tokens ?? 4096 }
+        : { max_tokens: options.max_tokens ?? 4096 }),
       tools: options.tools,
       tool_choice: options.tool_choice,
       stream: true,
