@@ -116,7 +116,7 @@ export default function AIChatAgentsPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          status: agent.status === "active" ? "inactive" : "active",
+          enabled: agent.status === "inactive",
         }),
       });
 
@@ -126,6 +126,16 @@ export default function AIChatAgentsPage() {
     } catch (error) {
       console.error("Error toggling agent status:", error);
     }
+  };
+
+  const handleConfigureWebhooks = () => {
+    // Open documentation with webhook setup instructions
+    window.open("/docs/ai-chat-agents#gohighlevel-webhook-setup", "_blank");
+  };
+
+  const handleViewDocumentation = () => {
+    // Open AI chat agents documentation
+    window.open("/docs/ai-chat-agents", "_blank");
   };
 
   if (loading) {
@@ -229,10 +239,16 @@ export default function AIChatAgentsPage() {
                 real-time.
               </p>
               <div className="flex gap-4">
-                <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+                <button
+                  onClick={handleConfigureWebhooks}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                >
                   Configure Webhooks
                 </button>
-                <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors">
+                <button
+                  onClick={handleViewDocumentation}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                >
                   View Documentation
                 </button>
               </div>
@@ -384,8 +400,424 @@ export default function AIChatAgentsPage() {
         )}
       </div>
 
-      {/* Create/Configure Modals would go here */}
-      {/* TODO: Implement AgentConfigModal component */}
+      {/* Create Agent Modal */}
+      {showCreateModal && (
+        <CreateAgentModal
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={() => {
+            setShowCreateModal(false);
+            loadChatAgents();
+          }}
+        />
+      )}
+
+      {/* Configure Agent Modal */}
+      {showConfigModal && selectedAgent && (
+        <ConfigureAgentModal
+          agent={selectedAgent}
+          onClose={() => {
+            setShowConfigModal(false);
+            setSelectedAgent(null);
+          }}
+          onSuccess={() => {
+            setShowConfigModal(false);
+            setSelectedAgent(null);
+            loadChatAgents();
+          }}
+        />
+      )}
     </DashboardLayout>
+  );
+}
+
+// Create Agent Modal Component
+function CreateAgentModal({
+  onClose,
+  onSuccess,
+}: {
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [ghlApiKey, setGhlApiKey] = useState("");
+  const [ghlCalendarId, setGhlCalendarId] = useState("");
+  const [ghlWebhookSecret, setGhlWebhookSecret] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/crm/chat-agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          description,
+          ghl_api_key: ghlApiKey || null,
+          ghl_calendar_id: ghlCalendarId || null,
+          ghl_webhook_secret: ghlWebhookSecret || null,
+          follow_up_config: {
+            enabled: true,
+            delay_hours: 24,
+            max_follow_ups: 3,
+            channels: ["email", "sms"],
+          },
+          booking_config: {
+            enabled: true,
+            auto_book: false,
+            confirmation_required: true,
+          },
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to create agent");
+      }
+
+      onSuccess();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-800 border border-gray-700 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-700">
+          <h2 className="text-2xl font-bold">Create AI Chat Agent</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {error && (
+            <div className="bg-red-900/30 border border-red-700 text-red-400 rounded-lg p-4">
+              {error}
+            </div>
+          )}
+
+          {/* Basic Info */}
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Agent Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              placeholder="e.g., Lead Follow-Up Agent"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Description <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              rows={3}
+              placeholder="Describe what this agent does..."
+              required
+            />
+          </div>
+
+          {/* GoHighLevel Integration */}
+          <div className="border-t border-gray-700 pt-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Webhook className="h-5 w-5 text-blue-500" />
+              GoHighLevel Integration (Optional)
+            </h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  GHL API Key
+                </label>
+                <input
+                  type="password"
+                  value={ghlApiKey}
+                  onChange={(e) => setGhlApiKey(e.target.value)}
+                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="Your GoHighLevel API key"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  GHL Calendar ID
+                </label>
+                <input
+                  type="text"
+                  value={ghlCalendarId}
+                  onChange={(e) => setGhlCalendarId(e.target.value)}
+                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="Calendar ID for booking appointments"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Webhook Secret
+                </label>
+                <input
+                  type="password"
+                  value={ghlWebhookSecret}
+                  onChange={(e) => setGhlWebhookSecret(e.target.value)}
+                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="Secret for webhook verification"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-4 pt-6 border-t border-gray-700">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
+            >
+              {loading ? "Creating..." : "Create Agent"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Configure Agent Modal Component
+function ConfigureAgentModal({
+  agent,
+  onClose,
+  onSuccess,
+}: {
+  agent: ChatAgent;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [name, setName] = useState(agent.name);
+  const [description, setDescription] = useState(agent.description);
+  const [ghlApiKey, setGhlApiKey] = useState(agent.ghl_api_key || "");
+  const [ghlCalendarId, setGhlCalendarId] = useState(
+    agent.ghl_calendar_id || ""
+  );
+  const [ghlWebhookSecret, setGhlWebhookSecret] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [copySuccess, setCopySuccess] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch(`/api/crm/chat-agents/${agent.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          description,
+          ghl_api_key: ghlApiKey || null,
+          ghl_calendar_id: ghlCalendarId || null,
+          ghl_webhook_secret: ghlWebhookSecret || null,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to update agent");
+      }
+
+      onSuccess();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCopyWebhook = () => {
+    if (agent.ghl_webhook_url) {
+      navigator.clipboard.writeText(agent.ghl_webhook_url);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-800 border border-gray-700 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-700">
+          <h2 className="text-2xl font-bold">Configure Agent</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {error && (
+            <div className="bg-red-900/30 border border-red-700 text-red-400 rounded-lg p-4">
+              {error}
+            </div>
+          )}
+
+          {/* Webhook URL */}
+          {agent.ghl_webhook_url && (
+            <div className="bg-blue-900/30 border border-blue-700 rounded-lg p-4">
+              <label className="block text-sm font-medium mb-2">
+                Webhook URL
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={agent.ghl_webhook_url}
+                  readOnly
+                  className="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={handleCopyWebhook}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                >
+                  {copySuccess ? "Copied!" : "Copy"}
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 mt-2">
+                Add this URL to your GoHighLevel workflows to trigger this
+                agent
+              </p>
+            </div>
+          )}
+
+          {/* Basic Info */}
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Agent Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Description <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              rows={3}
+              required
+            />
+          </div>
+
+          {/* GoHighLevel Integration */}
+          <div className="border-t border-gray-700 pt-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Webhook className="h-5 w-5 text-blue-500" />
+              GoHighLevel Integration
+            </h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  GHL API Key
+                </label>
+                <input
+                  type="password"
+                  value={ghlApiKey}
+                  onChange={(e) => setGhlApiKey(e.target.value)}
+                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="Your GoHighLevel API key"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  GHL Calendar ID
+                </label>
+                <input
+                  type="text"
+                  value={ghlCalendarId}
+                  onChange={(e) => setGhlCalendarId(e.target.value)}
+                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="Calendar ID for booking appointments"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Webhook Secret (leave blank to keep existing)
+                </label>
+                <input
+                  type="password"
+                  value={ghlWebhookSecret}
+                  onChange={(e) => setGhlWebhookSecret(e.target.value)}
+                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="Secret for webhook verification"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-4 pt-6 border-t border-gray-700">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
+            >
+              {loading ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
