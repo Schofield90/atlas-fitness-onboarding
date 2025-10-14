@@ -91,20 +91,27 @@ export async function POST(
       console.log("[GHL Webhook] Signature verified ✓");
     }
 
-    // 3. Validate payload
-    if (!payload.contact_id || !payload.message) {
+    // 3. Extract contact and message data from GHL payload
+    const contactId = payload.contact_id;
+    const message = payload.customData?.message || payload.message;
+    const contactName = payload.full_name || payload.contact_name || "Unknown";
+    const contactEmail = payload.email || payload.contact_email;
+    const contactPhone = payload.phone || payload.contact_phone;
+
+    if (!contactId || !message) {
+      console.error("[GHL Webhook] Missing required fields:", { contactId, message });
       return NextResponse.json(
-        { error: "Missing required fields: contact_id, message" },
+        { error: "Missing required fields: contact_id and message" },
         { status: 400 }
       );
     }
 
-    // 2. Find or create the lead in our system
+    // 4. Find or create the lead in our system
     const { data: existingLead } = await supabase
       .from("leads")
       .select("id")
       .eq("organization_id", agent.organization_id)
-      .or(`email.eq.${payload.contact_email},phone.eq.${payload.contact_phone}`)
+      .or(`email.eq.${contactEmail},phone.eq.${contactPhone}`)
       .maybeSingle();
 
     let leadId = existingLead?.id;
@@ -115,15 +122,16 @@ export async function POST(
         .from("leads")
         .insert({
           organization_id: agent.organization_id,
-          name: payload.contact_name || "Unknown",
-          email: payload.contact_email || null,
-          phone: payload.contact_phone || null,
+          name: contactName,
+          email: contactEmail || null,
+          phone: contactPhone || null,
           source: "gohighlevel",
           status: "new",
           metadata: {
-            ghl_contact_id: payload.contact_id,
-            ghl_conversation_id: payload.conversation_id,
-            custom_fields: payload.custom_fields || {},
+            ghl_contact_id: contactId,
+            ghl_location_id: payload.location?.id,
+            ghl_tags: payload.tags,
+            custom_fields: payload.customData || {},
           },
         })
         .select()
@@ -145,9 +153,10 @@ export async function POST(
         .from("leads")
         .update({
           metadata: {
-            ghl_contact_id: payload.contact_id,
-            ghl_conversation_id: payload.conversation_id,
-            custom_fields: payload.custom_fields || {},
+            ghl_contact_id: contactId,
+            ghl_location_id: payload.location?.id,
+            ghl_tags: payload.tags,
+            custom_fields: payload.customData || {},
           },
         })
         .eq("id", leadId);
@@ -155,7 +164,7 @@ export async function POST(
       console.log(`[GHL Webhook] Updated existing lead: ${leadId}`);
     }
 
-    // 3. Find or create conversation for this agent + lead
+    // 5. Find or create conversation for this agent + lead
     const { data: existingConversation } = await supabase
       .from("ai_agent_conversations")
       .select("id")
@@ -176,7 +185,9 @@ export async function POST(
           status: "active",
           channel: "gohighlevel",
           metadata: {
-            ghl_conversation_id: payload.conversation_id,
+            ghl_contact_id: contactId,
+            ghl_location_id: payload.location?.id,
+            ghl_workflow: payload.workflow,
           },
         })
         .select()
@@ -194,16 +205,16 @@ export async function POST(
       console.log(`[GHL Webhook] Created new conversation: ${conversationId}`);
     }
 
-    // 4. Store the incoming message from the lead
+    // 6. Store the incoming message from the lead
     const { error: messageError } = await supabase
       .from("ai_agent_messages")
       .insert({
         conversation_id: conversationId,
         role: "user",
-        content: payload.message,
+        content: message,
         metadata: {
-          ghl_contact_id: payload.contact_id,
-          ghl_conversation_id: payload.conversation_id,
+          ghl_contact_id: contactId,
+          ghl_workflow: payload.workflow,
           webhook_timestamp: new Date().toISOString(),
         },
       });
@@ -216,15 +227,16 @@ export async function POST(
       );
     }
 
-    // 5. Execute the AI agent to generate a response
+    // 7. Execute the AI agent to generate a response
     console.log(`[GHL Webhook] Executing agent ${agentId} for conversation ${conversationId}`);
+    console.log(`[GHL Webhook] User message: "${message}"`);
 
     const orchestrator = getOrchestrator();
     const agentResponse = await orchestrator.executeConversationMessage({
       conversationId,
       organizationId: agent.organization_id,
       userId: agent.created_by,
-      userMessage: payload.message,
+      userMessage: message,
     });
 
     if (!agentResponse.success) {
@@ -235,25 +247,26 @@ export async function POST(
       );
     }
 
-    // 6. Get the AI response message (already stored by orchestrator)
+    // 8. Get the AI response message (already stored by orchestrator)
     const aiMessage = agentResponse.message;
+    console.log(`[GHL Webhook] AI response: "${aiMessage}"`);
 
-    // 7. Send response back to GoHighLevel (if configured)
-    if (agent.ghl_api_key && payload.conversation_id) {
+    // 9. Send response back to GoHighLevel via SMS (if API key configured)
+    if (agent.ghl_api_key && contactPhone) {
       try {
-        await sendMessageToGHL(
+        await sendSMSToGHL(
           agent.ghl_api_key,
-          payload.conversation_id,
+          contactId,
           aiMessage
         );
-        console.log(`[GHL Webhook] Response sent back to GHL conversation ${payload.conversation_id}`);
+        console.log(`[GHL Webhook] SMS sent to ${contactPhone} via GHL`);
       } catch (ghlError) {
-        console.error("[GHL Webhook] Failed to send to GHL:", ghlError);
+        console.error("[GHL Webhook] Failed to send SMS via GHL:", ghlError);
         // Don't fail the webhook if GHL response fails
       }
     }
 
-    // 8. Check if agent should schedule a follow-up
+    // 10. Check if agent should schedule a follow-up
     if (agent.follow_up_config?.enabled) {
       const delayHours = agent.follow_up_config.delay_hours || 24;
       const nextRunAt = new Date(Date.now() + delayHours * 60 * 60 * 1000);
@@ -261,8 +274,8 @@ export async function POST(
       await supabase.from("ai_agent_tasks").insert({
         agent_id: agentId,
         organization_id: agent.organization_id,
-        title: `Follow up with ${payload.contact_name || "lead"}`,
-        description: `Automated follow-up for GHL lead from conversation ${payload.conversation_id}`,
+        title: `Follow up with ${contactName}`,
+        description: `Automated follow-up for GHL lead from workflow: ${payload.workflow?.name}`,
         task_type: "scheduled",
         status: "pending",
         next_run_at: nextRunAt.toISOString(),
@@ -270,8 +283,7 @@ export async function POST(
           type: "ghl_follow_up",
           conversationId,
           leadId,
-          ghl_conversation_id: payload.conversation_id,
-          ghl_contact_id: payload.contact_id,
+          ghl_contact_id: contactId,
           attempt: 1,
         },
       });
@@ -301,23 +313,25 @@ export async function POST(
 }
 
 /**
- * Send a message back to GoHighLevel conversation
+ * Send an SMS to a contact via GoHighLevel
  */
-async function sendMessageToGHL(
+async function sendSMSToGHL(
   apiKey: string,
-  conversationId: string,
+  contactId: string,
   message: string
 ): Promise<void> {
   const response = await fetch(
-    `https://rest.gohighlevel.com/v1/conversations/${conversationId}/messages`,
+    `https://services.leadconnectorhq.com/conversations/messages`,
     {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
+        "Version": "2021-07-28",
       },
       body: JSON.stringify({
-        type: "SMS", // or "Email" depending on channel
+        type: "SMS",
+        contactId,
         message,
       }),
     }
@@ -325,7 +339,7 @@ async function sendMessageToGHL(
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`GHL API error: ${error}`);
+    throw new Error(`GHL SMS API error: ${error}`);
   }
 }
 
