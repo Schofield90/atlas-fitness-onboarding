@@ -22,7 +22,7 @@ function SignInForm() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") || "/admin";
+  const redirect = searchParams.get("redirect") || "/saas-admin";
   const supabase = createClient();
 
   const handleSignIn = async (e: React.FormEvent) => {
