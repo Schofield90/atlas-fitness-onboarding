@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -25,7 +25,7 @@ interface AIAgent {
   allowedTools: string[];
 }
 
-export default function AgentsPage() {
+function AgentsPageContent() {
   const searchParams = useSearchParams();
   const orgFilter = searchParams?.get("org");
 
@@ -368,5 +368,18 @@ export default function AgentsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AgentsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center p-12">
+        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+        <p className="ml-4 text-gray-400">Loading...</p>
+      </div>
+    }>
+      <AgentsPageContent />
+    </Suspense>
   );
 }

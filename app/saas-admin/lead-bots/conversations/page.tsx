@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   ChatBubbleBottomCenterTextIcon,
@@ -32,7 +32,7 @@ interface Conversation {
   aiEnabled: boolean;
 }
 
-export default function ConversationsPage() {
+function ConversationsPageContent() {
   const searchParams = useSearchParams();
   const orgFilter = searchParams?.get("org");
 
@@ -369,5 +369,18 @@ export default function ConversationsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function ConversationsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center p-12">
+        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+        <p className="ml-4 text-gray-400">Loading...</p>
+      </div>
+    }>
+      <ConversationsPageContent />
+    </Suspense>
   );
 }
