@@ -37,6 +37,10 @@
       "maxDuration": 60,
       "memory": 2048
     },
+    "app/api/webhooks/ghl/[agentId]/route.ts": {
+      "maxDuration": 90,
+      "memory": 2048
+    },
     "app/api/cron/**/*.ts": {
       "maxDuration": 300,
       "memory": 2048
