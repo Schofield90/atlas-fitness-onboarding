@@ -20,7 +20,7 @@ export class BookGHLAppointmentTool extends BaseTool {
   id = "book_ghl_appointment";
   name = "Book GoHighLevel Appointment";
   description =
-    "Book a discovery call or appointment in the gym's GoHighLevel calendar. Use this when a lead wants to schedule a call or gym tour.";
+    "Book a discovery call or appointment in the gym's GoHighLevel calendar. IMPORTANT: Use this tool whenever discussing appointment times - when a lead requests a time, confirms a time, changes a time, or agrees to a specific appointment slot. Examples: 'Can you book me in for 10am?', 'Let's do 2pm instead', 'Yes, tomorrow at 1pm works', 'I'm free at 3pm'.";
   category = "gohighlevel" as const;
 
   parametersSchema = z.object({
