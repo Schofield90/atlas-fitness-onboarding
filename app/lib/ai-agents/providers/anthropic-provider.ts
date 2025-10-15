@@ -118,15 +118,8 @@ export class AnthropicProvider {
     } catch (error: any) {
       const executionTimeMs = Date.now() - startTime;
 
-      // Enhanced error logging for debugging
-      console.error('[AnthropicProvider] Execution failed:', {
-        errorMessage: error.message,
-        errorType: error.constructor?.name,
-        errorStatus: error.status,
-        errorCode: error.code,
-        model: options.model,
-        hasApiKey: !!process.env.ANTHROPIC_API_KEY,
-      });
+      // Log error with useful context
+      console.error('[AnthropicProvider] Execution failed:', error.message);
 
       return {
         success: false,

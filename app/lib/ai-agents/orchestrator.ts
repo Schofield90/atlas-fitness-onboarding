@@ -426,10 +426,6 @@ export class AgentOrchestrator {
     cost: CostCalculation;
     error?: string;
   }> {
-    // Debug: Check if API key exists
-    console.log('[Orchestrator] ANTHROPIC_API_KEY exists:', !!process.env.ANTHROPIC_API_KEY);
-    console.log('[Orchestrator] ANTHROPIC_API_KEY length:', process.env.ANTHROPIC_API_KEY?.length || 0);
-
     const provider = new AnthropicProvider();
 
     // Load system prompt with SOPs appended
@@ -437,6 +433,16 @@ export class AgentOrchestrator {
 
     const messages = messageHistory
       .filter((msg) => msg.role !== "system")
+      .filter((msg) => {
+        // Anthropic requires all messages to have non-empty content
+        // (except the optional final assistant message)
+        // Filter out messages with null/empty content
+        if (!msg.content || msg.content.trim() === "") {
+          console.log(`[Orchestrator] Skipping message with empty content (role: ${msg.role})`);
+          return false;
+        }
+        return true;
+      })
       .map((msg) => {
         if (msg.role === "tool") {
           return {
@@ -453,7 +459,7 @@ export class AgentOrchestrator {
 
         return {
           role: msg.role as "user" | "assistant",
-          content: msg.content || "",
+          content: msg.content,
         };
       });
 
