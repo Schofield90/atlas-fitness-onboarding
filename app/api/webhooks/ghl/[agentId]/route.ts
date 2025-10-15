@@ -96,28 +96,31 @@ export async function POST(
     const contactId = payload.contact_id || payload.contactId;
 
     // Try multiple fields for message content:
-    // - body: inbound SMS/messages
+    // - message.body: inbound SMS/messages (nested object)
+    // - body: alternative inbound field
     // - text: alternative inbound message field
     // - messageBody: another GHL field
-    // - customData.message: workflow/form submissions
-    // - message: fallback generic field
+    // - customData.message: workflow/form submissions (generic notification)
     const message =
+      (typeof payload.message === 'object' && payload.message?.body) ||
       payload.body ||
       payload.text ||
       payload.messageBody ||
-      payload.customData?.message ||
-      payload.message;
+      (typeof payload.message === 'string' ? payload.message : null) ||
+      payload.customData?.message;
 
     const contactName = payload.full_name || payload.contact_name || payload.name || "Unknown";
     const contactEmail = payload.email || payload.contact_email;
     const contactPhone = payload.phone || payload.contact_phone;
 
     console.log("[GHL Webhook] Extracted message from:", {
+      hasMessageBody: !!(typeof payload.message === 'object' && payload.message?.body),
       hasBody: !!payload.body,
       hasText: !!payload.text,
-      hasMessageBody: !!payload.messageBody,
+      hasMessageBodyField: !!payload.messageBody,
+      hasMessageString: typeof payload.message === 'string',
       hasCustomDataMessage: !!payload.customData?.message,
-      hasMessage: !!payload.message,
+      actualMessage: typeof payload.message === 'object' ? payload.message?.body : payload.message,
       finalMessage: message?.substring(0, 50) + '...',
     });
 
