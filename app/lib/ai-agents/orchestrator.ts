@@ -543,6 +543,9 @@ export class AgentOrchestrator {
           );
 
           console.log(`[Orchestrator] Tool result:`, toolResult.success ? 'SUCCESS' : 'FAILED');
+          if (!toolResult.success) {
+            console.log(`[Orchestrator] Tool error details:`, JSON.stringify(toolResult, null, 2));
+          }
 
           // Add tool result to messages
           followUpMessages.push({
@@ -551,6 +554,7 @@ export class AgentOrchestrator {
               type: "tool_result" as const,
               tool_use_id: toolUse.id,
               content: JSON.stringify(toolResult),
+              is_error: !toolResult.success, // Mark as error so Claude knows it failed
             }],
           });
         } catch (error: any) {
