@@ -101,6 +101,42 @@ export class AgentOrchestrator {
   private toolRegistry = new ToolRegistry();
 
   /**
+   * Load agent's system prompt with appended SOPs (Standard Operating Procedures)
+   */
+  private async loadAgentSystemPrompt(agentId: string, basePrompt: string): Promise<string> {
+    try {
+      // Fetch SOPs linked to this agent via agent_sops junction table
+      const { data: agentSops, error: sopsError } = await this.supabase
+        .from('agent_sops')
+        .select(`
+          sop_id,
+          sort_order,
+          sop:sops(*)
+        `)
+        .eq('agent_id', agentId)
+        .order('sort_order', { ascending: true });
+
+      if (sopsError || !agentSops || agentSops.length === 0) {
+        // No SOPs configured, use base prompt only
+        return basePrompt;
+      }
+
+      // Concatenate SOPs in order
+      const sopContents = agentSops
+        .map((item: any) => item.sop?.content)
+        .filter(Boolean)
+        .join('\n\n---\n\n');
+
+      // Append SOPs to base prompt
+      return `${basePrompt}\n\n---\n\n## STANDARD OPERATING PROCEDURES (SOPs)\n\nFollow these procedures when responding to leads:\n\n${sopContents}`;
+    } catch (error) {
+      console.error('[Orchestrator] Error loading SOPs:', error);
+      // If SOP loading fails, use base prompt only
+      return basePrompt;
+    }
+  }
+
+  /**
    * Execute a conversation message with an AI agent
    */
   async executeConversationMessage(
@@ -339,8 +375,11 @@ export class AgentOrchestrator {
   }> {
     const provider = new OpenAIProvider();
 
+    // Load system prompt with SOPs appended
+    const systemPrompt = await this.loadAgentSystemPrompt(agent.id, agent.system_prompt);
+
     const messages = [
-      { role: "system" as const, content: agent.system_prompt },
+      { role: "system" as const, content: systemPrompt },
       ...messageHistory.map((msg) => ({
         role: msg.role as "user" | "assistant" | "system" | "tool",
         content: msg.content || null,
@@ -389,6 +428,9 @@ export class AgentOrchestrator {
   }> {
     const provider = new AnthropicProvider();
 
+    // Load system prompt with SOPs appended
+    const systemPrompt = await this.loadAgentSystemPrompt(agent.id, agent.system_prompt);
+
     const messages = messageHistory
       .filter((msg) => msg.role !== "system")
       .map((msg) => {
@@ -415,7 +457,7 @@ export class AgentOrchestrator {
       model: agent.model,
       temperature: agent.temperature ?? 0.7,
       max_tokens: agent.max_tokens ?? 4096,
-      system: agent.system_prompt,
+      system: systemPrompt,
       tools: tools.length > 0 ? tools : undefined,
     });
 
@@ -603,11 +645,14 @@ export class AgentOrchestrator {
       const provider = new OpenAIProvider();
       const tools = this.toolRegistry.getToolsForOpenAI(agent.allowed_tools);
 
+      // Load system prompt with SOPs appended
+      const systemPrompt = await this.loadAgentSystemPrompt(agent.id, agent.system_prompt);
+
       const response = await provider.execute(
         [
           {
             role: "system",
-            content: agent.system_prompt,
+            content: systemPrompt,
           },
           {
             role: "user",
@@ -638,6 +683,9 @@ export class AgentOrchestrator {
       const provider = new AnthropicProvider();
       const tools = this.toolRegistry.getToolsForAnthropic(agent.allowed_tools);
 
+      // Load system prompt with SOPs appended
+      const systemPrompt = await this.loadAgentSystemPrompt(agent.id, agent.system_prompt);
+
       const response = await provider.execute(
         [
           {
@@ -649,7 +697,7 @@ export class AgentOrchestrator {
           model: agent.model,
           max_tokens: agent.max_tokens,
           temperature: agent.temperature,
-          system: agent.system_prompt,
+          system: systemPrompt,
           tools: tools.length > 0 ? tools : undefined,
         },
       );
