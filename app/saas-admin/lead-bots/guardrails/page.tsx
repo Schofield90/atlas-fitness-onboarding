@@ -248,6 +248,55 @@ export default function GuardrailsPage() {
     return GUARDRAIL_TYPES.find(t => t.value === type) || GUARDRAIL_TYPES[0];
   }
 
+  /**
+   * Convert guardrail config to natural language description
+   */
+  function formatConfigAsNaturalLanguage(type: string, config: Record<string, any>): string {
+    try {
+      switch (type) {
+        case "tag_blocker":
+          const tags = config.blocked_tags?.join('", "') || "";
+          const matchType = config.match_type === "exact" ? "exactly match" : "contain";
+          return `Blocks messages when contact has tags that ${matchType}: "${tags}"`;
+
+        case "business_hours":
+          const tz = config.timezone || "UTC";
+          const days = Object.entries(config.schedule || {})
+            .filter(([_, settings]: [string, any]) => settings.enabled)
+            .map(([day, settings]: [string, any]) =>
+              `${day.charAt(0).toUpperCase() + day.slice(1)} ${settings.start}-${settings.end}`
+            );
+          return `Only sends messages during:\n${days.join("\n")}\nTimezone: ${tz}`;
+
+        case "rate_limit":
+          const perDay = config.max_messages_per_day || "unlimited";
+          const perHour = config.max_messages_per_hour || "unlimited";
+          const cooldown = config.min_minutes_between_messages || 0;
+          return `Limits: ${perDay} messages/day, ${perHour} messages/hour\nCooldown: ${cooldown} minutes between messages`;
+
+        case "lead_status":
+          const allowed = config.allowed_statuses?.join(", ") || "none";
+          const blocked = config.blocked_statuses?.join(", ") || "none";
+          return `Allowed statuses: ${allowed}\nBlocked statuses: ${blocked}`;
+
+        case "human_takeover":
+          const cooldownMins = config.cooldown_minutes || 30;
+          const detect = config.detect_manual_messages ? "Yes" : "No";
+          return `Pauses AI for ${cooldownMins} minutes after staff message\nAuto-detect manual messages: ${detect}`;
+
+        case "conversation_status":
+          const allowedConv = config.allowed_statuses?.join(", ") || "none";
+          const blockedConv = config.blocked_statuses?.join(", ") || "none";
+          return `Allowed: ${allowedConv}\nBlocked: ${blockedConv}`;
+
+        default:
+          return JSON.stringify(config, null, 2);
+      }
+    } catch (error) {
+      return "Configuration error - click edit to review";
+    }
+  }
+
   function handleTypeChange(type: string) {
     // Set default config based on type
     let defaultConfig = {};
@@ -417,9 +466,9 @@ export default function GuardrailsPage() {
                 )}
 
                 <div className="bg-gray-900 rounded p-3 mb-3">
-                  <pre className="text-xs text-gray-300 whitespace-pre-wrap line-clamp-4">
-                    {JSON.stringify(guardrail.config, null, 2)}
-                  </pre>
+                  <div className="text-sm text-gray-300 whitespace-pre-line">
+                    {formatConfigAsNaturalLanguage(guardrail.type, guardrail.config)}
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between text-xs">
