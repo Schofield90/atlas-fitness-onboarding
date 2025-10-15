@@ -96,7 +96,7 @@ export default function GuardrailsPage() {
   async function fetchGuardrails() {
     try {
       setLoading(true);
-      const response = await fetch('/api/guardrails');
+      const response = await fetch('/api/saas-admin/lead-bots/guardrails');
       if (response.ok) {
         const { data } = await response.json();
         setGuardrails(data || []);
@@ -162,19 +162,21 @@ export default function GuardrailsPage() {
         type: formData.type,
         config: parsedConfig,
         enabled: formData.enabled,
+        // TODO: Add organization selector in UI - for now using GymLeadHub org
+        organizationId: "0ef8a082-4458-400a-8c50-75b47e461f91",
       };
 
       let response;
       if (editingGuardrail) {
         // Update existing guardrail
-        response = await fetch(`/api/guardrails/${editingGuardrail.id}`, {
+        response = await fetch(`/api/saas-admin/lead-bots/guardrails`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({ ...payload, id: editingGuardrail.id }),
         });
       } else {
         // Create new guardrail
-        response = await fetch("/api/guardrails", {
+        response = await fetch("/api/saas-admin/lead-bots/guardrails", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -205,7 +207,7 @@ export default function GuardrailsPage() {
     }
 
     try {
-      const response = await fetch(`/api/guardrails/${id}`, {
+      const response = await fetch(`/api/saas-admin/lead-bots/guardrails?id=${id}`, {
         method: "DELETE"
       });
 
@@ -224,10 +226,10 @@ export default function GuardrailsPage() {
 
   async function toggleEnabled(guardrail: Guardrail) {
     try {
-      const response = await fetch(`/api/guardrails/${guardrail.id}`, {
+      const response = await fetch(`/api/saas-admin/lead-bots/guardrails`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled: !guardrail.enabled }),
+        body: JSON.stringify({ id: guardrail.id, enabled: !guardrail.enabled }),
       });
 
       if (!response.ok) {
