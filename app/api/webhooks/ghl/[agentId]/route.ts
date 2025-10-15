@@ -209,11 +209,16 @@ export async function POST(
     // 6. Check guardrails before allowing AI to respond
     console.log(`[GHL Webhook] Checking guardrails for agent ${agentId}...`);
 
+    // Handle tags - can be either string (comma-separated) or array
+    const ghlTags = Array.isArray(payload.tags)
+      ? payload.tags.join(',')
+      : (payload.tags || '');
+
     const guardrailCheck = await checkAgentGuardrails({
       agentId,
       leadId,
       conversationId,
-      ghlTags: (payload.tags || []).join(','), // Convert array to comma-separated string
+      ghlTags,
       contactPhone,
       organizationId: agent.organization_id,
       supabase,
