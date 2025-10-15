@@ -113,11 +113,17 @@ export class BookGHLAppointmentTool extends BaseTool {
         };
       }
 
+      // Parse natural language date to ISO format
+      const parsedDate = this.parseDate(validated.preferredDate);
+
+      // Parse natural language time to 24-hour format
+      const parsedTime = this.parseTime(validated.preferredTime);
+
       // Get available slots from GHL calendar
       const availableSlots = await this.getAvailableSlots(
         apiKey,
         calendarId,
-        validated.preferredDate,
+        parsedDate,
       );
 
       if (availableSlots.length === 0) {
@@ -131,10 +137,11 @@ export class BookGHLAppointmentTool extends BaseTool {
       }
 
       // Book the appointment (first available slot if no specific time preference)
-      const selectedSlot = validated.preferredTime
-        ? availableSlots.find(
-            (slot) => slot.startTime === validated.preferredTime,
-          ) || availableSlots[0]
+      const selectedSlot = parsedTime
+        ? availableSlots.find((slot) => {
+            const slotTime = new Date(slot.startTime).toTimeString().slice(0, 5);
+            return slotTime === parsedTime;
+          }) || availableSlots[0]
         : availableSlots[0];
 
       const appointment = await this.bookAppointment(
@@ -251,6 +258,78 @@ export class BookGHLAppointmentTool extends BaseTool {
       hour: "numeric",
       minute: "2-digit",
     });
+  }
+
+  /**
+   * Parse natural language date to ISO format (YYYY-MM-DD)
+   * Handles: "tomorrow", "today", "2025-10-16", null/undefined
+   */
+  private parseDate(dateInput?: string): string {
+    if (!dateInput) {
+      // Default to tomorrow
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return tomorrow.toISOString().split("T")[0];
+    }
+
+    const input = dateInput.toLowerCase().trim();
+
+    // Handle common natural language
+    if (input === "today") {
+      return new Date().toISOString().split("T")[0];
+    }
+
+    if (input === "tomorrow") {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return tomorrow.toISOString().split("T")[0];
+    }
+
+    // Already in ISO format
+    if (/^\d{4}-\d{2}-\d{2}$/.test(input)) {
+      return input;
+    }
+
+    // Default to tomorrow if can't parse
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split("T")[0];
+  }
+
+  /**
+   * Parse natural language time to 24-hour HH:MM format
+   * Handles: "2pm", "14:00", "2:30pm", "10am", null/undefined
+   */
+  private parseTime(timeInput?: string): string | undefined {
+    if (!timeInput) {
+      return undefined;
+    }
+
+    const input = timeInput.toLowerCase().trim();
+
+    // Already in 24-hour format (HH:MM)
+    if (/^\d{1,2}:\d{2}$/.test(input)) {
+      const [hours, minutes] = input.split(":");
+      return `${hours.padStart(2, "0")}:${minutes}`;
+    }
+
+    // Parse 12-hour format with am/pm
+    const match = input.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
+    if (match) {
+      let hours = parseInt(match[1]);
+      const minutes = match[2] || "00";
+      const period = match[3]?.toLowerCase();
+
+      if (period === "pm" && hours !== 12) {
+        hours += 12;
+      } else if (period === "am" && hours === 12) {
+        hours = 0;
+      }
+
+      return `${hours.toString().padStart(2, "0")}:${minutes}`;
+    }
+
+    return undefined;
   }
 }
 
