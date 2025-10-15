@@ -36,10 +36,10 @@ import crypto from "crypto";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { agentId: string } }
+  { params }: { params: Promise<{ agentId: string }> }
 ) {
   try {
-    const { agentId } = params;
+    const { agentId } = await params;
 
     // Extract GoHighLevel headers
     const ghlSignature = request.headers.get("x-gohighlevel-signature");
@@ -368,9 +368,9 @@ function verifyGHLSignature(
 // Health check endpoint
 export async function GET(
   request: NextRequest,
-  { params }: { params: { agentId: string } }
+  { params }: { params: Promise<{ agentId: string }> }
 ) {
-  const { agentId } = params;
+  const { agentId } = await params;
   const supabase = createAdminClient();
 
   const { data: agent } = await supabase

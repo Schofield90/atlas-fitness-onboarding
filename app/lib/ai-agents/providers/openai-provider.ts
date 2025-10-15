@@ -44,6 +44,7 @@ export class OpenAIProvider {
   constructor(apiKey?: string) {
     this.client = new OpenAI({
       apiKey: apiKey || process.env.OPENAI_API_KEY,
+      dangerouslyAllowBrowser: true, // Safe: This runs server-side only in API routes/webhooks
     });
   }
 
