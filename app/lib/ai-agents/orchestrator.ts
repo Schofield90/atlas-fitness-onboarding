@@ -426,6 +426,10 @@ export class AgentOrchestrator {
     cost: CostCalculation;
     error?: string;
   }> {
+    // Debug: Check if API key exists
+    console.log('[Orchestrator] ANTHROPIC_API_KEY exists:', !!process.env.ANTHROPIC_API_KEY);
+    console.log('[Orchestrator] ANTHROPIC_API_KEY length:', process.env.ANTHROPIC_API_KEY?.length || 0);
+
     const provider = new AnthropicProvider();
 
     // Load system prompt with SOPs appended
