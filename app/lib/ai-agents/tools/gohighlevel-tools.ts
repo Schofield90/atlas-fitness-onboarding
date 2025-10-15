@@ -197,22 +197,46 @@ export class BookGHLAppointmentTool extends BaseTool {
   ): Promise<Array<{ startTime: string; endTime: string }>> {
     const date = preferredDate || new Date().toISOString().split("T")[0];
 
+    // Convert date to Unix timestamps (milliseconds) for GHL v2 API
+    const dateObj = new Date(date);
+    dateObj.setHours(0, 0, 0, 0);
+    const startDate = dateObj.getTime();
+    const endDate = startDate + (24 * 60 * 60 * 1000) - 1;
+
+    // Use GHL v2 API (services.leadconnectorhq.com)
     const response = await fetch(
-      `https://rest.gohighlevel.com/v1/calendars/${calendarId}/free-slots?date=${date}`,
+      `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots?startDate=${startDate}&endDate=${endDate}`,
       {
         headers: {
           Authorization: `Bearer ${apiKey}`,
+          Version: "2021-07-28",
           "Content-Type": "application/json",
         },
       },
     );
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch calendar slots: ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch calendar slots: ${response.statusText} - ${errorText}`);
     }
 
     const data = await response.json();
-    return data.slots || [];
+
+    // GHL v2 API returns: { "2025-10-16": { "slots": ["2025-10-16T10:00:00+01:00", ...] } }
+    // Convert to array of { startTime, endTime } objects
+    const slots: Array<{ startTime: string; endTime: string }> = [];
+    for (const [dateKey, dateData] of Object.entries(data)) {
+      if (dateKey === "traceId") continue; // Skip metadata
+      const slotTimes = (dateData as any).slots || [];
+      for (let i = 0; i < slotTimes.length; i++) {
+        const startTime = slotTimes[i];
+        // Assume 15-minute slots if no end time specified
+        const endTime = slotTimes[i + 1] || new Date(new Date(startTime).getTime() + 15 * 60 * 1000).toISOString();
+        slots.push({ startTime, endTime });
+      }
+    }
+
+    return slots;
   }
 
   private async bookAppointment(
@@ -223,18 +247,20 @@ export class BookGHLAppointmentTool extends BaseTool {
     appointmentType: string,
     notes?: string,
   ): Promise<any> {
+    // Use GHL v2 API for booking appointments
     const response = await fetch(
-      `https://rest.gohighlevel.com/v1/calendars/${calendarId}/appointments`,
+      `https://services.leadconnectorhq.com/calendars/events/appointments`,
       {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
+          Version: "2021-07-28",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          calendarId,
           contactId,
           startTime: slot.startTime,
-          endTime: slot.endTime,
           title: appointmentType.replace("_", " "),
           appointmentStatus: "confirmed",
           notes: notes || `Booked via AI agent`,
@@ -243,7 +269,8 @@ export class BookGHLAppointmentTool extends BaseTool {
     );
 
     if (!response.ok) {
-      throw new Error(`Failed to book appointment: ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`Failed to book appointment: ${response.statusText} - ${errorText}`);
     }
 
     return response.json();
