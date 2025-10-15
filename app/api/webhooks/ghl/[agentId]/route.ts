@@ -93,14 +93,36 @@ export async function POST(
     }
 
     // 3. Extract contact and message data from GHL payload
-    const contactId = payload.contact_id;
-    const message = payload.customData?.message || payload.message;
-    const contactName = payload.full_name || payload.contact_name || "Unknown";
+    const contactId = payload.contact_id || payload.contactId;
+
+    // Try multiple fields for message content:
+    // - body: inbound SMS/messages
+    // - text: alternative inbound message field
+    // - messageBody: another GHL field
+    // - customData.message: workflow/form submissions
+    // - message: fallback generic field
+    const message =
+      payload.body ||
+      payload.text ||
+      payload.messageBody ||
+      payload.customData?.message ||
+      payload.message;
+
+    const contactName = payload.full_name || payload.contact_name || payload.name || "Unknown";
     const contactEmail = payload.email || payload.contact_email;
     const contactPhone = payload.phone || payload.contact_phone;
 
+    console.log("[GHL Webhook] Extracted message from:", {
+      hasBody: !!payload.body,
+      hasText: !!payload.text,
+      hasMessageBody: !!payload.messageBody,
+      hasCustomDataMessage: !!payload.customData?.message,
+      hasMessage: !!payload.message,
+      finalMessage: message?.substring(0, 50) + '...',
+    });
+
     if (!contactId || !message) {
-      console.error("[GHL Webhook] Missing required fields:", { contactId, message });
+      console.error("[GHL Webhook] Missing required fields:", { contactId, message, payload });
       return NextResponse.json(
         { error: "Missing required fields: contact_id and message" },
         { status: 400 }
