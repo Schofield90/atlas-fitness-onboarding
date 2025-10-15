@@ -24,23 +24,17 @@ export class BookGHLAppointmentTool extends BaseTool {
   category = "gohighlevel" as const;
 
   parametersSchema = z.object({
-    contactId: z
-      .string()
-      .describe("GoHighLevel contact ID (from lead metadata)"),
-    calendarId: z
-      .string()
-      .describe("GoHighLevel calendar ID to book on"),
     appointmentType: z
       .enum(["discovery_call", "gym_tour", "consultation"])
       .describe("Type of appointment to book"),
     preferredDate: z
       .string()
       .optional()
-      .describe("ISO date string for preferred appointment date"),
+      .describe("ISO date string (YYYY-MM-DD) - defaults to tomorrow if not specified"),
     preferredTime: z
       .string()
       .optional()
-      .describe("Time in HH:MM format (24-hour)"),
+      .describe("Time in HH:MM format (24-hour) like 10:00 for 10am"),
     notes: z
       .string()
       .optional()
@@ -59,18 +53,15 @@ export class BookGHLAppointmentTool extends BaseTool {
     try {
       const supabase = createAdminClient();
 
-      // Get agent's GHL API key from metadata
+      // Get agent's GHL configuration
       const { data: agent } = await supabase
         .from("ai_agents")
-        .select("metadata, ghl_calendar_id")
+        .select("metadata, ghl_calendar_id, ghl_api_key")
         .eq("id", context.agentId)
         .single();
 
-      const apiKey = agent?.metadata?.gohighlevel_api_key;
-      const calendarId =
-        agent?.ghl_calendar_id ||
-        agent?.metadata?.gohighlevel_calendar_id ||
-        validated.calendarId;
+      const apiKey = agent?.ghl_api_key || agent?.metadata?.gohighlevel_api_key;
+      const calendarId = agent?.ghl_calendar_id;
 
       if (!apiKey) {
         return {
@@ -83,6 +74,42 @@ export class BookGHLAppointmentTool extends BaseTool {
         return {
           success: false,
           error: "Calendar ID not configured. Please configure a calendar for this agent in Settings.",
+        };
+      }
+
+      // Get contactId from conversation → lead → metadata
+      if (!context.conversationId) {
+        return {
+          success: false,
+          error: "No conversation context - cannot determine contact ID",
+        };
+      }
+
+      const { data: conversation } = await supabase
+        .from("ai_agent_conversations")
+        .select("lead_id")
+        .eq("id", context.conversationId)
+        .single();
+
+      if (!conversation?.lead_id) {
+        return {
+          success: false,
+          error: "No lead associated with this conversation",
+        };
+      }
+
+      const { data: lead } = await supabase
+        .from("leads")
+        .select("metadata")
+        .eq("id", conversation.lead_id)
+        .single();
+
+      const contactId = lead?.metadata?.ghl_contact_id;
+
+      if (!contactId) {
+        return {
+          success: false,
+          error: "No GoHighLevel contact ID found for this lead",
         };
       }
 
@@ -113,7 +140,7 @@ export class BookGHLAppointmentTool extends BaseTool {
       const appointment = await this.bookAppointment(
         apiKey,
         calendarId,
-        validated.contactId,
+        contactId,
         selectedSlot,
         validated.appointmentType,
         validated.notes,
@@ -130,7 +157,7 @@ export class BookGHLAppointmentTool extends BaseTool {
             appointment_type: validated.appointmentType,
           },
         })
-        .eq("metadata->>ghl_contact_id", validated.contactId);
+        .eq("metadata->>ghl_contact_id", contactId);
 
       return {
         success: true,
