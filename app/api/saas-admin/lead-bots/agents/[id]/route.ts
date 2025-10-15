@@ -13,7 +13,21 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const body = await request.json();
+
+    // Read request body with error handling
+    let body;
+    try {
+      const text = await request.text();
+      body = text ? JSON.parse(text) : {};
+    } catch (parseError) {
+      console.error('[Update Agent API] JSON parse error:', parseError);
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
+        { status: 400 }
+      );
+    }
+
+    console.log('[Update Agent API] Request body:', JSON.stringify(body, null, 2));
 
     const supabaseAdmin = createAdminClient();
 
@@ -29,6 +43,9 @@ export async function PATCH(
     if (body.temperature !== undefined) updateData.temperature = body.temperature;
     if (body.max_tokens !== undefined) updateData.max_tokens = body.max_tokens;
     if (body.enabled !== undefined) updateData.enabled = body.enabled;
+    if (body.metadata !== undefined) updateData.metadata = body.metadata;
+
+    console.log('[Update Agent API] Update data:', JSON.stringify(updateData, null, 2));
 
     const { error } = await supabaseAdmin
       .from('ai_agents')

@@ -23,6 +23,9 @@ interface AIAgent {
   enabled: boolean;
   role: string;
   allowedTools: string[];
+  ghlLocationId?: string;
+  ghlApiKey?: string;
+  ghlCalendarId?: string;
 }
 
 function AgentsPageContent() {
@@ -72,6 +75,11 @@ function AgentsPageContent() {
           temperature: editingAgent.temperature,
           max_tokens: editingAgent.maxTokens,
           enabled: editingAgent.enabled,
+          metadata: {
+            gohighlevel_location_id: editingAgent.ghlLocationId || null,
+            gohighlevel_api_key: editingAgent.ghlApiKey || null,
+            gohighlevel_calendar_id: editingAgent.ghlCalendarId || null,
+          },
         }),
       });
 
@@ -335,6 +343,54 @@ function AgentsPageContent() {
                   className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
                   placeholder="You are a friendly AI assistant for [Gym Name]..."
                 />
+              </div>
+
+              <div className="border-t border-gray-700 pt-6">
+                <h4 className="text-lg font-semibold text-white mb-4">GoHighLevel Settings</h4>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      GHL Location ID
+                    </label>
+                    <input
+                      type="text"
+                      value={editingAgent.ghlLocationId || ''}
+                      onChange={(e) => setEditingAgent({ ...editingAgent, ghlLocationId: e.target.value })}
+                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      placeholder="e.g., nwQfHCknxxxxxxxxxxxxx"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      GHL API Key
+                    </label>
+                    <input
+                      type="password"
+                      value={editingAgent.ghlApiKey || ''}
+                      onChange={(e) => setEditingAgent({ ...editingAgent, ghlApiKey: e.target.value })}
+                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      placeholder="sk_xxxxxxxxxxxxxxxxxxxxxxxx"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      GHL Calendar ID
+                      <span className="ml-2 text-xs text-gray-500 font-normal">(Optional - for booking appointments)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={editingAgent.ghlCalendarId || ''}
+                      onChange={(e) => setEditingAgent({ ...editingAgent, ghlCalendarId: e.target.value })}
+                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      placeholder="e.g., ocQGVDtRMxxxxxxxxxxxxx"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Find in GoHighLevel → Calendars → Click calendar → Copy ID from URL
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <div className="flex items-center">

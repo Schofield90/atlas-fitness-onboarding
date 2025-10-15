@@ -59,24 +59,37 @@ export class BookGHLAppointmentTool extends BaseTool {
     try {
       const supabase = createAdminClient();
 
-      // Get agent's GHL API key
+      // Get agent's GHL API key from metadata
       const { data: agent } = await supabase
         .from("ai_agents")
-        .select("ghl_api_key")
+        .select("metadata, ghl_calendar_id")
         .eq("id", context.agentId)
         .single();
 
-      if (!agent?.ghl_api_key) {
+      const apiKey = agent?.metadata?.gohighlevel_api_key;
+      const calendarId =
+        agent?.ghl_calendar_id ||
+        agent?.metadata?.gohighlevel_calendar_id ||
+        validated.calendarId;
+
+      if (!apiKey) {
         return {
           success: false,
           error: "GoHighLevel API key not configured for this agent",
         };
       }
 
+      if (!calendarId) {
+        return {
+          success: false,
+          error: "Calendar ID not configured. Please configure a calendar for this agent in Settings.",
+        };
+      }
+
       // Get available slots from GHL calendar
       const availableSlots = await this.getAvailableSlots(
-        agent.ghl_api_key,
-        validated.calendarId,
+        apiKey,
+        calendarId,
         validated.preferredDate,
       );
 
@@ -98,8 +111,8 @@ export class BookGHLAppointmentTool extends BaseTool {
         : availableSlots[0];
 
       const appointment = await this.bookAppointment(
-        agent.ghl_api_key,
-        validated.calendarId,
+        apiKey,
+        calendarId,
         validated.contactId,
         selectedSlot,
         validated.appointmentType,
@@ -250,14 +263,16 @@ export class UpdateGHLContactTool extends BaseTool {
     try {
       const supabase = createAdminClient();
 
-      // Get agent's GHL API key
+      // Get agent's GHL API key from metadata
       const { data: agent } = await supabase
         .from("ai_agents")
-        .select("ghl_api_key")
+        .select("metadata")
         .eq("id", context.agentId)
         .single();
 
-      if (!agent?.ghl_api_key) {
+      const apiKey = agent?.metadata?.gohighlevel_api_key;
+
+      if (!apiKey) {
         return {
           success: false,
           error: "GoHighLevel API key not configured",
@@ -270,7 +285,7 @@ export class UpdateGHLContactTool extends BaseTool {
         {
           method: "PUT",
           headers: {
-            Authorization: `Bearer ${agent.ghl_api_key}`,
+            Authorization: `Bearer ${apiKey}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify(validated.updates),
@@ -329,13 +344,16 @@ export class AddGHLTagsTool extends BaseTool {
     try {
       const supabase = createAdminClient();
 
+      // Get agent's GHL API key from metadata
       const { data: agent } = await supabase
         .from("ai_agents")
-        .select("ghl_api_key")
+        .select("metadata")
         .eq("id", context.agentId)
         .single();
 
-      if (!agent?.ghl_api_key) {
+      const apiKey = agent?.metadata?.gohighlevel_api_key;
+
+      if (!apiKey) {
         return {
           success: false,
           error: "GoHighLevel API key not configured",
@@ -348,7 +366,7 @@ export class AddGHLTagsTool extends BaseTool {
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${agent.ghl_api_key}`,
+            Authorization: `Bearer ${apiKey}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ tags: validated.tags }),
@@ -418,13 +436,16 @@ export class UpdateGHLOpportunityTool extends BaseTool {
     try {
       const supabase = createAdminClient();
 
+      // Get agent's GHL API key from metadata
       const { data: agent } = await supabase
         .from("ai_agents")
-        .select("ghl_api_key")
+        .select("metadata")
         .eq("id", context.agentId)
         .single();
 
-      if (!agent?.ghl_api_key) {
+      const apiKey = agent?.metadata?.gohighlevel_api_key;
+
+      if (!apiKey) {
         return {
           success: false,
           error: "GoHighLevel API key not configured",
@@ -436,7 +457,7 @@ export class UpdateGHLOpportunityTool extends BaseTool {
         {
           method: "PUT",
           headers: {
-            Authorization: `Bearer ${agent.ghl_api_key}`,
+            Authorization: `Bearer ${apiKey}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({

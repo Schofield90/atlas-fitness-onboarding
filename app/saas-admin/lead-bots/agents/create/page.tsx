@@ -26,6 +26,7 @@ export default function CreateAgentPage() {
     organization_id: "", // For super admins to select
     ghlLocationId: "",
     ghlApiKey: "",
+    ghlCalendarId: "",
   });
 
   // Check if user is super admin and fetch organizations
@@ -125,6 +126,7 @@ export default function CreateAgentPage() {
         metadata: {
           gohighlevel_location_id: formData.ghlLocationId,
           gohighlevel_api_key: formData.ghlApiKey,
+          gohighlevel_calendar_id: formData.ghlCalendarId || null,
           integration_type: "gohighlevel_plugin",
         },
       };
@@ -295,6 +297,25 @@ export default function CreateAgentPage() {
               />
               <p className="text-xs text-gray-500 mt-1">
                 Create in GoHighLevel → Settings → API Key
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                GHL Calendar ID
+                <span className="ml-2 text-xs text-gray-500 font-normal">(Optional - for booking appointments)</span>
+              </label>
+              <input
+                type="text"
+                value={formData.ghlCalendarId}
+                onChange={(e) =>
+                  setFormData({ ...formData, ghlCalendarId: e.target.value })
+                }
+                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
+                placeholder="e.g., ocQGVDtRMxxxxxxxxxxxxx"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Find in GoHighLevel → Calendars → Click calendar → Copy ID from URL
               </p>
             </div>
           </div>

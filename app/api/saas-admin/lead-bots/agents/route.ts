@@ -143,6 +143,7 @@ export async function GET(request: NextRequest) {
         enabled,
         allowed_tools,
         organization_id,
+        metadata,
         organizations(name)
       `)
       .order('created_at', { ascending: false });
@@ -170,6 +171,9 @@ export async function GET(request: NextRequest) {
       enabled: agent.enabled,
       role: agent.role,
       allowedTools: agent.allowed_tools || [],
+      ghlLocationId: agent.metadata?.gohighlevel_location_id || '',
+      ghlApiKey: agent.metadata?.gohighlevel_api_key || '',
+      ghlCalendarId: agent.metadata?.gohighlevel_calendar_id || '',
     }));
 
     return NextResponse.json({
