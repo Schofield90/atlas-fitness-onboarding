@@ -28,6 +28,9 @@ export interface OpenAIExecutionOptions {
     | "auto"
     | "required"
     | { type: "function"; function: { name: string } };
+  // GPT-5 specific parameters
+  reasoning_effort?: "low" | "medium" | "high";
+  verbosity?: "low" | "medium" | "high";
 }
 
 export interface OpenAIExecutionResult {
@@ -100,6 +103,11 @@ export class OpenAIProvider {
           : { max_tokens: options.max_tokens ?? 4096 }),
         tools: options.tools,
         tool_choice: options.tool_choice,
+        // GPT-5 optimization: Control reasoning depth and response length
+        ...(options.model.startsWith("gpt-5") && {
+          reasoning_effort: options.reasoning_effort ?? "medium", // Default: balanced speed/quality
+          verbosity: options.verbosity ?? "low", // Default: concise responses
+        }),
       });
 
       const executionTimeMs = Date.now() - startTime;
@@ -117,6 +125,13 @@ export class OpenAIProvider {
       // Debug logging for GPT-5 and reasoning models
       if (isNewerModel) {
         console.log(`[OpenAI Provider] Model: ${options.model}`);
+        if (options.model.startsWith("gpt-5")) {
+          console.log(`[OpenAI Provider] GPT-5 Settings:`, {
+            reasoning_effort: options.reasoning_effort ?? "medium",
+            verbosity: options.verbosity ?? "low",
+            max_completion_tokens: options.max_tokens ?? 4096,
+          });
+        }
         console.log(`[OpenAI Provider] Response message:`, {
           content: responseMessage?.content,
           refusal: responseMessage?.refusal,
@@ -191,6 +206,11 @@ export class OpenAIProvider {
         : { max_tokens: options.max_tokens ?? 4096 }),
       tools: options.tools,
       tool_choice: options.tool_choice,
+      // GPT-5 optimization: Control reasoning depth and response length
+      ...(options.model.startsWith("gpt-5") && {
+        reasoning_effort: options.reasoning_effort ?? "medium", // Default: balanced speed/quality
+        verbosity: options.verbosity ?? "low", // Default: concise responses
+      }),
       stream: true,
     });
 
